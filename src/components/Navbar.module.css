@@ -1,14 +1,13 @@
 .navbar {
     background-color: rgba(8, 9, 10, 0.85);
-    /* Restored semi-transparent background */
+    /* Dark semi-transparent */
     backdrop-filter: blur(12px);
     position: sticky;
     top: 0;
     z-index: 100;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    /* Subtler border */
-    padding: 1.5rem 0;
-    /* More vertical space */
+    padding: 1rem 0;
+    /* Slightly reduced for mobile friendliness */
 }
 
 .container {
@@ -18,16 +17,17 @@
 }
 
 .logo {
-    font-family: var(--font-heading);
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--color-primary);
-    text-decoration: none;
+    display: flex;
+    align-items: center;
+    z-index: 102;
+    /* Above mobile menu */
 }
 
+/* Desktop Links */
 .links {
     display: flex;
     gap: var(--spacing-md);
+    align-items: center;
 }
 
 .link {
@@ -35,6 +35,7 @@
     font-size: 0.95rem;
     opacity: 0.8;
     transition: opacity var(--transition-fast), color var(--transition-fast);
+    position: relative;
 }
 
 .link:hover {
@@ -42,9 +43,102 @@
     color: var(--color-primary);
 }
 
-@media (max-width: 768px) {
-    .links {
+.desktopCta {
+    display: block;
+}
+
+/* Hamburger Menu Icon */
+.hamburger {
+    display: none;
+    flex-direction: column;
+    justify-content: space-between;
+    width: 30px;
+    height: 21px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    z-index: 102;
+    /* Above mobile menu */
+}
+
+.bar {
+    width: 100%;
+    height: 3px;
+    background-color: var(--color-primary);
+    border-radius: 10px;
+    transition: all 0.3s linear;
+    transform-origin: 1px;
+}
+
+/* Hamburger Animation */
+.barOpen:nth-child(1) {
+    transform: rotate(45deg);
+}
+
+.barOpen:nth-child(2) {
+    opacity: 0;
+    transform: translateX(20px);
+}
+
+.barOpen:nth-child(3) {
+    transform: rotate(-45deg);
+}
+
+/* Mobile Menu Overlay */
+.mobileMenu {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    background-color: var(--color-background);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+    z-index: 101;
+    /* Below logo/hamburger but above page content */
+    padding: 2rem;
+}
+
+.mobileMenuOpen {
+    opacity: 1;
+    visibility: visible;
+}
+
+.mobileLinks {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    width: 100%;
+    max-width: 300px;
+    text-align: center;
+}
+
+.mobileLink {
+    color: var(--color-text-main);
+    font-size: 1.5rem;
+    font-weight: 500;
+    font-family: var(--font-heading);
+}
+
+.mobileLink:hover {
+    color: var(--color-primary);
+}
+
+
+/* Responsive Breakpoints */
+@media (max-width: 900px) {
+
+    .links,
+    .desktopCta {
         display: none;
-        /* Mobile menu implementation TODO */
+    }
+
+    .hamburger {
+        display: flex;
     }
 }
