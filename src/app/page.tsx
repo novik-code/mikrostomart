@@ -2,6 +2,7 @@ import Image from "next/image";
 import YouTubeFeed from "@/components/YouTubeFeed";
 import Link from "next/link";
 import RevealOnScroll from "@/components/RevealOnScroll";
+import BeforeAfterSlider from "@/components/BeforeAfterSlider";
 
 export default function Home() {
     return (
@@ -110,24 +111,23 @@ export default function Home() {
                         gap: "var(--spacing-xl)",
                         alignItems: "center"
                     }}>
+                        {/* Image/Slider Column */}
                         <div style={{ order: 2 }}>
-                            {/* Placeholder for Metamorphosis Image */}
                             <RevealOnScroll animation="blur-in">
                                 <div style={{
                                     width: "100%",
                                     height: "500px",
-                                    background: "#08090a",
                                     borderRadius: "var(--radius-md)",
                                     border: "1px solid var(--color-surface-hover)",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    color: "var(--color-text-muted)"
+                                    overflow: "hidden",
+                                    position: "relative"
                                 }}>
-                                    [METAMORFOZA - PRZED/PO]
+                                    <BeforeAfterSlider />
                                 </div>
                             </RevealOnScroll>
                         </div>
+
+                        {/* Text Column */}
                         <div style={{ order: 1 }}>
                             <RevealOnScroll>
                                 <h2 style={{ fontSize: "3rem", marginBottom: "var(--spacing-md)" }}>

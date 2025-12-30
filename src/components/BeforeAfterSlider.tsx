@@ -3,44 +3,18 @@
 import { useState, useRef, useEffect } from "react";
 
 export default function BeforeAfterSlider() {
-    // Start at 50%
     const [sliderPosition, setSliderPosition] = useState(50);
     const [isResizing, setIsResizing] = useState(false);
-    const [containerWidth, setContainerWidth] = useState(0);
     const containerRef = useRef<HTMLDivElement>(null);
 
     const handleStart = () => setIsResizing(true);
     const handleEnd = () => setIsResizing(false);
-
-    // Measure container width on mount and resize
-    useEffect(() => {
-        const updateWidth = () => {
-            if (containerRef.current) {
-                setContainerWidth(containerRef.current.offsetWidth);
-            }
-        };
-
-        // Run immediately
-        updateWidth();
-
-        // And on resize
-        window.addEventListener("resize", updateWidth);
-
-        // Double check a bit later in case layout shifts
-        const timer = setTimeout(updateWidth, 100);
-
-        return () => {
-            window.removeEventListener("resize", updateWidth);
-            clearTimeout(timer);
-        };
-    }, []);
 
     // Handle Dragging
     useEffect(() => {
         const handleMove = (clientX: number) => {
             if (!isResizing || !containerRef.current) return;
             const { left, width } = containerRef.current.getBoundingClientRect();
-            // Calculate percentage 0-100
             const newPos = ((clientX - left) / width) * 100;
             setSliderPosition(Math.min(100, Math.max(0, newPos)));
         };
@@ -100,25 +74,38 @@ export default function BeforeAfterSlider() {
                 </div>
             </div>
 
-            {/* 2. BEFORE Image (Clipped Layer - Width based on slider) */}
+            {/* 2. BEFORE Image (Clipped Layer) */}
             <div
                 style={{
                     position: "absolute",
                     top: 0, left: 0, height: "100%",
-                    width: `${sliderPosition}%`, // This width changes
-                    borderRight: "4px solid white",
+                    width: `${sliderPosition}%`,
+                    borderRight: "4px solid var(--color-primary)", // Gold Divider
                     overflow: "hidden",
                     zIndex: 10
                 }}
             >
                 {/* 
-                    INNER DIV TRICK:
-                    We set this div's width to match the PARENT container's total width.
-                    This way, the background image (cover) inside renders exactly the same size 
-                    as the one in the background layer, regardless of the clipping parent's width.
+                    CSS Trick for Inverse Width:
+                    If wrapper is X% wide, inner needs to be 100/X * 100 % wide to counteract it.
+                    We use a large fixed percentage as a fallback or the calc trick.
+                    Since we can't easily do 100/X in CSS calc() without unit compatibility issues in some cases,
+                    we will stick to the '100vw' approach but constrained by max-width if possible,
+                    OR better: revert to simple logic provided the containerWidth issue was just a timing one.
+                    
+                    Actually, let's use the simplest robust CSS method:
+                    Set inner to `width: 100vw` (viewport width). 
+                    The background image `cover` will scale to the viewport width.
+                    Provided the Slider is roughly full width or consistent, this works 'okay'.
+                    But to be perfect:
+                    We will use `calc(100vw - (scrollbar width))` approx OR
+                    Just render it `width: 100%` of the PARENT CONTAINER?
+                    
+                    Wait, `width: 200%` when slider is at 50%?
+                    `width: 100% * (100/sliderPosition)`
                  */}
                 <div style={{
-                    width: containerWidth > 0 ? `${containerWidth}px` : "100%",
+                    width: sliderPosition > 0 ? `${10000 / sliderPosition}%` : "0",
                     height: "100%",
                     backgroundImage: "url('/metamorphosis_before.jpg')",
                     backgroundSize: "cover",
@@ -136,7 +123,7 @@ export default function BeforeAfterSlider() {
                 </div>
             </div>
 
-            {/* Handle Circle (Visual only) */}
+            {/* Handle Circle */}
             <div style={{
                 position: "absolute",
                 top: "50%",
@@ -144,16 +131,16 @@ export default function BeforeAfterSlider() {
                 transform: "translate(-50%, -50%)",
                 width: "40px",
                 height: "40px",
-                background: "white",
+                background: "var(--color-primary)", // Gold Handle
                 borderRadius: "50%",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 zIndex: 20,
-                boxShadow: "0 0 10px rgba(0,0,0,0.3)",
+                boxShadow: "0 0 10px rgba(0,0,0,0.5)",
                 pointerEvents: "none"
             }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M18 8L22 12L18 16" />
                     <path d="M6 8L2 12L6 16" />
                 </svg>
