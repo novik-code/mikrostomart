@@ -140,7 +140,7 @@ export default function Home() {
                                 <p style={{ marginBottom: "var(--spacing-md)", color: "var(--color-text-muted)" }}>
                                     Od drobnych korekt estetycznych po kompleksowe rekonstrukcje zgryzu. Zobacz, jak zmieniliśmy życie naszych pacjentów.
                                 </p>
-                                <Link href="/oferta" style={{
+                                <Link href="/metamorfozy" style={{
                                     textDecoration: "underline",
                                     textUnderlineOffset: "4px",
                                     color: "var(--color-text-main)"

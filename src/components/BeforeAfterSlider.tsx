@@ -2,7 +2,12 @@
 
 import { useState, useRef, useEffect } from "react";
 
-export default function BeforeAfterSlider() {
+interface BeforeAfterSliderProps {
+    beforeImage: string;
+    afterImage: string;
+}
+
+export default function BeforeAfterSlider({ beforeImage, afterImage }: BeforeAfterSliderProps) {
     const [sliderPosition, setSliderPosition] = useState(50);
     const [isResizing, setIsResizing] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -59,7 +64,7 @@ export default function BeforeAfterSlider() {
                 style={{
                     position: "absolute",
                     top: 0, left: 0, width: "100%", height: "100%",
-                    backgroundImage: "url('/metamorphosis_after.jpg')",
+                    backgroundImage: `url('${afterImage}')`,
                     backgroundSize: "cover",
                     backgroundPosition: "center",
                 }}
@@ -80,34 +85,15 @@ export default function BeforeAfterSlider() {
                     position: "absolute",
                     top: 0, left: 0, height: "100%",
                     width: `${sliderPosition}%`,
-                    borderRight: "4px solid var(--color-primary)", // Gold Divider
+                    borderRight: "4px solid var(--color-primary)",
                     overflow: "hidden",
                     zIndex: 10
                 }}
             >
-                {/* 
-                    CSS Trick for Inverse Width:
-                    If wrapper is X% wide, inner needs to be 100/X * 100 % wide to counteract it.
-                    We use a large fixed percentage as a fallback or the calc trick.
-                    Since we can't easily do 100/X in CSS calc() without unit compatibility issues in some cases,
-                    we will stick to the '100vw' approach but constrained by max-width if possible,
-                    OR better: revert to simple logic provided the containerWidth issue was just a timing one.
-                    
-                    Actually, let's use the simplest robust CSS method:
-                    Set inner to `width: 100vw` (viewport width). 
-                    The background image `cover` will scale to the viewport width.
-                    Provided the Slider is roughly full width or consistent, this works 'okay'.
-                    But to be perfect:
-                    We will use `calc(100vw - (scrollbar width))` approx OR
-                    Just render it `width: 100%` of the PARENT CONTAINER?
-                    
-                    Wait, `width: 200%` when slider is at 50%?
-                    `width: 100% * (100/sliderPosition)`
-                 */}
                 <div style={{
                     width: sliderPosition > 0 ? `${10000 / sliderPosition}%` : "0",
                     height: "100%",
-                    backgroundImage: "url('/metamorphosis_before.jpg')",
+                    backgroundImage: `url('${beforeImage}')`,
                     backgroundSize: "cover",
                     backgroundPosition: "center",
                     backgroundRepeat: "no-repeat"
@@ -131,7 +117,7 @@ export default function BeforeAfterSlider() {
                 transform: "translate(-50%, -50%)",
                 width: "40px",
                 height: "40px",
-                background: "var(--color-primary)", // Gold Handle
+                background: "var(--color-primary)",
                 borderRadius: "50%",
                 display: "flex",
                 alignItems: "center",
