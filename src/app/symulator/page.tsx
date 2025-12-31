@@ -356,15 +356,28 @@ export default function SimulatorPage() {
                                             />
                                         </div>
 
-                                        <div>
+                                        <div style={{ marginBottom: '10px' }}>
                                             <label style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '5px' }}>
-                                                <span>Rozmiar</span>
-                                                <span>{maskConfig.scale.toFixed(1)}x</span>
+                                                <span>Szerokość Maski</span>
+                                                <span>{maskConfig.scaleX.toFixed(1)}x</span>
                                             </label>
                                             <input
-                                                type="range" min="0.3" max="2.0" step="0.1"
-                                                value={maskConfig.scale}
-                                                onChange={(e) => setMaskConfig({ ...maskConfig, scale: Number(e.target.value) })}
+                                                type="range" min="0.1" max="2.0" step="0.1"
+                                                value={maskConfig.scaleX}
+                                                onChange={(e) => setMaskConfig({ ...maskConfig, scaleX: Number(e.target.value) })}
+                                                style={{ width: '100%' }}
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '5px' }}>
+                                                <span>Wysokość Maski</span>
+                                                <span>{maskConfig.scaleY.toFixed(1)}x</span>
+                                            </label>
+                                            <input
+                                                type="range" min="0.1" max="2.0" step="0.1"
+                                                value={maskConfig.scaleY}
+                                                onChange={(e) => setMaskConfig({ ...maskConfig, scaleY: Number(e.target.value) })}
                                                 style={{ width: '100%' }}
                                             />
                                         </div>
