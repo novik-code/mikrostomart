@@ -41,29 +41,59 @@ export default function SimulatorPage() {
     // Helper to crop/resize image to square PNG for OpenAI
     const prepareImageForAPI = (imageSrc: string) => {
         const img = new window.Image();
-        img.src = imageSrc;
+        // Handler MUST be set before src to catch cached load (though unlikely with data uri)
         img.onload = () => {
+            // Verify image loaded correctly
+            if (img.naturalWidth === 0 || img.naturalHeight === 0) {
+                alert("Błąd: Nie udało się wczytać wymiarów zdjęcia. Spróbuj innego pliku.");
+                return;
+            }
+
             const canvas = document.createElement("canvas");
             const size = 1024; // OpenAI standard
             canvas.width = size;
             canvas.height = size;
             const ctx = canvas.getContext("2d");
 
-            if (!ctx) return;
+            if (!ctx) {
+                alert("Błąd: Twoja przeglądarka nie obsługuje Canvas.");
+                return;
+            }
 
             // Calculate crop (center crop)
-            const minDim = Math.min(img.width, img.height);
+            // Use naturalWidth/Height for accuracy
+            const nW = img.naturalWidth;
+            const nH = img.naturalHeight;
+            const minDim = Math.min(nW, nH);
             const scale = size / minDim;
-            const tx = (size - img.width * scale) / 2;
-            const ty = (size - img.height * scale) / 2;
+
+            const drawWidth = nW * scale;
+            const drawHeight = nH * scale;
+            const tx = (size - drawWidth) / 2;
+            const ty = (size - drawHeight) / 2;
+
+            // Debug: Check if we are drawing
+            // console.log("Drawing image:", nW, nH, "->", drawWidth, drawHeight);
 
             ctx.fillStyle = "white";
             ctx.fillRect(0, 0, size, size);
-            ctx.drawImage(img, tx, ty, img.width * scale, img.height * scale);
 
-            const pngData = canvas.toDataURL("image/png");
-            setProcessedImage(pngData);
+            try {
+                ctx.drawImage(img, tx, ty, drawWidth, drawHeight);
+                const pngData = canvas.toDataURL("image/png");
+                setProcessedImage(pngData);
+            } catch (err) {
+                console.error("Canvas draw error:", err);
+                alert("Błąd przetwarzania obrazu.");
+            }
         };
+
+        img.onerror = (err) => {
+            console.error("Image load error:", err);
+            alert("Nieudane wczytanie pliku obrazu. Upewnij się, że to poprawny plik JPG/PNG.");
+        };
+
+        img.src = imageSrc;
     };
 
     const handleGenerate = async () => {
@@ -145,11 +175,12 @@ export default function SimulatorPage() {
                             overflow: "hidden"
                         }}>
                             <BeforeAfterSlider
-                                beforeImage={processedImage || selectedImage}
+                                beforeImage={selectedImage}
                                 afterImage={resultImage}
                             />
                             <div style={{ textAlign: 'center', marginTop: '1rem', color: 'var(--color-primary)' }}>
                                 Twój nowy uśmiech (AI Variation)
+                                <p style={{ fontSize: '0.7rem', color: 'red' }}>DEBUG: {resultImage}</p>
                             </div>
                             <button
                                 onClick={() => { setResultImage(null); setSelectedImage(null); }}

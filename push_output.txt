@@ -1,0 +1,10 @@
+Missing or invalid credentials.
+Error: connect ECONNREFUSED /var/folders/9q/0l8pwxs11g55tyh1r367nz0m0000gn/T/vscode-git-2cc066ccc8.sock
+    at PipeConnectWrap.afterConnect [as oncomplete] (node:net:1637:16) {
+  errno: -61,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '/var/folders/9q/0l8pwxs11g55tyh1r367nz0m0000gn/T/vscode-git-2cc066ccc8.sock'
+}
+remote: No anonymous write access.
+fatal: Authentication failed for 'https://github.com/novik-code/mikrostomart.git/'
