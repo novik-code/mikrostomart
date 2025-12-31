@@ -2,7 +2,7 @@
   "name": "mikrostomart",
   "version": "0.1.0",
   "private": true,
-  "description": "Mikrostomart - Dental Clinic (Force Update v3.3)",
+  "description": "Mikrostomart - Dental Clinic (Force Update v3.5 - 21:42)",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
