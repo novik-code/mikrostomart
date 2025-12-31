@@ -61,7 +61,8 @@ export async function POST(req: NextRequest) {
                 image: imageUri,
                 mask: maskUri,
                 prompt: "extreme closeup of a hollywood smile makeover, gleaming white porcelain veneers, perfect alignment, straight bleached teeth, high fashion dental photography, bright white tooth shade, transformative output",
-                guidance_scale: 4.5, // High guidance to FORCE the prompt over original colors
+                negative_prompt: "yellow teeth, stained teeth, cavities, discoloration, dark teeth, shadows on teeth, rot, broken teeth, gap, yellowing, plaque, natural teeth color",
+                guidance_scale: 5.0, // Increased to 5.0 to BREAK source color blending
                 n_steps: 35,         // High steps for quality
                 output_format: "png",
                 output_quality: 100
