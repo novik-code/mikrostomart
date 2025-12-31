@@ -193,30 +193,33 @@ export default function MetamorphosisGallery() {
 
                     {/* TOOLTIP OVERLAY */}
                     {activeTooltip && (
-                        <div style={{
-                            position: 'absolute',
-                            // Vertical Position: Higher up as requested
-                            top: '20px',
-                            // Horizontal Position: Just off-center based on side
-                            [activeTooltip === 'left' ? 'right' : 'left']: '51%',
-                            width: '280px',
-                            background: 'rgba(18, 20, 24, 0.85)', // More transparent (0.85)
-                            backdropFilter: 'blur(8px)',
-                            padding: '1.5rem',
-                            borderRadius: '20px',
-                            border: '1px solid var(--color-primary)',
-                            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
-                            zIndex: 30,
-                            animation: 'fadeInZoom 0.3s ease forwards',
-                            pointerEvents: 'none',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            textAlign: 'center'
-                        }}>
+                        <div
+                            className="gallery-tooltip-responsive"
+                            style={{
+                                position: 'absolute',
+                                // Vertical Position: Higher up as requested
+                                top: '20px',
+                                // Horizontal Position: Just off-center based on side (Desktop only, Mobile overridden by CSS)
+                                [activeTooltip === 'left' ? 'right' : 'left']: '51%',
+
+                                background: 'rgba(18, 20, 24, 0.85)',
+                                backdropFilter: 'blur(8px)',
+                                padding: '1.5rem',
+                                borderRadius: '20px',
+                                border: '1px solid var(--color-primary)',
+                                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
+                                zIndex: 30,
+                                animation: 'fadeInZoom 0.3s ease forwards',
+                                pointerEvents: 'none',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                textAlign: 'center'
+                            }}>
                             {/* CSS/SVG Tail */}
                             <svg
+                                className="gallery-tooltip-tail"
                                 width="24"
                                 height="24"
                                 viewBox="0 0 24 24"
@@ -270,31 +273,7 @@ export default function MetamorphosisGallery() {
                     {/* PREV BUTTON (Arrow) */}
                     <button
                         onClick={prevSlide}
-                        style={{
-                            position: 'absolute',
-                            left: '-60px',
-                            zIndex: 10,
-                            background: 'transparent',
-                            border: '1px solid var(--color-surface-hover)',
-                            color: 'var(--color-primary)',
-                            width: '40px',
-                            height: '40px',
-                            borderRadius: '50%',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            transition: 'all 0.3s ease',
-                            fontSize: '1.5rem'
-                        }}
-                        onMouseOver={(e) => {
-                            e.currentTarget.style.background = 'var(--color-primary)';
-                            e.currentTarget.style.color = '#000';
-                        }}
-                        onMouseOut={(e) => {
-                            e.currentTarget.style.background = 'transparent';
-                            e.currentTarget.style.color = 'var(--color-primary)';
-                        }}
+                        className="gallery-nav-btn gallery-nav-btn-prev"
                         title="Poprzednia"
                     >
                         ❮
@@ -319,31 +298,7 @@ export default function MetamorphosisGallery() {
                     {/* NEXT BUTTON (Arrow) */}
                     <button
                         onClick={nextSlide}
-                        style={{
-                            position: 'absolute',
-                            right: '-60px',
-                            zIndex: 10,
-                            background: 'transparent',
-                            border: '1px solid var(--color-surface-hover)',
-                            color: 'var(--color-primary)',
-                            width: '40px',
-                            height: '40px',
-                            borderRadius: '50%',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            transition: 'all 0.3s ease',
-                            fontSize: '1.5rem'
-                        }}
-                        onMouseOver={(e) => {
-                            e.currentTarget.style.background = 'var(--color-primary)';
-                            e.currentTarget.style.color = '#000';
-                        }}
-                        onMouseOut={(e) => {
-                            e.currentTarget.style.background = 'transparent';
-                            e.currentTarget.style.color = 'var(--color-primary)';
-                        }}
+                        className="gallery-nav-btn gallery-nav-btn-next"
                         title="Następna"
                     >
                         ❯
