@@ -474,6 +474,8 @@ export default function SimulatorPage() {
                                 )}
                             </button>
 
+                            <div id="debug-hole-container" style={{ marginTop: '20px', textAlign: 'center' }}></div>
+
                             {/* Debug Info */}
                             <div style={{ marginTop: '10px', fontSize: '0.8rem', color: '#666' }}>
                                 Status: {maskImage ? "✅ Gotowy do edycji (Maska OK)" : "⏳ Przetwarzanie..."}
