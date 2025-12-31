@@ -31,7 +31,6 @@ export async function POST(req: NextRequest) {
         }
 
         // Convert Files to base64 Data URIs which Replicate accepts
-        // For larger files, uploading to a temp host is better, but Data URI works for reasonable sizes (<10MB)
         const fileToBase64 = async (file: File) => {
             const bytes = await file.arrayBuffer();
             const buffer = Buffer.from(bytes);
@@ -41,12 +40,22 @@ export async function POST(req: NextRequest) {
         const imageUri = await fileToBase64(imageFile);
         const maskUri = await fileToBase64(maskFile);
 
-        console.log("Creating prediction temporarily to get logs...");
+        console.log("Fetching latest model version for Flux Fill...");
 
-        // 1. Create Prediction
+        // 1. Get the latest version ID dynamically (Robust way)
+        // This prevents 422 errors from hardcoded/outdated version IDs
+        const modelRepo = await replicate.models.get("black-forest-labs", "flux-fill-dev");
+        const latestVersion = modelRepo.latest_version?.id;
+
+        if (!latestVersion) {
+            throw new Error("Could not fetch latest version for black-forest-labs/flux-fill-dev");
+        }
+
+        console.log("Using Version ID:", latestVersion);
+
+        // 2. Create Prediction with valid version
         let prediction = await replicate.predictions.create({
-            version: "96793f64d08a543666245973792036c05eb3fa774D381a3d90f2307137452814", // Flux Fill Dev Version ID (specific) or use model name
-            model: "black-forest-labs/flux-fill-dev",
+            version: latestVersion,
             input: {
                 image: imageUri,
                 mask: maskUri,
@@ -58,7 +67,7 @@ export async function POST(req: NextRequest) {
             }
         });
 
-        // 2. Poll for completion
+        // 3. Poll for completion
         const maxAttempts = 60; // 60 * 1s = 60s timeout
         let attempts = 0;
 
@@ -74,7 +83,7 @@ export async function POST(req: NextRequest) {
         console.log("Prediction Final Status:", prediction.status);
         console.log("Prediction Logs:", prediction.logs);
 
-        // 3. Handle Result
+        // 4. Handle Result
         if (prediction.status === "succeeded" && prediction.output) {
             // Flux Fill typically returns a string URL or array of strings
             const output = prediction.output;
