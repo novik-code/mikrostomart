@@ -195,12 +195,12 @@ export default function MetamorphosisGallery() {
                     {activeTooltip && (
                         <div style={{
                             position: 'absolute',
-                            // Vertical Position: Above the center
-                            bottom: '52%',
+                            // Vertical Position: Higher up as requested
+                            top: '20px',
                             // Horizontal Position: Just off-center based on side
                             [activeTooltip === 'left' ? 'right' : 'left']: '51%',
                             width: '280px',
-                            background: 'rgba(18, 20, 24, 0.95)', // Solid organic dark
+                            background: 'rgba(18, 20, 24, 0.85)', // More transparent (0.85)
                             backdropFilter: 'blur(8px)',
                             padding: '1.5rem',
                             borderRadius: '20px',
@@ -233,7 +233,7 @@ export default function MetamorphosisGallery() {
                                 {/* Organic Tail Shape */}
                                 <path
                                     d="M0 0 Q 0 24 24 0 Z" // Curve logic
-                                    fill="rgba(18, 20, 24, 0.95)"
+                                    fill="rgba(18, 20, 24, 0.85)"
                                 />
                                 {/* Border Line for the tail (Complex to match perfectly, easier to just omit or fake) */}
                             </svg>
