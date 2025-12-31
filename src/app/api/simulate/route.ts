@@ -36,7 +36,7 @@ export async function POST(request: Request) {
             const response = await openai.images.edit({
                 image: imageFile,
                 mask: maskFile,
-                prompt: "A photorealistic portrait of the same person with a natural, aesthetic smile. High quality dentistry, matching skin tone, realistic texture, soft lighting. Avoid cartoonish or exaggerated features.",
+                prompt: "A photo of the same person with a perfect, bright white Hollywood smile. Straight teeth, high quality veneers, photorealistic, cinematic lighting. Transform the mouth area to show a beautiful, confident smile.",
                 n: 1,
                 size: "1024x1024",
             });

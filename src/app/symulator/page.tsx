@@ -362,7 +362,7 @@ export default function SimulatorPage() {
                                                 <span>{maskConfig.scale.toFixed(1)}x</span>
                                             </label>
                                             <input
-                                                type="range" min="0.5" max="2.0" step="0.1"
+                                                type="range" min="0.3" max="2.0" step="0.1"
                                                 value={maskConfig.scale}
                                                 onChange={(e) => setMaskConfig({ ...maskConfig, scale: Number(e.target.value) })}
                                                 style={{ width: '100%' }}
