@@ -183,11 +183,25 @@ export default function MetamorphosisGallery({ initialIndex = 0 }: { initialInde
         }
     };
 
+    // Simulator Notification State
+    const [showSimulatorPromo, setShowSimulatorPromo] = useState(false);
+    const [viewedCount, setViewedCount] = useState(0);
+
     const handleSlideChange = (newIndex: number) => {
         setIsTransitioning(true);
         setTimeout(() => {
             setCurrentIndex(newIndex);
             setIsTransitioning(false);
+
+            // Increment viewed count
+            setViewedCount(prev => {
+                const newCount = prev + 1;
+                // Show promo after 1 slide if not already shown
+                if (newCount === 1) {
+                    setShowSimulatorPromo(true);
+                }
+                return newCount;
+            });
         }, 400);
     };
 
@@ -203,8 +217,57 @@ export default function MetamorphosisGallery({ initialIndex = 0 }: { initialInde
 
     const currentItem = METAMORPHOSES[currentIndex];
 
+    // Notification Component (Inline for simplicity)
+    const SimulatorNotification = () => (
+        <div style={{
+            position: 'fixed',
+            bottom: '2rem',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'var(--color-surface)',
+            border: '1px solid var(--color-primary)',
+            padding: '1rem 1.5rem',
+            borderRadius: 'var(--radius-md)',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.4)',
+            zIndex: 100,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            textAlign: 'center',
+            minWidth: '300px',
+            animation: 'fadeInUp 0.5s ease-out'
+        }}>
+            <button
+                onClick={() => setShowSimulatorPromo(false)}
+                style={{
+                    position: 'absolute',
+                    top: '5px',
+                    right: '10px',
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--color-text-muted)',
+                    fontSize: '1.2rem',
+                    cursor: 'pointer'
+                }}
+            >
+                &times;
+            </button>
+            <p style={{ color: 'var(--color-primary)', fontWeight: 'bold', marginBottom: '0.5rem' }}>
+                Zainspirowany?
+            </p>
+            <p style={{ marginBottom: '1rem', fontSize: '0.9rem' }}>
+                Zobacz jak TY możesz wyglądać w nowym uśmiechu!
+            </p>
+            <a href="/symulator" className="btn-primary" style={{ padding: '0.5rem 1.5rem', fontSize: '0.9rem' }}>
+                Otwórz Symulator AI ✨
+            </a>
+        </div>
+    );
+
     return (
         <section className="gallery-container">
+            {showSimulatorPromo && <SimulatorNotification />}
+
             {/* Animating Wrapper */}
             <div
                 className={isTransitioning ? 'anim-blur-out' : 'anim-blur-in'}
