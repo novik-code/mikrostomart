@@ -289,7 +289,10 @@ export default function SimulatorPage() {
 
                 // SAFETY COMPOSITING: Prevent "Barbie Doll" effect
                 // Overlay AI result ON TOP of Original Image using Binary Mask.
-                if (simulatorMode === 'template-overlay' && overlayMask && processedImage) {
+                // We use overlayMask (precise) if available, otherwise maskImage (oval).
+                const maskToUse = (simulatorMode === 'template-overlay' && overlayMask) ? overlayMask : maskImage;
+
+                if (processedImage && maskToUse) {
                     try {
                         const finalCnv = document.createElement('canvas');
                         finalCnv.width = 1024;
@@ -297,45 +300,54 @@ export default function SimulatorPage() {
                         const fCtx = finalCnv.getContext('2d');
 
                         if (fCtx) {
-                            // 1. Load Original
+                            // 1. Load Original (Background)
                             const imgBase = new window.Image();
-                            imgBase.crossOrigin = "anonymous";
+                            // imgBase.crossOrigin = "anonymous"; // Not needed for Data URLs usually
                             imgBase.src = processedImage;
                             await imgBase.decode();
                             fCtx.drawImage(imgBase, 0, 0, 1024, 1024);
 
-                            // 2. Load AI Result
+                            // 2. Load AI Result (Foreground)
                             const imgAI = new window.Image();
-                            imgAI.crossOrigin = "anonymous";
+                            imgAI.crossOrigin = "anonymous"; // Needed for remote Replicate URL
                             imgAI.src = aiUrl;
                             await imgAI.decode();
 
-                            // 3. Load Mask
+                            // 3. Load Mask (The Alpha Channel)
                             const imgMask = new window.Image();
-                            imgMask.src = overlayMask;
+                            imgMask.src = maskToUse;
                             await imgMask.decode();
 
-                            // 4. Composite
+                            // 4. Create Masked AI Layer
                             const tempCnv = document.createElement('canvas');
                             tempCnv.width = 1024;
                             tempCnv.height = 1024;
                             const tCtx = tempCnv.getContext('2d');
                             if (tCtx) {
+                                // Draw Mask (White = Visible, Black = Hidden)
                                 tCtx.drawImage(imgMask, 0, 0);
+
+                                // Source-in: Keep AI pixels ONLY where mask is White
                                 tCtx.globalCompositeOperation = "source-in";
                                 tCtx.drawImage(imgAI, 0, 0, 1024, 1024);
+
+                                // Draw this masked layer onto the base
                                 fCtx.drawImage(tempCnv, 0, 0);
                             }
 
-                            setResultImage(finalCnv.toDataURL("image/png"));
+                            const finalUrl = finalCnv.toDataURL("image/png");
+                            setResultImage(finalUrl);
+                            console.log("✅ Safety compositing success.");
                         } else {
+                            console.warn("Could not get context for compositing.");
                             setResultImage(aiUrl);
                         }
                     } catch (e) {
-                        console.error("Compositing error", e);
-                        setResultImage(aiUrl);
+                        console.error("❌ Compositing error:", e);
+                        setResultImage(aiUrl); // Fallback to raw AI if local composite fails
                     }
                 } else {
+                    console.warn("Skipping compositing: Missing mask or base image.");
                     setResultImage(aiUrl);
                 }
             } else {
@@ -431,7 +443,7 @@ export default function SimulatorPage() {
                         <h1 style={{ fontSize: "clamp(2rem, 5vw, 3.5rem)", marginBottom: "0.5rem" }}>
                             Wirtualna Przymierzalnia
                         </h1>
-                        WERSJA 5.5 (Safety Compositing)
+                        WERSJA 5.6 (Triple Safety Layer)
                         <p style={{ color: "var(--color-text-muted)", maxWidth: "600px", margin: "0 auto" }}>
                             Wgraj swoje zdjęcie, wybierz tryb (AI lub Szablon) i zobacz nową wersję uśmiechu.
                         </p>
