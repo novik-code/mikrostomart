@@ -285,7 +285,59 @@ export default function SimulatorPage() {
             // Fix for "Objects are not valid as a React child"
             // Ensure data.url is a string
             if (typeof data.url === 'string') {
-                setResultImage(data.url);
+                const aiUrl = data.url;
+
+                // SAFETY COMPOSITING: Prevent "Barbie Doll" effect
+                // Overlay AI result ON TOP of Original Image using Binary Mask.
+                if (simulatorMode === 'template-overlay' && overlayMask && processedImage) {
+                    try {
+                        const finalCnv = document.createElement('canvas');
+                        finalCnv.width = 1024;
+                        finalCnv.height = 1024;
+                        const fCtx = finalCnv.getContext('2d');
+
+                        if (fCtx) {
+                            // 1. Load Original
+                            const imgBase = new window.Image();
+                            imgBase.crossOrigin = "anonymous";
+                            imgBase.src = processedImage;
+                            await imgBase.decode();
+                            fCtx.drawImage(imgBase, 0, 0, 1024, 1024);
+
+                            // 2. Load AI Result
+                            const imgAI = new window.Image();
+                            imgAI.crossOrigin = "anonymous";
+                            imgAI.src = aiUrl;
+                            await imgAI.decode();
+
+                            // 3. Load Mask
+                            const imgMask = new window.Image();
+                            imgMask.src = overlayMask;
+                            await imgMask.decode();
+
+                            // 4. Composite
+                            const tempCnv = document.createElement('canvas');
+                            tempCnv.width = 1024;
+                            tempCnv.height = 1024;
+                            const tCtx = tempCnv.getContext('2d');
+                            if (tCtx) {
+                                tCtx.drawImage(imgMask, 0, 0);
+                                tCtx.globalCompositeOperation = "source-in";
+                                tCtx.drawImage(imgAI, 0, 0, 1024, 1024);
+                                fCtx.drawImage(tempCnv, 0, 0);
+                            }
+
+                            setResultImage(finalCnv.toDataURL("image/png"));
+                        } else {
+                            setResultImage(aiUrl);
+                        }
+                    } catch (e) {
+                        console.error("Compositing error", e);
+                        setResultImage(aiUrl);
+                    }
+                } else {
+                    setResultImage(aiUrl);
+                }
             } else {
                 console.error("Invalid URL format received:", data.url);
                 alert("Błąd: Otrzymano nieprawidłowy format pliku ze sztucznej inteligencji. Zobacz debug info.");
@@ -379,7 +431,7 @@ export default function SimulatorPage() {
                         <h1 style={{ fontSize: "clamp(2rem, 5vw, 3.5rem)", marginBottom: "0.5rem" }}>
                             Wirtualna Przymierzalnia
                         </h1>
-                        WERSJA 5.3 (UX Polish - Auto-Sync)
+                        WERSJA 5.5 (Safety Compositing)
                         <p style={{ color: "var(--color-text-muted)", maxWidth: "600px", margin: "0 auto" }}>
                             Wgraj swoje zdjęcie, wybierz tryb (AI lub Szablon) i zobacz nową wersję uśmiechu.
                         </p>
