@@ -23,6 +23,8 @@ export default function SimulatorPage() {
     const fileInputRef = useRef<HTMLInputElement>(null);
     // State for Mask Configuration
     const [maskConfig, setMaskConfig] = useState({ x: 50, y: 65, scaleX: 1.0, scaleY: 1.0 });
+    // State for Smile Style
+    const [smileStyle, setSmileStyle] = useState("hollywood");
     // State for Image Layout (How the image sits on the 1024x1024 canvas)
     const [imageLayout, setImageLayout] = useState({ tx: 0, ty: 0, scale: 1, drawWidth: 1024, drawHeight: 1024 });
 
@@ -230,6 +232,7 @@ export default function SimulatorPage() {
             const formData = new FormData();
             formData.append("image", imageBlob, "image.png");
             formData.append("mask", maskBlob, "mask.png");
+            formData.append("style", smileStyle);
 
             const response = await fetch("/api/simulate", {
                 method: "POST",
@@ -346,7 +349,7 @@ export default function SimulatorPage() {
                             Wirtualna Przymierzalnia
                         </h1>
                         <p style={{ fontSize: "0.8rem", color: "red", fontWeight: "bold", marginBottom: "1rem" }}>
-                            WERSJA 4.1 (Alpha+FluxPro)
+                            WERSJA 5.0 (Style Selector)
                         </p>
                         <p style={{ color: "var(--color-text-muted)", maxWidth: "600px", margin: "0 auto" }}>
                             Wgraj swoje zdjęcie, a nasza sztuczna inteligencja (Flux Pro) pokaże Ci potencjał Twojego nowego uśmiechu.
@@ -559,6 +562,34 @@ export default function SimulatorPage() {
                                                 style={{ width: '100%' }}
                                                 className="accent-primary"
                                             />
+                                        </div>
+
+                                        <div style={{ marginBottom: '15px' }}>
+                                            <h4 style={{ marginBottom: '8px', fontSize: '0.9rem', color: 'var(--color-text-main)' }}>Wybierz styl uśmiechu:</h4>
+                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                                                {[
+                                                    { id: 'hollywood', label: 'Hollywood', desc: 'Idealna biel (BL1)' },
+                                                    { id: 'natural', label: 'Naturalny', desc: 'Kolor A1, tekstura' },
+                                                    { id: 'soft', label: 'Łagodny', desc: 'Owalne, kobiece' },
+                                                    { id: 'strong', label: 'Mocny', desc: 'Kanciaste, męskie' }
+                                                ].map((style) => (
+                                                    <button
+                                                        key={style.id}
+                                                        onClick={() => setSmileStyle(style.id)}
+                                                        style={{
+                                                            padding: '8px',
+                                                            borderRadius: '6px',
+                                                            border: smileStyle === style.id ? '2px solid var(--color-primary)' : '1px solid var(--color-surface-hover)',
+                                                            background: smileStyle === style.id ? 'rgba(var(--color-primary-rgb), 0.1)' : 'transparent',
+                                                            cursor: 'pointer',
+                                                            textAlign: 'left'
+                                                        }}
+                                                    >
+                                                        <div style={{ fontWeight: 'bold', fontSize: '0.85rem', color: smileStyle === style.id ? 'var(--color-primary)' : 'var(--color-text-main)' }}>{style.label}</div>
+                                                        <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>{style.desc}</div>
+                                                    </button>
+                                                ))}
+                                            </div>
                                         </div>
 
                                         {/* GENERATE BUTTON MOVED HERE TO BE SAFE */}

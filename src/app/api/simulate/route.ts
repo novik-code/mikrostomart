@@ -23,6 +23,7 @@ export async function POST(req: NextRequest) {
         const formData = await req.formData();
         const imageFile = formData.get("image") as File;
         const maskFile = formData.get("mask") as File;
+        const style = formData.get("style") as string || "hollywood";
 
         if (!imageFile || !maskFile) {
             return NextResponse.json(
@@ -133,8 +134,13 @@ export async function POST(req: NextRequest) {
             input: {
                 image: erasedImageUrl,
                 mask: maskUri,
-                prompt: "Photorealistic dental smile makeover (inpaint masked area only). Build a brand-new ideal upper dental arch from scratch inside the mask, do not reference any original tooth positions or defects. Generate correct left-right paired tooth anatomy and count as far as the smile reveals: always TWO central incisors (11 & 21), TWO lateral incisors (12 & 22), TWO canines (13 & 23); if premolars are visible include TWO 14 & 24 and TWO 15 & 25; if first molars are visible include TWO 16 & 26. Never output a single tooth where a pair must exist, never leave missing teeth. Enforce bilateral symmetry, correct midline, correct incisal edge line, natural contact points. Enforce realistic width proportions: central incisors slightly wider than laterals (≈1.25x), canines slightly wider than laterals (≈1.15x), no oversized single central incisor. Ultra-white ceramic veneers shade BL1 (Hollywood white) with realistic enamel micro-texture, subtle incisal translucency, natural highlights and shadows matching the original lighting/flash. Preserve lips, gumline, skin texture and identity outside the mask unchanged; correct perspective and scale, no distortion. Avoid: missing teeth, wrong tooth count, single front tooth, extra teeth, duplicated teeth, asymmetry, gaps, diastema, black triangles, crooked teeth, fake plastic dentures look, braces, metal, text, watermark, logo.",
-                guidance: 50, // Higher guidance for Pro to follow prompt strictly
+                prompt: `Photorealistic dental smile makeover (inpaint masked area only). Build a brand-new ideal upper dental arch from scratch inside the mask.
+                
+                STYLE: ${style.toUpperCase()}.
+                ${getStylePrompt(style)}
+
+                Generate correct left-right paired tooth anatomy. Enforce bilateral symmetry, correct midline, correct incisal edge line, natural contact points. Preserve lips, gumline, and identity. Avoid: missing teeth, wrong tooth count, gaps, diastema, black triangles, crooked teeth, fake plastic dentures look, braces, metal.`,
+                guidance: style === "hollywood" ? 60 : 50, // Higher guidance for Hollywood perfection
                 steps: 50,
                 output_format: "png",
                 output_quality: 100,
@@ -169,5 +175,19 @@ export async function POST(req: NextRequest) {
             { error: error.message || "Failed to generate image" },
             { status: 500 }
         );
+    }
+}
+
+function getStylePrompt(style: string): string {
+    switch (style) {
+        case "natural":
+            return "Natural aesthetics: Shade A1/B1 (not blinding white). Realistic biomimetic tooth shapes with slight natural asymmetries and texture. Incisal edges should have subtle translucency and natural wear irregularities. Not artificially perfect.";
+        case "soft":
+            return "Soft aesthetics: Rounded tooth corners, oval shapes, feminine and gentle appearance. Shade BL2. Smooth surface texture, dominantly rounded canines, youthful smile.";
+        case "strong":
+            return "Strong aesthetics: Square tooth shapes, flat incisal edges, bold masculine appearance. Shade BL2. Prominent canines, strong distinct anatomy.";
+        case "hollywood":
+        default:
+            return "Hollywood aesthetics: Ultra-white ceramic veneers shade BL1. Perfect bilateral symmetry. Dominant central incisors, perfectly aligned. High gloss, smooth surface, flawless geometry. The 'perfect tv smile'.";
     }
 }
