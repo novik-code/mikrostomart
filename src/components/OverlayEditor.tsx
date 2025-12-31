@@ -11,9 +11,29 @@ interface OverlayEditorProps {
 
 export default function OverlayEditor({ baseImage, templateImage, onCompositeReady }: OverlayEditorProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    const [config, setConfig] = useState({ x: 512, y: 512, scaleX: 1.0, scaleY: 1.0, rotation: 0, opacity: 0.85 });
+    // State for Image Layout
+    const [config, setConfig] = useState({
+        x: 512,
+        y: 512,
+        scaleX: 1.0,
+        scaleY: 1.0,
+        rotation: 0,
+        opacity: 0.85,
+        curve: 0 // New: Smile Curvature (-1 to 1)
+    });
+
+    // State for Lip Mask (Bezier Curve)
+    const [maskMode, setMaskMode] = useState(false); // Toggle edit mode
+    const [lipMask, setLipMask] = useState({
+        enabled: true,
+        p1: { x: 300, y: 400 }, // Left
+        p2: { x: 512, y: 350 }, // Center (Control/Cupid)
+        p3: { x: 724, y: 400 }  // Right
+    });
+
     const [isDragging, setIsDragging] = useState(false);
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+    const [dragTarget, setDragTarget] = useState<'move' | 'p1' | 'p2' | 'p3' | null>(null);
 
     // Load images
     const [imgBase, setImgBase] = useState<HTMLImageElement | null>(null);
@@ -44,29 +64,118 @@ export default function OverlayEditor({ baseImage, templateImage, onCompositeRea
         ctx.fillRect(0, 0, 1024, 1024);
         ctx.drawImage(imgBase, 0, 0, 1024, 1024);
 
-        // 2. Draw Template with "Screen" blend mode to remove black background
+        // 2. Draw Template with "Screen" blend mode + masking
         ctx.save();
-        ctx.globalCompositeOperation = "screen"; // This removes black background effectively!
+
+        // --- LIP MASKING (Clip Area) ---
+        if (lipMask.enabled) {
+            ctx.beginPath();
+            // Define visible area: Bottom half of screen starting from the curve
+            // We draw a shape from the curve down to the bottom corners
+            ctx.moveTo(0, 1024); // BL
+            ctx.lineTo(0, lipMask.p1.y); // Left Edge (approx)
+            ctx.lineTo(lipMask.p1.x, lipMask.p1.y); // P1
+
+            // Quadratic Bezier from P1 to P3 via P2
+            ctx.quadraticCurveTo(lipMask.p2.x, lipMask.p2.y, lipMask.p3.x, lipMask.p3.y);
+
+            ctx.lineTo(1024, lipMask.p3.y); // Right Edge
+            ctx.lineTo(1024, 1024); // BR
+            ctx.closePath();
+
+            // Clip! Only draw inside this shape
+            ctx.clip();
+        }
+
+        // --- DRAW TEMPLATE ---
+        ctx.globalCompositeOperation = "screen";
         ctx.globalAlpha = config.opacity;
 
         ctx.translate(config.x, config.y);
         ctx.rotate((config.rotation * Math.PI) / 180);
         ctx.scale(config.scaleX, config.scaleY);
 
-        // Draw centered
-        const w = imgTemplate.width;
-        const h = imgTemplate.height;
-        const drawW = 1024;
-        const drawH = 1024 * (h / w);
+        const w = 1024;
+        const h = 1024 * (imgTemplate.height / imgTemplate.width);
 
-        ctx.drawImage(imgTemplate, -drawW / 2, -drawH / 2, drawW, drawH);
+        // --- WARP (CURVE) RENDERING ---
+        if (config.curve !== 0) {
+            // Slice rendering
+            const slices = 40;
+            const sliceW = w / slices;
+            const amp = config.curve * 100; // Amplitude of curve pixels
+
+            for (let i = 0; i < slices; i++) {
+                // Normalized x (-1 to 1) relative to center
+                const nx = (i / (slices - 1)) * 2 - 1;
+                // Parabolic offset: y = x^2 * amp
+                // If curve > 0 (Happy): Middle lower, ends higher? 
+                // Usually "Happy Smile" = Ends UP. So amp should be negative to shift ends UP?
+                // Screen coords: Y goes down. So "UP" means smaller Y.
+                // Parabola: y = x^2. Vertices at x=-1, x=1.
+                // dy = -(nx * nx) * amp; // Moves middle DOWN relative to ends? 
+                // Let's shift ONLY the Y based on x.
+
+                const dy = -(nx * nx) * amp; // Ends (nx=1) get -amp (up), Center (nx=0) gets 0.
+
+                // Clip src x
+                const sx = (i * imgTemplate.width) / slices;
+                const sWidth = imgTemplate.width / slices;
+
+                // Dest x - centered
+                const dx = -w / 2 + i * sliceW;
+
+                ctx.drawImage(
+                    imgTemplate,
+                    sx, 0, sWidth, imgTemplate.height, // Source
+                    dx, -h / 2 + dy, sliceW, h           // Dest
+                );
+            }
+        } else {
+            // Normal Draw
+            ctx.drawImage(imgTemplate, -w / 2, -h / 2, w, h);
+        }
 
         ctx.restore();
 
-        // Auto-emit for smoother UX (optional, but requested often)
-        // onCompositeReady(canvasRef.current.toDataURL("image/png"));
+        // 3. Draw Mask Controls (Overlay UI) if in edit mode
+        if (maskMode) {
+            const pointRadius = 15;
 
-    }, [imgBase, imgTemplate, config]);
+            // Draw Curve
+            ctx.beginPath();
+            ctx.strokeStyle = "rgba(255, 0, 0, 0.8)";
+            ctx.lineWidth = 4;
+            ctx.moveTo(lipMask.p1.x, lipMask.p1.y);
+            ctx.quadraticCurveTo(lipMask.p2.x, lipMask.p2.y, lipMask.p3.x, lipMask.p3.y);
+            ctx.stroke();
+
+            // Helpers
+            ctx.setLineDash([5, 5]);
+            ctx.lineWidth = 1;
+            ctx.moveTo(lipMask.p1.x, lipMask.p1.y);
+            ctx.lineTo(lipMask.p2.x, lipMask.p2.y);
+            ctx.lineTo(lipMask.p3.x, lipMask.p3.y);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Draw Points
+            [lipMask.p1, lipMask.p2, lipMask.p3].forEach((p, idx) => {
+                ctx.beginPath();
+                ctx.fillStyle = idx === 1 ? "yellow" : "white";
+                ctx.arc(p.x, p.y, pointRadius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = "black";
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                // Label
+                ctx.fillStyle = "black";
+                ctx.font = "12px sans-serif";
+                ctx.fillText(idx === 1 ? "Środek" : "Bok", p.x - 10, p.y - 20);
+            });
+        }
+
+    }, [imgBase, imgTemplate, config, lipMask, maskMode]);
 
     const handleGenerateComposite = () => {
         if (canvasRef.current) {
@@ -75,37 +184,99 @@ export default function OverlayEditor({ baseImage, templateImage, onCompositeRea
     };
 
     // Interaction Handlers
+    const getCanvasPoint = (e: React.MouseEvent | React.TouchEvent | MouseEvent | TouchEvent) => {
+        if (!canvasRef.current) return { x: 0, y: 0 };
+        const rect = canvasRef.current.getBoundingClientRect();
+        const clientX = 'touches' in e ? (e as any).touches[0].clientX : (e as any).clientX;
+        const clientY = 'touches' in e ? (e as any).touches[0].clientY : (e as any).clientY;
+        const scale = 1024 / rect.width;
+        return {
+            x: (clientX - rect.left) * scale,
+            y: (clientY - rect.top) * scale
+        };
+    };
+
+    // Updated Handler Logic
     const handleMouseDown = (e: React.MouseEvent | React.TouchEvent) => {
-        e.preventDefault(); // Prevent scroll on mobile
+        e.preventDefault();
+        const pt = getCanvasPoint(e);
+        const hitDist = 40; // Pixel distance to grab point
+
+        // Check Mask Points first (if visible)
+        if (maskMode) {
+            if (Math.hypot(pt.x - lipMask.p2.x, pt.y - lipMask.p2.y) < hitDist) {
+                setIsDragging(true); setDragTarget('p2'); return;
+            }
+            if (Math.hypot(pt.x - lipMask.p1.x, pt.y - lipMask.p1.y) < hitDist) {
+                setIsDragging(true); setDragTarget('p1'); return;
+            }
+            if (Math.hypot(pt.x - lipMask.p3.x, pt.y - lipMask.p3.y) < hitDist) {
+                setIsDragging(true); setDragTarget('p3'); return;
+            }
+        }
+
+        // Default: Move Template
         setIsDragging(true);
-        const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-        const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+        setDragTarget('move');
+
+        // For move, we need screen coords to calc delta
+        const clientX = 'touches' in e ? (e as any).touches[0].clientX : (e as any).clientX;
+        const clientY = 'touches' in e ? (e as any).touches[0].clientY : (e as any).clientY;
         setDragStart({ x: clientX, y: clientY });
     };
 
     const handleMouseMove = (e: React.MouseEvent | React.TouchEvent) => {
-        if (!isDragging) return;
-        const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-        const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+        if (!isDragging || !dragTarget) return;
 
-        const dx = clientX - dragStart.x;
-        const dy = clientY - dragStart.y;
+        if (dragTarget === 'move') {
+            const clientX = 'touches' in e ? (e as any).touches[0].clientX : (e as any).clientX;
+            const clientY = 'touches' in e ? (e as any).touches[0].clientY : (e as any).clientY;
+            const dx = clientX - dragStart.x;
+            const dy = clientY - dragStart.y;
+            const displayScale = 1024 / (canvasRef.current?.clientWidth || 1);
 
-        // Convert screen delta to canvas delta
-        const displayScale = 1024 / (canvasRef.current?.clientWidth || 1);
-
-        setConfig(prev => ({
-            ...prev,
-            x: prev.x + dx * displayScale,
-            y: prev.y + dy * displayScale
-        }));
-        setDragStart({ x: clientX, y: clientY });
+            setConfig(prev => ({
+                ...prev,
+                x: prev.x + dx * displayScale,
+                y: prev.y + dy * displayScale
+            }));
+            setDragStart({ x: clientX, y: clientY });
+        } else {
+            // Dragging a point (Absolute canvas coords)
+            const pt = getCanvasPoint(e);
+            setLipMask(prev => ({
+                ...prev,
+                [dragTarget]: { x: pt.x, y: pt.y }
+            }));
+        }
     };
 
-    const handleMouseUp = () => setIsDragging(false);
+    const handleMouseUp = () => {
+        setIsDragging(false);
+        setDragTarget(null);
+    };
 
     return (
         <div style={{ width: '100%', maxWidth: '500px', margin: '0 auto' }}>
+            {/* TOOLBAR */}
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+                <button
+                    onClick={() => setMaskMode(!maskMode)}
+                    style={{
+                        flex: 1,
+                        padding: '10px',
+                        borderRadius: '8px',
+                        background: maskMode ? 'var(--color-primary)' : 'var(--color-surface)',
+                        border: '1px solid var(--color-surface-hover)',
+                        color: maskMode ? 'white' : 'var(--color-text-main)',
+                        cursor: 'pointer',
+                        fontSize: '0.9rem'
+                    }}
+                >
+                    {maskMode ? "👀 Zakończ edycję wargi" : "✏️ Dopasuj Linię Wargi"}
+                </button>
+            </div>
+
             <div
                 style={{ position: 'relative', width: '100%', aspectRatio: '1/1', border: '2px dashed var(--color-primary)', borderRadius: '8px', overflow: 'hidden', cursor: isDragging ? 'grabbing' : 'grab', touchAction: 'none' }}
                 onMouseDown={handleMouseDown}
@@ -128,6 +299,7 @@ export default function OverlayEditor({ baseImage, templateImage, onCompositeRea
             <div style={{ background: 'var(--color-surface-hover)', padding: '15px', marginTop: '10px', borderRadius: '8px' }}>
                 <h4 style={{ marginBottom: '10px' }}>Dopasuj uśmiech</h4>
 
+                {/* Scale Grid */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '5px' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                         <label style={{ fontSize: '0.8rem' }}>Szerokość {config.scaleX.toFixed(2)}x</label>
@@ -139,9 +311,16 @@ export default function OverlayEditor({ baseImage, templateImage, onCompositeRea
                     </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '5px' }}>
-                    <span style={{ width: '60px', fontSize: '0.9rem' }}>Obrót:</span>
-                    <input type="range" min="-20" max="20" step="0.5" value={config.rotation} onChange={e => setConfig({ ...config, rotation: parseFloat(e.target.value) })} style={{ flex: 1 }} />
+                {/* Curve & Rotation */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '5px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        <label style={{ fontSize: '0.8rem' }}>Obrót {config.rotation}°</label>
+                        <input type="range" min="-20" max="20" step="0.5" value={config.rotation} onChange={e => setConfig({ ...config, rotation: parseFloat(e.target.value) })} />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        <label style={{ fontSize: '0.8rem' }}>Krzywizna {config.curve > 0 ? "+" : ""}{config.curve.toFixed(1)}</label>
+                        <input type="range" min="-1.0" max="1.0" step="0.1" value={config.curve} onChange={e => setConfig({ ...config, curve: parseFloat(e.target.value) })} />
+                    </div>
                 </div>
 
                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '5px' }}>
@@ -150,7 +329,7 @@ export default function OverlayEditor({ baseImage, templateImage, onCompositeRea
                 </div>
 
                 <button onClick={handleGenerateComposite} className="btn-primary" style={{ width: '100%', marginTop: '10px' }}>
-                    ✅ Zatwierdź ułożenie
+                    ✅ Zatwierdź ułożenie (Flux)
                 </button>
             </div>
         </div>
