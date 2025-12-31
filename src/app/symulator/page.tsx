@@ -322,7 +322,7 @@ export default function SimulatorPage() {
                             Wirtualna Przymierzalnia
                         </h1>
                         <p style={{ fontSize: "0.8rem", color: "red", fontWeight: "bold", marginBottom: "1rem" }}>
-                            WERSJA 2.2 (Totalna Rekonstrukcja)
+                            WERSJA 2.3 (Estetyka Ksiazkowa)
                         </p>
                         <p style={{ color: "var(--color-text-muted)", maxWidth: "600px", margin: "0 auto" }}>
                             Wgraj swoje zdjęcie, a nasza sztuczna inteligencja (Flux Pro) pokaże Ci potencjał Twojego nowego uśmiechu.

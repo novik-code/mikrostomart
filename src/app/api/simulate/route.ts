@@ -60,8 +60,8 @@ export async function POST(req: NextRequest) {
             input: {
                 image: imageUri,
                 mask: maskUri,
-                prompt: "dental photo showing a brand new set of perfect white teeth, full mouth rehabilitation, all-on-4 implants, ceramic bridge, completely filling all gaps, no missing teeth, continuous white dental arch, medical aesthetic photography, hyperrealistic, before and after transformation",
-                negative_prompt: "missing teeth, gaps, diastema, black spaces, rot, decay, yellow, crooked, broken, shadows, natural teeth",
+                prompt: "dental simulator output: completely changing tooth shape to match golden ratio, textbook dental aesthetics, perfect symmetry, brand new oversized veneers, straight white teeth, ignoring original tooth geometry, artificial perfection, medical photography, hollywood smile transformation",
+                negative_prompt: "original shape, natural teeth, irregularities, crooked, asymmetry, yellow, stained, real teeth texture, gaps, preserving old features",
                 guidance_scale: 15.0,
                 n_steps: 40,
                 output_format: "png",
