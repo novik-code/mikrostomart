@@ -19,38 +19,17 @@ export default function SimulatorPage() {
         }
     };
 
-    const handleFile = (file: File) => {
-        if (!file.type.startsWith("image/")) {
-            alert("Proszę wybrać plik obrazkowy (JPG, PNG).");
-            return;
-        }
-
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            if (e.target?.result) {
-                const imgStr = e.target.result as string;
-                setSelectedImage(imgStr);
-                // Reset previous results
-                setResultImage(null);
-                prepareImageForAPI(imgStr);
-            }
-        };
-        reader.readAsDataURL(file);
-    };
-
     // New State for Mask
     const [maskImage, setMaskImage] = useState<string | null>(null);
 
-    // Helper to crop/resize image to square PNG for OpenAI AND generate Mask
-    const prepareImageForAPI = (imageSrc: string) => {
-        const img = new window.Image();
-        // Handler MUST be set before src to catch cached load (though unlikely with data uri)
-        img.onload = () => {
-            // Verify image loaded correctly
-            if (img.naturalWidth === 0 || img.naturalHeight === 0) {
-                console.error("Image dimensions zero");
-                return;
-            }
+    // Modern Async Image Processor
+    const processImage = async (imageSrc: string) => {
+        try {
+            const img = new window.Image();
+            img.src = imageSrc;
+
+            // Wait for decode (robust way to ensure it's ready for canvas)
+            await img.decode();
 
             const canvas = document.createElement("canvas");
             const size = 1024; // OpenAI standard
@@ -63,8 +42,7 @@ export default function SimulatorPage() {
                 return;
             }
 
-            // Calculate crop (center crop)
-            // Use naturalWidth/Height for accuracy
+            // Calculation (Center Crop)
             const nW = img.naturalWidth;
             const nH = img.naturalHeight;
             const minDim = Math.min(nW, nH);
@@ -75,54 +53,58 @@ export default function SimulatorPage() {
             const tx = (size - drawWidth) / 2;
             const ty = (size - drawHeight) / 2;
 
-            // Debug: Check if we are drawing
-            // console.log("Drawing image:", nW, nH, "->", drawWidth, drawHeight);
+            // 1. Draw Processed Image (Input for AI)
+            ctx.fillStyle = "white"; // Background in case of transparency
+            ctx.fillRect(0, 0, size, size);
+            ctx.drawImage(img, tx, ty, drawWidth, drawHeight);
 
-            // 1. Draw Original Image
-            ctx.fillStyle = "white";
+            const processedPng = canvas.toDataURL("image/png");
+            setProcessedImage(processedPng);
+
+            // 2. Draw Mask (Heuristic)
+            // Reset for mask
+            ctx.clearRect(0, 0, size, size);
+
+            // Fill BLACK (Opaque = Keep Original)
+            ctx.fillStyle = "black";
             ctx.fillRect(0, 0, size, size);
 
-            try {
-                ctx.drawImage(img, tx, ty, drawWidth, drawHeight);
-                const pngData = canvas.toDataURL("image/png");
-                setProcessedImage(pngData);
+            // Cut Hole (Transparent = AI Edit Area) - Bottom Center
+            ctx.globalCompositeOperation = "destination-out";
+            ctx.beginPath();
+            // Adjusted Ellipse: Slightly lower and wider for better mouth coverage
+            ctx.ellipse(size * 0.5, size * 0.65, size * 0.18, size * 0.10, 0, 0, 2 * Math.PI);
+            ctx.fill();
 
-                // 2. Generate Mask (Heuristic: Bottom-Center Oval for Mouth)
-                // OpenAI Mask: Transparent pixels are where we edit. Opaque pixels are kept.
+            ctx.globalCompositeOperation = "source-over"; // Reset
 
-                // Clear canvas for mask
-                ctx.clearRect(0, 0, size, size);
+            const maskPng = canvas.toDataURL("image/png");
+            setMaskImage(maskPng);
 
-                // Fill with Opaque Color (Black) - parts to KEEP
-                ctx.fillStyle = "rgba(0, 0, 0, 1)";
-                ctx.fillRect(0, 0, size, size);
+        } catch (err) {
+            console.error("Image processing error:", err);
+            alert("Błąd przetwarzania zdjęcia. Spróbuj innego pliku.");
+        }
+    };
 
-                // Cut out the Mouth Area (Transparent) - parts to EDIT
-                // Assuming mouth is roughly at 50% X and 65% Y
-                ctx.globalCompositeOperation = "destination-out";
-                ctx.beginPath();
-                // Ellipse: x, y, radiusX, radiusY, rotation, startAngle, endAngle
-                ctx.ellipse(size * 0.5, size * 0.60, size * 0.15, size * 0.08, 0, 0, 2 * Math.PI);
-                ctx.fill();
+    const handleFile = (file: File) => {
+        if (!file.type.startsWith("image/")) {
+            alert("Proszę wybrać plik obrazkowy (JPG, PNG).");
+            return;
+        }
 
-                // Reset composite operation
-                ctx.globalCompositeOperation = "source-over";
-
-                const maskPng = canvas.toDataURL("image/png");
-                setMaskImage(maskPng);
-
-            } catch (err) {
-                console.error("Canvas draw error:", err);
-                alert("Błąd przetwarzania obrazu.");
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            if (e.target?.result) {
+                const imgStr = e.target.result as string;
+                setSelectedImage(imgStr);
+                setResultImage(null);
+                setProcessedImage(null); // Clear old
+                setMaskImage(null);      // Clear old
+                processImage(imgStr);
             }
         };
-
-        img.onerror = (err) => {
-            console.error("Image load error:", err);
-            alert("Nieudane wczytanie pliku obrazu.");
-        };
-
-        img.src = imageSrc;
+        reader.readAsDataURL(file);
     };
 
     const handleGenerate = async () => {
