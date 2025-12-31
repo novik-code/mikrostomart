@@ -12,21 +12,39 @@ export async function GET() {
     }
 
     try {
-        const response = await fetch(
-            `https://www.googleapis.com/youtube/v3/search?key=${API_KEY}&channelId=${CHANNEL_ID}&part=snippet,id&order=date&maxResults=9&type=video`
+        // Step 1: Get Uploads Playlist ID (Cost: 1 unit)
+        const channelResponse = await fetch(
+            `https://www.googleapis.com/youtube/v3/channels?part=contentDetails&id=${CHANNEL_ID}&key=${API_KEY}`
         );
 
-        if (!response.ok) {
-            throw new Error(`YouTube API Error: ${response.statusText}`);
+        if (!channelResponse.ok) {
+            throw new Error(`YouTube Channel API Error: ${channelResponse.statusText}`);
         }
 
-        const data = await response.json();
+        const channelData = await channelResponse.json();
+        const uploadsPlaylistId = channelData.items?.[0]?.contentDetails?.relatedPlaylists?.uploads;
+
+        if (!uploadsPlaylistId) {
+            throw new Error("Could not find uploads playlist for this channel");
+        }
+
+        // Step 2: Get Videos from Uploads Playlist (Cost: 1 unit)
+        const playlistResponse = await fetch(
+            `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${uploadsPlaylistId}&key=${API_KEY}&maxResults=9`
+        );
+
+        if (!playlistResponse.ok) {
+            throw new Error(`YouTube Playlist API Error: ${playlistResponse.statusText}`);
+        }
+
+        const playlistData = await playlistResponse.json();
 
         // Transform data to our simpler format
-        const videos = data.items.map((item: any) => ({
-            id: item.id.videoId,
+        const videos = playlistData.items.map((item: any) => ({
+            id: item.snippet.resourceId.videoId,
             title: item.snippet.title,
-            thumbnail: item.snippet.thumbnails.high.url,
+            thumbnail: item.snippet.thumbnails.high?.url || item.snippet.thumbnails.medium?.url,
+            // added publishedAt if ever needed, but main UI uses id/title/thumbnail
         }));
 
         return NextResponse.json({ videos });
