@@ -260,220 +260,221 @@ export default function SimulatorPage() {
                                 onDrop={handleDrop}
                             >
                                 {selectedImage ? (
-                                    <div style={{ position: "relative", width: "100%", height: "100%", minHeight: "400px", display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                                        <div style={{ position: 'relative', width: '300px', height: '300px', marginBottom: '2rem' }}>
-                                            <Image
-                                                src={selectedImage}
-                                                alt="Uploaded preview"
-                                                fill
-                                                style={{ objectFit: "contain" }}
-                                            />
-                                        </div>
-                                        <button
-                                            onClick={() => setSelectedImage(null)}
-                                            style={{
-                                                position: "absolute",
-                                                top: "1rem",
-                                                right: "1rem",
-                                                background: "rgba(0,0,0,0.6)",
-                                                color: "#fff",
-                                                border: "none",
-                                                padding: "0.5rem 1rem",
-                                                borderRadius: "var(--radius-sm)",
-                                                cursor: "pointer",
-                                                zIndex: 20
-                                            }}
-                                        >
-                                            Zmień zdjęcie
-                                        </button>
+                                    <>
+                                        <div style={{ position: "relative", width: "100%", height: "100%", minHeight: "400px", display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                                            <div style={{ position: 'relative', width: '300px', height: '300px', marginBottom: '2rem' }}>
+                                                <Image
+                                                    src={selectedImage}
+                                                    alt="Uploaded preview"
+                                                    fill
+                                                    style={{ objectFit: "contain" }}
+                                                />
+                                            </div>
+                                            <button
+                                                onClick={() => setSelectedImage(null)}
+                                                style={{
+                                                    position: "absolute",
+                                                    top: "1rem",
+                                                    right: "1rem",
+                                                    background: "rgba(0,0,0,0.6)",
+                                                    color: "#fff",
+                                                    border: "none",
+                                                    padding: "0.5rem 1rem",
+                                                    borderRadius: "var(--radius-sm)",
+                                                    cursor: "pointer",
+                                                    zIndex: 20
+                                                }}
+                                            >
+                                                Zmień zdjęcie
+                                            </button>
 
-                                        {/* Alignment Guide Overlay - Dynamic */}
-                                        <div style={{
-                                            position: 'absolute',
-                                            top: `${maskConfig.y}%`,
-                                            left: `${maskConfig.x}%`,
-                                            transform: 'translate(-50%, -50%)',
-                                            width: `${36 * maskConfig.scale}%`, // Base 36% width
-                                            height: `${20 * maskConfig.scale}%`, // Base 20% height
-                                            border: '2px dashed rgba(255, 255, 0, 0.9)',
-                                            borderRadius: '50%',
-                                            pointerEvents: 'none',
-                                            zIndex: 10,
-                                            boxShadow: '0 0 10px rgba(0,0,0,0.5)'
-                                        }}>
+                                            {/* Alignment Guide Overlay - Dynamic */}
                                             <div style={{
                                                 position: 'absolute',
-                                                top: '-25px',
-                                                left: '50%',
-                                                transform: 'translateX(-50%)',
-                                                color: 'yellow',
-                                                fontSize: '12px',
-                                                whiteSpace: 'nowrap',
-                                                textShadow: '0 1px 2px black',
-                                                background: 'rgba(0,0,0,0.5)',
-                                                padding: '2px 6px',
-                                                borderRadius: '4px'
+                                                top: `${maskConfig.y}%`,
+                                                left: `${maskConfig.x}%`,
+                                                transform: 'translate(-50%, -50%)',
+                                                width: `${36 * maskConfig.scale}%`, // Base 36% width
+                                                height: `${20 * maskConfig.scale}%`, // Base 20% height
+                                                border: '2px dashed rgba(255, 255, 0, 0.9)',
+                                                borderRadius: '50%',
+                                                pointerEvents: 'none',
+                                                zIndex: 10,
+                                                boxShadow: '0 0 10px rgba(0,0,0,0.5)'
                                             }}>
-                                                Dopasuj tutaj
+                                                <div style={{
+                                                    position: 'absolute',
+                                                    top: '-25px',
+                                                    left: '50%',
+                                                    transform: 'translateX(-50%)',
+                                                    color: 'yellow',
+                                                    fontSize: '12px',
+                                                    whiteSpace: 'nowrap',
+                                                    textShadow: '0 1px 2px black',
+                                                    background: 'rgba(0,0,0,0.5)',
+                                                    padding: '2px 6px',
+                                                    borderRadius: '4px'
+                                                }}>
+                                                    Dopasuj tutaj
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                
-                                {/* CONTROLS FOR MASK */}
-                                <div style={{
-                                    marginTop: '20px',
-                                    padding: '15px',
-                                    background: 'var(--color-surface-hover)',
-                                    borderRadius: 'var(--radius-md)',
-                                    width: '100%',
-                                    maxWidth: '400px'
-                                }}>
-                                    <h4 style={{ marginBottom: '10px', fontSize: '0.9rem', color: 'var(--color-text-main)' }}>Dopasuj obszar uśmiechu:</h4>
 
-                                    <div style={{ marginBottom: '10px' }}>
-                                        <label style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '5px' }}>
-                                            <span>Pionowo (Góra/Dół)</span>
-                                            <span>{maskConfig.y}%</span>
-                                        </label>
-                                        <input
-                                            type="range" min="0" max="100" step="1"
-                                            value={maskConfig.y}
-                                            onChange={(e) => setMaskConfig({ ...maskConfig, y: Number(e.target.value) })}
-                                            style={{ width: '100%' }}
-                                        />
-                                    </div>
+                                        {/* CONTROLS FOR MASK */}
+                                        <div style={{
+                                            marginTop: '20px',
+                                            padding: '15px',
+                                            background: 'var(--color-surface-hover)',
+                                            borderRadius: 'var(--radius-md)',
+                                            width: '100%',
+                                            maxWidth: '400px'
+                                        }}>
+                                            <h4 style={{ marginBottom: '10px', fontSize: '0.9rem', color: 'var(--color-text-main)' }}>Dopasuj obszar uśmiechu:</h4>
 
-                                    <div style={{ marginBottom: '10px' }}>
-                                        <label style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '5px' }}>
-                                            <span>Poziomo (Lewo/Prawo)</span>
-                                            <span>{maskConfig.x}%</span>
-                                        </label>
-                                        <input
-                                            type="range" min="0" max="100" step="1"
-                                            value={maskConfig.x}
-                                            onChange={(e) => setMaskConfig({ ...maskConfig, x: Number(e.target.value) })}
-                                            style={{ width: '100%' }}
-                                        />
-                                    </div>
+                                            <div style={{ marginBottom: '10px' }}>
+                                                <label style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '5px' }}>
+                                                    <span>Pionowo (Góra/Dół)</span>
+                                                    <span>{maskConfig.y}%</span>
+                                                </label>
+                                                <input
+                                                    type="range" min="0" max="100" step="1"
+                                                    value={maskConfig.y}
+                                                    onChange={(e) => setMaskConfig({ ...maskConfig, y: Number(e.target.value) })}
+                                                    style={{ width: '100%' }}
+                                                />
+                                            </div>
 
-                                    <div>
-                                        <label style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '5px' }}>
-                                            <span>Rozmiar</span>
-                                            <span>{maskConfig.scale.toFixed(1)}x</span>
-                                        </label>
-                                        <input
-                                            type="range" min="0.5" max="2.0" step="0.1"
-                                            value={maskConfig.scale}
-                                            onChange={(e) => setMaskConfig({ ...maskConfig, scale: Number(e.target.value) })}
-                                            style={{ width: '100%' }}
-                                        />
-                                    </div>
-                                </div>
-                            </>
-                            ) : (
-                            <>
-                                <div style={{ fontSize: "4rem", marginBottom: "1rem", opacity: 0.5 }}>📸</div>
-                                <h3 style={{ marginBottom: "1rem" }}>Przeciągnij zdjęcie tutaj</h3>
-                                <p style={{ color: "var(--color-text-muted)", marginBottom: "2rem" }}>
-                                    lub wybierz z urządzenia
-                                </p>
-                                <input
-                                    type="file"
-                                    ref={fileInputRef}
-                                    onChange={handleFileSelect}
-                                    accept="image/*"
-                                    style={{ display: "none" }}
-                                />
-                                <button
-                                    onClick={() => fileInputRef.current?.click()}
-                                    className="btn-primary"
-                                >
-                                    Wybierz plik
-                                </button>
-                            </>
-                            )}
-                        </div>
-                    )}
-                </RevealOnScroll>
+                                            <div style={{ marginBottom: '10px' }}>
+                                                <label style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '5px' }}>
+                                                    <span>Poziomo (Lewo/Prawo)</span>
+                                                    <span>{maskConfig.x}%</span>
+                                                </label>
+                                                <input
+                                                    type="range" min="0" max="100" step="1"
+                                                    value={maskConfig.x}
+                                                    onChange={(e) => setMaskConfig({ ...maskConfig, x: Number(e.target.value) })}
+                                                    style={{ width: '100%' }}
+                                                />
+                                            </div>
 
-                {
-                    selectedImage && !resultImage && (
-                        <div style={{ textAlign: "center", marginTop: "2rem" }}>
-                            <button
-                                className="btn-primary"
-                                onClick={handleGenerate}
-                                disabled={isLoading || !processedImage || !maskImage}
-                                style={{
-                                    opacity: processedImage && maskImage && !isLoading ? 1 : 0.5,
-                                    cursor: processedImage && maskImage && !isLoading ? "pointer" : "not-allowed",
-                                    padding: "1rem 3rem",
-                                    fontSize: "1.1rem",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: "0.5rem",
-                                    margin: "0 auto"
-                                }}
-                            >
-                                {isLoading ? (
-                                    <>
-                                        <span className="spinner"></span> Generowanie...
+                                            <div>
+                                                <label style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '5px' }}>
+                                                    <span>Rozmiar</span>
+                                                    <span>{maskConfig.scale.toFixed(1)}x</span>
+                                                </label>
+                                                <input
+                                                    type="range" min="0.5" max="2.0" step="0.1"
+                                                    value={maskConfig.scale}
+                                                    onChange={(e) => setMaskConfig({ ...maskConfig, scale: Number(e.target.value) })}
+                                                    style={{ width: '100%' }}
+                                                />
+                                            </div>
+                                        </div>
                                     </>
                                 ) : (
-                                    <>Generuj Mój Uśmiech (AI) ✨</>
-                                )}
-                            </button>
-
-                            {/* Debug Info */}
-                            <div style={{ marginTop: '10px', fontSize: '0.8rem', color: '#666' }}>
-                                Status: {maskImage ? "✅ Gotowy do edycji (Maska OK)" : "⏳ Przetwarzanie..."}
-                            </div>
-
-                            {/* Debug Mask Preview (Temporary) */}
-                            <div style={{ marginTop: '10px', display: 'flex', gap: '10px', justifyContent: 'center' }}>
-                                {processedImage && (
-                                    <div style={{ border: '1px solid #ccc' }}>
-                                        <p style={{ fontSize: '10px' }}>Podgląd Inputu (Do AI):</p>
-                                        <img src={processedImage} alt="Input Debug" style={{ width: '50px', height: '50px', objectFit: 'cover' }} />
-                                    </div>
-                                )}
-                                {maskImage && (
-                                    <div style={{ border: '1px solid #ccc' }}>
-                                        <p style={{ fontSize: '10px' }}>Podgląd Maski:</p>
-                                        <img src={maskImage} alt="Mask Debug" style={{ width: '50px', height: '50px', background: 'url(https://media.istockphoto.com/id/1147544807/vector/transparent-background-pattern-gray.jpg?s=612x612&w=0&k=20&c=p_yM_iQYt4g-gN3E_5mPjUe0QzU-5lK_L-5lK_L-5lK.jpg)' }} />
-                                    </div>
+                                    <>
+                                        <div style={{ fontSize: "4rem", marginBottom: "1rem", opacity: 0.5 }}>📸</div>
+                                        <h3 style={{ marginBottom: "1rem" }}>Przeciągnij zdjęcie tutaj</h3>
+                                        <p style={{ color: "var(--color-text-muted)", marginBottom: "2rem" }}>
+                                            lub wybierz z urządzenia
+                                        </p>
+                                        <input
+                                            type="file"
+                                            ref={fileInputRef}
+                                            onChange={handleFileSelect}
+                                            accept="image/*"
+                                            style={{ display: "none" }}
+                                        />
+                                        <button
+                                            onClick={() => fileInputRef.current?.click()}
+                                            className="btn-primary"
+                                        >
+                                            Wybierz plik
+                                        </button>
+                                    </>
                                 )}
                             </div>
+                    )}
+                        </RevealOnScroll>
 
-                            {isLoading && (
-                                <p style={{ marginTop: "1rem", color: "var(--color-primary)", animation: "pulse 1.5s infinite" }}>
-                                    To może potrwać kilka sekund... Sztuczna inteligencja pracuje.
-                                </p>
-                            )}
-                        </div>
-                    )
-                }
+                    {
+                        selectedImage && !resultImage && (
+                            <div style={{ textAlign: "center", marginTop: "2rem" }}>
+                                <button
+                                    className="btn-primary"
+                                    onClick={handleGenerate}
+                                    disabled={isLoading || !processedImage || !maskImage}
+                                    style={{
+                                        opacity: processedImage && maskImage && !isLoading ? 1 : 0.5,
+                                        cursor: processedImage && maskImage && !isLoading ? "pointer" : "not-allowed",
+                                        padding: "1rem 3rem",
+                                        fontSize: "1.1rem",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: "0.5rem",
+                                        margin: "0 auto"
+                                    }}
+                                >
+                                    {isLoading ? (
+                                        <>
+                                            <span className="spinner"></span> Generowanie...
+                                        </>
+                                    ) : (
+                                        <>Generuj Mój Uśmiech (AI) ✨</>
+                                    )}
+                                </button>
 
-                {
-                    resultImage && (
-                        <div style={{ textAlign: 'center', marginTop: '1rem' }}>
-                            <a
-                                href={resultImage}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                style={{
-                                    display: 'inline-block',
-                                    marginTop: '10px',
-                                    textDecoration: 'underline',
-                                    color: 'var(--color-primary)'
-                                }}
-                            >
-                                Biały ekran? Kliknij tutaj, aby otworzyć zdjęcie w nowym oknie
-                            </a>
-                        </div>
-                    )
-                }
+                                {/* Debug Info */}
+                                <div style={{ marginTop: '10px', fontSize: '0.8rem', color: '#666' }}>
+                                    Status: {maskImage ? "✅ Gotowy do edycji (Maska OK)" : "⏳ Przetwarzanie..."}
+                                </div>
 
-                <style jsx>{`
+                                {/* Debug Mask Preview (Temporary) */}
+                                <div style={{ marginTop: '10px', display: 'flex', gap: '10px', justifyContent: 'center' }}>
+                                    {processedImage && (
+                                        <div style={{ border: '1px solid #ccc' }}>
+                                            <p style={{ fontSize: '10px' }}>Podgląd Inputu (Do AI):</p>
+                                            <img src={processedImage} alt="Input Debug" style={{ width: '50px', height: '50px', objectFit: 'cover' }} />
+                                        </div>
+                                    )}
+                                    {maskImage && (
+                                        <div style={{ border: '1px solid #ccc' }}>
+                                            <p style={{ fontSize: '10px' }}>Podgląd Maski:</p>
+                                            <img src={maskImage} alt="Mask Debug" style={{ width: '50px', height: '50px', background: 'url(https://media.istockphoto.com/id/1147544807/vector/transparent-background-pattern-gray.jpg?s=612x612&w=0&k=20&c=p_yM_iQYt4g-gN3E_5mPjUe0QzU-5lK_L-5lK_L-5lK.jpg)' }} />
+                                        </div>
+                                    )}
+                                </div>
+
+                                {isLoading && (
+                                    <p style={{ marginTop: "1rem", color: "var(--color-primary)", animation: "pulse 1.5s infinite" }}>
+                                        To może potrwać kilka sekund... Sztuczna inteligencja pracuje.
+                                    </p>
+                                )}
+                            </div>
+                        )
+                    }
+
+                    {
+                        resultImage && (
+                            <div style={{ textAlign: 'center', marginTop: '1rem' }}>
+                                <a
+                                    href={resultImage}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    style={{
+                                        display: 'inline-block',
+                                        marginTop: '10px',
+                                        textDecoration: 'underline',
+                                        color: 'var(--color-primary)'
+                                    }}
+                                >
+                                    Biały ekran? Kliknij tutaj, aby otworzyć zdjęcie w nowym oknie
+                                </a>
+                            </div>
+                        )
+                    }
+
+                    <style jsx>{`
                     .spinner {
                         width: 20px;
                         height: 20px;
