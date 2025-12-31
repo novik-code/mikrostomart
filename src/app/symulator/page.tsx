@@ -415,11 +415,12 @@ export default function SimulatorPage() {
                                         style={{ position: "relative", width: "100%", height: "100%", minHeight: "400px", display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: isMaskDragging ? 'grabbing' : 'default', touchAction: 'none' }}
                                     >
                                         <div style={{ position: 'relative', width: '300px', height: '300px', marginBottom: '2rem', pointerEvents: 'none' }}>
+                                            {/* CRITICAL FIX: Show processedImage (the actual square crop) so mask aligns 1:1 */}
                                             <Image
-                                                src={selectedImage}
+                                                src={processedImage || selectedImage}
                                                 alt="Uploaded preview"
                                                 fill
-                                                style={{ objectFit: "contain" }}
+                                                style={{ objectFit: "cover", borderRadius: "10px" }} // Matches the 1024x1024 canvas logic
                                             />
                                         </div>
                                         <button
