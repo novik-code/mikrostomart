@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Replicate from "replicate";
 
 export const runtime = 'nodejs'; // Replicate SDK works best in Node env
-// Force Deploy Timestamp: 2025-12-31 21:30
+// Force Deploy Timestamp: 2025-12-31 22:00
 
 export async function POST(req: NextRequest) {
     try {
@@ -20,44 +20,7 @@ export async function POST(req: NextRequest) {
             auth: replicateKey,
         });
 
-        const formData = await req.formData();
-        const imageFile = formData.get("image") as File;
-        const maskFile = formData.get("mask") as File;
-        const style = formData.get("style") as string || "hollywood";
-
-        if (!imageFile || !maskFile) {
-            return NextResponse.json(
-                { error: "Missing image or mask" },
-                { status: 400 }
-            );
-        }
-
-        // Convert Files to base64 Data URIs which Replicate accepts
-        const fileToBase64 = async (file: File) => {
-            const bytes = await file.arrayBuffer();
-            const buffer = Buffer.from(bytes);
-            return `data:${file.type};base64,${buffer.toString("base64")}`;
-        };
-
-        const imageUri = await fileToBase64(imageFile);
-        const maskUri = await fileToBase64(maskFile);
-
-        console.log("Fetching latest model version for Flux Fill...");
-
-        // 1. Get the latest version ID dynamically (Robust way)
-        // This prevents 422 errors from hardcoded/outdated version IDs
-        const modelRepo = await replicate.models.get("black-forest-labs", "flux-fill-dev");
-        const latestVersion = modelRepo.latest_version?.id;
-
-        if (!latestVersion) {
-            throw new Error("Could not fetch latest version for black-forest-labs/flux-fill-dev");
-        }
-
-        // STRATEGY: Two-Pass Generation (Erase -> Rebuild)
-        // Pass 1: Remove all teeth to create a neutral cavity (breaking the "anchor" to original teeth)
-        // Pass 2: Generate perfect teeth on the blank canvas
-
-        console.log("--- STARTING PASS 1: ERASING TEETH ---");
+        // --- HELPERS ---
 
         // Helper to poll for prediction
         const waitForPrediction = async (pred: any) => {
@@ -89,6 +52,90 @@ export async function POST(req: NextRequest) {
             }
         };
 
+        // --- REQUEST PARSING ---
+
+        const formData = await req.formData();
+        const imageFile = formData.get("image") as File;
+        const maskFile = formData.get("mask") as File;
+        const style = formData.get("style") as string || "hollywood";
+        const mode = formData.get("mode") as string || "ai-generate";
+
+        if (!imageFile || !maskFile) {
+            return NextResponse.json(
+                { error: "Missing image or mask" },
+                { status: 400 }
+            );
+        }
+
+        // Convert Files to base64 Data URIs which Replicate accepts
+        const fileToBase64 = async (file: File) => {
+            const bytes = await file.arrayBuffer();
+            const buffer = Buffer.from(bytes);
+            return `data:${file.type};base64,${buffer.toString("base64")}`;
+        };
+
+        const imageUri = await fileToBase64(imageFile);
+        const maskUri = await fileToBase64(maskFile);
+
+        // --- LOGIC DISPATCH ---
+
+        // 1. TEMPLATE BLEND MODE (Image-to-Image / Blending)
+        if (mode === "template-blend") {
+            console.log("--- STARTING TEMPLATE BLEND MODE (Flux Dev Img2Img) ---");
+
+            // Use black-forest-labs/flux-dev for blending the composite
+            const blendModel = "black-forest-labs/flux-dev";
+            const blendModelRepo = await replicate.models.get("black-forest-labs", "flux-dev");
+            const blendVersion = blendModelRepo.latest_version?.id;
+
+            if (!blendVersion) throw new Error("Flux Dev version not found");
+
+            // Parameters for blending:
+            // "image" is the input composite (face + template overlay)
+            // "prompt_strength" controls how much we overwrite. 
+            // 0.65 means "change about 65% of the pixels" (or strictness depending on model implementation).
+            // Actually in Flux Dev, `prompt_strength` might be `strength` or `denoising_strength`.
+            // Replicate documentation for flux-dev typically exposes `prompt_strength` (0-1).
+
+            const prediction = await createWithRetry(() => replicate.predictions.create({
+                version: blendVersion,
+                input: {
+                    prompt: `Photorealistic dental photography. A beautiful smile with ${style} teeth. High detailed macro shot, natural skin texture, professional lighting. ${getStylePrompt(style)}`,
+                    image: imageUri,
+                    prompt_strength: 0.65,
+                    num_inference_steps: 30,
+                    guidance_scale: 3.5,
+                    output_format: "png",
+                    output_quality: 100,
+                    go_fast: true
+                }
+            }));
+
+            const finalPrediction = await waitForPrediction(prediction);
+
+            if (finalPrediction.status === "succeeded" && finalPrediction.output) {
+                const resultUrl = Array.isArray(finalPrediction.output) ? finalPrediction.output[0] : finalPrediction.output;
+                return NextResponse.json({
+                    url: resultUrl,
+                    debug: JSON.stringify({ mode: 'template-blend', logs: finalPrediction.logs })
+                });
+            } else {
+                throw new Error(`Template Blend failed: ${finalPrediction.error}`);
+            }
+        }
+
+        // 2. ORIGINAL AI GENERATE MODE (Inpainting)
+        console.log("Fetching latest model version for Flux Fill (Inpainting)...");
+
+        const modelRepo = await replicate.models.get("black-forest-labs", "flux-fill-dev");
+        const latestVersion = modelRepo.latest_version?.id;
+
+        if (!latestVersion) {
+            throw new Error("Could not fetch latest version for black-forest-labs/flux-fill-dev");
+        }
+
+        console.log("--- STARTING PASS 1: ERASING TEETH ---");
+
         // PASS 1: ERASE
         let erasePrediction = await createWithRetry(() => replicate.predictions.create({
             version: latestVersion,
@@ -97,7 +144,7 @@ export async function POST(req: NextRequest) {
                 mask: maskUri,
                 prompt: "Inpaint masked area only. Remove all teeth information completely and create a clean neutral mouth interior as a base: natural open-mouth cavity with realistic darkness and soft gradients, no visible teeth, no tooth shapes, no tooth edges, no gaps, no artifacts. Preserve lips, skin, and everything outside the mask unchanged, photorealistic, matching original lighting.",
                 guidance_scale: 4.5,
-                n_steps: 25, // Fast erase
+                n_steps: 25,
                 output_format: "png",
                 output_quality: 100
             }
@@ -113,17 +160,9 @@ export async function POST(req: NextRequest) {
         console.log("Pass 1 Succeeded. URL:", erasedImageUrl);
 
         console.log("--- STARTING PASS 2: BUILD NEW SMILE ---");
-
-        // Add a small safety buffer between passes even if no error
         await new Promise(resolve => setTimeout(resolve, 2000));
 
-        // PASS 2: BUILD (Using output of Pass 1 as input)
-        // STRATEGY V4.1: Switch to Flux-Fill-PRO for the quality build pass
-        const proModel = "black-forest-labs/flux-fill-pro";
-
-
-
-        // Re-fetching Pro version here to be dynamic
+        // PASS 2: BUILD
         const proModelRepo = await replicate.models.get("black-forest-labs", "flux-fill-pro");
         const proVersion = proModelRepo.latest_version?.id;
 
@@ -144,7 +183,7 @@ export async function POST(req: NextRequest) {
                 steps: 50,
                 output_format: "png",
                 output_quality: 100,
-                safety_tolerance: 5 // Allow medical content
+                safety_tolerance: 5
             }
         }));
 
@@ -152,7 +191,6 @@ export async function POST(req: NextRequest) {
 
         console.log("Pass 2 Final Status:", buildPrediction.status);
 
-        // 4. Handle Result
         if (buildPrediction.status === "succeeded" && buildPrediction.output) {
             const resultUrl = Array.isArray(buildPrediction.output) ? buildPrediction.output[0] : buildPrediction.output;
             return NextResponse.json({

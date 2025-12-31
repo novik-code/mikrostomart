@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import RevealOnScroll from "@/components/RevealOnScroll";
 import BeforeAfterSlider from "@/components/BeforeAfterSlider";
+import OverlayEditor from "@/components/OverlayEditor";
 
 /*
   SIMULATOR PAGE (Replicate / Flux Edition)
@@ -11,6 +12,7 @@ import BeforeAfterSlider from "@/components/BeforeAfterSlider";
   1. User draws mask (oval).
   2. We send original image + mask hole to API.
   3. API uses Replicate (Flux Fill) for SOTA inpainting.
+  4. NEW: User can alternatively place a Template Overlay (SmileCloud style) which is then blended.
 */
 
 export default function SimulatorPage() {
@@ -21,12 +23,19 @@ export default function SimulatorPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
     // State for Mask Configuration
     const [maskConfig, setMaskConfig] = useState({ x: 50, y: 65, scaleX: 1.0, scaleY: 1.0 });
+
     // State for Smile Style
     const [smileStyle, setSmileStyle] = useState("hollywood");
+
     // State for Image Layout (How the image sits on the 1024x1024 canvas)
     const [imageLayout, setImageLayout] = useState({ tx: 0, ty: 0, scale: 1, drawWidth: 1024, drawHeight: 1024 });
+
+    // MODE SWITCH: 'ai-generate' (Default) vs 'template-overlay' (SmileCloud)
+    const [simulatorMode, setSimulatorMode] = useState<'ai-generate' | 'template-overlay'>('template-overlay');
+    const [compositeImage, setCompositeImage] = useState<string | null>(null);
 
     // Drag Logic Refs
     const previewRef = useRef<HTMLDivElement>(null);
@@ -230,8 +239,22 @@ export default function SimulatorPage() {
             const maskBlob = dataURItoBlob(bwMask);          // B/W Mask
 
             const formData = new FormData();
-            formData.append("image", imageBlob, "image.png");
-            formData.append("mask", maskBlob, "mask.png");
+
+            // IF TEMPLATE MODE: Send COMPOSITE as the image
+            if (simulatorMode === 'template-overlay') {
+                if (!compositeImage) { alert("Błąd: Brak kompozytu"); return; }
+                const compositeBlob = dataURItoBlob(compositeImage);
+                formData.append("image", compositeBlob, "composite.png");
+
+                // We send the mask for blending reference
+                formData.append("mask", maskBlob, "mask.png");
+                formData.append("mode", "template-blend");
+            } else {
+                formData.append("image", imageBlob, "image.png");
+                formData.append("mask", maskBlob, "mask.png");
+                formData.append("mode", "ai-generate");
+            }
+
             formData.append("style", smileStyle);
 
             const response = await fetch("/api/simulate", {
@@ -242,7 +265,7 @@ export default function SimulatorPage() {
             const data = await response.json();
 
             // FORCE DEBUGGING
-            alert("API RESPONSE:\n" + JSON.stringify(data, null, 2));
+            // alert("API RESPONSE:\n" + JSON.stringify(data, null, 2));
 
             if (!response.ok) {
                 if (data.error && data.error.includes("auth")) {
@@ -348,11 +371,9 @@ export default function SimulatorPage() {
                         <h1 style={{ fontSize: "clamp(2rem, 5vw, 3.5rem)", marginBottom: "0.5rem" }}>
                             Wirtualna Przymierzalnia
                         </h1>
-                        <p style={{ fontSize: "0.8rem", color: "red", fontWeight: "bold", marginBottom: "1rem" }}>
-                            WERSJA 5.0 (Style Selector)
-                        </p>
+                        WERSJA 5.1 (Overlay Controls)
                         <p style={{ color: "var(--color-text-muted)", maxWidth: "600px", margin: "0 auto" }}>
-                            Wgraj swoje zdjęcie, a nasza sztuczna inteligencja (Flux Pro) pokaże Ci potencjał Twojego nowego uśmiechu.
+                            Wgraj swoje zdjęcie, wybierz tryb (AI lub Szablon) i zobacz nową wersję uśmiechu.
                         </p>
                     </header>
                 </RevealOnScroll>
@@ -438,185 +459,204 @@ export default function SimulatorPage() {
                         >
                             {selectedImage ? (
                                 <>
-                                    <div
-                                        ref={previewRef}
-                                        onMouseMove={handleMaskMouseMove}
-                                        onTouchMove={handleMaskMouseMove}
-                                        style={{ position: "relative", width: "100%", height: "100%", minHeight: "400px", display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: isMaskDragging ? 'grabbing' : 'default', touchAction: 'none' }}
-                                    >
-                                        <div style={{ position: 'relative', width: '300px', height: '300px', marginBottom: '2rem', pointerEvents: 'none' }}>
-                                            {/* CRITICAL FIX: Show processedImage (the actual square crop) so mask aligns 1:1 */}
-                                            <Image
-                                                src={processedImage || selectedImage}
-                                                alt="Uploaded preview"
-                                                fill
-                                                style={{ objectFit: "cover", borderRadius: "10px" }} // Matches the 1024x1024 canvas logic
-                                            />
-                                        </div>
-                                        <button
-                                            onClick={() => setSelectedImage(null)}
-                                            style={{
-                                                position: "absolute",
-                                                top: "1rem",
-                                                right: "1rem",
-                                                background: "rgba(0,0,0,0.6)",
-                                                color: "#fff",
-                                                border: "none",
-                                                padding: "0.5rem 1rem",
-                                                borderRadius: "var(--radius-sm)",
-                                                cursor: "pointer",
-                                                zIndex: 20
-                                            }}
-                                        >
-                                            Zmień zdjęcie
-                                        </button>
+                                    <div style={{ position: "relative", width: "100%", height: "100%", minHeight: "400px", display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                                        <div style={{ position: 'relative', width: '300px', height: '300px', marginBottom: '2rem' }}>
+                                            {/* MODE SWITCHER PREVIEW AREA */}
+                                            {simulatorMode === 'template-overlay' ? (
+                                                <div style={{ width: '100%', height: '100%' }}>
+                                                    <OverlayEditor
+                                                        baseImage={processedImage || selectedImage}
+                                                        templateImage={`/template_${smileStyle}.png`}
+                                                        onCompositeReady={(url) => setCompositeImage(url)}
+                                                    />
+                                                    <div style={{ fontSize: '10px', color: 'gray', textAlign: 'center', marginTop: '5px' }}>
+                                                        *Przesuwaj/Skaluj szablon. AI wtopi go w zdjęcie.
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div
+                                                    ref={previewRef}
+                                                    onMouseMove={handleMaskMouseMove}
+                                                    onTouchMove={handleMaskMouseMove}
+                                                    style={{ width: '100%', height: '100%', position: 'relative' }}
+                                                >
+                                                    <Image
+                                                        src={processedImage || selectedImage}
+                                                        alt="Uploaded preview"
+                                                        fill
+                                                        style={{ objectFit: "cover", borderRadius: "10px" }}
+                                                    />
 
-                                        {/* Alignment Guide Overlay - Dynamic & Interactive */}
-                                        <div
-                                            onMouseDown={handleMaskMouseDown}
-                                            onTouchStart={handleMaskMouseDown}
-                                            style={{
-                                                position: 'absolute',
-                                                top: `${maskConfig.y}%`,
-                                                left: `${maskConfig.x}%`,
-                                                transform: 'translate(-50%, -50%)',
-                                                width: `${36 * maskConfig.scaleX}%`, // Base 36% width
-                                                height: `${20 * maskConfig.scaleY}%`, // Base 20% height
-                                                border: '2px dashed rgba(255, 255, 0, 0.9)',
-                                                borderRadius: '50%',
-                                                cursor: isMaskDragging ? 'grabbing' : 'grab',
-                                                zIndex: 50,
-                                                boxShadow: '0 0 10px rgba(0,0,0,0.5)',
-                                                background: 'rgba(255, 255, 0, 0.1)'
-                                            }}>
-                                            <div style={{
-                                                position: 'absolute',
-                                                top: '-35px',
-                                                left: '50%',
-                                                transform: 'translateX(-50%)',
-                                                color: 'yellow',
-                                                fontSize: '12px',
-                                                whiteSpace: 'nowrap',
-                                                textShadow: '0 1px 2px black',
-                                                background: 'rgba(0,0,0,0.7)',
-                                                padding: '4px 8px',
-                                                borderRadius: '4px',
-                                                pointerEvents: 'none'
-                                            }}>
-                                                👆 Przesuń mnie
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* CONTROLS FOR MASK */}
-                                    <div style={{
-                                        marginTop: '20px',
-                                        padding: '15px',
-                                        background: 'var(--color-surface-hover)',
-                                        borderRadius: 'var(--radius-md)',
-                                        width: '100%',
-                                        maxWidth: '400px'
-                                    }}>
-                                        <h4 style={{ marginBottom: '10px', fontSize: '0.9rem', color: 'var(--color-text-main)' }}>Dopasuj obszar uśmiechu:</h4>
-
-                                        <div className="space-y-4">
-                                            <p style={{ fontSize: "0.8rem", color: "orange", fontWeight: "bold", textAlign: "center" }}>
-                                                ⚠️ WSKAZÓWKA: Zaznacz całe zęby + mały margines warg (2-4mm). Zamaluj też czarne braki zębowe!
-                                            </p>
-                                            <div>
-                                                <label className="block text-sm font-medium mb-1">Pozycja pozioma (X) {maskConfig.x}%</label>
-                                                <input
-                                                    type="range"
-                                                    min="0"
-                                                    max="100"
-                                                    value={maskConfig.x}
-                                                    onChange={(e) => setMaskConfig({ ...maskConfig, x: Number(e.target.value) })}
-                                                    className="w-full"
-                                                />
-                                            </div>
-                                        </div>
-
-                                        <div style={{ marginBottom: '10px' }}>
-                                            <label style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '5px' }}>
-                                                <span>Szerokość</span>
-                                                <span>{maskConfig.scaleX.toFixed(1)}x</span>
-                                            </label>
-                                            <input
-                                                type="range" min="0.1" max="2.0" step="0.1"
-                                                value={maskConfig.scaleX}
-                                                onChange={(e) => setMaskConfig({ ...maskConfig, scaleX: Number(e.target.value) })}
-                                                style={{ width: '100%' }}
-                                                className="accent-primary"
-                                            />
-                                        </div>
-
-                                        <div style={{ marginBottom: '15px' }}>
-                                            <label style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '5px' }}>
-                                                <span>Wysokość</span>
-                                                <span>{maskConfig.scaleY.toFixed(1)}x</span>
-                                            </label>
-                                            <input
-                                                type="range" min="0.1" max="2.0" step="0.1"
-                                                value={maskConfig.scaleY}
-                                                onChange={(e) => setMaskConfig({ ...maskConfig, scaleY: Number(e.target.value) })}
-                                                style={{ width: '100%' }}
-                                                className="accent-primary"
-                                            />
-                                        </div>
-
-                                        <div style={{ marginBottom: '15px' }}>
-                                            <h4 style={{ marginBottom: '8px', fontSize: '0.9rem', color: 'var(--color-text-main)' }}>Wybierz styl uśmiechu:</h4>
-                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                                                {[
-                                                    { id: 'hollywood', label: 'Hollywood', desc: 'Idealna biel (BL1)' },
-                                                    { id: 'natural', label: 'Naturalny', desc: 'Kolor A1, tekstura' },
-                                                    { id: 'soft', label: 'Łagodny', desc: 'Owalne, kobiece' },
-                                                    { id: 'strong', label: 'Mocny', desc: 'Kanciaste, męskie' }
-                                                ].map((style) => (
-                                                    <button
-                                                        key={style.id}
-                                                        onClick={() => setSmileStyle(style.id)}
+                                                    {/* Alignment Guide Overlay - Dynamic & Interactive */}
+                                                    <div
+                                                        onMouseDown={handleMaskMouseDown}
+                                                        onTouchStart={handleMaskMouseDown}
                                                         style={{
-                                                            padding: '8px',
-                                                            borderRadius: '6px',
-                                                            border: smileStyle === style.id ? '2px solid var(--color-primary)' : '1px solid var(--color-surface-hover)',
-                                                            background: smileStyle === style.id ? 'rgba(var(--color-primary-rgb), 0.1)' : 'transparent',
-                                                            cursor: 'pointer',
-                                                            textAlign: 'left'
-                                                        }}
-                                                    >
-                                                        <div style={{ fontWeight: 'bold', fontSize: '0.85rem', color: smileStyle === style.id ? 'var(--color-primary)' : 'var(--color-text-main)' }}>{style.label}</div>
-                                                        <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>{style.desc}</div>
-                                                    </button>
-                                                ))}
+                                                            position: 'absolute',
+                                                            top: `${maskConfig.y}%`,
+                                                            left: `${maskConfig.x}%`,
+                                                            transform: 'translate(-50%, -50%)',
+                                                            width: `${36 * maskConfig.scaleX}%`,
+                                                            height: `${20 * maskConfig.scaleY}%`,
+                                                            border: '2px dashed rgba(255, 255, 0, 0.9)',
+                                                            borderRadius: '50%',
+                                                            cursor: isMaskDragging ? 'grabbing' : 'grab',
+                                                            zIndex: 50,
+                                                            boxShadow: '0 0 10px rgba(0,0,0,0.5)',
+                                                            background: 'rgba(255, 255, 0, 0.1)'
+                                                        }}>
+                                                        <div style={{
+                                                            position: 'absolute',
+                                                            top: '-35px',
+                                                            left: '50%',
+                                                            transform: 'translateX(-50%)',
+                                                            color: 'yellow',
+                                                            fontSize: '12px',
+                                                            whiteSpace: 'nowrap',
+                                                            textShadow: '0 1px 2px black',
+                                                            background: 'rgba(0,0,0,0.7)',
+                                                            padding: '4px 8px',
+                                                            borderRadius: '4px',
+                                                            pointerEvents: 'none'
+                                                        }}>
+                                                            👆 Przesuń mnie
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* CONTROLS COMMON CONTAINER */}
+                                        <div style={{
+                                            marginTop: '40px',
+                                            padding: '15px',
+                                            background: 'var(--color-surface-hover)',
+                                            borderRadius: 'var(--radius-md)',
+                                            width: '100%',
+                                            maxWidth: '400px'
+                                        }}>
+                                            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '15px', gap: '10px' }}>
+                                                <button
+                                                    onClick={() => setSimulatorMode('template-overlay')}
+                                                    style={{ padding: '5px 10px', borderRadius: '15px', border: simulatorMode === 'template-overlay' ? '2px solid var(--color-primary)' : '1px solid gray', background: simulatorMode === 'template-overlay' ? 'var(--color-primary)' : 'transparent', color: simulatorMode === 'template-overlay' ? 'white' : 'gray', cursor: 'pointer', fontSize: '0.8rem' }}
+                                                >
+                                                    Szablon (SmileCloud)
+                                                </button>
+                                                <button
+                                                    onClick={() => setSimulatorMode('ai-generate')}
+                                                    style={{ padding: '5px 10px', borderRadius: '15px', border: simulatorMode === 'ai-generate' ? '2px solid var(--color-primary)' : '1px solid gray', background: simulatorMode === 'ai-generate' ? 'var(--color-primary)' : 'transparent', color: simulatorMode === 'ai-generate' ? 'white' : 'gray', cursor: 'pointer', fontSize: '0.8rem' }}
+                                                >
+                                                    Tylko AI (Maska)
+                                                </button>
+                                            </div>
+
+                                            {/* AI MASK CONTROLS (Only visible in AI Mode) */}
+                                            {simulatorMode === 'ai-generate' && (
+                                                <div className="space-y-4" style={{ marginBottom: '20px' }}>
+                                                    <h4 style={{ marginBottom: '10px', fontSize: '0.9rem', color: 'var(--color-text-main)' }}>Dopasuj obszar uśmiechu:</h4>
+                                                    <p style={{ fontSize: "0.8rem", color: "orange", fontWeight: "bold", textAlign: "center" }}>
+                                                        ⚠️ Zaznacz całe zęby + margines.
+                                                    </p>
+                                                    <div>
+                                                        <label className="block text-sm font-medium mb-1">Pozycja X {maskConfig.x}%</label>
+                                                        <input
+                                                            type="range" min="0" max="100"
+                                                            value={maskConfig.x}
+                                                            onChange={(e) => setMaskConfig({ ...maskConfig, x: Number(e.target.value) })}
+                                                            className="w-full"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-sm font-medium mb-1">Szerokość {maskConfig.scaleX.toFixed(1)}x</label>
+                                                        <input
+                                                            type="range" min="0.1" max="2.0" step="0.1"
+                                                            value={maskConfig.scaleX}
+                                                            onChange={(e) => setMaskConfig({ ...maskConfig, scaleX: Number(e.target.value) })}
+                                                            className="w-full"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-sm font-medium mb-1">Wysokość {maskConfig.scaleY.toFixed(1)}x</label>
+                                                        <input
+                                                            type="range" min="0.1" max="2.0" step="0.1"
+                                                            value={maskConfig.scaleY}
+                                                            onChange={(e) => setMaskConfig({ ...maskConfig, scaleY: Number(e.target.value) })}
+                                                            className="w-full"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* STYLE SELECTOR (Always visible) */}
+                                            <div style={{ marginBottom: '15px' }}>
+                                                <h4 style={{ marginBottom: '8px', fontSize: '0.9rem', color: 'var(--color-text-main)' }}>Wybierz styl uśmiechu:</h4>
+                                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                                                    {[
+                                                        { id: 'hollywood', label: 'Hollywood', desc: 'Idealna biel (BL1)' },
+                                                        { id: 'natural', label: 'Naturalny', desc: 'Kolor A1, tekstura' },
+                                                        { id: 'soft', label: 'Łagodny', desc: 'Owalne, kobiece' },
+                                                        { id: 'strong', label: 'Mocny', desc: 'Kanciaste, męskie' }
+                                                    ].map((style) => (
+                                                        <button
+                                                            key={style.id}
+                                                            onClick={() => setSmileStyle(style.id)}
+                                                            style={{
+                                                                padding: '8px',
+                                                                borderRadius: '6px',
+                                                                border: smileStyle === style.id ? '2px solid var(--color-primary)' : '1px solid var(--color-surface-hover)',
+                                                                background: smileStyle === style.id ? 'rgba(var(--color-primary-rgb), 0.1)' : 'transparent',
+                                                                cursor: 'pointer',
+                                                                textAlign: 'left'
+                                                            }}
+                                                        >
+                                                            <div style={{ fontWeight: 'bold', fontSize: '0.85rem', color: smileStyle === style.id ? 'var(--color-primary)' : 'var(--color-text-main)' }}>{style.label}</div>
+                                                            <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>{style.desc}</div>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            <button
+                                                className="btn-primary"
+                                                onClick={handleGenerate}
+                                                disabled={isLoading || !processedImage}
+                                                style={{
+                                                    width: '100%',
+                                                    opacity: processedImage && !isLoading ? 1 : 0.7,
+                                                    cursor: processedImage && !isLoading ? "pointer" : "not-allowed",
+                                                    padding: "0.8rem",
+                                                    display: "flex",
+                                                    justifyContent: "center",
+                                                    alignItems: "center",
+                                                    gap: "0.5rem"
+                                                }}
+                                            >
+                                                {isLoading ? "Generowanie..." : simulatorMode === 'template-overlay' ? "✨ Wtopienie szablonu (Flux)" : "✨ Generuj Uśmiech (Flux)"}
+                                            </button>
+
+                                            <div style={{ marginTop: '10px', fontSize: '0.7rem', color: '#666', textAlign: 'center' }}>
+                                                {processedImage ? "✅ Zdjęcie gotowe" : "⏳ Przetwarzanie..."}
                                             </div>
                                         </div>
-
-                                        {/* GENERATE BUTTON MOVED HERE TO BE SAFE */}
-                                        <button
-                                            className="btn-primary"
-                                            onClick={handleGenerate}
-                                            disabled={isLoading || !processedImage}
-                                            style={{
-                                                width: '100%',
-                                                opacity: processedImage && !isLoading ? 1 : 0.7,
-                                                cursor: processedImage && !isLoading ? "pointer" : "not-allowed",
-                                                padding: "0.8rem",
-                                                display: "flex",
-                                                justifyContent: "center",
-                                                alignItems: "center",
-                                                gap: "0.5rem"
-                                            }}
-                                        >
-                                            {isLoading ? "Generowanie..." : "✨ Generuj Uśmiech (Flux)"}
-                                        </button>
-
-                                        {/* DEBUG INFO */}
-                                        <div style={{ marginTop: '10px', fontSize: '0.7rem', color: '#666', textAlign: 'center' }}>
-                                            {processedImage ? "✅ Zdjęcie gotowe" : "⏳ Przetwarzanie..."}
-                                            {maskImage ? " | ✅ Maska gotowa" : " | ⏳ Maska..."}
-                                        </div>
                                     </div>
+
+                                    <button
+                                        onClick={() => setSelectedImage(null)}
+                                        style={{
+                                            position: "absolute",
+                                            top: "1rem",
+                                            right: "1rem",
+                                            background: "rgba(0,0,0,0.6)",
+                                            color: "#fff",
+                                            border: "none",
+                                            padding: "0.5rem 1rem",
+                                            borderRadius: "var(--radius-sm)",
+                                            cursor: "pointer",
+                                            zIndex: 20
+                                        }}
+                                    >
+                                        Zmień zdjęcie
+                                    </button>
                                 </>
                             ) : (
                                 <>
