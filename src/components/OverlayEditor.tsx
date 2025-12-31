@@ -175,13 +175,18 @@ export default function OverlayEditor({ baseImage, templateImage, onCompositeRea
             });
         }
 
+        // Auto-emit result (debounced)
+        const timeoutId = setTimeout(() => {
+            if (canvasRef.current) {
+                onCompositeReady(canvasRef.current.toDataURL("image/png"));
+            }
+        }, 100); // 100ms debounce
+
+        return () => clearTimeout(timeoutId);
+
     }, [imgBase, imgTemplate, config, lipMask, maskMode]);
 
-    const handleGenerateComposite = () => {
-        if (canvasRef.current) {
-            onCompositeReady(canvasRef.current.toDataURL("image/png"));
-        }
-    };
+    // Removed manual "Generate" button handler since we auto-emit
 
     // Interaction Handlers
     const getCanvasPoint = (e: React.MouseEvent | React.TouchEvent | MouseEvent | TouchEvent) => {
@@ -200,7 +205,7 @@ export default function OverlayEditor({ baseImage, templateImage, onCompositeRea
     const handleMouseDown = (e: React.MouseEvent | React.TouchEvent) => {
         e.preventDefault();
         const pt = getCanvasPoint(e);
-        const hitDist = 40; // Pixel distance to grab point
+        const hitDist = 60; // Increased hit area for mobile
 
         // Check Mask Points first (if visible)
         if (maskMode) {
@@ -262,23 +267,25 @@ export default function OverlayEditor({ baseImage, templateImage, onCompositeRea
             <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
                 <button
                     onClick={() => setMaskMode(!maskMode)}
+                    className="btn-secondary"
                     style={{
                         flex: 1,
-                        padding: '10px',
-                        borderRadius: '8px',
-                        background: maskMode ? 'var(--color-primary)' : 'var(--color-surface)',
+                        padding: '8px',
+                        borderRadius: '6px',
+                        background: maskMode ? 'var(--color-primary)' : 'rgba(255,255,255,0.1)',
                         border: '1px solid var(--color-surface-hover)',
                         color: maskMode ? 'white' : 'var(--color-text-main)',
                         cursor: 'pointer',
-                        fontSize: '0.9rem'
+                        fontSize: '0.85rem',
+                        fontWeight: '500'
                     }}
                 >
-                    {maskMode ? "👀 Zakończ edycję wargi" : "✏️ Dopasuj Linię Wargi"}
+                    {maskMode ? "✅ Zakończ edycję wargi" : "✏️ Edytuj Linię Wargi"}
                 </button>
             </div>
 
             <div
-                style={{ position: 'relative', width: '100%', aspectRatio: '1/1', border: '2px dashed var(--color-primary)', borderRadius: '8px', overflow: 'hidden', cursor: isDragging ? 'grabbing' : 'grab', touchAction: 'none' }}
+                style={{ position: 'relative', width: '100%', aspectRatio: '1/1', border: '1px solid var(--color-surface-hover)', borderRadius: '8px', overflow: 'hidden', cursor: isDragging ? 'grabbing' : 'grab', touchAction: 'none' }}
                 onMouseDown={handleMouseDown}
                 onMouseMove={handleMouseMove}
                 onMouseUp={handleMouseUp}
@@ -295,42 +302,38 @@ export default function OverlayEditor({ baseImage, templateImage, onCompositeRea
                 />
             </div>
 
-            {/* Controls */}
-            <div style={{ background: 'var(--color-surface-hover)', padding: '15px', marginTop: '10px', borderRadius: '8px' }}>
-                <h4 style={{ marginBottom: '10px' }}>Dopasuj uśmiech</h4>
+            {/* Compact Controls */}
+            <div style={{ background: 'var(--color-surface)', padding: '12px', marginTop: '10px', borderRadius: '8px', border: '1px solid var(--color-surface-hover)' }}>
+                <h4 style={{ marginBottom: '8px', fontSize: '0.8rem', textTransform: 'uppercase', color: 'var(--color-text-muted)', letterSpacing: '0.05em' }}>Parametry Uśmiechu</h4>
 
                 {/* Scale Grid */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '5px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                        <label style={{ fontSize: '0.8rem' }}>Szerokość {config.scaleX.toFixed(2)}x</label>
-                        <input type="range" min="0.2" max="2.0" step="0.01" value={config.scaleX} onChange={e => setConfig({ ...config, scaleX: parseFloat(e.target.value) })} />
+                        <label style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>Szerokość</label>
+                        <input type="range" min="0.2" max="2.0" step="0.01" value={config.scaleX} onChange={e => setConfig({ ...config, scaleX: parseFloat(e.target.value) })} style={{ accentColor: 'var(--color-primary)' }} />
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                        <label style={{ fontSize: '0.8rem' }}>Wysokość {config.scaleY.toFixed(2)}x</label>
-                        <input type="range" min="0.2" max="2.0" step="0.01" value={config.scaleY} onChange={e => setConfig({ ...config, scaleY: parseFloat(e.target.value) })} />
+                        <label style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>Wysokość</label>
+                        <input type="range" min="0.2" max="2.0" step="0.01" value={config.scaleY} onChange={e => setConfig({ ...config, scaleY: parseFloat(e.target.value) })} style={{ accentColor: 'var(--color-primary)' }} />
                     </div>
                 </div>
 
                 {/* Curve & Rotation */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '5px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                        <label style={{ fontSize: '0.8rem' }}>Obrót {config.rotation}°</label>
-                        <input type="range" min="-20" max="20" step="0.5" value={config.rotation} onChange={e => setConfig({ ...config, rotation: parseFloat(e.target.value) })} />
+                        <label style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>Obrót ({config.rotation}°)</label>
+                        <input type="range" min="-20" max="20" step="0.5" value={config.rotation} onChange={e => setConfig({ ...config, rotation: parseFloat(e.target.value) })} style={{ accentColor: 'var(--color-primary)' }} />
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                        <label style={{ fontSize: '0.8rem' }}>Krzywizna {config.curve > 0 ? "+" : ""}{config.curve.toFixed(1)}</label>
-                        <input type="range" min="-1.0" max="1.0" step="0.1" value={config.curve} onChange={e => setConfig({ ...config, curve: parseFloat(e.target.value) })} />
+                        <label style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>Krzywizna</label>
+                        <input type="range" min="-1.0" max="1.0" step="0.1" value={config.curve} onChange={e => setConfig({ ...config, curve: parseFloat(e.target.value) })} style={{ accentColor: 'var(--color-primary)' }} />
                     </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '5px' }}>
-                    <span style={{ width: '60px', fontSize: '0.9rem' }}>Krycie:</span>
-                    <input type="range" min="0.2" max="1.0" step="0.05" value={config.opacity} onChange={e => setConfig({ ...config, opacity: parseFloat(e.target.value) })} style={{ flex: 1 }} />
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>Przezroczystość:</span>
+                    <input type="range" min="0.2" max="1.0" step="0.05" value={config.opacity} onChange={e => setConfig({ ...config, opacity: parseFloat(e.target.value) })} style={{ flex: 1, accentColor: 'var(--color-primary)' }} />
                 </div>
-
-                <button onClick={handleGenerateComposite} className="btn-primary" style={{ width: '100%', marginTop: '10px' }}>
-                    ✅ Zatwierdź ułożenie (Flux)
-                </button>
             </div>
         </div>
     );

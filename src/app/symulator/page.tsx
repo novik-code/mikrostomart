@@ -371,7 +371,7 @@ export default function SimulatorPage() {
                         <h1 style={{ fontSize: "clamp(2rem, 5vw, 3.5rem)", marginBottom: "0.5rem" }}>
                             Wirtualna Przymierzalnia
                         </h1>
-                        WERSJA 5.2 (Advanced Curve & Lip Mask)
+                        WERSJA 5.3 (UX Polish - Auto-Sync)
                         <p style={{ color: "var(--color-text-muted)", maxWidth: "600px", margin: "0 auto" }}>
                             Wgraj swoje zdjęcie, wybierz tryb (AI lub Szablon) i zobacz nową wersję uśmiechu.
                         </p>
@@ -460,7 +460,7 @@ export default function SimulatorPage() {
                             {selectedImage ? (
                                 <>
                                     <div style={{ position: "relative", width: "100%", height: "100%", minHeight: "400px", display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                                        <div style={{ position: 'relative', width: '300px', height: '300px', marginBottom: '2rem' }}>
+                                        <div style={{ position: 'relative', width: '100%', maxWidth: '500px', minHeight: '300px', marginBottom: '2rem' }}>
                                             {/* MODE SWITCHER PREVIEW AREA */}
                                             {simulatorMode === 'template-overlay' ? (
                                                 <div style={{ width: '100%', height: '100%' }}>
