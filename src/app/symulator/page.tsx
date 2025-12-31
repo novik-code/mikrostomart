@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import RevealOnScroll from "@/components/RevealOnScroll";
 import BeforeAfterSlider from "@/components/BeforeAfterSlider";
@@ -12,6 +12,8 @@ export default function SimulatorPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    // State for Mask Configuration
+    const [maskConfig, setMaskConfig] = useState({ x: 50, y: 65, scale: 1.0 });
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
@@ -22,13 +24,11 @@ export default function SimulatorPage() {
     // New State for Mask
     const [maskImage, setMaskImage] = useState<string | null>(null);
 
-    // Modern Async Image Processor
-    const processImage = async (imageSrc: string) => {
+    // 1. Process Input Image (Once per file upload)
+    const processInputImage = async (imageSrc: string) => {
         try {
             const img = new window.Image();
             img.src = imageSrc;
-
-            // Wait for decode (robust way to ensure it's ready for canvas)
             await img.decode();
 
             const canvas = document.createElement("canvas");
@@ -37,12 +37,9 @@ export default function SimulatorPage() {
             canvas.height = size;
             const ctx = canvas.getContext("2d");
 
-            if (!ctx) {
-                alert("Błąd: Twoja przeglądarka nie obsługuje Canvas.");
-                return;
-            }
+            if (!ctx) return;
 
-            // Calculation (Center Crop)
+            // Calc dimensions
             const nW = img.naturalWidth;
             const nH = img.naturalHeight;
             const minDim = Math.min(nW, nH);
@@ -53,39 +50,58 @@ export default function SimulatorPage() {
             const tx = (size - drawWidth) / 2;
             const ty = (size - drawHeight) / 2;
 
-            // 1. Draw Processed Image (Input for AI)
-            ctx.fillStyle = "white"; // Background in case of transparency
+            ctx.fillStyle = "white";
             ctx.fillRect(0, 0, size, size);
             ctx.drawImage(img, tx, ty, drawWidth, drawHeight);
 
             const processedPng = canvas.toDataURL("image/png");
             setProcessedImage(processedPng);
 
-            // 2. Draw Mask (Heuristic)
-            // Reset for mask
-            ctx.clearRect(0, 0, size, size);
-
-            // Fill BLACK (Opaque = Keep Original)
-            ctx.fillStyle = "black";
-            ctx.fillRect(0, 0, size, size);
-
-            // Cut Hole (Transparent = AI Edit Area) - Bottom Center
-            ctx.globalCompositeOperation = "destination-out";
-            ctx.beginPath();
-            // Adjusted Ellipse: Slightly lower and wider for better mouth coverage
-            ctx.ellipse(size * 0.5, size * 0.65, size * 0.18, size * 0.10, 0, 0, 2 * Math.PI);
-            ctx.fill();
-
-            ctx.globalCompositeOperation = "source-over"; // Reset
-
-            const maskPng = canvas.toDataURL("image/png");
-            setMaskImage(maskPng);
+            // Trigger initial mask generation
+            generateMask(maskConfig);
 
         } catch (err) {
-            console.error("Image processing error:", err);
-            alert("Błąd przetwarzania zdjęcia. Spróbuj innego pliku.");
+            console.error("Processing Error", err);
+            alert("Błąd przetwarzania zdjęcia.");
         }
     };
+
+    // 2. Generate Mask (Dynamic based on config)
+    const generateMask = (config: { x: number, y: number, scale: number }) => {
+        const size = 1024;
+        const canvas = document.createElement("canvas");
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext("2d");
+
+        if (!ctx) return;
+
+        // Fill BLACK (Opaque = Keep Original)
+        ctx.fillStyle = "black";
+        ctx.fillRect(0, 0, size, size);
+
+        // Cut Hole (Transparent = AI Edit Area)
+        ctx.globalCompositeOperation = "destination-out";
+        ctx.beginPath();
+
+        // Base params
+        const baseX = size * (config.x / 100);
+        const baseY = size * (config.y / 100);
+        const baseRadiusX = size * 0.18 * config.scale;
+        const baseRadiusY = size * 0.10 * config.scale;
+
+        ctx.ellipse(baseX, baseY, baseRadiusX, baseRadiusY, 0, 0, 2 * Math.PI);
+        ctx.fill();
+
+        setMaskImage(canvas.toDataURL("image/png"));
+    };
+
+    // Update mask when config changes (Debounced effect could be better but this is fast enough for canvas)
+    useEffect(() => {
+        if (processedImage) {
+            generateMask(maskConfig);
+        }
+    }, [maskConfig, processedImage]);
 
     const handleFile = (file: File) => {
         if (!file.type.startsWith("image/")) {
@@ -99,9 +115,11 @@ export default function SimulatorPage() {
                 const imgStr = e.target.result as string;
                 setSelectedImage(imgStr);
                 setResultImage(null);
-                setProcessedImage(null); // Clear old
-                setMaskImage(null);      // Clear old
-                processImage(imgStr);
+                setProcessedImage(null);
+                setMaskImage(null);
+                // Reset config on new image? Maybe keep preference? Let's reset for safety.
+                setMaskConfig({ x: 50, y: 65, scale: 1.0 });
+                processInputImage(imgStr);
             }
         };
         reader.readAsDataURL(file);
@@ -268,18 +286,19 @@ export default function SimulatorPage() {
                                         Zmień zdjęcie
                                     </button>
 
-                                    {/* Alignment Guide Overlay */}
+                                    {/* Alignment Guide Overlay - Dynamic */}
                                     <div style={{
                                         position: 'absolute',
-                                        top: '65%', // Matches mask Y (0.65)
-                                        left: '50%',
+                                        top: `${maskConfig.y}%`,
+                                        left: `${maskConfig.x}%`,
                                         transform: 'translate(-50%, -50%)',
-                                        width: '36%', // Matches mask radiusX (0.18 * 2 = 0.36)
-                                        height: '20%', // Matches mask radiusY (0.10 * 2 = 0.20)
-                                        border: '2px dashed rgba(255, 255, 0, 0.7)',
+                                        width: `${36 * maskConfig.scale}%`, // Base 36% width
+                                        height: `${20 * maskConfig.scale}%`, // Base 20% height
+                                        border: '2px dashed rgba(255, 255, 0, 0.9)',
                                         borderRadius: '50%',
                                         pointerEvents: 'none',
-                                        zIndex: 10
+                                        zIndex: 10,
+                                        boxShadow: '0 0 10px rgba(0,0,0,0.5)'
                                     }}>
                                         <div style={{
                                             position: 'absolute',
@@ -289,112 +308,171 @@ export default function SimulatorPage() {
                                             color: 'yellow',
                                             fontSize: '12px',
                                             whiteSpace: 'nowrap',
-                                            textShadow: '0 1px 2px black'
+                                            textShadow: '0 1px 2px black',
+                                            background: 'rgba(0,0,0,0.5)',
+                                            padding: '2px 6px',
+                                            borderRadius: '4px'
                                         }}>
-                                            Dopasuj usta tutaj
+                                            Dopasuj tutaj
                                         </div>
                                     </div>
                                 </div>
-                            ) : (
-                                <>
-                                    <div style={{ fontSize: "4rem", marginBottom: "1rem", opacity: 0.5 }}>📸</div>
-                                    <h3 style={{ marginBottom: "1rem" }}>Przeciągnij zdjęcie tutaj</h3>
-                                    <p style={{ color: "var(--color-text-muted)", marginBottom: "2rem" }}>
-                                        lub wybierz z urządzenia
-                                    </p>
+                                
+                                {/* CONTROLS FOR MASK */}
+                            <div style={{
+                                marginTop: '20px',
+                                padding: '15px',
+                                background: 'var(--color-surface-hover)',
+                                borderRadius: 'var(--radius-md)',
+                                width: '100%',
+                                maxWidth: '400px'
+                            }}>
+                                <h4 style={{ marginBottom: '10px', fontSize: '0.9rem', color: 'var(--color-text-main)' }}>Dopasuj obszar uśmiechu:</h4>
+
+                                <div style={{ marginBottom: '10px' }}>
+                                    <label style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '5px' }}>
+                                        <span>Pionowo (Góra/Dół)</span>
+                                        <span>{maskConfig.y}%</span>
+                                    </label>
                                     <input
-                                        type="file"
-                                        ref={fileInputRef}
-                                        onChange={handleFileSelect}
-                                        accept="image/*"
-                                        style={{ display: "none" }}
+                                        type="range" min="0" max="100" step="1"
+                                        value={maskConfig.y}
+                                        onChange={(e) => setMaskConfig({ ...maskConfig, y: Number(e.target.value) })}
+                                        style={{ width: '100%' }}
                                     />
-                                    <button
-                                        onClick={() => fileInputRef.current?.click()}
-                                        className="btn-primary"
-                                    >
-                                        Wybierz plik
-                                    </button>
-                                </>
+                                </div>
+
+                                <div style={{ marginBottom: '10px' }}>
+                                    <label style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '5px' }}>
+                                        <span>Poziomo (Lewo/Prawo)</span>
+                                        <span>{maskConfig.x}%</span>
+                                    </label>
+                                    <input
+                                        type="range" min="0" max="100" step="1"
+                                        value={maskConfig.x}
+                                        onChange={(e) => setMaskConfig({ ...maskConfig, x: Number(e.target.value) })}
+                                        style={{ width: '100%' }}
+                                    />
+                                </div>
+
+                                <div>
+                                    <label style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '5px' }}>
+                                        <span>Rozmiar</span>
+                                        <span>{maskConfig.scale.toFixed(1)}x</span>
+                                    </label>
+                                    <input
+                                        type="range" min="0.5" max="2.0" step="0.1"
+                                        value={maskConfig.scale}
+                                        onChange={(e) => setMaskConfig({ ...maskConfig, scale: Number(e.target.value) })}
+                                        style={{ width: '100%' }}
+                                    />
+                                </div>
+                            </div>
+                        </>
+                    ) : (
+                    <>
+                        <div style={{ fontSize: "4rem", marginBottom: "1rem", opacity: 0.5 }}>📸</div>
+                        <h3 style={{ marginBottom: "1rem" }}>Przeciągnij zdjęcie tutaj</h3>
+                        <p style={{ color: "var(--color-text-muted)", marginBottom: "2rem" }}>
+                            lub wybierz z urządzenia
+                        </p>
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            onChange={handleFileSelect}
+                            accept="image/*"
+                            style={{ display: "none" }}
+                        />
+                        <button
+                            onClick={() => fileInputRef.current?.click()}
+                            className="btn-primary"
+                        >
+                            Wybierz plik
+                        </button>
+                    </>
                             )}
+            </div>
+                    )}
+        </RevealOnScroll>
+
+                {
+        selectedImage && !resultImage && (
+            <div style={{ textAlign: "center", marginTop: "2rem" }}>
+                <button
+                    className="btn-primary"
+                    onClick={handleGenerate}
+                    disabled={isLoading || !processedImage || !maskImage}
+                    style={{
+                        opacity: processedImage && maskImage && !isLoading ? 1 : 0.5,
+                        cursor: processedImage && maskImage && !isLoading ? "pointer" : "not-allowed",
+                        padding: "1rem 3rem",
+                        fontSize: "1.1rem",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.5rem",
+                        margin: "0 auto"
+                    }}
+                >
+                    {isLoading ? (
+                        <>
+                            <span className="spinner"></span> Generowanie...
+                        </>
+                    ) : (
+                        <>Generuj Mój Uśmiech (AI) ✨</>
+                    )}
+                </button>
+
+                {/* Debug Info */}
+                <div style={{ marginTop: '10px', fontSize: '0.8rem', color: '#666' }}>
+                    Status: {maskImage ? "✅ Gotowy do edycji (Maska OK)" : "⏳ Przetwarzanie..."}
+                </div>
+
+                {/* Debug Mask Preview (Temporary) */}
+                <div style={{ marginTop: '10px', display: 'flex', gap: '10px', justifyContent: 'center' }}>
+                    {processedImage && (
+                        <div style={{ border: '1px solid #ccc' }}>
+                            <p style={{ fontSize: '10px' }}>Podgląd Inputu (Do AI):</p>
+                            <img src={processedImage} alt="Input Debug" style={{ width: '50px', height: '50px', objectFit: 'cover' }} />
                         </div>
                     )}
-                </RevealOnScroll>
-
-                {selectedImage && !resultImage && (
-                    <div style={{ textAlign: "center", marginTop: "2rem" }}>
-                        <button
-                            className="btn-primary"
-                            onClick={handleGenerate}
-                            disabled={isLoading || !processedImage || !maskImage}
-                            style={{
-                                opacity: processedImage && maskImage && !isLoading ? 1 : 0.5,
-                                cursor: processedImage && maskImage && !isLoading ? "pointer" : "not-allowed",
-                                padding: "1rem 3rem",
-                                fontSize: "1.1rem",
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "0.5rem",
-                                margin: "0 auto"
-                            }}
-                        >
-                            {isLoading ? (
-                                <>
-                                    <span className="spinner"></span> Generowanie...
-                                </>
-                            ) : (
-                                <>Generuj Mój Uśmiech (AI) ✨</>
-                            )}
-                        </button>
-
-                        {/* Debug Info */}
-                        <div style={{ marginTop: '10px', fontSize: '0.8rem', color: '#666' }}>
-                            Status: {maskImage ? "✅ Gotowy do edycji (Maska OK)" : "⏳ Przetwarzanie..."}
+                    {maskImage && (
+                        <div style={{ border: '1px solid #ccc' }}>
+                            <p style={{ fontSize: '10px' }}>Podgląd Maski:</p>
+                            <img src={maskImage} alt="Mask Debug" style={{ width: '50px', height: '50px', background: 'url(https://media.istockphoto.com/id/1147544807/vector/transparent-background-pattern-gray.jpg?s=612x612&w=0&k=20&c=p_yM_iQYt4g-gN3E_5mPjUe0QzU-5lK_L-5lK_L-5lK.jpg)' }} />
                         </div>
+                    )}
+                </div>
 
-                        {/* Debug Mask Preview (Temporary) */}
-                        <div style={{ marginTop: '10px', display: 'flex', gap: '10px', justifyContent: 'center' }}>
-                            {processedImage && (
-                                <div style={{ border: '1px solid #ccc' }}>
-                                    <p style={{ fontSize: '10px' }}>Podgląd Inputu (Do AI):</p>
-                                    <img src={processedImage} alt="Input Debug" style={{ width: '50px', height: '50px', objectFit: 'cover' }} />
-                                </div>
-                            )}
-                            {maskImage && (
-                                <div style={{ border: '1px solid #ccc' }}>
-                                    <p style={{ fontSize: '10px' }}>Podgląd Maski:</p>
-                                    <img src={maskImage} alt="Mask Debug" style={{ width: '50px', height: '50px', background: 'url(https://media.istockphoto.com/id/1147544807/vector/transparent-background-pattern-gray.jpg?s=612x612&w=0&k=20&c=p_yM_iQYt4g-gN3E_5mPjUe0QzU-5lK_L-5lK_L-5lK.jpg)' }} />
-                                </div>
-                            )}
-                        </div>
-
-                        {isLoading && (
-                            <p style={{ marginTop: "1rem", color: "var(--color-primary)", animation: "pulse 1.5s infinite" }}>
-                                To może potrwać kilka sekund... Sztuczna inteligencja pracuje.
-                            </p>
-                        )}
-                    </div>
+                {isLoading && (
+                    <p style={{ marginTop: "1rem", color: "var(--color-primary)", animation: "pulse 1.5s infinite" }}>
+                        To może potrwać kilka sekund... Sztuczna inteligencja pracuje.
+                    </p>
                 )}
+            </div>
+        )
+    }
 
-                {resultImage && (
-                    <div style={{ textAlign: 'center', marginTop: '1rem' }}>
-                        <a
-                            href={resultImage}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{
-                                display: 'inline-block',
-                                marginTop: '10px',
-                                textDecoration: 'underline',
-                                color: 'var(--color-primary)'
-                            }}
-                        >
-                            Biały ekran? Kliknij tutaj, aby otworzyć zdjęcie w nowym oknie
-                        </a>
-                    </div>
-                )}
+    {
+        resultImage && (
+            <div style={{ textAlign: 'center', marginTop: '1rem' }}>
+                <a
+                    href={resultImage}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                        display: 'inline-block',
+                        marginTop: '10px',
+                        textDecoration: 'underline',
+                        color: 'var(--color-primary)'
+                    }}
+                >
+                    Biały ekran? Kliknij tutaj, aby otworzyć zdjęcie w nowym oknie
+                </a>
+            </div>
+        )
+    }
 
-                <style jsx>{`
+    <style jsx>{`
                     .spinner {
                         width: 20px;
                         height: 20px;
@@ -416,7 +494,7 @@ export default function SimulatorPage() {
                     }
                 `}</style>
 
-            </div>
-        </main>
+            </div >
+        </main >
     );
 }
