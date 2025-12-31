@@ -7,27 +7,19 @@ const openai = new OpenAI({
 
 export async function POST(request: Request) {
     try {
-        const { image, mask } = await request.json();
+        const formData = await request.formData();
+        const imageFile = formData.get("image") as File;
+        const maskFile = formData.get("mask") as File;
 
-        if (!image) {
+        if (!imageFile) {
             return NextResponse.json(
                 { error: "No image provided" },
                 { status: 400 }
             );
         }
 
-        // Convert base64 to Buffer
-        const base64Data = image.replace(/^data:image\/\w+;base64,/, "");
-        const imageBuffer = Buffer.from(base64Data, "base64");
-
-        // Helper to convert Buffer to File object
-        const toFile = (buffer: Buffer, filename: string) => {
-            return new File([buffer], filename, { type: "image/png" });
-        };
-
         // If mask exists, use Edit Mode
-        if (mask) {
-            const maskData = mask.replace(/^data:image\/\w+;base64,/, "");
+        if (maskFile) {
             const maskBuffer = Buffer.from(maskData, "base64");
 
             const imageFile = toFile(imageBuffer, "image.png");
