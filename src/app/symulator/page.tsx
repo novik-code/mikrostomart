@@ -23,6 +23,8 @@ export default function SimulatorPage() {
     const fileInputRef = useRef<HTMLInputElement>(null);
     // State for Mask Configuration
     const [maskConfig, setMaskConfig] = useState({ x: 50, y: 65, scaleX: 1.0, scaleY: 1.0 });
+    // State for Image Layout (How the image sits on the 1024x1024 canvas)
+    const [imageLayout, setImageLayout] = useState({ tx: 0, ty: 0, scale: 1, drawWidth: 1024, drawHeight: 1024 });
 
     // Drag Logic Refs
     const previewRef = useRef<HTMLDivElement>(null);
@@ -50,18 +52,24 @@ export default function SimulatorPage() {
 
             if (!ctx) return;
 
-            // Calc dimensions
+            // Calc dimensions to FIT image in 1024x1024 (contain)
             const nW = img.naturalWidth;
             const nH = img.naturalHeight;
             const minDim = Math.min(nW, nH);
-            const scale = size / minDim;
+            // We want to scale so the WHOLE image fits? Or cover?
+            // "contain" logic (so we see full face):
+            const scale = Math.min(size / nW, size / nH);
 
             const drawWidth = nW * scale;
             const drawHeight = nH * scale;
             const tx = (size - drawWidth) / 2;
             const ty = (size - drawHeight) / 2;
 
-            ctx.fillStyle = "white";
+            // Save layout for mask sync
+            const layout = { tx, ty, scale, drawWidth, drawHeight };
+            setImageLayout(layout);
+
+            ctx.fillStyle = "white"; // White bars
             ctx.fillRect(0, 0, size, size);
             ctx.drawImage(img, tx, ty, drawWidth, drawHeight);
 
@@ -69,7 +77,8 @@ export default function SimulatorPage() {
             setProcessedImage(processedPng);
 
             // Trigger initial mask generation
-            generateMask(maskConfig);
+            // pass layout explicitly because state update is async
+            generateMask(maskConfig, layout);
 
         } catch (err) {
             console.error("Processing Error", err);
@@ -78,7 +87,7 @@ export default function SimulatorPage() {
     };
 
     // 2. Generate Mask (Dynamic based on config)
-    const generateMask = (config: { x: number, y: number, scaleX: number, scaleY: number }) => {
+    const generateMask = (config: { x: number, y: number, scaleX: number, scaleY: number }, layout?: any) => {
         const size = 1024;
         const canvas = document.createElement("canvas");
         canvas.width = size;
@@ -86,6 +95,10 @@ export default function SimulatorPage() {
         const ctx = canvas.getContext("2d");
 
         if (!ctx) return;
+
+        // Use current layout state or passed layout
+        const currentLayout = layout || imageLayout;
+        const { tx, ty, drawWidth, drawHeight } = currentLayout;
 
         // Fill BLACK (Opaque = Keep Original)
         ctx.fillStyle = "black";
@@ -95,13 +108,20 @@ export default function SimulatorPage() {
         ctx.globalCompositeOperation = "destination-out";
         ctx.beginPath();
 
-        // Base params
-        const baseX = size * (config.x / 100);
-        const baseY = size * (config.y / 100);
-        const baseRadiusX = size * 0.18 * config.scaleX;
-        const baseRadiusY = size * 0.10 * config.scaleY;
+        // The user config (x, y) is in PERCENTAGE (0-100) of the VISIBLE IMAGE
+        // So we must map: 
+        // 0% -> tx
+        // 100% -> tx + drawWidth
 
-        ctx.ellipse(baseX, baseY, baseRadiusX, baseRadiusY, 0, 0, 2 * Math.PI);
+        const centerX = tx + (drawWidth * (config.x / 100));
+        const centerY = ty + (drawHeight * (config.y / 100));
+
+        // Scale radius relative to the ACTUAL image size
+        // Base radius is ~18% of image width
+        const baseRadiusX = drawWidth * 0.18 * config.scaleX;
+        const baseRadiusY = drawHeight * 0.10 * config.scaleY;
+
+        ctx.ellipse(centerX, centerY, baseRadiusX, baseRadiusY, 0, 0, 2 * Math.PI);
         ctx.fill();
 
         setMaskImage(canvas.toDataURL("image/png"));
