@@ -321,8 +321,8 @@ export default function SimulatorPage() {
                         <h1 style={{ fontSize: "clamp(2rem, 5vw, 3.5rem)", marginBottom: "0.5rem" }}>
                             Wirtualna Przymierzalnia
                         </h1>
-                        <p style={{ fontSize: "0.8rem", color: "magenta", fontWeight: "bold", marginBottom: "1rem" }}>
-                            WERSJA 3.4 (Flux Perfect Prompt)
+                        <p style={{ fontSize: "0.8rem", color: "orange", fontWeight: "bold", marginBottom: "1rem" }}>
+                            WERSJA 3.5 (Flux Tuned)
                         </p>
                         <p style={{ color: "var(--color-text-muted)", maxWidth: "600px", margin: "0 auto" }}>
                             Wgraj swoje zdjęcie, a nasza sztuczna inteligencja (Flux Pro) pokaże Ci potencjał Twojego nowego uśmiechu.
@@ -491,6 +491,23 @@ export default function SimulatorPage() {
                                         maxWidth: '400px'
                                     }}>
                                         <h4 style={{ marginBottom: '10px', fontSize: '0.9rem', color: 'var(--color-text-main)' }}>Dopasuj obszar uśmiechu:</h4>
+
+                                        <div className="space-y-4">
+                                            <p style={{ fontSize: "0.8rem", color: "orange", fontWeight: "bold", textAlign: "center" }}>
+                                                ⚠️ WSKAZÓWKA: Zaznacz całe zęby + mały margines warg (2-4mm). Zamaluj też czarne braki zębowe!
+                                            </p>
+                                            <div>
+                                                <label className="block text-sm font-medium mb-1">Pozycja pozioma (X) {maskConfig.x}%</label>
+                                                <input
+                                                    type="range"
+                                                    min="0"
+                                                    max="100"
+                                                    value={maskConfig.x}
+                                                    onChange={(e) => setMaskConfig({ ...maskConfig, x: Number(e.target.value) })}
+                                                    className="w-full"
+                                                />
+                                            </div>
+                                        </div>
 
                                         <div style={{ marginBottom: '10px' }}>
                                             <label style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '5px' }}>
