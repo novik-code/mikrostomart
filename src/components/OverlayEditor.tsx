@@ -110,13 +110,6 @@ export default function OverlayEditor({ baseImage, templateImage, onCompositeRea
                 // Normalized x (-1 to 1) relative to center
                 const nx = (i / (slices - 1)) * 2 - 1;
                 // Parabolic offset: y = x^2 * amp
-                // If curve > 0 (Happy): Middle lower, ends higher? 
-                // Usually "Happy Smile" = Ends UP. So amp should be negative to shift ends UP?
-                // Screen coords: Y goes down. So "UP" means smaller Y.
-                // Parabola: y = x^2. Vertices at x=-1, x=1.
-                // dy = -(nx * nx) * amp; // Moves middle DOWN relative to ends? 
-                // Let's shift ONLY the Y based on x.
-
                 const dy = -(nx * nx) * amp; // Ends (nx=1) get -amp (up), Center (nx=0) gets 0.
 
                 // Clip src x
@@ -178,8 +171,58 @@ export default function OverlayEditor({ baseImage, templateImage, onCompositeRea
 
         // Auto-emit result (debounced)
         const timeoutId = setTimeout(() => {
-            if (canvasRef.current) {
+            if (canvasRef.current && onCompositeReady) {
                 onCompositeReady(canvasRef.current.toDataURL("image/png"));
+
+                // GENERATE PRECISE BINARY MASK (White Teeth / Black BG)
+                if (onMaskReady && imgTemplate) {
+                    const maskCnv = document.createElement('canvas');
+                    maskCnv.width = 1024;
+                    maskCnv.height = 1024;
+                    const mCtx = maskCnv.getContext('2d');
+
+                    if (mCtx) {
+                        const drawW = 1024;
+                        const drawH = 1024 * (imgTemplate.height / imgTemplate.width);
+
+                        // 1. Fill Black (Background)
+                        mCtx.fillStyle = "black";
+                        mCtx.fillRect(0, 0, 1024, 1024);
+
+                        // 2. Draw Teeth (White)
+                        mCtx.save();
+                        mCtx.translate(config.x, config.y);
+                        mCtx.rotate((config.rotation * Math.PI) / 180);
+                        mCtx.scale(config.scaleX, config.scaleY);
+
+                        mCtx.drawImage(imgTemplate, -drawW / 2, -drawH / 2, drawW, drawH);
+
+                        // Force teeth to be pure white
+                        mCtx.globalCompositeOperation = "source-in";
+                        mCtx.fillStyle = "white";
+                        mCtx.fillRect(-drawW, -drawH, drawW * 2, drawH * 2);
+                        mCtx.restore();
+
+                        // 3. Apply Lip Clip (Black Eraser for Upper Lip)
+                        if (maskMode) {
+                            mCtx.save();
+                            mCtx.beginPath();
+                            mCtx.moveTo(lipMask.p1.x, lipMask.p1.y);
+                            mCtx.quadraticCurveTo(lipMask.p2.x, lipMask.p2.y, lipMask.p3.x, lipMask.p3.y);
+                            // Close loop upwards to obscure the upper lip/skin
+                            mCtx.lineTo(1024, 0); // Top Right
+                            mCtx.lineTo(0, 0);    // Top Left
+                            mCtx.lineTo(lipMask.p1.x, lipMask.p1.y);
+                            mCtx.closePath();
+
+                            mCtx.fillStyle = "black";
+                            mCtx.fill();
+                            mCtx.restore();
+                        }
+
+                        onMaskReady(maskCnv.toDataURL("image/png"));
+                    }
+                }
             }
         }, 100); // 100ms debounce
 
@@ -187,7 +230,7 @@ export default function OverlayEditor({ baseImage, templateImage, onCompositeRea
 
     }, [imgBase, imgTemplate, config, lipMask, maskMode]);
 
-    // Removed manual "Generate" button handler since we auto-emit
+    // Removal of manual "Generate" button handler since we auto-emit
 
     // Interaction Handlers
     const getCanvasPoint = (e: React.MouseEvent | React.TouchEvent | MouseEvent | TouchEvent) => {
