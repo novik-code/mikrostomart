@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Replicate from "replicate";
 
 export const runtime = 'nodejs'; // Replicate SDK works best in Node env
+// Force Deploy Timestamp: 2025-12-31 21:30
 
 export async function POST(req: NextRequest) {
     try {
