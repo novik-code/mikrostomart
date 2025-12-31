@@ -114,6 +114,7 @@ export default function SimulatorPage() {
             }
 
             setResultImage(data.url);
+            alert("DEBUG SUCCESS: Otrzymano URL z API: " + data.url);
         } catch (err: any) {
             alert("Wystąpił błąd: " + err.message);
         } finally {
@@ -180,7 +181,9 @@ export default function SimulatorPage() {
                             />
                             <div style={{ textAlign: 'center', marginTop: '1rem', color: 'var(--color-primary)' }}>
                                 Twój nowy uśmiech (AI Variation)
-                                <p style={{ fontSize: '0.7rem', color: 'red' }}>DEBUG: {resultImage}</p>
+                                <div style={{ background: 'yellow', color: 'black', padding: '10px', marginTop: '10px', wordBreak: 'break-all' }}>
+                                    <strong>DEBUG URL:</strong> {resultImage}
+                                </div>
                             </div>
                             <button
                                 onClick={() => { setResultImage(null); setSelectedImage(null); }}
