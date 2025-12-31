@@ -261,11 +261,39 @@ export default function SimulatorPage() {
                                             border: "none",
                                             padding: "0.5rem 1rem",
                                             borderRadius: "var(--radius-sm)",
-                                            cursor: "pointer"
+                                            cursor: "pointer",
+                                            zIndex: 20
                                         }}
                                     >
                                         Zmień zdjęcie
                                     </button>
+
+                                    {/* Alignment Guide Overlay */}
+                                    <div style={{
+                                        position: 'absolute',
+                                        top: '65%', // Matches mask Y (0.65)
+                                        left: '50%',
+                                        transform: 'translate(-50%, -50%)',
+                                        width: '36%', // Matches mask radiusX (0.18 * 2 = 0.36)
+                                        height: '20%', // Matches mask radiusY (0.10 * 2 = 0.20)
+                                        border: '2px dashed rgba(255, 255, 0, 0.7)',
+                                        borderRadius: '50%',
+                                        pointerEvents: 'none',
+                                        zIndex: 10
+                                    }}>
+                                        <div style={{
+                                            position: 'absolute',
+                                            top: '-25px',
+                                            left: '50%',
+                                            transform: 'translateX(-50%)',
+                                            color: 'yellow',
+                                            fontSize: '12px',
+                                            whiteSpace: 'nowrap',
+                                            textShadow: '0 1px 2px black'
+                                        }}>
+                                            Dopasuj usta tutaj
+                                        </div>
+                                    </div>
                                 </div>
                             ) : (
                                 <>
