@@ -52,55 +52,84 @@ export async function POST(req: NextRequest) {
             throw new Error("Could not fetch latest version for black-forest-labs/flux-fill-dev");
         }
 
-        console.log("Using Version ID:", latestVersion);
+        // STRATEGY: Two-Pass Generation (Erase -> Rebuild)
+        // Pass 1: Remove all teeth to create a neutral cavity (breaking the "anchor" to original teeth)
+        // Pass 2: Generate perfect teeth on the blank canvas
 
-        // 2. Create Prediction with valid version
-        // Prompt Engineering: Explicit color change and transformation
-        let prediction = await replicate.predictions.create({
+        console.log("--- STARTING PASS 1: ERASING TEETH ---");
+
+        // Helper to poll for prediction
+        const waitForPrediction = async (pred: any) => {
+            const maxAttempts = 60;
+            let attempts = 0;
+            while (pred.status !== "succeeded" && pred.status !== "failed" && pred.status !== "canceled") {
+                if (attempts >= maxAttempts) throw new Error("Timeout");
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                pred = await replicate.predictions.get(pred.id);
+                attempts++;
+            }
+            return pred;
+        };
+
+        // PASS 1: ERASE
+        let erasePrediction = await replicate.predictions.create({
             version: latestVersion,
             input: {
                 image: imageUri,
                 mask: maskUri,
-                prompt: "Photorealistic dental smile makeover (FLUX fill / black-forest-labs/flux-fill-dev, inpaint masked area only). In the masked region, COMPLETELY IGNORE the original teeth and rebuild a brand-new ideal smile from scratch (do not follow the initial tooth positions, shapes, gaps, discoloration, or missing teeth; treat the masked area as blank). Create a proportional, perfectly symmetric upper dental arch ONLY as far as the smile reveals, but ALWAYS as left-right pairs with correct tooth count: exactly TWO central incisors (11 & 21), TWO lateral incisors (12 & 22), TWO canines (13 & 23). If premolars are visible, include TWO first premolars (14 & 24) and TWO second premolars (15 & 25). If first molars are visible, include TWO first molars (16 & 26). Never generate a single tooth where a pair must exist. Enforce bilateral symmetry, correct midline, correct tooth widths and proportions, correct incisal edge line, natural contact points, no missing teeth, no gaps, no diastema, no black triangles, no crowding. Ultra-white ceramic veneers shade BL1 (Hollywood white), photoreal enamel micro-texture, subtle incisal translucency, natural specular highlights and shadows matching the original lighting/camera flash, correct perspective and scale to fit the face, no distortion. Keep lips, gumline and surrounding skin photorealistic and unchanged outside the mask; preserve the person’s identity and facial features.",
-                negative_prompt: "missing tooth, wrong tooth count, single central incisor, one front tooth, extra tooth, duplicate tooth, asymmetry, gaps, diastema, black triangles, crooked teeth, warped mouth, changed lips, changed face, changed nose, changed skin, dentures, fake plastic teeth, braces, metal, blurry, cartoon, CGI, illustration, uncanny, text, watermark, logo, warm lighting, yellow tones, natural teeth color",
-                guidance_scale: 4.5, // User recommendation: 3.5-6
-                n_steps: 40,         // User recommendation: 28-45
-                seed: 42,            // User recommendation: Fixed seed for consistency
+                prompt: "Inpaint masked area only. Remove all teeth information completely and create a clean neutral mouth interior as a base: natural open-mouth cavity with realistic darkness and soft gradients, no visible teeth, no tooth shapes, no tooth edges, no gaps, no artifacts. Preserve lips, skin, and everything outside the mask unchanged, photorealistic, matching original lighting.",
+                guidance_scale: 4.5,
+                n_steps: 25, // Fast erase
                 output_format: "png",
                 output_quality: 100
             }
         });
 
-        // 3. Poll for completion
-        const maxAttempts = 60; // 60 * 1s = 60s timeout
-        let attempts = 0;
+        erasePrediction = await waitForPrediction(erasePrediction);
 
-        while (prediction.status !== "succeeded" && prediction.status !== "failed" && prediction.status !== "canceled") {
-            if (attempts >= maxAttempts) {
-                throw new Error("Timeout waiting for prediction");
-            }
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            prediction = await replicate.predictions.get(prediction.id);
-            attempts++;
+        if (erasePrediction.status !== "succeeded" || !erasePrediction.output) {
+            throw new Error(`Pass 1 (Erase) failed: ${erasePrediction.error}`);
         }
 
-        console.log("Prediction Final Status:", prediction.status);
-        console.log("Prediction Logs:", prediction.logs);
+        const erasedImageUrl = Array.isArray(erasePrediction.output) ? erasePrediction.output[0] : erasePrediction.output;
+        console.log("Pass 1 Succeeded. URL:", erasedImageUrl);
+
+        console.log("--- STARTING PASS 2: BUILD NEW SMILE ---");
+
+        // PASS 2: BUILD (Using output of Pass 1 as input)
+        // Note: We reuse the SAME mask.
+        let buildPrediction = await replicate.predictions.create({
+            version: latestVersion,
+            input: {
+                image: erasedImageUrl, // Input is the ERASED image
+                mask: maskUri,         // Same mask
+                prompt: "Photorealistic dental smile makeover (inpaint masked area only). Build a brand-new ideal upper dental arch from scratch inside the mask, do not reference any original tooth positions or defects. Generate correct left-right paired tooth anatomy and count as far as the smile reveals: always TWO central incisors (11 & 21), TWO lateral incisors (12 & 22), TWO canines (13 & 23); if premolars are visible include TWO 14 & 24 and TWO 15 & 25; if first molars are visible include TWO 16 & 26. Never output a single tooth where a pair must exist, never leave missing teeth. Enforce bilateral symmetry, correct midline, correct incisal edge line, natural contact points. Enforce realistic width proportions: central incisors slightly wider than laterals (≈1.25x), canines slightly wider than laterals (≈1.15x), no oversized single central incisor. Ultra-white ceramic veneers shade BL1 (Hollywood white) with realistic enamel micro-texture, subtle incisal translucency, natural highlights and shadows matching the original lighting/flash. Preserve lips, gumline, skin texture and identity outside the mask unchanged; correct perspective and scale, no distortion. Avoid: missing teeth, wrong tooth count, single front tooth, extra teeth, duplicated teeth, asymmetry, gaps, diastema, black triangles, crooked teeth, fake plastic dentures look, braces, metal, text, watermark, logo.",
+                guidance_scale: 5.0, // User suggested 3.5-6
+                n_steps: 40,
+                seed: 42,
+                output_format: "png",
+                output_quality: 100
+            }
+        });
+
+        buildPrediction = await waitForPrediction(buildPrediction);
+
+        console.log("Pass 2 Final Status:", buildPrediction.status);
 
         // 4. Handle Result
-        if (prediction.status === "succeeded" && prediction.output) {
-            // Flux Fill typically returns a string URL or array of strings
-            const output = prediction.output;
-            const resultUrl = Array.isArray(output) ? output[0] : output;
-
+        if (buildPrediction.status === "succeeded" && buildPrediction.output) {
+            const resultUrl = Array.isArray(buildPrediction.output) ? buildPrediction.output[0] : buildPrediction.output;
             return NextResponse.json({
                 url: resultUrl,
-                debug: JSON.stringify({ logs: prediction.logs, output: prediction.output })
+                debug: JSON.stringify({
+                    pass1_logs: erasePrediction.logs,
+                    pass2_logs: buildPrediction.logs
+                })
             });
         } else {
             return NextResponse.json({
-                error: `Prediction failed: ${prediction.error}`,
-                debug: JSON.stringify({ logs: prediction.logs, status: prediction.status, error: prediction.error })
+                error: `Pass 2 failed: ${buildPrediction.error}`,
+                debug: JSON.stringify(buildPrediction)
             }, { status: 500 });
         }
 
