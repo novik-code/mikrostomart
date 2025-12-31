@@ -321,8 +321,8 @@ export default function SimulatorPage() {
                         <h1 style={{ fontSize: "clamp(2rem, 5vw, 3.5rem)", marginBottom: "0.5rem" }}>
                             Wirtualna Przymierzalnia
                         </h1>
-                        <p style={{ fontSize: "0.8rem", color: "blue", fontWeight: "bold", marginBottom: "1rem" }}>
-                            WERSJA 3.3 (FULL RELOAD)
+                        <p style={{ fontSize: "0.8rem", color: "magenta", fontWeight: "bold", marginBottom: "1rem" }}>
+                            WERSJA 3.4 (Flux Perfect Prompt)
                         </p>
                         <p style={{ color: "var(--color-text-muted)", maxWidth: "600px", margin: "0 auto" }}>
                             Wgraj swoje zdjęcie, a nasza sztuczna inteligencja (Flux Pro) pokaże Ci potencjał Twojego nowego uśmiechu.
