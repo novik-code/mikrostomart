@@ -193,6 +193,9 @@ export default function SimulatorPage() {
 
             const data = await response.json();
 
+            // FORCE DEBUGGING
+            alert("API RESPONSE:\n" + JSON.stringify(data, null, 2));
+
             if (!response.ok) {
                 if (data.error && data.error.includes("auth")) {
                     throw new Error("Brak klucza API Replicate. Skontaktuj się z administratorem.");
@@ -201,7 +204,7 @@ export default function SimulatorPage() {
             }
 
             setResultImage(data.url);
-            setDebugInfo(data.debug); // Store debug info
+            setDebugInfo(data.debug);
         } catch (err: any) {
             console.error(err);
             alert("Wystąpił błąd: " + err.message);
@@ -210,7 +213,16 @@ export default function SimulatorPage() {
         }
     };
 
-    // --- Drag Logic for Mask ---
+    // ... (rest of file)
+
+    // ... inside JSX ... (This relies on finding the target content correctly. I'll target the debug div I added earlier)
+    {/* DEBUG: Show URL to check why it is broken */ }
+    <div style={{ marginTop: '20px', padding: '10px', background: '#ffebee', border: '2px solid red', color: 'black', fontSize: '11px', wordBreak: 'break-all', textAlign: 'left' }}>
+        <strong>DEBUG INFO:</strong><br />
+        <strong>Image URL:</strong> {resultImage ? resultImage : "NULL"}<br />
+        <strong>Raw Output:</strong> {debugInfo ? debugInfo : "NULL"}
+    </div>
+                        </div >
     const previewRef = useRef<HTMLDivElement>(null);
     const [isMaskDragging, setIsMaskDragging] = useState(false);
 
