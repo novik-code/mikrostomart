@@ -445,11 +445,10 @@ export default function SimulatorPage() {
                                         maxWidth: '400px'
                                     }}>
                                         <h4 style={{ marginBottom: '10px', fontSize: '0.9rem', color: 'var(--color-text-main)' }}>Dopasuj obszar uśmiechu:</h4>
-                                        <p style={{ fontSize: '0.7rem', color: '#666', marginBottom: '15px' }}>Porada: Możesz przesuwać żółty owal palcem na zdjęciu!</p>
 
                                         <div style={{ marginBottom: '10px' }}>
                                             <label style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '5px' }}>
-                                                <span>Szerokość Maski</span>
+                                                <span>Szerokość</span>
                                                 <span>{maskConfig.scaleX.toFixed(1)}x</span>
                                             </label>
                                             <input
@@ -457,12 +456,13 @@ export default function SimulatorPage() {
                                                 value={maskConfig.scaleX}
                                                 onChange={(e) => setMaskConfig({ ...maskConfig, scaleX: Number(e.target.value) })}
                                                 style={{ width: '100%' }}
+                                                className="accent-primary"
                                             />
                                         </div>
 
-                                        <div>
+                                        <div style={{ marginBottom: '15px' }}>
                                             <label style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '5px' }}>
-                                                <span>Wysokość Maski</span>
+                                                <span>Wysokość</span>
                                                 <span>{maskConfig.scaleY.toFixed(1)}x</span>
                                             </label>
                                             <input
@@ -470,7 +470,33 @@ export default function SimulatorPage() {
                                                 value={maskConfig.scaleY}
                                                 onChange={(e) => setMaskConfig({ ...maskConfig, scaleY: Number(e.target.value) })}
                                                 style={{ width: '100%' }}
+                                                className="accent-primary"
                                             />
+                                        </div>
+
+                                        {/* GENERATE BUTTON MOVED HERE TO BE SAFE */}
+                                        <button
+                                            className="btn-primary"
+                                            onClick={handleGenerate}
+                                            disabled={isLoading || !processedImage}
+                                            style={{
+                                                width: '100%',
+                                                opacity: processedImage && !isLoading ? 1 : 0.7,
+                                                cursor: processedImage && !isLoading ? "pointer" : "not-allowed",
+                                                padding: "0.8rem",
+                                                display: "flex",
+                                                justifyContent: "center",
+                                                alignItems: "center",
+                                                gap: "0.5rem"
+                                            }}
+                                        >
+                                            {isLoading ? "Generowanie..." : "✨ Generuj Uśmiech (Flux)"}
+                                        </button>
+
+                                        {/* DEBUG INFO */}
+                                        <div style={{ marginTop: '10px', fontSize: '0.7rem', color: '#666', textAlign: 'center' }}>
+                                            {processedImage ? "✅ Zdjęcie gotowe" : "⏳ Przetwarzanie..."}
+                                            {maskImage ? " | ✅ Maska gotowa" : " | ⏳ Maska..."}
                                         </div>
                                     </div>
                                 </>
