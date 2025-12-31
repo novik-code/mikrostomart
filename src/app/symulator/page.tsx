@@ -299,55 +299,57 @@ export default function SimulatorPage() {
                         finalCnv.height = 1024;
                         const fCtx = finalCnv.getContext('2d');
 
-                        if (fCtx) {
-                            // 1. Load Original (Background)
-                            const imgBase = new window.Image();
-                            // imgBase.crossOrigin = "anonymous"; // Not needed for Data URLs usually
-                            imgBase.src = processedImage;
-                            await imgBase.decode();
-                            fCtx.drawImage(imgBase, 0, 0, 1024, 1024);
+                        if (!fCtx) throw new Error("Canvas context missing");
 
-                            // 2. Load AI Result (Foreground)
-                            const imgAI = new window.Image();
-                            imgAI.crossOrigin = "anonymous"; // Needed for remote Replicate URL
-                            imgAI.src = aiUrl;
-                            await imgAI.decode();
+                        // HELPER: Fetch as Blob to avoid CORS tainting
+                        const loadImageSafe = async (url: string) => {
+                            const res = await fetch(url);
+                            const blob = await res.blob();
+                            return createImageBitmap(blob);
+                        };
 
-                            // 3. Load Mask (The Alpha Channel)
-                            const imgMask = new window.Image();
-                            imgMask.src = maskToUse;
-                            await imgMask.decode();
+                        // 1. Load Original (Background)
+                        const imgBase = await loadImageSafe(processedImage);
+                        fCtx.drawImage(imgBase, 0, 0, 1024, 1024);
 
-                            // 4. Create Masked AI Layer
-                            const tempCnv = document.createElement('canvas');
-                            tempCnv.width = 1024;
-                            tempCnv.height = 1024;
-                            const tCtx = tempCnv.getContext('2d');
-                            if (tCtx) {
-                                // Draw Mask (White = Visible, Black = Hidden)
-                                tCtx.drawImage(imgMask, 0, 0);
+                        // 2. Load AI Result (Foreground) - VIA FETCH/BLOB
+                        const imgAI = await loadImageSafe(aiUrl);
 
-                                // Source-in: Keep AI pixels ONLY where mask is White
-                                tCtx.globalCompositeOperation = "source-in";
-                                tCtx.drawImage(imgAI, 0, 0, 1024, 1024);
+                        // 3. Load Mask
+                        const imgMask = await loadImageSafe(maskToUse);
 
-                                // Draw this masked layer onto the base
-                                fCtx.drawImage(tempCnv, 0, 0);
-                            }
+                        // 4. Create Masked AI Layer
+                        const tempCnv = document.createElement('canvas');
+                        tempCnv.width = 1024;
+                        tempCnv.height = 1024;
+                        const tCtx = tempCnv.getContext('2d');
 
-                            const finalUrl = finalCnv.toDataURL("image/png");
-                            setResultImage(finalUrl);
-                            console.log("✅ Safety compositing success.");
-                        } else {
-                            console.warn("Could not get context for compositing.");
-                            setResultImage(aiUrl);
-                        }
-                    } catch (e) {
+                        if (!tCtx) throw new Error("Temp context missing");
+
+                        // Draw Mask
+                        tCtx.drawImage(imgMask, 0, 0);
+
+                        // Source-in: Keep AI pixels ONLY where mask is White
+                        tCtx.globalCompositeOperation = "source-in";
+                        tCtx.drawImage(imgAI, 0, 0, 1024, 1024);
+
+                        // Draw this masked layer onto the base
+                        fCtx.drawImage(tempCnv, 0, 0);
+
+                        const finalUrl = finalCnv.toDataURL("image/png");
+                        setResultImage(finalUrl);
+                        console.log("✅ Safety compositing success.");
+
+                    } catch (e: any) {
                         console.error("❌ Compositing error:", e);
-                        setResultImage(aiUrl); // Fallback to raw AI if local composite fails
+                        // CRITICAL CHANGE: DO NOT FALLBACK TO RAW AI.
+                        // If compositing fails, showing the raw AI (hallucinated) image is worse than showing nothing.
+                        alert("Błąd bezpieczeństwa (CORS/Canvas): Nie udało się nałożyć filtra. Spróbuj ponownie. " + e.message);
+                        setResultImage(null);
                     }
                 } else {
                     console.warn("Skipping compositing: Missing mask or base image.");
+                    // Fallback only if Inputs are missing locally (should not happen in normal flow)
                     setResultImage(aiUrl);
                 }
             } else {
@@ -443,7 +445,7 @@ export default function SimulatorPage() {
                         <h1 style={{ fontSize: "clamp(2rem, 5vw, 3.5rem)", marginBottom: "0.5rem" }}>
                             Wirtualna Przymierzalnia
                         </h1>
-                        WERSJA 5.6 (Triple Safety Layer)
+                        WERSJA 5.7 (Hard Safety Enforcement)
                         <p style={{ color: "var(--color-text-muted)", maxWidth: "600px", margin: "0 auto" }}>
                             Wgraj swoje zdjęcie, wybierz tryb (AI lub Szablon) i zobacz nową wersję uśmiechu.
                         </p>
