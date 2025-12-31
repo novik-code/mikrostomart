@@ -200,8 +200,12 @@ export default function MetamorphosisGallery() {
                             // Horizontal Position: Just off-center based on side
                             [activeTooltip === 'left' ? 'right' : 'left']: '51%',
                             width: '280px',
-                            minHeight: '130px',
-                            padding: '1.5rem 1.5rem 2.5rem 1.5rem', // Padding to keep text inside the bubble area (avoid tail)
+                            background: 'rgba(18, 20, 24, 0.95)', // Solid organic dark
+                            backdropFilter: 'blur(8px)',
+                            padding: '1.5rem',
+                            borderRadius: '20px',
+                            border: '1px solid var(--color-primary)',
+                            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
                             zIndex: 30,
                             animation: 'fadeInZoom 0.3s ease forwards',
                             pointerEvents: 'none',
@@ -211,21 +215,28 @@ export default function MetamorphosisGallery() {
                             alignItems: 'center',
                             textAlign: 'center'
                         }}>
-                            {/* Background Image Layer */}
-                            <div style={{
-                                position: 'absolute',
-                                inset: 0,
-                                backgroundImage: 'url(/images/ui/speech_bubble.png)',
-                                backgroundSize: '100% 100%',
-                                backgroundRepeat: 'no-repeat',
-                                // Flip logic: 
-                                // Image tail is Bottom-Left.
-                                // Right Side Bubble -> Tail needs to be Bottom-Left (pointing center) -> No Flip.
-                                // Left Side Bubble -> Tail needs to be Bottom-Right (pointing center) -> Flip.
-                                transform: activeTooltip === 'left' ? 'scaleX(-1)' : 'none',
-                                zIndex: -1,
-                                filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.5))'
-                            }} />
+                            {/* CSS/SVG Tail */}
+                            <svg
+                                width="24"
+                                height="24"
+                                viewBox="0 0 24 24"
+                                style={{
+                                    position: 'absolute',
+                                    bottom: '-23px', // Push it down outside the box
+                                    // If Left Bubble, Tail on Right side. If Right Bubble, Tail on Left side.
+                                    [activeTooltip === 'left' ? 'right' : 'left']: '20px',
+                                    // Flip horizontally if on the left side to look correct
+                                    transform: activeTooltip === 'left' ? 'scaleX(-1)' : 'none',
+                                    filter: 'drop-shadow(0 2px 2px rgba(0,0,0,0.3))' // Match shadow slightly
+                                }}
+                            >
+                                {/* Organic Tail Shape */}
+                                <path
+                                    d="M0 0 Q 0 24 24 0 Z" // Curve logic
+                                    fill="rgba(18, 20, 24, 0.95)"
+                                />
+                                {/* Border Line for the tail (Complex to match perfectly, easier to just omit or fake) */}
+                            </svg>
 
                             <h3 style={{
                                 color: 'var(--color-primary)',
