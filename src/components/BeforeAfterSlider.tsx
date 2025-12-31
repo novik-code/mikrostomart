@@ -70,11 +70,18 @@ export default function BeforeAfterSlider({ beforeImage, afterImage, onHoverStar
                 style={{
                     position: "absolute",
                     top: 0, left: 0, width: "100%", height: "100%",
-                    backgroundImage: `url('${afterImage}')`,
-                    backgroundSize: "cover",
-                    backgroundPosition: "center",
                 }}
             >
+                <img
+                    src={afterImage}
+                    alt="After"
+                    style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                        display: 'block'
+                    }}
+                />
                 <div style={{
                     position: "absolute", top: "1rem", right: "1rem",
                     background: "rgba(0,0,0,0.6)", color: "#fff",
@@ -97,18 +104,26 @@ export default function BeforeAfterSlider({ beforeImage, afterImage, onHoverStar
                 }}
             >
                 <div style={{
-                    width: sliderPosition > 0 ? `${10000 / sliderPosition}%` : "0",
+                    width: sliderPosition > 0 ? `${100 / sliderPosition * 100}%` : "0",
                     height: "100%",
-                    backgroundImage: `url('${beforeImage}')`,
-                    backgroundSize: "cover",
-                    backgroundPosition: "center",
-                    backgroundRepeat: "no-repeat"
+                    position: 'relative' // Needed for img absolute
                 }}>
+                    <img
+                        src={beforeImage}
+                        alt="Before"
+                        style={{
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover',
+                            display: 'block'
+                        }}
+                    />
                     <div style={{
                         position: "absolute", top: "1rem", left: "1rem",
                         background: "rgba(0,0,0,0.6)", color: "#fff",
                         padding: "0.2rem 0.6rem", borderRadius: "4px",
-                        fontWeight: "bold", fontSize: "0.8rem"
+                        fontWeight: "bold", fontSize: "0.8rem",
+                        zIndex: 2
                     }}>
                         PRZED
                     </div>
