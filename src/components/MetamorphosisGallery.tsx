@@ -136,8 +136,8 @@ const METAMORPHOSES: MetamorphosisItem[] = [
     }
 ];
 
-export default function MetamorphosisGallery() {
-    const [currentIndex, setCurrentIndex] = useState(0);
+export default function MetamorphosisGallery({ initialIndex = 0 }: { initialIndex?: number }) {
+    const [currentIndex, setCurrentIndex] = useState(initialIndex);
     const [isTransitioning, setIsTransitioning] = useState(false);
 
     // Tooltip State

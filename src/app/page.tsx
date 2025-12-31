@@ -193,7 +193,7 @@ export default function Home() {
                     <p style={{ marginBottom: "0.5rem", fontWeight: "bold", color: "var(--color-primary)" }}>
                         Podoba Ci się efekt?
                     </p>
-                    <Link href="/metamorfozy" className="btn-primary" style={{ display: "block", textAlign: "center", fontSize: "0.9rem" }}>
+                    <Link href="/metamorfozy?slide=1" className="btn-primary" style={{ display: "block", textAlign: "center", fontSize: "0.9rem" }}>
                         Zobacz więcej metamorfoz →
                     </Link>
                 </div>

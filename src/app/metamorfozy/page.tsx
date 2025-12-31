@@ -1,5 +1,7 @@
 import MetamorphosisGallery from "@/components/MetamorphosisGallery";
 import RevealOnScroll from "@/components/RevealOnScroll";
+import { Suspense } from "react";
+import MetamorphosisContent from "./MetamorphosisContent";
 
 export const metadata = {
     title: 'Metamorfozy | Mikrostomart Opole',
@@ -30,7 +32,9 @@ export default function MetamorfozyPage() {
                 </RevealOnScroll>
 
                 <RevealOnScroll animation="blur-in" delay={100}>
-                    <MetamorphosisGallery />
+                    <Suspense fallback={<div>Ładowanie galerii...</div>}>
+                        <MetamorphosisContent />
+                    </Suspense>
                 </RevealOnScroll>
             </div>
         </main>
