@@ -198,16 +198,39 @@ export default function MetamorphosisGallery() {
                             top: '1rem',
                             [activeTooltip === 'left' ? 'left' : 'right']: '1rem',
                             maxWidth: '280px',
-                            background: 'rgba(18, 20, 24, 0.9)', // Dark semi-transparent
+                            background: 'rgba(18, 20, 24, 0.95)',
                             backdropFilter: 'blur(8px)',
                             padding: '1.5rem',
-                            borderRadius: 'var(--radius-md)',
+                            borderRadius: '20px',
                             border: '1px solid var(--color-primary)',
+                            borderBottomRightRadius: activeTooltip === 'left' ? '4px' : '20px',
+                            borderBottomLeftRadius: activeTooltip === 'right' ? '4px' : '20px',
                             zIndex: 30,
                             boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
                             animation: 'fadeInZoom 0.3s ease forwards',
-                            pointerEvents: 'none' // Let clicks pass through if needed
+                            pointerEvents: 'none'
                         }}>
+                            {/* SVG Tail for better border match */}
+                            <svg
+                                width="20"
+                                height="20"
+                                viewBox="0 0 20 20"
+                                style={{
+                                    position: 'absolute',
+                                    bottom: '-14px',
+                                    [activeTooltip === 'left' ? 'right' : 'left']: '-1px', // Align perfectly with border
+                                    transform: activeTooltip === 'left' ? 'scaleX(1)' : 'scaleX(-1)',
+                                }}
+                            >
+                                <path
+                                    d="M0 0 L20 0 L0 20 Z"
+                                    fill="rgba(18, 20, 24, 0.95)"
+                                    stroke="var(--color-primary)"
+                                    strokeWidth="1"
+                                />
+                                <path d="M0 0 L20 0" stroke="rgba(18, 20, 24, 0.95)" strokeWidth="2" />
+                            </svg>
+
                             <h3 style={{
                                 color: 'var(--color-primary)',
                                 fontSize: '1.1rem',
