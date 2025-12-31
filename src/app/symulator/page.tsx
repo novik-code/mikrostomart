@@ -222,6 +222,53 @@ export default function SimulatorPage() {
         }
     };
 
+    // --- Drag Logic for Mask ---
+    const previewRef = useRef<HTMLDivElement>(null);
+    const [isMaskDragging, setIsMaskDragging] = useState(false);
+
+    const handleMaskMouseDown = (e: React.MouseEvent | React.TouchEvent) => {
+        e.preventDefault(); // Prevent scrolling on touch
+        setIsMaskDragging(true);
+    };
+
+    const handleMaskMouseMove = (e: React.MouseEvent | React.TouchEvent) => {
+        if (!isMaskDragging || !previewRef.current) return;
+
+        const rect = previewRef.current.getBoundingClientRect();
+        const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+        const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+
+        // Calculate percentage position
+        let x = ((clientX - rect.left) / rect.width) * 100;
+        let y = ((clientY - rect.top) / rect.height) * 100;
+
+        // Clamp values
+        x = Math.max(0, Math.min(100, x));
+        y = Math.max(0, Math.min(100, y));
+
+        setMaskConfig(prev => ({ ...prev, x, y }));
+    };
+
+    const handleMaskMouseUp = () => {
+        setIsMaskDragging(false);
+    };
+
+    // Attach global mouse up to catch drops outside container
+    useEffect(() => {
+        if (isMaskDragging) {
+            window.addEventListener('mouseup', handleMaskMouseUp);
+            window.addEventListener('touchend', handleMaskMouseUp);
+        } else {
+            window.removeEventListener('mouseup', handleMaskMouseUp);
+            window.removeEventListener('touchend', handleMaskMouseUp);
+        }
+        return () => {
+            window.removeEventListener('mouseup', handleMaskMouseUp);
+            window.removeEventListener('touchend', handleMaskMouseUp);
+        };
+    }, [isMaskDragging]);
+
+
     const handleDragOver = (e: React.DragEvent) => {
         e.preventDefault();
         setIsDragging(true);
@@ -322,8 +369,13 @@ export default function SimulatorPage() {
                         >
                             {selectedImage ? (
                                 <>
-                                    <div style={{ position: "relative", width: "100%", height: "100%", minHeight: "400px", display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                                        <div style={{ position: 'relative', width: '300px', height: '300px', marginBottom: '2rem' }}>
+                                    <div
+                                        ref={previewRef}
+                                        onMouseMove={handleMaskMouseMove}
+                                        onTouchMove={handleMaskMouseMove}
+                                        style={{ position: "relative", width: "100%", height: "100%", minHeight: "400px", display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: isMaskDragging ? 'grabbing' : 'default', touchAction: 'none' }}
+                                    >
+                                        <div style={{ position: 'relative', width: '300px', height: '300px', marginBottom: '2rem', pointerEvents: 'none' }}>
                                             <Image
                                                 src={selectedImage}
                                                 alt="Uploaded preview"
@@ -349,34 +401,39 @@ export default function SimulatorPage() {
                                             Zmień zdjęcie
                                         </button>
 
-                                        {/* Alignment Guide Overlay - Dynamic */}
-                                        <div style={{
-                                            position: 'absolute',
-                                            top: `${maskConfig.y}%`,
-                                            left: `${maskConfig.x}%`,
-                                            transform: 'translate(-50%, -50%)',
-                                            width: `${36 * maskConfig.scaleX}%`, // Base 36% width
-                                            height: `${20 * maskConfig.scaleY}%`, // Base 20% height
-                                            border: '2px dashed rgba(255, 255, 0, 0.9)',
-                                            borderRadius: '50%',
-                                            pointerEvents: 'none',
-                                            zIndex: 10,
-                                            boxShadow: '0 0 10px rgba(0,0,0,0.5)'
-                                        }}>
+                                        {/* Alignment Guide Overlay - Dynamic & Interactive */}
+                                        <div
+                                            onMouseDown={handleMaskMouseDown}
+                                            onTouchStart={handleMaskMouseDown}
+                                            style={{
+                                                position: 'absolute',
+                                                top: `${maskConfig.y}%`,
+                                                left: `${maskConfig.x}%`,
+                                                transform: 'translate(-50%, -50%)',
+                                                width: `${36 * maskConfig.scaleX}%`, // Base 36% width
+                                                height: `${20 * maskConfig.scaleY}%`, // Base 20% height
+                                                border: '2px dashed rgba(255, 255, 0, 0.9)',
+                                                borderRadius: '50%',
+                                                cursor: isMaskDragging ? 'grabbing' : 'grab',
+                                                zIndex: 50,
+                                                boxShadow: '0 0 10px rgba(0,0,0,0.5)',
+                                                background: 'rgba(255, 255, 0, 0.1)'
+                                            }}>
                                             <div style={{
                                                 position: 'absolute',
-                                                top: '-25px',
+                                                top: '-35px',
                                                 left: '50%',
                                                 transform: 'translateX(-50%)',
                                                 color: 'yellow',
                                                 fontSize: '12px',
                                                 whiteSpace: 'nowrap',
                                                 textShadow: '0 1px 2px black',
-                                                background: 'rgba(0,0,0,0.5)',
-                                                padding: '2px 6px',
-                                                borderRadius: '4px'
+                                                background: 'rgba(0,0,0,0.7)',
+                                                padding: '4px 8px',
+                                                borderRadius: '4px',
+                                                pointerEvents: 'none'
                                             }}>
-                                                Dopasuj tutaj
+                                                👆 Przesuń mnie
                                             </div>
                                         </div>
                                     </div>
