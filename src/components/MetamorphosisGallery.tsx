@@ -153,6 +153,36 @@ export default function MetamorphosisGallery() {
         }
     }, [activeTooltip]);
 
+    // Touch State for Swipe
+    const [touchStart, setTouchStart] = useState<number | null>(null);
+    const [touchEnd, setTouchEnd] = useState<number | null>(null);
+
+    // Minimum swipe distance
+    const minSwipeDistance = 50;
+
+    const onTouchStart = (e: React.TouchEvent) => {
+        setTouchEnd(null); // Reset touch end
+        setTouchStart(e.targetTouches[0].clientX);
+    };
+
+    const onTouchMove = (e: React.TouchEvent) => {
+        setTouchEnd(e.targetTouches[0].clientX);
+    };
+
+    const onTouchEnd = () => {
+        if (!touchStart || !touchEnd) return;
+
+        const distance = touchStart - touchEnd;
+        const isLeftSwipe = distance > minSwipeDistance;
+        const isRightSwipe = distance < -minSwipeDistance;
+
+        if (isLeftSwipe) {
+            nextSlide();
+        } else if (isRightSwipe) {
+            prevSlide();
+        }
+    };
+
     const handleSlideChange = (newIndex: number) => {
         setIsTransitioning(true);
         setTimeout(() => {
@@ -179,6 +209,9 @@ export default function MetamorphosisGallery() {
             <div
                 className={isTransitioning ? 'anim-blur-out' : 'anim-blur-in'}
                 style={{ width: '100%' }}
+                onTouchStart={onTouchStart}
+                onTouchMove={onTouchMove}
+                onTouchEnd={onTouchEnd}
             >
                 {/* Slider Component - Square Aspect Ratio */}
                 <div style={{
