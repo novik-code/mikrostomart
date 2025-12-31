@@ -54,16 +54,17 @@ export async function POST(req: NextRequest) {
         console.log("Using Version ID:", latestVersion);
 
         // 2. Create Prediction with valid version
+        // Prompt Engineering: Explicit color change and transformation
         let prediction = await replicate.predictions.create({
             version: latestVersion,
             input: {
                 image: imageUri,
                 mask: maskUri,
-                prompt: "A close up photo of a person smiling with open mouth, showing a full set of perfect, straight, white teeth. High quality dental photography, realistic texture, natural lighting.",
-                guidance_scale: 3.0,
-                n_steps: 25,
+                prompt: "extreme closeup of a hollywood smile makeover, gleaming white porcelain veneers, perfect alignment, straight bleached teeth, high fashion dental photography, bright white tooth shade, transformative output",
+                guidance_scale: 4.5, // High guidance to FORCE the prompt over original colors
+                n_steps: 35,         // High steps for quality
                 output_format: "png",
-                output_quality: 90
+                output_quality: 100
             }
         });
 
