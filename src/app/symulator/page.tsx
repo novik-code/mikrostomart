@@ -36,6 +36,7 @@ export default function SimulatorPage() {
     // MODE SWITCH: 'ai-generate' (Default) vs 'template-overlay' (SmileCloud)
     const [simulatorMode, setSimulatorMode] = useState<'ai-generate' | 'template-overlay'>('template-overlay');
     const [compositeImage, setCompositeImage] = useState<string | null>(null);
+    const [overlayMask, setOverlayMask] = useState<string | null>(null); // From OverlayEditor (Lip Clipped)
 
     // Drag Logic Refs
     const previewRef = useRef<HTMLDivElement>(null);
@@ -246,8 +247,15 @@ export default function SimulatorPage() {
                 const compositeBlob = dataURItoBlob(compositeImage);
                 formData.append("image", compositeBlob, "composite.png");
 
-                // We send the mask for blending reference
-                formData.append("mask", maskBlob, "mask.png");
+                // USE OVERLAY MASK (Respects Lip Line)
+                if (overlayMask) {
+                    const overlayMaskBlob = dataURItoBlob(overlayMask);
+                    formData.append("mask", overlayMaskBlob, "mask.png");
+                } else {
+                    // Fallback (should not happen if OverlayEditor works)
+                    formData.append("mask", maskBlob, "mask.png");
+                }
+
                 formData.append("mode", "template-blend");
             } else {
                 formData.append("image", imageBlob, "image.png");
@@ -468,6 +476,7 @@ export default function SimulatorPage() {
                                                         baseImage={processedImage || selectedImage}
                                                         templateImage={`/template_${smileStyle}.png`}
                                                         onCompositeReady={(url) => setCompositeImage(url)}
+                                                        onMaskReady={(url) => setOverlayMask(url)}
                                                     />
                                                     <div style={{ fontSize: '10px', color: 'gray', textAlign: 'center', marginTop: '5px' }}>
                                                         *Przesuwaj/Skaluj szablon. AI wtopi go w zdjęcie.

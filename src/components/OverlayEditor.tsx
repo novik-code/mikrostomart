@@ -7,9 +7,10 @@ interface OverlayEditorProps {
     baseImage: string;
     templateImage: string;
     onCompositeReady: (compositeDataUrl: string) => void;
+    onMaskReady?: (maskDataUrl: string) => void;
 }
 
-export default function OverlayEditor({ baseImage, templateImage, onCompositeReady }: OverlayEditorProps) {
+export default function OverlayEditor({ baseImage, templateImage, onCompositeReady, onMaskReady }: OverlayEditorProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     // State for Image Layout
     const [config, setConfig] = useState({
