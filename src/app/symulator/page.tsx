@@ -1,71 +1,130 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import Image from "next/image";
 import RevealOnScroll from "@/components/RevealOnScroll";
 import BeforeAfterSlider from "@/components/BeforeAfterSlider";
 
 /*
-  SIMULATOR PAGE (Dentist Mode Edition)
+  SIMULATOR PAGE (Replicate / Flux Edition)
   Strategy:
   1. User draws mask (oval).
-  2. Before sending to API, we 'PAINT' the mouth area #DDDDDD (Grey) on the image.
-  3. This removes "closed lips" features and gives DALL-E 2 a neutral canvas to draw teeth on.
+  2. We send original image + mask hole to API.
+  3. API uses Replicate (Flux Fill) for SOTA inpainting.
 */
 
 export default function SimulatorPage() {
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
-    const [processedImage, setProcessedImage] = useState<string | null>(null); // Scaled/Cropped square
+    const [processedImage, setProcessedImage] = useState<string | null>(null);
     const [resultImage, setResultImage] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
-
-    // Mask Visualization State
-    const [maskConfig, setMaskConfig] = useState({
-        x: 50,
-        y: 65,
-        scaleX: 1.0,
-        scaleY: 1.0
-    });
-
     const fileInputRef = useRef<HTMLInputElement>(null);
+    // State for Mask Configuration
+    const [maskConfig, setMaskConfig] = useState({ x: 50, y: 65, scaleX: 1.0, scaleY: 1.0 });
 
-    // --- Image Processing (Crop to Square) ---
-    const processInputImage = (imageUrl: string) => {
-        const img = new window.Image();
-        img.onload = () => {
-            const size = Math.min(img.width, img.height);
+    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            handleFile(e.target.files[0]);
+        }
+    };
+
+    // New State for Mask
+    const [maskImage, setMaskImage] = useState<string | null>(null);
+
+    // 1. Process Input Image (Once per file upload)
+    const processInputImage = async (imageSrc: string) => {
+        try {
+            const img = new window.Image();
+            img.src = imageSrc;
+            await img.decode();
+
             const canvas = document.createElement("canvas");
-            canvas.width = 1024;
-            canvas.height = 1024;
+            const size = 1024; // Standard size
+            canvas.width = size;
+            canvas.height = size;
             const ctx = canvas.getContext("2d");
+
             if (!ctx) return;
 
-            // Draw white background
-            ctx.fillStyle = "#ffffff";
-            ctx.fillRect(0, 0, 1024, 1024);
+            // Calc dimensions
+            const nW = img.naturalWidth;
+            const nH = img.naturalHeight;
+            const minDim = Math.min(nW, nH);
+            const scale = size / minDim;
 
-            // Center crop
-            const offsetX = (img.width - size) / 2;
-            const offsetY = (img.height - size) / 2;
-            ctx.drawImage(img, offsetX, offsetY, size, size, 0, 0, 1024, 1024);
+            const drawWidth = nW * scale;
+            const drawHeight = nH * scale;
+            const tx = (size - drawWidth) / 2;
+            const ty = (size - drawHeight) / 2;
 
-            setProcessedImage(canvas.toDataURL("image/png"));
-            setResultImage(null); // Reset result on new image
-        };
-        img.src = imageUrl;
+            ctx.fillStyle = "white";
+            ctx.fillRect(0, 0, size, size);
+            ctx.drawImage(img, tx, ty, drawWidth, drawHeight);
+
+            const processedPng = canvas.toDataURL("image/png");
+            setProcessedImage(processedPng);
+
+            // Trigger initial mask generation
+            generateMask(maskConfig);
+
+        } catch (err) {
+            console.error("Processing Error", err);
+            alert("Błąd przetwarzania zdjęcia.");
+        }
     };
+
+    // 2. Generate Mask (Dynamic based on config)
+    const generateMask = (config: { x: number, y: number, scaleX: number, scaleY: number }) => {
+        const size = 1024;
+        const canvas = document.createElement("canvas");
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext("2d");
+
+        if (!ctx) return;
+
+        // Fill BLACK (Opaque = Keep Original)
+        ctx.fillStyle = "black";
+        ctx.fillRect(0, 0, size, size);
+
+        // Cut Hole (Transparent = AI Edit Area)
+        ctx.globalCompositeOperation = "destination-out";
+        ctx.beginPath();
+
+        // Base params
+        const baseX = size * (config.x / 100);
+        const baseY = size * (config.y / 100);
+        const baseRadiusX = size * 0.18 * config.scaleX;
+        const baseRadiusY = size * 0.10 * config.scaleY;
+
+        ctx.ellipse(baseX, baseY, baseRadiusX, baseRadiusY, 0, 0, 2 * Math.PI);
+        ctx.fill();
+
+        setMaskImage(canvas.toDataURL("image/png"));
+    };
+
+    // Update mask when config changes
+    useEffect(() => {
+        if (processedImage) {
+            generateMask(maskConfig);
+        }
+    }, [maskConfig, processedImage]);
 
     const handleFile = (file: File) => {
         if (!file.type.startsWith("image/")) {
-            alert("Proszę wgrać plik obrazkowy (JPG, PNG).");
+            alert("Proszę wybrać plik obrazkowy (JPG, PNG).");
             return;
         }
+
         const reader = new FileReader();
         reader.onload = (e) => {
-            const imgStr = e.target?.result as string;
-            if (imgStr) {
+            if (e.target?.result) {
+                const imgStr = e.target.result as string;
                 setSelectedImage(imgStr);
-                // Reset mask to default position
+                setResultImage(null);
+                setProcessedImage(null);
+                setMaskImage(null);
                 setMaskConfig({ x: 50, y: 65, scaleX: 1.0, scaleY: 1.0 });
                 processInputImage(imgStr);
             }
@@ -74,83 +133,54 @@ export default function SimulatorPage() {
     };
 
     const handleGenerate = async () => {
-        if (!processedImage) return;
+        if (!processedImage || !maskImage) return;
 
         setIsLoading(true);
+        // Clean up previous result
         setResultImage(null);
 
         try {
-            // "The Dentist" Strategy
-            // We physically paint a tooth-colored blob on the image before sending it.
-            // This destroys the "closed lips" information, forcing the AI to see "teeth" 
-            // and just fix the texture/lighting.
+            // For Replicate Flux Fill, we need:
+            // 1. The Image (processedImage is a Data URL)
+            // 2. The Mask (maskImage is a Data URL with transparency)
+            // But wait, Replicate usually wants a BLACK/WHITE mask where white is the inpaint area.
+            // OR checks for alpha channel. 
+            // Flux Fill specifically often takes an image and a mask.
+            // Let's send what we have. The backend will handle conversion if needed.
+            // Actually, Flux Fill Dev accepts:
+            // - image: Input image
+            // - mask: Input mask (white = inpainted area, black = keep)
 
+            // Current `maskImage` is Black background with Transparent hole.
+            // We should probably convert this to Black background + White hole for standard masking, 
+            // OR standard alpha masking if the model supports it.
+            // Let's rely on the Backend to massage the data if needed, but sending clear signals is better.
+
+            // Let's re-generate a proper B/W mask for Replicate right here to be safe.
             const canvas = document.createElement("canvas");
             canvas.width = 1024;
             canvas.height = 1024;
             const ctx = canvas.getContext("2d");
+            if (!ctx) return;
 
-            if (!ctx) throw new Error("Canvas context failed");
+            // Black background
+            ctx.fillStyle = "black";
+            ctx.fillRect(0, 0, 1024, 1024);
 
-            const img = new window.Image();
-            img.src = processedImage;
-            await img.decode();
-
-            // --- 1. Prepare "Painted" Image (INPUT) ---
-            // Draw original
-            ctx.drawImage(img, 0, 0);
-
-            // Calculate Mask Coordinates
+            // White hole (The area to edit)
+            ctx.fillStyle = "white";
+            ctx.beginPath();
             const size = 1024;
             const baseX = size * (maskConfig.x / 100);
             const baseY = size * (maskConfig.y / 100);
             const baseRadiusX = size * 0.18 * maskConfig.scaleX;
             const baseRadiusY = size * 0.10 * maskConfig.scaleY;
-
-            // PAINT IT GREY/WHITE (The "Guide")
-            // #DDDDDD is a neutral light grey that looks like "unlit teeth" to the AI
-            ctx.fillStyle = "#DDDDDD";
-            ctx.beginPath();
             ctx.ellipse(baseX, baseY, baseRadiusX, baseRadiusY, 0, 0, 2 * Math.PI);
             ctx.fill();
 
-            const imageWithGuide = canvas.toDataURL("image/png");
+            const bwMask = canvas.toDataURL("image/png");
 
-
-            // --- 2. Prepare Mask (Where to edit) ---
-            // We need a separate pass for the mask to ensure it matches perfectly
-            ctx.clearRect(0, 0, 1024, 1024);
-
-            // Background Black (Keep)
-            ctx.fillStyle = "#000000";
-            ctx.fillRect(0, 0, 1024, 1024);
-
-            // Hole Transparent (Edit) - This needs to match the painted area
-            ctx.globalCompositeOperation = "destination-out";
-            ctx.beginPath();
-            ctx.ellipse(baseX, baseY, baseRadiusX, baseRadiusY, 0, 0, 2 * Math.PI);
-            ctx.fill();
-
-            // Reset
-            ctx.globalCompositeOperation = "source-over";
-
-            const maskData = canvas.toDataURL("image/png");
-
-
-            // --- 3. Debug View ---
-            const debugContainer = document.getElementById('debug-hole-container');
-            if (debugContainer) {
-                debugContainer.innerHTML = `
-                    <div style="display:flex; gap:10px; justify-content:center;">
-                        <div>
-                            <img src="${imageWithGuide}" style="width: 150px; height: 150px; border: 2px solid red;" />
-                            <p style="font-size: 10px; color: red;">DENTIST MODE: Painted Input</p>
-                        </div>
-                    </div>
-                `;
-            }
-
-            // --- 4. Convert and Send ---
+            // Convert to Blobs
             const dataURItoBlob = (dataURI: string) => {
                 const byteString = atob(dataURI.split(',')[1]);
                 const mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0];
@@ -162,8 +192,8 @@ export default function SimulatorPage() {
                 return new Blob([ab], { type: mimeString });
             };
 
-            const imageBlob = dataURItoBlob(imageWithGuide);
-            const maskBlob = dataURItoBlob(maskData);
+            const imageBlob = dataURItoBlob(processedImage); // Original image
+            const maskBlob = dataURItoBlob(bwMask);          // B/W Mask
 
             const formData = new FormData();
             formData.append("image", imageBlob, "image.png");
@@ -171,14 +201,14 @@ export default function SimulatorPage() {
 
             const response = await fetch("/api/simulate", {
                 method: "POST",
-                body: formData, // No Content-Type header needed for FormData
+                body: formData,
             });
 
             const data = await response.json();
 
             if (!response.ok) {
-                if (data.error && data.error.includes("safety")) {
-                    throw new Error("System bezpieczeństwa odrzucił zdjęcie.");
+                if (data.error && data.error.includes("auth")) {
+                    throw new Error("Brak klucza API Replicate. Skontaktuj się z administratorem.");
                 }
                 throw new Error(data.error || "Błąd generowania");
             }
@@ -227,7 +257,7 @@ export default function SimulatorPage() {
                             Wirtualna Przymierzalnia
                         </h1>
                         <p style={{ color: "var(--color-text-muted)", maxWidth: "600px", margin: "0 auto" }}>
-                            Wgraj swoje zdjęcie, a nasza sztuczna inteligencja pokaże Ci potencjał Twojego nowego uśmiechu.
+                            Wgraj swoje zdjęcie, a nasza sztuczna inteligencja (Flux Pro) pokaże Ci potencjał Twojego nowego uśmiechu.
                         </p>
                     </header>
                 </RevealOnScroll>
@@ -235,187 +265,276 @@ export default function SimulatorPage() {
                 <RevealOnScroll delay={100} animation="blur-in">
                     {/* RESULT VIEW */}
                     {resultImage && selectedImage ? (
-                        <div className="simulator-result" style={{ marginBottom: "3rem" }}>
+                        <div style={{
+                            width: "100%",
+                            maxWidth: "600px",
+                            margin: "0 auto",
+                            aspectRatio: "1/1",
+                            position: "relative",
+                            border: "1px solid var(--color-surface-hover)",
+                            borderRadius: "var(--radius-lg)",
+                            overflow: "hidden"
+                        }}>
                             <BeforeAfterSlider
-                                beforeImage={selectedImage} // Use original, uncropped for context? Or processed? Let's use beforeImage as processed to match
+                                beforeImage={processedImage || selectedImage} // Use processed for accurate match
                                 afterImage={resultImage}
                                 onInteraction={() => { }}
                             />
-
-                            <div style={{ marginTop: "2rem", display: "flex", gap: "1rem", justifyContent: "center" }}>
-                                <button
-                                    className="btn btn-secondary"
-                                    onClick={() => setResultImage(null)}
-                                >
-                                    Skoryguj Obszar
-                                </button>
-                                <a
-                                    href={resultImage}
-                                    download="nowy-usmiech.png"
-                                    className="btn btn-primary"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                >
-                                    Pobierz Wynik
-                                </a>
+                            <div style={{ textAlign: 'center', marginTop: '1rem', color: 'var(--color-primary)' }}>
+                                Twój nowy uśmiech (Flux AI)
                             </div>
-
-                            {/* DEBUG PREVIEW */}
-                            <div id="debug-hole-container" style={{ marginTop: '20px', textAlign: 'center', opacity: 0.7 }}></div>
+                            <button
+                                onClick={() => { setResultImage(null); setSelectedImage(null); }}
+                                style={{
+                                    marginTop: '2rem',
+                                    background: 'transparent',
+                                    border: '1px solid var(--color-text-muted)',
+                                    color: 'var(--color-text-main)',
+                                    padding: '0.5rem 1rem',
+                                    borderRadius: 'var(--radius-sm)',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                Spróbuj z innym zdjęciem
+                            </button>
                         </div>
                     ) : (
-                        <div className="simulator-workspace" style={{ background: "var(--color-surface)", padding: "2rem", borderRadius: "1rem", border: "1px solid var(--color-border)" }}>
-
-                            {/* UPLOAD & PREVIEW */}
-                            {!processedImage ? (
-                                <div
-                                    className={`upload-zone ${isDragging ? "dragging" : ""}`}
-                                    onDragOver={handleDragOver}
-                                    onDragLeave={handleDragLeave}
-                                    onDrop={handleDrop}
-                                    onClick={() => fileInputRef.current?.click()}
-                                    style={{
-                                        border: "2px dashed var(--color-border)",
-                                        padding: "4rem 2rem",
-                                        textAlign: "center",
-                                        cursor: "pointer",
-                                        borderRadius: "0.5rem",
-                                        background: isDragging ? "rgba(var(--color-primary-rgb), 0.05)" : "transparent",
-                                        transition: "all 0.3s ease"
-                                    }}
-                                >
-                                    <input
-                                        type="file"
-                                        ref={fileInputRef}
-                                        onChange={(e) => e.target.files && handleFile(e.target.files[0])}
-                                        accept="image/*"
-                                        style={{ display: "none" }}
-                                    />
-                                    <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>📸</div>
-                                    <h3>Kliknij lub upuść zdjęcie tutaj</h3>
-                                    <p style={{ color: "var(--color-text-muted)" }}>Najlepiej działa zdjęcie twarzy na wprost</p>
-                                </div>
-                            ) : (
-                                <div className="editor-interface">
-                                    <div className="preview-container" style={{ position: "relative", width: "100%", maxWidth: "512px", margin: "0 auto", aspectRatio: "1/1", overflow: "hidden", borderRadius: "8px", border: "1px solid var(--color-border)" }}>
-                                        {/* Background Image */}
-                                        <img
-                                            src={processedImage}
-                                            alt="Preview"
-                                            style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                                        />
-
-                                        {/* INTERACTIVE MASK OVERLAY */}
-                                        <div
-                                            className="mask-overlay"
+                        /* UPLOAD VIEW */
+                        <div
+                            style={{
+                                background: "var(--color-surface)",
+                                borderRadius: "var(--radius-lg)",
+                                padding: "2rem",
+                                border: `2px dashed ${isDragging ? "var(--color-primary)" : "var(--color-surface-hover)"}`,
+                                textAlign: "center",
+                                transition: "all 0.3s ease",
+                                minHeight: "400px",
+                                display: "flex",
+                                flexDirection: "column",
+                                justifyContent: "center",
+                                alignItems: "center",
+                                position: "relative",
+                                overflow: "hidden"
+                            }}
+                            onDragOver={handleDragOver}
+                            onDragLeave={handleDragLeave}
+                            onDrop={handleDrop}
+                        >
+                            {selectedImage ? (
+                                <>
+                                    <div style={{ position: "relative", width: "100%", height: "100%", minHeight: "400px", display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                                        <div style={{ position: 'relative', width: '300px', height: '300px', marginBottom: '2rem' }}>
+                                            <Image
+                                                src={selectedImage}
+                                                alt="Uploaded preview"
+                                                fill
+                                                style={{ objectFit: "contain" }}
+                                            />
+                                        </div>
+                                        <button
+                                            onClick={() => setSelectedImage(null)}
                                             style={{
                                                 position: "absolute",
-                                                top: 0,
-                                                left: 0,
-                                                width: "100%",
-                                                height: "100%",
-                                                pointerEvents: "none" // Let clicks pass through if needed, but we check sliders
+                                                top: "1rem",
+                                                right: "1rem",
+                                                background: "rgba(0,0,0,0.6)",
+                                                color: "#fff",
+                                                border: "none",
+                                                padding: "0.5rem 1rem",
+                                                borderRadius: "var(--radius-sm)",
+                                                cursor: "pointer",
+                                                zIndex: 20
                                             }}
                                         >
-                                            {/* We draw the 'hole' visually using a semi-transparent overlay with a cutout */}
+                                            Zmień zdjęcie
+                                        </button>
+
+                                        {/* Alignment Guide Overlay - Dynamic */}
+                                        <div style={{
+                                            position: 'absolute',
+                                            top: `${maskConfig.y}%`,
+                                            left: `${maskConfig.x}%`,
+                                            transform: 'translate(-50%, -50%)',
+                                            width: `${36 * maskConfig.scaleX}%`, // Base 36% width
+                                            height: `${20 * maskConfig.scaleY}%`, // Base 20% height
+                                            border: '2px dashed rgba(255, 255, 0, 0.9)',
+                                            borderRadius: '50%',
+                                            pointerEvents: 'none',
+                                            zIndex: 10,
+                                            boxShadow: '0 0 10px rgba(0,0,0,0.5)'
+                                        }}>
                                             <div style={{
-                                                position: "absolute",
-                                                top: `${maskConfig.y}%`,
-                                                left: `${maskConfig.x}%`,
-                                                transform: "translate(-50%, -50%)",
-                                                width: `${36 * maskConfig.scaleX}%`, // 1024 * 0.18 * 2 = 36% approx width
-                                                height: `${20 * maskConfig.scaleY}%`, // 1024 * 0.10 * 2 = 20% approx height
-                                                borderRadius: "50%",
-                                                border: "2px solid rgba(255, 0, 0, 0.8)",
-                                                background: "rgba(255, 0, 0, 0.2)",
-                                                boxShadow: "0 0 0 9999px rgba(0, 0, 0, 0.5)" // Dim everything else
+                                                position: 'absolute',
+                                                top: '-25px',
+                                                left: '50%',
+                                                transform: 'translateX(-50%)',
+                                                color: 'yellow',
+                                                fontSize: '12px',
+                                                whiteSpace: 'nowrap',
+                                                textShadow: '0 1px 2px black',
+                                                background: 'rgba(0,0,0,0.5)',
+                                                padding: '2px 6px',
+                                                borderRadius: '4px'
                                             }}>
-                                                <div style={{
-                                                    position: "absolute",
-                                                    top: "-25px",
-                                                    left: "50%",
-                                                    transform: "translateX(-50%)",
-                                                    background: "red",
-                                                    color: "white",
-                                                    padding: "2px 6px",
-                                                    borderRadius: "4px",
-                                                    fontSize: "10px",
-                                                    whiteSpace: "nowrap"
-                                                }}>
-                                                    Obszar do zmiany
-                                                </div>
+                                                Dopasuj tutaj
                                             </div>
                                         </div>
                                     </div>
 
-                                    {/* CONTROLS */}
-                                    <div className="controls" style={{ marginTop: "2rem", display: "grid", gap: "1.5rem" }}>
+                                    {/* CONTROLS FOR MASK */}
+                                    <div style={{
+                                        marginTop: '20px',
+                                        padding: '15px',
+                                        background: 'var(--color-surface-hover)',
+                                        borderRadius: 'var(--radius-md)',
+                                        width: '100%',
+                                        maxWidth: '400px'
+                                    }}>
+                                        <h4 style={{ marginBottom: '10px', fontSize: '0.9rem', color: 'var(--color-text-main)' }}>Dopasuj obszar uśmiechu:</h4>
 
-                                        <div className="control-group">
-                                            <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: 600 }}>Pozycja (Góra/Dół)</label>
+                                        <div style={{ marginBottom: '10px' }}>
+                                            <label style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '5px' }}>
+                                                <span>Pionowo (Góra/Dół)</span>
+                                                <span>{maskConfig.y}%</span>
+                                            </label>
                                             <input
-                                                type="range"
-                                                min="0"
-                                                max="100"
+                                                type="range" min="0" max="100" step="1"
                                                 value={maskConfig.y}
-                                                onChange={(e) => setMaskConfig(prev => ({ ...prev, y: Number(e.target.value) }))}
-                                                style={{ width: "100%" }}
+                                                onChange={(e) => setMaskConfig({ ...maskConfig, y: Number(e.target.value) })}
+                                                style={{ width: '100%' }}
                                             />
                                         </div>
 
-                                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
-                                            <div className="control-group">
-                                                <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: 600 }}>Szerokość</label>
-                                                <input
-                                                    type="range"
-                                                    min="0.5"
-                                                    max="2.0"
-                                                    step="0.1"
-                                                    value={maskConfig.scaleX}
-                                                    onChange={(e) => setMaskConfig(prev => ({ ...prev, scaleX: Number(e.target.value) }))}
-                                                    style={{ width: "100%" }}
-                                                />
-                                            </div>
-                                            <div className="control-group">
-                                                <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: 600 }}>Wysokość</label>
-                                                <input
-                                                    type="range"
-                                                    min="0.5"
-                                                    max="2.0"
-                                                    step="0.1"
-                                                    value={maskConfig.scaleY}
-                                                    onChange={(e) => setMaskConfig(prev => ({ ...prev, scaleY: Number(e.target.value) }))}
-                                                    style={{ width: "100%" }}
-                                                />
-                                            </div>
+                                        <div style={{ marginBottom: '10px' }}>
+                                            <label style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '5px' }}>
+                                                <span>Poziomo (Lewo/Prawo)</span>
+                                                <span>{maskConfig.x}%</span>
+                                            </label>
+                                            <input
+                                                type="range" min="0" max="100" step="1"
+                                                value={maskConfig.x}
+                                                onChange={(e) => setMaskConfig({ ...maskConfig, x: Number(e.target.value) })}
+                                                style={{ width: '100%' }}
+                                            />
                                         </div>
 
-                                        <div className="actions" style={{ display: "flex", gap: "1rem", justifyContent: "center", marginTop: "1rem" }}>
-                                            <button
-                                                className="btn btn-secondary"
-                                                onClick={() => {
-                                                    setProcessedImage(null);
-                                                    setSelectedImage(null);
-                                                }}
-                                            >
-                                                Zmień zdjęcie
-                                            </button>
-                                            <button
-                                                className="btn btn-primary"
-                                                onClick={handleGenerate}
-                                                disabled={isLoading}
-                                                style={{ minWidth: "200px" }}
-                                            >
-                                                {isLoading ? "Generowanie..." : "✨ Generuj Uśmiech"}
-                                            </button>
+                                        <div style={{ marginBottom: '10px' }}>
+                                            <label style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '5px' }}>
+                                                <span>Szerokość Maski</span>
+                                                <span>{maskConfig.scaleX.toFixed(1)}x</span>
+                                            </label>
+                                            <input
+                                                type="range" min="0.1" max="2.0" step="0.1"
+                                                value={maskConfig.scaleX}
+                                                onChange={(e) => setMaskConfig({ ...maskConfig, scaleX: Number(e.target.value) })}
+                                                style={{ width: '100%' }}
+                                            />
                                         </div>
-                                        <div id="debug-hole-container" style={{ marginTop: '20px', textAlign: 'center', opacity: 0.7 }}></div>
+
+                                        <div>
+                                            <label style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '5px' }}>
+                                                <span>Wysokość Maski</span>
+                                                <span>{maskConfig.scaleY.toFixed(1)}x</span>
+                                            </label>
+                                            <input
+                                                type="range" min="0.1" max="2.0" step="0.1"
+                                                value={maskConfig.scaleY}
+                                                onChange={(e) => setMaskConfig({ ...maskConfig, scaleY: Number(e.target.value) })}
+                                                style={{ width: '100%' }}
+                                            />
+                                        </div>
                                     </div>
-                                </div>
+                                </>
+                            ) : (
+                                <>
+                                    <div style={{ fontSize: "4rem", marginBottom: "1rem", opacity: 0.5 }}>📸</div>
+                                    <h3 style={{ marginBottom: "1rem" }}>Przeciągnij zdjęcie tutaj</h3>
+                                    <p style={{ color: "var(--color-text-muted)", marginBottom: "2rem" }}>
+                                        lub wybierz z urządzenia
+                                    </p>
+                                    <input
+                                        type="file"
+                                        ref={fileInputRef}
+                                        onChange={handleFileSelect}
+                                        accept="image/*"
+                                        style={{ display: "none" }}
+                                    />
+                                    <button
+                                        onClick={() => fileInputRef.current?.click()}
+                                        className="btn-primary"
+                                    >
+                                        Wybierz plik
+                                    </button>
+                                </>
                             )}
                         </div>
                     )}
                 </RevealOnScroll>
+
+                {
+                    selectedImage && !resultImage && (
+                        <div style={{ textAlign: "center", marginTop: "2rem" }}>
+                            <button
+                                className="btn-primary"
+                                onClick={handleGenerate}
+                                disabled={isLoading || !processedImage || !maskImage}
+                                style={{
+                                    opacity: processedImage && maskImage && !isLoading ? 1 : 0.5,
+                                    cursor: processedImage && maskImage && !isLoading ? "pointer" : "not-allowed",
+                                    padding: "1rem 3rem",
+                                    fontSize: "1.1rem",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "0.5rem",
+                                    margin: "0 auto"
+                                }}
+                            >
+                                {isLoading ? (
+                                    <>
+                                        <span className="spinner"></span> Generowanie...
+                                    </>
+                                ) : (
+                                    <>Generuj Mój Uśmiech (Flux AI) ✨</>
+                                )}
+                            </button>
+
+                            <div id="debug-hole-container" style={{ marginTop: '20px', textAlign: 'center' }}></div>
+
+                            {/* Debug Info */}
+                            <div style={{ marginTop: '10px', fontSize: '0.8rem', color: '#666' }}>
+                                Status: {maskImage ? "✅ Gotowy do edycji" : "⏳ Przetwarzanie..."}
+                            </div>
+
+                            {isLoading && (
+                                <p style={{ marginTop: "1rem", color: "var(--color-primary)", animation: "pulse 1.5s infinite" }}>
+                                    To może potrwać kilka sekund... Sztuczna inteligencja pracuje.
+                                </p>
+                            )}
+                        </div>
+                    )
+                }
+
+                <style jsx>{`
+                    .spinner {
+                        width: 20px;
+                        height: 20px;
+                        border: 3px solid rgba(255,255,255,0.3);
+                        border-radius: 50%;
+                        border-top-color: #fff;
+                        animation: spin 1s ease-in-out infinite;
+                        display: inline-block;
+                    }
+
+                    @keyframes spin {
+                        to { transform: rotate(360deg); }
+                    }
+                    
+                    @keyframes pulse {
+                        0% { opacity: 0.6; }
+                        50% { opacity: 1; }
+                        100% { opacity: 0.6; }
+                    }
+                `}</style>
             </div>
         </main>
     );
