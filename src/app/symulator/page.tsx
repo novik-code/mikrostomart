@@ -204,7 +204,15 @@ export default function SimulatorPage() {
                 throw new Error(data.error || "Błąd generowania");
             }
 
-            setResultImage(data.url);
+            // Fix for "Objects are not valid as a React child"
+            // Ensure data.url is a string
+            if (typeof data.url === 'string') {
+                setResultImage(data.url);
+            } else {
+                console.error("Invalid URL format received:", data.url);
+                alert("Błąd: Otrzymano nieprawidłowy format pliku ze sztucznej inteligencji. Zobacz debug info.");
+            }
+
             setDebugInfo(data.debug);
         } catch (err: any) {
             console.error(err);
