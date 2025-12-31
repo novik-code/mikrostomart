@@ -63,10 +63,12 @@ export async function POST(req: NextRequest) {
 
         console.log("Replicate Output:", output);
 
-        // Output is typically a URL string or an array of URL strings
         const resultUrl = Array.isArray(output) ? output[0] : output;
 
-        return NextResponse.json({ url: resultUrl });
+        return NextResponse.json({
+            url: resultUrl,
+            debug: JSON.stringify(output) // Sending raw output to frontend for inspection
+        });
 
     } catch (error: any) {
         console.error("Replicate API Error:", error);

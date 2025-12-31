@@ -16,8 +16,26 @@ import BeforeAfterSlider from "@/components/BeforeAfterSlider";
 export default function SimulatorPage() {
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
     const [processedImage, setProcessedImage] = useState<string | null>(null);
-    const [resultImage, setResultImage] = useState<string | null>(null);
-    const [isLoading, setIsLoading] = useState(false);
+    const [debugInfo, setDebugInfo] = useState<string | null>(null);
+
+    // ... inside handleGenerate ...
+    const data = await response.json();
+
+    if (!response.ok) {
+        // ... existing error handling ...
+    }
+
+    setResultImage(data.url);
+    setDebugInfo(data.debug); // Store debug info
+    // ...
+
+    // ... inside JSX ...
+    {/* DEBUG: Show URL to check why it is broken */ }
+    <div style={{ marginTop: '10px', wordBreak: 'break-all', fontSize: '10px', color: 'red', textAlign: 'center' }}>
+        DEBUG URL: {resultImage?.toString()}
+        <br />
+        RAW OUTPUT: {debugInfo}
+    </div>
     const [isDragging, setIsDragging] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     // State for Mask Configuration
