@@ -60,10 +60,11 @@ export async function POST(req: NextRequest) {
             input: {
                 image: imageUri,
                 mask: maskUri,
-                prompt: "dental simulator output: completely changing tooth shape to match golden ratio, textbook dental aesthetics, perfect symmetry, brand new oversized veneers, straight white teeth, ignoring original tooth geometry, artificial perfection, medical photography, hollywood smile transformation",
-                negative_prompt: "original shape, natural teeth, irregularities, crooked, asymmetry, yellow, stained, real teeth texture, gaps, preserving old features",
-                guidance_scale: 15.0,
-                n_steps: 40,
+                prompt: "Photorealistic dental smile makeover, close-up mouth. Create a complete natural-looking set of upper teeth visible in the smile: perfectly aligned, symmetric, ideal proportions, correct midline, no gaps, no missing teeth, no crowding. Bright white ceramic veneers (shade BL1 / Hollywood white) with realistic enamel texture, subtle translucency at incisal edges, natural highlights and shadows matching the original lighting. Keep lips, gumline and skin texture realistic, preserve the person’s identity and facial features outside the masked area. Correct perspective and scale to fit the face, no distortion.",
+                negative_prompt: "cartoon, CGI, illustration, blurry, low quality, overexposed, underexposed, deformed, warped mouth, changed face, changed nose, changed skin, extra teeth, duplicate teeth, missing teeth, gaps, diastema, crooked teeth, uneven teeth, yellow teeth, stained teeth, braces, metal, dentures look, fake plastic teeth, gummy smile, inflamed gums, bleeding, black triangles, weird gums, wrong perspective, asymmetry, uncanny, text, watermark, logo",
+                guidance_scale: 7.0, // User recommendation: 5-7
+                n_steps: 40,         // User recommendation: 30-45
+                seed: 42,            // User recommendation: Fixed seed for consistency
                 output_format: "png",
                 output_quality: 100
             }
