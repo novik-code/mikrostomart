@@ -122,7 +122,10 @@ export default function Home() {
                                     overflow: "hidden",
                                     position: "relative"
                                 }}>
-                                    <BeforeAfterSlider />
+                                    <BeforeAfterSlider
+                                        beforeImage="/metamorphosis_before.jpg"
+                                        afterImage="/metamorphosis_after.jpg"
+                                    />
                                 </div>
                             </RevealOnScroll>
                         </div>

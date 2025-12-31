@@ -10,6 +10,7 @@ interface MetamorphosisItem {
     after: string;
     title: string;
     description: string;
+    motto?: string;
 }
 
 const METAMORPHOSES: MetamorphosisItem[] = [
@@ -17,15 +18,25 @@ const METAMORPHOSES: MetamorphosisItem[] = [
         id: 1,
         before: "/metamorphosis_before.jpg",
         after: "/metamorphosis_after.jpg",
-        title: "Kompleksowa Odbudowa",
-        description: "Pełna rekonstrukcja zgryzu przywracająca funkcjonalność i estetykę. Pacjent odzyskał pewność siebie."
+        title: "Metamorfoza Pana Michała",
+        description: "Pełna rekonstrukcja zgryzu przywracająca funkcjonalność i estetykę.",
+        motto: '"Teraz uśmiecham się do każdego zdjęcia!"'
     },
     {
         id: 2,
         before: "/metamorphosis_2_before.jpg",
         after: "/metamorphosis_2_after.jpg",
-        title: "Korekta Estetyczna",
-        description: "Subtelna zmiana kształtu i koloru zębów, która diametralnie odmieniła uśmiech."
+        title: "Nowy uśmiech Pana Piotra",
+        description: "Subtelna zmiana kształtu i koloru zębów, która diametralnie odmieniła odbiór twarzy.",
+        motto: '"Odzyskałem pewność siebie w kontaktach biznesowych."'
+    },
+    {
+        id: 3,
+        before: "/metamorphosis_3_before.jpg",
+        after: "/metamorphosis_3_after.jpg",
+        title: "Metamorfoza Pani Klaudii",
+        description: "Kompleksowa poprawa estetyki uśmiechu.",
+        motto: '"Nareszcie czuję się sobą."'
     }
 ];
 
@@ -44,20 +55,32 @@ export default function MetamorphosisGallery() {
 
     return (
         <section className="gallery-container">
-            {/* Gallery Header */}
+            {/* Gallery Header w/ Motto */}
             <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-                <h2 style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>
+                <h2 style={{ fontSize: '2rem', marginBottom: '0.5rem', color: 'var(--color-primary)' }}>
                     {currentItem.title}
                 </h2>
+                {currentItem.motto && (
+                    <p style={{
+                        fontStyle: 'italic',
+                        fontSize: '1.2rem',
+                        marginBottom: '1rem',
+                        color: 'var(--color-text-main)',
+                        fontWeight: 300
+                    }}>
+                        {currentItem.motto}
+                    </p>
+                )}
                 <p style={{ color: 'var(--color-text-muted)', maxWidth: '600px', margin: '0 auto' }}>
                     {currentItem.description}
                 </p>
             </div>
 
-            {/* Slider Component */}
+            {/* Slider Component - Square Aspect Ratio */}
             <div style={{
-                maxWidth: '800px',
-                height: '500px',
+                maxWidth: '600px', // Limit width to keep it reasonable on large screens
+                aspectRatio: '1/1', // Enforce square
+                width: '100%',
                 margin: '0 auto',
                 position: 'relative',
                 borderRadius: 'var(--radius-md)',

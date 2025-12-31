@@ -2,7 +2,11 @@ from PIL import Image
 import os
 
 def split_image(filename_base):
+    # Try JPG first, then PNG
     input_path = f"public/{filename_base}_raw.jpg"
+    if not os.path.exists(input_path):
+        input_path = f"public/{filename_base}_raw.png"
+    
     before_path = f"public/{filename_base}_before.jpg"
     after_path = f"public/{filename_base}_after.jpg"
 
@@ -12,6 +16,10 @@ def split_image(filename_base):
 
     try:
         img = Image.open(input_path)
+        # Convert to RGB if needed (e.g. from RGBA PNG)
+        if img.mode in ('RGBA', 'P'):
+            img = img.convert('RGB')
+            
         width, height = img.size
         print(f"Processing {filename_base}: {width}x{height}")
 
@@ -31,5 +39,6 @@ def split_image(filename_base):
         print(f"Error processing {filename_base}: {e}")
 
 if __name__ == "__main__":
-    split_image("metamorphosis") # Re-process 1 just in case or skip
-    split_image("metamorphosis_2")
+    # split_image("metamorphosis") 
+    # split_image("metamorphosis_2")
+    split_image("metamorphosis_3")

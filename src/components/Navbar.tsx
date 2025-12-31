@@ -28,7 +28,9 @@ export default function Navbar() {
                 {/* Desktop Links */}
                 <div className={styles.links}>
                     <Link href="/o-nas" className={styles.link}>O nas</Link>
+                    <Link href="/metamorfozy" className={styles.link}>Metamorfozy</Link>
                     <Link href="/oferta" className={styles.link}>Oferta</Link>
+                    <Link href="/aktualnosci" className={styles.link}>Aktualności</Link>
                     <Link href="/sklep" className={styles.link}>Sklep</Link>
                     <Link href="/kontakt" className={styles.link}>Kontakt</Link>
                 </div>
@@ -56,7 +58,9 @@ export default function Navbar() {
                 <div className={`${styles.mobileMenu} ${isMenuOpen ? styles.mobileMenuOpen : ''}`}>
                     <div className={styles.mobileLinks}>
                         <Link href="/o-nas" className={styles.mobileLink} onClick={closeMenu}>O nas</Link>
+                        <Link href="/metamorfozy" className={styles.mobileLink} onClick={closeMenu}>Metamorfozy</Link>
                         <Link href="/oferta" className={styles.mobileLink} onClick={closeMenu}>Oferta</Link>
+                        <Link href="/aktualnosci" className={styles.mobileLink} onClick={closeMenu}>Aktualności</Link>
                         <Link href="/sklep" className={styles.mobileLink} onClick={closeMenu}>Sklep</Link>
                         <Link href="/kontakt" className={styles.mobileLink} onClick={closeMenu}>Kontakt</Link>
                         <Link href="/rezerwacja" className="btn-primary" onClick={closeMenu} style={{ marginTop: '1rem', width: '100%', textAlign: 'center' }}>
