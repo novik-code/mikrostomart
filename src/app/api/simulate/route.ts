@@ -51,12 +51,15 @@ export async function POST(req: NextRequest) {
                 image: imageUri,
                 mask: maskUri,
                 prompt: "A close up photo of a person smiling with open mouth, showing a full set of perfect, straight, white teeth. High quality dental photography, realistic texture, natural lighting.",
-                guidance_scale: 30, // Flux likes higher guidance often
-                n_steps: 20,
+                guidance_scale: 3.0, // Flux uses lower guidance (2.0 - 5.0). 30 burns the image!
+                n_steps: 25,
                 output_format: "png",
                 output_quality: 90
             }
         });
+
+        console.log("Replicate Output Type:", typeof output);
+        console.log("Replicate Output Value:", output);
 
         console.log("Replicate Output:", output);
 

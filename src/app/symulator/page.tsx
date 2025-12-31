@@ -344,6 +344,11 @@ export default function SimulatorPage() {
                             >
                                 Spróbuj z innym zdjęciem
                             </button>
+
+                            {/* DEBUG: Show URL to check why it is broken */}
+                            <div style={{ marginTop: '10px', wordBreak: 'break-all', fontSize: '10px', color: 'red', textAlign: 'center' }}>
+                                DEBUG URL: {resultImage?.toString()}
+                            </div>
                         </div>
                     ) : (
                         /* UPLOAD VIEW */
