@@ -126,18 +126,56 @@ export default function SimulatorPage() {
     };
 
     const handleGenerate = async () => {
-        if (!processedImage) return;
+        if (!processedImage || !maskImage) return;
 
         setIsLoading(true);
+        // Clean up previous result
+        setResultImage(null);
+
         try {
-            const body = maskImage
-                ? JSON.stringify({ image: processedImage, mask: maskImage })
-                : JSON.stringify({ image: processedImage });
+            // 1. Create Image with Hole (Erase the mouth area pixels)
+            // This forces OpenAI to generate from scratch instead of modifying existing pixels
+            const canvas = document.createElement("canvas");
+            canvas.width = 1024;
+            canvas.height = 1024;
+            const ctx = canvas.getContext("2d");
+
+            if (!ctx) throw new Error("Canvas context failed");
+
+            // Load current processed image
+            const img = new window.Image();
+            img.src = processedImage;
+            await img.decode();
+
+            // Draw original
+            ctx.drawImage(img, 0, 0);
+
+            // Erase Mouth Area (Cut Hole)
+            ctx.globalCompositeOperation = "destination-out";
+            ctx.beginPath();
+            const size = 1024;
+            const baseX = size * (maskConfig.x / 100);
+            const baseY = size * (maskConfig.y / 100);
+            const baseRadiusX = size * 0.18 * maskConfig.scaleX;
+            const baseRadiusY = size * 0.10 * maskConfig.scaleY;
+            ctx.ellipse(baseX, baseY, baseRadiusX, baseRadiusY, 0, 0, 2 * Math.PI);
+            ctx.fill();
+
+            // This PNG has a transparent hole where the mouth is
+            const imageWithHole = canvas.toDataURL("image/png");
+
+            // 2. Prepare Form Data
+            // We convert Base64 to Blob to send as file
+            const imageBlob = await (await fetch(imageWithHole)).blob();
+            const maskBlob = await (await fetch(maskImage)).blob();
+
+            const formData = new FormData();
+            formData.append("image", imageBlob, "image.png");
+            formData.append("mask", maskBlob, "mask.png");
 
             const response = await fetch("/api/simulate", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: body,
+                body: formData, // No Content-Type header needed for FormData
             });
 
             const data = await response.json();
@@ -150,8 +188,8 @@ export default function SimulatorPage() {
             }
 
             setResultImage(data.url);
-            // Alert removed
         } catch (err: any) {
+            console.error(err);
             alert("Wystąpił błąd: " + err.message);
         } finally {
             setIsLoading(false);
