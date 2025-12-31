@@ -318,9 +318,12 @@ export default function SimulatorPage() {
                         }}>
                             AI Smile Simulator
                         </p>
-                        <h1 style={{ fontSize: "clamp(2rem, 5vw, 3.5rem)", marginBottom: "1rem" }}>
+                        <h1 style={{ fontSize: "clamp(2rem, 5vw, 3.5rem)", marginBottom: "0.5rem" }}>
                             Wirtualna Przymierzalnia
                         </h1>
+                        <p style={{ fontSize: "0.8rem", color: "red", fontWeight: "bold", marginBottom: "1rem" }}>
+                            WERSJA 2.1 (Agresywne Wybielanie)
+                        </p>
                         <p style={{ color: "var(--color-text-muted)", maxWidth: "600px", margin: "0 auto" }}>
                             Wgraj swoje zdjęcie, a nasza sztuczna inteligencja (Flux Pro) pokaże Ci potencjał Twojego nowego uśmiechu.
                         </p>
