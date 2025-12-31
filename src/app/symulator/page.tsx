@@ -16,26 +16,9 @@ import BeforeAfterSlider from "@/components/BeforeAfterSlider";
 export default function SimulatorPage() {
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
     const [processedImage, setProcessedImage] = useState<string | null>(null);
-    const [debugInfo, setDebugInfo] = useState<string | null>(null);
-
-    // ... inside handleGenerate ...
-    const data = await response.json();
-
-    if (!response.ok) {
-        // ... existing error handling ...
-    }
-
-    setResultImage(data.url);
-    setDebugInfo(data.debug); // Store debug info
-    // ...
-
-    // ... inside JSX ...
-    {/* DEBUG: Show URL to check why it is broken */ }
-    <div style={{ marginTop: '10px', wordBreak: 'break-all', fontSize: '10px', color: 'red', textAlign: 'center' }}>
-        DEBUG URL: {resultImage?.toString()}
-        <br />
-        RAW OUTPUT: {debugInfo}
-    </div>
+    const [resultImage, setResultImage] = useState<string | null>(null);
+    const [debugInfo, setDebugInfo] = useState<string | null>(null); // DEBUG STATE
+    const [isLoading, setIsLoading] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     // State for Mask Configuration
@@ -141,6 +124,7 @@ export default function SimulatorPage() {
                 const imgStr = e.target.result as string;
                 setSelectedImage(imgStr);
                 setResultImage(null);
+                setDebugInfo(null);
                 setProcessedImage(null);
                 setMaskImage(null);
                 setMaskConfig({ x: 50, y: 65, scaleX: 1.0, scaleY: 1.0 });
@@ -156,25 +140,10 @@ export default function SimulatorPage() {
         setIsLoading(true);
         // Clean up previous result
         setResultImage(null);
+        setDebugInfo(null);
 
         try {
-            // For Replicate Flux Fill, we need:
-            // 1. The Image (processedImage is a Data URL)
-            // 2. The Mask (maskImage is a Data URL with transparency)
-            // But wait, Replicate usually wants a BLACK/WHITE mask where white is the inpaint area.
-            // OR checks for alpha channel. 
-            // Flux Fill specifically often takes an image and a mask.
-            // Let's send what we have. The backend will handle conversion if needed.
-            // Actually, Flux Fill Dev accepts:
-            // - image: Input image
-            // - mask: Input mask (white = inpainted area, black = keep)
-
-            // Current `maskImage` is Black background with Transparent hole.
-            // We should probably convert this to Black background + White hole for standard masking, 
-            // OR standard alpha masking if the model supports it.
-            // Let's rely on the Backend to massage the data if needed, but sending clear signals is better.
-
-            // Let's re-generate a proper B/W mask for Replicate right here to be safe.
+            // Re-generate a proper B/W mask for Replicate right here to be safe.
             const canvas = document.createElement("canvas");
             canvas.width = 1024;
             canvas.height = 1024;
@@ -232,6 +201,7 @@ export default function SimulatorPage() {
             }
 
             setResultImage(data.url);
+            setDebugInfo(data.debug); // Store debug info
         } catch (err: any) {
             console.error(err);
             alert("Wystąpił błąd: " + err.message);
@@ -366,6 +336,8 @@ export default function SimulatorPage() {
                             {/* DEBUG: Show URL to check why it is broken */}
                             <div style={{ marginTop: '10px', wordBreak: 'break-all', fontSize: '10px', color: 'red', textAlign: 'center' }}>
                                 DEBUG URL: {resultImage?.toString()}
+                                <br />
+                                RAW OUTPUT: {debugInfo}
                             </div>
                         </div>
                     ) : (
@@ -471,32 +443,7 @@ export default function SimulatorPage() {
                                         maxWidth: '400px'
                                     }}>
                                         <h4 style={{ marginBottom: '10px', fontSize: '0.9rem', color: 'var(--color-text-main)' }}>Dopasuj obszar uśmiechu:</h4>
-
-                                        <div style={{ marginBottom: '10px' }}>
-                                            <label style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '5px' }}>
-                                                <span>Pionowo (Góra/Dół)</span>
-                                                <span>{maskConfig.y}%</span>
-                                            </label>
-                                            <input
-                                                type="range" min="0" max="100" step="1"
-                                                value={maskConfig.y}
-                                                onChange={(e) => setMaskConfig({ ...maskConfig, y: Number(e.target.value) })}
-                                                style={{ width: '100%' }}
-                                            />
-                                        </div>
-
-                                        <div style={{ marginBottom: '10px' }}>
-                                            <label style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '5px' }}>
-                                                <span>Poziomo (Lewo/Prawo)</span>
-                                                <span>{maskConfig.x}%</span>
-                                            </label>
-                                            <input
-                                                type="range" min="0" max="100" step="1"
-                                                value={maskConfig.x}
-                                                onChange={(e) => setMaskConfig({ ...maskConfig, x: Number(e.target.value) })}
-                                                style={{ width: '100%' }}
-                                            />
-                                        </div>
+                                        <p style={{ fontSize: '0.7rem', color: '#666', marginBottom: '15px' }}>Porada: Możesz przesuwać żółty owal palcem na zdjęciu!</p>
 
                                         <div style={{ marginBottom: '10px' }}>
                                             <label style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '5px' }}>
