@@ -20,11 +20,6 @@ export async function POST(request: Request) {
 
         // If mask exists, use Edit Mode
         if (maskFile) {
-            const maskBuffer = Buffer.from(maskData, "base64");
-
-            const imageFile = toFile(imageBuffer, "image.png");
-            const maskFile = toFile(maskBuffer, "mask.png");
-
             const response = await openai.images.edit({
                 image: imageFile,
                 mask: maskFile,
@@ -39,11 +34,10 @@ export async function POST(request: Request) {
             return NextResponse.json({ url: response.data[0].url });
         }
 
-        // Fallback to Variation (if no mask) - though frontend sends mask now
-        const file = toFile(imageBuffer, "image.png");
-
+        // Fallback to Variation (if no mask)
+        // Note: Frontend currently always sends mask, but keeping fallback logic just in case
         const response = await openai.images.createVariation({
-            image: file,
+            image: imageFile,
             n: 1,
             size: "1024x1024",
             response_format: "url",
