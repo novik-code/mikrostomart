@@ -13,7 +13,7 @@ export default function SimulatorPage() {
     const [isDragging, setIsDragging] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     // State for Mask Configuration
-    const [maskConfig, setMaskConfig] = useState({ x: 50, y: 65, scale: 1.0 });
+    const [maskConfig, setMaskConfig] = useState({ x: 50, y: 65, scaleX: 1.0, scaleY: 1.0 });
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
@@ -118,7 +118,7 @@ export default function SimulatorPage() {
                 setProcessedImage(null);
                 setMaskImage(null);
                 // Reset config on new image? Maybe keep preference? Let's reset for safety.
-                setMaskConfig({ x: 50, y: 65, scale: 1.0 });
+                setMaskConfig({ x: 50, y: 65, scaleX: 1.0, scaleY: 1.0 });
                 processInputImage(imgStr);
             }
         };
@@ -293,8 +293,8 @@ export default function SimulatorPage() {
                                             top: `${maskConfig.y}%`,
                                             left: `${maskConfig.x}%`,
                                             transform: 'translate(-50%, -50%)',
-                                            width: `${36 * maskConfig.scale}%`, // Base 36% width
-                                            height: `${20 * maskConfig.scale}%`, // Base 20% height
+                                            width: `${36 * maskConfig.scaleX}%`, // Base 36% width
+                                            height: `${20 * maskConfig.scaleY}%`, // Base 20% height
                                             border: '2px dashed rgba(255, 255, 0, 0.9)',
                                             borderRadius: '50%',
                                             pointerEvents: 'none',
