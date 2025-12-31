@@ -30,6 +30,7 @@ export default function SimulatorPage() {
     const previewRef = useRef<HTMLDivElement>(null);
     const [isMaskDragging, setIsMaskDragging] = useState(false);
     const [maskImage, setMaskImage] = useState<string | null>(null);
+    const [alphaImage, setAlphaImage] = useState<string | null>(null);
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
@@ -55,8 +56,6 @@ export default function SimulatorPage() {
             // Calc dimensions to FIT image in 1024x1024 (contain)
             const nW = img.naturalWidth;
             const nH = img.naturalHeight;
-            const minDim = Math.min(nW, nH);
-            // We want to scale so the WHOLE image fits? Or cover?
             // "contain" logic (so we see full face):
             const scale = Math.min(size / nW, size / nH);
 
@@ -76,9 +75,8 @@ export default function SimulatorPage() {
             const processedPng = canvas.toDataURL("image/png");
             setProcessedImage(processedPng);
 
-            // Trigger initial mask generation
-            // pass layout explicitly because state update is async
-            generateMask(maskConfig, layout);
+            // Trigger initial mask generation with the FRESH image data
+            generateMask(maskConfig, layout, processedPng);
 
         } catch (err) {
             console.error("Processing Error", err);
@@ -87,7 +85,7 @@ export default function SimulatorPage() {
     };
 
     // 2. Generate Mask AND Alpha-Hole Image
-    const generateMask = (config: { x: number, y: number, scaleX: number, scaleY: number }, layout?: any) => {
+    const generateMask = (config: { x: number, y: number, scaleX: number, scaleY: number }, layout?: any, currentProcessedImage?: string) => {
         const size = 1024;
 
         // 1. Create B/W Mask (for API 'mask' field)
@@ -104,10 +102,6 @@ export default function SimulatorPage() {
         maskCtx.fillRect(0, 0, size, size);
 
         // Cut Hole (Transparent / White for API)
-        // Replicate Mask: White = Inpaint, Black = Keep
-        // My previous logic: GlobalCompositeOperation destination-out makes it transparent. 
-        // Let's stick to standard: White shapes on Black background.
-
         maskCtx.fillStyle = "white";
         maskCtx.beginPath();
         const centerX = size * (config.x / 100);
@@ -117,19 +111,17 @@ export default function SimulatorPage() {
         maskCtx.ellipse(centerX, centerY, baseRadiusX, baseRadiusY, 0, 0, 2 * Math.PI);
         maskCtx.fill();
 
-        // For preview, we still want the "Hole" visual. 
-        // But for API we strictly need B/W Mask.
-        // AND for the new strategy, we need the "Image with Transparency".
-
         setMaskImage(maskCanvas.toDataURL("image/png"));
 
         // Trigger Alpha Generation (Async)
-        generateAlpha(config);
+        // Use passed image if available (from initial load), otherwise state
+        const imgToUse = currentProcessedImage || processedImage;
+        if (imgToUse) {
+            generateAlpha(config, imgToUse);
+        }
     };
 
-    const generateAlpha = async (config: { x: number, y: number, scaleX: number, scaleY: number }) => {
-        if (!processedImage) return;
-
+    const generateAlpha = async (config: { x: number, y: number, scaleX: number, scaleY: number }, imageSrc: string) => {
         const size = 1024;
         const canvas = document.createElement("canvas");
         canvas.width = size;
@@ -137,31 +129,37 @@ export default function SimulatorPage() {
         const ctx = canvas.getContext("2d");
         if (!ctx) return;
 
-        // Load current processed image
+        // Load passed image
         const img = new window.Image();
-        img.src = processedImage;
-        await img.decode();
+        img.src = imageSrc;
 
-        // Draw Image
-        ctx.drawImage(img, 0, 0, size, size);
+        // Ensure image is loaded before drawing
+        try {
+            await img.decode();
 
-        // CUT HOLE (Eraser) - This removes the teeth from the image header->transparent
-        ctx.globalCompositeOperation = "destination-out";
-        ctx.beginPath();
-        const centerX = size * (config.x / 100);
-        const centerY = size * (config.y / 100);
-        const baseRadiusX = size * 0.18 * config.scaleX;
-        const baseRadiusY = size * 0.10 * config.scaleY;
-        ctx.ellipse(centerX, centerY, baseRadiusX, baseRadiusY, 0, 0, 2 * Math.PI);
-        ctx.fill();
+            // Draw Image
+            ctx.drawImage(img, 0, 0, size, size);
 
-        setAlphaImage(canvas.toDataURL("image/png"));
+            // CUT HOLE (Eraser) - This removes the teeth from the image header->transparent
+            ctx.globalCompositeOperation = "destination-out";
+            ctx.beginPath();
+            const centerX = size * (config.x / 100);
+            const centerY = size * (config.y / 100);
+            const baseRadiusX = size * 0.18 * config.scaleX;
+            const baseRadiusY = size * 0.10 * config.scaleY;
+            ctx.ellipse(centerX, centerY, baseRadiusX, baseRadiusY, 0, 0, 2 * Math.PI);
+            ctx.fill();
+
+            setAlphaImage(canvas.toDataURL("image/png"));
+        } catch (e) {
+            console.error("Alpha gen error", e);
+        }
     };
 
     // Update mask when config changes
     useEffect(() => {
         if (processedImage) {
-            generateMask(maskConfig);
+            generateMask(maskConfig, undefined, processedImage);
         }
     }, [maskConfig, processedImage]);
 
@@ -196,11 +194,15 @@ export default function SimulatorPage() {
         setDebugInfo(null);
 
         try {
+            const canvas = document.createElement("canvas");
+            const size = 1024;
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext("2d");
+            if (!ctx) throw new Error("Could not create canvas context");
 
             // White hole (The area to edit)
             ctx.fillStyle = "white";
-            ctx.beginPath();
-            const size = 1024;
             const baseX = size * (maskConfig.x / 100);
             const baseY = size * (maskConfig.y / 100);
             const baseRadiusX = size * 0.18 * maskConfig.scaleX;
