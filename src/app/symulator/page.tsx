@@ -67,7 +67,7 @@ export default function SimulatorPage() {
     };
 
     // 2. Generate Mask (Dynamic based on config)
-    const generateMask = (config: { x: number, y: number, scale: number }) => {
+    const generateMask = (config: { x: number, y: number, scaleX: number, scaleY: number }) => {
         const size = 1024;
         const canvas = document.createElement("canvas");
         canvas.width = size;
@@ -87,8 +87,8 @@ export default function SimulatorPage() {
         // Base params
         const baseX = size * (config.x / 100);
         const baseY = size * (config.y / 100);
-        const baseRadiusX = size * 0.18 * config.scale;
-        const baseRadiusY = size * 0.10 * config.scale;
+        const baseRadiusX = size * 0.18 * config.scaleX;
+        const baseRadiusY = size * 0.10 * config.scaleY;
 
         ctx.ellipse(baseX, baseY, baseRadiusX, baseRadiusY, 0, 0, 2 * Math.PI);
         ctx.fill();
@@ -117,7 +117,7 @@ export default function SimulatorPage() {
                 setResultImage(null);
                 setProcessedImage(null);
                 setMaskImage(null);
-                // Reset config on new image? Maybe keep preference? Let's reset for safety.
+                setMaskConfig({ x: 50, y: 65, scaleX: 1.0, scaleY: 1.0 });
                 setMaskConfig({ x: 50, y: 65, scaleX: 1.0, scaleY: 1.0 });
                 processInputImage(imgStr);
             }
