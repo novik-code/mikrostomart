@@ -86,45 +86,76 @@ export default function SimulatorPage() {
         }
     };
 
-    // 2. Generate Mask (Dynamic based on config)
+    // 2. Generate Mask AND Alpha-Hole Image
     const generateMask = (config: { x: number, y: number, scaleX: number, scaleY: number }, layout?: any) => {
+        const size = 1024;
+
+        // 1. Create B/W Mask (for API 'mask' field)
+        const maskCanvas = document.createElement("canvas");
+        maskCanvas.width = size;
+        maskCanvas.height = size;
+        const maskCtx = maskCanvas.getContext("2d");
+
+        if (!maskCtx) return;
+
+        // --- DRAW MASK (B/W) ---
+        // Fill BLACK (Opaque = Keep Original)
+        maskCtx.fillStyle = "black";
+        maskCtx.fillRect(0, 0, size, size);
+
+        // Cut Hole (Transparent / White for API)
+        // Replicate Mask: White = Inpaint, Black = Keep
+        // My previous logic: GlobalCompositeOperation destination-out makes it transparent. 
+        // Let's stick to standard: White shapes on Black background.
+
+        maskCtx.fillStyle = "white";
+        maskCtx.beginPath();
+        const centerX = size * (config.x / 100);
+        const centerY = size * (config.y / 100);
+        const baseRadiusX = size * 0.18 * config.scaleX;
+        const baseRadiusY = size * 0.10 * config.scaleY;
+        maskCtx.ellipse(centerX, centerY, baseRadiusX, baseRadiusY, 0, 0, 2 * Math.PI);
+        maskCtx.fill();
+
+        // For preview, we still want the "Hole" visual. 
+        // But for API we strictly need B/W Mask.
+        // AND for the new strategy, we need the "Image with Transparency".
+
+        setMaskImage(maskCanvas.toDataURL("image/png"));
+
+        // Trigger Alpha Generation (Async)
+        generateAlpha(config);
+    };
+
+    const generateAlpha = async (config: { x: number, y: number, scaleX: number, scaleY: number }) => {
+        if (!processedImage) return;
+
         const size = 1024;
         const canvas = document.createElement("canvas");
         canvas.width = size;
         canvas.height = size;
         const ctx = canvas.getContext("2d");
-
         if (!ctx) return;
 
-        // Use current layout state or passed layout
-        const currentLayout = layout || imageLayout;
-        const { tx, ty, drawWidth, drawHeight } = currentLayout;
+        // Load current processed image
+        const img = new window.Image();
+        img.src = processedImage;
+        await img.decode();
 
-        // Fill BLACK (Opaque = Keep Original)
-        ctx.fillStyle = "black";
-        ctx.fillRect(0, 0, size, size);
+        // Draw Image
+        ctx.drawImage(img, 0, 0, size, size);
 
-        // Cut Hole (Transparent = AI Edit Area)
+        // CUT HOLE (Eraser) - This removes the teeth from the image header->transparent
         ctx.globalCompositeOperation = "destination-out";
         ctx.beginPath();
-
-        // The user config (x, y) is in PERCENTAGE (0-100) of the VISIBLE IMAGE
-        // So we must map: 
-        // 0% -> tx
-        // 100% -> tx + drawWidth
-
-        const centerX = tx + (drawWidth * (config.x / 100));
-        const centerY = ty + (drawHeight * (config.y / 100));
-
-        // Scale radius relative to the ACTUAL image size
-        // Base radius is ~18% of image width
-        const baseRadiusX = drawWidth * 0.18 * config.scaleX;
-        const baseRadiusY = drawHeight * 0.10 * config.scaleY;
-
+        const centerX = size * (config.x / 100);
+        const centerY = size * (config.y / 100);
+        const baseRadiusX = size * 0.18 * config.scaleX;
+        const baseRadiusY = size * 0.10 * config.scaleY;
         ctx.ellipse(centerX, centerY, baseRadiusX, baseRadiusY, 0, 0, 2 * Math.PI);
         ctx.fill();
 
-        setMaskImage(canvas.toDataURL("image/png"));
+        setAlphaImage(canvas.toDataURL("image/png"));
     };
 
     // Update mask when config changes
@@ -149,6 +180,7 @@ export default function SimulatorPage() {
                 setDebugInfo(null);
                 setProcessedImage(null);
                 setMaskImage(null);
+                setAlphaImage(null); // Reset alpha
                 setMaskConfig({ x: 50, y: 65, scaleX: 1.0, scaleY: 1.0 });
                 processInputImage(imgStr);
             }
@@ -157,23 +189,13 @@ export default function SimulatorPage() {
     };
 
     const handleGenerate = async () => {
-        if (!processedImage || !maskImage) return;
+        if (!processedImage || !maskImage || !alphaImage) return;
 
         setIsLoading(true);
         setResultImage(null);
         setDebugInfo(null);
 
         try {
-            // Re-generate a proper B/W mask for Replicate
-            const canvas = document.createElement("canvas");
-            canvas.width = 1024;
-            canvas.height = 1024;
-            const ctx = canvas.getContext("2d");
-            if (!ctx) return;
-
-            // Black background
-            ctx.fillStyle = "black";
-            ctx.fillRect(0, 0, 1024, 1024);
 
             // White hole (The area to edit)
             ctx.fillStyle = "white";
@@ -322,7 +344,7 @@ export default function SimulatorPage() {
                             Wirtualna Przymierzalnia
                         </h1>
                         <p style={{ fontSize: "0.8rem", color: "red", fontWeight: "bold", marginBottom: "1rem" }}>
-                            WERSJA 4.0 (Two-Pass Logic)
+                            WERSJA 4.1 (Alpha+FluxPro)
                         </p>
                         <p style={{ color: "var(--color-text-muted)", maxWidth: "600px", margin: "0 auto" }}>
                             Wgraj swoje zdjęcie, a nasza sztuczna inteligencja (Flux Pro) pokaże Ci potencjał Twojego nowego uśmiechu.

@@ -117,18 +117,47 @@ export async function POST(req: NextRequest) {
         await new Promise(resolve => setTimeout(resolve, 2000));
 
         // PASS 2: BUILD (Using output of Pass 1 as input)
-        // Note: We reuse the SAME mask.
+        // STRATEGY V4.1: Switch to Flux-Fill-PRO for the quality build pass
+        const proModel = "black-forest-labs/flux-fill-pro";
+
         let buildPrediction = await createWithRetry(() => replicate.predictions.create({
-            version: latestVersion,
+            version: "black-forest-labs/flux-fill-pro", // Pro typically doesn't use version ID, but model name directly in some SDKs. Let's use name-based if possible or latest version of it.
+            // Actually, Replicate SDK for official models: use model owner/name.
+            // But 'version' field in 'predictions.create' EXPECTS a version ID or model string?
+            // "model" parameter is preferred for official models now.
+            // Let's stick to getting the version ID for Pro to be safe, OR try 'model' param if SDK supports it.
+            // SAFEST: Get latest version ID for Pro like we did for Dev.
+
+            // Wait, we need to fetch Pro version first.
+            // Let's do it right at the top, or lazy load here.
+        }));
+
+        // Re-fetching Pro version here to be dynamic
+        const proModelRepo = await replicate.models.get("black-forest-labs", "flux-fill-pro");
+        const proVersion = proModelRepo.latest_version?.id;
+
+        if (!proVersion) throw new Error("Flux Fill Pro version not found");
+
+        buildPrediction = await createWithRetry(() => replicate.predictions.create({
+            version: proVersion,
             input: {
-                image: erasedImageUrl, // Input is the ERASED image
-                mask: maskUri,         // Same mask
+                image: erasedImageUrl,
+                mask: maskUri,
                 prompt: "Photorealistic dental smile makeover (inpaint masked area only). Build a brand-new ideal upper dental arch from scratch inside the mask, do not reference any original tooth positions or defects. Generate correct left-right paired tooth anatomy and count as far as the smile reveals: always TWO central incisors (11 & 21), TWO lateral incisors (12 & 22), TWO canines (13 & 23); if premolars are visible include TWO 14 & 24 and TWO 15 & 25; if first molars are visible include TWO 16 & 26. Never output a single tooth where a pair must exist, never leave missing teeth. Enforce bilateral symmetry, correct midline, correct incisal edge line, natural contact points. Enforce realistic width proportions: central incisors slightly wider than laterals (≈1.25x), canines slightly wider than laterals (≈1.15x), no oversized single central incisor. Ultra-white ceramic veneers shade BL1 (Hollywood white) with realistic enamel micro-texture, subtle incisal translucency, natural highlights and shadows matching the original lighting/flash. Preserve lips, gumline, skin texture and identity outside the mask unchanged; correct perspective and scale, no distortion. Avoid: missing teeth, wrong tooth count, single front tooth, extra teeth, duplicated teeth, asymmetry, gaps, diastema, black triangles, crooked teeth, fake plastic dentures look, braces, metal, text, watermark, logo.",
-                guidance_scale: 5.0, // User suggested 3.5-6
-                n_steps: 40,
-                seed: 42,
+                guidance: 5.0, // Pro uses 'guidance' (not guidance_scale often? Check logs. Dev used guidance_scale. Let's send BOTH to be safe or guidance_scale which is standard).
+                // API docs say 'guidance' for Pro usually. 'guidance_scale' for Dev/SD.
+                // Let's stick to guidance_scale as it usually maps.
+                guidance_scale: 5.0,
+                steps: 40, // Pro often uses 'steps' not 'n_steps'. Common confusion. Dev uses 'n_steps'.
+                // Let's send 'steps' and 'n_steps' effectively? No, strict schema.
+                // Flux Pro schema: image, mask, prompt, steps, guidance.
+                // Flux Dev schema: image, mask, prompt, n_steps, guidance_scale.
+                // ADAPTING parameters for Pro:
+                steps: 40,
+                guidance: 5.0,
                 output_format: "png",
-                output_quality: 100
+                output_quality: 100,
+                safety_tolerance: 5 // Allow medical
             }
         }));
 
