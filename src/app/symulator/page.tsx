@@ -347,7 +347,21 @@ export default function SimulatorPage() {
                             <div style={{ marginTop: '20px', padding: '10px', background: '#ffebee', border: '2px solid red', color: 'black', fontSize: '11px', wordBreak: 'break-all', textAlign: 'left' }}>
                                 <strong>DEBUG INFO:</strong><br />
                                 <strong>Image URL:</strong> {resultImage ? resultImage : "NULL"}<br />
-                                <strong>Raw Output:</strong> {debugInfo ? debugInfo : "NULL"}
+
+                                {/* Composite Preview */}
+                                {debugInfo && (() => {
+                                    try {
+                                        const parsed = JSON.parse(debugInfo);
+                                        return parsed.composite ? (
+                                            <div style={{ margin: '10px 0' }}>
+                                                <strong>Real Mask Sent to AI:</strong><br />
+                                                <img src={parsed.composite} style={{ width: '100px', height: '100px', border: '1px solid black' }} alt="Debug mask" />
+                                            </div>
+                                        ) : null;
+                                    } catch (e) { return null; }
+                                })()}
+
+                                <strong>Raw Output:</strong> {debugInfo}
                             </div>
                         </div>
                     ) : (
