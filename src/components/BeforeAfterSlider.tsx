@@ -7,14 +7,18 @@ interface BeforeAfterSliderProps {
     afterImage: string;
     onHoverStart?: () => void;
     onHoverEnd?: () => void;
+    onInteraction?: () => void;
 }
 
-export default function BeforeAfterSlider({ beforeImage, afterImage, onHoverStart, onHoverEnd }: BeforeAfterSliderProps) {
+export default function BeforeAfterSlider({ beforeImage, afterImage, onHoverStart, onHoverEnd, onInteraction }: BeforeAfterSliderProps) {
     const [sliderPosition, setSliderPosition] = useState(50);
     const [isResizing, setIsResizing] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
 
-    const handleStart = () => setIsResizing(true);
+    const handleStart = () => {
+        setIsResizing(true);
+        if (onInteraction) onInteraction();
+    };
     const handleEnd = () => setIsResizing(false);
 
     // Handle Dragging

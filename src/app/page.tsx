@@ -1,10 +1,15 @@
+"use client";
+
 import Image from "next/image";
 import YouTubeFeed from "@/components/YouTubeFeed";
 import Link from "next/link";
 import RevealOnScroll from "@/components/RevealOnScroll";
 import BeforeAfterSlider from "@/components/BeforeAfterSlider";
+import { useState } from "react";
 
 export default function Home() {
+    const [showNotification, setShowNotification] = useState(false);
+
     return (
         <main>
             {/* Hero Section - Minimalist & Impactful */}
@@ -125,6 +130,7 @@ export default function Home() {
                                     <BeforeAfterSlider
                                         beforeImage="/metamorphosis_before.jpg"
                                         afterImage="/metamorphosis_after.jpg"
+                                        onInteraction={() => setShowNotification(true)}
                                     />
                                 </div>
                             </RevealOnScroll>
@@ -143,13 +149,7 @@ export default function Home() {
                                 <p style={{ marginBottom: "var(--spacing-md)", color: "var(--color-text-muted)" }}>
                                     Od drobnych korekt estetycznych po kompleksowe rekonstrukcje zgryzu. Zobacz, jak zmieniliśmy życie naszych pacjentów.
                                 </p>
-                                <Link href="/metamorfozy" style={{
-                                    textDecoration: "underline",
-                                    textUnderlineOffset: "4px",
-                                    color: "var(--color-text-main)"
-                                }}>
-                                    Zobacz nasze realizacje →
-                                </Link>
+                                {/* Static link removed */}
                             </RevealOnScroll>
                         </div>
                     </div>
@@ -157,6 +157,53 @@ export default function Home() {
             </section>
 
             <YouTubeFeed />
+
+            {/* Dynamic Notification Toast */}
+            {showNotification && (
+                <div style={{
+                    position: "fixed",
+                    bottom: "2rem",
+                    right: "2rem",
+                    background: "rgba(255, 255, 255, 0.9)",
+                    backdropFilter: "blur(10px)",
+                    border: "1px solid var(--color-primary-light)",
+                    padding: "1rem 1.5rem",
+                    borderRadius: "var(--radius-md)",
+                    boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
+                    zIndex: 100,
+                    animation: "slideIn 0.5s ease-out forwards",
+                    maxWidth: "300px"
+                }}>
+                    <button
+                        onClick={() => setShowNotification(false)}
+                        style={{
+                            position: "absolute",
+                            top: "5px",
+                            right: "5px",
+                            background: "none",
+                            border: "none",
+                            cursor: "pointer",
+                            fontSize: "1.2rem",
+                            lineHeight: 1,
+                            color: "var(--color-text-muted)"
+                        }}
+                    >
+                        &times;
+                    </button>
+                    <p style={{ marginBottom: "0.5rem", fontWeight: "bold", color: "var(--color-primary)" }}>
+                        Podoba Ci się efekt?
+                    </p>
+                    <Link href="/metamorfozy" className="btn-primary" style={{ display: "block", textAlign: "center", fontSize: "0.9rem" }}>
+                        Zobacz więcej metamorfoz →
+                    </Link>
+                </div>
+            )}
+            <style jsx>{`
+                @keyframes slideIn {
+                    from { transform: translateY(100px); opacity: 0; }
+                    to { transform: translateY(0); opacity: 1; }
+                }
+            `}</style>
         </main>
     );
 }
