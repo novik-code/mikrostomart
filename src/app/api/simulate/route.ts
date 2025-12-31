@@ -23,7 +23,7 @@ export async function POST(request: Request) {
         const response = await openai.images.edit({
             image: imageFile,
             mask: maskFile || undefined,
-            prompt: "Close up photo of a person smiling with mouth open. Visible, bright white, straight teeth. Perfect dentistry. Dental makeover. High quality photo.",
+            prompt: "Make a Hollywood smile. Visible white straight teeth.",
             n: 1,
             size: "1024x1024",
         });
