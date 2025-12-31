@@ -22,8 +22,8 @@ export async function POST(request: Request) {
         // We ALWAYS want to use edit mode for this simulator.
         const response = await openai.images.edit({
             image: imageFile,
-            mask: maskFile || undefined, // If null, user undefined to let OpenAI use image alpha
-            prompt: "Beautiful happy smile with visible white teeth. Teeth teeth teeth. Open mouth smile. Photorealistic.",
+            mask: maskFile || undefined,
+            prompt: "Close up photo of a person smiling with mouth open. Visible, bright white, straight teeth. Perfect dentistry. Dental makeover. High quality photo.",
             n: 1,
             size: "1024x1024",
         });
