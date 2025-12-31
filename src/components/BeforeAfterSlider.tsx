@@ -5,9 +5,11 @@ import { useState, useRef, useEffect } from "react";
 interface BeforeAfterSliderProps {
     beforeImage: string;
     afterImage: string;
+    onHoverStart?: () => void;
+    onHoverEnd?: () => void;
 }
 
-export default function BeforeAfterSlider({ beforeImage, afterImage }: BeforeAfterSliderProps) {
+export default function BeforeAfterSlider({ beforeImage, afterImage, onHoverStart, onHoverEnd }: BeforeAfterSliderProps) {
     const [sliderPosition, setSliderPosition] = useState(50);
     const [isResizing, setIsResizing] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -110,22 +112,26 @@ export default function BeforeAfterSlider({ beforeImage, afterImage }: BeforeAft
             </div>
 
             {/* Handle Circle */}
-            <div style={{
-                position: "absolute",
-                top: "50%",
-                left: `${sliderPosition}%`,
-                transform: "translate(-50%, -50%)",
-                width: "40px",
-                height: "40px",
-                background: "var(--color-primary)",
-                borderRadius: "50%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                zIndex: 20,
-                boxShadow: "0 0 10px rgba(0,0,0,0.5)",
-                pointerEvents: "none"
-            }}>
+            <div
+                onMouseEnter={onHoverStart}
+                onMouseLeave={onHoverEnd}
+                style={{
+                    position: "absolute",
+                    top: "50%",
+                    left: `${sliderPosition}%`,
+                    transform: "translate(-50%, -50%)",
+                    width: "40px",
+                    height: "40px",
+                    background: "var(--color-primary)",
+                    borderRadius: "50%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    zIndex: 20,
+                    boxShadow: "0 0 10px rgba(0,0,0,0.5)",
+                    pointerEvents: "auto", // Ensure it catches hover
+                    cursor: "ew-resize"
+                }}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M18 8L22 12L18 16" />
                     <path d="M6 8L2 12L6 16" />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import BeforeAfterSlider from '@/components/BeforeAfterSlider';
 import RevealOnScroll from '@/components/RevealOnScroll';
 
@@ -140,12 +140,25 @@ export default function MetamorphosisGallery() {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isTransitioning, setIsTransitioning] = useState(false);
 
+    // Tooltip State
+    const [activeTooltip, setActiveTooltip] = useState<'left' | 'right' | null>(null);
+
+    // Auto-hide tooltip after 4 seconds
+    useEffect(() => {
+        if (activeTooltip) {
+            const timer = setTimeout(() => {
+                setActiveTooltip(null);
+            }, 4000);
+            return () => clearTimeout(timer);
+        }
+    }, [activeTooltip]);
+
     const handleSlideChange = (newIndex: number) => {
         setIsTransitioning(true);
         setTimeout(() => {
             setCurrentIndex(newIndex);
             setIsTransitioning(false);
-        }, 400); // Matches CSS animation duration
+        }, 400);
     };
 
     const nextSlide = () => {
@@ -167,50 +180,67 @@ export default function MetamorphosisGallery() {
                 className={isTransitioning ? 'anim-blur-out' : 'anim-blur-in'}
                 style={{ width: '100%' }}
             >
-                {/* Gallery Header w/ Motto - Fixed Height Wrapper */}
-                <div style={{
-                    textAlign: 'center',
-                    marginBottom: '2rem',
-                    minHeight: '220px', // Reserve space to prevent layout shifts
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'center'
-                }}>
-                    <h2 style={{ fontSize: '2rem', marginBottom: '0.5rem', color: 'var(--color-primary)' }}>
-                        {currentItem.title}
-                    </h2>
-                    {currentItem.motto && (
-                        <p style={{
-                            fontStyle: 'italic',
-                            fontSize: '1.2rem',
-                            marginBottom: '1rem',
-                            color: 'var(--color-text-main)',
-                            fontWeight: 300
-                        }}>
-                            {currentItem.motto}
-                        </p>
-                    )}
-                    <p style={{ color: 'var(--color-text-muted)', maxWidth: '600px', margin: '0 auto' }}>
-                        {currentItem.description}
-                    </p>
-                </div>
-
                 {/* Slider Component - Square Aspect Ratio */}
                 <div style={{
                     maxWidth: '600px',
                     width: '100%',
                     margin: '0 auto',
-                    position: 'relative', // Context for absolute buttons
+                    position: 'relative', // Context for absolute buttons and tooltip
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center'
                 }}>
+
+                    {/* TOOLTIP OVERLAY */}
+                    {activeTooltip && (
+                        <div style={{
+                            position: 'absolute',
+                            top: '1rem',
+                            [activeTooltip === 'left' ? 'left' : 'right']: '1rem',
+                            maxWidth: '280px',
+                            background: 'rgba(18, 20, 24, 0.9)', // Dark semi-transparent
+                            backdropFilter: 'blur(8px)',
+                            padding: '1.5rem',
+                            borderRadius: 'var(--radius-md)',
+                            border: '1px solid var(--color-primary)',
+                            zIndex: 30,
+                            boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
+                            animation: 'fadeInZoom 0.3s ease forwards',
+                            pointerEvents: 'none' // Let clicks pass through if needed
+                        }}>
+                            <h3 style={{
+                                color: 'var(--color-primary)',
+                                fontSize: '1.1rem',
+                                marginBottom: '0.5rem'
+                            }}>
+                                {currentItem.title}
+                            </h3>
+                            {currentItem.motto && (
+                                <p style={{
+                                    fontStyle: 'italic',
+                                    fontSize: '0.9rem',
+                                    marginBottom: '0.8rem',
+                                    color: '#fff'
+                                }}>
+                                    {currentItem.motto}
+                                </p>
+                            )}
+                            <p style={{
+                                fontSize: '0.85rem',
+                                color: 'var(--color-text-muted)',
+                                lineHeight: '1.4'
+                            }}>
+                                {currentItem.description}
+                            </p>
+                        </div>
+                    )}
+
                     {/* PREV BUTTON (Arrow) */}
                     <button
                         onClick={prevSlide}
                         style={{
                             position: 'absolute',
-                            left: '-60px', // Outside the image
+                            left: '-60px',
                             zIndex: 10,
                             background: 'transparent',
                             border: '1px solid var(--color-surface-hover)',
@@ -250,6 +280,7 @@ export default function MetamorphosisGallery() {
                             key={currentItem.id}
                             beforeImage={currentItem.before}
                             afterImage={currentItem.after}
+                            onHoverStart={() => setActiveTooltip(currentIndex % 2 === 0 ? 'right' : 'left')}
                         />
                     </div>
 
@@ -258,7 +289,7 @@ export default function MetamorphosisGallery() {
                         onClick={nextSlide}
                         style={{
                             position: 'absolute',
-                            right: '-60px', // Outside the image
+                            right: '-60px',
                             zIndex: 10,
                             background: 'transparent',
                             border: '1px solid var(--color-surface-hover)',
