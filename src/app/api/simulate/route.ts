@@ -71,8 +71,25 @@ export async function POST(req: NextRequest) {
             return pred;
         };
 
+        // Helper to handle Rate Limits (429) automatically
+        const createWithRetry = async (createFn: () => Promise<any>, retries = 3) => {
+            for (let i = 0; i < retries; i++) {
+                try {
+                    return await createFn();
+                } catch (error: any) {
+                    const isRateLimit = error.toString().includes("429") || (error.status === 429);
+                    if (isRateLimit && i < retries - 1) {
+                        console.log(`Rate limit hit (429). Waiting 10s before retry ${i + 1}/${retries}...`);
+                        await new Promise(resolve => setTimeout(resolve, 12000)); // Wait 12s to be safe
+                        continue;
+                    }
+                    throw error;
+                }
+            }
+        };
+
         // PASS 1: ERASE
-        let erasePrediction = await replicate.predictions.create({
+        let erasePrediction = await createWithRetry(() => replicate.predictions.create({
             version: latestVersion,
             input: {
                 image: imageUri,
@@ -83,7 +100,7 @@ export async function POST(req: NextRequest) {
                 output_format: "png",
                 output_quality: 100
             }
-        });
+        }));
 
         erasePrediction = await waitForPrediction(erasePrediction);
 
@@ -96,9 +113,12 @@ export async function POST(req: NextRequest) {
 
         console.log("--- STARTING PASS 2: BUILD NEW SMILE ---");
 
+        // Add a small safety buffer between passes even if no error
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
         // PASS 2: BUILD (Using output of Pass 1 as input)
         // Note: We reuse the SAME mask.
-        let buildPrediction = await replicate.predictions.create({
+        let buildPrediction = await createWithRetry(() => replicate.predictions.create({
             version: latestVersion,
             input: {
                 image: erasedImageUrl, // Input is the ERASED image
@@ -110,7 +130,7 @@ export async function POST(req: NextRequest) {
                 output_format: "png",
                 output_quality: 100
             }
-        });
+        }));
 
         buildPrediction = await waitForPrediction(buildPrediction);
 
