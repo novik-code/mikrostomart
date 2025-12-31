@@ -212,7 +212,7 @@ export default function SimulatorPage() {
                             overflow: "hidden"
                         }}>
                             <BeforeAfterSlider
-                                beforeImage={selectedImage}
+                                beforeImage={processedImage || selectedImage}
                                 afterImage={resultImage}
                             />
                             <div style={{ textAlign: 'center', marginTop: '1rem', color: 'var(--color-primary)' }}>
@@ -343,12 +343,20 @@ export default function SimulatorPage() {
                         </div>
 
                         {/* Debug Mask Preview (Temporary) */}
-                        {maskImage && (
-                            <div style={{ marginTop: '10px', border: '1px solid #ccc', display: 'inline-block' }}>
-                                <p style={{ fontSize: '10px' }}>Podgląd maski:</p>
-                                <img src={maskImage} alt="Mask Debug" style={{ width: '50px', height: '50px', background: 'checkerboard' }} />
-                            </div>
-                        )}
+                        <div style={{ marginTop: '10px', display: 'flex', gap: '10px', justifyContent: 'center' }}>
+                            {processedImage && (
+                                <div style={{ border: '1px solid #ccc' }}>
+                                    <p style={{ fontSize: '10px' }}>Podgląd Inputu (Do AI):</p>
+                                    <img src={processedImage} alt="Input Debug" style={{ width: '50px', height: '50px', objectFit: 'cover' }} />
+                                </div>
+                            )}
+                            {maskImage && (
+                                <div style={{ border: '1px solid #ccc' }}>
+                                    <p style={{ fontSize: '10px' }}>Podgląd Maski:</p>
+                                    <img src={maskImage} alt="Mask Debug" style={{ width: '50px', height: '50px', background: 'url(https://media.istockphoto.com/id/1147544807/vector/transparent-background-pattern-gray.jpg?s=612x612&w=0&k=20&c=p_yM_iQYt4g-gN3E_5mPjUe0QzU-5lK_L-5lK_L-5lK.jpg)' }} />
+                                </div>
+                            )}
+                        </div>
 
                         {isLoading && (
                             <p style={{ marginTop: "1rem", color: "var(--color-primary)", animation: "pulse 1.5s infinite" }}>
