@@ -38,14 +38,17 @@ export default function SimulatorPage() {
         reader.readAsDataURL(file);
     };
 
-    // Helper to crop/resize image to square PNG for OpenAI
+    // New State for Mask
+    const [maskImage, setMaskImage] = useState<string | null>(null);
+
+    // Helper to crop/resize image to square PNG for OpenAI AND generate Mask
     const prepareImageForAPI = (imageSrc: string) => {
         const img = new window.Image();
         // Handler MUST be set before src to catch cached load (though unlikely with data uri)
         img.onload = () => {
             // Verify image loaded correctly
             if (img.naturalWidth === 0 || img.naturalHeight === 0) {
-                alert("Błąd: Nie udało się wczytać wymiarów zdjęcia. Spróbuj innego pliku.");
+                console.error("Image dimensions zero");
                 return;
             }
 
@@ -75,6 +78,7 @@ export default function SimulatorPage() {
             // Debug: Check if we are drawing
             // console.log("Drawing image:", nW, nH, "->", drawWidth, drawHeight);
 
+            // 1. Draw Original Image
             ctx.fillStyle = "white";
             ctx.fillRect(0, 0, size, size);
 
@@ -82,6 +86,31 @@ export default function SimulatorPage() {
                 ctx.drawImage(img, tx, ty, drawWidth, drawHeight);
                 const pngData = canvas.toDataURL("image/png");
                 setProcessedImage(pngData);
+
+                // 2. Generate Mask (Heuristic: Bottom-Center Oval for Mouth)
+                // OpenAI Mask: Transparent pixels are where we edit. Opaque pixels are kept.
+
+                // Clear canvas for mask
+                ctx.clearRect(0, 0, size, size);
+
+                // Fill with Opaque Color (Black) - parts to KEEP
+                ctx.fillStyle = "rgba(0, 0, 0, 1)";
+                ctx.fillRect(0, 0, size, size);
+
+                // Cut out the Mouth Area (Transparent) - parts to EDIT
+                // Assuming mouth is roughly at 50% X and 65% Y
+                ctx.globalCompositeOperation = "destination-out";
+                ctx.beginPath();
+                // Ellipse: x, y, radiusX, radiusY, rotation, startAngle, endAngle
+                ctx.ellipse(size * 0.5, size * 0.60, size * 0.15, size * 0.08, 0, 0, 2 * Math.PI);
+                ctx.fill();
+
+                // Reset composite operation
+                ctx.globalCompositeOperation = "source-over";
+
+                const maskPng = canvas.toDataURL("image/png");
+                setMaskImage(maskPng);
+
             } catch (err) {
                 console.error("Canvas draw error:", err);
                 alert("Błąd przetwarzania obrazu.");
@@ -90,7 +119,7 @@ export default function SimulatorPage() {
 
         img.onerror = (err) => {
             console.error("Image load error:", err);
-            alert("Nieudane wczytanie pliku obrazu. Upewnij się, że to poprawny plik JPG/PNG.");
+            alert("Nieudane wczytanie pliku obrazu.");
         };
 
         img.src = imageSrc;
@@ -101,20 +130,27 @@ export default function SimulatorPage() {
 
         setIsLoading(true);
         try {
+            const body = maskImage
+                ? JSON.stringify({ image: processedImage, mask: maskImage })
+                : JSON.stringify({ image: processedImage });
+
             const response = await fetch("/api/simulate", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ image: processedImage }),
+                body: body,
             });
 
             const data = await response.json();
 
             if (!response.ok) {
+                if (data.error && data.error.includes("safety")) {
+                    throw new Error("System bezpieczeństwa odrzucił zdjęcie.");
+                }
                 throw new Error(data.error || "Błąd generowania");
             }
 
             setResultImage(data.url);
-            alert("DEBUG SUCCESS: Otrzymano URL z API: " + data.url);
+            // Alert removed
         } catch (err: any) {
             alert("Wystąpił błąd: " + err.message);
         } finally {
