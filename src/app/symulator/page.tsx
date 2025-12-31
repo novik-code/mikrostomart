@@ -316,10 +316,10 @@ export default function SimulatorPage() {
                         <button
                             className="btn-primary"
                             onClick={handleGenerate}
-                            disabled={isLoading || !processedImage}
+                            disabled={isLoading || !processedImage || !maskImage}
                             style={{
-                                opacity: processedImage && !isLoading ? 1 : 0.5,
-                                cursor: processedImage && !isLoading ? "pointer" : "not-allowed",
+                                opacity: processedImage && maskImage && !isLoading ? 1 : 0.5,
+                                cursor: processedImage && maskImage && !isLoading ? "pointer" : "not-allowed",
                                 padding: "1rem 3rem",
                                 fontSize: "1.1rem",
                                 display: "flex",
@@ -336,11 +336,43 @@ export default function SimulatorPage() {
                                 <>Generuj Mój Uśmiech (AI) ✨</>
                             )}
                         </button>
+
+                        {/* Debug Info */}
+                        <div style={{ marginTop: '10px', fontSize: '0.8rem', color: '#666' }}>
+                            Status: {maskImage ? "✅ Gotowy do edycji (Maska OK)" : "⏳ Przetwarzanie..."}
+                        </div>
+
+                        {/* Debug Mask Preview (Temporary) */}
+                        {maskImage && (
+                            <div style={{ marginTop: '10px', border: '1px solid #ccc', display: 'inline-block' }}>
+                                <p style={{ fontSize: '10px' }}>Podgląd maski:</p>
+                                <img src={maskImage} alt="Mask Debug" style={{ width: '50px', height: '50px', background: 'checkerboard' }} />
+                            </div>
+                        )}
+
                         {isLoading && (
                             <p style={{ marginTop: "1rem", color: "var(--color-primary)", animation: "pulse 1.5s infinite" }}>
                                 To może potrwać kilka sekund... Sztuczna inteligencja pracuje.
                             </p>
                         )}
+                    </div>
+                )}
+
+                {resultImage && (
+                    <div style={{ textAlign: 'center', marginTop: '1rem' }}>
+                        <a
+                            href={resultImage}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                                display: 'inline-block',
+                                marginTop: '10px',
+                                textDecoration: 'underline',
+                                color: 'var(--color-primary)'
+                            }}
+                        >
+                            Biały ekran? Kliknij tutaj, aby otworzyć zdjęcie w nowym oknie
+                        </a>
                     </div>
                 )}
 
