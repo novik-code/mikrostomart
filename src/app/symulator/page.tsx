@@ -166,12 +166,21 @@ export default function SimulatorPage() {
 
             // 2. Prepare Form Data
             // We convert Base64 to Blob to send as file
-            const imageBlob = await (await fetch(imageWithHole)).blob();
-            const maskBlob = await (await fetch(maskImage)).blob();
+            // Helper function was added above handleGenerate or we can inline logic here if needed, but let's assume we added the helper function or simply use the polyfill logic inline.
+            // Actually, let's just inline the robust conversion here to ensure it works without context issues.
+
+            const byteString = atob(imageWithHole.split(',')[1]);
+            const mimeString = imageWithHole.split(',')[0].split(':')[1].split(';')[0];
+            const ab = new ArrayBuffer(byteString.length);
+            const ia = new Uint8Array(ab);
+            for (let i = 0; i < byteString.length; i++) {
+                ia[i] = byteString.charCodeAt(i);
+            }
+            const imageBlob = new Blob([ab], { type: mimeString });
 
             const formData = new FormData();
             formData.append("image", imageBlob, "image.png");
-            formData.append("mask", maskBlob, "mask.png");
+            // No mask needed as we use alpha channel
 
             const response = await fetch("/api/simulate", {
                 method: "POST",
