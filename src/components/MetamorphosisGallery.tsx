@@ -195,46 +195,43 @@ export default function MetamorphosisGallery() {
                     {activeTooltip && (
                         <div style={{
                             position: 'absolute',
-                            top: '1rem',
-                            [activeTooltip === 'left' ? 'left' : 'right']: '1rem',
-                            maxWidth: '280px',
-                            background: 'rgba(18, 20, 24, 0.95)',
-                            backdropFilter: 'blur(8px)',
-                            padding: '1.5rem',
-                            borderRadius: '20px',
-                            border: '1px solid var(--color-primary)',
-                            borderBottomRightRadius: activeTooltip === 'left' ? '4px' : '20px',
-                            borderBottomLeftRadius: activeTooltip === 'right' ? '4px' : '20px',
+                            // Vertical Position: Above the center
+                            bottom: '52%',
+                            // Horizontal Position: Just off-center based on side
+                            [activeTooltip === 'left' ? 'right' : 'left']: '51%',
+                            width: '280px',
+                            minHeight: '130px',
+                            padding: '1.5rem 1.5rem 2.5rem 1.5rem', // Padding to keep text inside the bubble area (avoid tail)
                             zIndex: 30,
-                            boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
                             animation: 'fadeInZoom 0.3s ease forwards',
-                            pointerEvents: 'none'
+                            pointerEvents: 'none',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            textAlign: 'center'
                         }}>
-                            {/* SVG Tail for better border match */}
-                            <svg
-                                width="20"
-                                height="20"
-                                viewBox="0 0 20 20"
-                                style={{
-                                    position: 'absolute',
-                                    bottom: '-14px',
-                                    [activeTooltip === 'left' ? 'right' : 'left']: '-1px', // Align perfectly with border
-                                    transform: activeTooltip === 'left' ? 'scaleX(1)' : 'scaleX(-1)',
-                                }}
-                            >
-                                <path
-                                    d="M0 0 L20 0 L0 20 Z"
-                                    fill="rgba(18, 20, 24, 0.95)"
-                                    stroke="var(--color-primary)"
-                                    strokeWidth="1"
-                                />
-                                <path d="M0 0 L20 0" stroke="rgba(18, 20, 24, 0.95)" strokeWidth="2" />
-                            </svg>
+                            {/* Background Image Layer */}
+                            <div style={{
+                                position: 'absolute',
+                                inset: 0,
+                                backgroundImage: 'url(/images/ui/speech_bubble.png)',
+                                backgroundSize: '100% 100%',
+                                backgroundRepeat: 'no-repeat',
+                                // Flip logic: 
+                                // Image tail is Bottom-Left.
+                                // Right Side Bubble -> Tail needs to be Bottom-Left (pointing center) -> No Flip.
+                                // Left Side Bubble -> Tail needs to be Bottom-Right (pointing center) -> Flip.
+                                transform: activeTooltip === 'left' ? 'scaleX(-1)' : 'none',
+                                zIndex: -1,
+                                filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.5))'
+                            }} />
 
                             <h3 style={{
                                 color: 'var(--color-primary)',
-                                fontSize: '1.1rem',
-                                marginBottom: '0.5rem'
+                                fontSize: '1.2rem',
+                                marginBottom: '0.3rem',
+                                fontWeight: 'bold'
                             }}>
                                 {currentItem.title}
                             </h3>
@@ -242,8 +239,9 @@ export default function MetamorphosisGallery() {
                                 <p style={{
                                     fontStyle: 'italic',
                                     fontSize: '0.9rem',
-                                    marginBottom: '0.8rem',
-                                    color: '#fff'
+                                    marginBottom: '0.5rem',
+                                    color: '#fff',
+                                    opacity: 0.9
                                 }}>
                                     {currentItem.motto}
                                 </p>
@@ -251,7 +249,7 @@ export default function MetamorphosisGallery() {
                             <p style={{
                                 fontSize: '0.85rem',
                                 color: 'var(--color-text-muted)',
-                                lineHeight: '1.4'
+                                lineHeight: '1.3'
                             }}>
                                 {currentItem.description}
                             </p>
