@@ -60,10 +60,10 @@ export async function POST(req: NextRequest) {
             input: {
                 image: imageUri,
                 mask: maskUri,
-                prompt: "extreme closeup of a hollywood smile makeover, gleaming white porcelain veneers, filling all tooth gaps, complete set of straight teeth, perfect continuous arch, bleached teeth, high fashion dental photography, bright white tooth shade, cold blue studio lighting, medical white aesthetic",
-                negative_prompt: "missing teeth, tooth gaps, empty spaces, black holes in mouth, yellow teeth, stained teeth, cavities, discoloration, dark teeth, shadows on teeth, rot, broken teeth, gap, yellowing, plaque, natural teeth color, warm lighting, yellow tones",
-                guidance_scale: 15.0, // MAXED OUT to force prompt adherence over image blending
-                n_steps: 40,          // Max steps for detail
+                prompt: "dental simulator output: completely replacing old teeth with a new perfect hollywood smile, full mouth reconstruction, all-on-4 dental implants, continuous white ceramic arch, closing all gaps, oversized perfect veneers, medical white, hyperrealistic",
+                negative_prompt: "missing teeth, tooth gaps, empty spaces, black holes, rot, decay, yellow, broken teeth, crooked, natural spread, shadows between teeth",
+                guidance_scale: 12.0, // High but allowing structural changes
+                n_steps: 40,          // Max steps
                 output_format: "png",
                 output_quality: 100
             }
