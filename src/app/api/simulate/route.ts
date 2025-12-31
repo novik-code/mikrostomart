@@ -60,10 +60,10 @@ export async function POST(req: NextRequest) {
             input: {
                 image: imageUri,
                 mask: maskUri,
-                prompt: "dental simulator output: completely replacing old teeth with a new perfect hollywood smile, full mouth reconstruction, all-on-4 dental implants, continuous white ceramic arch, closing all gaps, oversized perfect veneers, medical white, hyperrealistic",
-                negative_prompt: "missing teeth, tooth gaps, empty spaces, black holes, rot, decay, yellow, broken teeth, crooked, natural spread, shadows between teeth",
-                guidance_scale: 12.0, // High but allowing structural changes
-                n_steps: 40,          // Max steps
+                prompt: "dental photo showing a brand new set of perfect white teeth, full mouth rehabilitation, all-on-4 implants, ceramic bridge, completely filling all gaps, no missing teeth, continuous white dental arch, medical aesthetic photography, hyperrealistic, before and after transformation",
+                negative_prompt: "missing teeth, gaps, diastema, black spaces, rot, decay, yellow, crooked, broken, shadows, natural teeth",
+                guidance_scale: 15.0,
+                n_steps: 40,
                 output_format: "png",
                 output_quality: 100
             }
