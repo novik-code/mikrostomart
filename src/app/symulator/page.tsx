@@ -24,14 +24,16 @@ export default function SimulatorPage() {
     // State for Mask Configuration
     const [maskConfig, setMaskConfig] = useState({ x: 50, y: 65, scaleX: 1.0, scaleY: 1.0 });
 
+    // Drag Logic Refs
+    const previewRef = useRef<HTMLDivElement>(null);
+    const [isMaskDragging, setIsMaskDragging] = useState(false);
+    const [maskImage, setMaskImage] = useState<string | null>(null);
+
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
             handleFile(e.target.files[0]);
         }
     };
-
-    // New State for Mask
-    const [maskImage, setMaskImage] = useState<string | null>(null);
 
     // 1. Process Input Image (Once per file upload)
     const processInputImage = async (imageSrc: string) => {
@@ -138,12 +140,11 @@ export default function SimulatorPage() {
         if (!processedImage || !maskImage) return;
 
         setIsLoading(true);
-        // Clean up previous result
         setResultImage(null);
         setDebugInfo(null);
 
         try {
-            // Re-generate a proper B/W mask for Replicate right here to be safe.
+            // Re-generate a proper B/W mask for Replicate
             const canvas = document.createElement("canvas");
             canvas.width = 1024;
             canvas.height = 1024;
@@ -213,18 +214,7 @@ export default function SimulatorPage() {
         }
     };
 
-    // ... (rest of file)
-
-    // ... inside JSX ... (This relies on finding the target content correctly. I'll target the debug div I added earlier)
-    {/* DEBUG: Show URL to check why it is broken */ }
-    <div style={{ marginTop: '20px', padding: '10px', background: '#ffebee', border: '2px solid red', color: 'black', fontSize: '11px', wordBreak: 'break-all', textAlign: 'left' }}>
-        <strong>DEBUG INFO:</strong><br />
-        <strong>Image URL:</strong> {resultImage ? resultImage : "NULL"}<br />
-        <strong>Raw Output:</strong> {debugInfo ? debugInfo : "NULL"}
-    </div>
-                        </div >
-    const previewRef = useRef<HTMLDivElement>(null);
-    const [isMaskDragging, setIsMaskDragging] = useState(false);
+    // --- Drag Logic for Mask ---
 
     const handleMaskMouseDown = (e: React.MouseEvent | React.TouchEvent) => {
         e.preventDefault(); // Prevent scrolling on touch
@@ -346,10 +336,10 @@ export default function SimulatorPage() {
                             </button>
 
                             {/* DEBUG: Show URL to check why it is broken */}
-                            <div style={{ marginTop: '10px', wordBreak: 'break-all', fontSize: '10px', color: 'red', textAlign: 'center' }}>
-                                DEBUG URL: {resultImage?.toString()}
-                                <br />
-                                RAW OUTPUT: {debugInfo}
+                            <div style={{ marginTop: '20px', padding: '10px', background: '#ffebee', border: '2px solid red', color: 'black', fontSize: '11px', wordBreak: 'break-all', textAlign: 'left' }}>
+                                <strong>DEBUG INFO:</strong><br />
+                                <strong>Image URL:</strong> {resultImage ? resultImage : "NULL"}<br />
+                                <strong>Raw Output:</strong> {debugInfo ? debugInfo : "NULL"}
                             </div>
                         </div>
                     ) : (
@@ -509,49 +499,6 @@ export default function SimulatorPage() {
                         </div>
                     )}
                 </RevealOnScroll>
-
-                {
-                    selectedImage && !resultImage && (
-                        <div style={{ textAlign: "center", marginTop: "2rem" }}>
-                            <button
-                                className="btn-primary"
-                                onClick={handleGenerate}
-                                disabled={isLoading || !processedImage || !maskImage}
-                                style={{
-                                    opacity: processedImage && maskImage && !isLoading ? 1 : 0.5,
-                                    cursor: processedImage && maskImage && !isLoading ? "pointer" : "not-allowed",
-                                    padding: "1rem 3rem",
-                                    fontSize: "1.1rem",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: "0.5rem",
-                                    margin: "0 auto"
-                                }}
-                            >
-                                {isLoading ? (
-                                    <>
-                                        <span className="spinner"></span> Generowanie...
-                                    </>
-                                ) : (
-                                    <>Generuj Mój Uśmiech (Flux AI) ✨</>
-                                )}
-                            </button>
-
-                            <div id="debug-hole-container" style={{ marginTop: '20px', textAlign: 'center' }}></div>
-
-                            {/* Debug Info */}
-                            <div style={{ marginTop: '10px', fontSize: '0.8rem', color: '#666' }}>
-                                Status: {maskImage ? "✅ Gotowy do edycji" : "⏳ Przetwarzanie..."}
-                            </div>
-
-                            {isLoading && (
-                                <p style={{ marginTop: "1rem", color: "var(--color-primary)", animation: "pulse 1.5s infinite" }}>
-                                    To może potrwać kilka sekund... Sztuczna inteligencja pracuje.
-                                </p>
-                            )}
-                        </div>
-                    )
-                }
 
                 <style jsx>{`
                     .spinner {
