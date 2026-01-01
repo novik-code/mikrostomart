@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Sparkles, X, Send, User, Bot, Loader2 } from "lucide-react";
+import { Sparkles, X, Send, User, Bot, Loader2, Paperclip } from "lucide-react";
 import { useAssistant } from "@/context/AssistantContext";
 
 interface Message {
     role: "user" | "assistant";
     content: string;
+    image?: string; // Optional image data for display
 }
 
 const SUGGESTIONS = [
@@ -27,7 +28,9 @@ export default function AssistantTeaser() {
     ]);
     const [input, setInput] = useState("");
     const [isLoading, setIsLoading] = useState(false);
+    const [selectedImage, setSelectedImage] = useState<string | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         // Show teaser after 5 seconds (delayed)
@@ -39,21 +42,55 @@ export default function AssistantTeaser() {
 
     useEffect(() => {
         if (isChatOpen) {
-            // Scroll to bottom when chat opens
             setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
         }
-    }, [isChatOpen, messages]);
+    }, [isChatOpen, messages, selectedImage]);
 
-    const sendMessage = async (text: string) => {
-        if (!text.trim()) return;
+    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setSelectedImage(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
 
-        const userMessage: Message = { role: "user", content: text };
+    const sendMessage = async (text?: string) => {
+        const contentToSend = text || input;
+        if (!contentToSend.trim() && !selectedImage) return;
+
+        const userMessage: Message = {
+            role: "user",
+            content: contentToSend,
+            image: selectedImage || undefined
+        };
+
         setMessages(prev => [...prev, userMessage]);
         setInput("");
+        setSelectedImage(null);
         setIsLoading(true);
 
         try {
-            const apiMessages = [...messages, userMessage].slice(-10);
+            // Prepare messages for API
+            const apiMessage = {
+                role: "user",
+                content: userMessage.image
+                    ? [
+                        { type: "text", text: userMessage.content || "Przesyłam zdjęcie." },
+                        { type: "image_url", image_url: { url: userMessage.image } }
+                    ]
+                    : userMessage.content
+            };
+
+            const historyForApi = messages.map(m => ({
+                role: m.role,
+                content: m.content // Log history as text only for simplicity in this iteration
+            }));
+
+            const apiMessages = [...historyForApi, apiMessage].slice(-10);
+
             const response = await fetch("/api/chat", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -201,6 +238,13 @@ export default function AssistantTeaser() {
                                         fontSize: '14px',
                                         lineHeight: '1.5'
                                     }}>
+                                        {msg.image && (
+                                            <img
+                                                src={msg.image}
+                                                alt="Uploaded"
+                                                style={{ maxWidth: '100%', borderRadius: '8px', marginBottom: '8px', border: '1px solid rgba(0,0,0,0.1)' }}
+                                            />
+                                        )}
                                         {msg.content}
                                     </div>
                                     {msg.role === 'user' && <User size={24} color="#9ca3af" />}
@@ -233,7 +277,45 @@ export default function AssistantTeaser() {
                                 </div>
                             )}
 
+                            {/* Image Preview */}
+                            {selectedImage && (
+                                <div style={{
+                                    padding: '8px',
+                                    background: 'rgba(255,255,255,0.1)',
+                                    borderRadius: '8px',
+                                    marginBottom: '10px',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+                                }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <img src={selectedImage} alt="Preview" style={{ width: '40px', height: '40px', borderRadius: '4px', objectFit: 'cover' }} />
+                                        <span style={{ fontSize: '12px', color: '#d1d5db' }}>Zdjęcie dodane</span>
+                                    </div>
+                                    <button onClick={() => setSelectedImage(null)} style={{ background: 'none', border: 'none', color: '#9ca3af', cursor: 'pointer' }}>
+                                        <X size={16} />
+                                    </button>
+                                </div>
+                            )}
+
                             <div style={{ display: 'flex', gap: '10px' }}>
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    ref={fileInputRef}
+                                    onChange={handleFileSelect}
+                                    style={{ display: 'none' }}
+                                />
+                                <button
+                                    onClick={() => fileInputRef.current?.click()}
+                                    style={{
+                                        width: '46px', height: '46px', borderRadius: '8px',
+                                        background: 'rgba(255,255,255,0.1)',
+                                        border: '1px solid rgba(255,255,255,0.1)',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                                        color: '#d1d5db'
+                                    }}
+                                >
+                                    <Paperclip size={20} />
+                                </button>
                                 <input
                                     value={input}
                                     onChange={(e) => setInput(e.target.value)}

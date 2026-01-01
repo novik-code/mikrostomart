@@ -6,12 +6,29 @@ export const KNOWLEDGE_BASE = `
 - **Podejście**: Precyzja (mikroskopy), Bezbolesność (znieczulenie komputerowe), Rodzinna atmosfera.
 - **Motto**: "Nie ma trudnych przypadków, są tylko wyzwania."
 
-## ZESPÓŁ
-- **Lek. dent. Marcin Nowosielski**: Główny lekarz. Specjalista od trudnych przypadków. Tytuł: Master of Science in Lasers in Dentistry. Zajmuje się endodoncją mikroskopową, implantologią, chirurgią i stomatologią laserową.
-- **Elżbieta Nowosielska (Ela)**: Manager, Opiekun Pacjenta, Higienistka. "Dusza" gabinetu. Zajmuje się metamorfozami, wybielaniem i organizacją pracy.
-- **Justyna, Marta**: Higienistki stomatologiczne. Wykonują skaling, piaskowanie i instruktaż higieny.
+## ZESPÓŁ KLINIKI MIKROSTOMART
 
-## NOWOCZESNE TECHNOLOGIE (WAŻNE!)
+### WŁAŚCICIELE
+- **Lek. dent. Marcin Nowosielski**: Główny lekarz. Pasjonat endodoncji mikroskopowej, implantologii i laserów.
+    - **Tytuł**: Master of Science in Lasers in Dentistry (RWTH Aachen). Absolwent Oral Surgery Academy.
+    - **Styl**: "Nie ma trudnych przypadków, są wyzwania". Prowadzi kanał na YouTube "DentistMarcIn".
+    - **Prywatnie**: Mąż Eli, tata Michaela i Lily. Gra na gitarze basowej, jeździ na desce (off-road).
+- **Elżbieta Nowosielska (Ela)**: Właścicielka, Managerka, Higienistka.
+    - **Rola**: "Dusza gabinetu". Dba o atmosferę i bezpieczeństwo. Zajmuje się metamorfozami i organizacją.
+    - **Cechy**: Niezwykle empatyczna, potrafi uspokoić każdego pacjenta.
+
+### LEKARZE
+- **Lek. dent. Ilona Piechaczek**: Specjalizuje się w endodoncji mikroskopowej, stomatologii zachowawczej i protetyce cyfrowej.
+
+### ZESPÓŁ HIGIENISTEK I ASYSTENTEK
+- **Ola Modelska-Kępa (Manager)**: Organizacja pracy. "Widzi w pacjencie człowieka, nie klienta". Pasjonatka psychologii.
+- **Justyna Litewka ("Prawa Ręka Szefa")**: Asystentka i Higienistka. Niezastąpiona przy trudnych zabiegach Marcina. Kocha taniec.
+- **Ewelina Petyniak**: Higienistka. Precyzyjna i dokładna. Pasje: Jazda konna, motocykle.
+- **Małgorzata Maćków-Huras**: Higienistka + Technik Dentystyczny CAD/CAM + Asyst. Ortodontyczna. Prawdziwy "kombajn" wiedzy. Pasje: Boks i MMA (więc zęby są bezpieczne! ;)).
+- **Julia Plewa**: Asystentka. Studentka higieny. Dba o komfort. Pasje: Siłownia, bieganie.
+- **Joanna Garboś**: Asystentka. Miłośniczka gór i podróży.
+
+### TECHNOLOGIE I FILOZOFIA
 - **Skaner wewnątrzustny**: Zamiast nieprzyjemnych wycisków. Pozwala na wizualizację 3D i szybsze projektowanie prac.
 - **Mikroskopy**: Standard w leczeniu kanałowym ("leczenie kanałowe bez mikroskopu to jak jazda we mgle").
 - **Lasery**: Do chirurgii (bezboleśnie, szybkie gojenie) i leczenia kanałowego (dezynfekcja).
@@ -54,11 +71,46 @@ export const KNOWLEDGE_BASE = `
    - Leczenie Bruksizmu (szyny relaksacyjne).
    - Resorpcja (leczenie zaniku korzeni).
 
-## CENNIK I REZERWACJA
-- Ceny są ustalane indywidualnie po konsultacji. Nie podawaj konkretnych kwot w czacie, chyba że są jawne (np. konsultacja).
+## CENNIK USŁUG (Stan na 01.03.2025)
+*Podane ceny są orientacyjne. Ostateczny koszt ustala lekarz po konsultacji.*
+
+### CHIRURGIA I IMPLANTOLOGIA
+- **Usunięcie zęba**: 400 - 800 zł (z szyciem, PRF, laserem).
+- **Usunięcie ósemki**: 600 - 900 zł.
+- **Usunięcie ósemki zatrzymanej**: 600 - 1500 zł.
+- **Implant (wszczepienie)**: od 3500 zł.
+- **Korona na implancie**: 3000 - 4000 zł.
+- **Podniesienie dna zatoki (Sinus Lift)**: 1500 - 6000 zł (zależnie od metody).
+- **Resekcja korzenia**: 1500 - 2500 zł.
+
+### PROTETYKA I ESTETYKA
+- **Korona pełnoceramiczna (Cerkon, EMAX)**: 2100 zł.
+- **Licówka porcelanowa**: 2500 zł.
+- **Licówka kompozytowa**: 1200 zł.
+- **Licówka tymczasowa (druk 3D)**: 800 zł.
+
+### ORTODONCJA
+- **Nakładki Clear Correct (Całe leczenie)**: 12 000 - 14 000 zł.
+
+### STOMATOLOGIA DZIECIĘCA
+- **Wypełnienie w zębie mlecznym**: 400 zł.
+- **Wizyta adaptacyjna (30 min)**: 200 zł.
+- **Lakowanie**: 200 - 300 zł.
+- **Lapisowanie**: 300 zł.
+
+### INNE
+- **Szycie chirurgiczne**: 50 zł (często w cenie zabiegu).
+- **Znieczulenie**: Zazwyczaj wliczone w cenę zabiegu (komputerowe).
+
+## RĘKOJMIA
+Klinika udziela **2-letniej rękojmi** na wypełnienia i protetykę, pod warunkiem:
+1. Zakończenia całego planu leczenia.
+2. Wizyt kontrolnych i higienizacji co 6 miesięcy.
+
+## REZERWACJA
+- Ceny są orientacyjne.
 - Konsultacja jest kluczowa. Zawsze zachęcaj do umówienia się na wizytę diagnostyczną.
 - Rezerwacja: Przez stronę (/rezerwacja) lub telefonicznie (+48 570 270 470).
-- Godziny pracy: Sprawdź aktualne (zwykle pon-pt, ale odsyłaj do kontaktu).
 
 ## STYL ODPOWIEDZI
 - Bądź empatyczny, profesjonalny, ale nie "sztywny".
