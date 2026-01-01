@@ -91,21 +91,37 @@ export default function AboutPage() {
                     }}>
                         {/* Image First (Order 1) */}
                         <RevealOnScroll animation="blur-in" delay={100} className="order-1-mobile">
-                            <div style={{
-                                width: '100%',
-                                aspectRatio: '3/4',
-                                position: 'relative',
-                                borderRadius: '2px',
-                                border: '1px solid var(--color-surface-hover)',
-                                padding: '10px',
-                                background: 'transparent'
-                            }}>
+                            <div
+                                style={{
+                                    width: '100%',
+                                    aspectRatio: '3/4',
+                                    position: 'relative',
+                                    borderRadius: '2px',
+                                    border: '1px solid var(--color-surface-hover)',
+                                    padding: '10px',
+                                    background: 'transparent',
+                                    cursor: 'pointer'
+                                }}
+                                onMouseEnter={() => setExpanded(prev => ({ ...prev, 'ela-img': true }))}
+                                onMouseLeave={() => setExpanded(prev => ({ ...prev, 'ela-img': false }))}
+                            >
                                 <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
                                     <Image
                                         src="/ela-main.jpg"
                                         alt="Elżbieta Nowosielska"
                                         fill
                                         style={{ objectFit: 'cover' }}
+                                    />
+                                    <Image
+                                        src="/ela-BW.jpg"
+                                        alt="Elżbieta Nowosielska Professional"
+                                        fill
+                                        style={{
+                                            objectFit: 'cover',
+                                            opacity: expanded['ela-img'] ? 1 : 0,
+                                            transition: 'opacity 0.5s ease-in-out',
+                                            filter: 'grayscale(100%)'
+                                        }}
                                     />
                                 </div>
                             </div>
@@ -258,21 +274,38 @@ export default function AboutPage() {
 
                         {/* Image Second (Order 2 on Desktop) */}
                         <RevealOnScroll animation="blur-in" delay={100} className="order-2-mobile" style={{ order: 2 }}>
-                            <div style={{
-                                width: '100%',
-                                aspectRatio: '3/4',
-                                position: 'relative',
-                                borderRadius: '2px',
-                                border: '1px solid var(--color-surface-hover)',
-                                padding: '10px',
-                                background: 'transparent'
-                            }}>
+                            <div
+                                style={{
+                                    width: '100%',
+                                    aspectRatio: '3/4',
+                                    position: 'relative',
+                                    borderRadius: '2px',
+                                    border: '1px solid var(--color-surface-hover)',
+                                    padding: '10px',
+                                    background: 'transparent',
+                                    cursor: 'pointer'
+                                }}
+                                onMouseEnter={() => setExpanded(prev => ({ ...prev, 'marcin-img': true }))}
+                                onMouseLeave={() => setExpanded(prev => ({ ...prev, 'marcin-img': false }))}
+                            >
                                 <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
                                     <Image
                                         src="/marcin-main.jpg"
                                         alt="Marcin Nowosielski"
                                         fill
                                         style={{ objectFit: 'cover', objectPosition: 'top' }}
+                                    />
+                                    <Image
+                                        src="/marcin-BW.jpg"
+                                        alt="Marcin Nowosielski Professional"
+                                        fill
+                                        style={{
+                                            objectFit: 'cover',
+                                            objectPosition: 'top',
+                                            opacity: expanded['marcin-img'] ? 1 : 0,
+                                            transition: 'opacity 0.5s ease-in-out',
+                                            filter: 'grayscale(100%)'
+                                        }}
                                     />
                                 </div>
                             </div>
