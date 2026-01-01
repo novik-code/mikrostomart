@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import RevealOnScroll from "./RevealOnScroll";
-import { Youtube, Instagram, Facebook } from "lucide-react";
+import { Youtube, Instagram, Facebook, UserRound } from "lucide-react";
 
 // Fallback data if API key is not configured
 const FALLBACK_VIDEOS = [
@@ -186,41 +186,46 @@ export default function YouTubeFeed() {
                                     url: "https://www.youtube.com/@DentistMarcIn",
                                     color: "#FF0000",
                                     label: "YouTube",
-                                    hoverColor: "rgba(255,0,0,0.1)"
+                                    hoverColor: "rgba(255,0,0,0.1)",
+                                    badge: null
                                 },
                                 {
                                     icon: <Instagram size={28} />,
                                     url: "https://www.instagram.com/mikrostomart_opole/",
                                     color: "#E1306C",
                                     label: "Mikrostomart IG",
-                                    hoverColor: "rgba(225,48,108,0.1)"
+                                    hoverColor: "rgba(225,48,108,0.1)",
+                                    badge: "logo"
                                 },
                                 {
                                     icon: <Instagram size={28} />,
                                     url: "https://www.instagram.com/nowosielski_marcin/",
                                     color: "#E1306C",
                                     label: "Dr Marcin IG",
-                                    hoverColor: "rgba(225,48,108,0.1)"
+                                    hoverColor: "rgba(225,48,108,0.1)",
+                                    badge: "user"
                                 },
                                 {
                                     icon: <Facebook size={28} />,
                                     url: "https://www.facebook.com/mikrostomart/",
                                     color: "#1877F2",
                                     label: "Mikrostomart FB",
-                                    hoverColor: "rgba(24,119,242,0.1)"
+                                    hoverColor: "rgba(24,119,242,0.1)",
+                                    badge: "logo"
                                 },
                                 {
                                     icon: <Facebook size={28} />,
                                     url: "https://www.facebook.com/marcindentist/",
                                     color: "#1877F2",
                                     label: "Dr Marcin FB",
-                                    hoverColor: "rgba(24,119,242,0.1)"
+                                    hoverColor: "rgba(24,119,242,0.1)",
+                                    badge: "user"
                                 },
                                 {
                                     icon: (
                                         <svg
-                                            width="28"
-                                            height="28"
+                                            width="24"
+                                            height="24"
                                             viewBox="0 0 24 24"
                                             fill="currentColor"
                                             stroke="none"
@@ -230,10 +235,10 @@ export default function YouTubeFeed() {
                                         </svg>
                                     ),
                                     url: "https://www.tiktok.com/@nowosielskimarcin",
-                                    color: "#000000",
+                                    color: "#ffffff",
                                     label: "TikTok",
-                                    hoverColor: "rgba(0,0,0,0.1)",
-                                    isDark: true // Flag for dark mode adjustment if needed
+                                    hoverColor: "rgba(255,255,255,0.1)",
+                                    badge: "user"
                                 },
                             ].map((social, idx) => (
                                 <a
@@ -244,31 +249,56 @@ export default function YouTubeFeed() {
                                     title={social.label}
                                     className="social-icon-btn"
                                     style={{
-                                        color: social.color === "#000000" && typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? "#fff" : social.color,
-                                        // Dynamic color fix for TikTok in dark mode handled by CSS usually, but here inline.
-                                        // Actually better to use CSS variable or utility.
-                                        // Let's rely on a className and style.
-                                        background: 'transparent',
-                                        padding: '12px',
+                                        color: social.color,
+                                        background: 'rgba(255,255,255,0.03)',
+                                        padding: '14px',
                                         borderRadius: '50%',
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
                                         transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
-                                        border: `1px solid ${social.color}20`
+                                        border: `1px solid ${social.color}40`,
+                                        position: 'relative'
                                     }}
                                     onMouseEnter={(e) => {
-                                        e.currentTarget.style.transform = 'scale(1.2)';
+                                        e.currentTarget.style.transform = 'scale(1.15)';
                                         e.currentTarget.style.background = social.hoverColor;
+                                        e.currentTarget.style.borderColor = social.color;
                                         e.currentTarget.style.boxShadow = `0 10px 20px -10px ${social.color}`;
                                     }}
                                     onMouseLeave={(e) => {
                                         e.currentTarget.style.transform = 'scale(1)';
-                                        e.currentTarget.style.background = 'transparent';
+                                        e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
+                                        e.currentTarget.style.borderColor = `${social.color}40`;
                                         e.currentTarget.style.boxShadow = 'none';
                                     }}
                                 >
                                     {social.icon}
+
+                                    {/* BADGE */}
+                                    {social.badge && (
+                                        <div style={{
+                                            position: 'absolute',
+                                            bottom: '-6px',
+                                            right: '-6px',
+                                            width: '20px',
+                                            height: '20px',
+                                            background: 'var(--color-surface)',
+                                            border: `1px solid ${social.color}`,
+                                            borderRadius: '50%',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            boxShadow: '0 2px 5px rgba(0,0,0,0.5)',
+                                            overflow: 'hidden'
+                                        }}>
+                                            {social.badge === 'logo' ? (
+                                                <img src="/logo-transparent.png" alt="Clinic" style={{ width: '80%', height: 'auto', opacity: 0.9 }} />
+                                            ) : (
+                                                <UserRound size={12} color={social.color} />
+                                            )}
+                                        </div>
+                                    )}
                                 </a>
                             ))}
                         </div>
