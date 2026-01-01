@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import RevealOnScroll from "@/components/RevealOnScroll";
+import InteriorCollage from "@/components/InteriorCollage";
 import { useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 
@@ -50,14 +51,11 @@ export default function AboutPage() {
                         <RevealOnScroll animation="blur-in" delay={100}>
                             <div style={{
                                 minHeight: "500px",
-                                background: "var(--color-surface)",
-                                borderRadius: "2px",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                border: "1px solid var(--color-surface-hover)"
+                                height: "100%",
+                                width: "100%",
+                                position: "relative"
                             }}>
-                                <span style={{ color: "var(--color-text-muted)" }}>[FOTOGRAFIA KLINIKI - WNĘTRZE]</span>
+                                <InteriorCollage />
                             </div>
                         </RevealOnScroll>
 
