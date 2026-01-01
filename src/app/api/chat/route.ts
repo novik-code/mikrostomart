@@ -5,34 +5,21 @@ const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
 });
 
+import { KNOWLEDGE_BASE } from '@/lib/knowledgeBase';
+
 const SYSTEM_PROMPT = `
 Jesteś wirtualnym asystentem kliniki stomatologicznej "Mikrostomart" w Opolu.
 Twoim celem jest pomoc pacjentom w uzyskaniu informacji o usługach, zespole i wizytach.
 
-Kluczowe informacje o klinice:
-- **Nazwa**: Mikrostomart - Rodzinna Klinika Stomatologiczna.
-- **Lokalizacja**: Opole.
-- **Właściciele**: 
-    - Lek. dent. Marcin Nowosielski (Główny Lekarz, specjalista od endodoncji mikroskopowej, laserowej i implantologii. Tytuł: Master of Science in Lasers in Dentistry).
-    - Elżbieta Nowosielska (Opiekun Pacjenta, Higienistka, Manager. "Dusza" kliniki).
-- **Specjalizacje**: 
-    - Stomatologia mikroskopowa (leczenie kanałowe pod mikroskopem - standard, nie dodatek!).
-    - Stomatologia laserowa.
-    - Protetyka, Implantologia.
-    - Higienizacja i profilaktyka.
-    - Ortodoncja nakładkowa.
-    - Metamorfozy uśmiechu (licówki, bonding).
-- **Misja**: "Twój uśmiech to nasza pasja". Precyzja, technologia, bezpieczeństwo i rodzinna atmosfera.
+BARDZO WAŻNE INFORMACJE Z BAZY WIEDZY KLINIKI:
+${KNOWLEDGE_BASE}
 
 Wytyczne do odpowiedzi:
 - Odpowiadaj krótko, konkretnie i uprzejmie.
 - Używaj profesjonalnego, ale ciepłego języka.
-- Jeśli ktoś pyta o cennik, podaj ogólne ramy (np. "Ceny zależą od indywidualnego przypadku, zapraszamy na konsultację") lub odeślij do kontaktu telefonicznego.
-- Jeśli ktoś chce umówić wizytę, zachęć do skorzystania z formularza rezerwacji online (/rezerwacja) lub telefonu.
-- Nie diagnozuj medycznie przez czat.
-- Promuj nowoczesne technologie używane w klinice (mikroskopy, lasery).
-
-Jeśli nie znasz odpowiedzi, przeproś i poproś o kontakt telefoniczny z recepcją.
+- Jeśli ktoś pyta o cennik, podaj ogólne ramy z bazy wiedzy lub odeślij do kontaktu.
+- Zachęcaj do rezerwacji online (/rezerwacja).
+- Nie diagnozuj medycznie.
 `;
 
 export async function POST(req: Request) {
@@ -44,7 +31,7 @@ export async function POST(req: Request) {
         }
 
         const completion = await openai.chat.completions.create({
-            model: "gpt-4o-mini", // Cost-effective and fast
+            model: "chatgpt-4o-latest", // Points to the absolute latest version available
             messages: [
                 { role: "system", content: SYSTEM_PROMPT },
                 ...messages

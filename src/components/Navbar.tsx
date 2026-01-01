@@ -5,9 +5,12 @@ import Link from 'next/link';
 import Image from 'next/image';
 import styles from './Navbar.module.css';
 
+import { useAssistant } from "@/context/AssistantContext";
+
 export default function Navbar() {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const { openChat } = useAssistant();
 
     const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
     const closeMenu = () => setIsMenuOpen(false);
@@ -97,8 +100,11 @@ export default function Navbar() {
                                         ✨ Symulator Uśmiechu
 
                                     </Link>
-                                    <Link
-                                        href="/asystent"
+                                    <button
+                                        onClick={() => {
+                                            openChat();
+                                            setIsDropdownOpen(false);
+                                        }}
                                         className={styles.link}
                                         style={{
                                             display: 'block',
@@ -108,11 +114,14 @@ export default function Navbar() {
                                             color: '#60a5fa', // Blueish
                                             whiteSpace: 'nowrap',
                                             textTransform: 'uppercase',
-                                            letterSpacing: '0.05em'
+                                            letterSpacing: '0.05em',
+                                            background: 'transparent',
+                                            border: 'none',
+                                            cursor: 'pointer'
                                         }}
                                     >
                                         🤖 Wirtualny Asystent
-                                    </Link>
+                                    </button>
                                 </div>
                             </div>
                         )}
@@ -153,7 +162,25 @@ export default function Navbar() {
                             <div style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Dodatki</div>
                             <Link href="/sklep" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem' }}>🛍️ Sklep</Link>
                             <Link href="/symulator" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', color: 'var(--color-primary)', marginBottom: '0.5rem' }}>✨ Symulator AI</Link>
-                            <Link href="/asystent" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', color: '#60a5fa' }}>🤖 Wirtualny Asystent</Link>
+                            <button
+                                onClick={() => {
+                                    openChat();
+                                    closeMenu();
+                                }}
+                                className={styles.mobileLink}
+                                style={{
+                                    display: 'block',
+                                    color: '#60a5fa',
+                                    background: 'transparent',
+                                    border: 'none',
+                                    textAlign: 'left',
+                                    width: '100%',
+                                    paddingLeft: 0,
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                🤖 Wirtualny Asystent
+                            </button>
                         </div>
 
                         <Link href="/kontakt" className={styles.mobileLink} onClick={closeMenu}>Kontakt</Link>

@@ -3,6 +3,7 @@ import { Inter, Playfair_Display } from "next/font/google";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { CartProvider } from "@/context/CartContext";
+import { AssistantProvider } from "@/context/AssistantContext";
 import AssistantTeaser from "@/components/AssistantTeaser";
 import "./globals.css";
 
@@ -30,13 +31,15 @@ export default function RootLayout({
     <html lang="pl">
       <body className={`${inter.variable} ${playfair.variable}`}>
         <CartProvider>
-          <BackgroundVideo videoId="vGAu6rdJ8WQ" />
-          <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-            <Navbar />
-            {children}
-            <AssistantTeaser />
-            <Footer />
-          </div>
+          <AssistantProvider>
+            <BackgroundVideo videoId="vGAu6rdJ8WQ" />
+            <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+              <Navbar />
+              {children}
+              <AssistantTeaser />
+              <Footer />
+            </div>
+          </AssistantProvider>
         </CartProvider>
       </body>
     </html>
