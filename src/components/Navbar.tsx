@@ -71,9 +71,11 @@ export default function Navbar() {
                                             display: 'block',
                                             padding: '0.75rem 1.5rem',
                                             width: '100%',
-                                            textAlign: 'left',
+                                            textAlign: 'center',
                                             color: 'var(--color-text-main)',
-                                            whiteSpace: 'nowrap'
+                                            whiteSpace: 'nowrap',
+                                            textTransform: 'uppercase',
+                                            letterSpacing: '0.05em'
                                         }}
                                     >
                                         🛍️ Sklep
@@ -85,12 +87,15 @@ export default function Navbar() {
                                             display: 'block',
                                             padding: '0.75rem 1.5rem',
                                             width: '100%',
-                                            textAlign: 'left',
+                                            textAlign: 'center',
                                             color: 'var(--color-primary)',
-                                            whiteSpace: 'nowrap'
+                                            whiteSpace: 'nowrap',
+                                            textTransform: 'uppercase',
+                                            letterSpacing: '0.05em'
                                         }}
                                     >
                                         ✨ Symulator Uśmiechu
+
                                     </Link>
                                     {/* Future items can be added here */}
                                 </div>
