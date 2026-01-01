@@ -276,8 +276,31 @@ export default function SimulatorPage() {
 
                 // USE OVERLAY MASK (Respects Lip Line)
                 if (overlayMask) {
-                    const overlayMaskBlob = dataURItoBlob(overlayMask);
-                    formData.append("mask", overlayMaskBlob, "mask.png");
+                    // CONVERT TRANSPARENT MASK TO BINARY MASK (Black BG / White Teeth) FOR API
+                    const binCanvas = document.createElement('canvas');
+                    binCanvas.width = 1024;
+                    binCanvas.height = 1024;
+                    const bCtx = binCanvas.getContext('2d');
+                    if (bCtx) {
+                        // 1. Fill Black
+                        bCtx.fillStyle = "black";
+                        bCtx.fillRect(0, 0, 1024, 1024);
+
+                        // 2. Draw Transparent Mask (White Teeth)
+                        // We need to await image load
+                        await new Promise<void>((resolve) => {
+                            const img = new window.Image();
+                            img.onload = () => {
+                                bCtx.drawImage(img, 0, 0);
+                                resolve();
+                            };
+                            img.src = overlayMask;
+                        });
+
+                        const binaryMaskUrl = binCanvas.toDataURL("image/png");
+                        const overlayMaskBlob = dataURItoBlob(binaryMaskUrl);
+                        formData.append("mask", overlayMaskBlob, "mask.png");
+                    }
                 } else {
                     // Fallback (should not happen if OverlayEditor works)
                     formData.append("mask", maskBlob, "mask.png");
@@ -472,7 +495,7 @@ export default function SimulatorPage() {
                         <h1 style={{ fontSize: "clamp(2rem, 5vw, 3.5rem)", marginBottom: "0.5rem" }}>
                             Wirtualna Przymierzalnia
                         </h1>
-                        WERSJA 6.3 (Mask Logic Fix)
+                        WERSJA 6.4 (Transparency Arch)
                         <p style={{ color: "var(--color-text-muted)", maxWidth: "600px", margin: "0 auto" }}>
                             Wgraj swoje zdjęcie, wybierz tryb (AI lub Szablon) i zobacz nową wersję uśmiechu.
                         </p>

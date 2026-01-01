@@ -233,16 +233,13 @@ export default function OverlayEditor({ baseImage, templateImage, onCompositeRea
                         mCtx.fillRect(-drawW, -drawH, drawW * 2, drawH * 2);
                         mCtx.restore();
 
-                        // 4. Fill Background with Black (behind the teeth)
-                        mCtx.globalCompositeOperation = "destination-over";
-                        mCtx.fillStyle = "black";
-                        mCtx.fillRect(0, 0, 1024, 1024);
+                        // 4. SKIP FILLING BLACK (We need transparency for CSS Shield)
+                        // mCtx.globalCompositeOperation = "destination-over";
+                        // ...
 
-                        // Reset composite operation for next steps involved (Lip Clip)
-                        mCtx.globalCompositeOperation = "source-over";
-
-                        // 3. Apply Lip Clip (Black Eraser for Upper Lip)
+                        // 3. Apply Lip Clip (Eraser for Upper Lip)
                         if (maskMode) {
+                            mCtx.globalCompositeOperation = "destination-out"; // ERASE mode
                             mCtx.save();
                             mCtx.beginPath();
                             mCtx.moveTo(lipMask.p1.x, lipMask.p1.y);
@@ -253,7 +250,7 @@ export default function OverlayEditor({ baseImage, templateImage, onCompositeRea
                             mCtx.lineTo(lipMask.p1.x, lipMask.p1.y);
                             mCtx.closePath();
 
-                            mCtx.fillStyle = "black";
+                            mCtx.fillStyle = "black"; // Color doesn't matter in destination-out, alpha does
                             mCtx.fill();
                             mCtx.restore();
                         }
