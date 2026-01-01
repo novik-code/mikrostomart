@@ -2,22 +2,48 @@ import Image from 'next/image';
 
 export default function Footer() {
     return (
-        <footer className="section" style={{ background: 'var(--color-surface)', marginTop: 'auto', borderTop: '1px solid var(--color-surface-hover)' }}>
-            <div className="container" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--spacing-lg)' }}>
+        <footer className="section" style={{
+            background: 'var(--color-surface)',
+            marginTop: 'auto',
+            borderTop: '1px solid var(--color-surface-hover)',
+            position: 'relative',
+            overflow: 'hidden'
+        }}>
+
+            {/* Watermark Logo */}
+            <div style={{
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                width: '100%',
+                height: '100%',
+                opacity: 0.03,
+                pointerEvents: 'none',
+                zIndex: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                filter: 'grayscale(100%)' // Optional: make it purely textural
+            }}>
+                <Image
+                    src="/logo-transparent.png"
+                    alt="Watermark"
+                    fill
+                    style={{ objectFit: 'contain', transform: 'scale(1.5)' }}
+                />
+            </div>
+
+            <div className="container" style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                gap: 'var(--spacing-lg)',
+                position: 'relative',
+                zIndex: 1
+            }}>
 
                 <div>
-                    <div style={{ marginBottom: 'var(--spacing-sm)' }}>
-                        <Image
-                            src="/logo-transparent.png"
-                            alt="Mikrostomart"
-                            width={200}
-                            height={60}
-                            style={{
-                                objectFit: 'contain',
-                                marginLeft: '-10px'
-                            }}
-                        />
-                    </div>
+                    <h3 style={{ color: 'var(--color-primary)', marginBottom: 'var(--spacing-sm)' }}>Mikrostomart</h3>
                     <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>
                         Mikroskopowa Stomatologia Artystyczna.<br />
                         Precyzja którą zobaczysz w uśmiechu.
@@ -45,7 +71,16 @@ export default function Footer() {
                 </div>
 
             </div>
-            <div className="container" style={{ marginTop: 'var(--spacing-lg)', paddingTop: 'var(--spacing-md)', borderTop: '1px solid var(--color-surface-hover)', textAlign: 'center', fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
+            <div className="container" style={{
+                marginTop: 'var(--spacing-lg)',
+                paddingTop: 'var(--spacing-md)',
+                borderTop: '1px solid var(--color-surface-hover)',
+                textAlign: 'center',
+                fontSize: '0.8rem',
+                color: 'var(--color-text-muted)',
+                position: 'relative',
+                zIndex: 1
+            }}>
                 © {new Date().getFullYear()} Mikrostomart. Wszelkie prawa zastrzeżone.
             </div>
         </footer>
