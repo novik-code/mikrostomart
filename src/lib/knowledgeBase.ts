@@ -118,6 +118,16 @@ Klinika udziela **2-letniej rękojmi** na wypełnienia i protetykę, pod warunki
 - Podkreślaj jakość i bezpieczeństwo.
 - Jeśli pacjent pyta o ból -> zapewnij o znieczuleniu.
 
-## LOKALIZACJA
-- Opole. (Dokładny adres jeśli pytają: ul. [Uzupełnić jeśli znany, na razie Opole]).
+## DANE KONTAKTOWE I LOKALIZACJA
+- **Adres**: ul. Centralna 33a, 45-940 Opole (Dzielnica Chmielowice).
+  - *Wskazówka*: Budynek wolnostojący, łatwy dojazd z centrum Opola.
+- **Parking**: **Bezpłatny parking dla pacjentów** znajduje się bezpośrednio pod kliniką (prywatny teren).
+- **Godziny Otwarcia**:
+  - Poniedziałek - Czwartek: 09:00 - 20:00
+  - Piątek: 09:00 - 16:00
+  - Sobota: Wybrane terminy (po uzgodnieniu).
+- **Kontakt Telefoniczny**:
+  - Rejestracja: +48 570 270 470 (Główny numer)
+  - Numer dodatkowy: +48 570 810 800
+- **Email**: gabinet@mikrostomart.pl
 `;

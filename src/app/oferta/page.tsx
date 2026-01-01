@@ -1,39 +1,9 @@
+"use client";
+
 import RevealOnScroll from "@/components/RevealOnScroll";
+import OfferCarousel from "@/components/OfferCarousel";
 
 export default function OfferPage() {
-    const services = [
-        {
-            title: "Leczenie pod Mikroskopem",
-            description: "Najwyższa precyzja w leczeniu kanałowym (endodoncja). Uratujemy zęby, które inni spisali na straty.",
-            priceStart: "od 800 PLN"
-        },
-        {
-            title: "Stomatologia Zachowawcza",
-            description: "Estetyczne wypełnienia, odbudowy kompozytowe i leczenie próchnicy z dbałością o naturalny wygląd.",
-            priceStart: "od 300 PLN"
-        },
-        {
-            title: "Chirurgia i Implanty",
-            description: "Bezbolesne usuwanie ósemek, implantacja i odbudowa braków zębowych.",
-            priceStart: "od 500 PLN"
-        },
-        {
-            title: "Protetyka",
-            description: "Licówki, korony pełnoceramiczne i mosty. Projektujemy nowy uśmiech cyfrowo.",
-            priceStart: "od 2000 PLN"
-        },
-        {
-            title: "Profilaktyka",
-            description: "Profesjonalne czyszczenie (skaling, piaskowanie) i instruktaż higieny.",
-            priceStart: "od 250 PLN"
-        },
-        {
-            title: "RTG Diagnostyka",
-            description: "Na miejscu wykonujemy zdjęcia punktowe i pantomograficzne. Pełna diagnostyka w jednym gabinecie.",
-            priceStart: "od 50 PLN"
-        }
-    ];
-
     return (
         <main>
             <section className="section" style={{ minHeight: "40vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -63,54 +33,22 @@ export default function OfferPage() {
                 </div>
             </section>
 
-            <section className="section" style={{ background: "var(--color-surface)" }}>
-                <div className="container" style={{ maxWidth: "900px" }}>
+            <section className="section" style={{ background: "transparent" }}>
+                {/* 
+                   Was: var(--color-surface). Changed to transparent to allow video loop to show.
+                   The original list had a background. The carousel is transparent.
+               */}
+                <div className="container" style={{ maxWidth: "100%" }}> {/* Expanded width for carousel */}
 
-                    <div style={{ display: "flex", flexDirection: "column" }}>
-                        {services.map((service, index) => (
-                            <RevealOnScroll key={index} delay={index % 3 * 100 as 0 | 100 | 200}>
-                                <div style={{
-                                    padding: "var(--spacing-lg) 0",
-                                    borderBottom: "1px solid var(--color-surface-hover)",
-                                    display: "grid",
-                                    gridTemplateColumns: "1fr auto",
-                                    gap: "var(--spacing-md)",
-                                    alignItems: "baseline"
-                                }}>
-                                    <div>
-                                        <h3 style={{
-                                            fontSize: "2rem",
-                                            marginBottom: "var(--spacing-sm)",
-                                            color: "var(--color-text-main)",
-                                            fontWeight: 400
-                                        }}>
-                                            {service.title}
-                                        </h3>
-                                        <p style={{ color: "var(--color-text-muted)", marginBottom: "var(--spacing-md)", maxWidth: "80%" }}>
-                                            {service.description}
-                                        </p>
-                                        <a href="/rezerwacja" style={{
-                                            color: "var(--color-primary)",
-                                            fontSize: "0.9rem",
-                                            textTransform: "uppercase",
-                                            letterSpacing: "0.1em",
-                                            textDecoration: "underline",
-                                            textUnderlineOffset: "4px"
-                                        }}>
-                                            Umów wizytę →
-                                        </a>
-                                    </div>
-                                </div>
-                            </RevealOnScroll>
-                        ))}
+                    {/* The New Carousel */}
+                    <div style={{ padding: "var(--spacing-lg) 0" }}>
+                        <OfferCarousel />
                     </div>
 
-                    <div style={{ marginTop: "var(--spacing-xl)", textAlign: "center" }}>
-                        <RevealOnScroll animation="fade-up">
-                            <a href="/kontakt" className="btn-primary" style={{ padding: "1rem 3rem" }}>
-                                Skontaktuj się z nami
-                            </a>
-                        </RevealOnScroll>
+                    <div style={{ marginTop: "var(--spacing-xl)", textAlign: "center", marginBottom: "var(--spacing-xl)" }}>
+                        <a href="/kontakt" className="btn-primary" style={{ padding: "1rem 3rem" }}>
+                            Skontaktuj się z nami
+                        </a>
                     </div>
                 </div>
             </section>
