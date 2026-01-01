@@ -522,15 +522,23 @@ export default function SimulatorPage() {
                                 <strong>Image URL:</strong> {resultImage ? resultImage : "NULL"}<br />
 
                                 {/* Composite Preview */}
-                                {debugInfo && (() => {
+                                {(() => {
                                     try {
-                                        const parsed = JSON.parse(debugInfo);
-                                        return parsed.composite ? (
-                                            <div style={{ margin: '10px 0' }}>
-                                                <strong>Real Mask Sent to AI:</strong><br />
-                                                <img src={parsed.composite} style={{ width: '100px', height: '100px', border: '1px solid black' }} alt="Debug mask" />
+                                        // ALWAYS SHOW MASK FOR DEBUGGING
+                                        return (
+                                            <div style={{ margin: '10px 0', borderTop: '1px solid #ccc', paddingTop: '10px' }}>
+                                                <strong>DEBUG MASK (CSS Shield):</strong><br />
+                                                <img
+                                                    src={simulatorMode === 'template-overlay' && overlayMask ? overlayMask : (maskImage || '')}
+                                                    style={{ width: '100px', height: '100px', background: 'gray', border: '1px solid black' }}
+                                                    alt="CSS Shield Mask"
+                                                />
+                                                <div style={{ fontSize: '10px' }}>
+                                                    If this is a white square, the shield is broken.<br />
+                                                    If this is teeth-shape, the shield is working.
+                                                </div>
                                             </div>
-                                        ) : null;
+                                        );
                                     } catch (e) { return null; }
                                 })()}
 
