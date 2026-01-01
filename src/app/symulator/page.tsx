@@ -5,6 +5,7 @@ import Image from "next/image";
 import RevealOnScroll from "@/components/RevealOnScroll";
 import BeforeAfterSlider from "@/components/BeforeAfterSlider";
 import OverlayEditor from "@/components/OverlayEditor";
+import { analysisFaceAlignment, SmileAlignment } from "@/helpers/faceDetection";
 
 /*
   SIMULATOR PAGE (Replicate / Flux Edition)
@@ -26,6 +27,7 @@ export default function SimulatorPage() {
 
     // State for Mask Configuration
     const [maskConfig, setMaskConfig] = useState({ x: 50, y: 65, scaleX: 1.0, scaleY: 1.0 });
+    const [autoAlignment, setAutoAlignment] = useState<SmileAlignment | null>(null); // NEW: Auto-detected face props
 
     // State for Smile Style
     const [smileStyle, setSmileStyle] = useState("hollywood");
@@ -89,6 +91,29 @@ export default function SimulatorPage() {
 
             // Trigger initial mask generation with the FRESH image data
             generateMask(maskConfig, layout, processedPng);
+
+            // 1b. Run Auto-Alignment (Face Detection)
+            try {
+                // We use the raw img object
+                const alignment = await analysisFaceAlignment(img);
+                if (alignment) {
+                    console.log("✅ Face Auto-Aligned:", alignment);
+                    setAutoAlignment(alignment);
+
+                    // Also update the 'maskConfig' used for AI mode (fallback)
+                    setMaskConfig({
+                        x: alignment.x,
+                        y: alignment.y,
+                        scaleX: alignment.scale, // Scale logic might differ slightly for oval mask vs template
+                        scaleY: alignment.scale
+                    });
+                } else {
+                    console.log("⚠️ No face detected for auto-alignment.");
+                    setAutoAlignment(null);
+                }
+            } catch (e) {
+                console.error("Auto-alignment failed", e);
+            }
 
         } catch (err) {
             console.error("Processing Error", err);
@@ -445,7 +470,7 @@ export default function SimulatorPage() {
                         <h1 style={{ fontSize: "clamp(2rem, 5vw, 3.5rem)", marginBottom: "0.5rem" }}>
                             Wirtualna Przymierzalnia
                         </h1>
-                        WERSJA 6.0 (CSS Hard Shield)
+                        WERSJA 6.1 (Magic Input AI)
                         <p style={{ color: "var(--color-text-muted)", maxWidth: "600px", margin: "0 auto" }}>
                             Wgraj swoje zdjęcie, wybierz tryb (AI lub Szablon) i zobacz nową wersję uśmiechu.
                         </p>
@@ -544,9 +569,10 @@ export default function SimulatorPage() {
                                                         templateImage={`/template_${smileStyle}.png`}
                                                         onCompositeReady={(url) => setCompositeImage(url)}
                                                         onMaskReady={(url) => setOverlayMask(url)}
+                                                        initialAlignment={autoAlignment}
                                                     />
                                                     <div style={{ fontSize: '10px', color: 'gray', textAlign: 'center', marginTop: '5px' }}>
-                                                        *Przesuwaj/Skaluj szablon. AI wtopi go w zdjęcie.
+                                                        {autoAlignment ? "✨ Dopasowano automatycznie" : "Przesuwaj/Skaluj szablon. AI wtopi go w zdjęcie."}
                                                     </div>
                                                 </div>
                                             ) : (

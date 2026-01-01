@@ -8,19 +8,34 @@ interface OverlayEditorProps {
     templateImage: string;
     onCompositeReady: (compositeDataUrl: string) => void;
     onMaskReady?: (maskDataUrl: string) => void;
+    initialAlignment?: { x: number, y: number, scale: number, rotation: number } | null;
 }
 
-export default function OverlayEditor({ baseImage, templateImage, onCompositeReady, onMaskReady }: OverlayEditorProps) {
+export default function OverlayEditor({ baseImage, templateImage, onCompositeReady, onMaskReady, initialAlignment }: OverlayEditorProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     // State for Image Layout
-    const [config, setConfig] = useState({
-        x: 512,
-        y: 512,
-        scaleX: 1.0,
-        scaleY: 1.0,
-        rotation: 0,
-        opacity: 0.85,
-        curve: 0 // New: Smile Curvature (-1 to 1)
+    const [config, setConfig] = useState(() => {
+        // Initialize with auto-alignment if available
+        if (initialAlignment) {
+            return {
+                x: (initialAlignment.x / 100) * 1024,
+                y: (initialAlignment.y / 100) * 1024,
+                scaleX: initialAlignment.scale,
+                scaleY: initialAlignment.scale,
+                rotation: initialAlignment.rotation,
+                opacity: 0.85,
+                curve: 0
+            };
+        }
+        return {
+            x: 512,
+            y: 512,
+            scaleX: 1.0,
+            scaleY: 1.0,
+            rotation: 0,
+            opacity: 0.85,
+            curve: 0
+        };
     });
 
     // State for Lip Mask (Bezier Curve)
