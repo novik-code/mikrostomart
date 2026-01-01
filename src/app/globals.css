@@ -318,3 +318,21 @@ a:hover {
     display: none !important;
   }
 }
+
+/* Link Hover Utilities */
+.hover-primary {
+  transition: color var(--transition-fast);
+}
+
+.hover-primary:hover {
+  color: var(--color-primary) !important;
+}
+
+.hover-underline {
+  transition: color var(--transition-fast);
+}
+
+.hover-underline:hover {
+  text-decoration: underline !important;
+  color: var(--color-primary) !important;
+}
