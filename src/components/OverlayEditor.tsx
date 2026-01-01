@@ -216,11 +216,10 @@ export default function OverlayEditor({ baseImage, templateImage, onCompositeRea
                         const drawW = 1024;
                         const drawH = 1024 * (imgTemplate.height / imgTemplate.width);
 
-                        // 1. Fill Black (Background)
-                        mCtx.fillStyle = "black";
-                        mCtx.fillRect(0, 0, 1024, 1024);
+                        // 1. Clear Canvas (Transparent)
+                        mCtx.clearRect(0, 0, 1024, 1024);
 
-                        // 2. Draw Teeth (White)
+                        // 2. Draw Teeth (Normal)
                         mCtx.save();
                         mCtx.translate(config.x, config.y);
                         mCtx.rotate((config.rotation * Math.PI) / 180);
@@ -228,11 +227,19 @@ export default function OverlayEditor({ baseImage, templateImage, onCompositeRea
 
                         mCtx.drawImage(imgTemplate, -drawW / 2, -drawH / 2, drawW, drawH);
 
-                        // Force teeth to be pure white
+                        // 3. Turn Non-Transparent Pixels to White
                         mCtx.globalCompositeOperation = "source-in";
                         mCtx.fillStyle = "white";
                         mCtx.fillRect(-drawW, -drawH, drawW * 2, drawH * 2);
                         mCtx.restore();
+
+                        // 4. Fill Background with Black (behind the teeth)
+                        mCtx.globalCompositeOperation = "destination-over";
+                        mCtx.fillStyle = "black";
+                        mCtx.fillRect(0, 0, 1024, 1024);
+
+                        // Reset composite operation for next steps involved (Lip Clip)
+                        mCtx.globalCompositeOperation = "source-over";
 
                         // 3. Apply Lip Clip (Black Eraser for Upper Lip)
                         if (maskMode) {
