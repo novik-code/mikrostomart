@@ -234,12 +234,22 @@ export default function OverlayEditor({ baseImage, templateImage, onCompositeRea
                         // 1. Clear Canvas (Transparent)
                         mCtx.clearRect(0, 0, 1024, 1024);
 
-                        // 2. Draw Teeth (Normal)
+                        // 2. Draw Teeth (Normal) -> NOW WITH SHADOW TO FILL GAPS
                         mCtx.save();
                         mCtx.translate(config.x, config.y);
                         mCtx.rotate((config.rotation * Math.PI) / 180);
                         mCtx.scale(config.scaleX, config.scaleY);
 
+                        // Add Shadow to fill interdental transparency
+                        // This ensures the CSS Shield doesn't show old teeth gaps
+                        mCtx.shadowColor = "white"; // Same color as mask
+                        mCtx.shadowBlur = 15;       // Strong blur to bridge 5-10px gaps
+                        mCtx.shadowOffsetX = 0;
+                        mCtx.shadowOffsetY = 0;
+
+                        mCtx.drawImage(imgTemplate, -drawW / 2, -drawH / 2, drawW, drawH);
+                        // Draw again to intensify core
+                        mCtx.shadowBlur = 0;
                         mCtx.drawImage(imgTemplate, -drawW / 2, -drawH / 2, drawW, drawH);
 
                         // 3. Turn Non-Transparent Pixels to White
