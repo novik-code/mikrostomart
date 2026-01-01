@@ -79,9 +79,22 @@ export default function Footer() {
                 fontSize: '0.8rem',
                 color: 'var(--color-text-muted)',
                 position: 'relative',
-                zIndex: 1
+                zIndex: 1,
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                gap: '2rem',
+                flexWrap: 'wrap'
             }}>
-                © {new Date().getFullYear()} Mikrostomart. Wszelkie prawa zastrzeżone.
+                <span>© {new Date().getFullYear()} Mikrostomart. Wszelkie prawa zastrzeżone.</span>
+                <a
+                    href="/regulamin.docx"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ color: 'var(--color-text-muted)', textDecoration: 'underline' }}
+                >
+                    Regulamin
+                </a>
             </div>
         </footer>
     );
