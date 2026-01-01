@@ -52,13 +52,31 @@ export default function Footer() {
 
                 <div>
                     <h4 style={{ color: 'var(--color-text-main)', marginBottom: 'var(--spacing-sm)' }}>Kontakt</h4>
-                    <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>
-                        ul. Centralna 33a<br />
-                        45-940 Opole/Chmielowice<br />
-                        <br />
-                        Tel: 570-270-470<br />
-                        Email: gabinet@mikrostomart.pl
-                    </p>
+                    <div style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>
+                        <a
+                            href="https://www.google.com/maps/search/?api=1&query=Mikrostomart+Opole+ul.+Centralna+33a"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ color: 'var(--color-text-muted)', textDecoration: 'none', display: 'block', marginBottom: '0.5rem' }}
+                            className="hover-underline"
+                        >
+                            ul. Centralna 33a<br />
+                            45-940 Opole/Chmielowice
+                        </a>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                            <a href="tel:+48570270470" style={{ color: 'var(--color-text-muted)', textDecoration: 'none' }} className="hover-primary">
+                                Tel: 570-270-470
+                            </a>
+                            <a href="tel:+48570810800" style={{ color: 'var(--color-text-muted)', textDecoration: 'none' }} className="hover-primary">
+                                Tel: 570-810-800
+                            </a>
+                        </div>
+
+                        <a href="mailto:gabinet@mikrostomart.pl" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', display: 'block', marginTop: '0.5rem' }} className="hover-primary">
+                            Email: gabinet@mikrostomart.pl
+                        </a>
+                    </div>
                 </div>
 
                 <div>
