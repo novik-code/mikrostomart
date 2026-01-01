@@ -97,7 +97,22 @@ export default function Navbar() {
                                         ✨ Symulator Uśmiechu
 
                                     </Link>
-                                    {/* Future items can be added here */}
+                                    <Link
+                                        href="/asystent"
+                                        className={styles.link}
+                                        style={{
+                                            display: 'block',
+                                            padding: '0.75rem 1.5rem',
+                                            width: '100%',
+                                            textAlign: 'center',
+                                            color: '#60a5fa', // Blueish
+                                            whiteSpace: 'nowrap',
+                                            textTransform: 'uppercase',
+                                            letterSpacing: '0.05em'
+                                        }}
+                                    >
+                                        🤖 Wirtualny Asystent
+                                    </Link>
                                 </div>
                             </div>
                         )}
@@ -137,7 +152,8 @@ export default function Navbar() {
                         <div style={{ padding: '1rem 0', borderTop: '1px solid rgba(255,255,255,0.1)', borderBottom: '1px solid rgba(255,255,255,0.1)', width: '100%' }}>
                             <div style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Dodatki</div>
                             <Link href="/sklep" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem' }}>🛍️ Sklep</Link>
-                            <Link href="/symulator" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', color: 'var(--color-primary)' }}>✨ Symulator AI</Link>
+                            <Link href="/symulator" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', color: 'var(--color-primary)', marginBottom: '0.5rem' }}>✨ Symulator AI</Link>
+                            <Link href="/asystent" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', color: '#60a5fa' }}>🤖 Wirtualny Asystent</Link>
                         </div>
 
                         <Link href="/kontakt" className={styles.mobileLink} onClick={closeMenu}>Kontakt</Link>
