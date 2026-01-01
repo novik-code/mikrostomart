@@ -58,7 +58,7 @@ export default function Navbar() {
                                     border: '1px solid var(--color-surface-hover)',
                                     borderRadius: 'var(--radius-md)',
                                     padding: '0.5rem 0',
-                                    minWidth: '220px',
+                                    minWidth: '260px', // More space
                                     boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
                                     display: 'flex',
                                     flexDirection: 'column',
@@ -67,14 +67,28 @@ export default function Navbar() {
                                     <Link
                                         href="/sklep"
                                         className={styles.link}
-                                        style={{ display: 'block', padding: '0.75rem 1.5rem', width: '100%', textAlign: 'left', color: 'var(--color-text-main)' }}
+                                        style={{
+                                            display: 'block',
+                                            padding: '0.75rem 1.5rem',
+                                            width: '100%',
+                                            textAlign: 'left',
+                                            color: 'var(--color-text-main)',
+                                            whiteSpace: 'nowrap'
+                                        }}
                                     >
                                         🛍️ Sklep
                                     </Link>
                                     <Link
                                         href="/symulator"
                                         className={styles.link}
-                                        style={{ display: 'block', padding: '0.75rem 1.5rem', width: '100%', textAlign: 'left', color: 'var(--color-primary)' }}
+                                        style={{
+                                            display: 'block',
+                                            padding: '0.75rem 1.5rem',
+                                            width: '100%',
+                                            textAlign: 'left',
+                                            color: 'var(--color-primary)',
+                                            whiteSpace: 'nowrap'
+                                        }}
                                     >
                                         ✨ Symulator Uśmiechu
                                     </Link>
