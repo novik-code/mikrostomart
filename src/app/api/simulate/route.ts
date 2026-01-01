@@ -163,27 +163,24 @@ export async function POST(req: NextRequest) {
         await new Promise(resolve => setTimeout(resolve, 2000));
 
         // PASS 2: BUILD
-        const proModelRepo = await replicate.models.get("black-forest-labs", "flux-fill-pro");
-        const proVersion = proModelRepo.latest_version?.id;
-
-        if (!proVersion) throw new Error("Flux Fill Pro version not found");
-
+        // We use 'flux-fill-dev' for consistency and control. 'Pro' might have different parameter scaling.
         let buildPrediction = await createWithRetry(() => replicate.predictions.create({
-            version: proVersion,
+            version: latestVersion, // Use same version as Pass 1 (Flux Fill Dev)
             input: {
                 image: erasedImageUrl,
                 mask: maskUri,
-                prompt: `Photorealistic dental smile makeover (FLUX fill / black-forest-labs/flux-fill-dev, inpaint masked area only). In the masked region, COMPLETELY IGNORE the original teeth and rebuild a brand-new ideal smile from scratch (do not follow the initial tooth positions, shapes, gaps, discoloration, or missing teeth; treat the masked area as blank). Create a proportional, perfectly symmetric upper dental arch ONLY as far as the smile reveals, but ALWAYS as left-right pairs with correct tooth count: exactly TWO central incisors (11 & 21), TWO lateral incisors (12 & 22), TWO canines (13 & 23). If premolars are visible, include TWO first premolars (14 & 24) and TWO second premolars (15 & 25). If first molars are visible, include TWO first molars (16 & 26). Never generate a single tooth where a pair must exist. Enforce bilateral symmetry, correct midline, correct tooth widths and proportions, correct incisal edge line, natural contact points, no missing teeth, no gaps, no diastema, no black triangles, no crowding.
-
+                prompt: `Photorealistic dental smile makeover. High resolution, 8k, macro photography. In the masked region, build a brand-new ideal smile.
+                
                 STYLE: ${style.toUpperCase()}.
                 ${getStylePrompt(style)}
-
-                Visuals: Ultra-white ceramic veneers shade BL1 (Hollywood white). Photoreal enamel micro-texture, subtle incisal translucency, natural specular highlights and shadows matching the original lighting/camera flash, correct perspective and scale to fit the face, no distortion. Keep lips, gumline and surrounding skin photorealistic and unchanged outside the mask; preserve the person’s identity and facial features. Avoid: missing tooth, wrong tooth count, single central incisor, one front tooth, extra tooth, duplicate tooth, asymmetry, gaps, diastema, black triangles, crooked teeth, warped mouth, changed lips, changed face, changed nose, changed skin, dentures, fake plastic teeth, braces, metal, blurry, cartoon, CGI, illustration, uncanny, text, watermark, logo.`,
-                guidance: 50, // Fixed guidance for consistency
-                steps: 50,
+                
+                Strict anatomy: aligned upper dental arch, bilateral symmetry, specific tooth shapes (Central Incisors, Lateral Incisors, Canines). Realistic enamel texture with subsurface scattering, natural gloss, and translucency at tips. Matching lighting and color temperature of the face. High frequency details.
+                
+                Negative: blurry, low res, low quality, distortion, noise, artifacts, extra teeth, missing teeth, plastic, cartoon, fake, dentures.`,
+                guidance_scale: 3.5, // Standard Flux Dev guidance
+                num_inference_steps: 50, // Higher steps for quality
                 output_format: "png",
-                output_quality: 100,
-                safety_tolerance: 5
+                output_quality: 100
             }
         }));
 
