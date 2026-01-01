@@ -113,7 +113,7 @@ export default function AboutPage() {
                                         style={{ objectFit: 'cover' }}
                                     />
                                     <Image
-                                        src="/ela-BW.jpg"
+                                        src="/ela-final.jpg"
                                         alt="Elżbieta Nowosielska Professional"
                                         fill
                                         style={{
@@ -296,7 +296,7 @@ export default function AboutPage() {
                                         style={{ objectFit: 'cover', objectPosition: 'top' }}
                                     />
                                     <Image
-                                        src="/marcin-BW.jpg"
+                                        src="/marcin-final.jpg"
                                         alt="Marcin Nowosielski Professional"
                                         fill
                                         style={{
