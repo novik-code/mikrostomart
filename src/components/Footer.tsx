@@ -1,10 +1,23 @@
+import Image from 'next/image';
+
 export default function Footer() {
     return (
         <footer className="section" style={{ background: 'var(--color-surface)', marginTop: 'auto', borderTop: '1px solid var(--color-surface-hover)' }}>
             <div className="container" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--spacing-lg)' }}>
 
                 <div>
-                    <h3 style={{ color: 'var(--color-primary)', marginBottom: 'var(--spacing-sm)' }}>Mikrostomart</h3>
+                    <div style={{ marginBottom: 'var(--spacing-sm)' }}>
+                        <Image
+                            src="/logo-transparent.png"
+                            alt="Mikrostomart"
+                            width={200}
+                            height={60}
+                            style={{
+                                objectFit: 'contain',
+                                marginLeft: '-10px'
+                            }}
+                        />
+                    </div>
                     <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>
                         Mikroskopowa Stomatologia Artystyczna.<br />
                         Precyzja którą zobaczysz w uśmiechu.
