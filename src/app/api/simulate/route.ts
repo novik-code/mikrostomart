@@ -169,15 +169,15 @@ export async function POST(req: NextRequest) {
             input: {
                 image: erasedImageUrl,
                 mask: maskUri,
-                prompt: `Photorealistic dental smile makeover. High resolution, 8k, macro photography. In the masked region, build a brand-new ideal smile.
+                prompt: `Photorealistic dental smile makeover. High resolution, 8k, macro photography, sharp focus. In the masked region, build a brand-new ideal smile.
                 
                 STYLE: ${style.toUpperCase()}.
                 ${getStylePrompt(style)}
                 
-                Strict anatomy: aligned upper dental arch, bilateral symmetry, specific tooth shapes (Central Incisors, Lateral Incisors, Canines). Realistic enamel texture with subsurface scattering, natural gloss, and translucency at tips. Matching lighting and color temperature of the face. High frequency details.
+                Strict anatomy: aligned upper dental arch, bilateral symmetry. Distinct individual teeth with clear interdental spaces (gaps between teeth). Sharp incisal edges. Realistic enamel texture with micro-anatomy, vertical ridges, and subsurface scattering. Natural gloss and reflection.
                 
-                Negative: blurry, low res, low quality, distortion, noise, artifacts, extra teeth, missing teeth, plastic, cartoon, fake, dentures.`,
-                guidance_scale: 3.5, // Standard Flux Dev guidance
+                Negative: blobby, smooth, plastic, fused teeth, continuous block, low resolution, blurry, distorted, noise, artifacts, extra teeth, missing teeth, cartoon, fake, dentures.`,
+                guidance_scale: 5.0, // Increased from 3.5 to 5.0 for better definition
                 num_inference_steps: 50, // Higher steps for quality
                 output_format: "png",
                 output_quality: 100

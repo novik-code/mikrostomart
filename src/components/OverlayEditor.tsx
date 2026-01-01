@@ -41,15 +41,30 @@ export default function OverlayEditor({ baseImage, templateImage, onCompositeRea
     // React to Auto-Alignment Updates
     useEffect(() => {
         if (initialAlignment) {
+            const newX = (initialAlignment.x / 100) * 1024;
+            const newY = (initialAlignment.y / 100) * 1024;
+            const s = initialAlignment.scale;
+
             setConfig(prev => ({
                 ...prev,
-                x: (initialAlignment.x / 100) * 1024,
-                y: (initialAlignment.y / 100) * 1024,
-                scaleX: initialAlignment.scale,
-                scaleY: initialAlignment.scale,
+                x: newX,
+                y: newY,
+                scaleX: s,
+                scaleY: s,
                 rotation: initialAlignment.rotation,
-                // Make sure to reset curve or keep it? Auto-align doesn't do curve yet.
-                // Keep Opacity
+            }));
+
+            // Smart Lip Line Positioning:
+            // Place the curve just above the teeth center using the scale.
+            // Heuristic: Teeth are roughly centered. Upper lip is ~150px (at scale 1) above center.
+            const lipOffsetY = 120 * s;
+            const lipCurveY = 50 * s; // How much the smile curves up
+
+            setLipMask(prev => ({
+                ...prev,
+                p1: { x: newX - (300 * s), y: newY - lipOffsetY + lipCurveY }, // Left
+                p2: { x: newX, y: newY - (lipOffsetY + 50 * s) }, // Center (Higher)
+                p3: { x: newX + (300 * s), y: newY - lipOffsetY + lipCurveY }  // Right
             }));
         }
     }, [initialAlignment]);
