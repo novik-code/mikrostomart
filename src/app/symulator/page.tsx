@@ -110,9 +110,11 @@ export default function SimulatorPage() {
                 } else {
                     console.log("⚠️ No face detected for auto-alignment.");
                     setAutoAlignment(null);
+                    // alert("Nie wykryto twarzy - używam ustawień domyślnych."); // Too intrusive? Maybe just log.
                 }
             } catch (e) {
                 console.error("Auto-alignment failed", e);
+                // alert("Błąd modułu wizyjnego: " + e);
             }
 
         } catch (err) {
@@ -470,7 +472,7 @@ export default function SimulatorPage() {
                         <h1 style={{ fontSize: "clamp(2rem, 5vw, 3.5rem)", marginBottom: "0.5rem" }}>
                             Wirtualna Przymierzalnia
                         </h1>
-                        WERSJA 6.1 (Magic Input AI)
+                        WERSJA 6.2 (Magic Input Fix)
                         <p style={{ color: "var(--color-text-muted)", maxWidth: "600px", margin: "0 auto" }}>
                             Wgraj swoje zdjęcie, wybierz tryb (AI lub Szablon) i zobacz nową wersję uśmiechu.
                         </p>

@@ -38,6 +38,22 @@ export default function OverlayEditor({ baseImage, templateImage, onCompositeRea
         };
     });
 
+    // React to Auto-Alignment Updates
+    useEffect(() => {
+        if (initialAlignment) {
+            setConfig(prev => ({
+                ...prev,
+                x: (initialAlignment.x / 100) * 1024,
+                y: (initialAlignment.y / 100) * 1024,
+                scaleX: initialAlignment.scale,
+                scaleY: initialAlignment.scale,
+                rotation: initialAlignment.rotation,
+                // Make sure to reset curve or keep it? Auto-align doesn't do curve yet.
+                // Keep Opacity
+            }));
+        }
+    }, [initialAlignment]);
+
     // State for Lip Mask (Bezier Curve)
     const [maskMode, setMaskMode] = useState(false); // Toggle edit mode
     const [lipMask, setLipMask] = useState({
