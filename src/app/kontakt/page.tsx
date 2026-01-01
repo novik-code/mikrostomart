@@ -42,6 +42,15 @@ export default function ContactPage() {
                                     }}>
                                         570 270 470
                                     </a>
+                                    <a href="tel:570810800" style={{
+                                        display: "block",
+                                        color: "var(--color-primary)",
+                                        fontSize: "2rem",
+                                        fontWeight: "bold",
+                                        marginBottom: "var(--spacing-xs)"
+                                    }}>
+                                        570 810 800
+                                    </a>
                                     <a href="mailto:gabinet@mikrostomart.pl" style={{ color: "var(--color-text-muted)", fontSize: "1.1rem" }}>
                                         gabinet@mikrostomart.pl
                                     </a>
