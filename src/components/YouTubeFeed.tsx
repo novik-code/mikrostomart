@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import RevealOnScroll from "./RevealOnScroll";
+import { Youtube, Instagram, Facebook } from "lucide-react";
 
 // Fallback data if API key is not configured
 const FALLBACK_VIDEOS = [
@@ -172,9 +173,106 @@ export default function YouTubeFeed() {
 
                 <div style={{ textAlign: "center", marginTop: "var(--spacing-lg)" }}>
                     <RevealOnScroll animation="fade-up">
-                        <a href="https://www.youtube.com/@DentistMarcIn/videos" target="_blank" className="btn-primary" style={{ background: "#FF0000", color: "#fff" }}>
-                            Subskrybuj nasz kanał (@DentistMarcIn)
-                        </a>
+                        <div style={{
+                            display: 'flex',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            gap: '1.5rem',
+                            flexWrap: 'wrap'
+                        }}>
+                            {[
+                                {
+                                    icon: <Youtube size={28} />,
+                                    url: "https://www.youtube.com/@DentistMarcIn",
+                                    color: "#FF0000",
+                                    label: "YouTube",
+                                    hoverColor: "rgba(255,0,0,0.1)"
+                                },
+                                {
+                                    icon: <Instagram size={28} />,
+                                    url: "https://www.instagram.com/mikrostomart_opole/",
+                                    color: "#E1306C",
+                                    label: "Mikrostomart IG",
+                                    hoverColor: "rgba(225,48,108,0.1)"
+                                },
+                                {
+                                    icon: <Instagram size={28} />,
+                                    url: "https://www.instagram.com/nowosielski_marcin/",
+                                    color: "#E1306C",
+                                    label: "Dr Marcin IG",
+                                    hoverColor: "rgba(225,48,108,0.1)"
+                                },
+                                {
+                                    icon: <Facebook size={28} />,
+                                    url: "https://www.facebook.com/mikrostomart/",
+                                    color: "#1877F2",
+                                    label: "Mikrostomart FB",
+                                    hoverColor: "rgba(24,119,242,0.1)"
+                                },
+                                {
+                                    icon: <Facebook size={28} />,
+                                    url: "https://www.facebook.com/marcindentist/",
+                                    color: "#1877F2",
+                                    label: "Dr Marcin FB",
+                                    hoverColor: "rgba(24,119,242,0.1)"
+                                },
+                                {
+                                    icon: (
+                                        <svg
+                                            width="28"
+                                            height="28"
+                                            viewBox="0 0 24 24"
+                                            fill="currentColor"
+                                            stroke="none"
+                                            xmlns="http://www.w3.org/2000/svg"
+                                        >
+                                            <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
+                                        </svg>
+                                    ),
+                                    url: "https://www.tiktok.com/@nowosielskimarcin",
+                                    color: "#000000",
+                                    label: "TikTok",
+                                    hoverColor: "rgba(0,0,0,0.1)",
+                                    isDark: true // Flag for dark mode adjustment if needed
+                                },
+                            ].map((social, idx) => (
+                                <a
+                                    key={idx}
+                                    href={social.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    title={social.label}
+                                    className="social-icon-btn"
+                                    style={{
+                                        color: social.color === "#000000" && typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? "#fff" : social.color,
+                                        // Dynamic color fix for TikTok in dark mode handled by CSS usually, but here inline.
+                                        // Actually better to use CSS variable or utility.
+                                        // Let's rely on a className and style.
+                                        background: 'transparent',
+                                        padding: '12px',
+                                        borderRadius: '50%',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                                        border: `1px solid ${social.color}20`
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.currentTarget.style.transform = 'scale(1.2)';
+                                        e.currentTarget.style.background = social.hoverColor;
+                                        e.currentTarget.style.boxShadow = `0 10px 20px -10px ${social.color}`;
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.currentTarget.style.transform = 'scale(1)';
+                                        e.currentTarget.style.background = 'transparent';
+                                        e.currentTarget.style.boxShadow = 'none';
+                                    }}
+                                >
+                                    {social.icon}
+                                </a>
+                            ))}
+                        </div>
+
                         {!isApiWorking && (
                             <p style={{ marginTop: "1rem", fontSize: "0.8rem", color: "var(--color-text-muted)" }}>
                                 * Wyświetlam wybrane filmy. Aby widzieć najnowsze, skonfiguruj API.
