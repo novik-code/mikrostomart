@@ -6,7 +6,7 @@ export const runtime = 'nodejs';
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
-        const { type, name, email, phone, message, service, date } = body;
+        const { type, name, email, phone, message, service, date, time, specialistName } = body;
 
         // 1. Prepare Message Content
         let telegramMessage = "";
@@ -18,8 +18,10 @@ export async function POST(req: NextRequest) {
             telegramMessage = `🔔 <b>NOWA REZERWACJA</b>\n\n` +
                 `👤 <b>Pacjent:</b> ${name}\n` +
                 `📞 <b>Telefon:</b> <a href="tel:${phone}">${phone}</a>\n` +
+                `👨‍⚕️ <b>Specjalista:</b> ${specialistName}\n` +
                 `🏥 <b>Usługa:</b> ${service}\n` +
                 `📅 <b>Data:</b> ${date}\n` +
+                `⏰ <b>Godzina:</b> ${time}\n` +
                 (email ? `✉️ <b>Email:</b> ${email}` : "");
 
             // Email Content
@@ -29,8 +31,10 @@ export async function POST(req: NextRequest) {
                 <p><strong>Imię i Nazwisko:</strong> ${name}</p>
                 <p><strong>Telefon:</strong> ${phone}</p>
                 <p><strong>Email:</strong> ${email || "Brak"}</p>
+                <p><strong>Specjalista:</strong> ${specialistName}</p>
                 <p><strong>Usługa:</strong> ${service}</p>
                 <p><strong>Data:</strong> ${date}</p>
+                <p><strong>Godzina:</strong> ${time}</p>
             `;
         } else if (type === "contact") {
             // Telegram Content

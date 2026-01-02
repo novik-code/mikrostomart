@@ -1,18 +1,43 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Calendar, CheckCircle, Loader2 } from "lucide-react"; // Assuming lucide-react is available, else I'll use text or basic svgs
+import { Calendar, CheckCircle, Loader2 } from "lucide-react";
+
+// Specialists Data
+const SPECIALISTS = [
+    { id: "marcin", name: "lek. dent. Marcin Nowosielski", role: "doctor" },
+    { id: "ilona", name: "lek. dent. Ilona Piechaczek", role: "doctor" },
+    { id: "katarzyna", name: "lek. dent. Katarzyna Halupczok", role: "doctor" },
+    { id: "malgorzata", name: "hig. stom. Małgorzata Maćków-Huras", role: "hygienist" },
+] as const;
+
+// Services Data
+const SERVICES = {
+    doctor: [
+        { id: "konsultacja", label: "Konsultacja Wstępna" },
+        { id: "bol", label: "Pomoc doraźna (Ból)" },
+        { id: "implanty", label: "Implanty" },
+        { id: "licowki", label: "Licówki / Metamorfoza" },
+        { id: "ortodoncja", label: "Ortodoncja (Nakładki)" }, // Assuming docs do this too
+    ],
+    hygienist: [
+        { id: "higienizacja", label: "Higienizacja (Profilaktyka)" },
+        { id: "wybielanie", label: "Wybielanie Zębów" },
+    ]
+};
 
 // Schema Validation
 const reservationSchema = z.object({
-    name: z.string().min(3, "Imię i nwisko jest wymagane (min. 3 znaki)"),
+    name: z.string().min(3, "Imię i nazwisko jest wymagane (min. 3 znaki)"),
     phone: z.string().min(9, "Numer telefonu jest wymagany (min. 9 znaków)"),
     email: z.string().email("Podaj poprawny adres email").optional().or(z.literal("")),
+    specialist: z.string().min(1, "Wybierz specjalistę"),
     service: z.string().min(1, "Wybierz rodzaj usługi"),
     date: z.string().min(1, "Wybierz preferowaną datę"),
+    time: z.string().min(1, "Wybierz preferowaną godzinę"),
 });
 
 type ReservationFormData = z.infer<typeof reservationSchema>;
@@ -25,23 +50,47 @@ export default function ReservationForm() {
     const {
         register,
         handleSubmit,
+        watch,
+        setValue,
         formState: { errors },
     } = useForm<ReservationFormData>({
         resolver: zodResolver(reservationSchema),
         defaultValues: {
-            service: "konsultacja",
+            specialist: "",
+            service: "",
         }
     });
+
+    const selectedSpecialistId = watch("specialist");
+
+    // Derived values
+    const selectedSpecialist = SPECIALISTS.find(s => s.id === selectedSpecialistId);
+    const availableServices = selectedSpecialist
+        ? SERVICES[selectedSpecialist.role as keyof typeof SERVICES] || []
+        : [];
+
+    // Reset service when specialist changes
+    useEffect(() => {
+        setValue("service", "");
+    }, [selectedSpecialistId, setValue]);
+
 
     const onSubmit = async (data: ReservationFormData) => {
         setIsSubmitting(true);
         setError(null);
 
+        // Find formatted names for email
+        const specialistName = SPECIALISTS.find(s => s.id === data.specialist)?.name || data.specialist;
+
         try {
             const response = await fetch("/api/contact", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ type: "reservation", ...data }),
+                body: JSON.stringify({
+                    type: "reservation",
+                    ...data,
+                    specialistName // Send human readable name
+                }),
             });
 
             if (!response.ok) throw new Error("Błąd wysyłania formularza");
@@ -69,6 +118,7 @@ export default function ReservationForm() {
                 </div>
                 <h3 style={{ fontSize: "1.5rem", marginBottom: "1rem" }}>Dziękujemy za zgłoszenie!</h3>
                 <p style={{ color: "var(--color-text-muted)" }}>
+                    Twoja prośba o wizytę została wysłana.<br />
                     Skontaktujemy się z Tobą telefonicznie w celu potwierdzenia terminu.
                 </p>
                 <button
@@ -152,31 +202,60 @@ export default function ReservationForm() {
                 </div>
             </div>
 
-            {/* SERVICE & DATE GRID */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
-                <div className="form-group">
-                    <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", color: "var(--color-text-muted)" }}>Usługa *</label>
-                    <select
-                        {...register("service")}
-                        style={{
-                            width: "100%",
-                            padding: "0.8rem",
-                            background: "rgba(0, 0, 0, 0.2)",
-                            border: errors.service ? "1px solid red" : "1px solid var(--color-surface-hover)",
-                            borderRadius: "var(--radius-md)",
-                            color: "var(--color-text-main)",
-                            outline: "none",
-                            appearance: "none", // Remove default arrow in some browsers
-                        }}
-                    >
-                        <option value="konsultacja">Konsultacja Wstępna</option>
-                        <option value="higiena">Higienizacja / Wybielanie</option>
-                        <option value="implanty">Implanty</option>
-                        <option value="licowki">Licówki / Metamorfoza</option>
-                        <option value="ortodoncja">Ortodoncja (Nakładki)</option>
-                        <option value="bol">Ból zęba (Pilne)</option>
-                    </select>
-                </div>
+            {/* SPECIALIST */}
+            <div className="form-group">
+                <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", color: "var(--color-text-muted)" }}>Specjalista *</label>
+                <select
+                    {...register("specialist")}
+                    style={{
+                        width: "100%",
+                        padding: "0.8rem",
+                        background: "rgba(0, 0, 0, 0.2)",
+                        border: errors.specialist ? "1px solid red" : "1px solid var(--color-surface-hover)",
+                        borderRadius: "var(--radius-md)",
+                        color: "var(--color-text-main)",
+                        outline: "none",
+                        appearance: "none",
+                    }}
+                >
+                    <option value="">Wybierz lekarza lub higienistkę...</option>
+                    {SPECIALISTS.map(spec => (
+                        <option key={spec.id} value={spec.id}>{spec.name}</option>
+                    ))}
+                </select>
+                {errors.specialist && <p style={{ color: "red", fontSize: "0.8rem", marginTop: "0.3rem" }}>{errors.specialist.message}</p>}
+            </div>
+
+            {/* SERVICE - CONDITIONAL */}
+            <div className="form-group">
+                <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", color: "var(--color-text-muted)" }}>Usługa *</label>
+                <select
+                    {...register("service")}
+                    disabled={!selectedSpecialist}
+                    style={{
+                        width: "100%",
+                        padding: "0.8rem",
+                        background: "rgba(0, 0, 0, 0.2)",
+                        border: errors.service ? "1px solid red" : "1px solid var(--color-surface-hover)",
+                        borderRadius: "var(--radius-md)",
+                        color: "var(--color-text-main)",
+                        outline: "none",
+                        appearance: "none",
+                        opacity: !selectedSpecialist ? 0.5 : 1
+                    }}
+                >
+                    <option value="">
+                        {!selectedSpecialist ? "Najpierw wybierz specjalistę" : "Wybierz usługę..."}
+                    </option>
+                    {availableServices.map(svc => (
+                        <option key={svc.id} value={svc.label}>{svc.label}</option>
+                    ))}
+                </select>
+                {errors.service && <p style={{ color: "red", fontSize: "0.8rem", marginTop: "0.3rem" }}>{errors.service.message}</p>}
+            </div>
+
+            {/* DATE & TIME GRID */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "1rem" }}>
                 <div className="form-group">
                     <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", color: "var(--color-text-muted)" }}>Preferowana Data *</label>
                     <input
@@ -190,11 +269,53 @@ export default function ReservationForm() {
                             border: errors.date ? "1px solid red" : "1px solid var(--color-surface-hover)",
                             borderRadius: "var(--radius-md)",
                             color: "var(--color-text-main)",
-                            colorScheme: "dark", // Ensures calendar popup is dark mode friendly
+                            colorScheme: "dark",
                             outline: "none"
                         }}
                     />
                     {errors.date && <p style={{ color: "red", fontSize: "0.8rem", marginTop: "0.3rem" }}>{errors.date.message}</p>}
+                </div>
+
+                <div className="form-group">
+                    <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", color: "var(--color-text-muted)" }}>Preferowana Godzina *</label>
+
+                    {/* Time Slots Grid */}
+                    <div style={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(auto-fill, minmax(70px, 1fr))",
+                        gap: "0.5rem",
+                        marginTop: "0.5rem"
+                    }}>
+                        {["09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "12:00", "12:30", "13:00", "13:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00", "17:30", "18:00"].map((slot) => {
+                            // Correctly watch the 'time' field properly to toggle active state
+                            const currentTime = watch("time");
+                            const isSelected = currentTime === slot;
+
+                            return (
+                                <button
+                                    key={slot}
+                                    type="button"
+                                    onClick={() => setValue("time", slot, { shouldValidate: true })}
+                                    style={{
+                                        padding: "0.6rem",
+                                        borderRadius: "var(--radius-md)",
+                                        border: isSelected ? "1px solid var(--color-primary)" : "1px solid var(--color-surface-hover)",
+                                        background: isSelected ? "rgba(234, 179, 8, 0.1)" : "rgba(0, 0, 0, 0.2)",
+                                        color: isSelected ? "var(--color-primary)" : "var(--color-text-muted)",
+                                        cursor: "pointer",
+                                        fontSize: "0.9rem",
+                                        transition: "all 0.2s ease"
+                                    }}
+                                >
+                                    {slot}
+                                </button>
+                            );
+                        })}
+                    </div>
+                    {/* Hidden input to maintain form state logic */}
+                    <input type="hidden" {...register("time")} />
+
+                    {errors.time && <p style={{ color: "red", fontSize: "0.8rem", marginTop: "0.3rem" }}>{errors.time.message}</p>}
                 </div>
             </div>
 
@@ -224,7 +345,6 @@ export default function ReservationForm() {
             </button>
 
             <style jsx>{`
-                /* Little helper for mobile grid reset if needed */
                 @media (max-width: 600px) {
                     div[style*="grid-template-columns"] {
                         grid-template-columns: 1fr !important;
