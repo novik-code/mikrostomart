@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import YouTubeFeed from "@/components/YouTubeFeed";
+import GoogleReviews from "@/components/GoogleReviews";
 import Link from "next/link";
 import RevealOnScroll from "@/components/RevealOnScroll";
 import BeforeAfterSlider from "@/components/BeforeAfterSlider";
@@ -157,6 +158,7 @@ export default function Home() {
             </section>
 
             <YouTubeFeed />
+            <GoogleReviews />
 
             {/* Dynamic Notification Toast */}
             {showNotification && (
