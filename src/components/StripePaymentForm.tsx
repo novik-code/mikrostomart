@@ -5,7 +5,7 @@ import { PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js"
 
 interface StripePaymentFormProps {
     amount: number;
-    onSuccess: () => void;
+    onSuccess: (paymentIntentId: string) => void;
     onBack: () => void;
 }
 
@@ -24,24 +24,23 @@ export default function StripePaymentForm({ amount, onSuccess, onBack }: StripeP
 
         setIsProcessing(true);
 
-        const { error } = await stripe.confirmPayment({
+        const { error, paymentIntent } = await stripe.confirmPayment({
             elements,
             confirmParams: {
-                // Determine where to redirect after payment.
-                // For a single-page experience, we can handle it sometimes without redirect if redirect: 'if_required' 
-                // But generally Stripe recommends a return_url.
-                // We'll use a placeholder or the current page.
                 return_url: window.location.origin + "/sklep?payment_status=success",
             },
-            redirect: "if_required", // Important: try to avoid redirect if possible for smooth UX
+            redirect: "if_required",
         });
 
         if (error) {
             setErrorMessage(error.message || "Wystąpił błąd płatności.");
             setIsProcessing(false);
-        } else {
+        } else if (paymentIntent && paymentIntent.status === "succeeded") {
             // Payment succeeded!
-            onSuccess();
+            onSuccess(paymentIntent.id);
+        } else {
+            // Unexpected state, maybe processing
+            setIsProcessing(false);
         }
     };
 

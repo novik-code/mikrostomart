@@ -4,9 +4,7 @@ import { KNOWLEDGE_BASE } from '@/lib/knowledgeBase';
 import fs from 'fs';
 import path from 'path';
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-});
+
 
 const SYSTEM_PROMPT = `
 Jesteś wirtualnym asystentem kliniki stomatologicznej "Mikrostomart" w Opolu.
@@ -47,6 +45,10 @@ const tools = [
 
 export async function POST(req: Request) {
     try {
+        const openai = new OpenAI({
+            apiKey: process.env.OPENAI_API_KEY,
+        });
+
         const { messages } = await req.json();
 
         if (!messages || !Array.isArray(messages)) {

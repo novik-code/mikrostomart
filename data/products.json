@@ -66,8 +66,8 @@
   {
     "id": "test-1",
     "name": "Produkt Testowy (Weryfikacja)",
-    "price": 1,
-    "description": "Produkt techniczny służący do weryfikacji poprawności konfiguracji płatności (Live Mode). Cena: 1 PLN.",
+    "price": 2,
+    "description": "Produkt techniczny służący do weryfikacji poprawności konfiguracji płatności (Live Mode). Cena: 2 PLN.",
     "category": "Test",
     "image": "/logo.png",
     "gallery": [

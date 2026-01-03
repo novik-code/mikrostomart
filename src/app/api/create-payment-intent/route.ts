@@ -5,7 +5,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
 
 export async function POST(request: Request) {
     try {
-        const { amount } = await request.json();
+        const { amount, email } = await request.json();
 
         if (!amount) {
             return NextResponse.json({ error: "Amount is required" }, { status: 400 });
@@ -14,6 +14,7 @@ export async function POST(request: Request) {
         const paymentIntent = await stripe.paymentIntents.create({
             amount: Math.round(amount * 100), // Stripe expects integers in cents
             currency: 'pln',
+            receipt_email: email, // Enable Stripe receipt
             automatic_payment_methods: {
                 enabled: true,
             },

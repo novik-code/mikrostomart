@@ -11,7 +11,7 @@ import StripePaymentForm from "./StripePaymentForm";
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "");
 
 export default function CheckoutForm({ onSuccess }: { onSuccess: () => void }) {
-    const { clearCart, total } = useCart();
+    const { clearCart, total, items } = useCart();
     const [step, setStep] = useState<'ADDRESS' | 'PAYMENT'>('ADDRESS');
     const [clientSecret, setClientSecret] = useState<string>("");
 
@@ -39,7 +39,7 @@ export default function CheckoutForm({ onSuccess }: { onSuccess: () => void }) {
             const res = await fetch("/api/create-payment-intent", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ amount: total }),
+                body: JSON.stringify({ amount: total, email: formData.email }),
             });
             const data = await res.json();
             if (data.clientSecret) {
@@ -54,7 +54,26 @@ export default function CheckoutForm({ onSuccess }: { onSuccess: () => void }) {
     };
 
     // Callback when payment succeeds
-    const handlePaymentSuccess = () => {
+    const handlePaymentSuccess = async (paymentIntentId: string) => {
+        // 1. Send Order Confirmation
+        const orderData = {
+            cart: items,
+            total,
+            customerDetails: formData,
+            paymentId: paymentIntentId
+        };
+
+        try {
+            await fetch('/api/order-confirmation', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(orderData)
+            });
+        } catch (e) {
+            console.error("Failed to trigger order confirmation:", e);
+        }
+
+        // 2. Clear & Close
         clearCart();
         onSuccess();
     };
