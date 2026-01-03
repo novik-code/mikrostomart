@@ -141,9 +141,11 @@ export default function AssistantTeaser() {
         <div
             style={{
                 position: 'fixed',
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
+                top: isChatOpen ? '50%' : '130px',
+                left: isChatOpen ? '50%' : '30px',
+                transform: isChatOpen ? 'translate(-50%, -50%)' : 'none',
+                bottom: 'auto',
+                right: 'auto',
                 zIndex: 99999,
                 transition: 'all 0.5s ease',
                 width: isChatOpen ? '90vw' : 'auto',
