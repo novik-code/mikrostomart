@@ -69,6 +69,7 @@
     "price": 2,
     "description": "Produkt techniczny służący do weryfikacji poprawności konfiguracji płatności (Live Mode). Cena: 2 PLN.",
     "category": "Test",
+    "isVisible": true,
     "image": "/logo.png",
     "gallery": [
       "/logo.png"
