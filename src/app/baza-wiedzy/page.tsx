@@ -75,7 +75,7 @@ export default function KnowledgeBasePage() {
                         paddingRight: "2rem",  // Internal padding to verify last item visibility
                         WebkitOverflowScrolling: "touch"
                     }}>
-                    {articles.map((article) => (
+                    {[...articles].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((article) => (
                         <div
                             key={article.id}
                             className="news-carousel-item"
