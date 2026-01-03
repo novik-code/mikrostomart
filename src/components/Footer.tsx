@@ -119,6 +119,13 @@ export default function Footer() {
                         FAQ (Pytania i Odpowiedzi)
                     </a>
                     <a
+                        href="/baza-wiedzy"
+                        style={{ color: 'var(--color-text-muted)', textDecoration: 'none', opacity: 0.7 }}
+                        className="hover-underline"
+                    >
+                        Baza Wiedzy 📚
+                    </a>
+                    <a
                         href="/regulamin"
                         style={{ color: 'var(--color-text-muted)', textDecoration: 'none', opacity: 0.7 }}
                         className="hover-underline"
