@@ -12,6 +12,8 @@
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
     "@mediapipe/tasks-vision": "^0.10.22-rc.20250304",
+    "@stripe/react-stripe-js": "^5.4.1",
+    "@stripe/stripe-js": "^8.6.0",
     "form-data": "^4.0.5",
     "framer-motion": "^12.23.26",
     "jimp": "^1.6.0",
@@ -24,6 +26,7 @@
     "react-hook-form": "^7.69.0",
     "replicate": "^1.4.0",
     "resend": "^6.6.0",
+    "stripe": "^20.1.0",
     "zod": "^4.3.3"
   },
   "devDependencies": {

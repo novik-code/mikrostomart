@@ -62,5 +62,16 @@
       "/manual-brush-cup.png",
       "/manual-brush.png"
     ]
+  },
+  {
+    "id": "test-1",
+    "name": "Produkt Testowy (Weryfikacja)",
+    "price": 1,
+    "description": "Produkt techniczny służący do weryfikacji poprawności konfiguracji płatności (Live Mode). Cena: 1 PLN.",
+    "category": "Test",
+    "image": "/logo.png",
+    "gallery": [
+      "/logo.png"
+    ]
   }
 ]
