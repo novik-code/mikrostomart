@@ -1,17 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
+import fs from "fs";
+import path from "path";
 
 export const runtime = 'nodejs';
 
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
-        const { type, name, email, phone, message, service, date, time, specialistName } = body;
+        const { type, name, email, phone, message, service, date, time, specialistName, subject, attachment } = body;
 
         // 1. Prepare Message Content
         let telegramMessage = "";
         let emailSubject = "";
         let emailHtml = "";
+
+        // Prepare attachments array for Resend
+        let emailAttachments: any[] = [];
+        if (attachment) {
+            // attachment = { name: "file.jpg", content: "data:image/jpeg;base64,...", type: "image/jpeg" }
+            const base64Content = attachment.content.split(',')[1];
+            if (base64Content) {
+                emailAttachments.push({
+                    filename: attachment.name,
+                    content: Buffer.from(base64Content, 'base64'),
+                });
+            }
+        }
+
 
         if (type === "reservation") {
             // Telegram Content
@@ -36,19 +52,28 @@ export async function POST(req: NextRequest) {
                 <p><strong>Data:</strong> ${date}</p>
                 <p><strong>Godzina:</strong> ${time}</p>
             `;
+
+            // ... (CSV Logging remains here) ...
+
         } else if (type === "contact") {
             // Telegram Content
             telegramMessage = `📩 <b>NOWA WIADOMOŚĆ</b>\n\n` +
                 `👤 <b>Imię:</b> ${name}\n` +
-                `✉️ <b>Email:</b> ${email}\n\n` +
+                `✉️ <b>Email:</b> ${email}\n` +
+                `📌 <b>Temat:</b> ${subject || "Bez tematu"}\n\n` +
                 `📝 <b>Treść:</b>\n${message}`;
 
+            if (emailAttachments.length > 0) {
+                telegramMessage += `\n\n📎 <i>Załącznik wysłano na maila</i>`;
+            }
+
             // Email Content
-            emailSubject = `Nowa Wiadomość: ${name}`;
+            emailSubject = `[Kontakt] ${subject || "Nowa Wiadomość"}: ${name}`;
             emailHtml = `
                 <h1>Nowa Wiadomość ze Strony</h1>
                 <p><strong>Imię:</strong> ${name}</p>
                 <p><strong>Email:</strong> ${email}</p>
+                <p><strong>Temat:</strong> ${subject}</p>
                 <p><strong>Wiadomość:</strong><br/>${message}</p>
             `;
         } else {
@@ -99,7 +124,7 @@ export async function POST(req: NextRequest) {
 
         if (resendKey) {
             const resend = new Resend(resendKey);
-            const adminEmail = "marcinnowosielski@gmail.com";
+            const adminEmail = "gabinet@mikrostomart.pl";
             const fromEmail = "onboarding@resend.dev";
 
             await resend.emails.send({
@@ -107,6 +132,7 @@ export async function POST(req: NextRequest) {
                 to: adminEmail,
                 subject: emailSubject,
                 html: emailHtml,
+                attachments: emailAttachments
             });
             emailSent = true;
         } else {

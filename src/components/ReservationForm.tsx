@@ -74,6 +74,12 @@ export default function ReservationForm() {
         setValue("service", "");
     }, [selectedSpecialistId, setValue]);
 
+    // Reset time when date changes
+    const selectedDate = watch("date");
+    useEffect(() => {
+        setValue("time", "");
+    }, [selectedDate, setValue]);
+
 
     const onSubmit = async (data: ReservationFormData) => {
         setIsSubmitting(true);
@@ -255,13 +261,20 @@ export default function ReservationForm() {
             </div>
 
             {/* DATE & TIME GRID */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "1rem" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
                 <div className="form-group">
                     <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", color: "var(--color-text-muted)" }}>Preferowana Data *</label>
                     <input
                         {...register("date")}
                         type="date"
-                        min={new Date().toISOString().split('T')[0]} // Disable past dates
+                        min={(() => {
+                            const now = new Date();
+                            // If it's past 16:00, start from tomorrow
+                            if (now.getHours() >= 16) {
+                                now.setDate(now.getDate() + 1);
+                            }
+                            return now.toISOString().split('T')[0];
+                        })()}
                         style={{
                             width: "100%",
                             padding: "0.8rem",
@@ -279,41 +292,54 @@ export default function ReservationForm() {
                 <div className="form-group">
                     <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", color: "var(--color-text-muted)" }}>Preferowana Godzina *</label>
 
-                    {/* Time Slots Grid */}
-                    <div style={{
-                        display: "grid",
-                        gridTemplateColumns: "repeat(auto-fill, minmax(70px, 1fr))",
-                        gap: "0.5rem",
-                        marginTop: "0.5rem"
-                    }}>
-                        {["09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "12:00", "12:30", "13:00", "13:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00", "17:30", "18:00"].map((slot) => {
-                            // Correctly watch the 'time' field properly to toggle active state
-                            const currentTime = watch("time");
-                            const isSelected = currentTime === slot;
+                    <select
+                        {...register("time")}
+                        style={{
+                            width: "100%",
+                            padding: "0.8rem",
+                            background: "rgba(0, 0, 0, 0.2)",
+                            border: errors.time ? "1px solid red" : "1px solid var(--color-surface-hover)",
+                            borderRadius: "var(--radius-md)",
+                            color: "var(--color-text-main)",
+                            outline: "none",
+                            appearance: "none"
+                        }}
+                    >
+                        <option value="">Wybierz godzinę...</option>
+                        {(() => {
+                            const allSlots = [
+                                "09:00", "09:30", "10:00", "10:30", "11:00", "11:30",
+                                "12:00", "12:30", "13:00", "13:30", "14:00", "14:30",
+                                "15:00", "15:30", "16:00"
+                            ];
 
-                            return (
-                                <button
-                                    key={slot}
-                                    type="button"
-                                    onClick={() => setValue("time", slot, { shouldValidate: true })}
-                                    style={{
-                                        padding: "0.6rem",
-                                        borderRadius: "var(--radius-md)",
-                                        border: isSelected ? "1px solid var(--color-primary)" : "1px solid var(--color-surface-hover)",
-                                        background: isSelected ? "rgba(234, 179, 8, 0.1)" : "rgba(0, 0, 0, 0.2)",
-                                        color: isSelected ? "var(--color-primary)" : "var(--color-text-muted)",
-                                        cursor: "pointer",
-                                        fontSize: "0.9rem",
-                                        transition: "all 0.2s ease"
-                                    }}
-                                >
-                                    {slot}
-                                </button>
-                            );
-                        })}
-                    </div>
-                    {/* Hidden input to maintain form state logic */}
-                    <input type="hidden" {...register("time")} />
+                            const selectedDate = watch("date");
+                            if (!selectedDate) return allSlots.map(s => <option key={s} value={s}>{s}</option>);
+
+                            const now = new Date();
+                            const todayStr = now.toISOString().split('T')[0];
+
+                            // If selected date is NOT today, show all slots
+                            if (selectedDate !== todayStr) {
+                                return allSlots.map(s => <option key={s} value={s}>{s}</option>);
+                            }
+
+                            // Filter past hours if Today
+                            const currentHour = now.getHours();
+                            const currentMinute = now.getMinutes();
+
+                            const filteredSlots = allSlots.filter(slot => {
+                                const [h, m] = slot.split(':').map(Number);
+                                if (h > currentHour) return true;
+                                if (h === currentHour && m > currentMinute) return true;
+                                return false;
+                            });
+
+                            if (filteredSlots.length === 0) return <option disabled>Brak terminów dzisiaj</option>;
+
+                            return filteredSlots.map(s => <option key={s} value={s}>{s}</option>);
+                        })()}
+                    </select>
 
                     {errors.time && <p style={{ color: "red", fontSize: "0.8rem", marginTop: "0.3rem" }}>{errors.time.message}</p>}
                 </div>

@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Sparkles, X, Send, User, Bot, Loader2, Paperclip } from "lucide-react";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { useAssistant } from "@/context/AssistantContext";
 
 interface Message {
@@ -18,6 +20,7 @@ const SUGGESTIONS = [
 ];
 
 export default function AssistantTeaser() {
+    const router = useRouter();
     const { isChatOpen, openChat, closeChat } = useAssistant();
     const [isVisible, setIsVisible] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
@@ -119,6 +122,19 @@ export default function AssistantTeaser() {
         }
     };
 
+    const handleSuggestionClick = (suggestion: string | { label: string, action: string }) => {
+        if (typeof suggestion === 'string') {
+            sendMessage(suggestion);
+        } else {
+            if (suggestion.action === '/rezerwacja' || suggestion.action === '/cennik') {
+                router.push(suggestion.action);
+                if (isChatOpen) closeChat(); // Close chat on navigation
+            } else {
+                sendMessage(suggestion.label);
+            }
+        }
+    };
+
     if (!isVisible && !isChatOpen) return null;
 
     return (
@@ -174,15 +190,17 @@ export default function AssistantTeaser() {
                         <div style={{ position: 'relative', flexShrink: 0 }}>
                             <div style={{
                                 width: '56px', height: '56px', borderRadius: '50%',
-                                background: 'linear-gradient(135deg, #f0c975 0%, #a68531 100%)',
+                                border: '2px solid #dcb14a',
+                                overflow: 'hidden',
+                                position: 'relative',
                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                                 boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
                             }}>
-                                <Sparkles size={24} color="white" fill="white" />
+                                <Image src="/marcin-main.jpg" alt="AI" fill style={{ objectFit: 'cover', objectPosition: 'top' }} />
                             </div>
                             <div style={{
-                                position: 'absolute', top: -4, right: -4, width: '12px', height: '12px',
-                                backgroundColor: '#dcb14a', borderRadius: '50%', border: '2px solid rgba(18, 20, 24, 0.95)'
+                                position: 'absolute', top: 0, right: 0, width: '14px', height: '14px',
+                                backgroundColor: '#10b981', borderRadius: '50%', border: '2px solid #121418'
                             }} />
                         </div>
 
@@ -209,13 +227,15 @@ export default function AssistantTeaser() {
                         }}>
                             <div style={{
                                 width: '40px', height: '40px', borderRadius: '50%',
-                                background: 'linear-gradient(135deg, #f0c975 0%, #a68531 100%)',
+                                border: '1px solid #dcb14a',
+                                overflow: 'hidden',
+                                position: 'relative',
                                 display: 'flex', alignItems: 'center', justifyContent: 'center'
                             }}>
-                                <Sparkles size={20} color="white" />
+                                <Image src="/marcin-main.jpg" alt="AI" fill style={{ objectFit: 'cover', objectPosition: 'top' }} />
                             </div>
                             <div>
-                                <h3 style={{ color: 'white', margin: 0, fontSize: '18px' }}>Asystent AI</h3>
+                                <h3 style={{ color: 'white', margin: 0, fontSize: '18px' }}>Wirtualny Asystent</h3>
                                 <p style={{ color: '#9ca3af', margin: 0, fontSize: '12px' }}>Mikrostomart Opole</p>
                             </div>
                         </div>
@@ -228,7 +248,15 @@ export default function AssistantTeaser() {
                                     justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
                                     alignItems: 'flex-start', gap: '10px'
                                 }}>
-                                    {msg.role === 'assistant' && <Bot size={24} color="#dcb14a" />}
+                                    {msg.role === 'assistant' && (
+                                        <div style={{
+                                            width: '24px', height: '24px', borderRadius: '50%',
+                                            overflow: 'hidden', position: 'relative', flexShrink: 0,
+                                            border: '1px solid #dcb14a'
+                                        }}>
+                                            <Image src="/marcin-main.jpg" alt="AI" fill style={{ objectFit: 'cover' }} />
+                                        </div>
+                                    )}
                                     <div style={{
                                         padding: '12px 16px',
                                         borderRadius: '12px',
@@ -252,7 +280,13 @@ export default function AssistantTeaser() {
                             ))}
                             {isLoading && (
                                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                                    <Bot size={24} color="#dcb14a" />
+                                    <div style={{
+                                        width: '24px', height: '24px', borderRadius: '50%',
+                                        overflow: 'hidden', position: 'relative', flexShrink: 0,
+                                        border: '1px solid #dcb14a'
+                                    }}>
+                                        <Image src="/marcin-main.jpg" alt="AI" fill style={{ objectFit: 'cover' }} />
+                                    </div>
                                     <div style={{ padding: '10px', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '12px' }}>
                                         <Loader2 size={16} className="animate-spin" color="white" />
                                     </div>
@@ -266,8 +300,28 @@ export default function AssistantTeaser() {
                             {/* Suggestions */}
                             {messages.length < 3 && (
                                 <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', marginBottom: '15px', paddingBottom: '5px' }}>
+                                    {/* Quick Actions */}
+                                    <button
+                                        onClick={() => handleSuggestionClick({ label: "📅 Umów wizytę", action: "/rezerwacja" })}
+                                        style={{
+                                            padding: '6px 12px', borderRadius: '20px', border: '1px solid #dcb14a',
+                                            background: '#dcb14a', color: 'black', fontSize: '12px', cursor: 'pointer', whiteSpace: 'nowrap', fontWeight: 'bold'
+                                        }}
+                                    >
+                                        📅 Umów wizytę
+                                    </button>
+                                    <button
+                                        onClick={() => handleSuggestionClick({ label: "💰 Cennik", action: "/cennik" })}
+                                        style={{
+                                            padding: '6px 12px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.2)',
+                                            background: 'transparent', color: '#d1d5db', fontSize: '12px', cursor: 'pointer', whiteSpace: 'nowrap'
+                                        }}
+                                    >
+                                        💰 Cennik
+                                    </button>
+
                                     {SUGGESTIONS.map((s, i) => (
-                                        <button key={i} onClick={() => sendMessage(s)} style={{
+                                        <button key={i} onClick={() => handleSuggestionClick(s)} style={{
                                             padding: '6px 12px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.2)',
                                             background: 'transparent', color: '#d1d5db', fontSize: '12px', cursor: 'pointer', whiteSpace: 'nowrap'
                                         }}>

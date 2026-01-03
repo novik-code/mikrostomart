@@ -1,0 +1,66 @@
+[
+  {
+    "id": "1",
+    "name": "Zestaw Wybielający AURA Home",
+    "price": 120,
+    "description": "Profesjonalny system do domowego wybielania zębów. Bezpieczny dla szkliwa, efekt widoczny już po 3 dniach. Zawiera 4 strzykawki z żelem i nakładki.",
+    "category": "Wybielanie",
+    "image": "/whitening-kit.png",
+    "gallery": [
+      "/whitening-kit-detail.png",
+      "/whitening-kit-lifestyle.png",
+      "/whitening-kit.png"
+    ]
+  },
+  {
+    "id": "2",
+    "name": "Szczoteczka Soniczna Premium Black",
+    "price": 650,
+    "description": "Zaawansowana technologia soniczna (62 000 drgań/min). 5 trybów pracy, w tym tryb wybielający i masaż dziąseł. Wodoodporna, bateria 30 dni.",
+    "category": "Elektronika",
+    "image": "/sonic-brush.png",
+    "gallery": [
+      "/sonic-brush-head.png",
+      "/sonic-brush-dock.png",
+      "/sonic-brush.png"
+    ]
+  },
+  {
+    "id": "3",
+    "name": "Voucher: Pełna Higienizacja",
+    "price": 350,
+    "description": "Elegancki voucher prezentowy na pakiet stomatologiczny SPA: Skaling, Piaskowanie, Fluoryzacja oraz Instruktaż Higieny. Idealny na prezent.",
+    "category": "Usługi",
+    "image": "/voucher-hygiene.png",
+    "gallery": [
+      "/voucher-hygiene-card.png",
+      "/voucher-gift-box.png"
+    ]
+  },
+  {
+    "id": "4",
+    "name": "Voucher: Wybielanie Nakładkowe",
+    "price": 1200,
+    "description": "Voucher na kompleksowe wybielanie metodą nakładkową. Cena obejmuje: Konsultację, Skan 3D, wykonanie indywidualnych nakładek i zestaw żeli.",
+    "category": "Usługi",
+    "image": "/voucher-hygiene.png",
+    "gallery": [
+      "/dental-tray-3d.png",
+      "/perfect-smile.png",
+      "/voucher-hygiene.png"
+    ]
+  },
+  {
+    "id": "5",
+    "name": "Szczoteczka Manualna Ultra Soft",
+    "price": 29,
+    "description": "Kultowa szwajcarska szczoteczka z 5460 ultracienkimi włoskami CUREN. Niezwykle delikatna dla dziąseł, bezwzględna dla płytki nazębnej.",
+    "category": "Higiena",
+    "image": "/manual-brush.png",
+    "gallery": [
+      "/manual-brush-macro.png",
+      "/manual-brush-cup.png",
+      "/manual-brush.png"
+    ]
+  }
+]

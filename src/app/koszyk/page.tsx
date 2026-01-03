@@ -107,7 +107,13 @@ export default function CartPage() {
                         >
                             ← Wróć do koszyka
                         </button>
-                        <CheckoutForm onClose={() => setShowCheckout(false)} />
+                        <CheckoutForm onSuccess={() => {
+                            // Simple alert for now as page rebuild would be better, OR set a success state here.
+                            // But since the form doesn't handle UI anymore, we need to show something.
+                            // Let's reuse the logic from CheckoutForm previously by creating a simple wrapper or just setting state locally.
+                            alert("Zamówienie przyjęte! Dziękujemy.");
+                            setShowCheckout(false);
+                        }} />
                     </div>
                 )}
 

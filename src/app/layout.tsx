@@ -22,6 +22,8 @@ export const viewport: Viewport = {
 
 import BackgroundVideo from "@/components/BackgroundVideo";
 
+import CookieConsent from "@/components/CookieConsent"; // Import
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -33,6 +35,7 @@ export default function RootLayout({
         <CartProvider>
           <AssistantProvider>
             <BackgroundVideo videoId="vGAu6rdJ8WQ" />
+            <CookieConsent /> {/* Add Component */}
             <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
               <Navbar />
               {children}

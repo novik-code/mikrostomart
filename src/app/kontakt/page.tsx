@@ -1,4 +1,6 @@
 import RevealOnScroll from "@/components/RevealOnScroll";
+import AnimatedPhone from "@/components/AnimatedPhone";
+import AnimatedAt from "@/components/AnimatedAt";
 import ContactForm from "@/components/ContactForm";
 
 export default function ContactPage() {
@@ -33,27 +35,48 @@ export default function ContactPage() {
                                 </div>
 
                                 <div style={{ marginBottom: "var(--spacing-lg)" }}>
-                                    <a href="tel:570270470" style={{
-                                        display: "block",
-                                        color: "var(--color-primary)",
-                                        fontSize: "2rem",
-                                        fontWeight: "bold",
-                                        marginBottom: "var(--spacing-xs)"
-                                    }}>
-                                        570 270 470
-                                    </a>
-                                    <a href="tel:570810800" style={{
-                                        display: "block",
-                                        color: "var(--color-primary)",
-                                        fontSize: "2rem",
-                                        fontWeight: "bold",
-                                        marginBottom: "var(--spacing-xs)"
-                                    }}>
-                                        570 810 800
-                                    </a>
-                                    <a href="mailto:gabinet@mikrostomart.pl" style={{ color: "var(--color-text-muted)", fontSize: "1.1rem" }}>
-                                        gabinet@mikrostomart.pl
-                                    </a>
+                                    <div style={{ marginBottom: "1rem" }}>
+                                        <a href="tel:570270470" style={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: "1rem",
+                                            color: "var(--color-primary)",
+                                            textDecoration: "none",
+                                            marginBottom: "0.2rem"
+                                        }}>
+                                            <AnimatedPhone size={32} color="var(--color-primary)" />
+                                            <span style={{ fontSize: "2rem", fontWeight: "bold" }}>570 270 470</span>
+                                        </a>
+                                        <p style={{ paddingLeft: "3rem", color: "var(--color-text-muted)", fontSize: "0.9rem" }}>Główny numer recepcji</p>
+                                    </div>
+
+                                    <div>
+                                        <a href="tel:570810800" style={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: "1rem",
+                                            color: "var(--color-primary)",
+                                            textDecoration: "none",
+                                            marginBottom: "0.2rem"
+                                        }}>
+                                            <AnimatedPhone size={32} color="var(--color-primary)" />
+                                            <span style={{ fontSize: "2rem", fontWeight: "bold" }}>570 810 800</span>
+                                        </a>
+                                        <p style={{ paddingLeft: "3rem", color: "var(--color-text-muted)", fontSize: "0.9rem" }}>W razie zajętej linii</p>
+                                    </div>
+
+                                    <div style={{ marginTop: "1.5rem" }}>
+                                        <a href="mailto:gabinet@mikrostomart.pl" style={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: "1rem",
+                                            color: "var(--color-primary)",
+                                            textDecoration: "none"
+                                        }}>
+                                            <AnimatedAt size={32} color="var(--color-primary)" />
+                                            <span style={{ fontSize: "1.5rem" }}>gabinet@mikrostomart.pl</span>
+                                        </a>
+                                    </div>
                                 </div>
 
                                 <div style={{ borderTop: "1px solid var(--color-surface-hover)", paddingTop: "var(--spacing-lg)" }}>

@@ -1,4 +1,6 @@
 import Image from 'next/image';
+import AnimatedPhone from "@/components/AnimatedPhone";
+import AnimatedAt from "@/components/AnimatedAt";
 
 export default function Footer() {
     return (
@@ -64,17 +66,20 @@ export default function Footer() {
                             45-940 Opole/Chmielowice
                         </a>
 
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                            <a href="tel:+48570270470" style={{ color: 'var(--color-text-muted)', textDecoration: 'none' }} className="hover-primary">
-                                Tel: 570-270-470
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            <a href="tel:+48570270470" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem' }} className="hover-primary">
+                                <AnimatedPhone size={16} color="var(--color-primary)" />
+                                570-270-470
                             </a>
-                            <a href="tel:+48570810800" style={{ color: 'var(--color-text-muted)', textDecoration: 'none' }} className="hover-primary">
-                                Tel: 570-810-800
+                            <a href="tel:+48570810800" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem' }} className="hover-primary">
+                                <AnimatedPhone size={16} color="var(--color-primary)" />
+                                570-810-800
                             </a>
                         </div>
 
-                        <a href="mailto:gabinet@mikrostomart.pl" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', display: 'block', marginTop: '0.5rem' }} className="hover-primary">
-                            Email: gabinet@mikrostomart.pl
+                        <a href="mailto:gabinet@mikrostomart.pl" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem' }} className="hover-primary">
+                            <AnimatedAt size={16} color="var(--color-primary)" />
+                            gabinet@mikrostomart.pl
                         </a>
                     </div>
                 </div>
@@ -105,15 +110,36 @@ export default function Footer() {
                 flexWrap: 'wrap'
             }}>
                 <span>© {new Date().getFullYear()} Mikrostomart. Wszelkie prawa zastrzeżone.</span>
-                <a
-                    href="/regulamin.docx"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ color: 'var(--color-text-muted)', textDecoration: 'underline' }}
-                    className="hover-primary"
-                >
-                    Regulamin
-                </a>
+                <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+                    <a
+                        href="/faq"
+                        style={{ color: 'var(--color-text-muted)', textDecoration: 'none', opacity: 0.7 }}
+                        className="hover-underline"
+                    >
+                        FAQ (Pytania i Odpowiedzi)
+                    </a>
+                    <a
+                        href="/regulamin"
+                        style={{ color: 'var(--color-text-muted)', textDecoration: 'none', opacity: 0.7 }}
+                        className="hover-underline"
+                    >
+                        Regulamin
+                    </a>
+                    <a
+                        href="/polityka-prywatnosci"
+                        style={{ color: 'var(--color-text-muted)', textDecoration: 'none', opacity: 0.7 }}
+                        className="hover-underline"
+                    >
+                        Polityka Prywatności (RODO)
+                    </a>
+                    <a
+                        href="/polityka-cookies"
+                        style={{ color: 'var(--color-text-muted)', textDecoration: 'none', opacity: 0.7 }}
+                        className="hover-underline"
+                    >
+                        Polityka Cookies
+                    </a>
+                </div>
             </div>
         </footer>
     );

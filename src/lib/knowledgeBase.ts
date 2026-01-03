@@ -130,4 +130,67 @@ Klinika udziela **2-letniej rękojmi** na wypełnienia i protetykę, pod warunki
   - Rejestracja: +48 570 270 470 (Główny numer)
   - Numer dodatkowy: +48 570 810 800
 - **Email**: gabinet@mikrostomart.pl
+
+## CZĘSTE PYTANIA I ODPOWIEDZI (FAQ)
+
+### PROFILAKTYKA
+- **Higienizacja**: Usuwa kamień (skaling) i osad (piaskowanie). Zapobiega paradontozie. Zalecana co 6 miesięcy.
+- **Różnica Skaling vs Piaskowanie**: Skaling = twardy kamień (ultradźwięki). Piaskowanie = osad z kawy/herbaty (piasek pod ciśnieniem).
+- **Fluor**: Bezpieczny i kluczowy dla szkliwa.
+- **Szczoteczka**: Polecamy soniczne (lepsze mycie, bezpieczne dla dziąseł).
+- **Krwawienie dziąseł**: Objaw stanu zapalnego. Nie przerywać mycia, umówić się na higienizację.
+
+### LECZENIE KANAŁOWE (ENDODONCJA)
+- **Ból**: Leczenie jest bezbolesne (znieczulenie komputerowe The Wand).
+- **Mikroskop**: Powiększenie 25x pozwala znaleźć wszystkie kanały i uratować ząb przed usunięciem. Jest droższe, ale skuteczniejsze.
+- **Czas trwania**: Zazwyczaj 1 wizyta (90-120 min).
+- **Brak bólu**: Zmiany w kości (ziarniniaki) mogą nie boleć, ale są niebezpieczne (bomba zegarowa). Trzeba leczyć.
+- **Re-Endo**: Powtórne leczenie kanałowe (poprawa po starym leczeniu). Trudniejsze, ale możliwe.
+
+### STOMATOLOGIA ESTETYCZNA
+- **Licówki**: Cienkie płatki porcelany/kompozytu. Korygują kształt/kolor. Proces: DSD -> Przymiarka -> Montaż (2-3 wizyty).
+- **Wybielanie**: Bezpieczne dla szkliwa. Efekt 1-3 lat (zależy od diety).
+- **Bonding**: Szybka poprawa kształtu (kompozyt) na jednej wizycie. Bez szlifowania.
+
+### IMPLANTY
+- **Dla kogo**: Dla większości dorosłych (wyjątek: nieustabilizowana cukrzyca, zanik kości - wtedy regeneracja).
+- **Czas zabiegu**: 30-40 min (wszczepienie). Zrastanie z kością: 3-6 miesięcy.
+- **Skuteczność**: 98%. Odrzucenie jest bardzo rzadkie.
+- **Lotnisko**: Nie piszczą na bramkach (tytan/cyrkon nie jest magnetyczny).
+- **Implantacja natychmiastowa**: Usunięcie zęba i wkręcenie implantu na tej samej wizycie.
+
+### PROTETYKA
+- **Korona vs Licówka**: Licówka = tylko przód (estetyka). Korona = cały "kapturek" (odbudowa zniszczonego zęba).
+- **Mosty**: Uzupełniają braki zębowe (stałe, na zębach sąsiednich).
+- **Materiały**: Pełnoceramika (E.max) lub Cyrkon. Nie sinieją przy dziąśle, wyglądają naturalnie.
+- **Czas**: ok. 5-7 dni roboczych. Skaner 3D zamiast wycisków.
+
+### ORTODONCJA
+- **Nakładki (Alignery)**: Przezroczyste, wyjmowane prostowanie zębów. Dyskretne.
+- **Ból**: Minimalny (uczucie ucisku przez 1-2 dni).
+- **Czas leczenia**: 6-18 miesięcy (często szybciej niż aparat stały).
+- **Retencja**: Konieczna po leczeniu (drucik lub szyna na noc), by zęby nie wróciły na stare miejsce.
+
+### CHIRURGIA
+- **Ósemki**: Warto usuwać, gdy psują zgryz, powodują stany zapalne lub próchnicę.
+- **PRF (Fibryna)**: "Opatrunek" z krwi pacjenta. Przyspiesza gojenie po zabiegu.
+- **Po ekstrakcji**: 2h nie jeść, unikać gorącego, nie płukać ust, zimne okłady.
+- **Suchy zębodół**: Rzadkie powikłanie. Zapobiegamy stosując PRF i ozon.
+
+### DZIECI
+- **Pierwsza wizyta**: Wiek 2-3 lata (wizyta adaptacyjna).
+- **Zęby mleczne**: Trzeba leczyć, bo wpływają na zęby stałe. Stosujemy kolorowe plomby.
+- **Lakowanie**: Zabezpieczenie bruzd przed próchnicą (bezbolesne).
+- **Strach**: Metoda "powiedz-pokaż-zrób", gaz rozweselający, bajki.
+
+### ORGANIZACJA I FINANSE
+- **Płatności**: Gotówka, Karta, BLIK, MediRaty (raty).
+- **Skierowanie**: Nie potrzebne (klinika prywatna).
+- **Parking**: Własny, bezpłatny pod kliniką.
+- **Przygotowanie**: Lista leków, zdjęcie RTG (jeśli masz).
+
+### GWARANCJA I BEZPIECZEŃSTWO
+- **Rękojmia**: 2 lata na leczenie i protetykę.
+- **Warunek**: Wizyty kontrolne i higienizacja co 6 miesięcy.
+- **Sterylność**: Autoklaw Klasy B (szpitalny), pakiety otwierane przy pacjencie. Bezpieczeństwo to priorytet.
 `;
