@@ -67,8 +67,8 @@ export async function GET(req: Request) {
             response_format: "b64_json" // Get base64 directly to save download step
         });
 
-        const imageBase64 = imageResponse.data[0].b64_json;
-        if (!imageBase64) throw new Error("Failed to generate image");
+        const imageBase64 = imageResponse.data?.[0]?.b64_json;
+        if (!imageBase64) throw new Error("Failed to generate image: No data returned");
 
         // 5. Commit Image to GitHub
         const imageFilename = `auto-${articleData.slug}-${Date.now()}.png`;
