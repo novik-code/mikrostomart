@@ -39,103 +39,148 @@ export default function GoogleReviews() {
                     </div>
                 </RevealOnScroll>
 
-                {/* Scroller */}
-                <div
-                    className="reviews-scroller"
-                    style={{
-                        display: "flex",
-                        gap: "2rem",
-                        overflowX: "auto",
-                        padding: "1rem", // space for shadow
-                        paddingBottom: "2rem",
-                        scrollSnapType: "x mandatory",
-                        margin: "0 -2rem", // Bleed on mobile
-                        paddingLeft: "2rem",
-                        paddingRight: "2rem",
-                        WebkitOverflowScrolling: "touch",
-                        scrollbarWidth: "none",
-                        msOverflowStyle: "none"
-                    }}
-                >
-                    {reviews.map((review, index) => (
-                        <RevealOnScroll key={review.id} delay={index * 100 as 0 | 100 | 200} className="review-card-wrapper">
-                            <div
-                                style={{
-                                    background: "var(--color-background)",
-                                    padding: "2rem",
-                                    borderRadius: "var(--radius-md)",
-                                    border: "1px solid var(--color-surface-hover)",
-                                    minWidth: "300px",
-                                    maxWidth: "350px",
-                                    height: "100%",
-                                    display: "flex",
-                                    flexDirection: "column",
-                                    boxShadow: "0 4px 20px rgba(0,0,0,0.1)",
-                                    scrollSnapAlign: "center",
-                                    position: "relative"
-                                }}
-                            >
-                                <Quote
-                                    size={40}
+                {/* Scroller with Arrows */}
+                <div style={{ position: "relative", margin: "0 -2rem", padding: "0 2rem" }}>
+
+                    {/* LEFT ARROW */}
+                    <button
+                        className="gallery-nav-btn gallery-nav-btn-prev"
+                        onClick={() => {
+                            const container = document.querySelector('.reviews-scroller');
+                            if (container) {
+                                container.scrollBy({ left: -320, behavior: 'smooth' });
+                            }
+                        }}
+                        title="Poprzednia"
+                        style={{
+                            left: '0',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            zIndex: 40,
+                            position: 'absolute'
+                        }}
+                    >
+                        ❮
+                    </button>
+
+                    {/* RIGHT ARROW */}
+                    <button
+                        className="gallery-nav-btn gallery-nav-btn-next"
+                        onClick={() => {
+                            const container = document.querySelector('.reviews-scroller');
+                            if (container) {
+                                container.scrollBy({ left: 320, behavior: 'smooth' });
+                            }
+                        }}
+                        title="Następna"
+                        style={{
+                            right: '0',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            zIndex: 40,
+                            position: 'absolute'
+                        }}
+                    >
+                        ❯
+                    </button>
+
+                    <div
+                        className="reviews-scroller"
+                        style={{
+                            display: "flex",
+                            gap: "2rem",
+                            overflowX: "auto",
+                            padding: "1rem", // space for shadow
+                            paddingBottom: "2rem",
+                            scrollSnapType: "x mandatory",
+                            // Margin/Padding handled by wrapper now to avoid cutting off arrows
+                            // margin: "0 -2rem", 
+                            paddingLeft: "0.5rem",
+                            paddingRight: "0.5rem",
+                            WebkitOverflowScrolling: "touch",
+                            scrollbarWidth: "none",
+                            msOverflowStyle: "none"
+                        }}
+                    >
+                        {reviews.map((review, index) => (
+                            <RevealOnScroll key={review.id} delay={index * 100 as 0 | 100 | 200} className="review-card-wrapper">
+                                <div
                                     style={{
-                                        position: "absolute",
-                                        top: "1rem",
-                                        right: "1rem",
-                                        color: "var(--color-primary)",
-                                        opacity: 0.1
-                                    }}
-                                />
-
-                                <div style={{ display: "flex", gap: "2px", marginBottom: "1rem" }}>
-                                    {[...Array(5)].map((_, i) => (
-                                        <Star key={i} size={16} fill="#FBBC05" color="#FBBC05" />
-                                    ))}
-                                </div>
-
-                                <p style={{
-                                    fontSize: "0.95rem",
-                                    lineHeight: "1.6",
-                                    color: "var(--color-text-muted)",
-                                    marginBottom: "1.5rem",
-                                    flex: 1,
-                                    fontStyle: "italic"
-                                }}>
-                                    "{review.text}"
-                                </p>
-
-                                <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginTop: "auto" }}>
-                                    <div style={{
-                                        width: "40px",
-                                        height: "40px",
-                                        borderRadius: "50%",
-                                        background: "var(--color-primary-light)",
-                                        color: "var(--color-primary)",
+                                        background: "var(--color-background)",
+                                        padding: "2rem",
+                                        borderRadius: "var(--radius-md)",
+                                        border: "1px solid var(--color-surface-hover)",
+                                        minWidth: "300px",
+                                        maxWidth: "350px",
+                                        height: "100%",
                                         display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                        fontWeight: "bold",
-                                        fontSize: "1.2rem"
+                                        flexDirection: "column",
+                                        boxShadow: "0 4px 20px rgba(0,0,0,0.1)",
+                                        scrollSnapAlign: "center",
+                                        position: "relative"
+                                    }}
+                                >
+                                    <Quote
+                                        size={40}
+                                        style={{
+                                            position: "absolute",
+                                            top: "1rem",
+                                            right: "1rem",
+                                            color: "var(--color-primary)",
+                                            opacity: 0.1
+                                        }}
+                                    />
+
+                                    <div style={{ display: "flex", gap: "2px", marginBottom: "1rem" }}>
+                                        {[...Array(5)].map((_, i) => (
+                                            <Star key={i} size={16} fill="#FBBC05" color="#FBBC05" />
+                                        ))}
+                                    </div>
+
+                                    <p style={{
+                                        fontSize: "0.95rem",
+                                        lineHeight: "1.6",
+                                        color: "var(--color-text-muted)",
+                                        marginBottom: "1.5rem",
+                                        flex: 1,
+                                        fontStyle: "italic"
                                     }}>
-                                        {review.author.charAt(0)}
-                                    </div>
-                                    <div>
-                                        <p style={{ fontWeight: "bold", fontSize: "0.9rem", color: "var(--color-text)" }}>
-                                            {review.author}
-                                        </p>
-                                        <p style={{ fontSize: "0.8rem", color: "var(--color-text-muted)" }}>
-                                            {review.date}
-                                        </p>
-                                    </div>
-                                    <div style={{ marginLeft: "auto" }}>
-                                        <GoogleLogo />
+                                        "{review.text}"
+                                    </p>
+
+                                    <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginTop: "auto" }}>
+                                        <div style={{
+                                            width: "40px",
+                                            height: "40px",
+                                            borderRadius: "50%",
+                                            background: "var(--color-primary-light)",
+                                            color: "var(--color-primary)",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            fontWeight: "bold",
+                                            fontSize: "1.2rem"
+                                        }}>
+                                            {review.author.charAt(0)}
+                                        </div>
+                                        <div>
+                                            <p style={{ fontWeight: "bold", fontSize: "0.9rem", color: "var(--color-text)" }}>
+                                                {review.author}
+                                            </p>
+                                            <p style={{ fontSize: "0.8rem", color: "var(--color-text-muted)" }}>
+                                                {review.date}
+                                            </p>
+                                        </div>
+                                        <div style={{ marginLeft: "auto" }}>
+                                            <GoogleLogo />
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        </RevealOnScroll>
-                    ))}
-                </div>
+                            </RevealOnScroll>
+                        ))}
+                    </div>
 
-                <style jsx global>{`
+                    <style jsx global>{`
                     .reviews-scroller::-webkit-scrollbar {
                         display: none;
                     }
@@ -143,6 +188,7 @@ export default function GoogleReviews() {
                         flex: 0 0 auto;
                     }
                 `}</style>
+                </div>
             </div>
         </section>
     );

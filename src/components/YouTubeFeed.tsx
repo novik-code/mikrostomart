@@ -81,21 +81,20 @@ export default function YouTubeFeed() {
                 <div style={{ position: "relative", padding: "0 var(--spacing-md)" }}>
 
                     {/* Left Arrow */}
-                    <button onClick={prevSlide} style={{
-                        position: "absolute",
-                        left: "-10px",
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        background: "rgba(255,255,255,0.1)",
-                        color: "var(--color-primary)",
-                        padding: "1rem",
-                        borderRadius: "50%",
-                        zIndex: 10,
-                        fontSize: "1.5rem",
-                        cursor: "pointer",
-                        border: "1px solid var(--color-surface-hover)"
-                    }}>
-                        ←
+                    <button
+                        onClick={prevSlide}
+                        className="gallery-nav-btn gallery-nav-btn-prev"
+                        title="Poprzednie wideo"
+                        style={{
+                            left: '0',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            zIndex: 40,
+                            position: "absolute",
+                            // Override default size if needed, but class should handle it
+                        }}
+                    >
+                        ❮
                     </button>
 
                     <div style={{
@@ -121,6 +120,7 @@ export default function YouTubeFeed() {
                                     }}>
                                         <iframe
                                             src={`https://www.youtube.com/embed/${video.id}`}
+                                            title={video.title} // Accessibility fix
                                             style={{
                                                 position: "absolute",
                                                 top: 0,
@@ -152,21 +152,19 @@ export default function YouTubeFeed() {
                     </div>
 
                     {/* Right Arrow */}
-                    <button onClick={nextSlide} style={{
-                        position: "absolute",
-                        right: "-10px",
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        background: "rgba(255,255,255,0.1)",
-                        color: "var(--color-primary)",
-                        padding: "1rem",
-                        borderRadius: "50%",
-                        zIndex: 10,
-                        fontSize: "1.5rem",
-                        cursor: "pointer",
-                        border: "1px solid var(--color-surface-hover)"
-                    }}>
-                        →
+                    <button
+                        onClick={nextSlide}
+                        className="gallery-nav-btn gallery-nav-btn-next"
+                        title="Następne wideo"
+                        style={{
+                            right: '0',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            zIndex: 40,
+                            position: "absolute"
+                        }}
+                    >
+                        ❯
                     </button>
 
                 </div>
