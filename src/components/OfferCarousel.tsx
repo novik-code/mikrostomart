@@ -308,6 +308,23 @@ export default function OfferCarousel() {
                 </AnimatePresence>
             </div>
 
+            {/* Navigation Arrows */}
+            <button
+                className="absolute left-2 md:left-8 z-30 p-2 text-[#dcb14a] hover:text-white transition-all duration-300 hover:scale-110 active:scale-95 bg-black/20 md:bg-transparent rounded-full backdrop-blur-sm md:backdrop-blur-none"
+                onClick={() => paginate(-1)}
+                aria-label="Poprzedni"
+            >
+                <ChevronLeft size={48} strokeWidth={1.5} />
+            </button>
+
+            <button
+                className="absolute right-2 md:right-8 z-30 p-2 text-[#dcb14a] hover:text-white transition-all duration-300 hover:scale-110 active:scale-95 bg-black/20 md:bg-transparent rounded-full backdrop-blur-sm md:backdrop-blur-none"
+                onClick={() => paginate(1)}
+                aria-label="Następny"
+            >
+                <ChevronRight size={48} strokeWidth={1.5} />
+            </button>
+
             {/* Pagination Dots - Moved below content */}
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-3 z-30">
                 {OFFERS.map((_, i) => (
