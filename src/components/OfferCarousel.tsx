@@ -149,6 +149,35 @@ export default function OfferCarousel() {
             <div className="absolute inset-0 z-0 bg-transparent" />
 
             <div className="relative z-20 w-full max-w-6xl px-4 md:px-12 h-full flex flex-col justify-center">
+                {/* Navigation Arrows - Moved Inside Container for Correct Vertical Alignment */}
+                <button
+                    className="gallery-nav-btn gallery-nav-btn-prev"
+                    onClick={() => paginate(-1)}
+                    title="Poprzednia"
+                    style={{
+                        left: '0', // Align to edge of content container
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        zIndex: 40
+                    }}
+                >
+                    ❮
+                </button>
+
+                <button
+                    className="gallery-nav-btn gallery-nav-btn-next"
+                    onClick={() => paginate(1)}
+                    title="Następna"
+                    style={{
+                        right: '0', // Align to edge of content container
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        zIndex: 40
+                    }}
+                >
+                    ❯
+                </button>
+
                 <AnimatePresence initial={false} custom={direction} mode="wait">
                     <motion.div
                         key={page}
@@ -307,35 +336,6 @@ export default function OfferCarousel() {
                     </motion.div>
                 </AnimatePresence>
             </div>
-
-            {/* Navigation Arrows (Identical to Metamorphosis) */}
-            <button
-                className="gallery-nav-btn gallery-nav-btn-prev"
-                onClick={() => paginate(-1)}
-                title="Poprzednia"
-                style={{
-                    left: '10px', // Force inside for this wide layout
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    zIndex: 40 // Higher than content
-                }}
-            >
-                ❮
-            </button>
-
-            <button
-                className="gallery-nav-btn gallery-nav-btn-next"
-                onClick={() => paginate(1)}
-                title="Następna"
-                style={{
-                    right: '10px', // Force inside
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    zIndex: 40
-                }}
-            >
-                ❯
-            </button>
 
             {/* Pagination Dots - Moved below content */}
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-3 z-30">
