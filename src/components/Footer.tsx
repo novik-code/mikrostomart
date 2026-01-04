@@ -126,7 +126,9 @@ export default function Footer() {
                         Baza Wiedzy 📚
                     </a>
                     <a
-                        href="/regulamin"
+                        href="/regulamin.docx"
+                        target="_blank"
+                        rel="noopener noreferrer"
                         style={{ color: 'var(--color-text-muted)', textDecoration: 'none', opacity: 0.7 }}
                         className="hover-underline"
                     >
