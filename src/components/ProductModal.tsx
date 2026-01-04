@@ -15,6 +15,8 @@ export interface Product {
     image: string; // Main image
     gallery?: string[]; // Optional gallery
     isVisible?: boolean;
+    isVariablePrice?: boolean;
+    minPrice?: number;
 }
 
 interface ProductModalProps {
@@ -31,36 +33,53 @@ export default function ProductModal({ product, initialStep = "PRODUCT", onClose
     const [step, setStep] = useState<Step>(initialStep);
     const [quantity, setQuantity] = useState(1);
 
-    // If no product and trying to view product, close or return null (shouldn't happen if logic is correct)
+    // State for variable price products
+    const [currentPrice, setCurrentPrice] = useState(product ? product.price : 0);
+
+    // Reset state when product changes
+    if (product && currentPrice === 0 && product.price > 0) {
+        setCurrentPrice(product.price);
+    }
+
+    // Safety check
     if (!product && step === "PRODUCT") return null;
 
-    // Combine main image and gallery into one array
+    // Combine main image and gallery
     const images = product ? [product.image, ...(product.gallery || [])].filter(Boolean) : [];
 
-    const handleNextImage = () => {
-        setCurrentImageIndex((prev) => (prev + 1) % images.length);
-    };
+    const handleNextImage = () => setCurrentImageIndex((prev) => (prev + 1) % images.length);
+    const handlePrevImage = () => setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
 
-    const handlePrevImage = () => {
-        setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
+    const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const val = parseInt(e.target.value);
+        if (!isNaN(val)) {
+            setCurrentPrice(val);
+        }
     };
 
     const handleAddToCart = () => {
         if (!product) return;
-        addItem(product, quantity);
-        setQuantity(1); // Reset
-        // Optional: User feedback could be added here
+        // Construct product with actual selected price
+        const productToAdd = {
+            ...product,
+            price: currentPrice
+        };
+        addItem(productToAdd, quantity);
+        setQuantity(1);
     };
 
     const handleBuyNow = () => {
         if (!product) return;
-        addItem(product, quantity);
+        const productToAdd = {
+            ...product,
+            price: currentPrice
+        };
+        addItem(productToAdd, quantity);
         setStep("CHECKOUT");
     };
 
-    const handleCheckoutSuccess = () => {
-        setStep("SUCCESS");
-    };
+    const handleCheckoutSuccess = () => setStep("SUCCESS");
+
 
     // --- RENDER CONTENT BASED ON STEP ---
     const renderContent = () => {
@@ -185,8 +204,38 @@ export default function ProductModal({ product, initialStep = "PRODUCT", onClose
                             {product.name}
                         </h2>
                         <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#dcb14a' }}>
-                            {product.price} PLN
+                            {currentPrice} PLN
                         </div>
+
+                        {/* Variable Price Input */}
+                        {(product as any).isVariablePrice && (
+                            <div style={{ marginTop: "1.5rem", marginBottom: "0.5rem" }}>
+                                <label style={{ display: "block", color: "#9ca3af", marginBottom: "0.5rem", fontSize: "0.9rem" }}>
+                                    Wybierz kwotę vouchera (PLN):
+                                </label>
+                                <input
+                                    type="number"
+                                    min={(product as any).minPrice || 100}
+                                    step="50"
+                                    value={currentPrice}
+                                    onChange={handlePriceChange}
+                                    style={{
+                                        width: "100%",
+                                        padding: "1rem",
+                                        background: "rgba(255,255,255,0.05)",
+                                        border: "1px solid #dcb14a",
+                                        borderRadius: "8px",
+                                        color: "white",
+                                        fontSize: "1.2rem",
+                                        fontWeight: "bold",
+                                        outline: "none"
+                                    }}
+                                />
+                                <p style={{ fontSize: "0.8rem", color: "#6b7280", marginTop: "0.5rem" }}>
+                                    Minimum: {(product as any).minPrice || 100} PLN
+                                </p>
+                            </div>
+                        )}
                     </div>
 
                     <div style={{ height: '1px', background: 'rgba(255,255,255,0.1)' }} />
@@ -214,7 +263,45 @@ export default function ProductModal({ product, initialStep = "PRODUCT", onClose
                         </div>
                     )}
 
+                    {/* Price Input for Variable Products */}
+                    {product.isVariablePrice && (
+                        <div style={{ marginBottom: "1.5rem" }}>
+                            <label style={{ display: "block", color: "#9ca3af", marginBottom: "0.5rem", fontSize: "0.9rem" }}>
+                                Wartość Vouchera (PLN):
+                            </label>
+                            <input
+                                type="number"
+                                min={product.minPrice || 100}
+                                step="50"
+                                value={product.price} // We will display the current modified price
+                                onChange={(e) => {
+                                    const val = parseInt(e.target.value);
+                                    if (!isNaN(val)) {
+                                        // We need to locally update the product object's price for the cart
+                                        // Since props are immutable, we might need a local state clone of product
+                                        // But 'product' prop might be used directly. 
+                                        // BETTER: Use a local state 'customPrice'
+                                    }
+                                }}
+                                style={{
+                                    width: "100%",
+                                    padding: "1rem",
+                                    background: "rgba(255,255,255,0.05)",
+                                    border: "1px solid #dcb14a",
+                                    borderRadius: "8px",
+                                    color: "white",
+                                    fontSize: "1.2rem",
+                                    fontWeight: "bold"
+                                }}
+                            />
+                            <p style={{ fontSize: "0.8rem", color: "#6b7280", marginTop: "0.5rem" }}>
+                                Minimalna kwota: {product.minPrice || 100} PLN
+                            </p>
+                        </div>
+                    )}
+
                     <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '15px' }}>
+
 
                         {/* Quantity Selector handled locally before adding */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.5rem' }}>

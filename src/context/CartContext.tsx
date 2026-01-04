@@ -2,15 +2,21 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
-type Product = {
+export type Product = {
     id: string;
     name: string;
     price: number;
     image: string;
+    // Optional fields that might be passed
+    description?: string;
+    category?: string;
+    isVariablePrice?: boolean;
+    minPrice?: number;
 };
 
-type CartItem = Product & {
+export type CartItem = Product & {
     quantity: number;
+    originalId?: string; // To store the real product ID if 'id' is composite
 };
 
 type CartContextType = {
@@ -45,16 +51,27 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }, [items]);
 
     const addItem = (product: Product, quantity: number = 1) => {
+        // Create a unique ID for the cart based on Product ID + Price
+        // This ensures that "Voucher (500)" and "Voucher (1000)" are separate items
+        // We use this composite ID for all cart operations (remove, update)
+        const cartId = `${product.id}-${product.price}`;
+
         setItems((prev) => {
-            const existing = prev.find((item) => item.id === product.id);
+            const existing = prev.find((item) => item.id === cartId);
             if (existing) {
                 return prev.map((item) =>
-                    item.id === product.id
+                    item.id === cartId
                         ? { ...item, quantity: item.quantity + quantity }
                         : item
                 );
             }
-            return [...prev, { ...product, quantity }];
+            // Store with composite ID, preserving originalId
+            return [...prev, {
+                ...product,
+                id: cartId,
+                originalId: product.id,
+                quantity
+            }];
         });
     };
 

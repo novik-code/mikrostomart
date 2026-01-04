@@ -51,6 +51,19 @@
     ]
   },
   {
+    "id": "voucher-metamorphosis",
+    "name": "Voucher: Twoja Metamorfoza",
+    "price": 500,
+    "description": "Podaruj bliskiej osobie uśmiech, o jakim zawsze marzyła. Ekskluzywny voucher na dowolne zabiegi stomatologii estetycznej w Mikrostomart. Ty decydujesz o kwocie prezentu.",
+    "category": "Prezent",
+    "isVariablePrice": true,
+    "minPrice": 100,
+    "image": "/voucher-metamorphosis.png",
+    "gallery": [
+      "/voucher-metamorphosis.png"
+    ]
+  },
+  {
     "id": "5",
     "name": "Szczoteczka Manualna Ultra Soft",
     "price": 29,
