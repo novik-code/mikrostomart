@@ -141,7 +141,7 @@ export default function OfferCarousel() {
 
     return (
         <section
-            className="relative h-[70vh] w-full flex items-center justify-center overflow-hidden"
+            className="relative w-full flex items-center justify-center overflow-hidden py-12 md:py-24"
             onMouseEnter={() => setIsPaused(true)}
             onMouseLeave={() => setIsPaused(false)}
         >
@@ -308,21 +308,33 @@ export default function OfferCarousel() {
                 </AnimatePresence>
             </div>
 
-            {/* Navigation Arrows */}
+            {/* Navigation Arrows (Identical to Metamorphosis) */}
             <button
-                className="absolute left-2 md:left-8 z-30 p-2 text-[#dcb14a] hover:text-white transition-all duration-300 hover:scale-110 active:scale-95 bg-black/20 md:bg-transparent rounded-full backdrop-blur-sm md:backdrop-blur-none"
+                className="gallery-nav-btn gallery-nav-btn-prev"
                 onClick={() => paginate(-1)}
-                aria-label="Poprzedni"
+                title="Poprzednia"
+                style={{
+                    left: '10px', // Force inside for this wide layout
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    zIndex: 40 // Higher than content
+                }}
             >
-                <ChevronLeft size={48} strokeWidth={1.5} />
+                ❮
             </button>
 
             <button
-                className="absolute right-2 md:right-8 z-30 p-2 text-[#dcb14a] hover:text-white transition-all duration-300 hover:scale-110 active:scale-95 bg-black/20 md:bg-transparent rounded-full backdrop-blur-sm md:backdrop-blur-none"
+                className="gallery-nav-btn gallery-nav-btn-next"
                 onClick={() => paginate(1)}
-                aria-label="Następny"
+                title="Następna"
+                style={{
+                    right: '10px', // Force inside
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    zIndex: 40
+                }}
             >
-                <ChevronRight size={48} strokeWidth={1.5} />
+                ❯
             </button>
 
             {/* Pagination Dots - Moved below content */}
