@@ -84,15 +84,21 @@ export default function ProductModal({ product, initialStep = "PRODUCT", onClose
     // --- RENDER CONTENT BASED ON STEP ---
     const renderContent = () => {
         if (step === "SUCCESS") {
+            const isDeposit = product?.id === 'deposit-payment';
             return (
                 <div style={{ padding: "4rem", textAlign: "center", color: "white", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%" }}>
                     <CheckCircle size={64} color="#dcb14a" style={{ marginBottom: "1.5rem" }} />
-                    <h2 style={{ fontSize: "2rem", marginBottom: "1rem" }}>Dziękujemy za zamówienie!</h2>
+                    <h2 style={{ fontSize: "2rem", marginBottom: "1rem" }}>
+                        {isDeposit ? "Zadatek został opłacony!" : "Dziękujemy za zamówienie!"}
+                    </h2>
                     <p style={{ color: "#d1d5db", maxWidth: "400px", lineHeight: "1.6", marginBottom: "2rem" }}>
-                        Potwierdzenie wysłaliśmy na Twój adres email. Skontaktujemy się z Tobą wkrótce w sprawie realizacji.
+                        {isDeposit
+                            ? "Twoja wizyta jest potwierdzona. Potwierdzenie wysłaliśmy na Twój adres email."
+                            : "Potwierdzenie wysłaliśmy na Twój adres email. Skontaktujemy się z Tobą wkrótce w sprawie realizacji."
+                        }
                     </p>
                     <button onClick={onClose} className="btn-primary" style={{ background: "#dcb14a", color: "black", border: "none" }}>
-                        Zamknij okno
+                        {isDeposit ? "Powrót na stronę główną" : "Zamknij okno"}
                     </button>
                 </div>
             );

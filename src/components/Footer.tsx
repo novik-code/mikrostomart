@@ -140,6 +140,13 @@ export default function Footer() {
                         Polityka Prywatności (RODO)
                     </a>
                     <a
+                        href="/zadatek"
+                        style={{ color: 'var(--color-primary)', textDecoration: 'none', fontWeight: 'bold' }}
+                        className="hover-underline"
+                    >
+                        Wpłać Zadatek
+                    </a>
+                    <a
                         href="/polityka-cookies"
                         style={{ color: 'var(--color-text-muted)', textDecoration: 'none', opacity: 0.7 }}
                         className="hover-underline"

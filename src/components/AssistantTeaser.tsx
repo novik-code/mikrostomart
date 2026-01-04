@@ -43,11 +43,27 @@ export default function AssistantTeaser() {
         return () => clearTimeout(timer);
     }, []);
 
+    // Auto-scroll and handle commands
     useEffect(() => {
         if (isChatOpen) {
             setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
         }
-    }, [isChatOpen, messages, selectedImage]);
+
+        // Check last message for commands
+        const lastMsg = messages[messages.length - 1];
+        if (lastMsg && lastMsg.role === 'assistant') {
+            const navigateMatch = lastMsg.content.match(/\[NAVIGATE:(.*?)\]/);
+            if (navigateMatch) {
+                const url = navigateMatch[1];
+                // Wait a moment for user to read then navigate
+                setTimeout(() => {
+                    router.push(url);
+                    // Optional: Close chat on mobile?
+                    // if (window.innerWidth < 768) closeChat(); 
+                }, 1500);
+            }
+        }
+    }, [isChatOpen, messages, selectedImage, router]);
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
@@ -89,7 +105,7 @@ export default function AssistantTeaser() {
 
             const historyForApi = messages.map(m => ({
                 role: m.role,
-                content: m.content // Log history as text only for simplicity in this iteration
+                content: m.content.replace(/\[NAVIGATE:.*?\]/g, "") // Clean history of commands
             }));
 
             const apiMessages = [...historyForApi, apiMessage].slice(-10);
@@ -198,7 +214,7 @@ export default function AssistantTeaser() {
                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                                 boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
                             }}>
-                                <Image src="/marcin-main.jpg" alt="AI" fill style={{ objectFit: 'cover', objectPosition: 'top' }} />
+                                <Image src="/assistant-avatar.png" alt="AI" fill style={{ objectFit: 'cover', objectPosition: 'top' }} />
                             </div>
                             <div style={{
                                 position: 'absolute', top: 0, right: 0, width: '14px', height: '14px',
@@ -234,7 +250,7 @@ export default function AssistantTeaser() {
                                 position: 'relative',
                                 display: 'flex', alignItems: 'center', justifyContent: 'center'
                             }}>
-                                <Image src="/marcin-main.jpg" alt="AI" fill style={{ objectFit: 'cover', objectPosition: 'top' }} />
+                                <Image src="/assistant-avatar.png" alt="AI" fill style={{ objectFit: 'cover', objectPosition: 'top' }} />
                             </div>
                             <div>
                                 <h3 style={{ color: 'white', margin: 0, fontSize: '18px' }}>Wirtualny Asystent</h3>
@@ -256,7 +272,7 @@ export default function AssistantTeaser() {
                                             overflow: 'hidden', position: 'relative', flexShrink: 0,
                                             border: '1px solid #dcb14a'
                                         }}>
-                                            <Image src="/marcin-main.jpg" alt="AI" fill style={{ objectFit: 'cover' }} />
+                                            <Image src="/assistant-avatar.png" alt="AI" fill style={{ objectFit: 'cover' }} />
                                         </div>
                                     )}
                                     <div style={{
@@ -275,7 +291,8 @@ export default function AssistantTeaser() {
                                                 style={{ maxWidth: '100%', borderRadius: '8px', marginBottom: '8px', border: '1px solid rgba(0,0,0,0.1)' }}
                                             />
                                         )}
-                                        {msg.content}
+                                        {/* Remove navigation tokens from display */}
+                                        {msg.content.replace(/\[NAVIGATE:.*?\]/g, '')}
                                     </div>
                                     {msg.role === 'user' && <User size={24} color="#9ca3af" />}
                                 </div>
@@ -287,7 +304,7 @@ export default function AssistantTeaser() {
                                         overflow: 'hidden', position: 'relative', flexShrink: 0,
                                         border: '1px solid #dcb14a'
                                     }}>
-                                        <Image src="/marcin-main.jpg" alt="AI" fill style={{ objectFit: 'cover' }} />
+                                        <Image src="/assistant-avatar.png" alt="AI" fill style={{ objectFit: 'cover' }} />
                                     </div>
                                     <div style={{ padding: '10px', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '12px' }}>
                                         <Loader2 size={16} className="animate-spin" color="white" />

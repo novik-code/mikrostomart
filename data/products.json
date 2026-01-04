@@ -51,6 +51,20 @@
     ]
   },
   {
+    "id": "deposit-payment",
+    "name": "Wpłata Zadatku",
+    "price": 200,
+    "description": "Wpłata zadatku na poczet rezerwacji wizyty. Prosimy o wpisanie uzgodnionej kwoty w polu poniżej.",
+    "category": "Płatność",
+    "isVisible": false,
+    "isVariablePrice": true,
+    "minPrice": 50,
+    "image": "/deposit-confirmation.png",
+    "gallery": [
+      "/deposit-confirmation.png"
+    ]
+  },
+  {
     "id": "voucher-metamorphosis",
     "name": "Voucher: Twoja Metamorfoza",
     "price": 500,
