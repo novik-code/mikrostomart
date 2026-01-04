@@ -149,35 +149,6 @@ export default function OfferCarousel() {
             <div className="absolute inset-0 z-0 bg-transparent" />
 
             <div className="relative z-20 w-full max-w-6xl px-4 md:px-12 h-full flex flex-col justify-center">
-                {/* Navigation Arrows - Moved Inside Container for Correct Vertical Alignment */}
-                <button
-                    className="gallery-nav-btn gallery-nav-btn-prev"
-                    onClick={() => paginate(-1)}
-                    title="Poprzednia"
-                    style={{
-                        left: '0', // Align to edge of content container
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        zIndex: 40
-                    }}
-                >
-                    ❮
-                </button>
-
-                <button
-                    className="gallery-nav-btn gallery-nav-btn-next"
-                    onClick={() => paginate(1)}
-                    title="Następna"
-                    style={{
-                        right: '0', // Align to edge of content container
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        zIndex: 40
-                    }}
-                >
-                    ❯
-                </button>
-
                 <AnimatePresence initial={false} custom={direction} mode="wait">
                     <motion.div
                         key={page}
@@ -211,8 +182,40 @@ export default function OfferCarousel() {
                             gap: "var(--spacing-xl)",
                             alignItems: "center",
                             maxWidth: "1200px",
-                            margin: "0 auto"
+                            margin: "0 auto",
+                            position: "relative" // Context for arrows
                         }}>
+                            {/* Navigation Arrows (Inside Content) */}
+                            <button
+                                className="gallery-nav-btn gallery-nav-btn-prev"
+                                onClick={(e) => { e.stopPropagation(); paginate(-1); }}
+                                title="Poprzednia"
+                                style={{
+                                    left: '0',
+                                    top: '50%',
+                                    transform: 'translateY(-50%)',
+                                    zIndex: 40,
+                                    position: 'absolute'
+                                }}
+                            >
+                                ❮
+                            </button>
+
+                            <button
+                                className="gallery-nav-btn gallery-nav-btn-next"
+                                onClick={(e) => { e.stopPropagation(); paginate(1); }}
+                                title="Następna"
+                                style={{
+                                    right: '0',
+                                    top: '50%',
+                                    transform: 'translateY(-50%)',
+                                    zIndex: 40,
+                                    position: 'absolute'
+                                }}
+                            >
+                                ❯
+                            </button>
+
                             {/* LEFT: Image Frame (Team Member Style) */}
                             <div className="flex justify-center md:justify-end order-1">
                                 <div
