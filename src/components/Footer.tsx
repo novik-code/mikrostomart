@@ -155,6 +155,13 @@ export default function Footer() {
                     >
                         Polityka Cookies
                     </a>
+                    <a
+                        href="/selfie"
+                        style={{ color: 'var(--color-primary)', textDecoration: 'none', fontWeight: 'bold' }}
+                        className="hover-underline"
+                    >
+                        📸 Wirtualna Fotobudka
+                    </a>
                 </div>
             </div>
         </footer>
