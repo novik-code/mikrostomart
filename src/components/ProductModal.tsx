@@ -263,42 +263,7 @@ export default function ProductModal({ product, initialStep = "PRODUCT", onClose
                         </div>
                     )}
 
-                    {/* Price Input for Variable Products */}
-                    {product.isVariablePrice && (
-                        <div style={{ marginBottom: "1.5rem" }}>
-                            <label style={{ display: "block", color: "#9ca3af", marginBottom: "0.5rem", fontSize: "0.9rem" }}>
-                                Wartość Vouchera (PLN):
-                            </label>
-                            <input
-                                type="number"
-                                min={product.minPrice || 100}
-                                step="50"
-                                value={product.price} // We will display the current modified price
-                                onChange={(e) => {
-                                    const val = parseInt(e.target.value);
-                                    if (!isNaN(val)) {
-                                        // We need to locally update the product object's price for the cart
-                                        // Since props are immutable, we might need a local state clone of product
-                                        // But 'product' prop might be used directly. 
-                                        // BETTER: Use a local state 'customPrice'
-                                    }
-                                }}
-                                style={{
-                                    width: "100%",
-                                    padding: "1rem",
-                                    background: "rgba(255,255,255,0.05)",
-                                    border: "1px solid #dcb14a",
-                                    borderRadius: "8px",
-                                    color: "white",
-                                    fontSize: "1.2rem",
-                                    fontWeight: "bold"
-                                }}
-                            />
-                            <p style={{ fontSize: "0.8rem", color: "#6b7280", marginTop: "0.5rem" }}>
-                                Minimalna kwota: {product.minPrice || 100} PLN
-                            </p>
-                        </div>
-                    )}
+
 
                     <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '15px' }}>
 

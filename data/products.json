@@ -60,7 +60,8 @@
     "minPrice": 100,
     "image": "/voucher-metamorphosis.png",
     "gallery": [
-      "/voucher-metamorphosis.png"
+      "/voucher-metamorphosis.png",
+      "/voucher-metamorphosis-detail.png"
     ]
   },
   {
