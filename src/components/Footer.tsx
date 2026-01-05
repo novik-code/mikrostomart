@@ -116,7 +116,7 @@ export default function Footer() {
                         style={{ color: 'var(--color-text-muted)', textDecoration: 'none', opacity: 0.7 }}
                         className="hover-underline"
                     >
-                        FAQ (Pytania i Odpowiedzi)
+                        FAQ
                     </a>
                     <a
                         href="/baza-wiedzy"
@@ -126,20 +126,18 @@ export default function Footer() {
                         Baza Wiedzy 📚
                     </a>
                     <a
-                        href="/regulamin.docx"
-                        target="_blank"
-                        rel="noopener noreferrer"
+                        href="/regulamin"
                         style={{ color: 'var(--color-text-muted)', textDecoration: 'none', opacity: 0.7 }}
                         className="hover-underline"
                     >
                         Regulamin
                     </a>
                     <a
-                        href="/polityka-prywatnosci"
+                        href="/rodo"
                         style={{ color: 'var(--color-text-muted)', textDecoration: 'none', opacity: 0.7 }}
                         className="hover-underline"
                     >
-                        Polityka Prywatności (RODO)
+                        RODO
                     </a>
                     <a
                         href="/zadatek"
@@ -160,7 +158,7 @@ export default function Footer() {
                         style={{ color: 'var(--color-primary)', textDecoration: 'none', fontWeight: 'bold' }}
                         className="hover-underline"
                     >
-                        📸 Wirtualna Fotobudka
+                        Selfie z Doktorem
                     </a>
                 </div>
             </div>
