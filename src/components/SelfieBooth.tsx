@@ -5,11 +5,11 @@ import { Camera, Download, RefreshCcw, ChevronLeft, ChevronRight } from "lucide-
 import { useRouter } from "next/navigation";
 
 const POSES = [
-    { src: "/images/doctor-pose-1.png", name: "Doktor z Córką" },
-    { src: "/images/doctor-pose-2.png", name: "Czapka Bulls" },
-    { src: "/images/doctor-pose-3.png", name: "Koszulka Tattoo" },
-    { src: "/images/doctor-pose-4.png", name: "Czapka Czarna" },
-    { src: "/images/doctor-pose-5.png", name: "Czapka Bokiem" }
+    { src: "/images/doctor-pose-1-solo.png", name: "Doktor Solo", placement: 'left' },
+    { src: "/images/doctor-pose-2.png", name: "Czapka Bulls", placement: 'right' },
+    { src: "/images/doctor-pose-3.png", name: "Koszulka Tattoo", placement: 'left' },
+    { src: "/images/doctor-pose-4.png", name: "Czapka Czarna", placement: 'right' },
+    { src: "/images/doctor-pose-5.png", name: "Czapka Bokiem", placement: 'left' }
 ];
 
 export default function SelfieBooth() {
@@ -155,12 +155,22 @@ export default function SelfieBooth() {
                     if (poseImg) {
                         // Logic: Doctor should be at the bottom, reasonably sized.
                         // Let's make doctor 85% of width?
+                        // Logic: Doctor should be at the bottom, reasonably sized.
+                        // Let's make doctor 85% of width?
                         const dW = targetW * 0.85;
                         const dH = (dW / poseImg.width) * poseImg.height;
 
-                        // Position: Bottom LEFT
-                        // To place at left: dX = -50 (slight overlap off-screen) or 0
-                        const dX = -50;
+                        // Position logic
+                        // @ts-ignore
+                        const placement = POSES[currentPoseIndex].placement || 'left';
+
+                        let dX = 0;
+                        if (placement === 'right') {
+                            dX = targetW - dW + 50; // Align right with slight overlap
+                        } else {
+                            dX = -50; // Align left with slight overlap
+                        }
+
                         const dY = targetH - dH;
 
                         ctx.drawImage(poseImg, dX, dY, dW, dH);
