@@ -4,10 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import { Camera, Download, RefreshCcw, ChevronLeft, ChevronRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-const FRAMES = [
-    { src: "/frame-thumbs.png", name: "Doktor Luzak" },
-    { src: "/frame-professional.png", name: "Premium VIP" },
-    { src: "/frame-fun.png", name: "Zabawny Dentysta" }
+const POSES = [
+    { src: "/images/doctor-cutout-1.png", name: "Doktor Luzak" },
+    { src: "/images/doctor-cutout-2.png", name: "Doktor VIP" },
+    { src: "/images/doctor-cutout-3.png", name: "Doktor Rock" }
 ];
 
 export default function SelfieBooth() {
@@ -16,38 +16,87 @@ export default function SelfieBooth() {
     const router = useRouter();
 
     const [stream, setStream] = useState<MediaStream | null>(null);
-    const [currentFrameIndex, setCurrentFrameIndex] = useState(0);
+    const [currentPoseIndex, setCurrentPoseIndex] = useState(0);
     const [error, setError] = useState<string | null>(null);
     const [capturedImage, setCapturedImage] = useState<string | null>(null);
     const [isCountingDown, setIsCountingDown] = useState(false);
     const [countdown, setCountdown] = useState(3);
 
-    // Load frame image
-    const [frameImg, setFrameImg] = useState<HTMLImageElement | null>(null);
+    const [poseImg, setPoseImg] = useState<HTMLImageElement | null>(null);
+
+    // Dynamic canvas size based on window to fit mobile screens better?
+    // For now, let's stick to a fixed high-res internal resolution and CSS scaling.
+
+    // Helper to remove white/gray checkerboard background
+    const cleanImage = (img: HTMLImageElement): Promise<HTMLImageElement> => {
+        return new Promise((resolve) => {
+            const dim = 1000; // max dim for processing
+            const canvas = document.createElement("canvas");
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext("2d");
+            if (!ctx) return resolve(img);
+
+            ctx.drawImage(img, 0, 0);
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imageData.data;
+
+            // Loop pixels
+            for (let i = 0; i < data.length; i += 4) {
+                const r = data[i];
+                const g = data[i + 1];
+                const b = data[i + 2];
+
+                // Detect White or Light Gray (Checkerboard keys)
+                const isWhite = r > 240 && g > 240 && b > 240;
+                const isGray = r > 180 && r < 230 && g > 180 && g < 230 && b > 180 && b < 230 && Math.abs(r - g) < 10 && Math.abs(g - b) < 10;
+
+                if (isWhite || isGray) {
+                    data[i + 3] = 0; // Alpha 0
+                }
+            }
+
+            ctx.putImageData(imageData, 0, 0);
+            const newImg = new Image();
+            newImg.src = canvas.toDataURL();
+            newImg.onload = () => resolve(newImg);
+        });
+    };
 
     useEffect(() => {
-        // Preload current frame
+        setPoseImg(null); // Reset while loading
         const img = new Image();
-        img.src = FRAMES[currentFrameIndex].src;
+        img.src = POSES[currentPoseIndex].src;
         img.crossOrigin = "anonymous";
-        img.onload = () => setFrameImg(img);
-    }, [currentFrameIndex]);
+        img.onload = async () => {
+            // Process image to remove background
+            const cleaned = await cleanImage(img);
+            setPoseImg(cleaned);
+        };
+    }, [currentPoseIndex]);
 
-    // Start Camera
     useEffect(() => {
         const startCamera = async () => {
             try {
                 const mediaStream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
+                    video: {
+                        facingMode: "user",
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    },
                     audio: false
                 });
                 setStream(mediaStream);
                 if (videoRef.current) {
                     videoRef.current.srcObject = mediaStream;
+                    // Important to prevent freezing
+                    videoRef.current.onloadedmetadata = () => {
+                        videoRef.current?.play().catch(e => console.error("Play error:", e));
+                    }
                 }
             } catch (err) {
                 console.error("Camera error:", err);
-                setError("Nie udało się uzyskać dostępu do kamery. Upewnij się, że wyraziłeś zgodę.");
+                setError("Brak dostępu do kamery. Sprawdź uprawnienia przeglądarki.");
             }
         };
 
@@ -58,9 +107,8 @@ export default function SelfieBooth() {
                 stream.getTracks().forEach(track => track.stop());
             }
         };
-    }, []);
+    }, []); // eslint-disable-line
 
-    // Draw Loop
     useEffect(() => {
         let animationId: number;
 
@@ -68,68 +116,74 @@ export default function SelfieBooth() {
             const canvas = canvasRef.current;
             const video = videoRef.current;
 
-            if (canvas && video && frameImg && video.readyState === 4) {
+            if (canvas && video && video.readyState >= 2) {
                 const ctx = canvas.getContext("2d");
                 if (ctx) {
-                    // Set canvas size to match video aspect ratio but high res
-                    // Use frame natural size as base if possible, or fixed HD
-                    // Let's stick to a portrait aspect ratio for Frames (usually vertical)
-                    // But webcam is landscape. We need to crop webcam to fit frame.
+                    // Force Portrait Mode for the output image (Instastory style 9:16 approx)
+                    // But standard 4:5 (800x1000) is also good.
+                    const targetW = 800;
+                    const targetH = 1000;
 
-                    const targetWidth = 800;
-                    const targetHeight = 1000; // 4:5 ratio roughly
+                    if (canvas.width !== targetW) canvas.width = targetW;
+                    if (canvas.height !== targetH) canvas.height = targetH;
 
-                    if (canvas.width !== targetWidth) canvas.width = targetWidth;
-                    if (canvas.height !== targetHeight) canvas.height = targetHeight;
+                    ctx.clearRect(0, 0, targetW, targetH);
 
-                    // Clear
-                    ctx.clearRect(0, 0, targetWidth, targetHeight);
+                    // 1. Draw Video (Cover Scale + Mirror)
+                    const vW = video.videoWidth;
+                    const vH = video.videoHeight;
 
-                    // 1. Draw Video (Center Crop)
-                    // Calculate scaling to cover target
-                    const vRatio = video.videoWidth / video.videoHeight;
-                    const tRatio = targetWidth / targetHeight;
+                    // "Cover" scaling
+                    const scale = Math.max(targetW / vW, targetH / vH);
+                    const drawW = vW * scale;
+                    const drawH = vH * scale;
 
-                    let drawW, drawH, startX, startY;
+                    // Center crop
+                    const offsetX = (targetW - drawW) / 2;
+                    const offsetY = (targetH - drawH) / 2;
 
-                    if (vRatio > tRatio) {
-                        // Video is wider
-                        drawH = targetHeight;
-                        drawW = targetHeight * vRatio;
-                        startY = 0;
-                        startX = (targetWidth - drawW) / 2;
-                    } else {
-                        // Video is taller
-                        drawW = targetWidth;
-                        drawH = targetWidth / vRatio;
-                        startX = 0;
-                        startY = (targetHeight - drawH) / 2;
+                    ctx.save();
+                    // Mirroring logic
+                    ctx.translate(targetW, 0);
+                    ctx.scale(-1, 1);
+
+                    // When mirrored (scale -1,1), drawing at X draws at (Width - X) basically.
+                    // We need to draw the video so it fills the screen centered.
+                    // If we draw at offsetX (which is negative if video is wider), 
+                    // in mirrored mode it works slightly differently.
+                    // Let's use simple logic: transform center, scale, untransform.
+                    // Or just trial & error. Standard mirror:
+
+                    // If we draw at (offsetX, offsetY, drawW, drawH) in the mirrored context:
+                    // The image is flipped around the right edge (targetW).
+                    // If offsetX = -100. It draws from -100 to drawW-100.
+                    // Mirrored: It draws from targetW - (-100) = targetW + 100 ... going LEFT?
+                    // Expected: Left side of video should terminate at Left side of canvas (mirrored).
+                    // Actually, simpler method: 
+                    // 1. Scale -1, 1
+                    // 2. Draw image at -targetW + offsetX ?
+
+                    // Let's stick to the Proven Method:
+                    // Translate(targetW, 0) -> Scale(-1, 1) -> Draw(0,0) draws top-right going left.
+                    // We want to draw at the correct offset.
+                    // If we draw at offsetX, offsetY.
+                    ctx.drawImage(video, offsetX, offsetY, drawW, drawH);
+
+                    ctx.restore();
+
+                    // 2. Draw Doctor Pose (Overlay)
+                    if (poseImg) {
+                        // Logic: Doctor should be at the bottom, reasonably sized.
+                        // Let's make doctor 80% of width?
+                        const dW = targetW * 0.85;
+                        const dH = (dW / poseImg.width) * poseImg.height;
+
+                        // Position: Bottom LEFT
+                        const dX = -50;
+                        const dY = targetH - dH;
+
+                        ctx.drawImage(poseImg, dX, dY, dW, dH);
                     }
-
-                    ctx.save();
-                    // Mirror video for selfie feel
-                    ctx.translate(targetWidth, 0);
-                    ctx.scale(-1, 1);
-                    ctx.drawImage(video, startX * -1, startY, drawW, drawH); // Adjust x for mirror
-                    // Actually manual mirror logic:
-                    // drawImage destination x needs to be inverted relative to translate?
-                    // Simpler: translate center, scale -1, 1, draw.
-                    ctx.restore();
-
-                    // Re-draw video correctly mirrored:
-                    ctx.save();
-                    ctx.translate(targetWidth, 0);
-                    ctx.scale(-1, 1);
-                    // Draw image at calculated position. Note: startX is usually negative to center.
-                    // If we mirror, we draw from right to left?
-                    // Let's just draw it normally then flip canvas?
-                    // Standard approach:
-                    ctx.drawImage(video, startX, startY, drawW, drawH);
-                    ctx.restore();
-
-                    // 2. Draw Frame (Normal blending)
-                    // The frame should have a transparent cut-out in the middle
-                    ctx.drawImage(frameImg, 0, 0, targetWidth, targetHeight);
                 }
             }
             animationId = requestAnimationFrame(render);
@@ -142,7 +196,7 @@ export default function SelfieBooth() {
         return () => {
             if (animationId) cancelAnimationFrame(animationId);
         };
-    }, [frameImg, capturedImage]);
+    }, [poseImg, capturedImage]);
 
     const takePhoto = () => {
         setIsCountingDown(true);
@@ -165,7 +219,7 @@ export default function SelfieBooth() {
     const downloadPhoto = () => {
         if (!capturedImage) return;
         const link = document.createElement("a");
-        link.download = `mikrostomart-selfie-${Date.now()}.png`;
+        link.download = `selfie-z-doktorem-${Date.now()}.png`;
         link.href = capturedImage;
         link.click();
     };
@@ -195,7 +249,7 @@ export default function SelfieBooth() {
             justifyContent: "center",
             padding: "20px"
         }}>
-            <h1 style={{ color: "#dcb14a", marginBottom: "20px", fontFamily: "serif" }}>Wirtualna Fotobudka</h1>
+            <h1 style={{ color: "#dcb14a", marginBottom: "20px", fontFamily: "serif" }}>Selfie z Doktorem</h1>
 
             <div style={{
                 position: "relative",
@@ -206,7 +260,6 @@ export default function SelfieBooth() {
                 boxShadow: "0 20px 50px rgba(0,0,0,0.5)",
                 border: "4px solid #dcb14a"
             }}>
-                {/* Video Element (Hidden, used for stream) */}
                 <video
                     ref={videoRef}
                     autoPlay
@@ -215,7 +268,6 @@ export default function SelfieBooth() {
                     style={{ display: "none" }}
                 />
 
-                {/* Main Canvas */}
                 <canvas
                     ref={canvasRef}
                     style={{
@@ -226,7 +278,6 @@ export default function SelfieBooth() {
                     }}
                 />
 
-                {/* Countdown Overlay */}
                 {isCountingDown && (
                     <div style={{
                         position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
@@ -241,7 +292,7 @@ export default function SelfieBooth() {
             {!capturedImage ? (
                 <div style={{ marginTop: "20px", display: "flex", gap: "20px", alignItems: "center" }}>
                     <button
-                        onClick={() => setCurrentFrameIndex((prev) => (prev - 1 + FRAMES.length) % FRAMES.length)}
+                        onClick={() => setCurrentPoseIndex((prev) => (prev - 1 + POSES.length) % POSES.length)}
                         className="btn-secondary"
                         style={{ padding: "15px", borderRadius: "50%" }}
                     >
@@ -262,7 +313,7 @@ export default function SelfieBooth() {
                     </button>
 
                     <button
-                        onClick={() => setCurrentFrameIndex((prev) => (prev + 1) % FRAMES.length)}
+                        onClick={() => setCurrentPoseIndex((prev) => (prev + 1) % POSES.length)}
                         className="btn-secondary"
                         style={{ padding: "15px", borderRadius: "50%" }}
                     >
@@ -270,7 +321,7 @@ export default function SelfieBooth() {
                     </button>
 
                     <div style={{ position: "absolute", bottom: "-40px", width: "100%", textAlign: "center", color: "#6b7280", fontSize: "0.9rem" }}>
-                        {FRAMES[currentFrameIndex].name}
+                        {POSES[currentPoseIndex].name}
                     </div>
                 </div>
             ) : (
