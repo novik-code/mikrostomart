@@ -29,7 +29,7 @@ Poniżej znajdzie Pani / Pan podstawowe informacje odnośnie przetwarzania Pani 
 ELMAR SPÓŁKA Z O.O., ul. Centralna nr 33A, 45-940 Opole, NIP:7543251709
 
 2. Kontakt z Administratorem danych jest możliwy:
-- pod adresem e-mail : gabinet@mikrostomart.pl,
+ - pod adresem e-mail : gabinet@mikrostomart.pl,
 - pod numerem telefonu: +48 570 270 470,
 - pisemnie na adres siedziby Administratora.
 

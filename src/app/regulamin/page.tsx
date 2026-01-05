@@ -1,20 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
 import { Download } from "lucide-react";
 
 export default function RegulaminPage() {
-
-    // Optional: Auto-download on mount if users really want that aggressive behavior
-    // useEffect(() => {
-    //     const link = document.createElement('a');
-    //     link.href = '/regulamin.pdf';
-    //     link.download = 'Regulamin-Mikrostomart.pdf';
-    //     document.body.appendChild(link);
-    //     link.click();
-    //     document.body.removeChild(link);
-    // }, []);
-
     return (
         <main className="min-h-screen pt-24 pb-12 px-4 md:px-8 max-w-4xl mx-auto text-white">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
@@ -33,11 +21,13 @@ export default function RegulaminPage() {
 
             <div className="prose prose-invert prose-gold max-w-none bg-[#1a1d21] p-8 rounded-2xl border border-white/10">
                 <p className="whitespace-pre-wrap leading-relaxed text-gray-300">
-                    {`§ 1
+                    {`REGULAMIN ORGANIZACYJNY
+
+§ 1
 Postanowienia wstępne
 1. Niniejszy Regulamin określa zasady korzystania z usług medycznych świadczonych przez ELMAR SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ z siedzibą w Opolu, w szczególności cele i zadania Usługodawcy, strukturę organizacyjną Usługodawcy, zakres, organizacja i przebieg udzielania świadczeń zdrowotnych przez Usługodawcę, podstawowy zakres obowiązków personelu zatrudnionego przez Usługodawcę w Gabinecie, prawa oraz obowiązki Pacjentów Usługodawcy, zasady odpłatności za udzielane przez Usługodawcę świadczenia zdrowotne w Gabinecie, a także reguluje tryb składania skarg i wniosków przez Pacjentów Usługodawcy.
 2. Pacjenci Gabinetu mają obowiązek zapoznania się z niniejszym Regulaminem przed przystąpieniem do rezerwacji wizyty na dowolną Usługę. Przystąpienie przez Pacjenta do rezerwacji wizyty w Gabinecie jest równoznaczne z akceptacją przez Pacjenta niniejszego Regulaminu.
-3. Miejscem udzielania świadczeń zdrowotnych, zgodnie z niniejszym Regulaminem, jest siedziba Usługodawcy: ul. Centralna 33a, 45-940 Opole/Chmielowice, woj. opolskie, Polska.
+3. Miejscem udzielania świadczeń zdrowotnych, zgodnie z niniejszym Regulaminem, jest siedziba Usługodawcy: ul. Centralna 33a, 45-940 Opole/Chmielowice, woj. opolskie, Polska
 4. Na terenie całego Gabinetu, obowiązuje całkowity zakaz palenia i używania tytoniu oraz wyrobów tytoniowych i nikotynowych, w tym papierosów elektronicznych, jak również obowiązuje całkowity zakaz spożywania napojów alkoholowych oraz innego rodzaju używek i środków odurzających.
 
 § 2
@@ -71,7 +61,7 @@ b) pracownia implantologii, protetyki, endodoncji, pedodoncji, anestezji, period
 h) pracownia RTG.
 4. Zadaniem recepcji jest realizacja obowiązków personelu niemedycznego zgodnie z postanowieniami niniejszego Regulaminu.
 5. Zadaniem pracowni implantologii, protetyki, endodoncji, pedodoncji, anestezji, periodontologii, ortodoncji, chirurgii jest: udzielanie świadczeń zdrowotnych specjalistycznych z zakresu stomatologii, prowadzenie dokumentacji medycznej, informowanie o zakresie i zasadach udzielania świadczeń zdrowotnych przez Usługodawcę.
-6. Zadaniem pracowni RTG jest: prowadzenie wyspecjalizowanej diagnostyki przy wykorzystaniu promieniowania rentgenowskiego.
+6. Zadaniem pracowni RTG jest: prowadzenie wyspecjalizowanej diagnostyski przy wykorzystaniu promieniowania rentgenowskiego.
 
 § 5
 Zakres udzielanych świadczeń zdrowotnych
@@ -110,7 +100,7 @@ p) przestrzeganie postanowień niniejszego Regulaminu.
 
 § 6
 Organizacja i przebieg udzielania świadczeń zdrowotnych
-1. Usługodawca oferuje w ramach poradni usługi stomatologiczne na zasadzie pełnej odpłatności za spełniane świadczenia zdrowotne. Usługodawca w Gabinecie Stomatologicznym Mikrostomart prowadzi praktyką prywatną i nie udziela świadczeń w ramach świadczeń z Narodowego Funduszu Zdrowia.
+1. Usługodawca oferuje w ramach poradni usługi stomatologiczne na na zasadzie pełnej odpłatności za spełniane świadczenia zdrowotne. Usługodawca w Gabinecie Stomatologicznym Mikrostomart prowadzi praktyką prywatną i nie udziela świadczeń w ramach świadczeń z Narodowego Funduszu Zdrowia.
 2. Realizacja świadczeń zdrowotnych następuje na zasadzie dobrowolności wyboru leczenia odpłatnego przez Pacjenta i za jego pisemną zgodą.
 3. Przyjęcie Pacjenta do Gabinetu wymaga prowadzenia jego dokumentacji medycznej, oraz dokumentacji statystycznej. Dokumentacja jest prowadzona również w systemie elektronicznym.
 4. Każdemu Pacjentowi przez pierwszą wizytą w Gabinecie zakłada się kartę rejestracyjną. Każda wizyta Pacjenta w Gabinecie musi być zapisana w dokumentacji medycznej.
@@ -118,18 +108,18 @@ Organizacja i przebieg udzielania świadczeń zdrowotnych
 6. Pacjent posiadający pełną zdolność do czynności prawnych, przedstawiciel ustawowy bądź opiekun prawny wyraża pisemna zgodę na realizację świadczeń zdrowotnych przez Usługodawcę (dotyczy zabiegów chirurgicznych, wszystkich innych zabiegów o charakterze inwazyjnym oraz podania Pacjentowi środka znieczulającego).
 7. Dopuszcza się wyrażenie przez Pacjenta zgody na leczenie w formie pisemnej jedynie w sytuacjach wymagających nagłego podjęcia czynności medycznych w ramach leczenia podstawowego lub zachowawczego. Za dowód wyrażenia zgody w takich przypadkach uznaje się poddanie przez Pacjenta proponowanemu leczeniu.
 8. Odmowa Pacjenta poddania się leczeniu, w razie stwierdzenia niezwłocznej potrzeby leczenia przez Personel, podlega wpisowi do karty Pacjenta i powinna być przez niego potwierdzona.
-9. Dokumentacja medyczna prowadzona jest na zasadach określonych w przepisach odrębnych.
+9. Dokumentacja medyczna prowadzona jest na zasadach określonych w przepisach odbrębnych.
 10. Usługodawca w Gabinecie utrwala audiowizualnie przebieg każdej wizyty, na co Pacjent wyraża zgodę. Niewyrażenie zgody Pacjenta w tym zakresie jest równoznaczne z odmową poddania się wykonania Zabiegowi. Nagranie takie chronione jest zgodnie z zasadami przetwarzania danych osobowych i nie może być wykorzystywane bez zgody Pacjenta poza sytuacjami wynikającymi z przepisów powszechnie obowiązujących.
-11. Pacjent przyjmuje do wiadomości, że z przyczyn losowych niezależnych od Usługodawcy, godzina umówionej w Gabinecie wizyty może ulec zmianie (opóźnieniu). W takiej sytuacji Pacjentowi nie przysługuje żadna rekompensata od Usługodawcy.
-12. W sytuacji, że planowana Usługa nie może być zrealizowana przez członka personelu medycznego, do którego Pacjent został umówiony, możliwe jest jej wykonanie przez innego członka personelu medycznego zatrudnionego przez Usługodawcę w Gabinecie, za uprzednią zgodą pacjenta.
-13. Zgoda Pacjenta na zmianę członka personelu medycznego nie jest wymagana w razie zaistnienia przypadku wymagającego nagłego podjęcia czynności medycznych w ramach leczenia podstawowego lub zachowawczego, o których mowa w ust. 7 powyżej. Wówczas Pacjent wyraża jedynie zgodę na samo wykonanie takiej czynności medycznej na zasadach określonych w ww. § 4 ust. 7 Regulaminu.
+11. Pacjent przyjmuje do wiadomości, że z przyczyn losowych niezależnych od Usługodawcy, godzina umówionej w Gabinecie wizyty może ulec zmianie (opóźnieniu). W takiej sytuacji Pacjentowi nie przesługuje żadna rekompensata od Usługodawcy.
+12. W sytuacji, że planowana Usługa nie może być zrealizowana przez członka personelu medycznego, do którego Pacjent został umówiony, możliwe jest jej wykonanie przez innego członka personelu medycznego zatrudnionego przez Usługodawcęw Gabinecie, za uprzednią zgodą pacjenta.
+13. Zgoda Pacjenta na zmianę członka personelu medycznego nie jest wymagana w razie zaistnienia przypadku wymagającego nagłego podjęcia czynności medycznych w ramach leczenia podstawowego lub zachowawczego, o których mowa w ust. 7 powyżej. Wówczas Pacjent wyraża jedynie zgodę na samo wykonanie takiej czynności medycznej na zasadach określowych w ww. § 4 ust. 7 Regulaminu.
 
 § 7
 Standardy Higieniczne
-1. Personel zatrudniony przez Usługodawcę ściśle przestrzega wymogów sanitarnych w zakresie utrzymania porządku i obowiązku dezynfekcji powierzchni w Gabinecie.
+1. Personel zatrudniony przez Usługodawcę ściśle przestrzega wymogów sanitarnych w zakresie utrzymania porządku i obowiązku dezynfekcji powierzchni w Gabinecie.
 2. Pracownicy Usługodawcy podczas wykonywania zabiegów używają rękawiczek jednorazowych, a jeżeli zabieg tego wymaga również maseczek jednorazowych.
-3. Narzędzia używane podczas Zabiegów są jednorazowe. W przypadku konieczności użycia narzędzi wielorazowych, są ona każdorazowo po użyciu poddawane sterylizacji w autoklawie, który Usługodawca posiada na wyposażeniu Gabinetu.
-4. Do sterylizacji, dezynfekcji i czyszczenia używane są wyłącznie środki dopuszczone do stosowania w gabinetach dentystycznych.
+3. Narzędzia używane podczas Zabiegów są jednorazowe. W przypadku konieczności użycia narzędzi wielorazowych, są ona każdorazowo po użyciu poddawane sterylizacji w autoklawie, który Usługodawca posiada na wyposażeniu Gabinetu.
+4. Do sterylizacji, dezynfekcji i czyszczenia używane są wyłącznie środki dopuszczone do stosowania w gabinetach dentystycznych.
 
 § 8
 Prawa i obowiązki Pacjentów
@@ -154,7 +144,7 @@ c) w przypadku konieczności odwołania umówionej wizyty u Usługodawcy w Gabin
 § 9
 Zasady odpłatności za świadczenia medyczne
 1. Wszystkie Zabiegi wykonywane w Gabinecie podlegają opłacie zgodnie z Cennikiem obowiązującym u Usługodawcy. Cennik dostępny jest do wglądu w Gabinecie oraz na stronie internetowej Gabinetu Usługodawcy.
-2. Pacjent ma możliwość płatności za Usługi w salonie gotówką, przelewem, kartą, Blikiem lub specjalnym bonem zakupionym w Gabinecie Usługodawcy.
+2. Pacjent ma możliwość płatności za Usługi w salonie gotówką, przelewem, kartą, Blikiem lub specjalnym bonem zakupionym w Gabinecie Usługodawcy.
 3. W przypadku rejestracji Pacjenta wizytę, Personel pobiera od Pacjenta zadatek w wysokości ustalonej zgodnie z cennikiem, którym mowa w ust. 1 powyżej. Zadatek podlega zaliczeniu na poczet wykonanej Usługi.
 4. Jeżeli Pacjent nie stawi się na umówioną wizytę w Gabinecie Usługodawcy i w związku z tym nie dojdzie do wykonania zaplanowanej Usługi, Usługodawca zatrzymuje wpłacony przez Pacjenta zadatek. Jeżeli Pacjent, odwołując wizytę zgodnie z § 6 ust. 3 lit. c) Regulaminu, przełoży jednocześnie wizytę na inny dzień następujący w okresie do 3 miesięcy od daty ostatniej wizyty w Gabinecie lub odbytej w Gabinecie konsultacji i diagnostyki, Usługodawca nie zatrzymuje zadatku, tylko zalicza go na poczet wizyty w nowym terminie. Do nowego terminu wizyty, zdanie pierwsze i drugie niniejszego ustępu stosuje się odpowiednio.
 5. W przypadku braku zapłaty przez Pacjenta zadatku, o którym mowa ust. 3 powyżej, jeżeli taki Pacjent nie stawi się na umówioną wizytę, ani nie dokona zmiany terminu tej wizyty zgodnie z postanowieniami niniejszego Regulaminu, zadatek ten zostanie doliczony Pacjentowi do najbliższego rachunku.
@@ -163,12 +153,12 @@ Zasady odpłatności za świadczenia medyczne
 § 10
 Skargi i wnioski
 1. Pacjentowi przysługuje prawo do reklamacji Usługi.
-2. Reklamację należy złożyć na piśmie drogą mailową, osobiście w Gabinecie lub listem poleconym, maksymalnie 3 dni od jej wykonania lub wystąpienia powikłań wywołanych Zabiegiem.
-3. Usługodawca ma 14 dni kalendarzowych na rozpatrzenie reklamacji. W przypadku pozytywnego rozpatrzenia reklamacji, Usługodawca spełni żądania klienta.
-4. Pacjent ma prawo żądać zwrotu całości lub części kosztów Usługi albo wykonania nieodpłatnych poprawek, jeżeli reklamacja zostanie uznana za zasadną.
-5. W przypadku odpowiedzi odmownej, Pacjent ma prawo odwołać się od tej decyzji w ciągu 14 dni kalendarzowych. Na rozpatrzenie odwołania Usługodawca ma 14 dni kalendarzowych.
-6. Pacjent nie ma prawa odmówić zapłaty za wykonaną Usługę.
-7. Usługodawca ani Personel nie ponoszą odpowiedzialności za powikłania, które wystąpią po poprawnie przeprowadzonej Usłudze, poprzedzonym poprawnie przeprowadzonym wywiadem, w którym nie stwierdzono przeciwwskazań do jej wykonania. Ponadto Usługodawca ani Personel nie ponoszą odpowiedzialności za powikłania powstałe w wyniku nieprzestrzegania przez Pacjenta zaleceń przed- i pozabiegowych.
+2. Reklamację należy złożyć na piśmie drogą mailową, osobiście w Gabinecie lub listem poleconym, maksymalnie 3 dni od jej wykonania lub wystąpienia powikłań wywołanych Zabiegiem.
+3. Usługodawca ma 14 dni kalendarzowych na rozpatrzenie reklamacji. W przypadku pozytywnego rozpatrzenia reklamacji, Usługodawca spełni żądania klienta.
+4. Pacjent ma prawo żądać zwrotu całości lub części kosztów Usługi albo wykonania nieodpłatnych poprawek, jeżeli reklamacja zostanie uznana za zasadną.
+5. W przypadku odpowiedzi odmownej, Pacjent ma prawo odwołać się od tej decyzji w ciągu 14 dni kalendarzowych. Na rozpatrzenie odwołania Usługodawca ma 14 dni kalendarzowych.
+6. Pacjent nie ma prawa odmówić zapłaty za wykonaną Usługę.
+7. Usługodawca ani Personel nie ponoszą odpowiedzialności za powikłania, które wystąpią po poprawnie przeprowadzonej Usłudze, poprzedzonym poprawnie przeprowadzonym wywiadem, w którym nie stwierdzono przeciwwskazań do jej wykonania. Ponadto Usługodawca ani Personel nie ponoszą odpowiedzialności za powikłania powstałe w wyniku nieprzestrzegania przez Pacjenta zaleceń przed- i pozabiegowych.
 
 § 11
 Dane osobowe
@@ -180,7 +170,7 @@ Postanowienia Końcowe
 2. Każdy Pacjent ma prawo wglądu do Regulaminu, cennika i certyfikatów, na które powołuje się Usługodawca.
 3. Za wszelkie uszkodzenia wyposażenia Usługodawcy w Gabinecie Pacjenci odpowiadają bez ograniczeń zgodnie z art. 415 kodeksu cywilnego. Za uszkodzenia spowodowane przez osoby niepełnoletnie odpowiedzialni są ich ustawowi przedstawiciele.
 4. Usługodawca zastrzega sobie prawo do zmian w niniejszym Regulaminie i poinformowania o nich Pacjenta przed zapisem na wizytę, z ważnych przyczyn to jest np.: zmiany przepisów prawa, zmiany sposobów płatności, zmiany w świadczeniu usług – w zakresie, w jakim te zmiany wpływają na realizację postanowień niniejszego Regulaminu. Nowy regulamin wchodzi w życie z dniem wywieszenia go w Gabinecie.
-5. Informacja o zmianach Regulaminy zostanie opublikowana na stronie internetowej Gabinetu oraz na profilach Gabinetu w mediach społecznościowych, jeżeli takie są prowadzone, co najmniej 14 dni kalendarzowych przed terminem, w którym zmiany zaczną obowiązywać.
+5. Informacja o zmianach Regulaminy zostanie opublikowana na stronie internetowej Gabinetu oraz na profilach Gabinetu w mediach społecznościowych, jeżeli takie są prowadzone, co najmniej 14 dni kalendarzowych przed terminem, w którym zmiany zaczną obowiązywać.
 6. Do Usług/Zabiegów zleconych przed dniem wejścia w życie zmian Regulaminu, obowiązują jego postanowienia obowiązujące w chwili umawiania terminu wykonania Usługi/Zabiegu.
 7. Wszelkie spory wynikające ze świadczonych Usług winny być w pierwszej kolejności rozwiązywane polubownie. W przypadku niedojścia do porozumienia spory będą rozstrzygane przez sąd właściwy wg przepisów polskiego prawa.
 8. Jeżeli którekolwiek z postanowień niniejszego Regulaminu zostałoby uznane za nieważne, niezgodne z przepisami prawa lub niewykonalne, zostanie ono wyłączone z postanowień niniejszego Regulaminu, które to w dalszym ciągu będą obowiązywać w najszerszym, dopuszczalnym przez polskie prawo zakresie.
