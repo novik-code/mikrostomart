@@ -5,9 +5,11 @@ import { Camera, Download, RefreshCcw, ChevronLeft, ChevronRight } from "lucide-
 import { useRouter } from "next/navigation";
 
 const POSES = [
-    { src: "/images/doctor-cutout-1.png", name: "Doktor Luzak" },
-    { src: "/images/doctor-cutout-2.png", name: "Doktor VIP" },
-    { src: "/images/doctor-cutout-3.png", name: "Doktor Rock" }
+    { src: "/images/doctor-pose-1.png", name: "Doktor z Córką" },
+    { src: "/images/doctor-pose-2.png", name: "Czapka Bulls" },
+    { src: "/images/doctor-pose-3.png", name: "Koszulka Tattoo" },
+    { src: "/images/doctor-pose-4.png", name: "Czapka Czarna" },
+    { src: "/images/doctor-pose-5.png", name: "Czapka Bokiem" }
 ];
 
 export default function SelfieBooth() {
