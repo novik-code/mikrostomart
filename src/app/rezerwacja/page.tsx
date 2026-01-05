@@ -13,7 +13,7 @@ export default function ReservationPage() {
                             Umów Wizytę
                         </h1>
                         <p style={{ textAlign: "center", color: "var(--color-text-muted)", marginBottom: "var(--spacing-xl)" }}>
-                            Wypełnij formularz, a oddzwonimy celem potwierdzenia terminu.
+                            Wypełnij formularz wprowadzając preferowaną datę i godzinę wizyty, a my oddzwonimy celem potwierdzenia terminu lub propozycją alternatywną
                         </p>
                     </RevealOnScroll>
 

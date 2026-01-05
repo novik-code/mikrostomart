@@ -127,15 +127,9 @@ export default function SelfieBooth() {
                     ctx.drawImage(video, startX, startY, drawW, drawH);
                     ctx.restore();
 
-                    // 2. Draw Frame (Multiply Mode for "White" transparency mock)
-                    ctx.globalCompositeOperation = 'multiply';
+                    // 2. Draw Frame (Normal blending)
+                    // The frame should have a transparent cut-out in the middle
                     ctx.drawImage(frameImg, 0, 0, targetWidth, targetHeight);
-
-                    // Reset
-                    ctx.globalCompositeOperation = 'source-over';
-
-                    // 3. Optional: Draw a "clean" overlay if needed or watermarks
-                    // (Assuming frames have text/logo already)
                 }
             }
             animationId = requestAnimationFrame(render);
@@ -145,7 +139,9 @@ export default function SelfieBooth() {
             render();
         }
 
-        return () => cancelAnimationFrame(animationId);
+        return () => {
+            if (animationId) cancelAnimationFrame(animationId);
+        };
     }, [frameImg, capturedImage]);
 
     const takePhoto = () => {

@@ -268,12 +268,9 @@ export default function ReservationForm() {
                         {...register("date")}
                         type="date"
                         min={(() => {
-                            const now = new Date();
-                            // If it's past 16:00, start from tomorrow
-                            if (now.getHours() >= 16) {
-                                now.setDate(now.getDate() + 1);
-                            }
-                            return now.toISOString().split('T')[0];
+                            const minDate = new Date();
+                            minDate.setDate(minDate.getDate() + 7); // Min 7 days from now
+                            return minDate.toISOString().split('T')[0];
                         })()}
                         style={{
                             width: "100%",
@@ -306,38 +303,26 @@ export default function ReservationForm() {
                         }}
                     >
                         <option value="">Wybierz godzinę...</option>
+                        <option value="">Wybierz godzinę...</option>
                         {(() => {
-                            const allSlots = [
-                                "09:00", "09:30", "10:00", "10:30", "11:00", "11:30",
-                                "12:00", "12:30", "13:00", "13:30", "14:00", "14:30",
-                                "15:00", "15:30", "16:00"
-                            ];
-
                             const selectedDate = watch("date");
-                            if (!selectedDate) return allSlots.map(s => <option key={s} value={s}>{s}</option>);
+                            if (!selectedDate) return <option disabled>Najpierw wybierz datę</option>;
 
-                            const now = new Date();
-                            const todayStr = now.toISOString().split('T')[0];
+                            const dateObj = new Date(selectedDate);
+                            const day = dateObj.getDay(); // 0 = Sun, 6 = Sat
 
-                            // If selected date is NOT today, show all slots
-                            if (selectedDate !== todayStr) {
-                                return allSlots.map(s => <option key={s} value={s}>{s}</option>);
+                            // Weekend validation
+                            if (day === 0 || day === 6) {
+                                return <option disabled>Klinika nieczynna w weekendy</option>;
                             }
 
-                            // Filter past hours if Today
-                            const currentHour = now.getHours();
-                            const currentMinute = now.getMinutes();
+                            // 10:00 - 14:00 Slots
+                            const validSlots = [
+                                "10:00", "10:30", "11:00", "11:30",
+                                "12:00", "12:30", "13:00", "13:30", "14:00"
+                            ];
 
-                            const filteredSlots = allSlots.filter(slot => {
-                                const [h, m] = slot.split(':').map(Number);
-                                if (h > currentHour) return true;
-                                if (h === currentHour && m > currentMinute) return true;
-                                return false;
-                            });
-
-                            if (filteredSlots.length === 0) return <option disabled>Brak terminów dzisiaj</option>;
-
-                            return filteredSlots.map(s => <option key={s} value={s}>{s}</option>);
+                            return validSlots.map(s => <option key={s} value={s}>{s}</option>);
                         })()}
                     </select>
 
