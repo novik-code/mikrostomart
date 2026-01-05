@@ -27,10 +27,9 @@ export default function SelfieBooth() {
     // Dynamic canvas size based on window to fit mobile screens better?
     // For now, let's stick to a fixed high-res internal resolution and CSS scaling.
 
-    // Helper to remove white/gray checkerboard background
+    // Helper to remove GREEN SCREEN background
     const cleanImage = (img: HTMLImageElement): Promise<HTMLImageElement> => {
         return new Promise((resolve) => {
-            const dim = 1000; // max dim for processing
             const canvas = document.createElement("canvas");
             canvas.width = img.width;
             canvas.height = img.height;
@@ -41,18 +40,17 @@ export default function SelfieBooth() {
             const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             const data = imageData.data;
 
-            // Loop pixels
+            // Green Screen Logic
             for (let i = 0; i < data.length; i += 4) {
                 const r = data[i];
                 const g = data[i + 1];
                 const b = data[i + 2];
 
-                // Detect White or Light Gray (Checkerboard keys)
-                const isWhite = r > 240 && g > 240 && b > 240;
-                const isGray = r > 180 && r < 230 && g > 180 && g < 230 && b > 180 && b < 230 && Math.abs(r - g) < 10 && Math.abs(g - b) < 10;
-
-                if (isWhite || isGray) {
-                    data[i + 3] = 0; // Alpha 0
+                // Simple Green Key: G is dominant and significantly larger than R and B
+                // Adjust thresholds if needed. 
+                // Using a slightly more tolerant threshold for generated AI green (#00FF00)
+                if (g > 100 && g > r + 40 && g > b + 40) {
+                    data[i + 3] = 0; // Transparent
                 }
             }
 
@@ -147,26 +145,6 @@ export default function SelfieBooth() {
                     ctx.translate(targetW, 0);
                     ctx.scale(-1, 1);
 
-                    // When mirrored (scale -1,1), drawing at X draws at (Width - X) basically.
-                    // We need to draw the video so it fills the screen centered.
-                    // If we draw at offsetX (which is negative if video is wider), 
-                    // in mirrored mode it works slightly differently.
-                    // Let's use simple logic: transform center, scale, untransform.
-                    // Or just trial & error. Standard mirror:
-
-                    // If we draw at (offsetX, offsetY, drawW, drawH) in the mirrored context:
-                    // The image is flipped around the right edge (targetW).
-                    // If offsetX = -100. It draws from -100 to drawW-100.
-                    // Mirrored: It draws from targetW - (-100) = targetW + 100 ... going LEFT?
-                    // Expected: Left side of video should terminate at Left side of canvas (mirrored).
-                    // Actually, simpler method: 
-                    // 1. Scale -1, 1
-                    // 2. Draw image at -targetW + offsetX ?
-
-                    // Let's stick to the Proven Method:
-                    // Translate(targetW, 0) -> Scale(-1, 1) -> Draw(0,0) draws top-right going left.
-                    // We want to draw at the correct offset.
-                    // If we draw at offsetX, offsetY.
                     ctx.drawImage(video, offsetX, offsetY, drawW, drawH);
 
                     ctx.restore();
@@ -174,11 +152,12 @@ export default function SelfieBooth() {
                     // 2. Draw Doctor Pose (Overlay)
                     if (poseImg) {
                         // Logic: Doctor should be at the bottom, reasonably sized.
-                        // Let's make doctor 80% of width?
+                        // Let's make doctor 85% of width?
                         const dW = targetW * 0.85;
                         const dH = (dW / poseImg.width) * poseImg.height;
 
                         // Position: Bottom LEFT
+                        // To place at left: dX = -50 (slight overlap off-screen) or 0
                         const dX = -50;
                         const dY = targetH - dH;
 
