@@ -190,5 +190,37 @@ Probiotyki można znaleźć w wielu produktach spożywczych, takich jak **jogurt
 Inkorporowanie probiotyków do diety to prosty sposób na poprawę zdrowia jamy ustnej. **Chronią przed próchnicą i chorobami dziąseł**, wspierając naturalną równowagę bakteryjną w ustach. Zapytaj swojego dentystę o rekomendacje dotyczące odpowiednich probiotyków, które mogą przynieść największe korzyści w twoim przypadku.
 `,
         image: '/kb-niespodziewani-bohaterowie-twojej-jamy-ustnej-probiotyki-zeby-dziasla.png'
+    },
+    {
+        id: 'auto-1767683250622',
+        title: 'Nieznane zagrożenia: Jak przewlekły stres wpływa na zdrowie jamy ustnej?',
+        slug: 'nieznane-zagrozenia-jak-przewlekly-stres-wplywa-na-zdrowie-jamy-ustnej',
+        date: '2026-01-06',
+        excerpt: 'Czy wiesz, że przewlekły stres może znacząco wpływać na zdrowie Twojej jamy ustnej? Stres nie tylko podnosi poziom kortyzolu, ale także przyczynia się do rozwoju problemów takich jak choroby dziąseł czy bruksizm.',
+        content: `
+### Przewlekły stres a zdrowie jamy ustnej
+
+W dzisiejszym, zagonionym świecie, stres stał się niemal nieodłączną częścią naszego życia. **Niemniej jednak**, jego wpływ na zdrowie jamy ustnej często pozostaje niezauważony. Zrozumienie, jak stres może wpłynąć na Twoje zęby i dziąsła, pomoże Ci w podejmowaniu świadomych decyzji dotyczących zdrowia oraz w zapobieganiu długotrwałym konsekwencjom.
+
+### Jak stres wpływa na jamę ustną?
+
+* **Podniesiony poziom kortyzolu** - Hormon stresu, kortyzol, może wpływać na obniżenie odporności organizmu, co czyni śluzówkę jamy ustnej bardziej podatną na infekcje oraz choroby dziąseł, takie jak zapalenie przyzębia.
+* **Zaciskanie i zgrzytanie zębami (bruksizm)** - Pod wpływem chronicznego stresu, wiele osób nieświadomie zaciska zęby lub nimi zgrzyta, szczególnie w nocy. Może to prowadzić do uszkodzeń szkliwa, bólu szczęki oraz napięciowych bólów głowy.
+* **Nieprawidłowe nawyki higieniczne** - Stres może prowadzić do zaniedbywania codziennych rutyn higieny jamy ustnej, co zwiększa ryzyko próchnicy oraz innych infekcji.
+
+### Co można zrobić?
+
+* **Techniki redukcji stresu** - Wprowadzenie technik takich jak medytacja, joga czy regularne ćwiczenia fizyczne może pomóc w znacznej redukcji poziomu stresu oraz jego negatywnych skutków.
+* **Regularne wizyty u stomatologa** - Kontrole stomatologiczne umożliwiają wczesne wykrycie problemów i ich skuteczne leczenie.
+* **Zbilansowana dieta** - Zdrowe odżywianie wzmacnia nie tylko ogólną odporność organizmu, ale również poprawia stan zdrowia jamy ustnej.
+
+### Podsumowanie
+
+Radzenie sobie z przewlekłym stresem nie tylko poprawia ogólne samopoczucie, ale również może zapobiec problemom związanym z jamą ustną. Zwracanie uwagi na sygnały wysyłane przez organizm jest kluczowe dla utrzymania zdrowych zębów i dziąseł.
+
+Dbałość o zdrowie jamy ustnej to inwestycja w przyszłość bez niepotrzebnego stresu!
+
+`,
+        image: '/kb-nieznane-zagrozenia-jak-przewlekly-stres-wplywa-na-zdrowie-jamy-ustnej.png'
     }
 ];
