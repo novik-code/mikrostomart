@@ -222,5 +222,30 @@ Dbałość o zdrowie jamy ustnej to inwestycja w przyszłość bez niepotrzebneg
 
 `,
         image: '/kb-nieznane-zagrozenia-jak-przewlekly-stres-wplywa-na-zdrowie-jamy-ustnej.png'
+    },
+    {
+        id: 'auto-1767769519005',
+        title: 'Zgrzyt bez bólu: Jak stres wpływa na zdrowie naszych zębów i dziąseł?',
+        slug: 'zgrzyt-bez-bolu-jak-stres-wplywa-na-zdrowie-naszych-zebow-i-dziasel',
+        date: '2026-01-07',
+        excerpt: 'Stres może nie wywołuje bezpośredniego bólu zębów, ale jego wpływ na zdrowie jamy ustnej jest niebagatelny. Dowiedz się, jak stres wiąże się z dolegliwościami zębów i dziąseł oraz co możesz zrobić, aby je chronić.',
+        content: `
+### Jak stres wpływa na zdrowie jamy ustnej?
+Stres jest powszechnym problemem w dzisiejszym zabieganym świecie. Choć wielu ludzi uważa, że stres nie ma bezpośredniego wpływu na zdrowie zębów, jego skutki mogą być bardzo szkodliwe, a często niezauważalne na pierwszy rzut oka.
+
+### Zgrzytanie zębami i szczękościsk
+Jednym z najczęstszych sposobów, w jaki stres manifestuje się w jamie ustnej, jest **bruksizm**, czyli nieświadome zgrzytanie zębami, często w nocy. Może to prowadzić do zużycia szkliwa, pęknięć, a nawet przemieszczenia zębów, co powoduje dalsze problemy zdrowotne i estetyczne.
+
+### Problemy z dziąsłami
+Stres przyczynia się także do osłabienia układu odpornościowego, co zwiększa ryzyko zapalenia dziąseł. Nieleczone zapalenie dziąseł może przerodzić się w bardziej poważne choroby przyzębia, które są jednym z głównych powodów utraty zębów.
+
+### Jak radzić sobie z wpływem stresu na zęby?
+* **Regularne wizyty u stomatologa**: Kontrole pozwalają na wczesne wykrycie problemów. Używając nakładek ochronnych na zęby można zabezpieczyć je przed skutkami bruksizmu.
+* **Relaksacja i redukcja stresu**: Techniki takie jak medytacja, joga czy głębokie oddychanie mogą pomóc zwiotczeniu mięśni szczęk i obniżeniu poziomu stresu.
+* **Zdrowy styl życia**: Regularna aktywność fizyczna i zbilansowana dieta wspierają zdrowie jamy ustnej.
+
+Walka ze stresem to nie tylko osiągnięcie lepszego stanu psychicznego, ale przede wszystkim inwestycja w zdrowie naszych zębów i dziąseł. Zrozumienie wpływu stresu jest pierwszym krokiem do dbania o jamę ustną i samopoczucie każdego dnia.
+`,
+        image: '/kb-zgrzyt-bez-bolu-jak-stres-wplywa-na-zdrowie-naszych-zebow-i-dziasel.png'
     }
 ];
