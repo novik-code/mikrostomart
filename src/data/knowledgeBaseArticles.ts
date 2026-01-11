@@ -349,5 +349,34 @@ Choć naturalne metody mogą być skuteczne, ważne jest, aby omawiać wszelkie 
 Wybierając naturalne rozwiązania, możemy przyczynić się do **szybszego i mniej inwazyjnego gojenia** po interwencjach stomatologicznych.
 `,
         image: '/kb-opatrunek-z-banana-gojenie-po-ekstrakcji-zeba.png'
+    },
+    {
+        id: 'auto-1768116016332',
+        title: 'Kod zdrowia zębów: O czym świadczy kolor Twojego języka?',
+        slug: 'kod-zdrowia-zebow-kolor-jezyka',
+        date: '2026-01-11',
+        excerpt: 'Kolor Twojego języka może być cennym wskaźnikiem zdrowia jamy ustnej i ogólnego samopoczucia. Dowiedz się, jakie informacje można odczytać z tej barwnej mapy.',
+        content: `
+### Kod zdrowia: Twoja barwa języka 
+
+Kolor języka może być nieocenionym wskaźnikiem ogólnego stanu zdrowia. Podczas gdy zdrowy język zazwyczaj ma różowy kolor z delikatnym, białym nalotem, różne odchylenia koloru mogą wskazywać na problemy zdrowotne, które warto zdiagnozować. 
+
+### Najczęstsze kolory języka i ich znaczenie 
+
+* **Biały język**: Często oznacza obecność nalotu spowodowanego grzybami lub bakteriami. Może być związany z niedostateczną higieną jamy ustnej lub wskazywać na infekcję drożdżakową. 
+
+* **Czerwony język**: Może sygnalizować infekcję lub stan zapalny. W przypadku intensywnie czerwonego języka często warto sprawdzić poziom witamin, szczególnie kwasu foliowego, witaminy B12 i żelaza. 
+
+* **Żółty język**: Taki kolor może być wynikiem nagromadzenia się bakterii, szczególnie u palaczy. Zmiana w higienie jamy ustnej oraz spożycie większej ilości wody mogą pomóc w nawróceniu do normalnego koloru. 
+
+* **Fioletowy lub siny język**: Może wskazywać na problemy z sercem i układem oddechowym lub na brak wystarczającej ilości tlenu we krwi. 
+
+### Jak zadbać o zdrowy język? 
+
+Dbając o swoją jamę ustną, nie zapominajmy o regularnym oczyszczaniu języka. Używanie szczoteczki lub specjalnego czyścika do języka może pomóc w usuwaniu bakterii i resztek pokarmowych. 
+
+**Podsumowanie**: Twoja świadomość na temat zdrowia jamy ustnej powinna obejmować regularną obserwację języka. Zrozumienie, co oznaczają różne kolory języka, może być kluczowe dla wczesnego wykrywania i leczenia wielu schorzeń. W przypadku zauważenia niepokojących objawów zawsze warto skonsultować się z dentystą lub lekarzem.
+`,
+        image: '/kb-kod-zdrowia-zebow-kolor-jezyka.png'
     }
 ];
