@@ -1,10 +1,13 @@
 import { MetadataRoute } from 'next';
 import { articles } from '@/data/articles'; // News
-import { articles as kbArticles } from '@/data/knowledgeBaseArticles';
+import { supabase } from '@/lib/supabaseClient';
 
 const BASE_URL = 'https://mikrostomart.pl';
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+    const { data: kbArticlesRaw } = await supabase.from('articles').select('slug, published_date');
+    const kbArticles = kbArticlesRaw || [];
+
     const staticRoutes = [
         '',
         '/zespol',
@@ -35,7 +38,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
     const kbRoutes = kbArticles.map((post) => ({
         url: `${BASE_URL}/baza-wiedzy/${post.slug}`,
-        lastModified: new Date(post.date),
+        lastModified: new Date(post.published_date),
         changeFrequency: 'monthly' as const,
         priority: 0.7,
     }));

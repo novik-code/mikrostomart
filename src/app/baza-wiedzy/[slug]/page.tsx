@@ -1,19 +1,27 @@
-import { articles } from '@/data/knowledgeBaseArticles';
+import { supabase } from '@/lib/supabaseClient';
 import RevealOnScroll from '@/components/RevealOnScroll';
 import Link from 'next/link';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { Metadata } from 'next';
 
+export const revalidate = 60; // Revalidate every minute (or longer)
+
 export async function generateStaticParams() {
-    return articles.map((article) => ({
+    const { data: articles } = await supabase.from('articles').select('slug');
+    return (articles || []).map((article) => ({
         slug: article.slug,
     }));
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
     const { slug } = await params;
-    const article = articles.find((p) => p.slug === slug);
+    const { data: article } = await supabase
+        .from('articles')
+        .select('title, excerpt')
+        .eq('slug', slug)
+        .single();
+
     if (!article) return { title: 'Artykuł nie znaleziony' };
     return {
         title: `${article.title} | Baza Wiedzy Mikrostomart`,
@@ -23,7 +31,12 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function ArticlePage({ params }: { params: Promise<{ slug: string }> }) {
     const { slug } = await params;
-    const article = articles.find((p) => p.slug === slug);
+    const { data: article } = await supabase
+        .from('articles')
+        .select('*, image:image_url, date:published_date')
+        .eq('slug', slug)
+        .single();
+
 
     if (!article) {
         notFound();
@@ -91,7 +104,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
                         fontSize: "1.05rem"
                     }}>
                         {/* Improved manual markdown parser */}
-                        {article.content.split('\n').map((line, index) => {
+                        {article.content.split('\n').map((line: string, index: number) => {
                             // Headers
                             if (line.startsWith('### ')) {
                                 return <h3 key={index} style={{ color: "var(--color-text)", fontSize: "1.5rem", marginTop: "2rem", marginBottom: "1rem" }}>{line.replace('### ', '')}</h3>;
@@ -120,7 +133,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
                                 const parts = content.split(/(\*\*.*?\*\*)/g);
                                 return (
                                     <li key={index} style={{ marginLeft: "1.5rem", marginBottom: "0.5rem" }}>
-                                        {parts.map((part, i) => {
+                                        {parts.map((part: string, i: number) => {
                                             if (part.startsWith('**') && part.endsWith('**')) {
                                                 return <strong key={i} style={{ color: "var(--color-primary)" }}>{part.slice(2, -2)}</strong>;
                                             }
@@ -137,7 +150,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
                             const parts = line.split(/(\*\*.*?\*\*)/g);
                             return (
                                 <p key={index} style={{ marginBottom: "1rem" }}>
-                                    {parts.map((part, i) => {
+                                    {parts.map((part: string, i: number) => {
                                         if (part.startsWith('**') && part.endsWith('**')) {
                                             return <strong key={i} style={{ color: "var(--color-primary)" }}>{part.slice(2, -2)}</strong>;
                                         }

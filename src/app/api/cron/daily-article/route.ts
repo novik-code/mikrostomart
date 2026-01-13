@@ -88,39 +88,29 @@ export async function GET(req: Request) {
             'base64'
         );
 
-        // 6. Update Article Database
-        const dbPath = 'src/data/knowledgeBaseArticles.ts';
-        const currentDbContent = await getFileContent(dbPath);
 
-        if (!currentDbContent) throw new Error("Failed to read database file");
+        // 6. Insert Article into Supabase
 
-        const newArticleEntry = `
-    {
-        id: 'auto-${Date.now()}',
-        title: '${articleData.title.replace(/'/g, "\\'")}',
-        slug: '${articleData.slug}',
-        date: '${new Date().toISOString().split('T')[0]}',
-        excerpt: '${articleData.excerpt.replace(/'/g, "\\'")}',
-        content: \`
-${articleData.content.replace(/`/g, "\\`")}
-\`,
-        image: '${publicUrl}'
-    }`;
+        // Dynamic import to avoid build-time issues if env vars missing, though top-level is fine usually.
+        // We will use the already imported OpenAI instance for generation logic above.
+        // Here we just need Supabase.
 
-        // Append to array
-        // Replace last ]; with , newObj ];
-        // Use a robust regex to find the end of the array
-        const updatedDbContent = currentDbContent.replace(
-            /\s*\];\s*$/,
-            `,${newArticleEntry}\n];\n`
+        const { createClient } = await import('@supabase/supabase-js');
+        const adminDb = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!
         );
 
-        await uploadToRepo(
-            dbPath,
-            updatedDbContent,
-            `feat(blog): add article ${articleData.title}`,
-            'utf-8'
-        );
+        const { error: insertError } = await adminDb.from('articles').insert({
+            title: articleData.title,
+            slug: articleData.slug,
+            excerpt: articleData.excerpt,
+            content: articleData.content,
+            image_url: publicUrl,
+            published_date: new Date().toISOString().split('T')[0]
+        });
+
+        if (insertError) throw new Error(`Supabase Insert Failed: ${insertError.message}`);
 
         return NextResponse.json({ success: true, topic, slug: articleData.slug });
 
