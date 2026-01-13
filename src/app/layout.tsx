@@ -15,6 +15,12 @@ export const metadata: Metadata = {
   description: "Szukasz dentysty w Opolu? Mikrostomart to nowoczesny gabinet stomatologiczny. Specjalizujemy się w implantach, leczeniu kanałowym i estetyce. Umów wizytę w Opolu (Chmielowice).",
   keywords: "dentysta opole, stomatolog opole, implanty opole, leczenie kanałowe opole, mikrostomart, stomatologia mikroskopowa",
   manifest: "/manifest.json",
+  other: {
+    "geo.region": "PL-OP",
+    "geo.placename": "Opole",
+    "geo.position": "50.677682;17.866163",
+    "ICBM": "50.677682, 17.866163",
+  },
 };
 
 export const viewport: Viewport = {
