@@ -17,17 +17,13 @@ export interface Product {
 // Helper to get Admin Client (server-side only)
 function getSupabaseAdmin() {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY!;
 
-    console.log("Debug Auth:", {
-        hasUrl: !!supabaseUrl,
-        urlLength: supabaseUrl?.length,
-        hasKey: !!supabaseServiceKey,
-        keyLength: supabaseServiceKey?.length
-    });
+    // Safe Debug: List keys without values
+    const availableKeys = Object.keys(process.env).filter(k => k.includes('SUPABASE') || k.includes('KEY'));
 
     if (!supabaseUrl || !supabaseServiceKey) {
-        throw new Error("Missing Supabase credentials (SERVICE_ROLE_KEY) for Admin operations.");
+        throw new Error(`Missing Admin Key. Available Env Keys: ${availableKeys.join(', ')}`);
     }
     return createClient(supabaseUrl, supabaseServiceKey);
 }
