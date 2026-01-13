@@ -32,7 +32,7 @@ export default function AskExpertModal({ isOpen, onClose }: AskExpertModalProps)
                 onClose();
                 setIsSuccess(false);
                 setQuestion('');
-            }, 3000);
+            }, 6000);
 
         } catch (err: any) {
             setError(err.message || 'Wystąpił błąd. Spróbuj ponownie.');
@@ -105,7 +105,7 @@ export default function AskExpertModal({ isOpen, onClose }: AskExpertModalProps)
                             Pytanie wysłane!
                         </h2>
                         <p style={{ color: 'var(--color-text-muted)', lineHeight: '1.6' }}>
-                            Dziękujemy za inspirację. Nasi eksperci (i AI) już pracują nad odpowiedzią.
+                            Dziękujemy za inspirację. Nasi eksperci już pracują nad odpowiedzią.
                             Artykuł pojawi się w Bazie Wiedzy w najbliższych dniach.
                         </p>
                     </div>
