@@ -15,14 +15,15 @@ export interface Product {
 }
 
 // Helper to get Admin Client (server-side only)
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://keucogopujdolzmfajjv.supabase.co';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY!;
+function getSupabaseAdmin() {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://keucogopujdolzmfajjv.supabase.co';
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY!;
 
-if (!supabaseUrl || !supabaseServiceKey) {
-    const availableKeys = Object.keys(process.env).filter(k => k.includes('SUPABASE') || k.includes('KEY'));
-    throw new Error(`Missing Admin Keys. Available: ${availableKeys.join(', ')}`);
-}
-return createClient(supabaseUrl, supabaseServiceKey);
+    if (!supabaseUrl || !supabaseServiceKey) {
+        const availableKeys = Object.keys(process.env).filter(k => k.includes('SUPABASE') || k.includes('KEY'));
+        throw new Error(`Missing Admin Keys. Available: ${availableKeys.join(', ')}`);
+    }
+    return createClient(supabaseUrl, supabaseServiceKey);
 }
 
 export async function getProducts(): Promise<Product[]> {
