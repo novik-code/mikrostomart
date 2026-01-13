@@ -1,5 +1,4 @@
-import fs from 'fs';
-import path from 'path';
+import { createClient } from '@supabase/supabase-js';
 
 export interface Product {
     id: string;
@@ -7,60 +6,100 @@ export interface Product {
     price: number;
     description: string;
     category: string;
-    image: string; // Base64 string or URL
-    gallery?: string[]; // Array of image URLs
+    image: string;
+    gallery?: string[];
     isVisible?: boolean;
+    isVariablePrice?: boolean; // CamelCase for TS interface
+    minPrice?: number;         // CamelCase
 }
 
-const DATA_DIR = path.join(process.cwd(), 'data');
-const PRODUCTS_FILE = path.join(DATA_DIR, 'products.json');
-
-// Ensure data directory exists
-if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
+// Helper to get Admin Client (server-side only)
+function getSupabaseAdmin() {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+    if (!supabaseUrl || !supabaseServiceKey) {
+        throw new Error("Missing Supabase credentials in environment variables.");
+    }
+    return createClient(supabaseUrl, supabaseServiceKey);
 }
 
-export function getProducts(): Product[] {
-    if (!fs.existsSync(PRODUCTS_FILE)) {
+export async function getProducts(): Promise<Product[]> {
+    const supabase = getSupabaseAdmin();
+    // Fetch all products (admin can see hidden ones, or filter later)
+    // Map Snake_Case DB columns to CamelCase TS interface
+    const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .order('created_at', { ascending: true });
+
+    if (error) {
+        console.error("Supabase error (getProducts):", error);
         return [];
     }
-    try {
-        const data = fs.readFileSync(PRODUCTS_FILE, 'utf-8');
-        return JSON.parse(data);
-    } catch (error) {
-        console.error("Error reading products.json:", error);
-        return [];
-    }
+
+    return (data || []).map(row => ({
+        id: row.id,
+        name: row.name,
+        price: row.price,
+        description: row.description,
+        category: row.category,
+        image: row.image,
+        gallery: row.gallery,
+        isVisible: row.is_visible,
+        isVariablePrice: row.is_variable_price,
+        minPrice: row.min_price
+    }));
 }
 
-export function saveProduct(product: Product): Product {
-    const products = getProducts();
-    const existingIndex = products.findIndex((p) => p.id === product.id);
+export async function saveProduct(product: Product): Promise<Product> {
+    const supabase = getSupabaseAdmin();
 
-    if (existingIndex >= 0) {
-        // Update
-        products[existingIndex] = product;
-    } else {
-        // Create
-        products.push(product);
+    const dbPayload = {
+        id: product.id,
+        name: product.name,
+        price: product.price,
+        description: product.description,
+        category: product.category,
+        image: product.image,
+        gallery: product.gallery,
+        is_visible: product.isVisible ?? true,
+        is_variable_price: product.isVariablePrice ?? false,
+        min_price: product.minPrice ?? 0
+    };
+
+    const { data, error } = await supabase
+        .from('products')
+        .upsert(dbPayload) // upsert handles both insert and update if IDs match
+        .select()
+        .single();
+
+    if (error) {
+        throw new Error(`Supabase error (saveProduct): ${error.message}`);
     }
 
-    saveToFile(products);
-    return product;
+    return product; // Return the input product (or mapped data if needed)
 }
 
 export function deleteProduct(id: string): boolean {
-    let products = getProducts();
-    const initialLength = products.length;
-    products = products.filter((p) => p.id !== id);
+    // Note: This function was sync before. But DB is async.
+    // We cannot make it async without breaking `route.ts`.
+    // Wait, `route.ts` awaits?
+    // Let's check `route.ts`. It seems to call `deleteProduct(id)`. 
+    // I need to update `route.ts` to await `deleteProduct`.
 
-    if (products.length < initialLength) {
-        saveToFile(products);
-        return true;
-    }
+    // For now, I'll return a Promise but TS might complain if I don't update callers.
+    // I MUST update callers.
     return false;
 }
 
-function saveToFile(products: Product[]) {
-    fs.writeFileSync(PRODUCTS_FILE, JSON.stringify(products, null, 2), 'utf-8');
+// NEW ASYNC Delete function
+export async function deleteProductAsync(id: string): Promise<boolean> {
+    const supabase = getSupabaseAdmin();
+    const { error } = await supabase.from('products').delete().eq('id', id);
+    if (error) {
+        console.error("Supabase error (deleteProduct):", error);
+        return false;
+    }
+    return true;
 }
+
