@@ -22,18 +22,46 @@ export async function GET(req: Request) {
     try {
         const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-        // 2. Generate Topic
-        const topicResponse = await openai.chat.completions.create({
-            model: "gpt-4o",
-            messages: [{
-                role: "system",
-                content: "Jesteś redaktorem naczelnym bloga stomatologicznego. Wymyśl JEDEN unikalny, chwytliwy temat artykułu poradnikowego dla pacjentów. Temat nie powinien się powtarzać z popularnymi (już mamy o implantach, wybielaniu, bruksiźmie, higienie). Skup się na ciekawostkach lub konkretnych problemach."
-            }, {
-                role: "user",
-                content: "Podaj tylko tytuł."
-            }]
-        });
-        const topic = topicResponse.choices[0].message.content?.trim() || "Nowoczesna Stomatologia";
+        // Dynamic import for Supabase Admin
+        const { createClient } = await import('@supabase/supabase-js');
+        const adminDb = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!
+        );
+
+        // 2. Determine Topic (User Idea vs AI Generation)
+        let topic = "";
+        let pendingIdeaId = null;
+
+        // Check for pending user questions
+        const { data: pendingIdeas } = await adminDb
+            .from('article_ideas')
+            .select('*')
+            .eq('status', 'pending')
+            .order('created_at', { ascending: true })
+            .limit(1);
+
+        if (pendingIdeas && pendingIdeas.length > 0) {
+            // Priority: User Question
+            const idea = pendingIdeas[0];
+            topic = idea.question;
+            pendingIdeaId = idea.id;
+            console.log(`[Cron] Using user question: ${topic}`);
+        } else {
+            // Fallback: AI Generation
+            const topicResponse = await openai.chat.completions.create({
+                model: "gpt-4o",
+                messages: [{
+                    role: "system",
+                    content: "Jesteś redaktorem naczelnym bloga stomatologicznego. Wymyśl JEDEN unikalny, chwytliwy temat artykułu poradnikowego dla pacjentów. Temat nie powinien się powtarzać z popularnymi (już mamy o implantach, wybielaniu, bruksiźmie, higienie). Skup się na ciekawostkach lub konkretnych problemach."
+                }, {
+                    role: "user",
+                    content: "Podaj tylko tytuł."
+                }]
+            });
+            topic = topicResponse.choices[0].message.content?.trim() || "Nowoczesna Stomatologia";
+            console.log(`[Cron] Generated new topic: ${topic}`);
+        }
 
         // 3. Generate Content (JSON)
         const completion = await openai.chat.completions.create({
@@ -58,7 +86,8 @@ export async function GET(req: Request) {
         const articleData = JSON.parse(completion.choices[0].message.content || "{}");
         if (!articleData.title) throw new Error("Failed to generate article JSON");
 
-        // 4. Generate Image
+        // 4. Generate Image (DALL-E 3)
+
         const imageResponse = await openai.images.generate({
             model: "dall-e-3",
             prompt: articleData.imagePrompt + " photorealistic, professional dental clinic style, high quality, bright lighting",
@@ -91,16 +120,6 @@ export async function GET(req: Request) {
 
         // 6. Insert Article into Supabase
 
-        // Dynamic import to avoid build-time issues if env vars missing, though top-level is fine usually.
-        // We will use the already imported OpenAI instance for generation logic above.
-        // Here we just need Supabase.
-
-        const { createClient } = await import('@supabase/supabase-js');
-        const adminDb = createClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.SUPABASE_SERVICE_ROLE_KEY!
-        );
-
         const { error: insertError } = await adminDb.from('articles').insert({
             title: articleData.title,
             slug: articleData.slug,
@@ -111,6 +130,15 @@ export async function GET(req: Request) {
         });
 
         if (insertError) throw new Error(`Supabase Insert Failed: ${insertError.message}`);
+
+        // 7. Mark Idea as Processed (if applicable)
+        if (pendingIdeaId) {
+            await adminDb
+                .from('article_ideas')
+                .update({ status: 'processed' })
+                .eq('id', pendingIdeaId);
+            console.log(`[Cron] Marked idea ${pendingIdeaId} as processed.`);
+        }
 
         return NextResponse.json({ success: true, topic, slug: articleData.slug });
 
