@@ -68,6 +68,22 @@ export default function Navbar() {
                                     backdropFilter: 'blur(10px)',
                                 }}>
                                     <Link
+                                        href="/baza-wiedzy"
+                                        className={styles.link}
+                                        style={{
+                                            display: 'block',
+                                            padding: '0.75rem 1.5rem',
+                                            width: '100%',
+                                            textAlign: 'center',
+                                            color: 'var(--color-text-main)',
+                                            whiteSpace: 'nowrap',
+                                            textTransform: 'uppercase',
+                                            letterSpacing: '0.05em'
+                                        }}
+                                    >
+                                        📚 Baza Wiedzy
+                                    </Link>
+                                    <Link
                                         href="/sklep"
                                         className={styles.link}
                                         style={{
@@ -160,6 +176,7 @@ export default function Navbar() {
                         {/* Mobile Expanded "Dodatki" */}
                         <div style={{ padding: '1rem 0', borderTop: '1px solid rgba(255,255,255,0.1)', borderBottom: '1px solid rgba(255,255,255,0.1)', width: '100%' }}>
                             <div style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Dodatki</div>
+                            <Link href="/baza-wiedzy" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem' }}>📚 Baza Wiedzy</Link>
                             <Link href="/sklep" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem' }}>🛍️ Sklep</Link>
                             <Link href="/symulator" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', color: 'var(--color-primary)', marginBottom: '0.5rem' }}>✨ Symulator AI</Link>
                             <button
