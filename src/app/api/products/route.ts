@@ -33,8 +33,9 @@ export async function POST(req: NextRequest) {
         // Validation could go here
         const savedProduct = await saveProduct(body as Product);
         return NextResponse.json(savedProduct);
-    } catch (error) {
-        return NextResponse.json({ error: "Invalid Data" }, { status: 400 });
+    } catch (error: any) {
+        console.error("API POST Error:", error);
+        return NextResponse.json({ error: error.message || "Invalid Data" }, { status: 400 });
     }
 }
 
