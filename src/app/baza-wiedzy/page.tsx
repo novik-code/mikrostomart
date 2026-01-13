@@ -34,6 +34,10 @@ export default async function KnowledgeBasePage() {
                         fontSize: "1.1rem"
                     }}>
                         Rzetelna wiedza stomatologiczna w pigułce. Przygotowana przez naszych ekspertów.
+                        <br />
+                        <span style={{ fontSize: '0.95rem', opacity: 0.9 }}>
+                            Nie znalazłeś odpowiedzi? Zadaj nam pytanie, a my napiszemy o tym artykuł!
+                        </span>
                     </p>
 
                     <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '3rem' }}>

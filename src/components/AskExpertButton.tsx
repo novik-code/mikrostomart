@@ -15,19 +15,21 @@ export default function AskExpertButton() {
                 style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '0.5rem',
+                    gap: '0.75rem',
                     background: 'var(--color-surface)',
-                    border: '1px solid var(--color-primary)',
+                    border: '2px solid var(--color-primary)',
                     color: 'var(--color-primary)',
-                    padding: '0.75rem 1.5rem',
+                    padding: '1rem 2rem',
                     borderRadius: 'var(--radius-full)',
-                    fontWeight: 600,
+                    fontWeight: 700,
+                    fontSize: '1.1rem',
                     cursor: 'pointer',
-                    transition: 'all 0.2s',
-                    margin: '0 auto 2rem'
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    margin: '0 auto 2rem',
+                    boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
                 }}
             >
-                <MessageCircleQuestion size={20} />
+                <MessageCircleQuestion size={24} />
                 Zadaj Pytanie Ekspertowi
             </button>
 
