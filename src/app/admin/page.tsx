@@ -89,12 +89,16 @@ export default function AdminPage() {
                 body: JSON.stringify(payload)
             });
 
-            if (!res.ok) throw new Error("Unauthorized or Invalid Data");
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.error || "Błąd zapisu (Unauthorized or Invalid Data)");
+            }
 
             await fetchProducts();
             resetForm();
-        } catch (err) {
-            setError("Błąd zapisu. Sprawdź hasło.");
+        } catch (err: any) {
+            console.error(err);
+            setError(err.message || "Wystąpił nieoczekiwany błąd.");
         }
     };
 
