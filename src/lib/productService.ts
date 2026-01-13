@@ -18,6 +18,14 @@ export interface Product {
 function getSupabaseAdmin() {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+    console.log("Debug Auth:", {
+        hasUrl: !!supabaseUrl,
+        urlLength: supabaseUrl?.length,
+        hasKey: !!supabaseServiceKey,
+        keyLength: supabaseServiceKey?.length
+    });
+
     if (!supabaseUrl || !supabaseServiceKey) {
         throw new Error("Missing Supabase credentials (SERVICE_ROLE_KEY) for Admin operations.");
     }
