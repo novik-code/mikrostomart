@@ -205,7 +205,7 @@ export default function AdminPage() {
     return (
         <main className="section container">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "2rem" }}>
-                <h1>Panel Administratora</h1>
+                <h1>Panel Administratora (v1.1)</h1>
                 <div style={{ display: 'flex', gap: '1rem' }}>
                     <button onClick={() => setActiveTab('products')} style={{ opacity: activeTab === 'products' ? 1 : 0.5, background: 'none', border: 'none', color: 'white', cursor: 'pointer', fontWeight: 'bold' }}>Produkty</button>
                     <button onClick={() => setActiveTab('questions')} style={{ opacity: activeTab === 'questions' ? 1 : 0.5, background: 'none', border: 'none', color: 'white', cursor: 'pointer', fontWeight: 'bold' }}>Pytania (Expert)</button>
