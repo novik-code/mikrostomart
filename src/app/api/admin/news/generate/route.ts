@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
         // 2. Generate Image (DALL-E 3)
         const imageResponse = await openai.images.generate({
             model: "dall-e-3",
-            prompt: articleData.imagePrompt + " photorealistic, high quality, medical aesthetic, canon eos 5d, 85mm lens, bright clean lighting",
+            prompt: articleData.imagePrompt + " elegant, minimalist, modern dental clinic, luxury medical aesthetic, soft lighting, gold and white color palette, photorealistic, high quality, 8k, cinematic depth of field",
             n: 1,
             size: "1024x1024",
             response_format: "b64_json"
