@@ -47,7 +47,7 @@ export async function POST(req: Request) {
 
         // 4. SAVE TO DB (If passed all checks)
         console.log("AskExpert: Relevance Pass. Initializing Supabase...");
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://keucogopujdolzmfajjv.supabase.co';
         const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY!;
 
         if (!supabaseServiceKey) {
