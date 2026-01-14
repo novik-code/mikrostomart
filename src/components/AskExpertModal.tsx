@@ -11,6 +11,7 @@ interface AskExpertModalProps {
 
 export default function AskExpertModal({ isOpen, onClose }: AskExpertModalProps) {
     const [question, setQuestion] = useState('');
+    const [website, setWebsite] = useState(''); // Honeypot
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -21,17 +22,23 @@ export default function AskExpertModal({ isOpen, onClose }: AskExpertModalProps)
         setError(null);
 
         try {
-            const { error: insertError } = await supabase.from('article_ideas').insert({
-                question: question.trim()
+            const res = await fetch('/api/ask-expert', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ question, honeypot: website })
             });
 
-            if (insertError) throw insertError;
+            const data = await res.json();
 
+            if (!res.ok) throw new Error(data.error || 'Wystąpił błąd.');
+
+            // Success (or fake success if spam)
             setIsSuccess(true);
             setTimeout(() => {
                 onClose();
                 setIsSuccess(false);
                 setQuestion('');
+                setWebsite('');
             }, 6000);
 
         } catch (err: any) {
@@ -119,6 +126,17 @@ export default function AskExpertModal({ isOpen, onClose }: AskExpertModalProps)
                         </p>
 
                         <form onSubmit={handleSubmit}>
+                            {/* Honeypot Field - Bots will fill this */}
+                            <input
+                                type="text"
+                                name="website"
+                                value={website}
+                                onChange={(e) => setWebsite(e.target.value)}
+                                style={{ display: 'none' }}
+                                tabIndex={-1}
+                                autoComplete="off"
+                            />
+
                             <textarea
                                 value={question}
                                 onChange={(e) => setQuestion(e.target.value)}
