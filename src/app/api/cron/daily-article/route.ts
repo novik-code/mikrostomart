@@ -100,18 +100,46 @@ export async function GET(req: Request) {
             const articleData = JSON.parse(completion.choices[0].message.content || "{}");
             if (!articleData.title) throw new Error("Błąd generowania JSON");
 
-            await send(writer, "STEP: Generuję obrazek (DALL-E 3)... To może potrwać 20s.");
+            await send(writer, "STEP: Generuję obrazek (Flux Pro)... To może potrwać 30s.");
 
-            // 4. Generate Image
-            const imageResponse = await openai.images.generate({
-                model: "dall-e-3",
-                prompt: articleData.imagePrompt + " photorealistic, professional dental clinic style, high quality, bright lighting",
-                n: 1,
-                size: "1024x1024",
-                response_format: "b64_json"
-            });
+            // 4. Generate Image (Flux via Replicate)
+            // Note: We use require here to avoid top-level await issues if any, though normally import is fine.
+            const Replicate = require("replicate");
+            const replicate = new Replicate({ auth: process.env.REPLICATE_API_TOKEN });
 
-            const imageBase64 = imageResponse.data?.[0]?.b64_json;
+            const input = {
+                prompt: articleData.imagePrompt + " photorealistic, natural lighting, luxury dental clinic, soft shadows, 8k, highly detailed, professional photography, depth of field. Canon R5, 50mm lens. High texture realism.",
+                go_fast: true,
+                output_format: "png",
+                aspect_ratio: "16:9", // Blog posts usually look better with landscape
+                output_quality: 100
+            };
+
+            let imageBase64: string | undefined;
+
+            try {
+                const output: any = await replicate.run("black-forest-labs/flux-dev", { input });
+                const imageUrl = Array.isArray(output) ? output[0] : output;
+
+                // Download image
+                const imgRes = await fetch(imageUrl);
+                const arrayBuffer = await imgRes.arrayBuffer();
+                imageBase64 = Buffer.from(arrayBuffer).toString('base64');
+            } catch (err: any) {
+                console.error("Flux Error:", err);
+                await send(writer, `ERROR: Flux failed (${err.message}). Fallback to DALL-E...`);
+
+                // Fallback to DALL-E 3 if Flux fails (e.g. no token)
+                const imageResponse = await openai.images.generate({
+                    model: "dall-e-3",
+                    prompt: articleData.imagePrompt + " elegant, minimalist, modern dental clinic, luxury medical aesthetic",
+                    n: 1,
+                    size: "1024x1024",
+                    response_format: "b64_json"
+                });
+                imageBase64 = imageResponse.data?.[0]?.b64_json;
+            }
+
             if (!imageBase64) throw new Error("Błąd generowania obrazka");
 
             // 5. Commit to GitHub
