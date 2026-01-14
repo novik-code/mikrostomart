@@ -190,6 +190,7 @@ export default function AdminPage() {
     // --- AI GENERATOR HANDLERS ---
     const [aiTopic, setAiTopic] = useState("");
     const [aiInstructions, setAiInstructions] = useState("");
+    const [aiModel, setAiModel] = useState("flux-dev"); // Default to better model
     const [isGenerating, setIsGenerating] = useState(false);
 
     const handleAiGenerate = async () => {
@@ -205,7 +206,11 @@ export default function AdminPage() {
                     "Content-Type": "application/json",
                     "x-admin-password": password
                 },
-                body: JSON.stringify({ topic: aiTopic, instructions: aiInstructions })
+                body: JSON.stringify({
+                    topic: aiTopic,
+                    instructions: aiInstructions,
+                    model: aiModel
+                })
             });
 
             if (!res.ok) {
@@ -480,6 +485,17 @@ export default function AdminPage() {
                                     style={inputStyle}
                                     rows={2}
                                 />
+                                <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+                                    <span style={{ fontWeight: "bold" }}>Silnik:</span>
+                                    <select
+                                        value={aiModel}
+                                        onChange={(e) => setAiModel(e.target.value)}
+                                        style={inputStyle}
+                                    >
+                                        <option value="flux-dev">Flux Pro (Realistyczny - Zalecany)</option>
+                                        <option value="dall-e-3">DALL-E 3 (Standard)</option>
+                                    </select>
+                                </div>
                                 <button
                                     onClick={handleAiGenerate}
                                     disabled={isGenerating}

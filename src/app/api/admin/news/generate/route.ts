@@ -18,13 +18,14 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-        const { topic, instructions } = await req.json();
+        const { topic, instructions, model } = await req.json();
 
         if (!topic) {
             return NextResponse.json({ error: "Topic is required" }, { status: 400 });
         }
 
         const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+        const Replicate = require("replicate"); // Late require
 
         // 1. Generate Text Content (GPT-4o)
         const systemPrompt = `Jesteś doświadczonym redaktorem medycznym/stomatologicznym. 
@@ -38,7 +39,7 @@ export async function POST(req: NextRequest) {
             "slug": "url-friendly-slug-bez-polskich-znakow",
             "excerpt": "Krótki wstęp zachęcający do czytania (max 160 znaków).",
             "content": "Pełna treść artykułu w formacie Markdown (używaj nagłówków ##, list, pogrubień).",
-            "imagePrompt": "Szczegółowy opis zdjęcia w języku angielskim dla DALL-E 3, fotorealistyczne, jasne, styl nowoczesnej kliniki."
+            "imagePrompt": "Szczegółowy opis zdjęcia w języku angielskim (prompt). Fotorealistyczne, nowoczesna klinika, eleganckie. ${model === 'flux-dev' ? 'Natural lighting, canon r5, 50mm, detailed texture.' : 'DALL-E 3 style.'}"
         }`;
 
         const completion = await openai.chat.completions.create({
@@ -53,16 +54,44 @@ export async function POST(req: NextRequest) {
         const articleData = JSON.parse(completion.choices[0].message.content || "{}");
         if (!articleData.title) throw new Error("Błąd generowania treści przez AI");
 
-        // 2. Generate Image (DALL-E 3)
-        const imageResponse = await openai.images.generate({
-            model: "dall-e-3",
-            prompt: articleData.imagePrompt + " elegant, minimalist, modern dental clinic, luxury medical aesthetic, soft lighting, gold and white color palette, photorealistic, high quality, 8k, cinematic depth of field",
-            n: 1,
-            size: "1024x1024",
-            response_format: "b64_json"
-        });
+        // 2. Generate Image
+        let imageBase64: string | undefined;
 
-        const imageBase64 = imageResponse.data?.[0]?.b64_json;
+        if (model === 'flux-dev') {
+            console.log("Generating with Flux (Replicate)...");
+            const replicate = new Replicate({ auth: process.env.REPLICATE_API_TOKEN });
+
+            // Input for black-forest-labs/flux-dev
+            const input = {
+                prompt: articleData.imagePrompt + " photorealistic, natural lighting, luxury dental clinic, soft shadows, 8k, highly detailed, professional photography, depth of field",
+                go_fast: true,
+                output_format: "png",
+                aspect_ratio: "1:1",
+                output_quality: 100
+            };
+
+            const output: any = await replicate.run("black-forest-labs/flux-dev", { input });
+
+            // Replicate returns a URL (or array of URLs)
+            const imageUrl = Array.isArray(output) ? output[0] : output;
+
+            // Download the image to get base64 (since uploadToRepo expects base64)
+            const imgRes = await fetch(imageUrl);
+            const arrayBuffer = await imgRes.arrayBuffer();
+            imageBase64 = Buffer.from(arrayBuffer).toString('base64');
+
+        } else {
+            console.log("Generating with DALL-E 3...");
+            const imageResponse = await openai.images.generate({
+                model: "dall-e-3",
+                prompt: articleData.imagePrompt + " elegant, minimalist, modern dental clinic, luxury medical aesthetic, soft lighting, gold and white color palette, photorealistic, high quality, 8k, cinematic depth of field",
+                n: 1,
+                size: "1024x1024",
+                response_format: "b64_json"
+            });
+            imageBase64 = imageResponse.data?.[0]?.b64_json;
+        }
+
         if (!imageBase64) throw new Error("Błąd generowania obrazka");
 
         // 3. Upload to GitHub
