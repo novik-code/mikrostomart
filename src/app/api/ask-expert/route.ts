@@ -46,18 +46,29 @@ export async function POST(req: Request) {
         }
 
         // 4. SAVE TO DB (If passed all checks)
+        console.log("AskExpert: Relevance Pass. Initializing Supabase...");
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
         const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY!;
+
+        if (!supabaseServiceKey) {
+            throw new Error("Missing SUPABASE_SERVICE_ROLE_KEY");
+        }
+
         const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+        console.log("AskExpert: Inserting into DB...");
         const { error } = await supabase.from('article_ideas').insert({ question });
 
-        if (error) throw error;
+        if (error) {
+            console.error("AskExpert: Supabase Insert Error:", JSON.stringify(error));
+            throw error;
+        }
 
+        console.log("AskExpert: Success!");
         return NextResponse.json({ success: true });
 
     } catch (error: any) {
-        console.error("AskExpert API Error:", error);
-        return NextResponse.json({ error: "Wystąpił błąd serwera." }, { status: 500 });
+        console.error("AskExpert API Error Full:", error);
+        return NextResponse.json({ error: "Wystąpił błąd serwera: " + error.message }, { status: 500 });
     }
 }
