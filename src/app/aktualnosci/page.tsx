@@ -2,32 +2,34 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { articles } from '@/data/articles';
+import { useState, useEffect } from 'react';
 import RevealOnScroll from '@/components/RevealOnScroll';
-import { Metadata } from 'next';
-
-// Metadata moved to layout or handled separately because this is a client component
-
 
 export default function NewsPage() {
-    return (
-        <main style={{ background: "var(--color-background)" }}>
-            <div className="container" style={{ padding: "4rem 2rem 4rem" }}>
-                <RevealOnScroll>
-                    <h1 style={{
-                        fontSize: "clamp(2rem, 5vw, 3.5rem)",
-                        marginBottom: "3rem",
-                        background: "linear-gradient(135deg, var(--color-text), var(--color-primary))",
-                        WebkitBackgroundClip: "text",
-                        WebkitTextFillColor: "transparent",
-                        textAlign: "center"
-                    }}>
-                        Aktualności
-                    </h1>
-                </RevealOnScroll>
+    const [articles, setArticles] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
 
-                {/* Custom Scrollbar and Responsive Carousel Item Styles */}
-                <style jsx global>{`
+    useEffect(() => {
+        const fetchNews = async () => {
+            try {
+                const res = await fetch('/api/news');
+                if (res.ok) {
+                    const data = await res.json();
+                    setArticles(data);
+                }
+            } catch (error) {
+                console.error("Failed to fetch news:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchNews();
+    }, []);
+
+    // ... CSS styles remain the same ...
+    /* Custom Scrollbar and Responsive Carousel Item Styles */
+    <style jsx global>{`
                     .news-carousel::-webkit-scrollbar {
                         display: none;
                     }
@@ -56,6 +58,49 @@ export default function NewsPage() {
                         }
                     }
                 `}</style>
+    // ...
+
+    return (
+        <main style={{ background: "var(--color-background)" }}>
+            <div className="container" style={{ padding: "4rem 2rem 4rem" }}>
+                <RevealOnScroll>
+                    <h1 style={{
+                        fontSize: "clamp(2rem, 5vw, 3.5rem)",
+                        marginBottom: "3rem",
+                        background: "linear-gradient(135deg, var(--color-text), var(--color-primary))",
+                        WebkitBackgroundClip: "text",
+                        WebkitTextFillColor: "transparent",
+                        textAlign: "center"
+                    }}>
+                        Aktualności
+                    </h1>
+                </RevealOnScroll>
+
+                <style jsx global>{`
+                    .news-carousel::-webkit-scrollbar {
+                        display: none;
+                    }
+                    .news-carousel {
+                        -ms-overflow-style: none;
+                        scrollbar-width: none;
+                    }
+                    .news-carousel-item {
+                        flex: 0 0 auto;
+                        width: clamp(280px, 85vw, 400px);
+                        scroll-snap-align: start;
+                        scroll-snap-stop: always;
+                    }
+                    @media (min-width: 768px) {
+                        .news-carousel-item {
+                            width: calc(50% - 1rem);
+                        }
+                    }
+                    @media (min-width: 1024px) {
+                        .news-carousel-item {
+                            width: calc(33.333% - 1.34rem); 
+                        }
+                    }
+                `}</style>
 
                 {/* Carousel Container with Arrows */}
                 <div style={{ position: "relative", margin: "0 -2rem", padding: "0 2rem" }}>
@@ -66,7 +111,7 @@ export default function NewsPage() {
                         onClick={() => {
                             const container = document.querySelector('.news-carousel');
                             if (container) {
-                                container.scrollBy({ left: -320, behavior: 'smooth' }); // Scroll approx one card width
+                                container.scrollBy({ left: -320, behavior: 'smooth' });
                             }
                         }}
                         title="Poprzednia"
@@ -109,16 +154,16 @@ export default function NewsPage() {
                             overflowX: "auto",
                             gap: "2rem",
                             scrollSnapType: "x mandatory",
-                            paddingBottom: "2rem", // Space for shadow/hover
-                            // Margin removed here as it is handled by wrapper
-                            // margin: "0 -2rem", 
-                            // Padding removed here as handled by wrapper/gap? 
-                            // Actually, keeping padding inside ensures items aren't cut off visually
+                            paddingBottom: "2rem",
                             paddingLeft: "0.5rem",
                             paddingRight: "0.5rem",
                             WebkitOverflowScrolling: "touch"
                         }}>
-                        {articles.map((article) => (
+                        {loading ? (
+                            <p style={{ textAlign: "center", width: "100%", padding: "2rem" }}>Ładowanie aktualności...</p>
+                        ) : articles.length === 0 ? (
+                            <p style={{ textAlign: "center", width: "100%", padding: "2rem" }}>Brak aktualności.</p>
+                        ) : articles.map((article) => (
                             <div
                                 key={article.id}
                                 className="news-carousel-item"
@@ -135,13 +180,13 @@ export default function NewsPage() {
                                                 height: "100%",
                                                 display: "flex",
                                                 flexDirection: "column",
-                                                minHeight: "450px" // Uniform height
+                                                minHeight: "450px"
                                             }}
                                                 className="hover-card"
                                             >
                                                 <div style={{ position: "relative", height: "250px", width: "100%" }}>
                                                     <Image
-                                                        src={article.image}
+                                                        src={article.image || '/images/placeholder.jpg'}
                                                         alt={article.title}
                                                         fill
                                                         style={{ objectFit: "cover" }}

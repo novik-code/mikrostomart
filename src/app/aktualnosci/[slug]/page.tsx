@@ -1,21 +1,37 @@
-import { articles } from '@/data/articles';
+
 import RevealOnScroll from '@/components/RevealOnScroll';
 import Link from 'next/link';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { Metadata } from 'next';
+import { createClient } from '@supabase/supabase-js';
 
+// Setup Supabase Client Helper
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://keucogopujdolzmfajjv.supabase.co';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+async function getArticle(slug: string) {
+    const { data: article } = await supabase
+        .from('news')
+        .select('*')
+        .eq('slug', slug)
+        .single();
+    return article;
+}
 
+// Allow dynamic paths
+export const dynamicParams = true;
+
+// Optional: if you want to generate some static paths at build time
 export async function generateStaticParams() {
-    return articles.map((article) => ({
-        slug: article.slug,
-    }));
+    const { data: articles } = await supabase.from('news').select('slug');
+    return articles?.map(({ slug }) => ({ slug })) || [];
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
     const { slug } = await params;
-    const article = articles.find((p) => p.slug === slug);
+    const article = await getArticle(slug);
     if (!article) return { title: 'Artykuł nie znaleziony' };
     return {
         title: `${article.title} | Mikrostomart`,
@@ -25,7 +41,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function ArticlePage({ params }: { params: Promise<{ slug: string }> }) {
     const { slug } = await params;
-    const article = articles.find((p) => p.slug === slug);
+    const article = await getArticle(slug);
 
     if (!article) {
         notFound();
@@ -63,7 +79,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
                         </h1>
                         <div style={{ position: "relative", width: "100%", height: "400px", borderRadius: "var(--radius-md)", overflow: "hidden" }}>
                             <Image
-                                src={article.image}
+                                src={article.image || '/images/placeholder.jpg'}
                                 alt={article.title}
                                 fill
                                 style={{ objectFit: "cover" }}
@@ -93,7 +109,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
                         fontSize: "1.05rem"
                     }}>
                         {/* Improved manual markdown parser */}
-                        {article.content.split('\n').map((line, index) => {
+                        {(article.content || '').split('\n').map((line: string, index: number) => {
                             // Headers
                             if (line.startsWith('### ')) {
                                 return <h3 key={index} style={{ color: "var(--color-text)", fontSize: "1.5rem", marginTop: "2rem", marginBottom: "1rem" }}>{line.replace('### ', '')}</h3>;
@@ -155,3 +171,4 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
         </main>
     );
 }
+

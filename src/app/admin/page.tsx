@@ -34,7 +34,7 @@ export default function AdminPage() {
 
     const [error, setError] = useState<string | null>(null);
 
-    const [activeTab, setActiveTab] = useState<'products' | 'questions' | 'articles'>('products');
+    const [activeTab, setActiveTab] = useState<'products' | 'questions' | 'articles' | 'news'>('products');
     const [questions, setQuestions] = useState<any[]>([]);
     const [articles, setArticles] = useState<any[]>([]);
     const [generationStatus, setGenerationStatus] = useState<Record<string, string>>({});
@@ -47,6 +47,7 @@ export default function AdminPage() {
             fetchProducts(storedAuth);
             fetchQuestions(storedAuth);
             fetchArticles(storedAuth);
+            fetchNews(storedAuth);
         }
     }, [activeTab]); // Fetch when tab changes too
 
@@ -56,6 +57,7 @@ export default function AdminPage() {
         fetchProducts(password);
         fetchQuestions(password);
         fetchArticles(password);
+        fetchNews(password);
     };
 
     const fetchProducts = async (pwd: string = password) => {
@@ -106,6 +108,75 @@ export default function AdminPage() {
             if (res.ok) fetchArticles();
             else alert("Błąd usuwania");
         } catch (e) { alert("Błąd"); }
+    };
+
+    // --- NEWS HANDLERS ---
+    const [news, setNews] = useState<any[]>([]);
+    const [editingNewsId, setEditingNewsId] = useState<string | null>(null);
+    const [newsFormData, setNewsFormData] = useState({
+        title: "",
+        date: new Date().toISOString().split('T')[0],
+        excerpt: "",
+        content: "",
+        image: ""
+    });
+
+    const fetchNews = async (pwd: string = password) => {
+        try {
+            const res = await fetch("/api/admin/news", {
+                headers: { "x-admin-password": pwd }
+            });
+            if (res.ok) setNews(await res.json());
+        } catch (err) { console.error(err); }
+    };
+
+    const handleSaveNews = async (e: React.FormEvent) => {
+        e.preventDefault();
+        try {
+            const payload: any = { ...newsFormData };
+            if (editingNewsId) payload.id = editingNewsId;
+
+            const method = editingNewsId ? "PUT" : "POST";
+            const res = await fetch("/api/admin/news", {
+                method,
+                headers: {
+                    "Content-Type": "application/json",
+                    "x-admin-password": password
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!res.ok) throw new Error("Failed");
+            await fetchNews();
+            resetNewsForm();
+        } catch (err) { alert("Błąd zapisu newsa"); }
+    };
+
+    const handleDeleteNews = async (id: string) => {
+        if (!confirm("Usunąć news?")) return;
+        try {
+            await fetch(`/api/admin/news?id=${id}`, {
+                method: "DELETE",
+                headers: { "x-admin-password": password }
+            });
+            fetchNews();
+        } catch (e) { alert("Błąd"); }
+    };
+
+    const handleEditNews = (n: any) => {
+        setEditingNewsId(n.id);
+        setNewsFormData({
+            title: n.title,
+            date: n.date,
+            excerpt: n.excerpt,
+            content: n.content,
+            image: n.image
+        });
+    };
+
+    const resetNewsForm = () => {
+        setEditingNewsId(null);
+        setNewsFormData({ title: "", date: new Date().toISOString().split('T')[0], excerpt: "", content: "", image: "" });
     };
 
     // ... products handlers ...
@@ -210,6 +281,7 @@ export default function AdminPage() {
                     <button onClick={() => setActiveTab('products')} style={{ opacity: activeTab === 'products' ? 1 : 0.5, background: 'none', border: 'none', color: 'white', cursor: 'pointer', fontWeight: 'bold' }}>Produkty</button>
                     <button onClick={() => setActiveTab('questions')} style={{ opacity: activeTab === 'questions' ? 1 : 0.5, background: 'none', border: 'none', color: 'white', cursor: 'pointer', fontWeight: 'bold' }}>Pytania (Expert)</button>
                     <button onClick={() => setActiveTab('articles')} style={{ opacity: activeTab === 'articles' ? 1 : 0.5, background: 'none', border: 'none', color: 'white', cursor: 'pointer', fontWeight: 'bold' }}>Baza Wiedzy</button>
+                    <button onClick={() => setActiveTab('news')} style={{ opacity: activeTab === 'news' ? 1 : 0.5, background: 'none', border: 'none', color: 'white', cursor: 'pointer', fontWeight: 'bold' }}>Aktualności</button>
                     <button onClick={() => { setIsAuthenticated(false); sessionStorage.removeItem("admin_auth"); }} style={{ color: "var(--color-error)", background: 'none', border: 'none', cursor: 'pointer', marginLeft: '1rem' }}>Wyloguj</button>
                 </div>
             </div>
@@ -325,6 +397,46 @@ export default function AdminPage() {
                             </div>
                         </div>
                     ))}
+                </div>
+                // ... (Rendering existing blocks)
+
+            ) : activeTab === 'news' ? (
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2rem", alignItems: "start" }}>
+                    {/* NEWS FORM */}
+                    <div style={{ background: "var(--color-surface)", padding: "2rem", borderRadius: "var(--radius-lg)", position: "sticky", top: "2rem" }}>
+                        <h2 style={{ marginBottom: "1rem" }}>{editingNewsId ? "Edytuj News" : "Dodaj News"}</h2>
+                        <form onSubmit={handleSaveNews} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                            <input required placeholder="Tytuł" value={newsFormData.title} onChange={(e) => setNewsFormData({ ...newsFormData, title: e.target.value })} style={inputStyle} />
+                            <input required type="date" value={newsFormData.date} onChange={(e) => setNewsFormData({ ...newsFormData, date: e.target.value })} style={inputStyle} />
+                            <textarea placeholder="Krótki opis (Excerpt)" rows={3} value={newsFormData.excerpt} onChange={(e) => setNewsFormData({ ...newsFormData, excerpt: e.target.value })} style={inputStyle} />
+                            <textarea placeholder="Treść (Markdown/HTML)" rows={6} value={newsFormData.content} onChange={(e) => setNewsFormData({ ...newsFormData, content: e.target.value })} style={inputStyle} />
+                            <input placeholder="Link do zdjęcia" value={newsFormData.image} onChange={(e) => setNewsFormData({ ...newsFormData, image: e.target.value })} style={inputStyle} />
+
+                            <div style={{ display: "flex", gap: "1rem" }}>
+                                <button type="submit" className="btn-primary" style={{ flex: 1 }}>{editingNewsId ? "Zapisz Zmiany" : "Dodaj"}</button>
+                                {editingNewsId && <button type="button" onClick={resetNewsForm} style={{ padding: "1rem", background: "var(--color-surface-hover)", border: "none", borderRadius: "var(--radius-md)", color: "#fff", cursor: "pointer" }}>Anuluj</button>}
+                            </div>
+                        </form>
+                    </div>
+
+                    {/* NEWS LIST */}
+                    <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                        {news.length === 0 ? <p>Brak aktualności.</p> : news.map(n => (
+                            <div key={n.id} style={{ background: "var(--color-surface)", padding: "1.5rem", borderRadius: "var(--radius-md)" }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                                    <h3 style={{ fontSize: "1.1rem", margin: 0 }}>{n.title}</h3>
+                                    <span style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>{n.date}</span>
+                                </div>
+                                <div style={{ marginBottom: "1rem" }}>
+                                    <img src={n.image} alt={n.title} style={{ maxWidth: "100%", height: "auto", borderRadius: "4px", maxHeight: "150px", objectFit: "cover" }} />
+                                </div>
+                                <div style={{ display: "flex", gap: "0.5rem" }}>
+                                    <button onClick={() => handleEditNews(n)} style={{ padding: "0.5rem", background: "var(--color-primary)", border: "none", borderRadius: "4px", color: "black", cursor: "pointer" }}>Edytuj</button>
+                                    <button onClick={() => handleDeleteNews(n.id)} style={{ padding: "0.5rem", background: "var(--color-error)", border: "none", borderRadius: "4px", color: "white", cursor: "pointer" }}>Usuń</button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
