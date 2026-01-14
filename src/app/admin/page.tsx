@@ -259,7 +259,7 @@ export default function AdminPage() {
                         ))}
                     </div>
                 </div>
-            ) : (
+            ) : activeTab === 'questions' ? (
                 <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
                     <h2>Nadesłane Pytania (Zapytaj Eksperta)</h2>
                     {questions.length === 0 ? <p>Brak pytań.</p> : questions.map(q => (
@@ -326,19 +326,19 @@ export default function AdminPage() {
                     ))}
                 </div>
             ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-                <h2>Baza Wiedzy (Blog)</h2>
-                {articles.length === 0 ? <p>Brak artykułów.</p> : articles.map(a => (
-                    <div key={a.id} style={{ background: "var(--color-surface)", padding: "1.5rem", borderRadius: "var(--radius-md)" }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                            <h3 style={{ fontSize: "1.1rem", margin: 0 }}>{a.title}</h3>
-                            <span style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>{a.published_date}</span>
+                <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                    <h2>Baza Wiedzy (Blog)</h2>
+                    {articles.length === 0 ? <p>Brak artykułów.</p> : articles.map(a => (
+                        <div key={a.id} style={{ background: "var(--color-surface)", padding: "1.5rem", borderRadius: "var(--radius-md)" }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                                <h3 style={{ fontSize: "1.1rem", margin: 0 }}>{a.title}</h3>
+                                <span style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>{a.published_date}</span>
+                            </div>
+                            <p style={{ color: "var(--color-text-muted)", fontSize: "0.9rem", marginBottom: "1rem" }}>/{a.slug}</p>
+                            <button onClick={() => handleDeleteArticle(a.id)} style={{ padding: "0.5rem 1rem", background: "var(--color-error)", border: "none", borderRadius: "4px", color: "white", cursor: "pointer" }}>Usuń</button>
                         </div>
-                        <p style={{ color: "var(--color-text-muted)", fontSize: "0.9rem", marginBottom: "1rem" }}>/{a.slug}</p>
-                        <button onClick={() => handleDeleteArticle(a.id)} style={{ padding: "0.5rem 1rem", background: "var(--color-error)", border: "none", borderRadius: "4px", color: "white", cursor: "pointer" }}>Usuń</button>
-                    </div>
-                ))}
-            </div>
+                    ))}
+                </div>
             )}
         </main>
     );
