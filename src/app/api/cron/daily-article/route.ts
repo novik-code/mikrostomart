@@ -25,7 +25,7 @@ export async function GET(req: Request) {
         // Dynamic import for Supabase Admin
         const { createClient } = await import('@supabase/supabase-js');
         const adminDb = createClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://keucogopujdolzmfajjv.supabase.co',
             process.env.SUPABASE_SERVICE_ROLE_KEY!
         );
 
