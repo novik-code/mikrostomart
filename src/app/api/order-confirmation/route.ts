@@ -11,6 +11,35 @@ export async function POST(req: NextRequest) {
 
         const orderDate = new Date().toLocaleString("pl-PL", { timeZone: "Europe/Warsaw" });
 
+        // 0. Save to Database (Supabase)
+        try {
+            const { createClient } = require('@supabase/supabase-js');
+            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://keucogopujdolzmfajjv.supabase.co';
+            // Use Service Role Key for writing to DB (bypassing RLS if necessary for public writes, though mostly safe here server-side)
+            const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+            if (supabaseKey) {
+                const supabase = createClient(supabaseUrl, supabaseKey);
+                const { error: dbError } = await supabase.from('orders').insert({
+                    customer_details: customerDetails,
+                    items: cart,
+                    total_amount: total,
+                    status: 'paid',
+                    payment_id: paymentId,
+                    created_at: new Date().toISOString()
+                });
+
+                if (dbError) {
+                    console.error("Supabase Order Insert Error:", dbError);
+                    // Don't fail the request, just log it. The payment is done.
+                } else {
+                    console.log("Order saved to Supabase successfully.");
+                }
+            }
+        } catch (dbEx) {
+            console.error("Database save exception:", dbEx);
+        }
+
         // 1. Prepare Content
         const itemsList = cart.map((item: any) => `- ${item.name} (${item.quantity || 1} szt.) - ${item.price} PLN`).join('\n');
         const itemsHtml = cart.map((item: any) => `<li>${item.name} (<strong>${item.quantity || 1} szt.</strong>) - ${item.price} PLN</li>`).join('');

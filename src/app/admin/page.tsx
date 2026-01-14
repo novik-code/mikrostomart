@@ -34,10 +34,11 @@ export default function AdminPage() {
 
     const [error, setError] = useState<string | null>(null);
 
-    const [activeTab, setActiveTab] = useState<'products' | 'questions' | 'articles' | 'news'>('products');
+    const [activeTab, setActiveTab] = useState<'products' | 'questions' | 'articles' | 'news' | 'orders'>('products');
     const [questions, setQuestions] = useState<any[]>([]);
     const [articles, setArticles] = useState<any[]>([]);
     const [generationStatus, setGenerationStatus] = useState<Record<string, string>>({});
+    const [orders, setOrders] = useState<any[]>([]);
 
     useEffect(() => {
         const storedAuth = sessionStorage.getItem("admin_auth");
@@ -48,6 +49,7 @@ export default function AdminPage() {
             fetchQuestions(storedAuth);
             fetchArticles(storedAuth);
             fetchNews(storedAuth);
+            fetchOrders(storedAuth);
         }
     }, [activeTab]); // Fetch when tab changes too
 
@@ -58,6 +60,7 @@ export default function AdminPage() {
         fetchQuestions(password);
         fetchArticles(password);
         fetchNews(password);
+        fetchOrders(password);
     };
 
     const fetchProducts = async (pwd: string = password) => {
@@ -127,6 +130,15 @@ export default function AdminPage() {
                 headers: { "x-admin-password": pwd }
             });
             if (res.ok) setNews(await res.json());
+        } catch (err) { console.error(err); }
+    };
+
+    const fetchOrders = async (pwd: string = password) => {
+        try {
+            const res = await fetch("/api/admin/orders", {
+                headers: { "x-admin-password": pwd }
+            });
+            if (res.ok) setOrders(await res.json());
         } catch (err) { console.error(err); }
     };
 
@@ -327,6 +339,7 @@ export default function AdminPage() {
                     <button onClick={() => setActiveTab('questions')} style={{ opacity: activeTab === 'questions' ? 1 : 0.5, background: 'none', border: 'none', color: 'white', cursor: 'pointer', fontWeight: 'bold' }}>Pytania (Expert)</button>
                     <button onClick={() => setActiveTab('articles')} style={{ opacity: activeTab === 'articles' ? 1 : 0.5, background: 'none', border: 'none', color: 'white', cursor: 'pointer', fontWeight: 'bold' }}>Baza Wiedzy</button>
                     <button onClick={() => setActiveTab('news')} style={{ opacity: activeTab === 'news' ? 1 : 0.5, background: 'none', border: 'none', color: 'white', cursor: 'pointer', fontWeight: 'bold' }}>Aktualności</button>
+                    <button onClick={() => setActiveTab('orders')} style={{ opacity: activeTab === 'orders' ? 1 : 0.5, background: 'none', border: 'none', color: 'white', cursor: 'pointer', fontWeight: 'bold' }}>Zamówienia</button>
                     <button onClick={() => { setIsAuthenticated(false); sessionStorage.removeItem("admin_auth"); }} style={{ color: "var(--color-error)", background: 'none', border: 'none', cursor: 'pointer', marginLeft: '1rem' }}>Wyloguj</button>
                 </div>
             </div>
@@ -534,6 +547,52 @@ export default function AdminPage() {
                             </div>
                             <p style={{ color: "var(--color-text-muted)", fontSize: "0.9rem", marginBottom: "1rem" }}>/{a.slug}</p>
                             <button onClick={() => handleDeleteArticle(a.id)} style={{ padding: "0.5rem 1rem", background: "var(--color-error)", border: "none", borderRadius: "4px", color: "white", cursor: "pointer" }}>Usuń</button>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {activeTab === 'orders' && (
+                <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                    <h2>Historia Zamówień</h2>
+                    {orders.length === 0 ? <p>Brak zamówień.</p> : orders.map(o => (
+                        <div key={o.id} style={{ background: "var(--color-surface)", padding: "1.5rem", borderRadius: "var(--radius-md)" }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem', borderBottom: '1px solid var(--color-border)', paddingBottom: '0.5rem' }}>
+                                <div>
+                                    <span style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem', marginRight: '1rem' }}>
+                                        {new Date(o.created_at).toLocaleString('pl-PL')}
+                                    </span>
+                                    <span style={{ fontWeight: 'bold' }}>{o.customer_details.name}</span>
+                                    <span style={{ margin: '0 0.5rem', color: 'var(--color-text-muted)' }}>|</span>
+                                    <span style={{ color: 'var(--color-text-muted)' }}>{o.customer_details.email}</span>
+                                </div>
+                                <div>
+                                    <span style={{ fontWeight: 'bold', color: 'var(--color-primary)', fontSize: '1.2rem' }}>{o.total_amount} PLN</span>
+                                    <span style={{ marginLeft: '1rem', background: 'green', color: 'white', padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.8rem' }}>{o.status}</span>
+                                </div>
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+                                <div>
+                                    <h4 style={{ marginBottom: '0.5rem', color: 'var(--color-primary)' }}>Produkty:</h4>
+                                    <ul style={{ paddingLeft: '1.5rem' }}>
+                                        {o.items.map((item: any, idx: number) => (
+                                            <li key={idx} style={{ marginBottom: '0.3rem' }}>
+                                                {item.name} (x{item.quantity || 1}) - {item.price} PLN
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                                <div>
+                                    <h4 style={{ marginBottom: '0.5rem', color: 'var(--color-primary)' }}>Adres:</h4>
+                                    <p style={{ lineHeight: '1.5', fontSize: '0.9rem', color: 'var(--color-text-muted)' }}>
+                                        {o.customer_details.street} {o.customer_details.houseNumber}{o.customer_details.apartmentNumber ? '/' + o.customer_details.apartmentNumber : ''}<br />
+                                        {o.customer_details.zipCode} {o.customer_details.city}<br />
+                                        Tel: {o.customer_details.phone}
+                                    </p>
+                                    <p style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>ID: {o.payment_id}</p>
+                                </div>
+                            </div>
                         </div>
                     ))}
                 </div>
