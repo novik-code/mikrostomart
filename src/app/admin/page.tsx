@@ -174,12 +174,57 @@ export default function AdminPage() {
         });
     };
 
+
+    // --- AI GENERATOR HANDLERS ---
+    const [aiTopic, setAiTopic] = useState("");
+    const [aiInstructions, setAiInstructions] = useState("");
+    const [isGenerating, setIsGenerating] = useState(false);
+
+    const handleAiGenerate = async () => {
+        if (!aiTopic) {
+            alert("Wpisz temat artykułu");
+            return;
+        }
+        setIsGenerating(true);
+        try {
+            const res = await fetch("/api/admin/news/generate", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "x-admin-password": password
+                },
+                body: JSON.stringify({ topic: aiTopic, instructions: aiInstructions })
+            });
+
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || "Błąd generowania");
+            }
+
+            const data = await res.json();
+
+            // Populate form
+            setNewsFormData({
+                title: data.title,
+                date: new Date().toISOString().split('T')[0],
+                excerpt: data.excerpt,
+                content: data.content,
+                image: data.image
+            });
+
+            alert("Wygenerowano pomyślnie! Sprawdź formularz poniżej.");
+        } catch (e: any) {
+            alert("Błąd: " + e.message);
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
+
     const resetNewsForm = () => {
         setEditingNewsId(null);
         setNewsFormData({ title: "", date: new Date().toISOString().split('T')[0], excerpt: "", content: "", image: "" });
     };
-
-    // ... products handlers ...
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -404,6 +449,40 @@ export default function AdminPage() {
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2rem", alignItems: "start" }}>
                     {/* NEWS FORM */}
                     <div style={{ background: "var(--color-surface)", padding: "2rem", borderRadius: "var(--radius-lg)", position: "sticky", top: "2rem" }}>
+
+                        {/* AI GENERATOR SECTION */}
+                        <div style={{ marginBottom: "2rem", paddingBottom: "2rem", borderBottom: "1px solid var(--color-border)" }}>
+                            <h3 style={{ marginBottom: "1rem", color: "var(--color-primary)" }}>✨ Generator AI</h3>
+                            <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                                <input
+                                    placeholder="Temat artykułu (np. Wybielanie zębów)"
+                                    value={aiTopic}
+                                    onChange={(e) => setAiTopic(e.target.value)}
+                                    style={inputStyle}
+                                />
+                                <textarea
+                                    placeholder="Dodatkowe wskazówki (np. wspomnij o metodzie Beyond)"
+                                    value={aiInstructions}
+                                    onChange={(e) => setAiInstructions(e.target.value)}
+                                    style={inputStyle}
+                                    rows={2}
+                                />
+                                <button
+                                    onClick={handleAiGenerate}
+                                    disabled={isGenerating}
+                                    className="btn-primary"
+                                    style={{
+                                        width: "100%",
+                                        opacity: isGenerating ? 0.7 : 1,
+                                        position: "relative",
+                                        background: "linear-gradient(135deg, #dcb14a, #f0c96c)" // Gold gradient
+                                    }}
+                                >
+                                    {isGenerating ? "Generowanie (ok. 30s)..." : "Generuj Treść i Zdjęcie 🪄"}
+                                </button>
+                            </div>
+                        </div>
+
                         <h2 style={{ marginBottom: "1rem" }}>{editingNewsId ? "Edytuj News" : "Dodaj News"}</h2>
                         <form onSubmit={handleSaveNews} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
                             <input required placeholder="Tytuł" value={newsFormData.title} onChange={(e) => setNewsFormData({ ...newsFormData, title: e.target.value })} style={inputStyle} />
