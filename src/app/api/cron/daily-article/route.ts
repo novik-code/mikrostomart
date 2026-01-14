@@ -10,8 +10,13 @@ export const maxDuration = 60; // Allow 60 seconds (Vercel Hobby limit 10s? Pro 
 // Safe bet: Vercel Hobby max is 10s. This might be tight for DALL-E.
 // Solution: We hope it's fast enough or User is Pro.
 
+// Helper to write to stream
+const send = async (writer: WritableStreamDefaultWriter, msg: string) => {
+    await writer.write(new TextEncoder().encode(msg + "\n"));
+};
+
 export async function GET(req: Request) {
-    // 1. Auth Check
+    // 1. Auth Check using URL params or Headers (Headers preferred for security)
     const authHeader = req.headers.get('authorization');
     const adminPasswordHeader = req.headers.get('x-admin-password');
     const isCronAuth = authHeader === `Bearer ${process.env.CRON_SECRET}`;
@@ -21,131 +26,139 @@ export async function GET(req: Request) {
         return new NextResponse('Unauthorized', { status: 401 });
     }
 
-    try {
-        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    // Prepare Stream
+    const { readable, writable } = new TransformStream();
+    const writer = writable.getWriter();
 
-        // Dynamic import for Supabase Admin
-        const { createClient } = await import('@supabase/supabase-js');
-        const adminDb = createClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://keucogopujdolzmfajjv.supabase.co',
-            process.env.SUPABASE_SERVICE_ROLE_KEY!
-        );
+    // Start processing in background (but connected to stream)
+    (async () => {
+        try {
+            await send(writer, "START: Inicjalizacja...");
 
-        // 2. Determine Topic (User Idea vs AI Generation)
-        let topic = "";
-        let pendingIdeaId = null;
+            const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-        // Check for pending user questions
-        const { data: pendingIdeas } = await adminDb
-            .from('article_ideas')
-            .select('*')
-            .eq('status', 'pending')
-            .order('created_at', { ascending: true })
-            .limit(1);
+            // Dynamic import for Supabase Admin
+            const { createClient } = await import('@supabase/supabase-js');
+            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://keucogopujdolzmfajjv.supabase.co';
+            const adminDb = createClient(supabaseUrl, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
-        if (pendingIdeas && pendingIdeas.length > 0) {
-            // Priority: User Question
-            const idea = pendingIdeas[0];
-            topic = idea.question;
-            pendingIdeaId = idea.id;
-            console.log(`[Cron] Using user question: ${topic}`);
-        } else {
-            // Fallback: AI Generation
-            const topicResponse = await openai.chat.completions.create({
-                model: "gpt-4o",
-                messages: [{
-                    role: "system",
-                    content: "Jesteś redaktorem naczelnym bloga stomatologicznego. Wymyśl JEDEN unikalny, chwytliwy temat artykułu poradnikowego dla pacjentów. Temat nie powinien się powtarzać z popularnymi (już mamy o implantach, wybielaniu, bruksiźmie, higienie). Skup się na ciekawostkach lub konkretnych problemach."
-                }, {
-                    role: "user",
-                    content: "Podaj tylko tytuł."
-                }]
-            });
-            topic = topicResponse.choices[0].message.content?.trim() || "Nowoczesna Stomatologia";
-            console.log(`[Cron] Generated new topic: ${topic}`);
-        }
+            // 2. Determine Topic
+            await send(writer, "STEP: Szukam tematu (lub pobieram pytanie)...");
 
-        // 3. Generate Content (JSON)
-        const completion = await openai.chat.completions.create({
-            model: "gpt-4o",
-            messages: [
-                {
-                    role: "system",
-                    content: `Napisz profesjonalny artykuł stomatologiczny na temat: "${topic}".
-                    Zwróć odpowiedź WYŁĄCZNIE w formacie JSON:
-                    {
-                        "title": "Tytuł artykułu",
-                        "slug": "url-friendly-slug-bez-polskich-znakow",
-                        "excerpt": "Krótkie streszczenie (2 zdania) do kafelka.",
-                        "content": "Treść artykułu w formacie Markdown. Używaj nagłówków ###, list *, pogrubień **. Pisany językiem korzyści, przyjaznym dla pacjenta.",
-                        "imagePrompt": "Szczegółowy prompt po angielsku do wygenerowania fotorealistycznego zdjęcia ilustrującego ten temat przez DALL-E 3."
-                    }`
-                }
-            ],
-            response_format: { type: "json_object" }
-        });
+            let topic = "";
+            let pendingIdeaId = null;
 
-        const articleData = JSON.parse(completion.choices[0].message.content || "{}");
-        if (!articleData.title) throw new Error("Failed to generate article JSON");
-
-        // 4. Generate Image (DALL-E 3)
-
-        const imageResponse = await openai.images.generate({
-            model: "dall-e-3",
-            prompt: articleData.imagePrompt + " photorealistic, professional dental clinic style, high quality, bright lighting",
-            n: 1,
-            size: "1024x1024",
-            response_format: "b64_json" // Get base64 directly to save download step
-        });
-
-        const imageBase64 = imageResponse.data?.[0]?.b64_json;
-        if (!imageBase64) throw new Error("Failed to generate image: No data returned");
-
-        // 5. Commit Image to GitHub
-        const imageFilename = `auto-${articleData.slug}-${Date.now()}.png`;
-        const imagePath = `public/images/articles/${imageFilename}`; // Ensure folder exists? GitHub creates it. Note: 'public/images/articles' is good.
-        // Wait, current images are in /images/articles? Check articles.ts.
-        // Article 1 uses '/kb-implant-structure.png' (root public).
-        // Let's use root `public/` for simplicity or `public/images/kb/`.
-        // Let's stick to `public/kb-${filename}` to keep it clean in one place if possible, or `public/images/kb/`.
-        // User's current manual articles used `public/kb-...`.
-        const targetImagePath = `public/kb-${articleData.slug}.png`;
-        const publicUrl = `/kb-${articleData.slug}.png`;
-
-        await uploadToRepo(
-            targetImagePath,
-            imageBase64,
-            `feat(blog): add image for ${articleData.slug}`,
-            'base64'
-        );
-
-
-        // 6. Insert Article into Supabase
-
-        const { error: insertError } = await adminDb.from('articles').insert({
-            title: articleData.title,
-            slug: articleData.slug,
-            excerpt: articleData.excerpt,
-            content: articleData.content,
-            image_url: publicUrl,
-            published_date: new Date().toISOString().split('T')[0]
-        });
-
-        if (insertError) throw new Error(`Supabase Insert Failed: ${insertError.message}`);
-
-        // 7. Mark Idea as Processed (if applicable)
-        if (pendingIdeaId) {
-            await adminDb
+            const { data: pendingIdeas } = await adminDb
                 .from('article_ideas')
-                .update({ status: 'processed' })
-                .eq('id', pendingIdeaId);
-            console.log(`[Cron] Marked idea ${pendingIdeaId} as processed.`);
+                .select('*')
+                .eq('status', 'pending')
+                .order('created_at', { ascending: true })
+                .limit(1);
+
+            if (pendingIdeas && pendingIdeas.length > 0) {
+                const idea = pendingIdeas[0];
+                topic = idea.question;
+                pendingIdeaId = idea.id;
+                await send(writer, `TOPIC: Pytanie użytkownika: ${topic}`);
+            } else {
+                await send(writer, "STEP: Generuję temat AI...");
+                const topicResponse = await openai.chat.completions.create({
+                    model: "gpt-4o",
+                    messages: [{
+                        role: "system",
+                        content: "Jesteś redaktorem naczelnym bloga stomatologicznego. Wymyśl JEDEN unikalny, chwytliwy temat artykułu poradnikowego dla pacjentów."
+                    }, {
+                        role: "user",
+                        content: "Podaj tylko tytuł."
+                    }]
+                });
+                topic = topicResponse.choices[0].message.content?.trim() || "Nowoczesna Stomatologia";
+                await send(writer, `TOPIC: AI wymyśliło: ${topic}`);
+            }
+
+            // 3. Generate Content
+            await send(writer, "STEP: Piszę artykuł (GPT-4o)...");
+            const completion = await openai.chat.completions.create({
+                model: "gpt-4o",
+                messages: [
+                    {
+                        role: "system",
+                        content: `Napisz profesjonalny artykuł stomatologiczny na temat: "${topic}".
+                        Zwróć odpowiedź WYŁĄCZNIE w formacie JSON:
+                        {
+                            "title": "Tytuł artykułu",
+                            "slug": "url-friendly-slug-bez-polskich-znakow",
+                            "excerpt": "Krótkie streszczenie (2 zdania) do kafelka.",
+                            "content": "Treść artykułu w formacie Markdown. Używaj nagłówków ###, list *, pogrubień **.",
+                            "imagePrompt": "Szczegółowy prompt po angielsku do wygenerowania fotorealistycznego zdjęcia ilustrującego ten temat przez DALL-E 3."
+                        }`
+                    }
+                ],
+                response_format: { type: "json_object" }
+            });
+
+            const articleData = JSON.parse(completion.choices[0].message.content || "{}");
+            if (!articleData.title) throw new Error("Błąd generowania JSON");
+
+            await send(writer, "STEP: Generuję obrazek (DALL-E 3)... To może potrwać 20s.");
+
+            // 4. Generate Image
+            const imageResponse = await openai.images.generate({
+                model: "dall-e-3",
+                prompt: articleData.imagePrompt + " photorealistic, professional dental clinic style, high quality, bright lighting",
+                n: 1,
+                size: "1024x1024",
+                response_format: "b64_json"
+            });
+
+            const imageBase64 = imageResponse.data?.[0]?.b64_json;
+            if (!imageBase64) throw new Error("Błąd generowania obrazka");
+
+            // 5. Commit to GitHub
+            await send(writer, "STEP: Zapisuję plik graficzny na GitHub...");
+            const targetImagePath = `public/kb-${articleData.slug}.png`;
+            const publicUrl = `/kb-${articleData.slug}.png`;
+
+            const uploadSuccess = await uploadToRepo(
+                targetImagePath,
+                imageBase64,
+                `feat(blog): add image for ${articleData.slug}`,
+                'base64'
+            );
+
+            if (!uploadSuccess) throw new Error("Błąd uploadu na GitHub");
+
+            // 6. Insert into DB
+            await send(writer, "STEP: Zapisuję artykuł w bazie...");
+            const { error: insertError } = await adminDb.from('articles').insert({
+                title: articleData.title,
+                slug: articleData.slug,
+                excerpt: articleData.excerpt,
+                content: articleData.content,
+                image_url: publicUrl,
+                published_date: new Date().toISOString().split('T')[0]
+            });
+
+            if (insertError) throw new Error(`Błąd bazy danych: ${insertError.message}`);
+
+            if (pendingIdeaId) {
+                await adminDb.from('article_ideas').update({ status: 'processed' }).eq('id', pendingIdeaId);
+            }
+
+            await send(writer, `SUCCESS: ${JSON.stringify({ title: articleData.title })}`);
+        } catch (e: any) {
+            console.error(e);
+            await send(writer, `ERROR: ${e.message}`);
+        } finally {
+            await writer.close();
         }
+    })();
 
-        return NextResponse.json({ success: true, topic, slug: articleData.slug });
-
-    } catch (error: any) {
-        console.error("Cron Job Failed:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
-    }
+    return new NextResponse(readable, {
+        headers: {
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+        },
+    });
 }

@@ -36,6 +36,7 @@ export default function AdminPage() {
 
     const [activeTab, setActiveTab] = useState<'products' | 'questions'>('products');
     const [questions, setQuestions] = useState<any[]>([]);
+    const [generationStatus, setGenerationStatus] = useState<Record<string, string>>({});
 
     useEffect(() => {
         const storedAuth = sessionStorage.getItem("admin_auth");
@@ -242,28 +243,57 @@ export default function AdminPage() {
                                 <span style={{ background: q.status === 'pending' ? '#dcb14a' : 'green', color: 'black', padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 'bold' }}>{q.status}</span>
                             </div>
                             <p style={{ fontSize: "1.1rem", marginBottom: "1rem" }}>{q.question}</p>
-                            <div style={{ display: "flex", gap: "0.5rem" }}>
-                                <button
-                                    onClick={async () => {
-                                        if (!confirm("Wygenerować artykuł z tego pytania? To potrwa ok. 30-60 sekund.")) return;
-                                        try {
-                                            alert("Rozpoczynam generowanie... Nie zamykaj karty.");
-                                            const res = await fetch("/api/cron/daily-article", {
-                                                headers: { "x-admin-password": password }
-                                            });
-                                            if (res.ok) {
-                                                const data = await res.json();
-                                                alert(`Sukces! Artykuł utworzony: ${data.title}`);
-                                                fetchQuestions(); // Refresh status
-                                            } else {
-                                                alert("Błąd generowania. Sprawdź logi.");
+                            <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                                {generationStatus[q.id] ? (
+                                    <span style={{ fontSize: "0.9rem", color: "var(--color-primary)", fontWeight: "bold" }}>
+                                        {generationStatus[q.id]}
+                                    </span>
+                                ) : (
+                                    <button
+                                        onClick={async () => {
+                                            if (!confirm("Wygenerować artykuł?")) return;
+                                            setGenerationStatus(prev => ({ ...prev, [q.id]: "Start..." }));
+
+                                            try {
+                                                const res = await fetch("/api/cron/daily-article", {
+                                                    headers: { "x-admin-password": password }
+                                                });
+
+                                                if (!res.body) throw new Error("Brak strumienia");
+                                                const reader = res.body.getReader();
+                                                const decoder = new TextDecoder();
+
+                                                while (true) {
+                                                    const { done, value } = await reader.read();
+                                                    if (done) break;
+
+                                                    const text = decoder.decode(value);
+                                                    const lines = text.split("\n");
+
+                                                    for (const line of lines) {
+                                                        if (line.startsWith("STEP:")) {
+                                                            setGenerationStatus(prev => ({ ...prev, [q.id]: line.replace("STEP:", "").trim() }));
+                                                        } else if (line.startsWith("SUCCESS:")) {
+                                                            const data = JSON.parse(line.replace("SUCCESS:", ""));
+                                                            alert(`Sukces! Utworzono: ${data.title}`);
+                                                            setGenerationStatus(prev => ({ ...prev, [q.id]: undefined }));
+                                                            fetchQuestions();
+                                                        } else if (line.startsWith("ERROR:")) {
+                                                            alert(`Błąd: ${line.replace("ERROR:", "")}`);
+                                                            setGenerationStatus(prev => ({ ...prev, [q.id]: undefined }));
+                                                        }
+                                                    }
+                                                }
+                                            } catch (e: any) {
+                                                alert("Błąd połączenia: " + e.message);
+                                                setGenerationStatus(prev => ({ ...prev, [q.id]: undefined }));
                                             }
-                                        } catch (e) { alert("Błąd połączenia."); }
-                                    }}
-                                    style={{ padding: "0.5rem 1rem", background: "var(--color-primary)", border: "none", borderRadius: "4px", color: "black", cursor: "pointer", fontWeight: "bold" }}
-                                >
-                                    Generuj Artykuł ✍️
-                                </button>
+                                        }}
+                                        style={{ padding: "0.5rem 1rem", background: "var(--color-primary)", border: "none", borderRadius: "4px", color: "black", cursor: "pointer", fontWeight: "bold" }}
+                                    >
+                                        Generuj Artykuł ✍️
+                                    </button>
+                                )}
                                 <button onClick={() => handleDeleteQuestion(q.id)} style={{ padding: "0.5rem 1rem", background: "var(--color-error)", border: "none", borderRadius: "4px", color: "white", cursor: "pointer" }}>Usuń (Spam)</button>
                             </div>
                         </div>
