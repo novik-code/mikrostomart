@@ -6,7 +6,8 @@ import { uploadToRepo } from "@/lib/githubService";
 // Helper for auth
 function isAuthenticated(req: NextRequest) {
     const authHeader = req.headers.get("x-admin-password");
-    return authHeader === process.env.ADMIN_PASSWORD;
+    const envPassword = process.env.ADMIN_PASSWORD || "admin123";
+    return authHeader === envPassword;
 }
 
 export const maxDuration = 60; // Allow sufficient time for AI + Upload
