@@ -13,9 +13,11 @@ export const maxDuration = 60; // Allow 60 seconds (Vercel Hobby limit 10s? Pro 
 export async function GET(req: Request) {
     // 1. Auth Check
     const authHeader = req.headers.get('authorization');
-    if (authHeader !== `Bearer ${process.env.CRON_SECRET}` && process.env.NODE_ENV === 'production') {
-        // Allow manual trigger in dev or if secret matches
-        // But for security in prod, require secret
+    const adminPasswordHeader = req.headers.get('x-admin-password');
+    const isCronAuth = authHeader === `Bearer ${process.env.CRON_SECRET}`;
+    const isAdminAuth = adminPasswordHeader === (process.env.ADMIN_PASSWORD || "admin123");
+
+    if (!isCronAuth && !isAdminAuth && process.env.NODE_ENV === 'production') {
         return new NextResponse('Unauthorized', { status: 401 });
     }
 
