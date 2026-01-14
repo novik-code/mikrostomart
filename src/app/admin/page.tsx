@@ -34,8 +34,9 @@ export default function AdminPage() {
 
     const [error, setError] = useState<string | null>(null);
 
-    const [activeTab, setActiveTab] = useState<'products' | 'questions'>('products');
+    const [activeTab, setActiveTab] = useState<'products' | 'questions' | 'articles'>('products');
     const [questions, setQuestions] = useState<any[]>([]);
+    const [articles, setArticles] = useState<any[]>([]);
     const [generationStatus, setGenerationStatus] = useState<Record<string, string>>({});
 
     useEffect(() => {
@@ -45,6 +46,7 @@ export default function AdminPage() {
             setIsAuthenticated(true);
             fetchProducts(storedAuth);
             fetchQuestions(storedAuth);
+            fetchArticles(storedAuth);
         }
     }, [activeTab]); // Fetch when tab changes too
 
@@ -53,6 +55,7 @@ export default function AdminPage() {
         sessionStorage.setItem("admin_auth", password);
         fetchProducts(password);
         fetchQuestions(password);
+        fetchArticles(password);
     };
 
     const fetchProducts = async (pwd: string = password) => {
@@ -73,6 +76,15 @@ export default function AdminPage() {
         } catch (err) { console.error(err); }
     };
 
+    const fetchArticles = async (pwd: string = password) => {
+        try {
+            const res = await fetch("/api/admin/articles", {
+                headers: { "x-admin-password": pwd }
+            });
+            if (res.ok) setArticles(await res.json());
+        } catch (err) { console.error(err); }
+    };
+
     const handleDeleteQuestion = async (id: string) => {
         if (!confirm("Usunąć pytanie?")) return;
         try {
@@ -83,6 +95,20 @@ export default function AdminPage() {
             fetchQuestions();
         } catch (e) { alert("Błąd"); }
     };
+
+    const handleDeleteArticle = async (id: string) => {
+        if (!confirm("Usunąć artykuł trwale?")) return;
+        try {
+            const res = await fetch(`/api/admin/articles?id=${id}`, {
+                method: "DELETE",
+                headers: { "x-admin-password": password }
+            });
+            if (res.ok) fetchArticles();
+            else alert("Błąd usuwania");
+        } catch (e) { alert("Błąd"); }
+    };
+
+    // ... products handlers ...
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -299,6 +325,20 @@ export default function AdminPage() {
                         </div>
                     ))}
                 </div>
+            ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                <h2>Baza Wiedzy (Blog)</h2>
+                {articles.length === 0 ? <p>Brak artykułów.</p> : articles.map(a => (
+                    <div key={a.id} style={{ background: "var(--color-surface)", padding: "1.5rem", borderRadius: "var(--radius-md)" }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                            <h3 style={{ fontSize: "1.1rem", margin: 0 }}>{a.title}</h3>
+                            <span style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>{a.published_date}</span>
+                        </div>
+                        <p style={{ color: "var(--color-text-muted)", fontSize: "0.9rem", marginBottom: "1rem" }}>/{a.slug}</p>
+                        <button onClick={() => handleDeleteArticle(a.id)} style={{ padding: "0.5rem 1rem", background: "var(--color-error)", border: "none", borderRadius: "4px", color: "white", cursor: "pointer" }}>Usuń</button>
+                    </div>
+                ))}
+            </div>
             )}
         </main>
     );
