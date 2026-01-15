@@ -10,6 +10,11 @@ export async function POST(req: NextRequest) {
         const body = await req.json();
         const { type, name, email, phone, message, service, date, time, specialistName, subject, attachment, description } = body;
 
+        // 1. Prepare Message Content
+        let telegramMessage = "";
+        let emailSubject = "";
+        let emailHtml = "";
+
         // Prepare attachments array for Resend
         let emailAttachments: any[] = [];
         if (attachment) {
