@@ -593,13 +593,12 @@ export default function AdminPage() {
                             <table style={{ width: "100%", borderCollapse: "collapse", color: "white" }}>
                                 <thead>
                                     <tr style={{ borderBottom: "1px solid var(--color-surface-hover)", textAlign: "left" }}>
-                                        <tr style={{ borderBottom: "1px solid var(--color-surface-hover)", textAlign: "left" }}>
-                                            <th style={{ padding: "1rem" }}>Data/Godzina</th>
-                                            <th style={{ padding: "1rem" }}>Pacjent</th>
-                                            <th style={{ padding: "1rem" }}>Zgłoszenie</th>
-                                            <th style={{ padding: "1rem" }}>Kontakt</th>
-                                            <th style={{ padding: "1rem" }}>Akcje</th>
-                                        </tr>
+                                        <th style={{ padding: "1rem" }}>Data/Godzina</th>
+                                        <th style={{ padding: "1rem" }}>Pacjent</th>
+                                        <th style={{ padding: "1rem" }}>Zgłoszenie</th>
+                                        <th style={{ padding: "1rem" }}>Kontakt</th>
+                                        <th style={{ padding: "1rem" }}>Akcje</th>
+                                    </tr>
                                 </thead>
                                 <tbody>
                                     {reservations.map((res: any) => (
