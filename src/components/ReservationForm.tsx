@@ -38,6 +38,8 @@ const reservationSchema = z.object({
     service: z.string().min(1, "Wybierz rodzaj usługi"),
     date: z.string().min(1, "Wybierz preferowaną datę"),
     time: z.string().min(1, "Wybierz preferowaną godzinę"),
+    description: z.string().optional(),
+    attachment: z.any().optional(), // For file input
 });
 
 type ReservationFormData = z.infer<typeof reservationSchema>;
@@ -88,6 +90,27 @@ export default function ReservationForm() {
         // Find formatted names for email
         const specialistName = SPECIALISTS.find(s => s.id === data.specialist)?.name || data.specialist;
 
+        let attachmentData = null;
+        if (data.attachment && data.attachment.length > 0) {
+            const file = data.attachment[0];
+            const reader = new FileReader();
+            try {
+                const base64 = await new Promise((resolve, reject) => {
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(file);
+                });
+                attachmentData = {
+                    name: file.name,
+                    content: base64,
+                    type: file.type
+                };
+            } catch (e) {
+                console.error("File upload error", e);
+                // Continue without file or show error? Let's verify file size maybe?
+            }
+        }
+
         try {
             const response = await fetch("/api/contact", {
                 method: "POST",
@@ -95,7 +118,9 @@ export default function ReservationForm() {
                 body: JSON.stringify({
                     type: "reservation",
                     ...data,
-                    specialistName // Send human readable name
+                    specialistName,
+                    description: data.description,
+                    attachment: attachmentData
                 }),
             });
 
@@ -206,6 +231,50 @@ export default function ReservationForm() {
                     />
                     {errors.email && <p style={{ color: "red", fontSize: "0.8rem", marginTop: "0.3rem" }}>{errors.email.message}</p>}
                 </div>
+            </div>
+
+            {/* DESCRIPTION & PHOTO */}
+            <div className="form-group">
+                <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", color: "var(--color-text-muted)" }}>Opis problemu (Opcjonalnie)</label>
+                <textarea
+                    {...register("description")}
+                    placeholder="Opisz krótko z czym się zgłaszasz (np. ból zęba, chęć poprawy estetyki)..."
+                    rows={3}
+                    style={{
+                        width: "100%",
+                        padding: "0.8rem",
+                        background: "rgba(0, 0, 0, 0.2)",
+                        border: "1px solid var(--color-surface-hover)",
+                        borderRadius: "var(--radius-md)",
+                        color: "var(--color-text-main)",
+                        outline: "none",
+                        resize: "vertical",
+                        fontFamily: "inherit"
+                    }}
+                />
+            </div>
+
+            <div className="form-group">
+                <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", color: "var(--color-text-muted)" }}>
+                    Zdjęcie RVG / Pantomogram (Opcjonalnie) 📸
+                </label>
+                <p style={{ fontSize: "0.8rem", color: "var(--color-primary)", marginBottom: "0.5rem", marginTop: "-0.3rem" }}>
+                    Jeśli posiadasz zdjęcie rentgenowskie, dołącz je - pomoże to w szybszej diagnozie.
+                </p>
+                <input
+                    {...register("attachment")}
+                    type="file"
+                    accept="image/*,.pdf"
+                    style={{
+                        width: "100%",
+                        padding: "0.8rem",
+                        background: "rgba(0, 0, 0, 0.2)",
+                        border: "1px dashed var(--color-surface-hover)",
+                        borderRadius: "var(--radius-md)",
+                        color: "var(--color-text-muted)",
+                        cursor: "pointer"
+                    }}
+                />
             </div>
 
             {/* SPECIALIST */}
