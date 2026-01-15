@@ -14,7 +14,9 @@ import {
     BookOpen,
     Newspaper,
     LogOut,
-    Settings
+    Settings,
+    Menu,
+    X
 } from "lucide-react";
 
 type Product = {
@@ -58,7 +60,25 @@ export default function AdminPage() {
     const [generationStatus, setGenerationStatus] = useState<Record<string, string>>({});
     const [orders, setOrders] = useState<any[]>([]);
     const [reservations, setReservations] = useState<any[]>([]);
+    const [orders, setOrders] = useState<any[]>([]);
+    const [reservations, setReservations] = useState<any[]>([]);
     const [manualGenerationStatus, setManualGenerationStatus] = useState<string | null>(null);
+
+    // Responsive State
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [isMobile, setIsMobile] = useState(false);
+
+    useEffect(() => {
+        const handleResize = () => {
+            setIsMobile(window.innerWidth < 768);
+            if (window.innerWidth >= 768) {
+                setIsMobileMenuOpen(false); // Reset on desktop
+            }
+        };
+        handleResize(); // Init
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     useEffect(() => {
         const checkUser = async () => {
@@ -607,7 +627,48 @@ export default function AdminPage() {
     );
 
     return (
-        <div style={{ display: "flex", minHeight: "100vh", background: "#0a0a0a" }}>
+        <div style={{ display: "flex", minHeight: "100vh", background: "#0a0a0a", flexDirection: "column" }}>
+
+            {/* MOBILE HEADER */}
+            <div style={{
+                display: isMobile ? "flex" : "none",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "1rem",
+                background: "#111",
+                borderBottom: "1px solid var(--color-surface-hover)",
+                position: "sticky",
+                top: 0,
+                zIndex: 50
+            }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", color: "white" }}>
+                    <span style={{ color: "var(--color-primary)" }}>❖</span>
+                    <span style={{ fontWeight: "bold" }}>Mikrostomart Admin</span>
+                </div>
+                <button
+                    onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                    style={{ background: "none", border: "none", color: "white", cursor: "pointer" }}
+                >
+                    {isMobileMenuOpen ? <X /> : <Menu />}
+                </button>
+            </div>
+
+            {/* SIDEBAR OVERLAY (Mobile only) */}
+            {isMobile && isMobileMenuOpen && (
+                <div
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    style={{
+                        position: "fixed",
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        background: "rgba(0,0,0,0.5)",
+                        zIndex: 40
+                    }}
+                />
+            )}
+
             {/* SIDEBAR */}
             <aside style={{
                 width: "260px",
@@ -617,8 +678,14 @@ export default function AdminPage() {
                 display: "flex",
                 flexDirection: "column",
                 position: "fixed",
+                top: 0,
+                bottom: 0,
+                left: 0,
                 height: "100vh",
-                overflowY: "auto"
+                overflowY: "auto",
+                zIndex: 50,
+                transform: isMobile ? (isMobileMenuOpen ? "translateX(0)" : "translateX(-100%)") : "translateX(0)",
+                transition: "transform 0.3s ease-in-out"
             }}>
                 <div style={{ marginBottom: "3rem", paddingLeft: "0.5rem" }}>
                     <h2 style={{ fontSize: "1.2rem", color: "white", display: "flex", alignItems: "center", gap: "0.5rem" }}>
@@ -667,7 +734,13 @@ export default function AdminPage() {
             </aside>
 
             {/* MAIN CONTENT */}
-            <main style={{ flex: 1, marginLeft: "260px", padding: "3rem", background: "#0a0a0a" }}>
+            <main style={{
+                flex: 1,
+                marginLeft: isMobile ? 0 : "260px",
+                padding: isMobile ? "1.5rem" : "3rem",
+                background: "#0a0a0a",
+                minHeight: "100vh"
+            }}>
                 <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
                     <header style={{ marginBottom: "2rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <h1 style={{ fontSize: "1.8rem" }}>
