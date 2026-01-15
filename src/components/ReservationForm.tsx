@@ -375,6 +375,8 @@ export default function ReservationForm() {
                         <option value="">Wybierz godzinę...</option>
                         {(() => {
                             const selectedDate = watch("date");
+                            const specialistId = watch("specialist");
+
                             if (!selectedDate) return <option disabled>Najpierw wybierz datę</option>;
 
                             const dateObj = new Date(selectedDate);
@@ -385,11 +387,20 @@ export default function ReservationForm() {
                                 return <option disabled>Klinika nieczynna w weekendy</option>;
                             }
 
-                            // 10:00 - 14:00 Slots
-                            const validSlots = [
-                                "10:00", "10:30", "11:00", "11:30",
-                                "12:00", "12:30", "13:00", "13:30", "14:00"
+                            // Define intervals based on specialist
+                            let validSlots = [
+                                "09:00 - 12:00",
+                                "12:00 - 15:00",
+                                "15:00 - 18:00"
                             ];
+
+                            // Marcin has fewer slots
+                            if (specialistId === "marcin") {
+                                validSlots = [
+                                    "09:00 - 12:00",
+                                    "12:00 - 15:00"
+                                ];
+                            }
 
                             return validSlots.map(s => <option key={s} value={s}>{s}</option>);
                         })()}
