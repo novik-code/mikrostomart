@@ -73,6 +73,7 @@ export async function POST(req: NextRequest) {
                         date,
                         time,
                         description,
+                        has_attachment: emailAttachments.length > 0,
                         status: 'pending'
                     });
                     if (dbError) console.error("Supabase Reservation Insert Error:", dbError);
