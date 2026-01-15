@@ -332,15 +332,16 @@ export default function ReservationForm() {
             {/* DATE & TIME GRID */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
                 <div className="form-group">
-                    <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", color: "var(--color-text-muted)" }}>Preferowana Data *</label>
+                    <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", color: "var(--color-text-muted)" }}>
+                        Preferowana Data * <br />
+                        <span style={{ fontSize: "0.8rem", color: "var(--color-primary)", fontWeight: "normal" }}>
+                            (Najbliższy termin: {new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('pl-PL')})
+                        </span>
+                    </label>
                     <input
                         {...register("date")}
                         type="date"
-                        min={(() => {
-                            const minDate = new Date();
-                            minDate.setDate(minDate.getDate() + 7); // Min 7 days from now
-                            return minDate.toISOString().split('T')[0];
-                        })()}
+                        min={new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
                         style={{
                             width: "100%",
                             padding: "0.8rem",
