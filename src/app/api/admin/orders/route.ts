@@ -12,7 +12,13 @@ export async function GET(req: NextRequest) {
     try {
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://keucogopujdolzmfajjv.supabase.co';
         // Use service role key to ensure we can read all orders regardless of RLS
-        const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY! || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+        const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY;
+
+        if (!supabaseServiceKey) {
+            console.error("CRITICAL: Missing SUPABASE_SERVICE_ROLE_KEY in API route");
+            // Returning empty array instead of 500 might be safer for UI, but let's be explicit for debugging
+            throw new Error("Misconfigured Server: Missing Service Role Key");
+        }
 
         const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
