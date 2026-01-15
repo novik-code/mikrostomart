@@ -119,7 +119,7 @@ export async function POST(req: NextRequest) {
         if (resendKey) {
             const resend = new Resend(resendKey);
             const adminEmail = "gabinet@mikrostomart.pl";
-            const fromEmail = "powiadomienia@send.mikrostomart.pl"; // Nowa, zweryfikowana domena
+            const fromEmail = "powiadomienia@mikrostomart.pl"; // Nowa, zweryfikowana domena
 
             // Email to Seller
             await resend.emails.send({

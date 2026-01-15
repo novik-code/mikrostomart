@@ -155,7 +155,7 @@ export async function POST(req: NextRequest) {
         if (resendKey) {
             const resend = new Resend(resendKey);
             const adminEmail = "gabinet@mikrostomart.pl";
-            const fromEmail = "powiadomienia@send.mikrostomart.pl";
+            const fromEmail = "powiadomienia@mikrostomart.pl";
 
 
             await resend.emails.send({
