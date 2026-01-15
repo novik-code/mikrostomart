@@ -4,6 +4,18 @@ import { useState, useEffect } from "react";
 import RevealOnScroll from "@/components/RevealOnScroll";
 import { createBrowserClient } from "@supabase/ssr";
 import { useRouter } from "next/navigation";
+import {
+    LayoutDashboard,
+    ShoppingBag,
+    Calendar,
+    Package,
+    FileText,
+    HelpCircle,
+    BookOpen,
+    Newspaper,
+    LogOut,
+    Settings
+} from "lucide-react";
 
 type Product = {
     id: string;
@@ -40,7 +52,7 @@ export default function AdminPage() {
     const [products, setProducts] = useState<Product[]>([]);
     const [error, setError] = useState<string | null>(null);
 
-    const [activeTab, setActiveTab] = useState<'products' | 'questions' | 'articles' | 'news' | 'orders' | 'reservations'>('products');
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'questions' | 'articles' | 'news' | 'orders' | 'reservations'>('dashboard');
     const [questions, setQuestions] = useState<any[]>([]);
     const [articles, setArticles] = useState<any[]>([]);
     const [generationStatus, setGenerationStatus] = useState<Record<string, string>>({});
@@ -570,212 +582,325 @@ export default function AdminPage() {
         </div>
     );
 
-    return (
-        <main className="section container">
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "2rem" }}>
-                <h1>Panel Administratora (v1.1)</h1>
-                <div style={{ display: 'flex', gap: '1rem' }}>
-                    <button onClick={() => setActiveTab('products')} style={{ opacity: activeTab === 'products' ? 1 : 0.5, background: 'none', border: 'none', color: 'white', cursor: 'pointer', fontWeight: 'bold' }}>Produkty</button>
-                    <button onClick={() => setActiveTab('questions')} style={{ opacity: activeTab === 'questions' ? 1 : 0.5, background: 'none', border: 'none', color: 'white', cursor: 'pointer', fontWeight: 'bold' }}>Pytania (Expert)</button>
-                    <button onClick={() => setActiveTab('articles')} style={{ opacity: activeTab === 'articles' ? 1 : 0.5, background: 'none', border: 'none', color: 'white', cursor: 'pointer', fontWeight: 'bold' }}>Baza Wiedzy</button>
-                    <button onClick={() => setActiveTab('news')} style={{ opacity: activeTab === 'news' ? 1 : 0.5, background: 'none', border: 'none', color: 'white', cursor: 'pointer', fontWeight: 'bold' }}>Aktualności</button>
-                    <button onClick={() => setActiveTab('orders')} style={{ opacity: activeTab === 'orders' ? 1 : 0.5, background: 'none', border: 'none', color: 'white', cursor: 'pointer', fontWeight: 'bold' }}>Zamówienia</button>
-                    <button onClick={() => setActiveTab('reservations')} style={{ opacity: activeTab === 'reservations' ? 1 : 0.5, background: 'none', border: 'none', color: 'white', cursor: 'pointer', fontWeight: 'bold' }}>Rezerwacje</button>
-                    <button onClick={handleLogout} style={{ color: "var(--color-error)", background: 'none', border: 'none', cursor: 'pointer', marginLeft: '1rem' }}>Wyloguj</button>
-                </div>
-            </div>
+    const NavItem = ({ id, label, icon: Icon }: any) => (
+        <button
+            onClick={() => setActiveTab(id)}
+            style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.8rem",
+                width: "100%",
+                padding: "0.8rem 1rem",
+                background: activeTab === id ? "var(--color-primary)" : "transparent",
+                color: activeTab === id ? "black" : "var(--color-text-muted)",
+                border: "none",
+                borderRadius: "var(--radius-md)",
+                cursor: "pointer",
+                transition: "all 0.2s",
+                fontWeight: activeTab === id ? "bold" : "normal",
+                textAlign: "left"
+            }}
+        >
+            <Icon size={18} />
+            {label}
+        </button>
+    );
 
-            {activeTab === 'reservations' && (
-                <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-                    <h2>Umówione Wizyty</h2>
-                    {reservations.length === 0 ? <p>Brak rezerwacji.</p> : (
-                        <div style={{ background: "var(--color-surface)", padding: "1rem", borderRadius: "var(--radius-lg)", overflowX: "auto" }}>
-                            <table style={{ width: "100%", borderCollapse: "collapse", color: "white" }}>
-                                <thead>
-                                    <tr style={{ borderBottom: "1px solid var(--color-surface-hover)", textAlign: "left" }}>
-                                        <th style={{ padding: "1rem" }}>Data/Godzina</th>
-                                        <th style={{ padding: "1rem" }}>Pacjent</th>
-                                        <th style={{ padding: "1rem" }}>Zgłoszenie</th>
-                                        <th style={{ padding: "1rem" }}>Kontakt</th>
-                                        <th style={{ padding: "1rem" }}>Akcje</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {reservations.map((res: any) => (
-                                        <tr key={res.id} style={{ borderBottom: "1px solid var(--color-surface-hover)" }}>
-                                            <td style={{ padding: "1rem", verticalAlign: 'top' }}>
-                                                <div>{res.date}</div>
-                                                <div style={{ color: "var(--color-primary)", fontWeight: "bold" }}>{res.time}</div>
-                                                <div style={{ fontSize: "0.8rem", color: "var(--color-text-muted)" }}>{new Date(res.created_at).toLocaleDateString()}</div>
-                                            </td>
-                                            <td style={{ padding: "1rem", verticalAlign: 'top' }}>
-                                                <b>{res.name}</b>
-                                                <div style={{ fontSize: "0.9rem", color: "var(--color-text-muted)", marginTop: "0.2rem" }}>
-                                                    {res.service}<br />
-                                                    ({res.specialist})
-                                                </div>
-                                            </td>
-                                            <td style={{ padding: "1rem", verticalAlign: 'top', maxWidth: '300px' }}>
-                                                {res.description && (
-                                                    <div style={{ fontStyle: "italic", marginBottom: "0.5rem" }}>
-                                                        "{res.description}"
-                                                    </div>
-                                                )}
-                                                {res.has_attachment && (
-                                                    <span style={{
-                                                        display: "inline-flex",
-                                                        alignItems: "center",
-                                                        gap: "0.3rem",
-                                                        background: "rgba(59, 130, 246, 0.2)",
-                                                        color: "#60a5fa",
-                                                        padding: "0.2rem 0.6rem",
-                                                        borderRadius: "99px",
-                                                        fontSize: "0.8rem",
-                                                        border: "1px solid rgba(59, 130, 246, 0.3)"
-                                                    }}>
-                                                        📎 Zdjęcie (w emailu)
-                                                    </span>
-                                                )}
-                                                {!res.description && !res.has_attachment && <span style={{ color: 'var(--color-text-muted)', fontSize: '0.8rem' }}>- brak opisu -</span>}
-                                            </td>
-                                            <td style={{ padding: "1rem", verticalAlign: 'top' }}>
-                                                <div>{res.phone}</div>
-                                                <div style={{ fontSize: "0.8rem", color: "var(--color-text-muted)" }}>{res.email}</div>
-                                            </td>
-                                            <td style={{ padding: "1rem", verticalAlign: 'top' }}>
-                                                <button
-                                                    onClick={() => handleDeleteReservation(res.id)}
-                                                    style={{ background: "var(--color-error)", color: "white", border: "none", padding: "0.5rem 1rem", borderRadius: "4px", cursor: "pointer" }}
-                                                >
-                                                    Usuń
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+    return (
+        <div style={{ display: "flex", minHeight: "100vh", background: "#0a0a0a" }}>
+            {/* SIDEBAR */}
+            <aside style={{
+                width: "260px",
+                background: "#111",
+                borderRight: "1px solid var(--color-surface-hover)",
+                padding: "2rem 1.5rem",
+                display: "flex",
+                flexDirection: "column",
+                position: "fixed",
+                height: "100vh",
+                overflowY: "auto"
+            }}>
+                <div style={{ marginBottom: "3rem", paddingLeft: "0.5rem" }}>
+                    <h2 style={{ fontSize: "1.2rem", color: "white", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                        <span style={{ color: "var(--color-primary)" }}>❖</span> Mikrostomart
+                    </h2>
+                    <p style={{ fontSize: "0.7rem", color: "var(--color-text-muted)", marginTop: "0.2rem" }}>Panel Administratora v2.0</p>
+                </div>
+
+                <nav style={{ display: "flex", flexDirection: "column", gap: "0.5rem", flex: 1 }}>
+                    <NavItem id="dashboard" label="Pulpit" icon={LayoutDashboard} />
+                    <NavItem id="reservations" label="Rezerwacje" icon={Calendar} />
+                    <NavItem id="orders" label="Zamówienia" icon={ShoppingBag} />
+                    <NavItem id="products" label="Produkty (Sklep)" icon={Package} />
+
+                    <div style={{ height: "1px", background: "var(--color-surface-hover)", margin: "1rem 0" }} />
+
+                    <NavItem id="news" label="Aktualności" icon={Newspaper} />
+                    <NavItem id="articles" label="Baza Wiedzy" icon={BookOpen} />
+                    <NavItem id="questions" label="Pytania Eksperta" icon={HelpCircle} />
+                </nav>
+
+                <div style={{ marginTop: "auto", borderTop: "1px solid var(--color-surface-hover)", paddingTop: "1rem" }}>
+                    <button
+                        onClick={handleLogout}
+                        style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "0.8rem",
+                            width: "100%",
+                            padding: "0.8rem 1rem",
+                            background: "rgba(220, 38, 38, 0.1)",
+                            color: "#ef4444",
+                            border: "none",
+                            borderRadius: "var(--radius-md)",
+                            cursor: "pointer",
+                            transition: "all 0.2s"
+                        }}
+                    >
+                        <LogOut size={18} />
+                        Wyloguj
+                    </button>
+                    <p style={{ textAlign: "center", fontSize: "0.7rem", color: "var(--color-text-muted)", marginTop: "1rem" }}>
+                        Zalogowany jako Admin
+                    </p>
+                </div>
+            </aside>
+
+            {/* MAIN CONTENT */}
+            <main style={{ flex: 1, marginLeft: "260px", padding: "3rem", background: "#0a0a0a" }}>
+                <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
+                    <header style={{ marginBottom: "2rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <h1 style={{ fontSize: "1.8rem" }}>
+                            {activeTab === 'dashboard' && 'Pulpit'}
+                            {activeTab === 'reservations' && 'Rezerwacje Wizyt'}
+                            {activeTab === 'orders' && 'Zamówienia Sklepu'}
+                            {activeTab === 'products' && 'Zarządzanie Produktami'}
+                            {activeTab === 'news' && 'Aktualności'}
+                            {activeTab === 'articles' && 'Baza Wiedzy (Blog)'}
+                            {activeTab === 'questions' && 'Pytania do Eksperta'}
+                        </h1>
+                        <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+                            {/* Header Actions if needed */}
+                        </div>
+                    </header>
+
+
+                    {activeTab === 'dashboard' && (
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "1.5rem" }}>
+                            <div style={{ background: "var(--color-surface)", padding: "1.5rem", borderRadius: "var(--radius-md)", border: "1px solid var(--color-surface-hover)" }}>
+                                <h3 style={{ color: "var(--color-text-muted)", fontSize: "0.9rem", marginBottom: "0.5rem" }}>Dzisiejsze Wizyty</h3>
+                                <p style={{ fontSize: "2rem", fontWeight: "bold", color: "var(--color-primary)" }}>
+                                    {reservations.filter(r => r.date === new Date().toISOString().split('T')[0]).length}
+                                </p>
+                            </div>
+                            <div style={{ background: "var(--color-surface)", padding: "1.5rem", borderRadius: "var(--radius-md)", border: "1px solid var(--color-surface-hover)" }}>
+                                <h3 style={{ color: "var(--color-text-muted)", fontSize: "0.9rem", marginBottom: "0.5rem" }}>Nowe Zamówienia</h3>
+                                <p style={{ fontSize: "2rem", fontWeight: "bold", color: "white" }}>
+                                    {orders.length}
+                                </p>
+                            </div>
+                            <div style={{ background: "var(--color-surface)", padding: "1.5rem", borderRadius: "var(--radius-md)", border: "1px solid var(--color-surface-hover)" }}>
+                                <h3 style={{ color: "var(--color-text-muted)", fontSize: "0.9rem", marginBottom: "0.5rem" }}>Pytania do Eksperta</h3>
+                                <p style={{ fontSize: "2rem", fontWeight: "bold", color: questions.some(q => q.status === 'pending') ? "var(--color-error)" : "white" }}>
+                                    {questions.filter(q => q.status === 'pending').length}
+                                </p>
+                            </div>
                         </div>
                     )}
-                </div>
-            )}
 
-            {activeTab === 'products' && (
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2rem", alignItems: "start" }}>
-                    {/* PRODUCT FORM & LIST (Exact same as before) */}
-                    <div style={{ background: "var(--color-surface)", padding: "2rem", borderRadius: "var(--radius-lg)", position: "sticky", top: "2rem" }}>
-                        <h2 style={{ marginBottom: "1rem" }}>{editingId ? "Edytuj Produkt" : "Dodaj Produkt"}</h2>
-                        <form onSubmit={handleSave} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-                            {/* ... inputs ... use existing logic */}
-                            <input required placeholder="Nazwa" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} style={inputStyle} />
-                            <input required type="number" placeholder="Cena (PLN)" value={formData.price} onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) })} style={inputStyle} />
-                            <select value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })} style={inputStyle}>
-                                <option value="Higiena">Higiena</option>
-                                <option value="Wybielanie">Wybielanie</option>
-                                <option value="Usługi">Usługi</option>
-                                <option value="Elektronika">Elektronika</option>
-                                <option value="Inne">Inne</option>
-                            </select>
-                            <textarea required placeholder="Opis" rows={4} value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} style={inputStyle} />
-                            <input placeholder="Link do zdjęcia / Base64" value={formData.image} onChange={(e) => setFormData({ ...formData, image: e.target.value })} style={inputStyle} />
-                            <textarea placeholder="Galeria (linki oddzielone przecinkiem)" rows={2} value={formData.gallery} onChange={(e) => setFormData({ ...formData, gallery: e.target.value })} style={inputStyle} />
-                            <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
-                                <input type="checkbox" checked={formData.isVisible} onChange={(e) => setFormData({ ...formData, isVisible: e.target.checked })} />
-                                <span>Widoczny w sklepie</span>
-                            </label>
-                            {error && <p style={{ color: "var(--color-error)" }}>{error}</p>}
-                            <div style={{ display: "flex", gap: "1rem" }}>
-                                <button type="submit" className="btn-primary" style={{ flex: 1 }}>{editingId ? "Zapisz Zmiany" : "Dodaj"}</button>
-                                {editingId && <button type="button" onClick={resetForm} style={{ padding: "1rem", background: "var(--color-surface-hover)", border: "none", borderRadius: "var(--radius-md)", color: "#fff", cursor: "pointer" }}>Anuluj</button>}
-                            </div>
-                        </form>
-                    </div>
-
-                    <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-                        {loading ? <p>Ładowanie...</p> : products.map(product => (
-                            <div key={product.id} style={{ background: "var(--color-surface)", padding: "1rem", borderRadius: "var(--radius-md)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                <div>
-                                    <h3 style={{ fontSize: "1.1rem" }}>{product.name} {product.isVisible === false && <span style={{ color: "var(--color-error)", fontSize: "0.8rem" }}>(Ukryty)</span>}</h3>
-                                    <p style={{ color: "var(--color-primary)", fontWeight: "bold" }}>{product.price} PLN</p>
+                    {activeTab === 'reservations' && (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                            <h2>Umówione Wizyty</h2>
+                            {reservations.length === 0 ? <p>Brak rezerwacji.</p> : (
+                                <div style={{ background: "var(--color-surface)", padding: "1rem", borderRadius: "var(--radius-lg)", overflowX: "auto" }}>
+                                    <table style={{ width: "100%", borderCollapse: "collapse", color: "white" }}>
+                                        <thead>
+                                            <tr style={{ borderBottom: "1px solid var(--color-surface-hover)", textAlign: "left" }}>
+                                                <th style={{ padding: "1rem" }}>Data/Godzina</th>
+                                                <th style={{ padding: "1rem" }}>Pacjent</th>
+                                                <th style={{ padding: "1rem" }}>Zgłoszenie</th>
+                                                <th style={{ padding: "1rem" }}>Kontakt</th>
+                                                <th style={{ padding: "1rem" }}>Akcje</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {reservations.map((res: any) => (
+                                                <tr key={res.id} style={{ borderBottom: "1px solid var(--color-surface-hover)" }}>
+                                                    <td style={{ padding: "1rem", verticalAlign: 'top' }}>
+                                                        <div>{res.date}</div>
+                                                        <div style={{ color: "var(--color-primary)", fontWeight: "bold" }}>{res.time}</div>
+                                                        <div style={{ fontSize: "0.8rem", color: "var(--color-text-muted)" }}>{new Date(res.created_at).toLocaleDateString()}</div>
+                                                    </td>
+                                                    <td style={{ padding: "1rem", verticalAlign: 'top' }}>
+                                                        <b>{res.name}</b>
+                                                        <div style={{ fontSize: "0.9rem", color: "var(--color-text-muted)", marginTop: "0.2rem" }}>
+                                                            {res.service}<br />
+                                                            ({res.specialist})
+                                                        </div>
+                                                    </td>
+                                                    <td style={{ padding: "1rem", verticalAlign: 'top', maxWidth: '300px' }}>
+                                                        {res.description && (
+                                                            <div style={{ fontStyle: "italic", marginBottom: "0.5rem" }}>
+                                                                "{res.description}"
+                                                            </div>
+                                                        )}
+                                                        {res.has_attachment && (
+                                                            <span style={{
+                                                                display: "inline-flex",
+                                                                alignItems: "center",
+                                                                gap: "0.3rem",
+                                                                background: "rgba(59, 130, 246, 0.2)",
+                                                                color: "#60a5fa",
+                                                                padding: "0.2rem 0.6rem",
+                                                                borderRadius: "99px",
+                                                                fontSize: "0.8rem",
+                                                                border: "1px solid rgba(59, 130, 246, 0.3)"
+                                                            }}>
+                                                                📎 Zdjęcie (w emailu)
+                                                            </span>
+                                                        )}
+                                                        {!res.description && !res.has_attachment && <span style={{ color: 'var(--color-text-muted)', fontSize: '0.8rem' }}>- brak opisu -</span>}
+                                                    </td>
+                                                    <td style={{ padding: "1rem", verticalAlign: 'top' }}>
+                                                        <div>{res.phone}</div>
+                                                        <div style={{ fontSize: "0.8rem", color: "var(--color-text-muted)" }}>{res.email}</div>
+                                                    </td>
+                                                    <td style={{ padding: "1rem", verticalAlign: 'top' }}>
+                                                        <button
+                                                            onClick={() => handleDeleteReservation(res.id)}
+                                                            style={{ background: "var(--color-error)", color: "white", border: "none", padding: "0.5rem 1rem", borderRadius: "4px", cursor: "pointer" }}
+                                                        >
+                                                            Usuń
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
                                 </div>
-                                <div style={{ display: "flex", gap: "0.5rem" }}>
-                                    <button onClick={() => handleEdit(product)} style={{ padding: "0.5rem", background: "var(--color-primary)", border: "none", borderRadius: "4px", color: "black", cursor: "pointer" }}>Edytuj</button>
-                                    <button onClick={() => handleDelete(product.id)} style={{ padding: "0.5rem", background: "var(--color-error)", border: "none", borderRadius: "4px", color: "white", cursor: "pointer" }}>Usuń</button>
-                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {activeTab === 'products' && (
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2rem", alignItems: "start" }}>
+                            {/* PRODUCT FORM & LIST (Exact same as before) */}
+                            <div style={{ background: "var(--color-surface)", padding: "2rem", borderRadius: "var(--radius-lg)", position: "sticky", top: "2rem" }}>
+                                <h2 style={{ marginBottom: "1rem" }}>{editingId ? "Edytuj Produkt" : "Dodaj Produkt"}</h2>
+                                <form onSubmit={handleSave} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                                    {/* ... inputs ... use existing logic */}
+                                    <input required placeholder="Nazwa" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} style={inputStyle} />
+                                    <input required type="number" placeholder="Cena (PLN)" value={formData.price} onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) })} style={inputStyle} />
+                                    <select value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })} style={inputStyle}>
+                                        <option value="Higiena">Higiena</option>
+                                        <option value="Wybielanie">Wybielanie</option>
+                                        <option value="Usługi">Usługi</option>
+                                        <option value="Elektronika">Elektronika</option>
+                                        <option value="Inne">Inne</option>
+                                    </select>
+                                    <textarea required placeholder="Opis" rows={4} value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} style={inputStyle} />
+                                    <input placeholder="Link do zdjęcia / Base64" value={formData.image} onChange={(e) => setFormData({ ...formData, image: e.target.value })} style={inputStyle} />
+                                    <textarea placeholder="Galeria (linki oddzielone przecinkiem)" rows={2} value={formData.gallery} onChange={(e) => setFormData({ ...formData, gallery: e.target.value })} style={inputStyle} />
+                                    <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
+                                        <input type="checkbox" checked={formData.isVisible} onChange={(e) => setFormData({ ...formData, isVisible: e.target.checked })} />
+                                        <span>Widoczny w sklepie</span>
+                                    </label>
+                                    {error && <p style={{ color: "var(--color-error)" }}>{error}</p>}
+                                    <div style={{ display: "flex", gap: "1rem" }}>
+                                        <button type="submit" className="btn-primary" style={{ flex: 1 }}>{editingId ? "Zapisz Zmiany" : "Dodaj"}</button>
+                                        {editingId && <button type="button" onClick={resetForm} style={{ padding: "1rem", background: "var(--color-surface-hover)", border: "none", borderRadius: "var(--radius-md)", color: "#fff", cursor: "pointer" }}>Anuluj</button>}
+                                    </div>
+                                </form>
                             </div>
-                        ))}
-                    </div>
-                </div>
-            )}
 
-            {activeTab === 'questions' && (
-                <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-                    <h2>Nadesłane Pytania (Zapytaj Eksperta)</h2>
-                    {questions.length === 0 ? <p>Brak pytań.</p> : questions.map(q => (
-                        <div key={q.id} style={{ background: "var(--color-surface)", padding: "1.5rem", borderRadius: "var(--radius-md)" }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                                <span style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>{new Date(q.created_at).toLocaleDateString()}</span>
-                                <span style={{ background: q.status === 'pending' ? '#dcb14a' : 'green', color: 'black', padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 'bold' }}>{q.status}</span>
-                            </div>
-                            <p style={{ fontSize: "1.1rem", marginBottom: "1rem" }}>{q.question}</p>
-                            <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-                                {generationStatus[q.id] ? (
-                                    <span style={{ fontSize: "0.9rem", color: "var(--color-primary)", fontWeight: "bold" }}>
-                                        {generationStatus[q.id]}
-                                    </span>
-                                ) : (
-                                    <button
-                                        onClick={async () => {
-                                            if (!confirm("Wygenerować artykuł?")) return;
-                                            setGenerationStatus(prev => ({ ...prev, [q.id]: "Start..." }));
-
-                                            try {
-                                                const res = await fetch("/api/cron/daily-article"); // No custom headers
-
-                                                if (!res.body) throw new Error("Brak strumienia");
-                                                const reader = res.body.getReader();
-                                                const decoder = new TextDecoder();
-
-                                                while (true) {
-                                                    const { done, value } = await reader.read();
-                                                    if (done) break;
-
-                                                    const text = decoder.decode(value);
-                                                    const lines = text.split("\n");
-
-                                                    for (const line of lines) {
-                                                        if (line.startsWith("STEP:")) {
-                                                            setGenerationStatus(prev => ({ ...prev, [q.id]: line.replace("STEP:", "").trim() }));
-                                                        } else if (line.startsWith("SUCCESS:")) {
-                                                            const data = JSON.parse(line.replace("SUCCESS:", ""));
-                                                            alert(`Sukces! Utworzono: ${data.title}`);
-                                                            setGenerationStatus(prev => ({ ...prev, [q.id]: undefined }));
-                                                            fetchQuestions();
-                                                        } else if (line.startsWith("ERROR:")) {
-                                                            alert(`Błąd: ${line.replace("ERROR:", "")}`);
-                                                            setGenerationStatus(prev => ({ ...prev, [q.id]: undefined }));
-                                                        }
-                                                    }
-                                                }
-                                            } catch (e: any) {
-                                                alert("Błąd połączenia: " + e.message);
-                                                setGenerationStatus(prev => ({ ...prev, [q.id]: undefined }));
-                                            }
-                                        }}
-                                        style={{ padding: "0.5rem 1rem", background: "var(--color-primary)", border: "none", borderRadius: "4px", color: "black", cursor: "pointer", fontWeight: "bold" }}
-                                    >
-                                        Generuj Artykuł ✍️
-                                    </button>
-                                )}
-                                <button onClick={() => handleDeleteQuestion(q.id)} style={{ padding: "0.5rem 1rem", background: "var(--color-error)", border: "none", borderRadius: "4px", color: "white", cursor: "pointer" }}>Usuń (Spam)</button>
+                            <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                                {loading ? <p>Ładowanie...</p> : products.map(product => (
+                                    <div key={product.id} style={{ background: "var(--color-surface)", padding: "1rem", borderRadius: "var(--radius-md)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                        <div>
+                                            <h3 style={{ fontSize: "1.1rem" }}>{product.name} {product.isVisible === false && <span style={{ color: "var(--color-error)", fontSize: "0.8rem" }}>(Ukryty)</span>}</h3>
+                                            <p style={{ color: "var(--color-primary)", fontWeight: "bold" }}>{product.price} PLN</p>
+                                        </div>
+                                        <div style={{ display: "flex", gap: "0.5rem" }}>
+                                            <button onClick={() => handleEdit(product)} style={{ padding: "0.5rem", background: "var(--color-primary)", border: "none", borderRadius: "4px", color: "black", cursor: "pointer" }}>Edytuj</button>
+                                            <button onClick={() => handleDelete(product.id)} style={{ padding: "0.5rem", background: "var(--color-error)", border: "none", borderRadius: "4px", color: "white", cursor: "pointer" }}>Usuń</button>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         </div>
-                    ))}
-                </div>
-            )}
+                    )}
 
-            {activeTab === 'news' && renderNewsTab()}
-            {activeTab === 'articles' && renderArticlesTab()}
-            {activeTab === 'orders' && renderOrdersTab()}
-        </main>
+                    {activeTab === 'questions' && (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                            <h2>Nadesłane Pytania (Zapytaj Eksperta)</h2>
+                            {questions.length === 0 ? <p>Brak pytań.</p> : questions.map(q => (
+                                <div key={q.id} style={{ background: "var(--color-surface)", padding: "1.5rem", borderRadius: "var(--radius-md)" }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                                        <span style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>{new Date(q.created_at).toLocaleDateString()}</span>
+                                        <span style={{ background: q.status === 'pending' ? '#dcb14a' : 'green', color: 'black', padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 'bold' }}>{q.status}</span>
+                                    </div>
+                                    <p style={{ fontSize: "1.1rem", marginBottom: "1rem" }}>{q.question}</p>
+                                    <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                                        {generationStatus[q.id] ? (
+                                            <span style={{ fontSize: "0.9rem", color: "var(--color-primary)", fontWeight: "bold" }}>
+                                                {generationStatus[q.id]}
+                                            </span>
+                                        ) : (
+                                            <button
+                                                onClick={async () => {
+                                                    if (!confirm("Wygenerować artykuł?")) return;
+                                                    setGenerationStatus(prev => ({ ...prev, [q.id]: "Start..." }));
+
+                                                    try {
+                                                        const res = await fetch("/api/cron/daily-article"); // No custom headers
+
+                                                        if (!res.body) throw new Error("Brak strumienia");
+                                                        const reader = res.body.getReader();
+                                                        const decoder = new TextDecoder();
+
+                                                        while (true) {
+                                                            const { done, value } = await reader.read();
+                                                            if (done) break;
+
+                                                            const text = decoder.decode(value);
+                                                            const lines = text.split("\n");
+
+                                                            for (const line of lines) {
+                                                                if (line.startsWith("STEP:")) {
+                                                                    setGenerationStatus(prev => ({ ...prev, [q.id]: line.replace("STEP:", "").trim() }));
+                                                                } else if (line.startsWith("SUCCESS:")) {
+                                                                    const data = JSON.parse(line.replace("SUCCESS:", ""));
+                                                                    alert(`Sukces! Utworzono: ${data.title}`);
+                                                                    setGenerationStatus(prev => ({ ...prev, [q.id]: undefined }));
+                                                                    fetchQuestions();
+                                                                } else if (line.startsWith("ERROR:")) {
+                                                                    alert(`Błąd: ${line.replace("ERROR:", "")}`);
+                                                                    setGenerationStatus(prev => ({ ...prev, [q.id]: undefined }));
+                                                                }
+                                                            }
+                                                        }
+                                                    } catch (e: any) {
+                                                        alert("Błąd połączenia: " + e.message);
+                                                        setGenerationStatus(prev => ({ ...prev, [q.id]: undefined }));
+                                                    }
+                                                }}
+                                                style={{ padding: "0.5rem 1rem", background: "var(--color-primary)", border: "none", borderRadius: "4px", color: "black", cursor: "pointer", fontWeight: "bold" }}
+                                            >
+                                                Generuj Artykuł ✍️
+                                            </button>
+                                        )}
+                                        <button onClick={() => handleDeleteQuestion(q.id)} style={{ padding: "0.5rem 1rem", background: "var(--color-error)", border: "none", borderRadius: "4px", color: "white", cursor: "pointer" }}>Usuń (Spam)</button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {activeTab === 'news' && renderNewsTab()}
+                    {activeTab === 'articles' && renderArticlesTab()}
+                    {activeTab === 'orders' && renderOrdersTab()}
+                </div>
+            </main>
+        </div>
     );
 }
