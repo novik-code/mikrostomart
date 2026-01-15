@@ -7,6 +7,9 @@ export const runtime = 'nodejs';
 
 export async function POST(req: NextRequest) {
     try {
+        const body = await req.json();
+        const { type, name, email, phone, message, service, date, time, specialistName, subject, attachment, description } = body;
+
         // Prepare attachments array for Resend
         let emailAttachments: any[] = [];
         if (attachment) {
