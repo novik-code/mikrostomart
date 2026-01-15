@@ -60,8 +60,7 @@ export default function AdminPage() {
     const [generationStatus, setGenerationStatus] = useState<Record<string, string>>({});
     const [orders, setOrders] = useState<any[]>([]);
     const [reservations, setReservations] = useState<any[]>([]);
-    const [orders, setOrders] = useState<any[]>([]);
-    const [reservations, setReservations] = useState<any[]>([]);
+
     const [manualGenerationStatus, setManualGenerationStatus] = useState<string | null>(null);
 
     // Responsive State
