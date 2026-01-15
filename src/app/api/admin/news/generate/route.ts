@@ -2,18 +2,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { uploadToRepo } from "@/lib/githubService";
-
-// Helper for auth
-function isAuthenticated(req: NextRequest) {
-    const authHeader = req.headers.get("x-admin-password");
-    const envPassword = process.env.ADMIN_PASSWORD || "admin123";
-    return authHeader === envPassword;
-}
+import { verifyAdmin } from "@/lib/auth";
 
 export const maxDuration = 60; // Allow sufficient time for AI + Upload
 
 export async function POST(req: NextRequest) {
-    if (!isAuthenticated(req)) {
+    if (!(await verifyAdmin())) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

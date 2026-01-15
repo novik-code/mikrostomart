@@ -1,18 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getProducts, saveProduct, deleteProductAsync, Product } from "@/lib/productService";
+import { verifyAdmin } from "@/lib/auth";
 
 export const runtime = 'nodejs';
-
-// Simple Auth Helper
-function isAuthenticated(req: NextRequest): boolean {
-    const authHeader = req.headers.get("x-admin-password");
-    const envPassword = process.env.ADMIN_PASSWORD || "admin123";
-    if (!process.env.ADMIN_PASSWORD) {
-        console.warn("⚠️ Warning: ADMIN_PASSWORD not set. Using default 'admin123'.");
-    }
-    if (!envPassword) return false;
-    return authHeader === envPassword;
-}
 
 export async function GET() {
     try {
@@ -24,7 +14,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-    if (!isAuthenticated(req)) {
+    if (!(await verifyAdmin())) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -40,7 +30,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-    if (!isAuthenticated(req)) {
+    if (!(await verifyAdmin())) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

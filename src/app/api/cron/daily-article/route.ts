@@ -2,13 +2,9 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { uploadToRepo, getFileContent } from '@/lib/githubService';
+import { verifyAdmin } from '@/lib/auth';
 
-export const maxDuration = 60; // Allow 60 seconds (Vercel Hobby limit 10s? Pro 60s? Cron might have different limits).
-// Actually, generating image + text + commits might take > 10s. 
-// If on Hobby plan, timeout is 10s for serverless functions.
-// We should check plan. User is likely paying or on trial if using Vercel IP?
-// Safe bet: Vercel Hobby max is 10s. This might be tight for DALL-E.
-// Solution: We hope it's fast enough or User is Pro.
+export const maxDuration = 60;
 
 // Helper to write to stream
 const send = async (writer: WritableStreamDefaultWriter, msg: string) => {
@@ -16,13 +12,12 @@ const send = async (writer: WritableStreamDefaultWriter, msg: string) => {
 };
 
 export async function GET(req: Request) {
-    // 1. Auth Check using URL params or Headers (Headers preferred for security)
+    // 1. Auth Check
     const authHeader = req.headers.get('authorization');
-    const adminPasswordHeader = req.headers.get('x-admin-password');
     const isCronAuth = authHeader === `Bearer ${process.env.CRON_SECRET}`;
-    const isAdminAuth = adminPasswordHeader === (process.env.ADMIN_PASSWORD || "admin123");
+    const adminUser = await verifyAdmin();
 
-    if (!isCronAuth && !isAdminAuth && process.env.NODE_ENV === 'production') {
+    if (!isCronAuth && !adminUser && process.env.NODE_ENV === 'production') {
         return new NextResponse('Unauthorized', { status: 401 });
     }
 

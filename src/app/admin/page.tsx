@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import RevealOnScroll from "@/components/RevealOnScroll";
+import { createBrowserClient } from "@supabase/ssr";
+import { useRouter } from "next/navigation";
 
 type Product = {
     id: string;
@@ -15,10 +17,13 @@ type Product = {
 };
 
 export default function AdminPage() {
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const [password, setPassword] = useState("");
-    const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(false);
+    const router = useRouter();
+
+    const supabase = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
 
     // Form State
     const [editingId, setEditingId] = useState<string | null>(null);
@@ -32,6 +37,7 @@ export default function AdminPage() {
         isVisible: true
     });
 
+    const [products, setProducts] = useState<Product[]>([]);
     const [error, setError] = useState<string | null>(null);
 
     const [activeTab, setActiveTab] = useState<'products' | 'questions' | 'articles' | 'news' | 'orders'>('products');
@@ -42,29 +48,27 @@ export default function AdminPage() {
     const [manualGenerationStatus, setManualGenerationStatus] = useState<string | null>(null);
 
     useEffect(() => {
-        const storedAuth = sessionStorage.getItem("admin_auth");
-        if (storedAuth) {
-            setPassword(storedAuth);
-            setIsAuthenticated(true);
-            fetchProducts(storedAuth);
-            fetchQuestions(storedAuth);
-            fetchArticles(storedAuth);
-            fetchNews(storedAuth);
-            fetchOrders(storedAuth);
-        }
-    }, [activeTab]); // Fetch when tab changes too
+        const checkUser = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) {
+                router.push("/admin/login");
+            } else {
+                fetchProducts();
+                fetchQuestions();
+                fetchArticles();
+                fetchNews();
+                fetchOrders();
+            }
+        };
+        checkUser();
+    }, [activeTab]);
 
-    const login = () => {
-        setIsAuthenticated(true);
-        sessionStorage.setItem("admin_auth", password);
-        fetchProducts(password);
-        fetchQuestions(password);
-        fetchArticles(password);
-        fetchNews(password);
-        fetchOrders(password);
+    const handleLogout = async () => {
+        await supabase.auth.signOut();
+        router.push("/admin/login");
     };
 
-    const fetchProducts = async (pwd: string = password) => {
+    const fetchProducts = async () => {
         setLoading(true);
         try {
             const res = await fetch("/api/products");
@@ -73,20 +77,17 @@ export default function AdminPage() {
         finally { setLoading(false); }
     };
 
-    const fetchQuestions = async (pwd: string = password) => {
+
+    const fetchQuestions = async () => {
         try {
-            const res = await fetch("/api/admin/questions", {
-                headers: { "x-admin-password": pwd }
-            });
+            const res = await fetch("/api/admin/questions");
             if (res.ok) setQuestions(await res.json());
         } catch (err) { console.error(err); }
     };
 
-    const fetchArticles = async (pwd: string = password) => {
+    const fetchArticles = async () => {
         try {
-            const res = await fetch("/api/admin/articles", {
-                headers: { "x-admin-password": pwd }
-            });
+            const res = await fetch("/api/admin/articles");
             if (res.ok) setArticles(await res.json());
         } catch (err) { console.error(err); }
     };
@@ -95,8 +96,7 @@ export default function AdminPage() {
         if (!confirm("Usunąć pytanie?")) return;
         try {
             await fetch(`/api/admin/questions?id=${id}`, {
-                method: "DELETE",
-                headers: { "x-admin-password": password }
+                method: "DELETE"
             });
             fetchQuestions();
         } catch (e) { alert("Błąd"); }
@@ -106,8 +106,7 @@ export default function AdminPage() {
         if (!confirm("Usunąć artykuł trwale?")) return;
         try {
             const res = await fetch(`/api/admin/articles?id=${id}`, {
-                method: "DELETE",
-                headers: { "x-admin-password": password }
+                method: "DELETE"
             });
             if (res.ok) fetchArticles();
             else alert("Błąd usuwania");
@@ -125,20 +124,16 @@ export default function AdminPage() {
         image: ""
     });
 
-    const fetchNews = async (pwd: string = password) => {
+    const fetchNews = async () => {
         try {
-            const res = await fetch("/api/admin/news", {
-                headers: { "x-admin-password": pwd }
-            });
+            const res = await fetch("/api/admin/news");
             if (res.ok) setNews(await res.json());
         } catch (err) { console.error(err); }
     };
 
-    const fetchOrders = async (pwd: string = password) => {
+    const fetchOrders = async () => {
         try {
-            const res = await fetch("/api/admin/orders", {
-                headers: { "x-admin-password": pwd }
-            });
+            const res = await fetch("/api/admin/orders");
             if (res.ok) setOrders(await res.json());
         } catch (err) { console.error(err); }
     };
@@ -152,10 +147,7 @@ export default function AdminPage() {
             const method = editingNewsId ? "PUT" : "POST";
             const res = await fetch("/api/admin/news", {
                 method,
-                headers: {
-                    "Content-Type": "application/json",
-                    "x-admin-password": password
-                },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload)
             });
 
@@ -169,8 +161,7 @@ export default function AdminPage() {
         if (!confirm("Usunąć news?")) return;
         try {
             await fetch(`/api/admin/news?id=${id}`, {
-                method: "DELETE",
-                headers: { "x-admin-password": password }
+                method: "DELETE"
             });
             fetchNews();
         } catch (e) { alert("Błąd"); }
@@ -203,10 +194,7 @@ export default function AdminPage() {
         try {
             const res = await fetch("/api/admin/news/generate", {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "x-admin-password": password
-                },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     topic: aiTopic,
                     instructions: aiInstructions,
@@ -249,9 +237,7 @@ export default function AdminPage() {
         setManualGenerationStatus("Start...");
 
         try {
-            const res = await fetch("/api/cron/daily-article", {
-                headers: { "x-admin-password": password }
-            });
+            const res = await fetch("/api/cron/daily-article"); // No custom headers, session cookie used
 
             if (!res.body) throw new Error("Brak strumienia");
             const reader = res.body.getReader();
@@ -271,7 +257,7 @@ export default function AdminPage() {
                         const data = JSON.parse(line.replace("SUCCESS:", ""));
                         alert(`Sukces! Utworzono: ${data.title}`);
                         setManualGenerationStatus(null);
-                        fetchArticles(password);
+                        fetchArticles();
                     } else if (line.startsWith("ERROR:")) {
                         // Don't alert immediately for Flux error if fallback happens,
                         // but the stream sends ERROR line for fallback too.
@@ -313,8 +299,7 @@ export default function AdminPage() {
             const res = await fetch("/api/products", {
                 method: "POST",
                 headers: {
-                    "Content-Type": "application/json",
-                    "x-admin-password": password
+                    "Content-Type": "application/json"
                 },
                 body: JSON.stringify(payload)
             });
@@ -337,8 +322,7 @@ export default function AdminPage() {
 
         try {
             const res = await fetch(`/api/products?id=${id}`, {
-                method: "DELETE",
-                headers: { "x-admin-password": password }
+                method: "DELETE"
             });
             if (!res.ok) throw new Error("Failed");
             await fetchProducts();
@@ -376,15 +360,7 @@ export default function AdminPage() {
         outline: "none"
     };
 
-    if (!isAuthenticated) return (/* Login form remains same */
-        <main className="section container" style={{ minHeight: "80vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <div style={{ background: "var(--color-surface)", padding: "2rem", borderRadius: "var(--radius-lg)", width: "100%", maxWidth: "400px" }}>
-                <h1 style={{ marginBottom: "1rem" }}>Panel Admina</h1>
-                <input type="password" placeholder="Hasło" value={password} onChange={(e) => setPassword(e.target.value)} style={{ width: "100%", padding: "1rem", marginBottom: "1rem", background: "var(--color-background)", border: "1px solid var(--color-surface-hover)", borderRadius: "var(--radius-md)", color: "#fff" }} />
-                <button onClick={login} className="btn-primary" style={{ width: "100%" }}>Zaloguj</button>
-            </div>
-        </main>
-    );
+
 
     const renderNewsTab = () => (
         <>
@@ -587,7 +563,7 @@ export default function AdminPage() {
                     <button onClick={() => setActiveTab('articles')} style={{ opacity: activeTab === 'articles' ? 1 : 0.5, background: 'none', border: 'none', color: 'white', cursor: 'pointer', fontWeight: 'bold' }}>Baza Wiedzy</button>
                     <button onClick={() => setActiveTab('news')} style={{ opacity: activeTab === 'news' ? 1 : 0.5, background: 'none', border: 'none', color: 'white', cursor: 'pointer', fontWeight: 'bold' }}>Aktualności</button>
                     <button onClick={() => setActiveTab('orders')} style={{ opacity: activeTab === 'orders' ? 1 : 0.5, background: 'none', border: 'none', color: 'white', cursor: 'pointer', fontWeight: 'bold' }}>Zamówienia</button>
-                    <button onClick={() => { setIsAuthenticated(false); sessionStorage.removeItem("admin_auth"); }} style={{ color: "var(--color-error)", background: 'none', border: 'none', cursor: 'pointer', marginLeft: '1rem' }}>Wyloguj</button>
+                    <button onClick={handleLogout} style={{ color: "var(--color-error)", background: 'none', border: 'none', cursor: 'pointer', marginLeft: '1rem' }}>Wyloguj</button>
                 </div>
             </div>
 
@@ -661,9 +637,7 @@ export default function AdminPage() {
                                             setGenerationStatus(prev => ({ ...prev, [q.id]: "Start..." }));
 
                                             try {
-                                                const res = await fetch("/api/cron/daily-article", {
-                                                    headers: { "x-admin-password": password }
-                                                });
+                                                const res = await fetch("/api/cron/daily-article"); // No custom headers
 
                                                 if (!res.body) throw new Error("Brak strumienia");
                                                 const reader = res.body.getReader();

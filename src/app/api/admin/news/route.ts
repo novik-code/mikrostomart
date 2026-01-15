@@ -1,14 +1,9 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { verifyAdmin } from "@/lib/auth";
 
 export const runtime = 'nodejs';
-
-function isAuthenticated(req: NextRequest): boolean {
-    const authHeader = req.headers.get("x-admin-password");
-    const envPassword = process.env.ADMIN_PASSWORD || "admin123";
-    return authHeader === envPassword;
-}
 
 // Helper to get Supabase Client
 function getSupabase() {
@@ -19,7 +14,7 @@ function getSupabase() {
 
 // GET: List all news (for admin)
 export async function GET(req: NextRequest) {
-    if (!isAuthenticated(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!(await verifyAdmin())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     try {
         const supabase = getSupabase();
@@ -37,7 +32,7 @@ export async function GET(req: NextRequest) {
 
 // POST: Create new news article
 export async function POST(req: NextRequest) {
-    if (!isAuthenticated(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!(await verifyAdmin())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     try {
         const body = await req.json();
@@ -69,7 +64,7 @@ export async function POST(req: NextRequest) {
 
 // DELETE: Remove news article
 export async function DELETE(req: NextRequest) {
-    if (!isAuthenticated(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!(await verifyAdmin())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     try {
         const { searchParams } = new URL(req.url);
@@ -88,7 +83,7 @@ export async function DELETE(req: NextRequest) {
 
 // PUT: Update news article
 export async function PUT(req: NextRequest) {
-    if (!isAuthenticated(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!(await verifyAdmin())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     try {
         const body = await req.json();

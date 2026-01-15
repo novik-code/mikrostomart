@@ -1,16 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { verifyAdmin } from "@/lib/auth";
 
 export const runtime = 'nodejs';
 
-function isAuthenticated(req: NextRequest): boolean {
-    const authHeader = req.headers.get("x-admin-password");
-    const envPassword = process.env.ADMIN_PASSWORD || "admin123";
-    return authHeader === envPassword;
-}
-
 export async function GET(req: NextRequest) {
-    if (!isAuthenticated(req)) {
+    if (!(await verifyAdmin())) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
