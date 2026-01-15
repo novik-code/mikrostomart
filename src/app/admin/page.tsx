@@ -40,11 +40,12 @@ export default function AdminPage() {
     const [products, setProducts] = useState<Product[]>([]);
     const [error, setError] = useState<string | null>(null);
 
-    const [activeTab, setActiveTab] = useState<'products' | 'questions' | 'articles' | 'news' | 'orders'>('products');
+    const [activeTab, setActiveTab] = useState<'products' | 'questions' | 'articles' | 'news' | 'orders' | 'reservations'>('products');
     const [questions, setQuestions] = useState<any[]>([]);
     const [articles, setArticles] = useState<any[]>([]);
     const [generationStatus, setGenerationStatus] = useState<Record<string, string>>({});
     const [orders, setOrders] = useState<any[]>([]);
+    const [reservations, setReservations] = useState<any[]>([]);
     const [manualGenerationStatus, setManualGenerationStatus] = useState<string | null>(null);
 
     useEffect(() => {
@@ -58,6 +59,7 @@ export default function AdminPage() {
                 fetchArticles();
                 fetchNews();
                 fetchOrders();
+                fetchReservations();
             }
         };
         checkUser();
@@ -278,6 +280,21 @@ export default function AdminPage() {
             alert("Błąd połączenia: " + e.message);
             setManualGenerationStatus(null);
         }
+    };
+
+    const fetchReservations = async () => {
+        setLoading(true);
+        try {
+            const res = await fetch("/api/admin/reservations");
+            if (res.ok) setReservations(await res.json());
+        } catch (err) { console.error(err); }
+        finally { setLoading(false); }
+    };
+
+    const handleDeleteReservation = async (id: string) => {
+        if (!confirm("Czy na pewno usunąć rezerwację?")) return;
+        await fetch(`/api/admin/reservations?id=${id}`, { method: "DELETE" });
+        fetchReservations();
     };
 
     const handleSave = async (e: React.FormEvent) => {
@@ -563,9 +580,59 @@ export default function AdminPage() {
                     <button onClick={() => setActiveTab('articles')} style={{ opacity: activeTab === 'articles' ? 1 : 0.5, background: 'none', border: 'none', color: 'white', cursor: 'pointer', fontWeight: 'bold' }}>Baza Wiedzy</button>
                     <button onClick={() => setActiveTab('news')} style={{ opacity: activeTab === 'news' ? 1 : 0.5, background: 'none', border: 'none', color: 'white', cursor: 'pointer', fontWeight: 'bold' }}>Aktualności</button>
                     <button onClick={() => setActiveTab('orders')} style={{ opacity: activeTab === 'orders' ? 1 : 0.5, background: 'none', border: 'none', color: 'white', cursor: 'pointer', fontWeight: 'bold' }}>Zamówienia</button>
+                    <button onClick={() => setActiveTab('reservations')} style={{ opacity: activeTab === 'reservations' ? 1 : 0.5, background: 'none', border: 'none', color: 'white', cursor: 'pointer', fontWeight: 'bold' }}>Rezerwacje</button>
                     <button onClick={handleLogout} style={{ color: "var(--color-error)", background: 'none', border: 'none', cursor: 'pointer', marginLeft: '1rem' }}>Wyloguj</button>
                 </div>
             </div>
+
+            {activeTab === 'reservations' && (
+                <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                    <h2>Umówione Wizyty</h2>
+                    {reservations.length === 0 ? <p>Brak rezerwacji.</p> : (
+                        <div style={{ background: "var(--color-surface)", padding: "1rem", borderRadius: "var(--radius-lg)", overflowX: "auto" }}>
+                            <table style={{ width: "100%", borderCollapse: "collapse", color: "white" }}>
+                                <thead>
+                                    <tr style={{ borderBottom: "1px solid var(--color-surface-hover)", textAlign: "left" }}>
+                                        <th style={{ padding: "1rem" }}>Data/Godzina</th>
+                                        <th style={{ padding: "1rem" }}>Pacjent</th>
+                                        <th style={{ padding: "1rem" }}>Kontakt</th>
+                                        <th style={{ padding: "1rem" }}>Usługa/Specjalista</th>
+                                        <th style={{ padding: "1rem" }}>Akcje</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {reservations.map((res: any) => (
+                                        <tr key={res.id} style={{ borderBottom: "1px solid var(--color-surface-hover)" }}>
+                                            <td style={{ padding: "1rem" }}>
+                                                <div>{res.date}</div>
+                                                <div style={{ color: "var(--color-primary)", fontWeight: "bold" }}>{res.time}</div>
+                                                <div style={{ fontSize: "0.8rem", color: "var(--color-text-muted)" }}>{new Date(res.created_at).toLocaleDateString()}</div>
+                                            </td>
+                                            <td style={{ padding: "1rem" }}>{res.name}</td>
+                                            <td style={{ padding: "1rem" }}>
+                                                <div>{res.phone}</div>
+                                                <div style={{ fontSize: "0.8rem", color: "var(--color-text-muted)" }}>{res.email}</div>
+                                            </td>
+                                            <td style={{ padding: "1rem" }}>
+                                                <div>{res.service}</div>
+                                                <div style={{ fontSize: "0.8rem", color: "var(--color-text-muted)" }}>{res.specialist}</div>
+                                            </td>
+                                            <td style={{ padding: "1rem" }}>
+                                                <button
+                                                    onClick={() => handleDeleteReservation(res.id)}
+                                                    style={{ background: "var(--color-error)", color: "white", border: "none", padding: "0.5rem 1rem", borderRadius: "4px", cursor: "pointer" }}
+                                                >
+                                                    Usuń
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
+            )}
 
             {activeTab === 'products' && (
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2rem", alignItems: "start" }}>

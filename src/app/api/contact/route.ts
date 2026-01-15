@@ -53,6 +53,31 @@ export async function POST(req: NextRequest) {
                 <p><strong>Godzina:</strong> ${time}</p>
             `;
 
+            // 1.5 Save to Supabase
+            try {
+                const { createClient } = require('@supabase/supabase-js');
+                const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://keucogopujdolzmfajjv.supabase.co';
+                const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY;
+
+                if (supabaseKey) {
+                    const supabase = createClient(supabaseUrl, supabaseKey);
+                    const { error: dbError } = await supabase.from('reservations').insert({
+                        name,
+                        phone,
+                        email,
+                        specialist: specialistName,
+                        service,
+                        date,
+                        time,
+                        status: 'pending'
+                    });
+                    if (dbError) console.error("Supabase Reservation Insert Error:", dbError);
+                    else console.log("Reservation saved to Supabase.");
+                }
+            } catch (err) {
+                console.error("Database save exception:", err);
+            }
+
             // ... (CSV Logging remains here) ...
 
         } else if (type === "contact") {
