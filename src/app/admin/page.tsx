@@ -39,6 +39,7 @@ export default function AdminPage() {
     const [articles, setArticles] = useState<any[]>([]);
     const [generationStatus, setGenerationStatus] = useState<Record<string, string>>({});
     const [orders, setOrders] = useState<any[]>([]);
+    const [manualGenerationStatus, setManualGenerationStatus] = useState<string | null>(null);
 
     useEffect(() => {
         const storedAuth = sessionStorage.getItem("admin_auth");
@@ -241,6 +242,56 @@ export default function AdminPage() {
     const resetNewsForm = () => {
         setEditingNewsId(null);
         setNewsFormData({ title: "", date: new Date().toISOString().split('T')[0], excerpt: "", content: "", image: "" });
+    };
+
+    const handleGenerateDailyArticle = async () => {
+        if (!confirm("Wygenerować dzienny artykuł (Flux Pro / DALL-E)?\nJeśli nie ma pytań oczekujących, temat zostanie wymyślony przez AI.")) return;
+        setManualGenerationStatus("Start...");
+
+        try {
+            const res = await fetch("/api/cron/daily-article", {
+                headers: { "x-admin-password": password }
+            });
+
+            if (!res.body) throw new Error("Brak strumienia");
+            const reader = res.body.getReader();
+            const decoder = new TextDecoder();
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                const text = decoder.decode(value);
+                const lines = text.split("\n");
+
+                for (const line of lines) {
+                    if (line.startsWith("STEP:")) {
+                        setManualGenerationStatus(line.replace("STEP:", "").trim());
+                    } else if (line.startsWith("SUCCESS:")) {
+                        const data = JSON.parse(line.replace("SUCCESS:", ""));
+                        alert(`Sukces! Utworzono: ${data.title}`);
+                        setManualGenerationStatus(null);
+                        fetchArticles(password);
+                    } else if (line.startsWith("ERROR:")) {
+                        // Don't alert immediately for Flux error if fallback happens,
+                        // but the stream sends ERROR line for fallback too.
+                        // The server code sends `ERROR: Flux failed... Fallback...`
+                        // We can show this in status.
+                        if (line.includes("Flux failed")) {
+                            setManualGenerationStatus("Flux failed. Fallback to DALL-E...");
+                        } else {
+                            alert(`Błąd: ${line.replace("ERROR:", "")}`);
+                            setManualGenerationStatus(null);
+                        }
+                    } else if (line.startsWith("TOPIC:")) {
+                        setManualGenerationStatus(`Temat: ${line.replace("TOPIC:", "")}`);
+                    }
+                }
+            }
+        } catch (e: any) {
+            alert("Błąd połączenia: " + e.message);
+            setManualGenerationStatus(null);
+        }
     };
 
     const handleSave = async (e: React.FormEvent) => {
@@ -452,7 +503,22 @@ export default function AdminPage() {
 
     const renderArticlesTab = () => (
         <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-            <h2>Baza Wiedzy (Blog)</h2>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <h2>Baza Wiedzy (Blog)</h2>
+                {manualGenerationStatus ? (
+                    <span style={{ color: "var(--color-primary)", fontWeight: "bold" }}>
+                        Generator Cron: {manualGenerationStatus}
+                    </span>
+                ) : (
+                    <button
+                        onClick={handleGenerateDailyArticle}
+                        className="btn-primary"
+                        style={{ background: "linear-gradient(135deg, #dcb14a, #f0c96c)", color: "black", fontSize: "0.9rem" }}
+                    >
+                        Generuj Losowy Artykuł (Flux) 🎲
+                    </button>
+                )}
+            </div>
             {articles.length === 0 ? <p>Brak artykułów.</p> : articles.map(a => (
                 <div key={a.id} style={{ background: "var(--color-surface)", padding: "1.5rem", borderRadius: "var(--radius-md)" }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
