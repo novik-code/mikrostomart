@@ -43,7 +43,15 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
             .replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gim, "")
             .replace(/<h2/g, '<h2>')
             .replace(/<h3/g, '<h3>')
-            .replace(/<div>\s*<\/div>/g, '');
+            .replace(/<div>\s*<\/div>/g, '')
+            // Fix HTML Entities
+            .replace(/&#8211;/g, '–')
+            .replace(/&#8212;/g, '—')
+            .replace(/&#8216;/g, '‘')
+            .replace(/&#8217;/g, '’')
+            .replace(/&#8220;/g, '“')
+            .replace(/&#8221;/g, '”')
+            .replace(/&nbsp;/g, ' ');
     };
 
     const sanitizedContent = cleanHtml(post.content);
