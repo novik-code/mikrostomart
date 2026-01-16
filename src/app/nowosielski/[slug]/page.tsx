@@ -2,7 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import Link from 'next/link';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
-import './../blog.css';
+import './../blog.v2.css';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -31,10 +31,12 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
     // Function to strip legacy inline styles and classes to allow our CSS to take over
     const cleanHtml = (html: string) => {
         return html
-            // Remove all style attributes
+            // Remove all style attributes (double and single quotes)
             .replace(/style="[^"]*"/gi, '')
-            // Remove all class attributes
+            .replace(/style='[^']*'/gi, '')
+            // Remove all class attributes (double and single quotes)
             .replace(/class="[^"]*"/gi, '')
+            .replace(/class='[^']*'/gi, '')
             // Remove script tags
             .replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gim, "")
             // Normalize headlines for our CSS
@@ -47,7 +49,10 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
     const sanitizedContent = cleanHtml(post.content);
 
     return (
-        <article className="min-h-screen bg-black text-white selection:bg-gold selection:text-black">
+        <article className="min-h-screen bg-black text-white selection:bg-gold selection:text-black relative">
+            {/* Version Marker v2 */}
+            <div className="fixed top-0 left-0 w-4 h-4 bg-blue-600 z-[9999] border border-white" title="DEPLOYMENT V2 CHECK" />
+
             {/* Hero Section */}
             <div className="relative w-full h-[60vh] flex items-end">
                 {post.image && (

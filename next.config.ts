@@ -3,12 +3,14 @@ import withPWAInit from "@ducanh2912/next-pwa";
 
 const withPWA = withPWAInit({
   dest: "public",
-  cacheOnFrontEndNav: true,
-  aggressiveFrontEndNavCaching: true,
+  cacheOnFrontEndNav: false, // Changed from true
+  aggressiveFrontEndNavCaching: false, // Changed from true
   reloadOnOnline: true,
   disable: process.env.NODE_ENV === "development",
   workboxOptions: {
     disableDevLogs: true,
+    skipWaiting: true, // Force new service worker to take over
+    clientsClaim: true,
   },
 });
 

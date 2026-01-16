@@ -1,38 +1,39 @@
 /* Blog Content Styles meant to override WordPress legacy markup */
 
-.blog-content {
+#legacy-blog-content {
     font-size: 1.1rem;
     line-height: 1.8;
     color: #e5e7eb;
-    /* gray-200 */
     overflow-x: hidden;
-    /* Prevent horizontal scroll from huge mutations */
 }
 
 /* IMAGES */
-.blog-content img {
+#legacy-blog-content img {
     max-width: 100% !important;
     height: auto !important;
     border-radius: 12px;
     margin: 2rem 0;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    display: block;
+    display: block !important;
+    width: auto !important;
+    /* Reset width to let max-width work */
 }
 
 /* IFRAMES (YouTube embeds etc) */
-.blog-content iframe {
+#legacy-blog-content iframe {
     max-width: 100% !important;
     width: 100% !important;
     aspect-ratio: 16 / 9;
     border-radius: 12px;
     margin: 2rem 0;
+    height: auto !important;
 }
 
 /* HEADINGS */
-.blog-content h1,
-.blog-content h2,
-.blog-content h3,
-.blog-content h4 {
+#legacy-blog-content h1,
+#legacy-blog-content h2,
+#legacy-blog-content h3,
+#legacy-blog-content h4 {
     color: #fff !important;
     font-weight: 700;
     margin-top: 3rem;
@@ -40,61 +41,51 @@
     line-height: 1.3;
 }
 
-.blog-content h2 {
+#legacy-blog-content h2 {
     font-size: 2rem;
     color: #d4af37 !important;
-    /* Gold */
 }
 
-.blog-content h3 {
+#legacy-blog-content h3 {
     font-size: 1.5rem;
 }
 
 /* LINKS */
-.blog-content a {
+#legacy-blog-content a {
     color: #d4af37 !important;
     text-decoration: underline;
     text-underline-offset: 4px;
     transition: color 0.2s;
 }
 
-.blog-content a:hover {
+#legacy-blog-content a:hover {
     color: #fce7ac !important;
 }
 
 /* LISTS */
-.blog-content ul,
-.blog-content ol {
+#legacy-blog-content ul,
+#legacy-blog-content ol {
     margin-bottom: 1.5rem;
     padding-left: 1.5rem;
-}
-
-.blog-content li {
-    margin-bottom: 0.5rem;
-    list-style-type: disc;
+    list-style: disc inside;
+    color: #d1d5db;
 }
 
 /* HIDE WORDPRESS JUNK (Attribute Selectors) */
-.blog-content .penci-slider,
-.blog-content .rev_slider,
-.blog-content .rev_slider_wrapper,
-.blog-content .vc_row,
-.blog-content .wpb_revslider_element,
-.blog-content [id^="rev_slider"],
-.blog-content [class*="rev_slider"],
-.blog-content [class*="tp-"] {
+#legacy-blog-content .penci-slider,
+#legacy-blog-content .rev_slider,
+#legacy-blog-content .rev_slider_wrapper,
+#legacy-blog-content .vc_row,
+#legacy-blog-content .wpb_revslider_element,
+#legacy-blog-content [id^="rev_slider"],
+#legacy-blog-content [class*="rev_slider"],
+#legacy-blog-content [class*="tp-"] {
     display: none !important;
-    height: 0 !important;
-    width: 0 !important;
-    overflow: hidden !important;
-    opacity: 0 !important;
-    pointer-events: none !important;
-    position: absolute !important;
 }
 
 /* HUGE ARROWS FIX - NUCLEAR OPTION */
-.blog-content svg,
-.blog-content svg * {
+#legacy-blog-content svg,
+#legacy-blog-content svg * {
     width: 24px !important;
     height: 24px !important;
     max-width: 24px !important;
@@ -106,24 +97,24 @@
 }
 
 /* Specific fix for known huge icons from themes */
-.blog-content .fa,
-.blog-content .fas,
-.blog-content i[class*="icon-"] {
+#legacy-blog-content .fa,
+#legacy-blog-content .fas,
+#legacy-blog-content i[class*="icon-"] {
     font-size: 1rem !important;
     width: auto !important;
     height: auto !important;
 }
 
-/* TABLE FIXES */
-.blog-content table {
+/* Table overrides */
+#legacy-blog-content table {
     width: 100%;
     border-collapse: collapse;
     margin: 2rem 0;
     border: 1px solid #374151;
 }
 
-.blog-content th,
-.blog-content td {
+#legacy-blog-content th,
+#legacy-blog-content td {
     padding: 1rem;
     border: 1px solid #374151;
 }
