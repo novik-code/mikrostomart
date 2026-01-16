@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import Link from 'next/link';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
+import './../blog.css';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -70,45 +71,6 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
 
             {/* Content */}
             <div className="container mx-auto px-4 py-12 relative z-20 bg-black">
-                <style dangerouslySetInnerHTML={{
-                    __html: `
-                    .blog-content img {
-                        max-width: 100%;
-                        height: auto;
-                        border-radius: 8px;
-                        margin: 20px 0;
-                        display: block;
-                    }
-                    .blog-content iframe {
-                        max-width: 100%;
-                        border-radius: 8px;
-                    }
-                    /* Fix for huge SVGs (arrows from sliders etc) */
-                    .blog-content svg {
-                        max-width: 24px;
-                        max-height: 24px;
-                        display: inline-block;
-                    }
-                    /* Fix for legacy containers */
-                    .blog-content .penci-slider, .blog-content .rev_slider {
-                        display: none !important; /* Hide broken complex sliders */
-                    }
-                    .blog-content a {
-                        color: #dcb14a;
-                        text-decoration: underline;
-                    }
-                    .blog-content h2, .blog-content h3 {
-                        color: white !important;
-                        margin-top: 2rem;
-                        margin-bottom: 1rem;
-                    }
-                    .blog-content p {
-                        margin-bottom: 1.5rem;
-                        line-height: 1.8;
-                        color: #d1d5db;
-                    }
-                `}} />
-
                 <div className="max-w-3xl mx-auto">
                     <div
                         className="prose prose-invert prose-lg md:prose-xl max-w-none blog-content"
