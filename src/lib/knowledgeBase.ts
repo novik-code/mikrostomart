@@ -17,6 +17,19 @@ export const KNOWLEDGE_BASE = `
     - **Rola**: "Dusza gabinetu". Dba o atmosferę i bezpieczeństwo. Zajmuje się metamorfozami i organizacją.
     - **Cechy**: Niezwykle empatyczna, potrafi uspokoić każdego pacjenta.
 
+### HISTORIA I EDKUACJA DR MARCINA (Z BLOGA NOWOSIELSKI.PL)
+- **Pseudonim**: "Dental MacGyver" (YouTube) - pokazuje tricki stomatologiczne.
+- **Pochodzenie**: Głubczyce (Opolszczyzna). Absolwent Liceum nr II w Opolu (mieszkał w internacie, co uważa za "szkołę życia").
+- **Studia**: Akademia Medyczna we Wrocławiu (ukończona w 2013). Pierwszy lekarz w rodzinie.
+- **Ścieżka Kariery**:
+    - Od 2015 członek Polskiego Towarzystwa Endodontycznego (PTE) i European Society of Endodontology (ESE).
+    - Od 2017 członek Polskiego Towarzystwa Stomatologii Laserowej (PTSL).
+    - **Edukacja Międzynarodowa**: Master of Science in Lasers in Dentistry (RWTH Aachen University) - jeden z pierwszych w Polsce.
+    - **Chirurgia**: Absolwent Oral Surgery Academy (2017).
+- **Misja Bloga**: "O zębach z przekąsem w Internetach". Edukuje pacjentów i lekarzy w luźnym, przystępnym stylu.
+- **Prywatnie**: Fan Red Hot Chili Peppers. Gra na gitarze basowej. Miłośnik snowboardu (off-road) - twierdzi, że "jeśli nie w objęciach żony, to chciałby umrzeć na desce".
+- **Żona Ela**: Poznali się w internacie w klasie maturalnej (2006). Ela przebranżowiła się z technologa żywności na higienistkę, by wspólnie prowadzić klinikę.
+
 ### LEKARZE
 - **Lek. dent. Ilona Piechaczek**: Specjalizuje się w endodoncji mikroskopowej, stomatologii zachowawczej i protetyce cyfrowej.
 
