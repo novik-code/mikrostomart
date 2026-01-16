@@ -51,8 +51,6 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
     // Standard "News" Layout Structure
     return (
         <main style={{ background: "var(--color-background)", minHeight: '100vh', color: "var(--color-text)" }}>
-            {/* Version Marker V3 - News Refactor */}
-            <div className="fixed top-0 left-0 w-4 h-4 bg-green-500 z-[9999] border border-white" title="DEPLOYMENT V3 - NEWS LAYOUT" />
 
             <article className="container" style={{ padding: "8rem 2rem 4rem", maxWidth: "800px", margin: "0 auto" }}>
 
