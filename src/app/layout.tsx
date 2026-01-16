@@ -6,6 +6,8 @@ import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 import { CartProvider } from "@/context/CartContext";
 import { AssistantProvider } from "@/context/AssistantContext";
 import AssistantTeaser from "@/components/AssistantTeaser";
+import BackgroundVideo from "@/components/BackgroundVideo";
+import CookieConsent from "@/components/CookieConsent";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
@@ -16,6 +18,14 @@ export const metadata: Metadata = {
     description: "Szukasz dentysty w Opolu? Mikrostomart to nowoczesny gabinet stomatologiczny. Specjalizujemy się w implantach, leczeniu kanałowym i estetyce. Umów wizytę w Opolu (Chmielowice).",
     keywords: "dentysta opole, stomatolog opole, implanty opole, leczenie kanałowe opole, mikrostomart, stomatologia mikroskopowa",
     manifest: "/manifest.json",
+    icons: {
+        icon: '/icon.png',
+        shortcut: '/icon.png',
+        apple: '/icon-512x512.png',
+    },
+    openGraph: {
+        images: ['/opengraph-image.png'],
+    },
     other: {
         "geo.region": "PL-OP",
         "geo.placename": "Opole",
@@ -27,10 +37,6 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
     themeColor: "#0f1115",
 };
-
-import BackgroundVideo from "@/components/BackgroundVideo";
-
-import CookieConsent from "@/components/CookieConsent"; // Import
 
 export default function RootLayout({
     children,
