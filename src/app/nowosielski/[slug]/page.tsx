@@ -12,7 +12,9 @@ const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-export const revalidate = 3600;
+// FORCE DYNAMIC RENDERING - DISABLE CACHE
+export const revalidate = 0;
+export const dynamic = 'force-dynamic';
 
 async function getPost(slug: string) {
     const { data } = await supabase
