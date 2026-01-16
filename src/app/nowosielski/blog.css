@@ -74,32 +74,33 @@
     list-style-type: disc;
 }
 
-/* HIDE WORDPRESS JUNK */
+/* HIDE WORDPRESS JUNK (Attribute Selectors) */
 .blog-content .penci-slider,
 .blog-content .rev_slider,
 .blog-content .rev_slider_wrapper,
 .blog-content .vc_row,
-/* Visual Composer rows sometimes break layout */
-.blog-content .wpb_revslider_element {
+.blog-content .wpb_revslider_element,
+.blog-content [id^="rev_slider"],
+.blog-content [class*="rev_slider"],
+.blog-content [class*="tp-"] {
     display: none !important;
     height: 0 !important;
+    width: 0 !important;
     overflow: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    position: absolute !important;
 }
 
 /* HUGE ARROWS FIX */
-.blog-content .tparrows,
-.blog-content .tp-leftarrow,
-.blog-content .tp-rightarrow,
-.blog-content .tp-bullets {
-    display: none !important;
-    width: 0 !important;
-    height: 0 !important;
-}
-
 .blog-content svg {
     max-width: 24px !important;
     max-height: 24px !important;
     margin: auto;
+    display: inline-block !important;
+    /* Force inline to avoid block expansion */
+    width: auto !important;
+    /* Override width: 100% legacy styles */
 }
 
 /* TABLE FIXES */
