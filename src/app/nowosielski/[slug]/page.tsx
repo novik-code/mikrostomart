@@ -2,6 +2,9 @@ import { createClient } from "@supabase/supabase-js";
 import Link from 'next/link';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
+import RevealOnScroll from '@/components/RevealOnScroll';
+
+// We import the CSS to handle legacy content inside the clean container
 import './../blog.v2.css';
 
 const supabase = createClient(
@@ -28,83 +31,95 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
         notFound();
     }
 
-    // Function to strip legacy inline styles and classes to allow our CSS to take over
+    // Reuse the cleaning logic, but now it sits inside a constrained layout
     const cleanHtml = (html: string) => {
         return html
-            // Remove all style attributes (double and single quotes)
             .replace(/style="[^"]*"/gi, '')
             .replace(/style='[^']*'/gi, '')
-            // Remove all class attributes (double and single quotes)
             .replace(/class="[^"]*"/gi, '')
             .replace(/class='[^']*'/gi, '')
-            // Remove script tags
             .replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gim, "")
-            // Normalize headlines for our CSS
             .replace(/<h2/g, '<h2>')
             .replace(/<h3/g, '<h3>')
-            // Remove empty divs
             .replace(/<div>\s*<\/div>/g, '');
     };
 
     const sanitizedContent = cleanHtml(post.content);
 
+    // Standard "News" Layout Structure
     return (
-        <article className="min-h-screen bg-black text-white selection:bg-gold selection:text-black relative">
-            {/* Version Marker v2 */}
-            <div className="fixed top-0 left-0 w-4 h-4 bg-blue-600 z-[9999] border border-white" title="DEPLOYMENT V2 CHECK" />
+        <main style={{ background: "var(--color-background)", minHeight: '100vh', color: "var(--color-text)" }}>
+            {/* Version Marker V3 - News Refactor */}
+            <div className="fixed top-0 left-0 w-4 h-4 bg-green-500 z-[9999] border border-white" title="DEPLOYMENT V3 - NEWS LAYOUT" />
 
-            {/* Hero Section */}
-            <div className="relative w-full h-[60vh] flex items-end">
-                {post.image && (
-                    <Image
-                        src={post.image.startsWith('http') ? post.image : `${post.image}`}
-                        alt={post.title}
-                        fill
-                        className="object-cover opacity-40 fixed inset-0 h-[60vh] z-0"
-                        priority
-                    />
-                )}
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent z-10" />
+            <article className="container" style={{ padding: "8rem 2rem 4rem", maxWidth: "800px", margin: "0 auto" }}>
 
-                <div className="container mx-auto px-4 pb-20 relative z-20">
-                    <Link href="/nowosielski" className="inline-flex items-center text-gold mb-8 hover:text-white transition-colors">
-                        <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
-                        Powrót do bloga
+                {/* Back Link */}
+                <div style={{ marginBottom: "2rem" }}>
+                    <Link href="/nowosielski" style={{
+                        color: "var(--color-text-muted)",
+                        textDecoration: "none",
+                        fontSize: "0.9rem",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.5rem",
+                        transition: "color 0.2s"
+                    }}
+                        className="hover:text-primary"
+                    >
+                        &larr; Powrót do bloga
                     </Link>
-                    <div className="max-w-4xl">
-                        <span className="text-gold font-bold tracking-widest uppercase text-sm mb-4 block">
-                            {new Date(post.date).toLocaleDateString('pl-PL', { dateStyle: 'long' })}
-                        </span>
-                        <h1 className="text-4xl md:text-6xl font-bold text-white mb-6 leading-tight">
+                </div>
+
+                <RevealOnScroll>
+                    <header style={{ marginBottom: "3rem", textAlign: "center" }}>
+                        <h1 style={{
+                            fontSize: "clamp(2rem, 4vw, 3rem)",
+                            lineHeight: "1.2",
+                            marginBottom: "2rem",
+                            color: "var(--color-text)"
+                        }}>
                             {post.title}
                         </h1>
-                    </div>
-                </div>
-            </div>
 
-            {/* Content */}
-            <div className="container mx-auto px-4 py-12 relative z-20 bg-black">
-                <div className="max-w-3xl mx-auto">
-                    {/* ID used for high-specificity CSS targeting in blog.css */}
-                    <div id="legacy-blog-content" className="prose prose-invert prose-lg md:prose-xl max-w-none">
+                        <div style={{ position: "relative", width: "100%", height: "400px", borderRadius: "var(--radius-md)", overflow: "hidden", marginBottom: '2rem' }}>
+                            {post.image && (
+                                <Image
+                                    src={post.image.startsWith('http') ? post.image : `${post.image}`}
+                                    alt={post.title}
+                                    fill
+                                    style={{ objectFit: "cover" }}
+                                    priority
+                                />
+                            )}
+                            <div style={{
+                                position: "absolute",
+                                bottom: 0,
+                                left: 0,
+                                background: "rgba(0,0,0,0.6)",
+                                padding: "0.5rem 1rem",
+                                borderTopRightRadius: "var(--radius-md)",
+                                color: "#d4af37",
+                                fontWeight: 600,
+                                backdropFilter: "blur(4px)"
+                            }}>
+                                {new Date(post.date).toLocaleDateString('pl-PL')}
+                            </div>
+                        </div>
+                    </header>
+                </RevealOnScroll>
+
+                <RevealOnScroll animation="fade-up">
+                    <div id="legacy-blog-content" className="article-content" style={{
+                        color: "var(--color-text-muted)",
+                        lineHeight: "1.8",
+                        fontSize: "1.05rem"
+                    }}>
                         <div dangerouslySetInnerHTML={{ __html: sanitizedContent }} />
                     </div>
+                </RevealOnScroll>
 
-                    {/* Author Bio */}
-                    <div className="mt-20 border-t border-gray-800 pt-12 flex items-start gap-6">
-                        <div className="bg-gold rounded-full w-20 h-20 flex-shrink-0 flex items-center justify-center text-3xl font-bold text-black border-4 border-black shadow-[0_0_0_2px_rgba(212,175,55,1)]">
-                            MN
-                        </div>
-                        <div>
-                            <h3 className="text-xl font-bold text-white mb-2">Dr Marcin Nowosielski</h3>
-                            <p className="text-gray-400">
-                                Lekarz dentysta, pasjonat stomatologii cyfrowej i endodoncji mikroskopowej.
-                                Prywatnie "Dental MacGyver", fan ostrego brzmienia i jazdy off-road na desce.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </article>
+            </article>
+        </main>
     );
 }
