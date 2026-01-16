@@ -23,14 +23,21 @@ async function createGoldBorderIcon() {
         const toothIcon = logo.clone().extract({ left: 0, top: 0, width: cropWidth, height: size }); // Narrower crop
 
         // Create Gold Border SVG
+        // Create Gold Border SVG
         const width = 512;
-        const borderWidth = 15;
-        const goldColor = "#D4AF37"; // Metallic Gold
-        const borderRadius = 80;
+        const borderWidth = 25; // Thicker border
+        const padding = 36; // Moving border inside to avoid cutoff
+        const goldColor = "#D4AF37";
+        const borderRadius = 90;
+
+        // Rect calculation:
+        // x/y = padding + half-border (to keep stroke fully inside padding area)
+        const rectX = padding + borderWidth / 2;
+        const rectSize = width - (2 * padding) - borderWidth;
 
         const borderSvg = Buffer.from(`
             <svg width="${width}" height="${width}">
-                <rect x="${borderWidth / 2}" y="${borderWidth / 2}" width="${width - borderWidth}" height="${width - borderWidth}" rx="${borderRadius}" ry="${borderRadius}" 
+                <rect x="${rectX}" y="${rectX}" width="${rectSize}" height="${rectSize}" rx="${borderRadius}" ry="${borderRadius}" 
                       fill="none" stroke="${goldColor}" stroke-width="${borderWidth}" />
             </svg>
         `);
@@ -38,11 +45,11 @@ async function createGoldBorderIcon() {
         // Create Base: Black Background
         // Composite: 
         // 1. Black Background
-        // 2. Tooth Icon (resized to ~60% of 512)
+        // 2. Tooth Icon (resized to ~55% of 512 to fit inside thicker border)
         // 3. Gold Border
 
         const toothBuffer = await toothIcon
-            .resize(Math.floor(width * 0.6)) // 60% size
+            .resize(Math.floor(width * 0.55))
             .toBuffer();
 
         console.log('Compositing 512x512 icon...');
