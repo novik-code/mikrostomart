@@ -28,15 +28,23 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
         notFound();
     }
 
-    // Helper to format content for styling
-    const formattedContent = post.content
-        .replace(/<h2/g, '<h2 class="text-3xl font-bold text-gold mt-12 mb-6"')
-        .replace(/<h3/g, '<h3 class="text-2xl font-bold text-white mt-8 mb-4"')
-        .replace(/<p/g, '<p class="text-gray-300 leading-relaxed mb-6 text-lg"')
-        .replace(/<ul/g, '<ul class="list-disc list-inside text-gray-300 space-y-2 mb-6"')
-        .replace(/<a /g, '<a class="text-gold hover:underline" ')
-        .replace(/<iframe/g, '<div class="aspect-video w-full my-8 rounded-xl overflow-hidden shadow-2xl"><iframe class="w-full h-full"');
+    // Function to strip legacy inline styles and classes to allow our CSS to take over
+    const cleanHtml = (html: string) => {
+        return html
+            // Remove all style attributes
+            .replace(/style="[^"]*"/gi, '')
+            // Remove all class attributes
+            .replace(/class="[^"]*"/gi, '')
+            // Remove script tags
+            .replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gim, "")
+            // Normalize headlines for our CSS
+            .replace(/<h2/g, '<h2>')
+            .replace(/<h3/g, '<h3>')
+            // Remove empty divs
+            .replace(/<div>\s*<\/div>/g, '');
+    };
 
+    const sanitizedContent = cleanHtml(post.content);
 
     return (
         <article className="min-h-screen bg-black text-white selection:bg-gold selection:text-black">
@@ -44,7 +52,7 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
             <div className="relative w-full h-[60vh] flex items-end">
                 {post.image && (
                     <Image
-                        src={post.image}
+                        src={post.image.startsWith('http') ? post.image : `${post.image}`}
                         alt={post.title}
                         fill
                         className="object-cover opacity-40 fixed inset-0 h-[60vh] z-0"
@@ -72,10 +80,9 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
             {/* Content */}
             <div className="container mx-auto px-4 py-12 relative z-20 bg-black">
                 <div className="max-w-3xl mx-auto">
-                    <div
-                        className="prose prose-invert prose-lg md:prose-xl max-w-none blog-content"
-                    >
-                        <div dangerouslySetInnerHTML={{ __html: post.content }} />
+                    {/* ID used for high-specificity CSS targeting in blog.css */}
+                    <div id="legacy-blog-content" className="prose prose-invert prose-lg md:prose-xl max-w-none">
+                        <div dangerouslySetInnerHTML={{ __html: sanitizedContent }} />
                     </div>
 
                     {/* Author Bio */}
