@@ -14,11 +14,13 @@ async function createGoldBorderIcon() {
         const metadata = await logo.metadata();
 
         // Strategy: Crop the left-most square (assuming icon is there) 
-        // Logic: Height is 401. So crop 401x401 from 0,0.
         const size = Math.min(metadata.width, metadata.height);
-        console.log(`Cropping logo to ${size}x${size} from left...`);
 
-        const toothIcon = logo.clone().extract({ left: 0, top: 0, width: size, height: size }); // Square crop of the icon part
+        // Reduce width to avoid capturing the start of the text "M" (which is likely gold/yellow)
+        const cropWidth = Math.floor(size * 0.85);
+        console.log(`Cropping logo to ${cropWidth}x${size} from left...`);
+
+        const toothIcon = logo.clone().extract({ left: 0, top: 0, width: cropWidth, height: size }); // Narrower crop
 
         // Create Gold Border SVG
         const width = 512;
