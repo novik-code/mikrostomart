@@ -190,12 +190,11 @@ export default function Navbar() {
                         <Link href="/oferta" className={styles.mobileLink} onClick={closeMenu}>Oferta</Link>
                         <Link href="/aktualnosci" className={styles.mobileLink} onClick={closeMenu}>Aktualności</Link>
 
-                        <Link href="/nowosielski" className={styles.mobileLink} onClick={closeMenu} style={{ color: '#d4af37', fontWeight: 'bold' }}>👨‍⚕️ Blog Dr. Marcin</Link>
-
                         {/* Mobile Expanded "Dodatki" */}
                         <div style={{ padding: '1rem 0', borderTop: '1px solid rgba(255,255,255,0.1)', borderBottom: '1px solid rgba(255,255,255,0.1)', width: '100%' }}>
                             <div style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Dodatki</div>
                             <Link href="/baza-wiedzy" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem' }}>📚 Baza Wiedzy</Link>
+                            <Link href="/nowosielski" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem', color: '#d4af37', fontWeight: 'bold' }}>👨‍⚕️ Blog Dr. Marcin</Link>
                             <Link href="/sklep" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem' }}>🛍️ Sklep</Link>
                             <Link href="/symulator" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', color: 'var(--color-primary)', marginBottom: '0.5rem' }}>✨ Symulator AI</Link>
                             <button

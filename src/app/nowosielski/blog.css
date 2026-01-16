@@ -92,15 +92,26 @@
     position: absolute !important;
 }
 
-/* HUGE ARROWS FIX */
-.blog-content svg {
+/* HUGE ARROWS FIX - NUCLEAR OPTION */
+.blog-content svg,
+.blog-content svg * {
+    width: 24px !important;
+    height: 24px !important;
     max-width: 24px !important;
     max-height: 24px !important;
-    margin: auto;
+    min-width: unset !important;
+    min-height: unset !important;
+    margin: 0 auto !important;
     display: inline-block !important;
-    /* Force inline to avoid block expansion */
+}
+
+/* Specific fix for known huge icons from themes */
+.blog-content .fa,
+.blog-content .fas,
+.blog-content i[class*="icon-"] {
+    font-size: 1rem !important;
     width: auto !important;
-    /* Override width: 100% legacy styles */
+    height: auto !important;
 }
 
 /* TABLE FIXES */
