@@ -35,7 +35,7 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
 
     // Reuse the cleaning logic, but now it sits inside a constrained layout
     const cleanHtml = (html: string) => {
-        return html
+        let cleaned = html
             .replace(/style="[^"]*"/gi, '')
             .replace(/style='[^']*'/gi, '')
             .replace(/class="[^"]*"/gi, '')
@@ -43,15 +43,27 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
             .replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gim, "")
             .replace(/<h2/g, '<h2>')
             .replace(/<h3/g, '<h3>')
-            .replace(/<div>\s*<\/div>/g, '')
-            // Fix HTML Entities
-            .replace(/&#8211;/g, '–')
-            .replace(/&#8212;/g, '—')
-            .replace(/&#8216;/g, '‘')
-            .replace(/&#8217;/g, '’')
-            .replace(/&#8220;/g, '“')
-            .replace(/&#8221;/g, '”')
-            .replace(/&nbsp;/g, ' ');
+            .replace(/<div>\s*<\/div>/g, '');
+
+        // Aggressive Entity Decoding (Including potential double encoding)
+        const entities: { [key: string]: string } = {
+            '&#8211;': '–', '&amp;#8211;': '–',
+            '&#8212;': '—', '&amp;#8212;': '—',
+            '&#8216;': '‘', '&amp;#8216;': '‘',
+            '&#8217;': '’', '&amp;#8217;': '’',
+            '&#8220;': '“', '&amp;#8220;': '“',
+            '&#8221;': '”', '&amp;#8221;': '”',
+            '&nbsp;': ' ', '&amp;nbsp;': ' ',
+            '&#038;': '&', '&amp;#038;': '&',
+            '&#38;': '&', '&amp;#38;': '&'
+        };
+
+        for (const [entity, replacement] of Object.entries(entities)) {
+            // Replace all occurrences
+            cleaned = cleaned.split(entity).join(replacement);
+        }
+
+        return cleaned;
     };
 
     const sanitizedContent = cleanHtml(post.content);

@@ -30,10 +30,12 @@ export default function PWAInstallPrompt() {
         if (isIosDevice) {
             setIsIOS(true);
             // Show prompt after a delay for iOS users, or maybe check a cookie to not annoy them
-            const hasSeenPrompt = localStorage.getItem("pwa_prompt_seen");
-            if (!hasSeenPrompt) {
-                setTimeout(() => setShowPrompt(true), 3000);
-            }
+            setIsIOS(true);
+            // Show prompt after a delay for iOS users, or maybe check a cookie to not annoy them
+            // const hasSeenPrompt = localStorage.getItem("pwa_prompt_seen");
+            // if (!hasSeenPrompt) {
+            setTimeout(() => setShowPrompt(true), 3000);
+            // }
         }
 
         return () => {
@@ -55,7 +57,7 @@ export default function PWAInstallPrompt() {
 
     const closePrompt = () => {
         setShowPrompt(false);
-        localStorage.setItem("pwa_prompt_seen", "true");
+        // localStorage.setItem("pwa_prompt_seen", "true");
     };
 
     if (!showPrompt) return null;
