@@ -256,234 +256,198 @@ export default function SimulatorModal() {
             ctx.beginPath();
             ctx.moveTo(mp[0].x * canvas.width, mp[0].y * canvas.height);
             for (let i = 1; i < mp.length; i++) {
-                ctx.stroke();
 
-                // Draw REFERENCE LANDMARKS (To debug global shift)
-                // Face Box (Green)
-                if (analysis.faceBox) {
-                    ctx.strokeStyle = 'lime';
-                    ctx.lineWidth = 2;
-                    ctx.strokeRect(
-                        analysis.faceBox.x * canvas.width,
-                        analysis.faceBox.y * canvas.height,
-                        analysis.faceBox.width * canvas.width,
-                        analysis.faceBox.height * canvas.height
-                    );
-                }
+                const formData = new FormData();
+                formData.append("image", imgBlob);
+                formData.append("mask", maskBlob);
+                formData.append("style", "hollywood");
 
-                // Center (Blue)
-                ctx.fillStyle = 'blue';
-                ctx.beginPath();
-                ctx.arc(analysis.x / 100 * canvas.width, analysis.y / 100 * canvas.height, 10, 0, 2 * Math.PI);
-                ctx.fill();
+                const res = await fetch("/api/simulate", { method: "POST", body: formData });
+                if (!res.ok) throw new Error("Błąd serwera. Spróbuj później.");
 
-                const debugData = canvas.toDataURL('image/png');
-                setDebugMaskSrc(debugData);
+                const { id } = await res.json();
 
-                return maskData;
+                // Polling with Timeout
+                let attempts = 0;
+                const maxAttempts = 60; // Increased to 60 seconds for slower queues
 
-            } catch (e) {
-                console.warn("Face detection failed.", e);
-                throw new Error("Nie udało się wykryć ust. Upewnij się, że twarz jest oświetlona i widoczna, lub oddal nieco aparat.");
-            }
-        };
-
-        const runSimulation = async (imgSrc: string, maskSrc: string) => {
-            // Convert to Blobs
-            const imgBlob = await (await fetch(imgSrc)).blob();
-            const maskBlob = await (await fetch(maskSrc)).blob();
-
-            const formData = new FormData();
-            formData.append("image", imgBlob);
-            formData.append("mask", maskBlob);
-            formData.append("style", "hollywood");
-
-            const res = await fetch("/api/simulate", { method: "POST", body: formData });
-            if (!res.ok) throw new Error("Błąd serwera. Spróbuj później.");
-
-            const { id } = await res.json();
-
-            // Polling with Timeout
-            let attempts = 0;
-            const maxAttempts = 60; // Increased to 60 seconds for slower queues
-
-            const poll = async () => {
-                attempts++;
-                if (attempts > maxAttempts) {
-                    setError("Zbyt długi czas oczekiwania (60s). Spróbuj ponownie.");
-                    setStep('intro');
-                    return;
-                }
-
-                try {
-                    const sRes = await fetch(`/api/simulate?id=${id}`);
-                    const data = await sRes.json();
-
-                    if (data.status === 'succeeded') {
-                        setResultImage(data.url);
-                        setStep('result');
-                    } else if (data.status === 'failed' || data.status === 'canceled') {
-                        setError("AI nie poradziło sobie z tym zdjęciem.");
+                const poll = async () => {
+                    attempts++;
+                    if (attempts > maxAttempts) {
+                        setError("Zbyt długi czas oczekiwania (60s). Spróbuj ponownie.");
                         setStep('intro');
-                    } else {
-                        setTimeout(poll, 1000);
+                        return;
                     }
-                } catch (err) {
-                    setTimeout(poll, 1000); // Retry network glitches
-                }
+
+                    try {
+                        const sRes = await fetch(`/api/simulate?id=${id}`);
+                        const data = await sRes.json();
+
+                        if (data.status === 'succeeded') {
+                            setResultImage(data.url);
+                            setStep('result');
+                        } else if (data.status === 'failed' || data.status === 'canceled') {
+                            setError("AI nie poradziło sobie z tym zdjęciem.");
+                            setStep('intro');
+                        } else {
+                            setTimeout(poll, 1000);
+                        }
+                    } catch (err) {
+                        setTimeout(poll, 1000); // Retry network glitches
+                    }
+                };
+                poll();
             };
-            poll();
-        };
 
-        // --- RENDER ---
-        if (!isOpen) return null;
+            // --- RENDER ---
+            if (!isOpen) return null;
 
-        return (
-            <div style={{
-                position: 'fixed', inset: 0, zIndex: 9999,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                backgroundColor: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(10px)',
-                fontFamily: 'sans-serif'
-            }}>
-
-                {/* CLOSE BTN */}
-                <button onClick={closeSimulator} style={{
-                    position: 'absolute', top: '20px', right: '20px',
-                    background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%',
-                    color: 'white', padding: '10px', cursor: 'pointer', zIndex: 100
-                }}>
-                    <X size={24} />
-                </button>
-
-
-                {/* DEBUG TOGGLE (Hidden in corner) */}
-                <button onClick={() => setShowDebug(!showDebug)} style={{
-                    position: 'absolute', top: '20px', left: '20px',
-                    background: showDebug ? 'red' : 'rgba(255,255,255,0.05)', border: 'none', borderRadius: '5px',
-                    color: 'white', padding: '5px 10px', cursor: 'pointer', zIndex: 100, fontSize: '10px'
-                }}>
-                    DEBUG
-                </button>
-
-                {/* MODAL WINDOW */}
+            return (
                 <div style={{
-                    width: '100%', maxWidth: '500px', height: '100%', maxHeight: '800px',
-                    display: 'flex', flexDirection: 'column', position: 'relative',
-                    overflow: 'hidden', backgroundColor: 'black'
+                    position: 'fixed', inset: 0, zIndex: 9999,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    backgroundColor: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(10px)',
+                    fontFamily: 'sans-serif'
                 }}>
 
-                    {/* --- HEADER --- */}
-                    <div style={{ padding: '20px', textAlign: 'center', background: '#0f0f0f' }}>
-                        <h2 style={{ margin: 0, color: '#dcb14a' }}>Symulator Uśmiechu</h2>
-                    </div>
+                    {/* CLOSE BTN */}
+                    <button onClick={closeSimulator} style={{
+                        position: 'absolute', top: '20px', right: '20px',
+                        background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%',
+                        color: 'white', padding: '10px', cursor: 'pointer', zIndex: 100
+                    }}>
+                        <X size={24} />
+                    </button>
 
-                    {/* --- CONTENT --- */}
-                    <div style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
 
-                        {/* DEBUG OVERLAY */}
-                        {showDebug && debugMaskSrc && originalImage && (
-                            <div style={{
-                                position: 'absolute', top: 50, left: 50, width: '200px', zIndex: 200,
-                                border: '2px solid red', background: 'black'
-                            }}>
-                                <p style={{ fontSize: '10px', color: 'red', margin: 0 }}>MASK PREVIEW:</p>
-                                <img src={originalImage} style={{ width: '100%', display: 'block' }} />
-                                <img src={debugMaskSrc} style={{
-                                    width: '100%', position: 'absolute', top: 0, left: 0,
-                                    opacity: 0.5, mixBlendMode: 'screen'
-                                }} />
-                            </div>
-                        )}
+                    {/* DEBUG TOGGLE (Hidden in corner) */}
+                    <button onClick={() => setShowDebug(!showDebug)} style={{
+                        position: 'absolute', top: '20px', left: '20px',
+                        background: showDebug ? 'red' : 'rgba(255,255,255,0.05)', border: 'none', borderRadius: '5px',
+                        color: 'white', padding: '5px 10px', cursor: 'pointer', zIndex: 100, fontSize: '10px'
+                    }}>
+                        DEBUG
+                    </button>
 
-                        {error && (
-                            <div style={{
-                                position: 'absolute', top: '10px', left: '20px', right: '20px', zIndex: 50,
-                                background: 'rgba(255,0,0,0.2)', border: '1px solid red', color: '#ffaaaa',
-                                padding: '10px', borderRadius: '8px', fontSize: '14px', textAlign: 'center'
-                            }}>
-                                <AlertTriangle size={14} style={{ display: 'inline', marginRight: '6px' }} /> {error}
-                            </div>
-                        )}
+                    {/* MODAL WINDOW */}
+                    <div style={{
+                        width: '100%', maxWidth: '500px', height: '100%', maxHeight: '800px',
+                        display: 'flex', flexDirection: 'column', position: 'relative',
+                        overflow: 'hidden', backgroundColor: 'black'
+                    }}>
 
-                        {step === 'intro' && (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%' }}>
+                        {/* --- HEADER --- */}
+                        <div style={{ padding: '20px', textAlign: 'center', background: '#0f0f0f' }}>
+                            <h2 style={{ margin: 0, color: '#dcb14a' }}>Symulator Uśmiechu</h2>
+                        </div>
+
+                        {/* --- CONTENT --- */}
+                        <div style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+
+                            {/* DEBUG OVERLAY */}
+                            {showDebug && debugMaskSrc && originalImage && (
                                 <div style={{
-                                    width: '100%', aspectRatio: '1/1', background: '#1a1a1a', borderRadius: '20px',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                    position: 'absolute', top: 50, left: 50, width: '200px', zIndex: 200,
+                                    border: '2px solid red', background: 'black'
                                 }}>
-                                    <div style={{ fontSize: '80px' }}>✨</div>
-                                </div>
-
-                                <button onClick={startCamera} style={{
-                                    width: '100%', padding: '20px', borderRadius: '15px', border: 'none',
-                                    background: '#fff', color: '#000', fontSize: '18px', fontWeight: 'bold',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
-                                    cursor: 'pointer'
-                                }}>
-                                    <Camera /> Uruchom Kamerę
-                                </button>
-
-                                <button onClick={() => fileInputRef.current?.click()} style={{
-                                    width: '100%', padding: '20px', borderRadius: '15px', border: '1px solid #444',
-                                    background: 'transparent', color: '#fff', fontSize: '18px', fontWeight: 'bold',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
-                                    cursor: 'pointer'
-                                }}>
-                                    <Upload /> Wgraj Zdjęcie
-                                </button>
-
-                                <input type="file" ref={fileInputRef} accept="image/*" onChange={handleFileChange} style={{ display: 'none' }} />
-                            </div>
-                        )}
-
-                        {step === 'camera' && (
-                            <div style={{ position: 'relative', width: '100%', height: '100%', borderRadius: '20px', overflow: 'hidden', background: '#000' }}>
-                                <video
-                                    ref={videoRef}
-                                    autoPlay playsInline muted
-                                    style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }}
-                                />
-                                <div style={{ position: 'absolute', bottom: '20px', left: 0, right: 0, display: 'flex', justifyContent: 'center' }}>
-                                    <button onClick={capturePhoto} style={{
-                                        width: '80px', height: '80px', borderRadius: '50%',
-                                        background: '#fff', border: '5px solid #dcb14a'
+                                    <p style={{ fontSize: '10px', color: 'red', margin: 0 }}>MASK PREVIEW:</p>
+                                    <img src={originalImage} style={{ width: '100%', display: 'block' }} />
+                                    <img src={debugMaskSrc} style={{
+                                        width: '100%', position: 'absolute', top: 0, left: 0,
+                                        opacity: 0.5, mixBlendMode: 'screen'
                                     }} />
                                 </div>
-                            </div>
-                        )}
+                            )}
 
-                        {step === 'processing' && (
-                            <div style={{ textAlign: 'center' }}>
-                                <div className="animate-spin" style={{ margin: '0 auto 20px', width: '50px', height: '50px', border: '4px solid #333', borderTopColor: '#dcb14a', borderRadius: '50%' }} />
-                                <h3 style={{ color: 'white' }}>{statusMsg}</h3>
-                            </div>
-                        )}
-
-                        {step === 'result' && originalImage && resultImage && (
-                            <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                                <div style={{ flex: 1, position: 'relative', borderRadius: '12px', overflow: 'hidden', border: '1px solid #333' }}>
-                                    <BeforeAfterSlider beforeImage={originalImage} afterImage={resultImage} />
+                            {error && (
+                                <div style={{
+                                    position: 'absolute', top: '10px', left: '20px', right: '20px', zIndex: 50,
+                                    background: 'rgba(255,0,0,0.2)', border: '1px solid red', color: '#ffaaaa',
+                                    padding: '10px', borderRadius: '8px', fontSize: '14px', textAlign: 'center'
+                                }}>
+                                    <AlertTriangle size={14} style={{ display: 'inline', marginRight: '6px' }} /> {error}
                                 </div>
-                                <div style={{ display: 'flex', gap: '10px', width: '100%' }}>
-                                    <button onClick={() => handleImageSelected(originalImage)} style={{
-                                        flex: 1, padding: '15px', borderRadius: '50px',
-                                        background: '#dcb14a', color: 'black', border: 'none', fontWeight: 'bold',
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', cursor: 'pointer'
-                                    }}>
-                                        <RefreshCw size={18} /> Ulepsz Ponownie
-                                    </button>
-                                    <button onClick={() => setStep('intro')} style={{
-                                        padding: '15px', borderRadius: '50%', background: '#333', color: 'white', border: 'none',
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', aspectRatio: '1/1'
-                                    }}>
-                                        <RotateCcw size={18} />
-                                    </button>
-                                </div>
-                            </div>
-                        )}
+                            )}
 
+                            {step === 'intro' && (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%' }}>
+                                    <div style={{
+                                        width: '100%', aspectRatio: '1/1', background: '#1a1a1a', borderRadius: '20px',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                    }}>
+                                        <div style={{ fontSize: '80px' }}>✨</div>
+                                    </div>
+
+                                    <button onClick={startCamera} style={{
+                                        width: '100%', padding: '20px', borderRadius: '15px', border: 'none',
+                                        background: '#fff', color: '#000', fontSize: '18px', fontWeight: 'bold',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
+                                        cursor: 'pointer'
+                                    }}>
+                                        <Camera /> Uruchom Kamerę
+                                    </button>
+
+                                    <button onClick={() => fileInputRef.current?.click()} style={{
+                                        width: '100%', padding: '20px', borderRadius: '15px', border: '1px solid #444',
+                                        background: 'transparent', color: '#fff', fontSize: '18px', fontWeight: 'bold',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
+                                        cursor: 'pointer'
+                                    }}>
+                                        <Upload /> Wgraj Zdjęcie
+                                    </button>
+
+                                    <input type="file" ref={fileInputRef} accept="image/*" onChange={handleFileChange} style={{ display: 'none' }} />
+                                </div>
+                            )}
+
+                            {step === 'camera' && (
+                                <div style={{ position: 'relative', width: '100%', height: '100%', borderRadius: '20px', overflow: 'hidden', background: '#000' }}>
+                                    <video
+                                        ref={videoRef}
+                                        autoPlay playsInline muted
+                                        style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }}
+                                    />
+                                    <div style={{ position: 'absolute', bottom: '20px', left: 0, right: 0, display: 'flex', justifyContent: 'center' }}>
+                                        <button onClick={capturePhoto} style={{
+                                            width: '80px', height: '80px', borderRadius: '50%',
+                                            background: '#fff', border: '5px solid #dcb14a'
+                                        }} />
+                                    </div>
+                                </div>
+                            )}
+
+                            {step === 'processing' && (
+                                <div style={{ textAlign: 'center' }}>
+                                    <div className="animate-spin" style={{ margin: '0 auto 20px', width: '50px', height: '50px', border: '4px solid #333', borderTopColor: '#dcb14a', borderRadius: '50%' }} />
+                                    <h3 style={{ color: 'white' }}>{statusMsg}</h3>
+                                </div>
+                            )}
+
+                            {step === 'result' && originalImage && resultImage && (
+                                <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                    <div style={{ flex: 1, position: 'relative', borderRadius: '12px', overflow: 'hidden', border: '1px solid #333' }}>
+                                        <BeforeAfterSlider beforeImage={originalImage} afterImage={resultImage} />
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '10px', width: '100%' }}>
+                                        <button onClick={() => handleImageSelected(originalImage)} style={{
+                                            flex: 1, padding: '15px', borderRadius: '50px',
+                                            background: '#dcb14a', color: 'black', border: 'none', fontWeight: 'bold',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', cursor: 'pointer'
+                                        }}>
+                                            <RefreshCw size={18} /> Ulepsz Ponownie
+                                        </button>
+                                        <button onClick={() => setStep('intro')} style={{
+                                            padding: '15px', borderRadius: '50%', background: '#333', color: 'white', border: 'none',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', aspectRatio: '1/1'
+                                        }}>
+                                            <RotateCcw size={18} />
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                        </div>
                     </div>
                 </div>
-            </div>
-        );
-    }
+            );
+        }
