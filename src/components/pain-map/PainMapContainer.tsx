@@ -59,7 +59,7 @@ export default function PainMapContainer() {
 
                     {step === 'location' && (
                         <motion.div
-                            key="location"
+                            key="location-v2"
                             initial={{ opacity: 0, x: -20 }}
                             animate={{ opacity: 1, x: 0 }}
                             exit={{ opacity: 0, x: 20 }}
