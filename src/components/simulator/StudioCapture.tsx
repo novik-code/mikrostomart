@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { Camera, Upload, RefreshCw, Image as ImageIcon } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { Camera, Upload, RefreshCw, Image as ImageIcon, AlertTriangle } from "lucide-react";
 
 interface StudioCaptureProps {
     onImageSelected: (imageData: string) => void;
@@ -11,28 +11,28 @@ export default function StudioCapture({ onImageSelected }: StudioCaptureProps) {
     const [isCameraOpen, setIsCameraOpen] = useState(false);
     const videoRef = useRef<HTMLVideoElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
-
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
+    const [debugInfo, setDebugInfo] = useState<string>("");
 
+    // Initialize Camera
     const startCamera = async () => {
         setErrorMsg(null);
+        setIsCameraOpen(true); // Switch UI immediately
         try {
-            // Constraints: Relaxed for better compatibility on mobile/safari
             const stream = await navigator.mediaDevices.getUserMedia({
                 video: {
-                    facingMode: 'user'
-                    // removed specific width/height aiming to let the OS decide best fit
+                    facingMode: 'user', // Prefer front camera
                 },
                 audio: false
             });
-            setIsCameraOpen(true);
+
             if (videoRef.current) {
                 videoRef.current.srcObject = stream;
             }
         } catch (err: any) {
-            console.error("Camera access denied:", err);
-            // Display error to user
-            setErrorMsg(err.message || "Błąd dostępu do kamery. Sprawdź uprawnienia lub użyj innej przeglądarki.");
+            console.error("Camera Error:", err);
+            setErrorMsg(err.message || "Błąd kamery. Spróbuj wgrać zdjęcie.");
+            setDebugInfo(err.toString());
         }
     };
 
@@ -48,22 +48,25 @@ export default function StudioCapture({ onImageSelected }: StudioCaptureProps) {
     const capturePhoto = () => {
         if (!videoRef.current) return;
         const video = videoRef.current;
-        const canvas = document.createElement("canvas");
 
-        // Square crop logic (center crop)
+        // Ensure we have dimensions
+        if (video.videoWidth === 0 || video.videoHeight === 0) {
+            alert("Kamera nie gotowa. Poczekaj chwilę.");
+            return;
+        }
+
+        const canvas = document.createElement("canvas");
+        // Capture square center crop
         const size = Math.min(video.videoWidth, video.videoHeight);
         canvas.width = size;
         canvas.height = size;
 
         const ctx = canvas.getContext("2d");
         if (ctx) {
-            // Draw center crop
             const sx = (video.videoWidth - size) / 2;
             const sy = (video.videoHeight - size) / 2;
             ctx.drawImage(video, sx, sy, size, size, 0, 0, size, size);
-
-            const imgData = canvas.toDataURL("image/png");
-            onImageSelected(imgData);
+            onImageSelected(canvas.toDataURL("image/png"));
             stopCamera();
         }
     };
@@ -81,303 +84,162 @@ export default function StudioCapture({ onImageSelected }: StudioCaptureProps) {
         }
     };
 
+    // --- RENDER ---
     return (
         <div style={{
-            width: '100%',
-            height: '100%',
             display: 'flex',
             flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '24px',
-            textAlign: 'center',
+            width: '100%',
+            height: '100%', // Parent (page) should provide height (100dvh)
+            backgroundColor: '#000',
+            color: 'white',
             position: 'relative',
-            backgroundColor: '#08090a', // Hardcoded Dark Background
-            color: '#ffffff',
-            fontFamily: 'var(--font-heading, "Times New Roman")', // Fallback check
+            overflow: 'hidden'
         }}>
-            {/* Background Ambient Glow */}
-            <div style={{
-                position: 'absolute',
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
-                width: '500px',
-                height: '500px',
-                backgroundColor: '#dcb14a', // Primary Gold
-                opacity: 0.05,
-                filter: 'blur(120px)',
-                borderRadius: '50%',
-                pointerEvents: 'none'
-            }} />
 
             {!isCameraOpen ? (
-                <div style={{ position: 'relative', zIndex: 10, maxWidth: '450px', width: '100%' }}>
-                    <div style={{ marginBottom: '40px' }}>
-
-                        {errorMsg && (
-                            <div style={{
-                                backgroundColor: 'rgba(255,50,50,0.1)',
-                                border: '1px solid #ff3333',
-                                color: '#ffaaaa',
-                                padding: '12px',
-                                borderRadius: '12px',
-                                marginBottom: '20px',
-                                fontSize: '14px'
-                            }}>
-                                ⚠️ {errorMsg}
-                            </div>
-                        )}
-
-                        <div style={{
-                            width: '80px',
-                            height: '80px',
-                            background: 'linear-gradient(135deg, #dcb14a 0%, #a68531 100%)',
-                            borderRadius: '20px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            margin: '0 auto 24px',
-                            boxShadow: '0 10px 30px rgba(220,177,74,0.2)',
-                            transform: 'rotate(3deg)'
-                        }}>
-                            {/* Icon Placeholder or Lucide */}
-                            <Camera size={36} color="black" />
-                        </div>
-                        <h2 style={{
-                            fontSize: '2.5rem',
-                            fontWeight: 400,
-                            marginBottom: '12px',
-                            color: 'white',
-                            fontFamily: 'serif'
-                        }}>
-                            Studio Uśmiechu
-                        </h2>
-                        <p style={{
-                            color: '#9ca3af',
-                            fontSize: '1.125rem',
-                            lineHeight: 1.6,
-                            fontWeight: 300
-                        }}>
-                            Przymierz nowy uśmiech w kilka sekund. <br />
-                            Technologia AI dla Twojej metamorfozy.
-                        </p>
-                    </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                        <button
-                            onClick={startCamera}
-                            style={{
-                                width: '100%',
-                                backgroundColor: '#ffffff',
-                                color: '#000000',
-                                padding: '16px 24px',
-                                borderRadius: '12px',
-                                fontSize: '1.125rem',
-                                fontWeight: 500,
-                                border: 'none',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '12px',
-                                boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-                                transition: 'transform 0.2s'
-                            }}
-                            onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
-                            onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                        >
-                            <Camera size={22} className="opacity-80" />
-                            <span>Zrób Selfie</span>
-                        </button>
-
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', margin: '8px 0' }}>
-                            <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }} />
-                            <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '1px' }}>lub</span>
-                            <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }} />
-                        </div>
-
-                        <button
-                            onClick={() => fileInputRef.current?.click()}
-                            style={{
-                                width: '100%',
-                                backgroundColor: 'rgba(255,255,255,0.05)',
-                                color: '#ffffff',
-                                border: '1px solid rgba(255,255,255,0.1)',
-                                padding: '16px 24px',
-                                borderRadius: '12px',
-                                fontSize: '1.125rem',
-                                fontWeight: 500,
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '12px',
-                                transition: 'background 0.2s'
-                            }}
-                            onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'}
-                            onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)'}
-                        >
-                            <Upload size={22} color="#dcb14a" />
-                            <span>Wybierz z Galerii</span>
-                        </button>
-                        <input
-                            type="file"
-                            accept="image/*"
-                            ref={fileInputRef}
-                            onChange={handleFileSelect}
-                            style={{ display: 'none' }}
-                        />
-                    </div>
-                </div>
-            ) : (
+                // --- INTRO SCREEN ---
                 <div style={{
-                    position: 'absolute',
-                    inset: 0,
-                    backgroundColor: 'black',
-                    zIndex: 50,
+                    flex: 1,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '24px',
+                    textAlign: 'center',
+                    background: 'radial-gradient(circle at center, #1a1a1a 0%, #000 100%)'
+                }}>
+                    <div style={{
+                        width: '80px', height: '80px',
+                        background: 'linear-gradient(135deg, #dcb14a, #856b2d)',
+                        borderRadius: '20px',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        marginBottom: '24px',
+                        boxShadow: '0 10px 30px rgba(220,177,74,0.3)'
+                    }}>
+                        <Camera size={40} color="black" />
+                    </div>
+
+                    <h1 style={{ fontSize: '2rem', marginBottom: '10px', color: '#f3f4f6' }}>Studio Uśmiechu</h1>
+                    <p style={{ color: '#9ca3af', marginBottom: '40px' }}>
+                        Przymierz nowy uśmiech w 10 sekund.<br />Sztuczna Inteligencja zrobi to za Ciebie.
+                    </p>
+
+                    {errorMsg && (
+                        <div style={{ color: '#ff6b6b', background: 'rgba(255,0,0,0.1)', padding: '10px', borderRadius: '8px', marginBottom: '20px' }}>
+                            <AlertTriangle size={16} style={{ display: 'inline', marginBottom: '-2px' }} /> {errorMsg}
+                        </div>
+                    )}
+
+                    <div style={{ width: '100%', maxWidth: '320px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                        <button onClick={startCamera} style={{
+                            padding: '16px', borderRadius: '12px',
+                            background: 'white', color: 'black',
+                            fontWeight: 'bold', fontSize: '1rem',
+                            border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'
+                        }}>
+                            <Camera size={20} /> Otwórz Kamerę
+                        </button>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#4b5563', fontSize: '12px' }}>
+                            <div style={{ flex: 1, height: '1px', background: '#374151' }} /> LUB <div style={{ flex: 1, height: '1px', background: '#374151' }} />
+                        </div>
+
+                        <button onClick={() => fileInputRef.current?.click()} style={{
+                            padding: '16px', borderRadius: '12px',
+                            background: 'rgba(255,255,255,0.1)', color: 'white',
+                            fontWeight: '500', fontSize: '1rem',
+                            border: '1px solid #374151', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'
+                        }}>
+                            <Upload size={20} /> Wybierz Zdjęcie
+                        </button>
+                    </div>
+                    <input type="file" accept="image/*" ref={fileInputRef} onChange={handleFileSelect} style={{ display: 'none' }} />
+                </div>
+
+            ) : (
+                // --- CAMERA VIEW ---
+                <div style={{
+                    flex: 1,
+                    position: 'relative',
+                    width: '100%',
+                    height: '100%',
                     display: 'flex',
                     flexDirection: 'column'
                 }}>
-                    <video
-                        ref={videoRef}
-                        autoPlay
-                        playsInline
-                        muted
-                        onLoadedMetadata={(e) => {
-                            // Force play again to be sure
-                            e.currentTarget.play().catch(console.error);
-                        }}
-                        style={{
-                            width: '100%',
-                            height: '100%',
-                            objectFit: 'cover',
+                    {/* VIDEO LAYER - Fills Available Space */}
+                    <div style={{ flex: 1, position: 'relative', overflow: 'hidden', backgroundColor: 'black' }}>
+                        <video
+                            ref={videoRef}
+                            autoPlay
+                            playsInline
+                            muted
+                            onLoadedMetadata={(e) => {
+                                e.currentTarget.play();
+                                setDebugInfo(`Stream OK: ${e.currentTarget.videoWidth}x${e.currentTarget.videoHeight}`);
+                            }}
+                            style={{
+                                width: '100%',
+                                height: '100%',
+                                objectFit: 'cover'
+                            }}
+                        />
+
+                        {/* GUIDE OVERLAY */}
+                        <div style={{
                             position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            zIndex: 1
-                        }}
-                    />
-
-                    {/* DEBUG INFO OVERLAY (Visible only when issues happen) */}
-                    <div style={{
-                        position: 'absolute',
-                        top: '10px',
-                        left: '10px',
-                        zIndex: 100,
-                        background: 'rgba(0,0,0,0.7)',
-                        color: 'lime',
-                        fontSize: '10px',
-                        padding: '4px',
-                        fontFamily: 'monospace',
-                        pointerEvents: 'none'
-                    }}>
-                        DEBUG: {isCameraOpen ? "Camera ON" : "Camera OFF"} <br />
-                        VideoRef: {videoRef.current ? "OK" : "Null"} <br />
-                        Stream: {videoRef.current?.srcObject ? "Active" : "None"} <br />
-                        Size: {videoRef.current?.videoWidth}x{videoRef.current?.videoHeight}
-                    </div>
-
-                    {/* Overlay Guide - Centered properly */}
-                    <div style={{
-                        position: 'absolute',
-                        inset: 0,
-                        pointerEvents: 'none',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexDirection: 'column',
-                        gap: '20px'
-                    }}>
-                        {/* The Face Frame */}
-                        <div style={{
-                            width: '85vw',
-                            maxWidth: '380px',
-                            aspectRatio: '3/4',
-                            border: '2px dashed rgba(255,255,255,0.4)',
-                            borderRadius: '50% 50% 40% 40%', // More face-like shape
-                            boxShadow: '0 0 0 9999px rgba(0,0,0,0.85)', // Dark opaque mask
-                            position: 'relative'
-                        }} />
-
-                        {/* Instruction Text - Below Frame */}
-                        <div style={{
-                            backgroundColor: 'rgba(0,0,0,0.6)',
-                            padding: '10px 24px',
-                            borderRadius: '30px',
-                            backdropFilter: 'blur(8px)',
-                            border: '1px solid rgba(255,255,255,0.1)'
+                            inset: 0,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            pointerEvents: 'none'
                         }}>
-                            <p style={{
-                                color: 'white',
-                                margin: 0,
-                                fontSize: '16px',
-                                fontWeight: 500
+                            <div style={{
+                                width: '70%',
+                                aspectRatio: '3/4',
+                                border: '2px dashed rgba(255,255,255,0.5)',
+                                borderRadius: '100px',
+                                boxShadow: '0 0 0 9999px rgba(0,0,0,0.8)'
+                            }} />
+
+                            <div style={{
+                                position: 'absolute', top: '20px',
+                                background: 'rgba(0,0,0,0.5)', color: 'white',
+                                padding: '6px 12px', borderRadius: '20px', fontSize: '14px'
                             }}>
                                 Ustaw twarz w ramce
-                            </p>
+                            </div>
+
+                            {/* CENTER DEBUG: Always Visible */}
+                            <div style={{
+                                position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+                                color: '#0f0', background: 'rgba(0,0,0,0.8)', padding: '10px', fontFamily: 'monospace',
+                                display: debugInfo ? 'block' : 'none'
+                            }}>
+                                {debugInfo}
+                            </div>
                         </div>
                     </div>
 
-                    {/* Controls Bar */}
+                    {/* CONTROLS (Bottom Bar) */}
                     <div style={{
-                        position: 'absolute',
-                        bottom: 0,
-                        left: 0,
-                        right: 0,
-                        height: '120px',
-                        background: 'linear-gradient(to top, black, transparent)',
+                        height: '100px',
+                        background: 'black',
                         display: 'flex',
-                        justifyContent: 'space-evenly',
                         alignItems: 'center',
-                        pointerEvents: 'auto',
-                        zIndex: 60
+                        justifyContent: 'space-around',
+                        paddingBottom: '20px' // Safe area for iPhone home bar
                     }}>
-                        <button
-                            onClick={stopCamera}
-                            style={{
-                                padding: '16px',
-                                borderRadius: '50%',
-                                background: 'rgba(255,255,255,0.1)',
-                                border: '1px solid rgba(255,255,255,0.1)',
-                                color: 'white',
-                                backdropFilter: 'blur(4px)',
-                                cursor: 'pointer'
-                            }}
-                        >
+                        <button onClick={stopCamera} style={{ background: '#333', border: 'none', color: 'white', padding: '15px', borderRadius: '50%' }}>
                             <RefreshCw size={24} />
                         </button>
 
-                        <button
-                            onClick={capturePhoto}
-                            style={{
-                                width: '80px',
-                                height: '80px',
-                                borderRadius: '50%',
-                                border: '4px solid #dcb14a',
-                                padding: '4px',
-                                background: 'transparent',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center'
-                            }}
-                        >
-                            <div style={{ width: '100%', height: '100%', background: 'white', borderRadius: '50%' }} />
-                        </button>
+                        <button onClick={capturePhoto} style={{
+                            width: '72px', height: '72px', borderRadius: '50%',
+                            background: 'white', border: '4px solid #dcb14a'
+                        }} />
 
-                        <button
-                            onClick={() => { stopCamera(); fileInputRef.current?.click(); }}
-                            style={{
-                                padding: '16px',
-                                borderRadius: '50%',
-                                background: 'rgba(255,255,255,0.1)',
-                                border: '1px solid rgba(255,255,255,0.1)',
-                                color: 'white',
-                                backdropFilter: 'blur(4px)',
-                                cursor: 'pointer'
-                            }}
-                        >
+                        <button onClick={() => { stopCamera(); fileInputRef.current?.click() }} style={{ background: '#333', border: 'none', color: 'white', padding: '15px', borderRadius: '50%' }}>
                             <ImageIcon size={24} />
                         </button>
                     </div>
