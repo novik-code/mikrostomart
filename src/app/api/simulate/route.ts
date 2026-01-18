@@ -75,11 +75,11 @@ export async function POST(req: NextRequest) {
                 // CRITICAL PROMPT UPDATE:
                 // We MUST tell the AI to preserve the face.
                 // Previous prompt "Dental Macro" caused it to replace the whole image.
-                prompt: `Portrait of the user with a perfect ${style} smile. 
-                Keep the original face, skin, lips, and background exactly unchanged. 
-                Only replace the teeth inside the mask with high quality realistic ${style} teeth. 
-                Seamless blending, natural lighting. ${getStylePrompt(style)}`,
-                guidance_scale: 25, // Lower guidance = better blending, less hallucinations
+                prompt: `Closeup photo of the user's smile with a perfect ${style} smile. 
+                High quality realistic white teeth, natural gums. 
+                The teeth should be clearly visible, bright and straight.
+                Seamless lighting and blending with the face. ${getStylePrompt(style)}`,
+                guidance_scale: 20, // Lower guidance = better blending, less hallucinations
                 n_steps: 50,
                 output_format: "png",
                 output_quality: 100
