@@ -73,46 +73,129 @@ export default function StudioCapture({ onImageSelected }: StudioCaptureProps) {
     };
 
     return (
-        <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center animate-fade-in relative">
+    return (
+        <div style={{
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '24px',
+            textAlign: 'center',
+            position: 'relative',
+            backgroundColor: '#08090a', // Hardcoded Dark Background
+            color: '#ffffff',
+            fontFamily: 'var(--font-heading, "Times New Roman")', // Fallback check
+        }}>
             {/* Background Ambient Glow */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-[var(--color-primary)] opacity-5 blur-[120px] rounded-full pointer-events-none" />
+            <div style={{
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                width: '500px',
+                height: '500px',
+                backgroundColor: '#dcb14a', // Primary Gold
+                opacity: 0.05,
+                filter: 'blur(120px)',
+                borderRadius: '50%',
+                pointerEvents: 'none'
+            }} />
 
             {!isCameraOpen ? (
-                <div className="relative z-10 max-w-md w-full">
-                    <div className="mb-12">
-                        <div className="w-20 h-20 bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-primary-dark)] rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-2xl shadow-[var(--color-primary)]/20 rotate-3">
-                            <Camera size={36} className="text-black drop-shadow-sm" />
+                <div style={{ position: 'relative', zIndex: 10, maxWidth: '450px', width: '100%' }}>
+                    <div style={{ marginBottom: '40px' }}>
+                        <div style={{
+                            width: '80px',
+                            height: '80px',
+                            background: 'linear-gradient(135deg, #dcb14a 0%, #a68531 100%)',
+                            borderRadius: '20px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            margin: '0 auto 24px',
+                            boxShadow: '0 10px 30px rgba(220,177,74,0.2)',
+                            transform: 'rotate(3deg)'
+                        }}>
+                            {/* Icon Placeholder or Lucide */}
+                            <Camera size={36} color="black" />
                         </div>
-                        <h2 className="text-4xl font-serif text-white mb-3 tracking-tight">
+                        <h2 style={{
+                            fontSize: '2.5rem',
+                            fontWeight: 400,
+                            marginBottom: '12px',
+                            color: 'white',
+                            fontFamily: 'serif'
+                        }}>
                             Studio Uśmiechu
                         </h2>
-                        <p className="text-[var(--color-text-muted)] text-lg font-light leading-relaxed">
+                        <p style={{
+                            color: '#9ca3af',
+                            fontSize: '1.125rem',
+                            lineHeight: 1.6,
+                            fontWeight: 300
+                        }}>
                             Przymierz nowy uśmiech w kilka sekund. <br />
-                            Wykorzystaj moc AI do idealnej metamorfozy.
+                            Technologia AI dla Twojej metamorfozy.
                         </p>
                     </div>
 
-                    <div className="flex flex-col gap-4">
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                         <button
                             onClick={startCamera}
-                            className="group relative w-full bg-white text-black py-4 px-6 rounded-xl font-medium text-lg hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 shadow-lg flex items-center justify-center gap-3 overflow-hidden"
+                            style={{
+                                width: '100%',
+                                backgroundColor: '#ffffff',
+                                color: '#000000',
+                                padding: '16px 24px',
+                                borderRadius: '12px',
+                                fontSize: '1.125rem',
+                                fontWeight: 500,
+                                border: 'none',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '12px',
+                                boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                                transition: 'transform 0.2s'
+                            }}
+                            onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
+                            onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
                         >
-                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
                             <Camera size={22} className="opacity-80" />
                             <span>Zrób Selfie</span>
                         </button>
 
-                        <div className="flex items-center gap-4 my-2">
-                            <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-                            <span className="text-white/30 text-xs font-medium uppercase tracking-widest">lub wgraj zdjęcie</span>
-                            <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', margin: '8px 0' }}>
+                            <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }} />
+                            <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '1px' }}>lub</span>
+                            <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }} />
                         </div>
 
                         <button
                             onClick={() => fileInputRef.current?.click()}
-                            className="w-full bg-white/5 border border-white/10 text-white py-4 px-6 rounded-xl font-medium text-lg hover:bg-white/10 hover:border-white/20 active:scale-[0.98] transition-all duration-300 flex items-center justify-center gap-3"
+                            style={{
+                                width: '100%',
+                                backgroundColor: 'rgba(255,255,255,0.05)',
+                                color: '#ffffff',
+                                border: '1px solid rgba(255,255,255,0.1)',
+                                padding: '16px 24px',
+                                borderRadius: '12px',
+                                fontSize: '1.125rem',
+                                fontWeight: 500,
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '12px',
+                                transition: 'background 0.2s'
+                            }}
+                            onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'}
+                            onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)'}
                         >
-                            <Upload size={22} className="text-[var(--color-primary)]" />
+                            <Upload size={22} color="#dcb14a" />
                             <span>Wybierz z Galerii</span>
                         </button>
                         <input
@@ -125,50 +208,107 @@ export default function StudioCapture({ onImageSelected }: StudioCaptureProps) {
                     </div>
                 </div>
             ) : (
-                <div className="absolute inset-0 bg-black flex flex-col z-50">
+                <div style={{
+                    position: 'absolute',
+                    inset: 0,
+                    backgroundColor: 'black',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    zIndex: 50
+                }}>
                     <video
                         ref={videoRef}
                         autoPlay
                         playsInline
                         muted
-                        className="w-full h-full object-cover"
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                     />
 
-                    {/* Premium Camera Overlay Guide */}
-                    <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                        <div className="relative w-[80%] aspect-[3/4] max-w-sm rounded-[3rem] border border-white/20 overflow-hidden shadow-2xl">
-                            {/* Corners */}
-                            <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-[var(--color-primary)] rounded-tl-2xl opacity-80" />
-                            <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-[var(--color-primary)] rounded-tr-2xl opacity-80" />
-                            <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-[var(--color-primary)] rounded-bl-2xl opacity-80" />
-                            <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-[var(--color-primary)] rounded-br-2xl opacity-80" />
-
-                            <div className="absolute top-8 left-0 right-0 text-center">
-                                <p className="inline-block text-white/90 text-sm font-medium bg-black/60 px-4 py-2 rounded-full backdrop-blur-md border border-white/10 shadow-lg">
-                                    Ustaw twarz w ramce
-                                </p>
-                            </div>
-                        </div>
+                    {/* Overlay Guide */}
+                    <div style={{
+                        position: 'absolute',
+                        inset: 0,
+                        pointerEvents: 'none',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                    }}>
+                        <div style={{
+                            width: '75%',
+                            aspectRatio: '3/4',
+                            border: '2px dashed rgba(255,255,255,0.3)',
+                            borderRadius: '50%',
+                            boxShadow: '0 0 0 9999px rgba(0,0,0,0.5)' // Dim outside
+                        }} />
+                        <p style={{
+                            position: 'absolute',
+                            top: '10%',
+                            color: 'white',
+                            backgroundColor: 'rgba(0,0,0,0.5)',
+                            padding: '8px 16px',
+                            borderRadius: '20px',
+                            backdropFilter: 'blur(4px)'
+                        }}>
+                            Ustaw twarz w centrum
+                        </p>
                     </div>
 
-                    <div className="absolute bottom-0 left-0 right-0 p-10 pb-12 flex justify-between items-center bg-gradient-to-t from-black via-black/80 to-transparent">
+                    <div style={{
+                        position: 'absolute',
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        padding: '40px 20px',
+                        background: 'linear-gradient(to top, rgba(0,0,0,0.9), transparent)',
+                        display: 'flex',
+                        justifyContent: 'space-around',
+                        alignItems: 'center',
+                        pointerEvents: 'auto'
+                    }}>
                         <button
                             onClick={stopCamera}
-                            className="p-4 rounded-full bg-white/10 text-white hover:bg-white/20 backdrop-blur-md border border-white/10 transition-all active:scale-95"
+                            style={{
+                                padding: '16px',
+                                borderRadius: '50%',
+                                background: 'rgba(255,255,255,0.1)',
+                                border: '1px solid rgba(255,255,255,0.1)',
+                                color: 'white',
+                                backdropFilter: 'blur(4px)',
+                                cursor: 'pointer'
+                            }}
                         >
                             <RefreshCw size={24} />
                         </button>
 
                         <button
                             onClick={capturePhoto}
-                            className="w-24 h-24 rounded-full border-4 border-[var(--color-primary)] p-1 flex items-center justify-center active:scale-95 transition-transform shadow-[0_0_30px_rgba(220,177,74,0.3)]"
+                            style={{
+                                width: '80px',
+                                height: '80px',
+                                borderRadius: '50%',
+                                border: '4px solid #dcb14a',
+                                padding: '4px',
+                                background: 'transparent',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                            }}
                         >
-                            <div className="w-full h-full bg-white rounded-full transition-all hover:bg-[var(--color-primary)]" />
+                            <div style={{ width: '100%', height: '100%', background: 'white', borderRadius: '50%' }} />
                         </button>
 
                         <button
                             onClick={() => { stopCamera(); fileInputRef.current?.click(); }}
-                            className="p-4 rounded-full bg-white/10 text-white hover:bg-white/20 backdrop-blur-md border border-white/10 transition-all active:scale-95"
+                            style={{
+                                padding: '16px',
+                                borderRadius: '50%',
+                                background: 'rgba(255,255,255,0.1)',
+                                border: '1px solid rgba(255,255,255,0.1)',
+                                color: 'white',
+                                backdropFilter: 'blur(4px)',
+                                cursor: 'pointer'
+                            }}
                         >
                             <ImageIcon size={24} />
                         </button>
