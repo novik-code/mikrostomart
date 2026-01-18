@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { X, Camera, Upload, RefreshCw, AlertTriangle, Check, RotateCcw } from "lucide-react";
+import { X, Camera, Upload, RefreshCw, AlertTriangle, Check, RotateCcw, Download } from "lucide-react";
 import { useSimulator } from "@/context/SimulatorContext";
 import { analysisFaceAlignment } from "@/helpers/faceDetection";
 import BeforeAfterSlider from "@/components/BeforeAfterSlider";
@@ -16,13 +16,76 @@ const VIDEO_CONSTRAINTS = {
 
 export default function SimulatorModal() {
     const { isOpen, closeSimulator } = useSimulator();
-    const [step, setStep] = useState<'intro' | 'camera' | 'processing' | 'result'>('intro');
+    type SimulatorStep = 'instruction' | 'intro' | 'camera' | 'processing' | 'result';
+    const [step, setStep] = useState<SimulatorStep>('instruction');
     const [error, setError] = useState<string | null>(null);
     const [statusMsg, setStatusMsg] = useState("Przygotowuję...");
 
     // Data
     const [originalImage, setOriginalImage] = useState<string | null>(null);
     const [resultImage, setResultImage] = useState<string | null>(null);
+
+    // ... (refs) ...
+
+    // --- BRANDED DOWNLOAD ---
+    const downloadBrandedImage = async () => {
+        if (!resultImage) return;
+        try {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return;
+
+            // Load Result Image
+            const img = new Image();
+            img.crossOrigin = "anonymous";
+            img.src = resultImage;
+            await new Promise(r => img.onload = r);
+
+            // Set Canvas Size
+            canvas.width = img.naturalWidth;
+            canvas.height = img.naturalHeight;
+
+            // Draw Result
+            ctx.drawImage(img, 0, 0);
+
+            // Load Logo
+            const logo = new Image();
+            logo.crossOrigin = "anonymous";
+            logo.src = "/logo-transparent.png"; // Use the one found in public
+            await new Promise((r) => {
+                logo.onload = r;
+                logo.onerror = r; // Proceed even if logo fails
+            });
+
+            // Draw Logo (Top Left, 20% width)
+            if (logo.complete && logo.naturalWidth > 0) {
+                const logoW = canvas.width * 0.25;
+                const logoH = logoW * (logo.naturalHeight / logo.naturalWidth);
+                const padding = canvas.width * 0.05;
+                ctx.drawImage(logo, padding, padding, logoW, logoH);
+            }
+
+            // Draw Slogan (Bottom Center)
+            const slogan = "Pamiętaj, że my zrobimy to lepiej niż AI!";
+            ctx.font = `bold ${canvas.width * 0.04}px sans-serif`;
+            ctx.fillStyle = "rgba(0,0,0,0.6)"; // Shadow
+            ctx.textAlign = "center";
+            ctx.fillText(slogan, canvas.width / 2 + 2, canvas.height - (canvas.height * 0.05) + 2);
+
+            ctx.fillStyle = "#dcb14a"; // Gold Color
+            ctx.fillText(slogan, canvas.width / 2, canvas.height - (canvas.height * 0.05));
+
+            // Trigger Download
+            const link = document.createElement('a');
+            link.download = `mikrostomart-metamorfoza-${Date.now()}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        } catch (e) {
+            console.error("Download failed", e);
+            alert("Błąd pobierania");
+        }
+    };
+
 
     // Refs
     const videoRef = useRef<HTMLVideoElement>(null);
@@ -443,6 +506,36 @@ export default function SimulatorModal() {
                         </div>
                     )}
 
+                    {step === 'instruction' && (
+                        <div style={{
+                            padding: '30px', textAlign: 'center', color: 'white',
+                            display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'center'
+                        }}>
+                            <div style={{ fontSize: '50px' }}>📸</div>
+                            <h3 style={{ margin: 0, color: '#dcb14a' }}>Instrukcja Idealnego Zdjęcia</h3>
+                            <p style={{ lineHeight: '1.6', fontSize: '16px', color: '#ccc' }}>
+                                Aby uzyskać najlepszy efekt symulacji, postępuj zgodnie z poniższymi wskazówkami:
+                            </p>
+                            <ul style={{
+                                textAlign: 'left', background: 'rgba(255,255,255,0.05)',
+                                padding: '20px 30px', borderRadius: '15px', lineHeight: '1.8', margin: 0
+                            }}>
+                                <li>⭐ Zrób zdjęcie <b>na wprost (en face)</b>, trzymając telefon na wysokości oczu.</li>
+                                <li>👄 <b>Lekko uchyl usta</b>, aby nie zasłaniać całkowicie zębów, ale też ich nie eksponować przesadnie.</li>
+                                <li>☀️ Zadbaj o <b>dobre, naturalne oświetlenie</b> padające na twarz.</li>
+                                <li>🚫 Unikaj zdjęć z profilu lub z dołu.</li>
+                            </ul>
+                            <button onClick={() => setStep('intro')} style={{
+                                marginTop: '10px',
+                                padding: '15px 40px', borderRadius: '50px',
+                                background: '#dcb14a', color: 'black', border: 'none',
+                                fontWeight: 'bold', fontSize: '16px', cursor: 'pointer'
+                            }}>
+                                Zrozumiałem, Zaczynamy!
+                            </button>
+                        </div>
+                    )}
+
                     {step === 'intro' && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%' }}>
                             <div style={{
@@ -502,19 +595,30 @@ export default function SimulatorModal() {
                             <div style={{ flex: 1, position: 'relative', borderRadius: '12px', overflow: 'hidden', border: '1px solid #333' }}>
                                 <BeforeAfterSlider beforeImage={originalImage} afterImage={resultImage} />
                             </div>
-                            <div style={{ display: 'flex', gap: '10px', width: '100%' }}>
-                                <button onClick={() => handleImageSelected(originalImage)} style={{
-                                    flex: 1, padding: '15px', borderRadius: '50px',
-                                    background: '#dcb14a', color: 'black', border: 'none', fontWeight: 'bold',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', cursor: 'pointer'
-                                }}>
-                                    <RefreshCw size={18} /> Ulepsz Ponownie
-                                </button>
+                            <div style={{ display: 'flex', gap: '10px', width: '100%', flexDirection: 'column' }}>
+                                <div style={{ display: 'flex', gap: '10px', width: '100%' }}>
+                                    <button onClick={() => handleImageSelected(originalImage)} style={{
+                                        flex: 1, padding: '15px', borderRadius: '12px',
+                                        background: '#333', color: 'white', border: '1px solid #444', fontWeight: 'bold',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', cursor: 'pointer'
+                                    }}>
+                                        <RefreshCw size={18} /> Powtórz
+                                    </button>
+                                    <button onClick={downloadBrandedImage} style={{
+                                        flex: 1, padding: '15px', borderRadius: '12px',
+                                        background: '#dcb14a', color: 'black', border: 'none', fontWeight: 'bold',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', cursor: 'pointer'
+                                    }}>
+                                        <Download size={18} /> Pobierz
+                                    </button>
+                                </div>
+
                                 <button onClick={() => setStep('intro')} style={{
-                                    padding: '15px', borderRadius: '50%', background: '#333', color: 'white', border: 'none',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', aspectRatio: '1/1'
+                                    width: '100%', padding: '10px', borderRadius: '12px',
+                                    background: 'transparent', color: '#666', border: 'none', fontSize: '12px',
+                                    cursor: 'pointer'
                                 }}>
-                                    <RotateCcw size={18} />
+                                    Wróć do startu
                                 </button>
                             </div>
                         </div>

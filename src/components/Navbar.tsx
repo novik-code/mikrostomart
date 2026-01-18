@@ -211,11 +211,19 @@ export default function Navbar() {
                                 }}
                                 className={styles.mobileLink}
                                 style={{
-                                    display: 'block', color: 'var(--color-primary)', marginBottom: '0.5rem',
-                                    background: 'transparent', border: 'none', textAlign: 'left', width: '100%', paddingLeft: 0, cursor: 'pointer'
+                                    display: 'block',
+                                    padding: '0.75rem 1.5rem',
+                                    width: '100%',
+                                    textAlign: 'center', // Centered
+                                    color: '#dcb14a', // Gold
+                                    fontWeight: 'bold',
+                                    border: '1px solid #dcb14a',
+                                    borderRadius: '8px',
+                                    marginTop: '10px',
+                                    background: 'rgba(220, 177, 74, 0.1)'
                                 }}
                             >
-                                ✨ Symulator AI
+                                ✨ Symulator Uśmiechu
                             </button>
                             <button
                                 onClick={() => {
