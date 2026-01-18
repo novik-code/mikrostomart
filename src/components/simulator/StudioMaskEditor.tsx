@@ -249,44 +249,120 @@ export default function StudioMaskEditor({ imageSrc, onBack, onNext }: StudioMas
     };
 
     return (
-        <div className="w-full h-full flex flex-col bg-[#0f1014]">
+        <div style={{
+            position: 'absolute',
+            inset: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            backgroundColor: '#0f1014',
+            touchAction: 'none',
+            overflow: 'hidden'
+        }}>
             {/* TOOLBAR */}
-            <div className="h-16 flex items-center justify-between px-4 border-b border-white/10 z-20 bg-[#0f1014]">
-                <button onClick={onBack} className="p-2 text-white/70 hover:text-white">
+            <div style={{
+                height: '70px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '0 16px',
+                borderBottom: '1px solid rgba(255,255,255,0.1)',
+                backgroundColor: '#0f1014',
+                zIndex: 20
+            }}>
+                <button
+                    onClick={onBack}
+                    style={{
+                        padding: '10px',
+                        color: 'rgba(255,255,255,0.7)',
+                        background: 'transparent',
+                        border: 'none',
+                        cursor: 'pointer'
+                    }}
+                >
                     <ArrowLeft />
                 </button>
-                <div className="flex gap-4">
+
+                <div style={{ display: 'flex', gap: '16px' }}>
                     <button
                         onClick={() => setTool('brush')}
-                        className={`p-2 rounded-lg transition-colors ${tool === 'brush' ? 'bg-white text-black' : 'text-white/50 hover:bg-white/10'}`}
+                        style={{
+                            padding: '10px',
+                            borderRadius: '8px',
+                            background: tool === 'brush' ? 'white' : 'transparent',
+                            color: tool === 'brush' ? 'black' : 'rgba(255,255,255,0.5)',
+                            border: '1px solid rgba(255,255,255,0.1)',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                        }}
                     >
                         <Paintbrush size={20} />
                     </button>
                     <button
                         onClick={() => setTool('eraser')}
-                        className={`p-2 rounded-lg transition-colors ${tool === 'eraser' ? 'bg-white text-black' : 'text-white/50 hover:bg-white/10'}`}
+                        style={{
+                            padding: '10px',
+                            borderRadius: '8px',
+                            background: tool === 'eraser' ? 'white' : 'transparent',
+                            color: tool === 'eraser' ? 'black' : 'rgba(255,255,255,0.5)',
+                            border: '1px solid rgba(255,255,255,0.1)',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                        }}
                     >
                         <Eraser size={20} />
                     </button>
-                    <div className="w-[1px] bg-white/10 h-6 my-auto mx-2" />
+
+                    <div style={{ width: '1px', backgroundColor: 'rgba(255,255,255,0.1)', height: '24px', margin: 'auto 0' }} />
+
                     <button
                         onClick={handleUndo}
                         disabled={history.length <= 1}
-                        className="p-2 text-white/50 hover:text-white disabled:opacity-20"
+                        style={{
+                            padding: '10px',
+                            color: history.length > 1 ? 'white' : 'rgba(255,255,255,0.2)',
+                            background: 'transparent',
+                            border: 'none',
+                            cursor: history.length > 1 ? 'pointer' : 'default'
+                        }}
                     >
                         <Undo size={20} />
                     </button>
                 </div>
+
                 <button
                     onClick={handleNext}
-                    className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded-full font-medium flex items-center gap-2"
+                    style={{
+                        backgroundColor: '#2563eb',
+                        color: 'white',
+                        padding: '8px 20px',
+                        borderRadius: '999px',
+                        fontWeight: 500,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        border: 'none',
+                        cursor: 'pointer',
+                        boxShadow: '0 4px 12px rgba(37, 99, 235, 0.3)'
+                    }}
                 >
                     Dalej <Check size={16} />
                 </button>
             </div>
 
             {/* CANVAS AREA */}
-            <div ref={containerRef} className="flex-1 relative overflow-hidden bg-black flex items-center justify-center touch-none">
+            <div ref={containerRef} style={{
+                flex: 1,
+                position: 'relative',
+                overflow: 'hidden',
+                backgroundColor: 'black',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+            }}>
                 {/* Background Image Layer */}
                 <img
                     src={imageSrc}
@@ -319,33 +395,66 @@ export default function StudioMaskEditor({ imageSrc, onBack, onNext }: StudioMas
                         maxHeight: '100%',
                         zIndex: 10,
                         touchAction: 'none'
-                        // Canvas internal width/height is set by JS to match image natural size.
-                        // CSS max-w/h ensures it scales down visually to fit viewport.
                     }}
                 />
 
                 {isAnalyzing && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-30 backdrop-blur-sm">
-                        <div className="flex flex-col items-center">
-                            <Loader2 className="animate-spin text-blue-500 mb-2" size={32} />
-                            <p className="text-white font-medium">Szukam uśmiechu...</p>
+                    <div style={{
+                        position: 'absolute',
+                        inset: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        backgroundColor: 'rgba(0,0,0,0.5)',
+                        zIndex: 30,
+                        backdropFilter: 'blur(4px)'
+                    }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                            <div className="spinner" style={{
+                                width: '32px',
+                                height: '32px',
+                                border: '3px solid rgba(255,255,255,0.3)',
+                                borderTopColor: '#3b82f6',
+                                borderRadius: '50%',
+                                animation: 'spin 1s linear infinite',
+                                marginBottom: '12px'
+                            }} />
+                            <p style={{ color: 'white', fontWeight: 500 }}>Szukam uśmiechu...</p>
                         </div>
                     </div>
                 )}
             </div>
 
             {/* SLIDERS (Brush Size) */}
-            <div className="h-16 border-t border-white/10 flex items-center justify-center px-6 bg-[#0f1014]">
-                <span className="text-white/50 text-xs mr-4">Rozmiar</span>
+            <div style={{
+                height: '70px',
+                borderTop: '1px solid rgba(255,255,255,0.1)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '0 24px',
+                backgroundColor: '#0f1014'
+            }}>
+                <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '12px', marginRight: '16px' }}>Rozmiar</span>
                 <input
                     type="range"
                     min="5"
                     max="100"
                     value={brushSize}
                     onChange={(e) => setBrushSize(parseInt(e.target.value))}
-                    className="w-full max-w-xs accent-blue-500"
+                    style={{
+                        width: '100%',
+                        maxWidth: '300px',
+                        accentColor: '#3b82f6'
+                    }}
                 />
             </div>
+
+            <style jsx>{`
+                @keyframes spin {
+                    to { transform: rotate(360deg); }
+                }
+            `}</style>
         </div>
     );
 }

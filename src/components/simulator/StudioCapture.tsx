@@ -12,18 +12,27 @@ export default function StudioCapture({ onImageSelected }: StudioCaptureProps) {
     const videoRef = useRef<HTMLVideoElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
+    const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
     const startCamera = async () => {
+        setErrorMsg(null);
         try {
+            // Constraints: Relaxed for better compatibility on mobile/safari
             const stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 1280 } }
+                video: {
+                    facingMode: 'user'
+                    // removed specific width/height aiming to let the OS decide best fit
+                },
+                audio: false
             });
             setIsCameraOpen(true);
             if (videoRef.current) {
                 videoRef.current.srcObject = stream;
             }
-        } catch (err) {
+        } catch (err: any) {
             console.error("Camera access denied:", err);
-            alert("Nie udało się uruchomić kamery. Upewnij się, że wyraziłeś zgodę.");
+            // Display error to user
+            setErrorMsg(err.message || "Błąd dostępu do kamery. Sprawdź uprawnienia lub użyj innej przeglądarki.");
         }
     };
 
@@ -105,6 +114,21 @@ export default function StudioCapture({ onImageSelected }: StudioCaptureProps) {
             {!isCameraOpen ? (
                 <div style={{ position: 'relative', zIndex: 10, maxWidth: '450px', width: '100%' }}>
                     <div style={{ marginBottom: '40px' }}>
+
+                        {errorMsg && (
+                            <div style={{
+                                backgroundColor: 'rgba(255,50,50,0.1)',
+                                border: '1px solid #ff3333',
+                                color: '#ffaaaa',
+                                padding: '12px',
+                                borderRadius: '12px',
+                                marginBottom: '20px',
+                                fontSize: '14px'
+                            }}>
+                                ⚠️ {errorMsg}
+                            </div>
+                        )}
+
                         <div style={{
                             width: '80px',
                             height: '80px',
