@@ -241,12 +241,12 @@ export default function SimulatorModal() {
 
         // Polling with Timeout
         let attempts = 0;
-        const maxAttempts = 40; // ~40 seconds
+        const maxAttempts = 60; // Increased to 60 seconds for slower queues
 
         const poll = async () => {
             attempts++;
             if (attempts > maxAttempts) {
-                setError("Zbyt długi czas oczekiwania. Spróbuj ponownie.");
+                setError("Zbyt długi czas oczekiwania (60s). Spróbuj ponownie.");
                 setStep('intro');
                 return;
             }

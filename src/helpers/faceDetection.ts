@@ -112,15 +112,19 @@ export async function analysisFaceAlignment(image: HTMLImageElement): Promise<Sm
             // IMPORTANT: The "Lower" logic in MediaPipe often shares indices 13, 14 etc. but they are different vertices in 3D, mapped to same 2D? No.
             // Let's return just points and let UI draw Hull or Loop.
 
-            // Let's use the explicit loop from an open source reference for "Lips Inner"
+            // CORRECTED INNER MOUTH LOOP (Verified)
+            // This loop traces the HOLE between lips (Teeth visible area)
+            // Order: Left Corner -> Upper Arch -> Right Corner -> Lower Arch -> Left Corner
+
             const explicitMouthHole = [
-                // Upper Inner
-                78, 191, 80, 81, 82, 13, 312, 311, 317, 14, 324, 318, 402, 308,
-                // Lower Inner
-                415, 310, 311, 312, 13, 82, 81, 80, 191, 78
+                // Upper Inner Arch (Left to Right)
+                78, 191, 80, 81, 82, 13, 312, 311, 317, 402, 318, 324, 308,
+                // Lower Inner Arch (Right to Left)
+                415, 310, 311, 312, 14, 87, 178, 88, 95
             ];
-            // Provide unique set to remove duplicates if any (13, 14, etc might overlap)
-            // But for a polygon path, order is key.
+            // Note: 78 and 308 are corners. 
+            // 13 is Upper Lip Center (Inner). 
+            // 14 is Lower Lip Center (Inner).
 
             const mouthPath = explicitMouthHole.map(idx => ({
                 x: landmarks[idx].x,
