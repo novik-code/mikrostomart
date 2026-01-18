@@ -119,13 +119,6 @@ export default function Footer() {
                         FAQ
                     </a>
                     <a
-                        href="/baza-wiedzy"
-                        style={{ color: 'var(--color-text-muted)', textDecoration: 'none', opacity: 0.7 }}
-                        className="hover-underline"
-                    >
-                        Baza Wiedzy 📚
-                    </a>
-                    <a
                         href="/regulamin"
                         style={{ color: 'var(--color-text-muted)', textDecoration: 'none', opacity: 0.7 }}
                         className="hover-underline"
@@ -140,25 +133,11 @@ export default function Footer() {
                         RODO
                     </a>
                     <a
-                        href="/zadatek"
-                        style={{ color: 'var(--color-primary)', textDecoration: 'none', fontWeight: 'bold' }}
-                        className="hover-underline"
-                    >
-                        Wpłać Zadatek
-                    </a>
-                    <a
                         href="/polityka-cookies"
                         style={{ color: 'var(--color-text-muted)', textDecoration: 'none', opacity: 0.7 }}
                         className="hover-underline"
                     >
                         Polityka Cookies
-                    </a>
-                    <a
-                        href="/selfie"
-                        style={{ color: 'var(--color-primary)', textDecoration: 'none', fontWeight: 'bold' }}
-                        className="hover-underline"
-                    >
-                        Selfie z Doktorem
                     </a>
                 </div>
             </div>

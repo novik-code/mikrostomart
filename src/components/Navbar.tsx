@@ -163,6 +163,40 @@ export default function Navbar() {
                                     >
                                         🤖 Wirtualny Asystent
                                     </button>
+                                    <Link
+                                        href="/zadatek"
+                                        className={styles.link}
+                                        style={{
+                                            display: 'block',
+                                            padding: '0.75rem 1.5rem',
+                                            width: '100%',
+                                            textAlign: 'center',
+                                            color: 'var(--color-primary)',
+                                            whiteSpace: 'nowrap',
+                                            textTransform: 'uppercase',
+                                            letterSpacing: '0.05em',
+                                            fontWeight: 'bold'
+                                        }}
+                                    >
+                                        💳 Wpłać Zadatek
+                                    </Link>
+                                    <Link
+                                        href="/selfie"
+                                        className={styles.link}
+                                        style={{
+                                            display: 'block',
+                                            padding: '0.75rem 1.5rem',
+                                            width: '100%',
+                                            textAlign: 'center',
+                                            color: '#ec4899', // Pinkish
+                                            whiteSpace: 'nowrap',
+                                            textTransform: 'uppercase',
+                                            letterSpacing: '0.05em',
+                                            fontWeight: 'bold'
+                                        }}
+                                    >
+                                        🤳 Selfie z Doktorem
+                                    </Link>
                                 </div>
                             </div>
                         )}
