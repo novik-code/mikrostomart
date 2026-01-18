@@ -14,42 +14,13 @@ interface TeethVisualProps {
 // Left/Right is split around X=500.
 
 const ZONES = [
-    {
-        id: "palate",
-        label: "Podniebienie / Górna Szczęka",
-        // Central Top area
-        path: "M 300,300 Q 500,100 700,300 Q 500,450 300,300 Z",
-        cx: 500, cy: 250
-    },
-    {
-        id: "top-teeth",
-        label: "Górne Zęby",
-        // Arch shape top
-        path: "M 150,350 Q 500,50 850,350 L 750,450 Q 500,200 250,450 Z",
-        cx: 500, cy: 150
-    },
-    {
-        id: "tongue",
-        label: "Język",
-        // Center
-        path: "M 350,500 Q 500,450 650,500 Q 600,700 500,750 Q 400,700 350,500 Z",
-        cx: 500, cy: 600
-    },
-    {
-        id: "bottom-teeth",
-        label: "Dolne Zęby",
-        // Arch shape bottom
-        path: "M 150,650 Q 500,950 850,650 L 750,550 Q 500,800 250,550 Z",
-        cx: 500, cy: 850
-    },
-    {
-        id: "cheeks",
-        label: "Policzek / Błona Śluzowa",
-        // Side areas (catch-all for sides)
-        path: "M 50,400 Q 150,500 50,600 L 0,600 L 0,400 Z  M 950,400 Q 850,500 950,600 L 1000,600 L 1000,400 Z",
-        // Note: Multipart path or just use two zones. Let's make it simple: Left Cheek
-        cx: 100, cy: 500
-    }
+    { id: "top-left", label: "Górne Lewe (Trzonowe)" },
+    { id: "top-front", label: "Górne Jedynki/Dwójki (Przód)" },
+    { id: "top-right", label: "Górne Prawe (Trzonowe)" },
+    { id: "palate", label: "Podniebienie / Język" },
+    { id: "bottom-left", label: "Dolne Lewe (Trzonowe)" },
+    { id: "bottom-front", label: "Dolne Jedynki/Dwójki (Przód)" },
+    { id: "bottom-right", label: "Dolne Prawe (Trzonowe)" }
 ];
 
 // SIMPLIFIED HIT ZONES (Robust Rectangles/Circles for easy clicking)
