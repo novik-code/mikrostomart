@@ -73,13 +73,14 @@ export async function POST(req: NextRequest) {
                 image: imageUri,
                 mask: maskUri,
                 // CRITICAL PROMPT UPDATE:
-                // We MUST tell the AI to preserve the face.
-                // Previous prompt "Dental Macro" caused it to replace the whole image.
-                prompt: `Closeup photo of the user's smile with a perfect ${style} smile. 
-                High quality realistic white teeth, natural gums. 
-                The teeth should be clearly visible, bright and straight.
-                Seamless lighting and blending with the face. ${getStylePrompt(style)}`,
-                guidance_scale: 20, // Lower guidance = better blending, less hallucinations
+                // Focused on "Premium Porcelain Veneers" look.
+                prompt: `Dental photography closeup of a perfect ${style} smile transformation.
+                The person is wearing high-end porcelain veneers. 
+                Teeth are perfectly shaped, symmetrical, and bright white (BL1 shade).
+                Natural gum texture, realistic light reflection on enamel.
+                The smile is wide and confident.
+                Seamless photorealistic blending. ${getStylePrompt(style)}`,
+                guidance_scale: 25, // Stronger adherence to "perfect teeth"
                 n_steps: 50,
                 output_format: "png",
                 output_quality: 100

@@ -187,9 +187,10 @@ export default function SimulatorModal() {
         // White Mouth
         ctx.fillStyle = 'white';
         ctx.strokeStyle = 'white';
-        ctx.lineWidth = Math.max(5, canvas.width * 0.015); // Dynamic dilation (~1.5% of width)
+        ctx.lineWidth = Math.max(8, canvas.width * 0.02); // Increased dilation (~2% of width)
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
+        ctx.filter = 'blur(4px)'; // Soften edges for better AI blending
 
         ctx.beginPath();
         const mp = analysis.mouthPath;
@@ -200,6 +201,8 @@ export default function SimulatorModal() {
         ctx.closePath();
         ctx.fill();
         ctx.stroke(); // Apply dilation
+
+        // Reset filter for other ops if needed (not needed here as we export immediately)
 
         const maskData = canvas.toDataURL('image/png');
         setDebugMaskSrc(maskData); // Save for debug
