@@ -187,7 +187,7 @@ export default function SimulatorModal() {
         // White Mouth
         ctx.fillStyle = 'white';
         ctx.strokeStyle = 'white';
-        ctx.lineWidth = Math.max(8, canvas.width * 0.02); // Increased dilation (~2% of width)
+        ctx.lineWidth = Math.max(10, canvas.width * 0.025); // Increased dilation (~2.5% of width) to allow fuller teeth
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
         ctx.filter = 'blur(4px)'; // Soften edges for better AI blending

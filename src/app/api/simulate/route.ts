@@ -73,14 +73,14 @@ export async function POST(req: NextRequest) {
                 image: imageUri,
                 mask: maskUri,
                 // CRITICAL PROMPT UPDATE:
-                // Focused on "Premium Porcelain Veneers" look.
-                prompt: `Dental photography closeup of a perfect ${style} smile transformation.
-                The person is wearing high-end porcelain veneers. 
-                Teeth are perfectly shaped, symmetrical, and bright white (BL1 shade).
-                Natural gum texture, realistic light reflection on enamel.
-                The smile is wide and confident.
-                Seamless photorealistic blending. ${getStylePrompt(style)}`,
-                guidance_scale: 25, // Stronger adherence to "perfect teeth"
+                // Focused on "Hollywood Star" look: Ultra White + Perfect Alignment + Realism.
+                prompt: `Award-winning dental photography of a Hollywood Smile makeover. 
+                The subject has ultra-white, perfect porcelain veneers (Shade BL1). 
+                The teeth are flawless, perfectly aligned, and gleam with a natural healthy shine. 
+                High-contrast professional lighting. 
+                Photorealistic texture, translucent enamel edges, healthy pink gums. 
+                No yellowing, no stains. Absolute perfection. ${getStylePrompt(style)}`,
+                guidance_scale: 30, // Very strong adherence to "perfect" prompt
                 n_steps: 50,
                 output_format: "png",
                 output_quality: 100
@@ -101,13 +101,13 @@ export async function POST(req: NextRequest) {
 function getStylePrompt(style: string): string {
     switch (style) {
         case "natural":
-            return "Natural aesthetics: Shade A1. Slight natural asymmetries.";
+            return "Natural aesthetics: Shade A1. Slight natural asymmetries. Youthful look.";
         case "soft":
-            return "Soft aesthetics: Rounded edges. Oval shapes. Shade BL2.";
+            return "Soft aesthetics: Rounded edges. Oval shapes. Shade BL2. Gentle appearance.";
         case "strong":
-            return "Strong aesthetics: Square shapes. Bold canines. Shade BL2.";
+            return "Strong aesthetics: Square shapes. Bold canines. Shade BL1. Masculine look.";
         case "hollywood":
         default:
-            return "Hollywood aesthetics: Ultra-white shade BL1. Perfect symmetry and geometry.";
+            return "Hollywood aesthetics: Ultra-white (Bleach BL1). Perfect symmetry. Broad, full smile. Flawless geometry.";
     }
 }
