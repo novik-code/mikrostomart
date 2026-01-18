@@ -37,33 +37,44 @@ export default function SmileStudioPage() {
 
             formData.append("image", imageBlob, "image.png");
             formData.append("mask", maskBlob, "mask.png");
-            formData.append("style", "hollywood"); // Default style for now
-            formData.append("mode", "ai-generate"); // Flux Fill Mode
+            formData.append("style", "hollywood");
 
-            // 2. Call API
-            const response = await fetch("/api/simulate", {
-                method: "POST",
-                body: formData,
-            });
+            // 2. Start Simulation (Async)
+            const response = await fetch("/api/simulate", { method: "POST", body: formData });
 
             if (!response.ok) {
                 const err = await response.json();
-                throw new Error(err.error || "Symulacja nieudana");
+                throw new Error(err.error || "Błąd inicjalizacji");
             }
 
-            const data = await response.json();
+            const { id } = await response.json();
+            if (!id) throw new Error("Brak ID symulacji");
 
-            if (data.url) {
-                setResultImage(data.url);
-                setCurrentStep('RESULT');
-            } else {
-                throw new Error("Brak URL w odpowiedzi");
+            // 3. Poll for Result (Client-side Polling)
+            const maxAttempts = 60; // 60s timeout
+            let attempts = 0;
+
+            while (attempts < maxAttempts) {
+                await new Promise(r => setTimeout(r, 1000));
+
+                const statusRes = await fetch(`/api/simulate?id=${id}`);
+                const statusData = await statusRes.json();
+
+                if (statusData.status === "succeeded") {
+                    setResultImage(statusData.url);
+                    setCurrentStep('RESULT');
+                    return;
+                } else if (statusData.status === "failed" || statusData.status === "canceled") {
+                    throw new Error(statusData.error || "Generowanie nieudane");
+                }
+                attempts++;
             }
+            throw new Error("Timeout: Serwer nie odpowiedział.");
 
         } catch (error) {
             console.error("Simulation Failed:", error);
-            alert("Wystąpił błąd podczas generowania: " + (error instanceof Error ? error.message : "Nieznany błąd"));
-            setCurrentStep('MASK'); // Go back to allow retry
+            alert("Błąd: " + (error instanceof Error ? error.message : "Wystąpił problem"));
+            setCurrentStep('MASK');
         }
     };
 
