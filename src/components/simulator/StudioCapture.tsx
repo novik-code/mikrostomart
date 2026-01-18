@@ -14,14 +14,16 @@ export default function StudioCapture({ onImageSelected }: StudioCaptureProps) {
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
     const [debugInfo, setDebugInfo] = useState<string>("");
 
-    // Initialize Camera
     const startCamera = async () => {
         setErrorMsg(null);
-        setIsCameraOpen(true); // Switch UI immediately
+        setIsCameraOpen(true);
         try {
+            // Request best possible resolution (HD+), fallback to OS default
             const stream = await navigator.mediaDevices.getUserMedia({
                 video: {
-                    facingMode: 'user', // Prefer front camera
+                    facingMode: 'user',
+                    width: { ideal: 1920 },
+                    height: { ideal: 1080 }
                 },
                 audio: false
             });
@@ -49,7 +51,6 @@ export default function StudioCapture({ onImageSelected }: StudioCaptureProps) {
         if (!videoRef.current) return;
         const video = videoRef.current;
 
-        // Ensure we have dimensions
         if (video.videoWidth === 0 || video.videoHeight === 0) {
             alert("Kamera nie gotowa. Poczekaj chwilę.");
             return;
@@ -84,13 +85,12 @@ export default function StudioCapture({ onImageSelected }: StudioCaptureProps) {
         }
     };
 
-    // --- RENDER ---
     return (
         <div style={{
             display: 'flex',
             flexDirection: 'column',
             width: '100%',
-            height: '100%', // Parent (page) should provide height (100dvh)
+            height: '100%',
             backgroundColor: '#000',
             color: 'white',
             position: 'relative',
@@ -167,7 +167,7 @@ export default function StudioCapture({ onImageSelected }: StudioCaptureProps) {
                     display: 'flex',
                     flexDirection: 'column'
                 }}>
-                    {/* VIDEO LAYER - Fills Available Space */}
+                    {/* VIDEO LAYER */}
                     <div style={{ flex: 1, position: 'relative', overflow: 'hidden', backgroundColor: 'black' }}>
                         <video
                             ref={videoRef}
@@ -176,7 +176,7 @@ export default function StudioCapture({ onImageSelected }: StudioCaptureProps) {
                             muted
                             onLoadedMetadata={(e) => {
                                 e.currentTarget.play();
-                                setDebugInfo(`Stream OK: ${e.currentTarget.videoWidth}x${e.currentTarget.videoHeight}`);
+                                setDebugInfo(`Stream: ${e.currentTarget.videoWidth}x${e.currentTarget.videoHeight}`);
                             }}
                             style={{
                                 width: '100%',
@@ -192,29 +192,25 @@ export default function StudioCapture({ onImageSelected }: StudioCaptureProps) {
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            pointerEvents: 'none'
+                            pointerEvents: 'none',
+                            zIndex: 10
                         }}>
                             <div style={{
-                                width: '70%',
+                                width: '75%',
                                 aspectRatio: '3/4',
-                                border: '2px dashed rgba(255,255,255,0.5)',
-                                borderRadius: '100px',
-                                boxShadow: '0 0 0 9999px rgba(0,0,0,0.8)'
+                                border: '2px dashed rgba(255,255,255,0.6)',
+                                borderRadius: '120px',
+                                boxShadow: '0 0 0 9999px rgba(0,0,0,0.85)'
                             }} />
-
-                            <div style={{
-                                position: 'absolute', top: '20px',
-                                background: 'rgba(0,0,0,0.5)', color: 'white',
-                                padding: '6px 12px', borderRadius: '20px', fontSize: '14px'
-                            }}>
-                                Ustaw twarz w ramce
-                            </div>
 
                             {/* CENTER DEBUG: Always Visible */}
                             <div style={{
                                 position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-                                color: '#0f0', background: 'rgba(0,0,0,0.8)', padding: '10px', fontFamily: 'monospace',
-                                display: debugInfo ? 'block' : 'none'
+                                color: '#0f0', background: 'rgba(0,0,0,0.8)', padding: '6px',
+                                fontFamily: 'monospace', fontSize: '12px',
+                                display: debugInfo ? 'block' : 'none',
+                                borderRadius: '4px',
+                                pointerEvents: 'none'
                             }}>
                                 {debugInfo}
                             </div>
@@ -223,23 +219,34 @@ export default function StudioCapture({ onImageSelected }: StudioCaptureProps) {
 
                     {/* CONTROLS (Bottom Bar) */}
                     <div style={{
-                        height: '100px',
+                        height: '120px',
                         background: 'black',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-around',
-                        paddingBottom: '20px' // Safe area for iPhone home bar
+                        paddingBottom: '20px',
+                        zIndex: 50,
+                        position: 'relative'
                     }}>
-                        <button onClick={stopCamera} style={{ background: '#333', border: 'none', color: 'white', padding: '15px', borderRadius: '50%' }}>
+                        <button onClick={stopCamera} style={{ background: '#333', border: 'none', color: 'white', padding: '15px', borderRadius: '50%', cursor: 'pointer' }}>
                             <RefreshCw size={24} />
                         </button>
 
-                        <button onClick={capturePhoto} style={{
-                            width: '72px', height: '72px', borderRadius: '50%',
-                            background: 'white', border: '4px solid #dcb14a'
-                        }} />
+                        <button
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                capturePhoto();
+                            }}
+                            style={{
+                                width: '80px', height: '80px', borderRadius: '50%',
+                                background: 'white', border: '4px solid #dcb14a',
+                                cursor: 'pointer',
+                                touchAction: 'manipulation'
+                            }}
+                        />
 
-                        <button onClick={() => { stopCamera(); fileInputRef.current?.click() }} style={{ background: '#333', border: 'none', color: 'white', padding: '15px', borderRadius: '50%' }}>
+                        <button onClick={() => { stopCamera(); fileInputRef.current?.click() }} style={{ background: '#333', border: 'none', color: 'white', padding: '15px', borderRadius: '50%', cursor: 'pointer' }}>
                             <ImageIcon size={24} />
                         </button>
                     </div>

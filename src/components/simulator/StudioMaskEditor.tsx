@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { analysisFaceAlignment, SmileAlignment } from "@/helpers/faceDetection";
-import { ArrowLeft, Check, Eraser, Paintbrush, Loader2, Undo, ZoomIn } from "lucide-react";
+import { ArrowLeft, Check, Eraser, Paintbrush, Undo, Loader2 } from "lucide-react";
+
+// We removed Auto-Mask to give user full control and avoid "Giant Mask" bugs.
+// import { analysisFaceAlignment, SmileAlignment } from "@/helpers/faceDetection";
 
 interface StudioMaskEditorProps {
     imageSrc: string;
@@ -13,9 +15,8 @@ interface StudioMaskEditorProps {
 export default function StudioMaskEditor({ imageSrc, onBack, onNext }: StudioMaskEditorProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
-    const [isAnalyzing, setIsAnalyzing] = useState(true);
     const [tool, setTool] = useState<'brush' | 'eraser'>('brush');
-    const [brushSize, setBrushSize] = useState(25); // Slightly larger default
+    const [brushSize, setBrushSize] = useState(25);
     const [history, setHistory] = useState<ImageData[]>([]);
 
     useEffect(() => {
@@ -27,8 +28,7 @@ export default function StudioMaskEditor({ imageSrc, onBack, onNext }: StudioMas
                 const canvas = canvasRef.current;
                 if (!canvas) return;
 
-                // CRITICAL FIX: Set Canvas Resolution to match Image Resolution exactly
-                // This ensures the mask drawn corresponds 1:1 to the pixels of the image
+                // CRITICAL FIX: Set Canvas Resolution to match Image Resolution exactly 1:1
                 canvas.width = img.naturalWidth;
                 canvas.height = img.naturalHeight;
 
@@ -38,37 +38,14 @@ export default function StudioMaskEditor({ imageSrc, onBack, onNext }: StudioMas
                 // Configure Context
                 ctx.lineCap = 'round';
                 ctx.lineJoin = 'round';
-                ctx.strokeStyle = "rgba(255, 255, 255, 1)"; // Draw visible white mask
+                ctx.strokeStyle = "rgba(255, 255, 255, 1)";
                 ctx.lineWidth = brushSize;
 
-                // Run Face Analysis
-                setIsAnalyzing(true);
-                try {
-                    const result = await analysisFaceAlignment(img);
-                    if (result && result.mouthPath) {
-                        drawAutoMask(ctx, result.mouthPath, img.naturalWidth, img.naturalHeight);
-                    }
-                } catch (e) {
-                    console.error("Auto-mask failed", e);
-                }
-                setIsAnalyzing(false);
+                // Make sure canvas is clear
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
                 saveHistory();
             };
-        };
-
-        const drawAutoMask = (ctx: CanvasRenderingContext2D, path: { x: number, y: number }[], width: number, height: number) => {
-            ctx.fillStyle = "rgba(255, 255, 255, 0.9)"; // High opacity for auto-mask
-            ctx.beginPath();
-            if (path.length > 0) {
-                // Determine scale based on image size vs 600px reference logic if needed
-                // But current path logic seems normalized (0..1)
-                ctx.moveTo(path[0].x * width, path[0].y * height);
-                for (let i = 1; i < path.length; i++) {
-                    ctx.lineTo(path[i].x * width, path[i].y * height);
-                }
-                ctx.closePath();
-                ctx.fill();
-            }
         };
 
         if (imageSrc) init();
@@ -79,7 +56,6 @@ export default function StudioMaskEditor({ imageSrc, onBack, onNext }: StudioMas
         if (!canvas) return;
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
-        // Limit history to 10 steps to save memory
         setHistory(prev => [...prev.slice(-9), ctx.getImageData(0, 0, canvas.width, canvas.height)]);
     };
 
@@ -104,7 +80,6 @@ export default function StudioMaskEditor({ imageSrc, onBack, onNext }: StudioMas
         const canvas = canvasRef.current;
         if (!canvas) return null;
 
-        // Map client coordinates to canvas resolution coordinates
         const rect = canvas.getBoundingClientRect();
         const scaleX = canvas.width / rect.width;
         const scaleY = canvas.height / rect.height;
@@ -151,11 +126,10 @@ export default function StudioMaskEditor({ imageSrc, onBack, onNext }: StudioMas
         ctx.globalCompositeOperation = tool === 'brush' ? 'source-over' : 'destination-out';
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
-        // Adjust brush size relative to image resolution (so "20" isn't tiny on 4k image)
-        const scaleFactor = Math.max(canvas.width, canvas.height) / 1000;
+        // Adjust brush size relative to image resolution
+        const scaleFactor = Math.max(canvas.width, canvas.height) / 800;
         ctx.lineWidth = brushSize * scaleFactor;
         ctx.strokeStyle = "rgba(255, 255, 255, 1)";
-        ctx.fillStyle = "rgba(255, 255, 255, 1)";
 
         ctx.beginPath();
         ctx.moveTo(lastPoint.current.x, lastPoint.current.y);
@@ -169,7 +143,7 @@ export default function StudioMaskEditor({ imageSrc, onBack, onNext }: StudioMas
         const canvas = canvasRef.current;
         if (!canvas) return;
 
-        // Export Mask: Needs to be Black Background + White Shape
+        // Export Mask: Needs to be Black Background + White Shape for Flux Fill
         const exportCanvas = document.createElement('canvas');
         exportCanvas.width = canvas.width;
         exportCanvas.height = canvas.height;
@@ -183,16 +157,11 @@ export default function StudioMaskEditor({ imageSrc, onBack, onNext }: StudioMas
         // 2. Draw User Mask (White)
         ctx.drawImage(canvas, 0, 0);
 
-        // 3. Ensure Binary mask (White shape on Black bg)
-        // Since we drew with white, we just need to make sure unwanted alpha is black.
-        // The composite 'source-over' on black effectively does this for opaque variable alpha.
-        // But let's force strict white just in case.
-
+        // 3. Ensure Strict Binary White/Black
         ctx.globalCompositeOperation = 'source-in';
         ctx.fillStyle = 'white';
         ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
 
-        // Restore Black Background for transparent areas
         ctx.globalCompositeOperation = 'destination-over';
         ctx.fillStyle = 'black';
         ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
@@ -212,7 +181,7 @@ export default function StudioMaskEditor({ imageSrc, onBack, onNext }: StudioMas
         }}>
             {/* TOOLBAR */}
             <div style={{
-                height: '70px',
+                height: '80px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
@@ -227,44 +196,45 @@ export default function StudioMaskEditor({ imageSrc, onBack, onNext }: StudioMas
 
                 <div style={{ display: 'flex', gap: '16px' }}>
                     <button onClick={() => setTool('brush')} style={{
-                        padding: '10px',
-                        borderRadius: '8px',
+                        padding: '12px',
+                        borderRadius: '12px',
                         background: tool === 'brush' ? 'rgba(220, 177, 74, 0.2)' : 'transparent',
                         color: tool === 'brush' ? '#dcb14a' : 'white',
-                        border: tool === 'brush' ? '1px solid #dcb14a' : '1px solid transparent'
+                        border: tool === 'brush' ? '1px solid #dcb14a' : '1px solid rgba(255,255,255,0.1)'
                     }}>
-                        <Paintbrush size={20} />
+                        <Paintbrush size={24} />
                     </button>
                     <button onClick={() => setTool('eraser')} style={{
-                        padding: '10px',
-                        borderRadius: '8px',
+                        padding: '12px',
+                        borderRadius: '12px',
                         background: tool === 'eraser' ? 'rgba(220, 177, 74, 0.2)' : 'transparent',
                         color: tool === 'eraser' ? '#dcb14a' : 'white',
-                        border: tool === 'eraser' ? '1px solid #dcb14a' : '1px solid transparent'
+                        border: tool === 'eraser' ? '1px solid #dcb14a' : '1px solid rgba(255,255,255,0.1)'
                     }}>
-                        <Eraser size={20} />
+                        <Eraser size={24} />
                     </button>
-                    <button onClick={handleUndo} disabled={history.length <= 1} style={{ background: 'none', border: 'none', color: history.length > 1 ? 'white' : 'grey' }}>
-                        <Undo size={20} />
+                    <button onClick={handleUndo} disabled={history.length <= 1} style={{ background: 'none', border: 'none', color: history.length > 1 ? 'white' : '#444' }}>
+                        <Undo size={24} />
                     </button>
                 </div>
 
                 <button onClick={handleNext} style={{
                     backgroundColor: '#2563eb',
                     color: 'white',
-                    padding: '8px 20px',
-                    borderRadius: '20px',
+                    padding: '10px 24px',
+                    borderRadius: '24px',
                     border: 'none',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '8px',
-                    fontWeight: 600
+                    fontWeight: 600,
+                    fontSize: '16px'
                 }}>
-                    Dalej <Check size={16} />
+                    Dalej <Check size={18} />
                 </button>
             </div>
 
-            {/* CANVAS CONTAINER */}
+            {/* CANVAS CONTAINER - Center Canvas over Image */}
             <div ref={containerRef} style={{
                 flex: 1,
                 position: 'relative',
@@ -274,28 +244,25 @@ export default function StudioMaskEditor({ imageSrc, onBack, onNext }: StudioMas
                 overflow: 'hidden',
                 backgroundColor: '#000'
             }}>
+                {/* 
+                   We want the user to see the image fully, and paint on top.
+                   The easiest way to align is overlaying them exactly with identical sizing constraints.
+                */}
                 <img
                     src={imageSrc}
                     alt="Source"
                     style={{
-                        position: 'absolute',
                         maxWidth: '100%',
                         maxHeight: '100%',
                         width: 'auto',
                         height: 'auto',
                         objectFit: 'contain',
-                        opacity: 0.6 // Dimmed for contrast
+                        opacity: 0.6, // Dim to make drawing visible
+                        position: 'absolute',
+                        zIndex: 5
                     }}
                 />
 
-                {/* Canvas must match the visual size of the img, but have full resolution internally.
-                    We rely on CSS 'width: auto, height: auto' inside the flex container to match the img natural behavior?
-                    Actually, it's safer to just let the canvas be the element that determines size if possible, 
-                    OR absolutely position it over the image.
-                    
-                    Best Mobile approach: 
-                    Allow image to hold the size. Position Canvas absolute on top with w/h 100%.
-                */}
                 <canvas
                     ref={canvasRef}
                     onMouseDown={startDrawing}
@@ -306,31 +273,25 @@ export default function StudioMaskEditor({ imageSrc, onBack, onNext }: StudioMas
                     onTouchMove={draw}
                     onTouchEnd={stopDrawing}
                     style={{
-                        position: 'absolute',
                         maxWidth: '100%',
                         maxHeight: '100%',
-                        // Canvas visual size should match the rendered image size.
-                        // Since they are both in a flex center container with same max constraints, 
-                        // they *should* overlap perfectly if aspect ratio matches.
+                        width: 'auto',
+                        height: 'auto',
                         objectFit: 'contain',
                         touchAction: 'none',
+                        position: 'absolute', // Stack on top of img
                         zIndex: 10
                     }}
                 />
-
-                {isAnalyzing && (
-                    <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.5)', zIndex: 30, color: 'white' }}>
-                        <Loader2 className="animate-spin" style={{ marginRight: '10px' }} /> Szukam uśmiechu...
-                    </div>
-                )}
             </div>
 
-            {/* SLIDER */}
-            <div style={{ height: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 20px', backgroundColor: '#0f1014' }}>
+            {/* SLIDER Tool */}
+            <div style={{ height: '90px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 20px', backgroundColor: '#0f1014', gap: '8px' }}>
+                <p style={{ color: 'grey', fontSize: '12px', margin: 0 }}>Wielkość pędzla</p>
                 <input
                     type="range" min="10" max="100" value={brushSize}
                     onChange={(e) => setBrushSize(Number(e.target.value))}
-                    style={{ width: '100%', maxWidth: '300px', accentColor: '#dcb14a' }}
+                    style={{ width: '100%', maxWidth: '300px', accentColor: '#dcb14a', height: '6px' }}
                 />
             </div>
         </div>

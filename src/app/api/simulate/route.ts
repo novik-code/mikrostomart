@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Replicate from "replicate";
 
-export const runtime = 'nodejs'; // Replicate SDK works best in Node env
+export const runtime = 'nodejs';
 
 // --- GET: Check Status (Polling) ---
 export async function GET(req: NextRequest) {
@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
         } else if (prediction.status === "failed" || prediction.status === "canceled") {
             return NextResponse.json({ status: "failed", error: prediction.error });
         } else {
-            return NextResponse.json({ status: prediction.status }); // starting, processing
+            return NextResponse.json({ status: prediction.status });
         }
     } catch (error: any) {
         return NextResponse.json({ error: error.message }, { status: 500 });
@@ -72,19 +72,20 @@ export async function POST(req: NextRequest) {
             input: {
                 image: imageUri,
                 mask: maskUri,
-                prompt: `Dental macro photography. High quality realistic ${style} teeth. 
-                Focus strictly on the teeth area inside the mask. 
-                Keep lips and gums 100% natural and unchanged. 
-                Seamless blending, wet texture, enamel reflections. 
-                Do not distort the face. Do not change the mouth shape.`,
-                guidance_scale: 25, // Lower guidance slightly to allow better blending, 60 was too rigid
+                // CRITICAL PROMPT UPDATE:
+                // We MUST tell the AI to preserve the face.
+                // Previous prompt "Dental Macro" caused it to replace the whole image.
+                prompt: `Portrait of the user with a perfect ${style} smile. 
+                Keep the original face, skin, lips, and background exactly unchanged. 
+                Only replace the teeth inside the mask with high quality realistic ${style} teeth. 
+                Seamless blending, natural lighting. ${getStylePrompt(style)}`,
+                guidance_scale: 25, // Lower guidance = better blending, less hallucinations
                 n_steps: 50,
                 output_format: "png",
                 output_quality: 100
             }
         });
 
-        // Return ID immediately for polling
         return NextResponse.json({ id: prediction.id }, { status: 202 });
 
     } catch (error: any) {
@@ -99,13 +100,13 @@ export async function POST(req: NextRequest) {
 function getStylePrompt(style: string): string {
     switch (style) {
         case "natural":
-            return "Natural aesthetics: Shade A1/B1 (not blinding white). Realistic biomimetic tooth shapes with slight natural asymmetries.";
+            return "Natural aesthetics: Shade A1. Slight natural asymmetries.";
         case "soft":
-            return "Soft aesthetics: Rounded tooth corners, oval shapes, feminine and gentle appearance. Shade BL2.";
+            return "Soft aesthetics: Rounded edges. Oval shapes. Shade BL2.";
         case "strong":
-            return "Strong aesthetics: Square shapes, bold masculine appearance. Shade BL2. Prominent canines.";
+            return "Strong aesthetics: Square shapes. Bold canines. Shade BL2.";
         case "hollywood":
         default:
-            return "Hollywood aesthetics: Ultra-white ceramic veneers shade BL1. Perfect symmetry. Flawless geometry.";
+            return "Hollywood aesthetics: Ultra-white shade BL1. Perfect symmetry and geometry.";
     }
 }
