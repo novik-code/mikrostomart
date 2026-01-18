@@ -21,8 +21,8 @@ export async function initializeFaceDetector() {
             outputFaceBlendshapes: false,
             runningMode: "IMAGE",
             numFaces: 1,
-            minFaceDetectionConfidence: 0.01, // Max sensitivity for close-ups
-            minFacePresenceConfidence: 0.01
+            minFaceDetectionConfidence: 0.5, // Standard confidence to avoid false positives (nose as mouth)
+            minFacePresenceConfidence: 0.5
         });
         console.log("FaceLandmarker Ready.");
     } catch (e) {
@@ -39,6 +39,7 @@ export interface SmileAlignment {
     scale: number;  // Scale Factor
     rotation: number; // Degrees
     mouthPath?: { x: number; y: number; }[]; // Standardized Poly Point
+    faceBox?: { x: number; y: number; width: number; height: number; };
 }
 
 export async function analysisFaceAlignment(image: HTMLImageElement): Promise<SmileAlignment | null> {
@@ -131,12 +132,23 @@ export async function analysisFaceAlignment(image: HTMLImageElement): Promise<Sm
             const distance = Math.hypot(dx, dy);
             const baseScale = distance * 2.2;
 
+            // Calculate Face Bounding Box for Debug
+            const xs = landmarks.map(l => l.x);
+            const ys = landmarks.map(l => l.y);
+            const box = {
+                x: Math.min(...xs),
+                y: Math.min(...ys),
+                width: Math.max(...xs) - Math.min(...xs),
+                height: Math.max(...ys) - Math.min(...ys)
+            };
+
             return {
                 x: centerX * 100,
                 y: centerY * 100,
                 scale: baseScale,
                 rotation: angleDeg,
-                mouthPath: mouthPath // Array of {x, y} (0.0-1.0)
+                mouthPath: mouthPath, // Array of {x, y} (0.0-1.0)
+                faceBox: box // 0.0-1.0
             };
         }
 

@@ -81,9 +81,10 @@ export async function POST(req: NextRequest) {
                 Close all gaps (diastema). Ensure a continuous, unbroken row of beautiful teeth.
                 
                 LIP ADAPTATION: Slightly adjust the lip shape to frame the new teeth perfectly.
-                Relax the upper lip to cover the gums.
-                CRITICAL: DO NOT SHOW EXCESSIVE GUMS (NO GUMMY SMILE). 
-                The result must look like a natural, confident smile with gum tissue hidden or minimal.
+                Relax the upper lip to cover the gums. show minimal gum tissue.
+                CRITICAL: The smile line must be at the gingival margin. 
+                NO GUMMY SMILE. Hide the gums with the upper lip if necessary.
+                The teeth should look dominant, not the gums.
                 
                 High-contrast professional lighting. 
                 Photorealistic texture, translucent enamel edges. 
