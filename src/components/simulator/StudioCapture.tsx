@@ -73,7 +73,6 @@ export default function StudioCapture({ onImageSelected }: StudioCaptureProps) {
     };
 
     return (
-    return (
         <div style={{
             width: '100%',
             height: '100%',
