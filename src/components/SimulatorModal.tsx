@@ -254,9 +254,26 @@ export default function SimulatorModal() {
 
             ctx.beginPath();
             const mp = analysis.mouthPath;
-            ctx.moveTo(mp[0].x * canvas.width, mp[0].y * canvas.height);
-            for (let i = 1; i < mp.length; i++) {
-                ctx.lineTo(mp[i].x * canvas.width, mp[i].y * canvas.height);
+
+            // Calculate Centroid
+            let cx = 0, cy = 0;
+            mp.forEach(p => { cx += p.x; cy += p.y; });
+            cx /= mp.length;
+            cy /= mp.length;
+
+            // Dilation Factor (1.4 = 40% bigger to allow mouth opening)
+            const dilation = 1.4;
+
+            const dilatedPath = mp.map(p => ({
+                x: (cx + (p.x - cx) * dilation) * canvas.width,
+                y: (cy + (p.y - cy) * dilation) * canvas.height
+            }));
+
+            if (dilatedPath.length > 0) {
+                ctx.moveTo(dilatedPath[0].x, dilatedPath[0].y);
+                for (let i = 1; i < dilatedPath.length; i++) {
+                    ctx.lineTo(dilatedPath[i].x, dilatedPath[i].y);
+                }
             }
             ctx.closePath();
             ctx.fill();
