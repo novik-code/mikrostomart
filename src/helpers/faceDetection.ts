@@ -54,8 +54,8 @@ export async function analysisFaceAlignment(image: HTMLImageElement): Promise<Sm
 
         // --- STEP 2: FALLBACK (Angled/Low Quality) ---
         if (!result.faceLandmarks || result.faceLandmarks.length === 0) {
-            console.warn("No face found in STRICT mode. Retrying with HIGH SENSITIVITY (Angled/Partial)...");
-            detector.setOptions({ minFaceDetectionConfidence: 0.01, minFacePresenceConfidence: 0.01 });
+            console.warn("No face found in STRICT mode. Retrying with SENSITIVE mode (0.15)...");
+            detector.setOptions({ minFaceDetectionConfidence: 0.15, minFacePresenceConfidence: 0.15 });
             result = detector.detect(image);
         }
 

@@ -76,12 +76,15 @@ export async function POST(req: NextRequest) {
                 // Focused on "Hollywood Star" look: Ultra White + Perfect Alignment + Realism.
                 prompt: `Portrait photography, Hollywood Smile makeover.
                 TASK: Inpaint the mouth area. 
-                1. LIPS (CRITICAL): Reconstruct natural, beautiful lips first. The lips must frame the mouth. 
-                2. TEETH: Place perfect porcelain veneers (Shade BL1) INSIDE the lip opening.
+                CRITICAL TRANSFORMATION: OPEN THE MOUTH. 
+                The subject may have a closed mouth or missing teeth. You MUST generate a PARTED LIP SMILE exposing a full set of teeth.
+                
+                1. LIPS: Reshape the lips to be PARTED/OPEN to frame the new teeth.
+                2. TEETH: Place perfect porcelain veneers (Shade BL1) into the newly opened mouth.
                 
                 CONSTRAINT: Maintain natural tooth size. Do NOT extend teeth vertically. 
-                If the mask area is large, fill the top and bottom with LIP tissue, NOT teeth.
-                NO GUMMY SMILE. Relax the upper lip to hide the gum line.
+                If the mask area is large, fill the edges with lip tissue, but ensure the CENTER reveals teeth.
+                NO GUMMY SMILE. Hide the gums with the upper lip.
                 
                 Aesthetics: High-contrast, photorealistic, healthy pink lips, translucent white enamel.
                 Perfect alignment, no gaps. ${getStylePrompt(style)}`,
