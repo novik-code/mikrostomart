@@ -8,133 +8,123 @@ interface TeethVisualProps {
     selectedZone: string | null;
 }
 
-// Zones mapped relatively to a 1000x1000 coordinate system matching the image aspect
-// Focusing on the dental arches.
+// Coordinate mapping for "intraoral_anatomy_natural.png"
+// Assuming a roughly 1000x1000 square where the mouth spans most of it.
+// Upper Arch is Top Half (~100-450), Lower Arch is Bottom Half (~550-900).
+// Left/Right is split around X=500.
+
 const ZONES = [
     {
-        id: "top-front",
-        label: "Górne Jedynki/Dwójki (Przód)",
-        // Top Arch Front
-        path: "M 350,250 Q 500,150 650,250 L 600,350 Q 500,280 400,350 Z",
-        cx: 500, cy: 220
+        id: "palate",
+        label: "Podniebienie / Górna Szczęka",
+        // Central Top area
+        path: "M 300,300 Q 500,100 700,300 Q 500,450 300,300 Z",
+        cx: 500, cy: 250
     },
     {
-        id: "top-left",
-        label: "Górne Lewe (Trzonowe)",
-        // Top Left (User's Left = Right on screen?) No, usually Left is Left. Top Left of logic.
-        // Let's assume standard view: Left side of image is Patient's Right (Dental notation) or just Left side visually.
-        // Visually Left:
-        path: "M 200,300 Q 300,200 350,250 L 400,350 Q 300,450 200,500 Z",
-        cx: 250, cy: 350
+        id: "top-teeth",
+        label: "Górne Zęby",
+        // Arch shape top
+        path: "M 150,350 Q 500,50 850,350 L 750,450 Q 500,200 250,450 Z",
+        cx: 500, cy: 150
     },
     {
-        id: "top-right",
-        label: "Górne Prawe (Trzonowe)",
-        // Visually Right:
-        path: "M 800,300 Q 700,200 650,250 L 600,350 Q 700,450 800,500 Z",
-        cx: 750, cy: 350
+        id: "tongue",
+        label: "Język",
+        // Center
+        path: "M 350,500 Q 500,450 650,500 Q 600,700 500,750 Q 400,700 350,500 Z",
+        cx: 500, cy: 600
     },
     {
-        id: "bottom-front",
-        label: "Dolne Jedynki/Dwójki (Przód)",
-        // Bottom Arch Front
-        path: "M 350,750 Q 500,850 650,750 L 600,650 Q 500,720 400,650 Z",
-        cx: 500, cy: 800
+        id: "bottom-teeth",
+        label: "Dolne Zęby",
+        // Arch shape bottom
+        path: "M 150,650 Q 500,950 850,650 L 750,550 Q 500,800 250,550 Z",
+        cx: 500, cy: 850
     },
     {
-        id: "bottom-left",
-        label: "Dolne Lewe (Trzonowe)",
-        // Bottom Left
-        path: "M 200,700 Q 300,800 350,750 L 400,650 Q 300,550 200,500 Z",
-        cx: 250, cy: 650
-    },
-    {
-        id: "bottom-right",
-        label: "Dolne Prawe (Trzonowe)",
-        path: "M 800,700 Q 700,800 650,750 L 600,650 Q 700,550 800,500 Z",
-        cx: 750, cy: 650
+        id: "cheeks",
+        label: "Policzek / Błona Śluzowa",
+        // Side areas (catch-all for sides)
+        path: "M 50,400 Q 150,500 50,600 L 0,600 L 0,400 Z  M 950,400 Q 850,500 950,600 L 1000,600 L 1000,400 Z",
+        // Note: Multipart path or just use two zones. Let's make it simple: Left Cheek
+        cx: 100, cy: 500
     }
 ];
 
+// SIMPLIFIED HIT ZONES (Robust Rectangles/Circles for easy clicking)
+// Since complex paths are hard to aid without seeing coords, we use simple transparent overlays.
+const HIT_ZONES = [
+    { id: "top-teeth", label: "Górny Łuk Zębowy", x: 200, y: 100, w: 600, h: 250 },
+    { id: "palate", label: "Podniebienie", x: 350, y: 350, w: 300, h: 150 },
+    { id: "tongue", label: "Język", x: 350, y: 550, w: 300, h: 200 },
+    { id: "bottom-teeth", label: "Dolny Łuk Zębowy", x: 200, y: 750, w: 600, h: 200 },
+    { id: "cheeks", label: "Policzki / Inne", x: 0, y: 400, w: 1000, h: 200, ghost: true }, // Background layer?
+];
+
+
 export default function TeethVisual({ onZoneSelect, selectedZone }: TeethVisualProps) {
     return (
-        <div className="relative w-full max-w-[500px] mx-auto aspect-square group">
+        <div className="relative w-full max-w-[500px] mx-auto aspect-square group rounded-full overflow-hidden border-4 border-[#dcb14a]/20 shadow-[0_0_50px_rgba(220,177,74,0.1)]">
 
-            {/* Base Image */}
+            {/* Natural Anatomy Image */}
             <Image
-                src="/jaw_anatomy_elegant.png"
-                alt="Jaw Anatomy"
+                src="/intraoral_anatomy_natural.png"
+                alt="Natural Oral Anatomy"
                 fill
-                className="object-contain opacity-90 transition-opacity duration-500"
+                className="object-cover transition-transform duration-700 hover:scale-105"
                 priority
             />
 
-            {/* SVG Overlay Layer */}
-            <svg viewBox="0 0 1000 1000" className="absolute inset-0 w-full h-full">
-                <defs>
-                    <radialGradient id="gold-glow">
-                        <stop offset="0%" stopColor="#dcb14a" stopOpacity="0.6" />
-                        <stop offset="100%" stopColor="#dcb14a" stopOpacity="0" />
-                    </radialGradient>
-                </defs>
+            {/* Interactive Grid Layer */}
+            <div className="absolute inset-0 z-10 grid grid-cols-2 grid-rows-3 gap-2 p-4">
+                {/* Top Left - Upper Molars */}
+                <button
+                    onClick={() => onZoneSelect('top-left', 'Górne Lewe (Trzonowe)')}
+                    className={`rounded-2xl transition-all duration-300 ${selectedZone === 'top-left' ? 'bg-[#dcb14a]/30 ring-2 ring-[#dcb14a]' : 'hover:bg-white/10'}`}
+                />
+                {/* Top Right - Upper Molars */}
+                <button
+                    onClick={() => onZoneSelect('top-right', 'Górne Prawe (Trzonowe)')}
+                    className={`rounded-2xl transition-all duration-300 ${selectedZone === 'top-right' ? 'bg-[#dcb14a]/30 ring-2 ring-[#dcb14a]' : 'hover:bg-white/10'}`}
+                />
 
-                {ZONES.map((zone) => {
-                    const isSelected = selectedZone === zone.id;
-                    return (
-                        <motion.g
-                            key={zone.id}
-                            onClick={() => onZoneSelect(zone.id, zone.label)}
-                            initial="idle"
-                            whileHover="hover"
-                            animate={isSelected ? "selected" : "idle"}
-                            className="cursor-pointer"
-                        >
-                            {/* Hit Area - Invisible but detectable */}
-                            <motion.path
-                                d={zone.path}
-                                fill="transparent"
-                                stroke="transparent"
-                                variants={{
-                                    idle: { fillOpacity: 0 },
-                                    hover: { fill: "url(#gold-glow)", fillOpacity: 0.3 },
-                                    selected: { fill: "url(#gold-glow)", fillOpacity: 0.6 }
-                                }}
-                            />
+                {/* Middle Left - Cheeks/Tongue Side */}
+                <button
+                    onClick={() => onZoneSelect('palate', 'Podniebienie / Język')}
+                    className={`col-span-2 rounded-2xl transition-all duration-300 ${selectedZone === 'palate' ? 'bg-[#dcb14a]/30 ring-2 ring-[#dcb14a]' : 'hover:bg-white/5'}`}
+                >
+                    <span className={`text-xs uppercase font-bold tracking-widest text-[#dcb14a] ${selectedZone === 'palate' ? 'opacity-100' : 'opacity-0'} transition-opacity`}>
+                        Obszar Centralny
+                    </span>
+                </button>
 
-                            {/* Selection Indicator Dot or Ring */}
-                            <motion.circle
-                                cx={zone.cx}
-                                cy={zone.cy}
-                                r={isSelected ? 10 : 0}
-                                fill="#dcb14a"
-                                initial={false}
-                                animate={{ r: isSelected ? 15 : 0, opacity: isSelected ? 1 : 0 }}
-                            />
-                        </motion.g>
-                    );
-                })}
+                {/* Bottom Left - Lower Molars */}
+                <button
+                    onClick={() => onZoneSelect('bottom-left', 'Dolne Lewe (Trzonowe)')}
+                    className={`rounded-2xl transition-all duration-300 ${selectedZone === 'bottom-left' ? 'bg-[#dcb14a]/30 ring-2 ring-[#dcb14a]' : 'hover:bg-white/10'}`}
+                />
+                {/* Bottom Right - Lower Molars */}
+                <button
+                    onClick={() => onZoneSelect('bottom-right', 'Dolne Prawe (Trzonowe)')}
+                    className={`rounded-2xl transition-all duration-300 ${selectedZone === 'bottom-right' ? 'bg-[#dcb14a]/30 ring-2 ring-[#dcb14a]' : 'hover:bg-white/10'}`}
+                />
+            </div>
 
+            {/* Center Front Overlay for Incisors (Absolute) */}
+            <div className="absolute inset-x-0 top-6 mx-auto w-32 h-20 z-20">
+                <button
+                    onClick={() => onZoneSelect('top-front', 'Górne Jedynki (Przód)')}
+                    className={`w-full h-full rounded-b-2xl transition-all duration-300 ${selectedZone === 'top-front' ? 'bg-[#dcb14a]/30 ring-2 ring-[#dcb14a]' : 'hover:bg-white/10'}`}
+                />
+            </div>
+            <div className="absolute inset-x-0 bottom-6 mx-auto w-32 h-20 z-20">
+                <button
+                    onClick={() => onZoneSelect('bottom-front', 'Dolne Jedynki (Przód)')}
+                    className={`w-full h-full rounded-t-2xl transition-all duration-300 ${selectedZone === 'bottom-front' ? 'bg-[#dcb14a]/30 ring-2 ring-[#dcb14a]' : 'hover:bg-white/10'}`}
+                />
+            </div>
 
-            </svg>
-
-            {/* Labels overlay */}
-            {ZONES.map((zone) => (
-                selectedZone === zone.id && (
-                    <motion.div
-                        key={`label-${zone.id}`}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="absolute bg-black/80 text-[#dcb14a] text-xs px-2 py-1 rounded border border-[#dcb14a]/30"
-                        style={{
-                            left: `${(zone.cx / 1000) * 100}%`,
-                            top: `${(zone.cy / 1000) * 100}%`,
-                            transform: 'translate(-50%, -150%)'
-                        }}
-                    >
-                        ✓ Wybrano
-                    </motion.div>
-                )
-            ))}
         </div>
     );
 }
