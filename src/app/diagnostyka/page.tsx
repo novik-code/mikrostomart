@@ -7,7 +7,7 @@ export const metadata = {
 
 export default function PainMapPage() {
     return (
-        <main className="min-h-screen pt-24 pb-20 bg-black relative overflow-hidden">
+        <main className="min-h-screen pt-24 pb-20 bg-blue-900 relative overflow-hidden ring-4 ring-red-500">
             {/* Background Effects */}
             <div className="fixed inset-0 pointer-events-none">
                 <div className="absolute top-[-20%] right-[-10%] w-[600px] h-[600px] bg-[#dcb14a] opacity-[0.03] blur-[150px] rounded-full" />
