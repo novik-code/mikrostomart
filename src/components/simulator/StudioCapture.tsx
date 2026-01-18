@@ -244,15 +244,39 @@ export default function StudioCapture({ onImageSelected }: StudioCaptureProps) {
                         autoPlay
                         playsInline
                         muted
+                        onLoadedMetadata={(e) => {
+                            // Force play again to be sure
+                            e.currentTarget.play().catch(console.error);
+                        }}
                         style={{
                             width: '100%',
                             height: '100%',
                             objectFit: 'cover',
                             position: 'absolute',
                             top: 0,
-                            left: 0
+                            left: 0,
+                            zIndex: 1
                         }}
                     />
+
+                    {/* DEBUG INFO OVERLAY (Visible only when issues happen) */}
+                    <div style={{
+                        position: 'absolute',
+                        top: '10px',
+                        left: '10px',
+                        zIndex: 100,
+                        background: 'rgba(0,0,0,0.7)',
+                        color: 'lime',
+                        fontSize: '10px',
+                        padding: '4px',
+                        fontFamily: 'monospace',
+                        pointerEvents: 'none'
+                    }}>
+                        DEBUG: {isCameraOpen ? "Camera ON" : "Camera OFF"} <br />
+                        VideoRef: {videoRef.current ? "OK" : "Null"} <br />
+                        Stream: {videoRef.current?.srcObject ? "Active" : "None"} <br />
+                        Size: {videoRef.current?.videoWidth}x{videoRef.current?.videoHeight}
+                    </div>
 
                     {/* Overlay Guide - Centered properly */}
                     <div style={{

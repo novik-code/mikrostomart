@@ -72,10 +72,12 @@ export async function POST(req: NextRequest) {
             input: {
                 image: imageUri,
                 mask: maskUri,
-                prompt: `Dental macro photography. Inside the mouth, realistic ${style} teeth. High resolution, 8k, sharp focus, wet texture, enamel reflections.
-                ${getStylePrompt(style)}
-                Perfectly integrated with the surrounding lips and gums. Natural lighting match.`,
-                guidance_scale: 60,
+                prompt: `Dental macro photography. High quality realistic ${style} teeth. 
+                Focus strictly on the teeth area inside the mask. 
+                Keep lips and gums 100% natural and unchanged. 
+                Seamless blending, wet texture, enamel reflections. 
+                Do not distort the face. Do not change the mouth shape.`,
+                guidance_scale: 25, // Lower guidance slightly to allow better blending, 60 was too rigid
                 n_steps: 50,
                 output_format: "png",
                 output_quality: 100
