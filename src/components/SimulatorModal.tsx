@@ -163,36 +163,56 @@ export default function SimulatorModal() {
     const [showDebug, setShowDebug] = useState(false);
     const [debugMaskSrc, setDebugMaskSrc] = useState<string | null>(null);
 
-    // Helper: Sanitize image using createImageBitmap (Standard 2024 compliance for EXIF)
+    // Helper: Sanitize image using createImageBitmap + Resize to Max 1280px
     const sanitizeImage = async (src: string): Promise<string> => {
         try {
-            // 1. Fetch blob (handles local object URLs or remotes)
+            // 1. Fetch blob
             const response = await fetch(src);
             const blob = await response.blob();
 
-            // 2. Create Bitmap (Auto-normalizes EXIF orientation)
+            // 2. Create Bitmap (Auto-normalizes EXIF)
             const bitmap = await createImageBitmap(blob);
 
-            // 3. Draw to canvas
+            // 3. Calculate Scale for Max 1280px
+            const maxDim = 1280;
+            let width = bitmap.width;
+            let height = bitmap.height;
+
+            if (width > maxDim || height > maxDim) {
+                const ratio = Math.min(maxDim / width, maxDim / height);
+                width = Math.round(width * ratio);
+                height = Math.round(height * ratio);
+            }
+
+            // 4. Draw to canvas
             const canvas = document.createElement('canvas');
-            canvas.width = bitmap.width;
-            canvas.height = bitmap.height;
+            canvas.width = width;
+            canvas.height = height;
             const ctx = canvas.getContext('2d');
             if (!ctx) throw new Error("No ctx");
 
-            ctx.drawImage(bitmap, 0, 0);
+            ctx.drawImage(bitmap, 0, 0, width, height);
+
             return canvas.toDataURL('image/png');
         } catch (e) {
             console.error("Sanitization fallback", e);
-            // Fallback to legacy Image (less robust for EXIF)
+            // Fallback
             return new Promise((resolve, reject) => {
                 const img = new Image();
                 img.crossOrigin = "anonymous";
                 img.onload = () => {
+                    const maxDim = 1280;
+                    let w = img.naturalWidth;
+                    let h = img.naturalHeight;
+                    if (w > maxDim || h > maxDim) {
+                        const r = Math.min(maxDim / w, maxDim / h);
+                        w = Math.round(w * r);
+                        h = Math.round(h * r);
+                    }
                     const c = document.createElement('canvas');
-                    c.width = img.naturalWidth;
-                    c.height = img.naturalHeight;
-                    c.getContext('2d')?.drawImage(img, 0, 0);
+                    c.width = w;
+                    c.height = h;
+                    c.getContext('2d')?.drawImage(img, 0, 0, w, h);
                     resolve(c.toDataURL('image/png'));
                 };
                 img.onerror = reject;
