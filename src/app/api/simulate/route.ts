@@ -77,9 +77,11 @@ export async function POST(req: NextRequest) {
                 prompt: `Award-winning dental photography of a Hollywood Smile makeover. 
                 The subject has ultra-white, perfect porcelain veneers (Shade BL1). 
                 The teeth are flawless, perfectly aligned, and gleam with a natural healthy shine. 
+                FULL ARCH RECONSTRUCTION: Replace any missing teeth or gaps with perfect implants.
+                Close all gaps (diastema). Ensure a continuous, unbroken row of beautiful teeth.
                 High-contrast professional lighting. 
                 Photorealistic texture, translucent enamel edges, healthy pink gums. 
-                No yellowing, no stains. Absolute perfection. ${getStylePrompt(style)}`,
+                No yellowing, no stains, no decay. Absolute perfection. ${getStylePrompt(style)}`,
                 guidance_scale: 30, // Very strong adherence to "perfect" prompt
                 n_steps: 50,
                 output_format: "png",

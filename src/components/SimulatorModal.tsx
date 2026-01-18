@@ -400,12 +400,21 @@ export default function SimulatorModal() {
                             <div style={{ flex: 1, position: 'relative', borderRadius: '12px', overflow: 'hidden', border: '1px solid #333' }}>
                                 <BeforeAfterSlider beforeImage={originalImage} afterImage={resultImage} />
                             </div>
-                            <button onClick={() => setStep('intro')} style={{
-                                padding: '15px', borderRadius: '50px', background: '#333', color: 'white', border: 'none',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'
-                            }}>
-                                <RotateCcw size={18} /> Inne zdjęcie
-                            </button>
+                            <div style={{ display: 'flex', gap: '10px', width: '100%' }}>
+                                <button onClick={() => handleImageSelected(originalImage)} style={{
+                                    flex: 1, padding: '15px', borderRadius: '50px',
+                                    background: '#dcb14a', color: 'black', border: 'none', fontWeight: 'bold',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', cursor: 'pointer'
+                                }}>
+                                    <RefreshCw size={18} /> Ulepsz Ponownie
+                                </button>
+                                <button onClick={() => setStep('intro')} style={{
+                                    padding: '15px', borderRadius: '50%', background: '#333', color: 'white', border: 'none',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', aspectRatio: '1/1'
+                                }}>
+                                    <RotateCcw size={18} />
+                                </button>
+                            </div>
                         </div>
                     )}
 
