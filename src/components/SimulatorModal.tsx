@@ -462,7 +462,8 @@ export default function SimulatorModal() {
             <button onClick={() => setShowDebug(!showDebug)} style={{
                 position: 'absolute', top: '20px', left: '20px',
                 background: showDebug ? 'red' : 'rgba(255,255,255,0.05)', border: 'none', borderRadius: '5px',
-                color: 'white', padding: '5px 10px', cursor: 'pointer', zIndex: 100, fontSize: '10px'
+                color: 'white', padding: '5px 10px', cursor: 'pointer', zIndex: 100, fontSize: '10px',
+                display: 'none' // HIDDEN
             }}>
                 DEBUG
             </button>
