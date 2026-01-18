@@ -847,7 +847,7 @@ export default function SimulatorPage() {
                                 </>
                             ) : (
                                 <>
-                                    {/* CAMERA VIEW LAYER */ }
+                                    {/* CAMERA VIEW LAYER */}
                                     {isCameraOpen ? (
                                         <div style={{
                                             position: 'absolute',
@@ -903,7 +903,7 @@ export default function SimulatorPage() {
                                         <>
                                             <div style={{ fontSize: "4rem", marginBottom: "1rem", opacity: 0.5 }}>📸</div>
                                             <h3 style={{ marginBottom: "1rem" }}>Przeciągnij zdjęcie lub...</h3>
-                                            
+
                                             <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem' }}>
                                                 {/* UPLOAD BUTTON (Hidden Input Wrapper) */}
                                                 <label style={{
@@ -928,7 +928,7 @@ export default function SimulatorPage() {
                                                 </label>
 
                                                 {/* SELFIE BUTTON */}
-                                                <button 
+                                                <button
                                                     onClick={(e) => { e.stopPropagation(); startCamera(); }}
                                                     style={{
                                                         cursor: 'pointer',
@@ -948,21 +948,23 @@ export default function SimulatorPage() {
                                             </div>
 
                                             <p style={{ color: "var(--color-text-muted)" }}>
-                                        lub wybierz z urządzenia
-                                    </p>
-                                    <input
-                                        type="file"
-                                        ref={fileInputRef}
-                                        onChange={handleFileSelect}
-                                        accept="image/*"
-                                        style={{ display: "none" }}
-                                    />
-                                    <button
-                                        onClick={() => fileInputRef.current?.click()}
-                                        className="btn-primary"
-                                    >
-                                        Wybierz plik
-                                    </button>
+                                                lub wybierz z urządzenia
+                                            </p>
+                                            <input
+                                                type="file"
+                                                ref={fileInputRef}
+                                                onChange={handleFileSelect}
+                                                accept="image/*"
+                                                style={{ display: "none" }}
+                                            />
+                                            <button
+                                                onClick={() => fileInputRef.current?.click()}
+                                                className="btn-primary"
+                                            >
+                                                Wybierz plik
+                                            </button>
+                                        </>
+                                    )}
                                 </>
                             )}
                         </div>
