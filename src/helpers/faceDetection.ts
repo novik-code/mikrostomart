@@ -21,8 +21,8 @@ export async function initializeFaceDetector() {
             outputFaceBlendshapes: false,
             runningMode: "IMAGE",
             numFaces: 1,
-            minFaceDetectionConfidence: 0.5, // Standard confidence to avoid false positives (nose as mouth)
-            minFacePresenceConfidence: 0.5
+            minFaceDetectionConfidence: 0.3, // Compromise: Good sensitivity but safer than 0.01
+            minFacePresenceConfidence: 0.3
         });
         console.log("FaceLandmarker Ready.");
     } catch (e) {

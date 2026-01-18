@@ -383,17 +383,16 @@ export default function SimulatorModal() {
                 <div style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
 
                     {/* DEBUG OVERLAY */}
-                    {showDebug && debugMaskSrc && originalImage && (
+                    {showDebug && debugMaskSrc && (
                         <div style={{
-                            position: 'absolute', top: 50, left: 50, width: '200px', zIndex: 200,
-                            border: '2px solid red', background: 'black'
+                            position: 'absolute', top: 50, left: 50, width: '250px', zIndex: 200,
+                            border: '2px solid red', background: 'black',
+                            boxShadow: '0 0 20px rgba(0,0,0,0.5)'
                         }}>
-                            <p style={{ fontSize: '10px', color: 'red', margin: 0 }}>MASK PREVIEW:</p>
-                            <img src={originalImage} style={{ width: '100%', display: 'block' }} />
-                            <img src={debugMaskSrc} style={{
-                                width: '100%', position: 'absolute', top: 0, left: 0,
-                                opacity: 0.5, mixBlendMode: 'screen'
-                            }} />
+                            <p style={{ fontSize: '12px', color: 'white', background: 'red', margin: 0, padding: '2px 5px', fontWeight: 'bold' }}>
+                                DEBUG: WHAT AI SEES (100%)
+                            </p>
+                            <img src={debugMaskSrc} style={{ width: '100%', display: 'block' }} />
                         </div>
                     )}
 
