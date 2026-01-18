@@ -118,6 +118,7 @@ export default function Navbar() {
                                     </Link>
                                     <Link
                                         href="/symulator"
+                                        target="_blank"
                                         className={styles.link}
                                         style={{
                                             display: 'block',
@@ -196,7 +197,7 @@ export default function Navbar() {
                             <Link href="/baza-wiedzy" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem' }}>📚 Baza Wiedzy</Link>
                             <Link href="/nowosielski" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem', color: '#d4af37', fontWeight: 'bold' }}>👨‍⚕️ Blog Dr. Marcin</Link>
                             <Link href="/sklep" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem' }}>🛍️ Sklep</Link>
-                            <Link href="/symulator" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', color: 'var(--color-primary)', marginBottom: '0.5rem' }}>✨ Symulator AI</Link>
+                            <Link href="/symulator" target="_blank" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', color: 'var(--color-primary)', marginBottom: '0.5rem' }}>✨ Symulator AI</Link>
                             <button
                                 onClick={() => {
                                     openChat();

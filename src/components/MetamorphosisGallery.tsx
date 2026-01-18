@@ -262,7 +262,7 @@ export default function MetamorphosisGallery({ initialIndex = 0 }: { initialInde
                 <p style={{ marginBottom: '1rem', fontSize: '0.9rem' }}>
                     Zobacz jak TY możesz wyglądać w nowym uśmiechu!
                 </p>
-                <a href="/symulator" className="btn-primary" style={{ padding: '0.5rem 1.5rem', fontSize: '0.9rem' }}>
+                <a href="/symulator" target="_blank" className="btn-primary" style={{ padding: '0.5rem 1.5rem', fontSize: '0.9rem' }}>
                     Otwórz Symulator AI ✨
                 </a>
             </div>
