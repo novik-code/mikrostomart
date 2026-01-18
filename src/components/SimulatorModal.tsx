@@ -307,7 +307,7 @@ export default function SimulatorModal() {
 
         // Polling with Timeout
         let attempts = 0;
-        const maxAttempts = 60; // Increased to 60 seconds for slower queues
+        const maxAttempts = 120; // Increased to 120 seconds (Flux cold starts)
 
         const poll = async () => {
             attempts++;

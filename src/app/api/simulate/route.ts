@@ -74,21 +74,17 @@ export async function POST(req: NextRequest) {
                 mask: maskUri,
                 // CRITICAL PROMPT UPDATE:
                 // Focused on "Hollywood Star" look: Ultra White + Perfect Alignment + Realism.
-                prompt: `Award-winning dental photography of a Hollywood Smile makeover. 
-                The subject has ultra-white, perfect porcelain veneers (Shade BL1). 
-                The teeth are flawless, perfectly aligned, and gleam with a natural healthy shine. 
-                FULL ARCH RECONSTRUCTION: Replace any missing teeth or gaps with perfect implants.
-                Close all gaps (diastema). Ensure a continuous, unbroken row of beautiful teeth.
+                prompt: `Portrait photography, Hollywood Smile makeover.
+                TASK: Inpaint the mouth area. 
+                1. LIPS (CRITICAL): Reconstruct natural, beautiful lips first. The lips must frame the mouth. 
+                2. TEETH: Place perfect porcelain veneers (Shade BL1) INSIDE the lip opening.
                 
-                LIP ADAPTATION: Slightly adjust the lip shape to frame the new teeth perfectly.
-                Relax the upper lip to cover the gums. show minimal gum tissue.
-                CRITICAL: The smile line must be at the gingival margin. 
-                NO GUMMY SMILE. Hide the gums with the upper lip if necessary.
-                The teeth should look dominant, not the gums.
+                CONSTRAINT: Maintain natural tooth size. Do NOT extend teeth vertically. 
+                If the mask area is large, fill the top and bottom with LIP tissue, NOT teeth.
+                NO GUMMY SMILE. Relax the upper lip to hide the gum line.
                 
-                High-contrast professional lighting. 
-                Photorealistic texture, translucent enamel edges. 
-                No yellowing, no stains, no decay. Absolute perfection. ${getStylePrompt(style)}`,
+                Aesthetics: High-contrast, photorealistic, healthy pink lips, translucent white enamel.
+                Perfect alignment, no gaps. ${getStylePrompt(style)}`,
                 guidance_scale: 30, // Very strong adherence to "perfect" prompt
                 n_steps: 50,
                 output_format: "png",
