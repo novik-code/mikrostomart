@@ -163,28 +163,42 @@ export default function SimulatorModal() {
     const [showDebug, setShowDebug] = useState(false);
     const [debugMaskSrc, setDebugMaskSrc] = useState<string | null>(null);
 
-    // Helper: Sanitize image to strip EXIF and ensure 1:1 pixel mapping
+    // Helper: Sanitize image using createImageBitmap (Standard 2024 compliance for EXIF)
     const sanitizeImage = async (src: string): Promise<string> => {
-        return new Promise((resolve, reject) => {
-            const img = new Image();
-            img.crossOrigin = "anonymous";
-            img.onload = () => {
-                const canvas = document.createElement('canvas');
-                // Use natural dimensions - browser handles EXIF orientation during load for <img> but not always drawImage?
-                // Actually, passing the IMG element to drawImage usually respects standard orientation in modern browsers,
-                // BUT extracting the dataURL "bakes" it.
-                canvas.width = img.naturalWidth;
-                canvas.height = img.naturalHeight;
-                const ctx = canvas.getContext('2d');
-                if (!ctx) { reject("No ctx"); return; }
+        try {
+            // 1. Fetch blob (handles local object URLs or remotes)
+            const response = await fetch(src);
+            const blob = await response.blob();
 
-                // Draw image to canvas to bake pixels
-                ctx.drawImage(img, 0, 0);
-                resolve(canvas.toDataURL('image/png'));
-            };
-            img.onerror = reject;
-            img.src = src;
-        });
+            // 2. Create Bitmap (Auto-normalizes EXIF orientation)
+            const bitmap = await createImageBitmap(blob);
+
+            // 3. Draw to canvas
+            const canvas = document.createElement('canvas');
+            canvas.width = bitmap.width;
+            canvas.height = bitmap.height;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) throw new Error("No ctx");
+
+            ctx.drawImage(bitmap, 0, 0);
+            return canvas.toDataURL('image/png');
+        } catch (e) {
+            console.error("Sanitization fallback", e);
+            // Fallback to legacy Image (less robust for EXIF)
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.crossOrigin = "anonymous";
+                img.onload = () => {
+                    const c = document.createElement('canvas');
+                    c.width = img.naturalWidth;
+                    c.height = img.naturalHeight;
+                    c.getContext('2d')?.drawImage(img, 0, 0);
+                    resolve(c.toDataURL('image/png'));
+                };
+                img.onerror = reject;
+                img.src = src;
+            });
+        }
     };
 
     const generateAutoMask = async (imgSrc: string): Promise<string> => {
@@ -231,13 +245,12 @@ export default function SimulatorModal() {
 
             const maskData = canvas.toDataURL('image/png'); // Save B/W Mask for API
 
-            // 2. Generate Debug Composite (Original + Red Outline)
-            // Clear and draw original
+            // 2. Generate Debug Composite (Original + Outline + Landmarks)
             ctx.filter = 'none';
             ctx.globalCompositeOperation = 'source-over';
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-            // Draw Red Outline
+            // Draw Red Outline (Mouth)
             ctx.strokeStyle = 'red';
             ctx.lineWidth = 4;
             ctx.beginPath();
@@ -248,10 +261,17 @@ export default function SimulatorModal() {
             ctx.closePath();
             ctx.stroke();
 
-            const debugData = canvas.toDataURL('image/png');
-            setDebugMaskSrc(debugData); // Save composite for debug view (WYSIWYG)
+            // Draw REFERENCE LANDMARKS (To debug global shift)
+            // Center (Blue)
+            ctx.fillStyle = 'blue';
+            ctx.beginPath();
+            ctx.arc(analysis.x / 100 * canvas.width, analysis.y / 100 * canvas.height, 10, 0, 2 * Math.PI);
+            ctx.fill();
 
-            return maskData; // Return B/W mask for processing
+            const debugData = canvas.toDataURL('image/png');
+            setDebugMaskSrc(debugData);
+
+            return maskData;
 
         } catch (e) {
             console.warn("Face detection failed.", e);
