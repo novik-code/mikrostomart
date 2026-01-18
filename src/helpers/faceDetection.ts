@@ -20,7 +20,9 @@ export async function initializeFaceDetector() {
             },
             outputFaceBlendshapes: false,
             runningMode: "IMAGE",
-            numFaces: 1
+            numFaces: 1,
+            minFaceDetectionConfidence: 0.15, // Allow partial/close-up faces
+            minFacePresenceConfidence: 0.15
         });
         console.log("FaceLandmarker Ready.");
     } catch (e) {
