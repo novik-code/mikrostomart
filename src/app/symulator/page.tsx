@@ -18,13 +18,53 @@ export default function SmileStudioPage() {
     };
 
     const handleMaskComplete = async (maskData: string) => {
+        if (!capturedImage) return;
+
         setCurrentStep('GENERATING');
-        // TODO: Call API here
-        setTimeout(() => {
-            // Fake result for now
-            setResultImage(capturedImage);
-            setCurrentStep('RESULT');
-        }, 2000);
+
+        try {
+            // 1. Prepare FormData
+            const formData = new FormData();
+
+            // Helper: Convert Base64 to Blob
+            const base64ToBlob = async (b64: string) => {
+                const res = await fetch(b64);
+                return await res.blob();
+            };
+
+            const imageBlob = await base64ToBlob(capturedImage);
+            const maskBlob = await base64ToBlob(maskData);
+
+            formData.append("image", imageBlob, "image.png");
+            formData.append("mask", maskBlob, "mask.png");
+            formData.append("style", "hollywood"); // Default style for now
+            formData.append("mode", "ai-generate"); // Flux Fill Mode
+
+            // 2. Call API
+            const response = await fetch("/api/simulate", {
+                method: "POST",
+                body: formData,
+            });
+
+            if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.error || "Symulacja nieudana");
+            }
+
+            const data = await response.json();
+
+            if (data.url) {
+                setResultImage(data.url);
+                setCurrentStep('RESULT');
+            } else {
+                throw new Error("Brak URL w odpowiedzi");
+            }
+
+        } catch (error) {
+            console.error("Simulation Failed:", error);
+            alert("Wystąpił błąd podczas generowania: " + (error instanceof Error ? error.message : "Nieznany błąd"));
+            setCurrentStep('MASK'); // Go back to allow retry
+        }
     };
 
     const resetStudio = () => {
