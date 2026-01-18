@@ -159,6 +159,11 @@ export default function SimulatorModal() {
         });
     };
 
+    // --- DEBUG ---
+    const [showDebug, setShowDebug] = useState(false);
+    const [debugMaskSrc, setDebugMaskSrc] = useState<string | null>(null);
+
+    // Update generateAutoMask to save debug mask
     const generateAutoMask = async (imgSrc: string): Promise<string> => {
         const img = new Image();
         img.src = imgSrc;
@@ -190,7 +195,9 @@ export default function SimulatorModal() {
         ctx.closePath();
         ctx.fill();
 
-        return canvas.toDataURL('image/png');
+        const maskData = canvas.toDataURL('image/png');
+        setDebugMaskSrc(maskData); // Save for debug
+        return maskData;
     };
 
     const runSimulation = async (imgSrc: string, maskSrc: string) => {
@@ -244,6 +251,16 @@ export default function SimulatorModal() {
                 <X size={24} />
             </button>
 
+
+            {/* DEBUG TOGGLE (Hidden in corner) */}
+            <button onClick={() => setShowDebug(!showDebug)} style={{
+                position: 'absolute', top: '20px', left: '20px',
+                background: showDebug ? 'red' : 'rgba(255,255,255,0.05)', border: 'none', borderRadius: '5px',
+                color: 'white', padding: '5px 10px', cursor: 'pointer', zIndex: 100, fontSize: '10px'
+            }}>
+                DEBUG
+            </button>
+
             {/* MODAL WINDOW */}
             <div style={{
                 width: '100%', maxWidth: '500px', height: '100%', maxHeight: '800px',
@@ -258,6 +275,21 @@ export default function SimulatorModal() {
 
                 {/* --- CONTENT --- */}
                 <div style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+
+                    {/* DEBUG OVERLAY */}
+                    {showDebug && debugMaskSrc && originalImage && (
+                        <div style={{
+                            position: 'absolute', top: 50, left: 50, width: '200px', zIndex: 200,
+                            border: '2px solid red', background: 'black'
+                        }}>
+                            <p style={{ fontSize: '10px', color: 'red', margin: 0 }}>MASK PREVIEW:</p>
+                            <img src={originalImage} style={{ width: '100%', display: 'block' }} />
+                            <img src={debugMaskSrc} style={{
+                                width: '100%', position: 'absolute', top: 0, left: 0,
+                                opacity: 0.5, mixBlendMode: 'screen'
+                            }} />
+                        </div>
+                    )}
 
                     {error && (
                         <div style={{
