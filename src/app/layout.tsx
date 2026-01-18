@@ -5,6 +5,8 @@ import Footer from "@/components/Footer";
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 import { CartProvider } from "@/context/CartContext";
 import { AssistantProvider } from "@/context/AssistantContext";
+import { SimulatorProvider } from "@/context/SimulatorContext";
+import SimulatorModal from "@/components/SimulatorModal";
 import AssistantTeaser from "@/components/AssistantTeaser";
 import BackgroundVideo from "@/components/BackgroundVideo";
 import CookieConsent from "@/components/CookieConsent";
@@ -89,15 +91,18 @@ export default function RootLayout({
                 />
                 <CartProvider>
                     <AssistantProvider>
-                        <BackgroundVideo videoId="vGAu6rdJ8WQ" />
-                        <CookieConsent />
-                        <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-                            <Navbar />
-                            {children}
-                            <AssistantTeaser />
-                            <PWAInstallPrompt />
-                            <Footer />
-                        </div>
+                        <SimulatorProvider>
+                            <BackgroundVideo videoId="vGAu6rdJ8WQ" />
+                            <CookieConsent />
+                            <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+                                <Navbar />
+                                {children}
+                                <AssistantTeaser />
+                                <PWAInstallPrompt />
+                                <Footer />
+                                <SimulatorModal />
+                            </div>
+                        </SimulatorProvider>
                     </AssistantProvider>
                 </CartProvider>
             </body>

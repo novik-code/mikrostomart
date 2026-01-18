@@ -217,6 +217,14 @@ export default function MetamorphosisGallery({ initialIndex = 0 }: { initialInde
 
     const currentItem = METAMORPHOSES[currentIndex];
 
+    import { useSimulator } from "@/context/SimulatorContext";
+
+    // ... (rest of component, inject hook)
+
+    const { openSimulator } = useSimulator();
+
+    // ...
+
     // Notification Component (Inline for simplicity)
     const SimulatorNotification = () => (
         <div style={{
@@ -262,9 +270,16 @@ export default function MetamorphosisGallery({ initialIndex = 0 }: { initialInde
                 <p style={{ marginBottom: '1rem', fontSize: '0.9rem' }}>
                     Zobacz jak TY możesz wyglądać w nowym uśmiechu!
                 </p>
-                <a href="/symulator" target="_blank" className="btn-primary" style={{ padding: '0.5rem 1.5rem', fontSize: '0.9rem' }}>
+                <button
+                    onClick={() => {
+                        openSimulator();
+                        setShowSimulatorPromo(false); // Close notification after opening
+                    }}
+                    className="btn-primary"
+                    style={{ padding: '0.5rem 1.5rem', fontSize: '0.9rem', cursor: 'pointer' }}
+                >
                     Otwórz Symulator AI ✨
-                </a>
+                </button>
             </div>
         </div>
     );

@@ -5,12 +5,13 @@ import Link from 'next/link';
 import Image from 'next/image';
 import styles from './Navbar.module.css';
 
-import { useAssistant } from "@/context/AssistantContext";
+import { useSimulator } from "@/context/SimulatorContext";
 
 export default function Navbar() {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const { openChat } = useAssistant();
+    const { openSimulator } = useSimulator();
 
     const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
     const closeMenu = () => setIsMenuOpen(false);
@@ -116,9 +117,11 @@ export default function Navbar() {
                                     >
                                         🛍️ Sklep
                                     </Link>
-                                    <Link
-                                        href="/symulator"
-                                        target="_blank"
+                                    <button
+                                        onClick={() => {
+                                            openSimulator();
+                                            setIsDropdownOpen(false);
+                                        }}
                                         className={styles.link}
                                         style={{
                                             display: 'block',
@@ -128,12 +131,15 @@ export default function Navbar() {
                                             color: 'var(--color-primary)',
                                             whiteSpace: 'nowrap',
                                             textTransform: 'uppercase',
-                                            letterSpacing: '0.05em'
+                                            letterSpacing: '0.05em',
+                                            background: 'transparent',
+                                            border: 'none',
+                                            cursor: 'pointer'
                                         }}
                                     >
                                         ✨ Symulator Uśmiechu
 
-                                    </Link>
+                                    </button>
                                     <button
                                         onClick={() => {
                                             openChat();
@@ -197,7 +203,19 @@ export default function Navbar() {
                             <Link href="/baza-wiedzy" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem' }}>📚 Baza Wiedzy</Link>
                             <Link href="/nowosielski" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem', color: '#d4af37', fontWeight: 'bold' }}>👨‍⚕️ Blog Dr. Marcin</Link>
                             <Link href="/sklep" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem' }}>🛍️ Sklep</Link>
-                            <Link href="/symulator" target="_blank" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', color: 'var(--color-primary)', marginBottom: '0.5rem' }}>✨ Symulator AI</Link>
+                            <button
+                                onClick={() => {
+                                    openSimulator();
+                                    closeMenu();
+                                }}
+                                className={styles.mobileLink}
+                                style={{
+                                    display: 'block', color: 'var(--color-primary)', marginBottom: '0.5rem',
+                                    background: 'transparent', border: 'none', textAlign: 'left', width: '100%', paddingLeft: 0, cursor: 'pointer'
+                                }}
+                            >
+                                ✨ Symulator AI
+                            </button>
                             <button
                                 onClick={() => {
                                     openChat();
