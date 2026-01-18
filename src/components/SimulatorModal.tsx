@@ -169,11 +169,6 @@ export default function SimulatorModal() {
         img.src = imgSrc;
         await new Promise(r => img.onload = r);
 
-        const analysis = await analysisFaceAlignment(img);
-        if (!analysis || !analysis.mouthPath) {
-            throw new Error("Nie wykryto twarzy/ust. Spróbuj innego zdjęcia.");
-        }
-
         const canvas = document.createElement('canvas');
         canvas.width = img.naturalWidth;
         canvas.height = img.naturalHeight;
@@ -184,25 +179,45 @@ export default function SimulatorModal() {
         ctx.fillStyle = 'black';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // White Mouth
-        ctx.fillStyle = 'white';
-        ctx.strokeStyle = 'white';
-        ctx.lineWidth = Math.max(10, canvas.width * 0.025); // Increased dilation (~2.5% of width) to allow fuller teeth
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-        ctx.filter = 'blur(4px)'; // Soften edges for better AI blending
+        try {
+            const analysis = await analysisFaceAlignment(img);
+            if (!analysis || !analysis.mouthPath) {
+                throw new Error("No face detected");
+            }
 
-        ctx.beginPath();
-        const mp = analysis.mouthPath;
-        ctx.moveTo(mp[0].x * canvas.width, mp[0].y * canvas.height);
-        for (let i = 1; i < mp.length; i++) {
-            ctx.lineTo(mp[i].x * canvas.width, mp[i].y * canvas.height);
+            // Normal Path: Face Detected
+            ctx.fillStyle = 'white';
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = Math.max(10, canvas.width * 0.025);
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.filter = 'blur(4px)';
+
+            ctx.beginPath();
+            const mp = analysis.mouthPath;
+            ctx.moveTo(mp[0].x * canvas.width, mp[0].y * canvas.height);
+            for (let i = 1; i < mp.length; i++) {
+                ctx.lineTo(mp[i].x * canvas.width, mp[i].y * canvas.height);
+            }
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+        } catch (e) {
+            console.warn("Face detection failed, using fallback mask for close-up/macro.");
+            // Fallback: Central Ellipse (Assumes mouth is roughly in center for close-ups)
+            ctx.fillStyle = 'white';
+            ctx.filter = 'blur(20px)'; // Heavy blur for soft generic mask
+            ctx.beginPath();
+            ctx.ellipse(
+                canvas.width / 2,
+                canvas.height / 2,
+                canvas.width * 0.25, // Radius X (50% width total)
+                canvas.height * 0.15, // Radius Y (30% height total)
+                0, 0, 2 * Math.PI
+            );
+            ctx.fill();
         }
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke(); // Apply dilation
-
-        // Reset filter for other ops if needed (not needed here as we export immediately)
 
         const maskData = canvas.toDataURL('image/png');
         setDebugMaskSrc(maskData); // Save for debug
@@ -224,17 +239,33 @@ export default function SimulatorModal() {
 
         const { id } = await res.json();
 
-        // Polling
+        // Polling with Timeout
+        let attempts = 0;
+        const maxAttempts = 40; // ~40 seconds
+
         const poll = async () => {
-            const sRes = await fetch(`/api/simulate?id=${id}`);
-            const data = await sRes.json();
-            if (data.status === 'succeeded') {
-                setResultImage(data.url);
-                setStep('result');
-            } else if (data.status === 'failed') {
-                throw new Error("AI nie poradziło sobie z tym zdjęciem.");
-            } else {
-                setTimeout(poll, 1000);
+            attempts++;
+            if (attempts > maxAttempts) {
+                setError("Zbyt długi czas oczekiwania. Spróbuj ponownie.");
+                setStep('intro');
+                return;
+            }
+
+            try {
+                const sRes = await fetch(`/api/simulate?id=${id}`);
+                const data = await sRes.json();
+
+                if (data.status === 'succeeded') {
+                    setResultImage(data.url);
+                    setStep('result');
+                } else if (data.status === 'failed' || data.status === 'canceled') {
+                    setError("AI nie poradziło sobie z tym zdjęciem.");
+                    setStep('intro');
+                } else {
+                    setTimeout(poll, 1000);
+                }
+            } catch (err) {
+                setTimeout(poll, 1000); // Retry network glitches
             }
         };
         poll();
