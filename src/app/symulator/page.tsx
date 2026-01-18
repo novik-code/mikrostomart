@@ -46,6 +46,58 @@ export default function SimulatorPage() {
     const [maskImage, setMaskImage] = useState<string | null>(null);
     const [alphaImage, setAlphaImage] = useState<string | null>(null);
 
+    // --- CAMERA LOGIC ---
+    const [isCameraOpen, setIsCameraOpen] = useState(false);
+    const videoRef = useRef<HTMLVideoElement>(null);
+
+    const startCamera = async () => {
+        setIsCameraOpen(true);
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            if (videoRef.current) {
+                videoRef.current.srcObject = stream;
+            }
+        } catch (err) {
+            console.error("Camera Error:", err);
+            alert("Nie udało się uruchomić kamery. Sprawdź uprawnienia.");
+            setIsCameraOpen(false);
+        }
+    };
+
+    const stopCamera = () => {
+        if (videoRef.current && videoRef.current.srcObject) {
+            const stream = videoRef.current.srcObject as MediaStream;
+            stream.getTracks().forEach(track => track.stop());
+            videoRef.current.srcObject = null;
+        }
+        setIsCameraOpen(false);
+    };
+
+    const capturePhoto = () => {
+        if (!videoRef.current) return;
+        const video = videoRef.current;
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const imgStr = canvas.toDataURL('image/png');
+
+            // Set as selected image and process
+            setSelectedImage(imgStr);
+            setResultImage(null);
+            setDebugInfo(null);
+            setProcessedImage(null);
+            setMaskImage(null);
+            setAlphaImage(null);
+            setMaskConfig({ x: 50, y: 65, scaleX: 1.0, scaleY: 1.0 });
+            processInputImage(imgStr);
+
+            stopCamera();
+        }
+    };
+
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
             handleFile(e.target.files[0]);
@@ -795,9 +847,107 @@ export default function SimulatorPage() {
                                 </>
                             ) : (
                                 <>
-                                    <div style={{ fontSize: "4rem", marginBottom: "1rem", opacity: 0.5 }}>📸</div>
-                                    <h3 style={{ marginBottom: "1rem" }}>Przeciągnij zdjęcie tutaj</h3>
-                                    <p style={{ color: "var(--color-text-muted)", marginBottom: "2rem" }}>
+                                    {/* CAMERA VIEW LAYER */ }
+                                    {isCameraOpen ? (
+                                        <div style={{
+                                            position: 'absolute',
+                                            inset: 0,
+                                            background: 'black',
+                                            zIndex: 50,
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            alignItems: 'center',
+                                            justifyContent: 'center'
+                                        }}>
+                                            <video
+                                                ref={videoRef}
+                                                autoPlay
+                                                muted
+                                                playsInline
+                                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                            />
+                                            <div style={{
+                                                position: 'absolute',
+                                                bottom: '20px',
+                                                display: 'flex',
+                                                gap: '20px'
+                                            }}>
+                                                <button
+                                                    onClick={capturePhoto}
+                                                    style={{
+                                                        width: '60px',
+                                                        height: '60px',
+                                                        borderRadius: '50%',
+                                                        background: 'white',
+                                                        border: '4px solid var(--color-primary)',
+                                                        cursor: 'pointer'
+                                                    }}
+                                                    title="Zrób zdjęcie"
+                                                />
+                                                <button
+                                                    onClick={stopCamera}
+                                                    style={{
+                                                        padding: '10px 20px',
+                                                        background: 'rgba(0,0,0,0.5)',
+                                                        color: 'white',
+                                                        border: '1px solid white',
+                                                        borderRadius: '20px',
+                                                        cursor: 'pointer'
+                                                    }}
+                                                >
+                                                    Anuluj
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div style={{ fontSize: "4rem", marginBottom: "1rem", opacity: 0.5 }}>📸</div>
+                                            <h3 style={{ marginBottom: "1rem" }}>Przeciągnij zdjęcie lub...</h3>
+                                            
+                                            <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem' }}>
+                                                {/* UPLOAD BUTTON (Hidden Input Wrapper) */}
+                                                <label style={{
+                                                    cursor: 'pointer',
+                                                    padding: '0.8rem 1.5rem',
+                                                    background: 'var(--color-surface-hover)',
+                                                    border: '1px solid var(--color-border)',
+                                                    borderRadius: 'var(--radius-md)',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '0.5rem',
+                                                    color: 'white'
+                                                }}>
+                                                    📁 Wybierz z pliku
+                                                    <input
+                                                        type="file"
+                                                        accept="image/*"
+                                                        onChange={handleFileSelect}
+                                                        ref={fileInputRef}
+                                                        style={{ display: "none" }}
+                                                    />
+                                                </label>
+
+                                                {/* SELFIE BUTTON */}
+                                                <button 
+                                                    onClick={(e) => { e.stopPropagation(); startCamera(); }}
+                                                    style={{
+                                                        cursor: 'pointer',
+                                                        padding: '0.8rem 1.5rem',
+                                                        background: 'var(--color-primary)',
+                                                        border: 'none',
+                                                        borderRadius: 'var(--radius-md)',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '0.5rem',
+                                                        color: 'black',
+                                                        fontWeight: 'bold'
+                                                    }}
+                                                >
+                                                    🤳 Zrób Selfie
+                                                </button>
+                                            </div>
+
+                                            <p style={{ color: "var(--color-text-muted)" }}>
                                         lub wybierz z urządzenia
                                     </p>
                                     <input

@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
 
         // --- HELPERS ---
 
-        // Helper to poll for prediction
+        // Helper to poll for prediction (Simplified)
         const waitForPrediction = async (pred: any) => {
             const maxAttempts = 60;
             let attempts = 0;
@@ -33,23 +33,6 @@ export async function POST(req: NextRequest) {
                 attempts++;
             }
             return pred;
-        };
-
-        // Helper to handle Rate Limits (429) automatically
-        const createWithRetry = async (createFn: () => Promise<any>, retries = 3) => {
-            for (let i = 0; i < retries; i++) {
-                try {
-                    return await createFn();
-                } catch (error: any) {
-                    const isRateLimit = error.toString().includes("429") || (error.status === 429);
-                    if (isRateLimit && i < retries - 1) {
-                        console.log(`Rate limit hit (429). Waiting 10s before retry ${i + 1}/${retries}...`);
-                        await new Promise(resolve => setTimeout(resolve, 12000)); // Wait 12s to be safe
-                        continue;
-                    }
-                    throw error;
-                }
-            }
         };
 
         // --- REQUEST PARSING ---
@@ -82,22 +65,12 @@ export async function POST(req: NextRequest) {
         // 1. TEMPLATE BLEND MODE (Image-to-Image / Blending)
         if (mode === "template-blend") {
             console.log("--- STARTING TEMPLATE BLEND MODE (Flux Dev Img2Img) ---");
-
-            // Use black-forest-labs/flux-dev for blending the composite
-            const blendModel = "black-forest-labs/flux-dev";
             const blendModelRepo = await replicate.models.get("black-forest-labs", "flux-dev");
             const blendVersion = blendModelRepo.latest_version?.id;
 
             if (!blendVersion) throw new Error("Flux Dev version not found");
 
-            // Parameters for blending:
-            // "image" is the input composite (face + template overlay)
-            // "prompt_strength" controls how much we overwrite. 
-            // 0.65 means "change about 65% of the pixels" (or strictness depending on model implementation).
-            // Actually in Flux Dev, `prompt_strength` might be `strength` or `denoising_strength`.
-            // Replicate documentation for flux-dev typically exposes `prompt_strength` (0-1).
-
-            const prediction = await createWithRetry(() => replicate.predictions.create({
+            const prediction = await replicate.predictions.create({
                 version: blendVersion,
                 input: {
                     prompt: `Photorealistic dental photography. A beautiful smile with ${style} teeth. High detailed macro shot, natural skin texture, professional lighting. ${getStylePrompt(style)}`,
@@ -109,7 +82,7 @@ export async function POST(req: NextRequest) {
                     output_quality: 100,
                     go_fast: true
                 }
-            }));
+            });
 
             const finalPrediction = await waitForPrediction(prediction);
 
@@ -124,8 +97,11 @@ export async function POST(req: NextRequest) {
             }
         }
 
-        // 2. ORIGINAL AI GENERATE MODE (Inpainting)
-        console.log("Fetching latest model version for Flux Fill (Inpainting)...");
+        // 2. SINGLE-PASS AI GENERATE MODE (Flux Fill)
+        // REFACTOR: Removed "Two-Pass" (Erase -> Build) logic.
+        // Single pass is cleaner, preserves lighting, and reduces artifacts.
+
+        console.log("--- STARTING SINGLE-PASS FLUX FILL ---");
 
         const modelRepo = await replicate.models.get("black-forest-labs", "flux-fill-dev");
         const latestVersion = modelRepo.latest_version?.id;
@@ -134,73 +110,33 @@ export async function POST(req: NextRequest) {
             throw new Error("Could not fetch latest version for black-forest-labs/flux-fill-dev");
         }
 
-        console.log("--- STARTING PASS 1: ERASING TEETH ---");
-
-        // PASS 1: ERASE
-        let erasePrediction = await createWithRetry(() => replicate.predictions.create({
+        const prediction = await replicate.predictions.create({
             version: latestVersion,
             input: {
                 image: imageUri,
                 mask: maskUri,
-                prompt: "Inpaint masked area only. Remove all teeth information completely and create a clean neutral mouth interior as a base: natural open-mouth cavity with realistic darkness and soft gradients, no visible teeth, no tooth shapes, no tooth edges, no gaps, no artifacts. Preserve lips, skin, and everything outside the mask unchanged, photorealistic, matching original lighting.",
-                guidance_scale: 4.5,
-                n_steps: 25,
-                output_format: "png",
-                output_quality: 100
-            }
-        }));
-
-        erasePrediction = await waitForPrediction(erasePrediction);
-
-        if (erasePrediction.status !== "succeeded" || !erasePrediction.output) {
-            throw new Error(`Pass 1 (Erase) failed: ${erasePrediction.error}`);
-        }
-
-        const erasedImageUrl = Array.isArray(erasePrediction.output) ? erasePrediction.output[0] : erasePrediction.output;
-        console.log("Pass 1 Succeeded. URL:", erasedImageUrl);
-
-        console.log("--- STARTING PASS 2: BUILD NEW SMILE ---");
-        await new Promise(resolve => setTimeout(resolve, 2000));
-
-        // PASS 2: BUILD
-        // We use 'flux-fill-dev' for consistency and control. 'Pro' might have different parameter scaling.
-        let buildPrediction = await createWithRetry(() => replicate.predictions.create({
-            version: latestVersion, // Use same version as Pass 1 (Flux Fill Dev)
-            input: {
-                image: erasedImageUrl,
-                mask: maskUri,
-                prompt: `Photorealistic dental smile makeover. High resolution, 8k, macro photography, sharp focus. In the masked region, build a brand-new ideal smile.
-                
-                STYLE: ${style.toUpperCase()}.
+                prompt: `Dental macro photography. Inside the mouth, realistic ${style} teeth. High resolution, 8k, sharp focus, wet texture, enamel reflections.
                 ${getStylePrompt(style)}
-                
-                Strict anatomy: aligned upper dental arch, bilateral symmetry. Distinct individual teeth with clear interdental spaces (gaps between teeth). Sharp incisal edges. Realistic enamel texture with micro-anatomy, vertical ridges, and subsurface scattering. Natural gloss and reflection.
-                
-                Negative: blobby, smooth, plastic, fused teeth, continuous block, low resolution, blurry, distorted, noise, artifacts, extra teeth, missing teeth, cartoon, fake, dentures.`,
-                guidance_scale: 5.0, // Increased from 3.5 to 5.0 for better definition
-                num_inference_steps: 50, // Higher steps for quality
+                Perfectly integrated with the surrounding lips and gums. Natural lighting match.`,
+                guidance_scale: 60, // High guidance for strict adherence to prompt text (teeth)
+                n_steps: 50,
                 output_format: "png",
                 output_quality: 100
             }
-        }));
+        });
 
-        buildPrediction = await waitForPrediction(buildPrediction);
+        const finalPrediction = await waitForPrediction(prediction);
 
-        console.log("Pass 2 Final Status:", buildPrediction.status);
-
-        if (buildPrediction.status === "succeeded" && buildPrediction.output) {
-            const resultUrl = Array.isArray(buildPrediction.output) ? buildPrediction.output[0] : buildPrediction.output;
+        if (finalPrediction.status === "succeeded" && finalPrediction.output) {
+            const resultUrl = Array.isArray(finalPrediction.output) ? finalPrediction.output[0] : finalPrediction.output;
             return NextResponse.json({
                 url: resultUrl,
-                debug: JSON.stringify({
-                    pass1_logs: erasePrediction.logs,
-                    pass2_logs: buildPrediction.logs
-                })
+                debug: JSON.stringify({ mode: 'single-pass-flux', logs: finalPrediction.logs })
             });
         } else {
             return NextResponse.json({
-                error: `Pass 2 failed: ${buildPrediction.error}`,
-                debug: JSON.stringify(buildPrediction)
+                error: `Generation failed: ${finalPrediction.error}`,
+                debug: JSON.stringify(finalPrediction)
             }, { status: 500 });
         }
 
