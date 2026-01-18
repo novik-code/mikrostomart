@@ -284,12 +284,8 @@ export default function Navbar() {
                     </div>
 
                     <Link href="/kontakt" className={styles.mobileLink} onClick={closeMenu}>Kontakt</Link>
-                    <Link href="/rezerwacja" className="btn-primary" onClick={closeMenu} style={{ marginTop: '1rem', width: '100%', textAlign: 'center' }}>
-                        Umów wizytę
-                    </Link>
                 </div>
             </div>
-        </div>
-        </nav >
+        </nav>
     );
 }
