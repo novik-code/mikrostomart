@@ -21,8 +21,8 @@ export async function initializeFaceDetector() {
             outputFaceBlendshapes: false,
             runningMode: "IMAGE",
             numFaces: 1,
-            minFaceDetectionConfidence: 0.15, // Allow partial/close-up faces
-            minFacePresenceConfidence: 0.15
+            minFaceDetectionConfidence: 0.01, // Max sensitivity for close-ups
+            minFacePresenceConfidence: 0.01
         });
         console.log("FaceLandmarker Ready.");
     } catch (e) {

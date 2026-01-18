@@ -186,6 +186,7 @@ export default function SimulatorModal() {
             }
 
             // Normal Path: Face Detected
+            // 1. Generate B/W Mask for AI
             ctx.fillStyle = 'white';
             ctx.strokeStyle = 'white';
             ctx.lineWidth = Math.max(10, canvas.width * 0.025);
@@ -203,14 +204,34 @@ export default function SimulatorModal() {
             ctx.fill();
             ctx.stroke();
 
+            const maskData = canvas.toDataURL('image/png'); // Save B/W Mask for API
+
+            // 2. Generate Debug Composite (Original + Red Outline)
+            // Clear and draw original
+            ctx.filter = 'none';
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+            // Draw Red Outline
+            ctx.strokeStyle = 'red';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(mp[0].x * canvas.width, mp[0].y * canvas.height);
+            for (let i = 1; i < mp.length; i++) {
+                ctx.lineTo(mp[i].x * canvas.width, mp[i].y * canvas.height);
+            }
+            ctx.closePath();
+            ctx.stroke();
+
+            const debugData = canvas.toDataURL('image/png');
+            setDebugMaskSrc(debugData); // Save composite for debug view (WYSIWYG)
+
+            return maskData; // Return B/W mask for processing
+
         } catch (e) {
             console.warn("Face detection failed.", e);
             throw new Error("Nie udało się wykryć ust. Upewnij się, że twarz jest oświetlona i widoczna, lub oddal nieco aparat.");
         }
-
-        const maskData = canvas.toDataURL('image/png');
-        setDebugMaskSrc(maskData); // Save for debug
-        return maskData;
     };
 
     const runSimulation = async (imgSrc: string, maskSrc: string) => {
