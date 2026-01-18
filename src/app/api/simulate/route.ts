@@ -79,8 +79,11 @@ export async function POST(req: NextRequest) {
                 The teeth are flawless, perfectly aligned, and gleam with a natural healthy shine. 
                 FULL ARCH RECONSTRUCTION: Replace any missing teeth or gaps with perfect implants.
                 Close all gaps (diastema). Ensure a continuous, unbroken row of beautiful teeth.
+                IMPORTANT: PRESERVE THE ORIGINAL LIP SHAPE AND GUM LINE. 
+                DO NOT SHOW EXCESSIVE GUMS (NO GUMMY SMILE).
+                Only change the enamel/teeth surface.
                 High-contrast professional lighting. 
-                Photorealistic texture, translucent enamel edges, healthy pink gums. 
+                Photorealistic texture, translucent enamel edges. 
                 No yellowing, no stains, no decay. Absolute perfection. ${getStylePrompt(style)}`,
                 guidance_scale: 30, // Very strong adherence to "perfect" prompt
                 n_steps: 50,

@@ -163,9 +163,33 @@ export default function SimulatorModal() {
     const [showDebug, setShowDebug] = useState(false);
     const [debugMaskSrc, setDebugMaskSrc] = useState<string | null>(null);
 
-    // Update generateAutoMask to save debug mask
+    // Helper: Sanitize image to strip EXIF and ensure 1:1 pixel mapping
+    const sanitizeImage = async (src: string): Promise<string> => {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.crossOrigin = "anonymous";
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                // Use natural dimensions - browser handles EXIF orientation during load for <img> but not always drawImage?
+                // Actually, passing the IMG element to drawImage usually respects standard orientation in modern browsers,
+                // BUT extracting the dataURL "bakes" it.
+                canvas.width = img.naturalWidth;
+                canvas.height = img.naturalHeight;
+                const ctx = canvas.getContext('2d');
+                if (!ctx) { reject("No ctx"); return; }
+
+                // Draw image to canvas to bake pixels
+                ctx.drawImage(img, 0, 0);
+                resolve(canvas.toDataURL('image/png'));
+            };
+            img.onerror = reject;
+            img.src = src;
+        });
+    };
+
     const generateAutoMask = async (imgSrc: string): Promise<string> => {
         const img = new Image();
+        img.crossOrigin = "anonymous";
         img.src = imgSrc;
         await new Promise(r => img.onload = r);
 
@@ -182,7 +206,8 @@ export default function SimulatorModal() {
         try {
             const analysis = await analysisFaceAlignment(img);
             if (!analysis || !analysis.mouthPath) {
-                throw new Error("No face detected");
+                // IMPORTANT: If no face found in Sanitized image, fail hard.
+                throw new Error("Nie udało się wykryć ust. Upewnij się, że twarz jest oświetlona i widoczna, lub oddal nieco aparat.");
             }
 
             // Normal Path: Face Detected
