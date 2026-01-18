@@ -36,73 +36,97 @@ const HIT_ZONES = [
 
 export default function TeethVisual({ onZoneSelect, selectedZone }: TeethVisualProps) {
     return (
-        <div className="relative w-full max-w-[600px] mx-auto min-h-[400px] aspect-[4/3] group rounded-2xl overflow-hidden border border-[#dcb14a]/20 shadow-[0_0_30px_rgba(220,177,74,0.1)] bg-black/50">
-
-            {/* Natural Anatomy Image - Contain to ensure full visibility */}
-            <Image
-                src="/intraoral_anatomy_natural.png"
-                alt="Natural Oral Anatomy"
+        <div className="relative w-full max-w-[600px] mx-auto aspect-[4/3] group rounded-2xl overflow-hidden border border-[#dcb14a]/20 shadow-[0_0_30px_rgba(220,177,74,0.1)] bg-black/50">
+            
+            {/* Natural Anatomy Image */}
+            <Image 
+                src="/intraoral_anatomy_natural.png" 
+                alt="Natural Oral Anatomy" 
                 fill
-                className="object-contain p-4 transition-transform duration-700 hover:scale-[1.02]"
+                className="object-contain p-4"
                 priority
             />
 
-            {/* Interactive Overlay Layer */}
-            <div className="absolute inset-0 z-20 flex flex-col pointer-events-none">
+            {/* DEBUG INFO - REMOVE LATER */}
+            <div className="absolute top-2 left-2 z-50 bg-red-500 text-white text-[10px] px-2 py-1 rounded">
+                DEBUG MODE: v3 (Absolute Layout)
+            </div>
 
-                {/* TOP ROW: Upper Teeth */}
-                <div className="flex-1 flex w-full pointer-events-auto">
-                    <button
-                        onClick={() => onZoneSelect('top-left', 'Górne Lewe (Trzonowe)')}
-                        className="flex-1 hover:bg-[#dcb14a]/10 hover:border-2 hover:border-[#dcb14a]/30 transition-all rounded-tl-xl m-1"
-                        title="Górne Lewe"
-                    />
-                    <button
-                        onClick={() => onZoneSelect('top-front', 'Górne Jedynki (Przód)')}
-                        className="flex-1 hover:bg-[#dcb14a]/10 hover:border-2 hover:border-[#dcb14a]/30 transition-all m-1"
-                        title="Górne Przód"
-                    />
-                    <button
-                        onClick={() => onZoneSelect('top-right', 'Górne Prawe (Trzonowe)')}
-                        className="flex-1 hover:bg-[#dcb14a]/10 hover:border-2 hover:border-[#dcb14a]/30 transition-all rounded-tr-xl m-1"
-                        title="Górne Prawe"
-                    />
-                </div>
+            {/* Interactive Zones - ABSOLUTE POSITIONING GRID */}
+            <div className="absolute inset-0 z-20 m-4"> {/* Margin matches padding of image */}
+                
+                {/* 1. TOP LEFT (Upper Molars) */}
+                <button 
+                    onClick={() => onZoneSelect('top-left', 'Górne Lewe (Trzonowe)')}
+                    className="absolute top-0 left-0 w-[30%] h-[40%]"
+                    style={{ border: '1px solid rgba(255,0,0,0.3)', background: 'rgba(255,0,0,0.05)' }} // Debug visibility
+                >
+                    {selectedZone === 'top-left' && <div className="w-full h-full bg-[#dcb14a]/30 animate-pulse" />}
+                </button>
 
-                {/* MIDDLE ROW: Palate / Center */}
-                <div className="h-[20%] w-full flex pointer-events-auto">
-                    <button
-                        onClick={() => onZoneSelect('palate', 'Podniebienie / Język')}
-                        className="w-full h-full hover:bg-[#dcb14a]/10 hover:border-2 hover:border-[#dcb14a]/30 transition-all m-1"
-                        title="Środek / Język"
-                    />
-                </div>
+                {/* 2. TOP FRONT (Upper Incisors) */}
+                <button 
+                    onClick={() => onZoneSelect('top-front', 'Górne Jedynki/Dwójki (Przód)')}
+                    className="absolute top-0 left-[30%] w-[40%] h-[35%]"
+                    style={{ border: '1px solid rgba(0,255,0,0.3)', background: 'rgba(0,255,0,0.05)' }}
+                >
+                    {selectedZone === 'top-front' && <div className="w-full h-full bg-[#dcb14a]/30 animate-pulse" />}
+                </button>
 
-                {/* BOTTOM ROW: Lower Teeth */}
-                <div className="flex-1 flex w-full pointer-events-auto">
-                    <button
-                        onClick={() => onZoneSelect('bottom-left', 'Dolne Lewe (Trzonowe)')}
-                        className="flex-1 hover:bg-[#dcb14a]/10 hover:border-2 hover:border-[#dcb14a]/30 transition-all rounded-bl-xl m-1"
-                        title="Dolne Lewe"
-                    />
-                    <button
-                        onClick={() => onZoneSelect('bottom-front', 'Dolne Jedynki (Przód)')}
-                        className="flex-1 hover:bg-[#dcb14a]/10 hover:border-2 hover:border-[#dcb14a]/30 transition-all m-1"
-                        title="Dolne Przód"
-                    />
-                    <button
-                        onClick={() => onZoneSelect('bottom-right', 'Dolne Prawe (Trzonowe)')}
-                        className="flex-1 hover:bg-[#dcb14a]/10 hover:border-2 hover:border-[#dcb14a]/30 transition-all rounded-br-xl m-1"
-                        title="Dolne Prawe"
-                    />
-                </div>
+                {/* 3. TOP RIGHT (Upper Molars) */}
+                <button 
+                    onClick={() => onZoneSelect('top-right', 'Górne Prawe (Trzonowe)')}
+                    className="absolute top-0 right-0 w-[30%] h-[40%]"
+                    style={{ border: '1px solid rgba(0,0,255,0.3)', background: 'rgba(0,0,255,0.05)' }}
+                >
+                    {selectedZone === 'top-right' && <div className="w-full h-full bg-[#dcb14a]/30 animate-pulse" />}
+                </button>
+
+
+                {/* 4. PALATE / CENTER */}
+                <button 
+                    onClick={() => onZoneSelect('palate', 'Podniebienie / Język')}
+                    className="absolute top-[35%] left-[30%] w-[40%] h-[30%]"
+                     style={{ border: '1px solid rgba(255,255,0,0.3)', background: 'rgba(255,255,0,0.05)' }}
+                >
+                    {selectedZone === 'palate' && <div className="w-full h-full bg-[#dcb14a]/30 animate-pulse" />}
+                </button>
+
+
+                {/* 5. BOTTOM LEFT (Lower Molars) */}
+                <button 
+                    onClick={() => onZoneSelect('bottom-left', 'Dolne Lewe (Trzonowe)')}
+                    className="absolute bottom-0 left-0 w-[30%] h-[40%]"
+                    style={{ border: '1px solid rgba(255,0,255,0.3)', background: 'rgba(255,0,255,0.05)' }}
+                >
+                     {selectedZone === 'bottom-left' && <div className="w-full h-full bg-[#dcb14a]/30 animate-pulse" />}
+                </button>
+
+                {/* 6. BOTTOM FRONT (Lower Incisors) */}
+                <button 
+                    onClick={() => onZoneSelect('bottom-front', 'Dolne Jedynki/Dwójki (Przód)')}
+                    className="absolute bottom-0 left-[30%] w-[40%] h-[35%]"
+                    style={{ border: '1px solid rgba(0,255,255,0.3)', background: 'rgba(0,255,255,0.05)' }}
+                >
+                     {selectedZone === 'bottom-front' && <div className="w-full h-full bg-[#dcb14a]/30 animate-pulse" />}
+                </button>
+
+                {/* 7. BOTTOM RIGHT (Lower Molars) */}
+                <button 
+                    onClick={() => onZoneSelect('bottom-right', 'Dolne Prawe (Trzonowe)')}
+                    className="absolute bottom-0 right-0 w-[30%] h-[40%]"
+                    style={{ border: '1px solid rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.05)' }}
+                >
+                     {selectedZone === 'bottom-right' && <div className="w-full h-full bg-[#dcb14a]/30 animate-pulse" />}
+                </button>
+
             </div>
 
             {/* Selection Text Overlay */}
             {selectedZone && (
                 <div className="absolute inset-0 z-30 pointer-events-none flex items-center justify-center">
-                    <div className="bg-black/80 text-[#dcb14a] border border-[#dcb14a] px-6 py-3 rounded-full text-lg font-bold shadow-2xl backdrop-blur-md">
-                        ✓ {ZONES.find(z => z.id === selectedZone)?.label || "Wybrano"}
+                    <div className="bg-black/90 text-[#dcb14a] border border-[#dcb14a] px-6 py-3 rounded-full text-lg font-bold shadow-2xl backdrop-blur-md animate-in fade-in zoom-in duration-300">
+                        ✓ {ZONES.find(z => z.id === selectedZone)?.label || selectedZone}
                     </div>
                 </div>
             )}
