@@ -19,6 +19,9 @@ export default function PainMapPage() {
                     <h1 className="text-4xl md:text-5xl font-heading font-bold text-white mb-4">
                         <span className="text-[#dcb14a]">Mapa Bólu</span> - Co Ci dolega?
                     </h1>
+                    <div className="inline-block px-3 py-1 bg-white/10 rounded-full text-[10px] text-gray-500 mb-4">
+                        v.2026.01.18-DEBUG-FIX
+                    </div>
                     <p className="text-lg text-gray-400 max-w-2xl mx-auto">
                         Odczuwasz dyskomfort? Skorzystaj z naszego inteligentnego asystenta, aby wstępnie zdiagnozować problem i otrzymać zalecenia, zanim dotrzesz do gabinetu.
                     </p>
