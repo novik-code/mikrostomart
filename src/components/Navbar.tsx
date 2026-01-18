@@ -233,13 +233,14 @@ export default function Navbar() {
                                 className={styles.mobileLink}
                                 style={{
                                     display: 'block',
-                                    color: '#60a5fa',
+                                    width: '100%',
+                                    padding: '0.75rem 1.5rem',
+                                    textAlign: 'center', // Centered
+                                    color: '#60a5fa', // Blueish
                                     background: 'transparent',
                                     border: 'none',
-                                    textAlign: 'left',
-                                    width: '100%',
-                                    paddingLeft: 0,
-                                    cursor: 'pointer'
+                                    cursor: 'pointer',
+                                    fontWeight: 'bold' // Match others
                                 }}
                             >
                                 🤖 Wirtualny Asystent

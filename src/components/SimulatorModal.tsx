@@ -96,7 +96,7 @@ export default function SimulatorModal() {
     useEffect(() => {
         if (!isOpen) {
             stopCamera();
-            setStep('intro');
+            setStep('instruction'); // Always show instructions first on re-open
             setOriginalImage(null);
             setResultImage(null);
             setError(null);
