@@ -70,7 +70,7 @@ export default function Navbar() {
                                     backdropFilter: 'blur(10px)',
                                 }}>
                                     <Link
-                                        href="/mapa-bolu"
+                                        href="/diagnostyka"
                                         className={styles.link}
                                         style={{
                                             display: 'block',
@@ -85,7 +85,7 @@ export default function Navbar() {
                                             borderBottom: '1px solid rgba(255,255,255,0.1)'
                                         }}
                                     >
-                                        🗺️ Mapa Bólu
+                                        🗺️ Mapa Bólu (v2)
                                     </Link>
                                     <Link
                                         href="/nowosielski"
@@ -235,62 +235,61 @@ export default function Navbar() {
                         <Link href="/aktualnosci" className={styles.mobileLink} onClick={closeMenu}>Aktualności</Link>
 
                         {/* Mobile Expanded "Dodatki" */}
-                        <div style={{ padding: '1rem 0', borderTop: '1px solid rgba(255,255,255,0.1)', borderBottom: '1px solid rgba(255,255,255,0.1)', width: '100%' }}>
-                            <div style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Dodatki</div>
-                            <Link href="/mapa-bolu" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem', color: '#dcb14a', fontWeight: 'bold' }}>🗺️ Mapa Bólu</Link>
-                            <Link href="/baza-wiedzy" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem' }}>📚 Baza Wiedzy</Link>
-                            <Link href="/nowosielski" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem', color: '#d4af37', fontWeight: 'bold' }}>👨‍⚕️ Blog Dr. Marcin</Link>
-                            <Link href="/sklep" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem' }}>🛍️ Sklep</Link>
-                            <button
-                                onClick={() => {
-                                    openSimulator();
-                                    closeMenu();
-                                }}
-                                className={styles.mobileLink}
-                                style={{
-                                    display: 'block',
-                                    padding: '0.75rem 1.5rem',
-                                    width: '100%',
-                                    textAlign: 'center', // Centered
-                                    color: '#dcb14a', // Gold
-                                    fontWeight: 'bold',
-                                    border: '1px solid #dcb14a',
-                                    borderRadius: '8px',
-                                    marginTop: '10px',
-                                    background: 'rgba(220, 177, 74, 0.1)'
-                                }}
-                            >
-                                ✨ Symulator Uśmiechu
-                            </button>
-                            <button
-                                onClick={() => {
-                                    openChat();
-                                    closeMenu();
-                                }}
-                                className={styles.mobileLink}
-                                style={{
-                                    display: 'block',
-                                    width: '100%',
-                                    padding: '0.75rem 1.5rem',
-                                    textAlign: 'center', // Centered
-                                    color: '#60a5fa', // Blueish
-                                    background: 'transparent',
-                                    border: 'none',
-                                    cursor: 'pointer',
-                                    fontWeight: 'bold' // Match others
-                                }}
-                            >
-                                🤖 Wirtualny Asystent
-                            </button>
-                        </div>
-
-                        <Link href="/kontakt" className={styles.mobileLink} onClick={closeMenu}>Kontakt</Link>
-                        <Link href="/rezerwacja" className="btn-primary" onClick={closeMenu} style={{ marginTop: '1rem', width: '100%', textAlign: 'center' }}>
-                            Umów wizytę
-                        </Link>
+                        <div style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Dodatki</div>
+                        <Link href="/diagnostyka" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem', color: '#dcb14a', fontWeight: 'bold' }}>🗺️ Mapa Bólu (v2)</Link>
+                        <Link href="/baza-wiedzy" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem' }}>📚 Baza Wiedzy</Link>
+                        <Link href="/nowosielski" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem', color: '#d4af37', fontWeight: 'bold' }}>👨‍⚕️ Blog Dr. Marcin</Link>
+                        <Link href="/sklep" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem' }}>🛍️ Sklep</Link>
+                        <button
+                            onClick={() => {
+                                openSimulator();
+                                closeMenu();
+                            }}
+                            className={styles.mobileLink}
+                            style={{
+                                display: 'block',
+                                padding: '0.75rem 1.5rem',
+                                width: '100%',
+                                textAlign: 'center', // Centered
+                                color: '#dcb14a', // Gold
+                                fontWeight: 'bold',
+                                border: '1px solid #dcb14a',
+                                borderRadius: '8px',
+                                marginTop: '10px',
+                                background: 'rgba(220, 177, 74, 0.1)'
+                            }}
+                        >
+                            ✨ Symulator Uśmiechu
+                        </button>
+                        <button
+                            onClick={() => {
+                                openChat();
+                                closeMenu();
+                            }}
+                            className={styles.mobileLink}
+                            style={{
+                                display: 'block',
+                                width: '100%',
+                                padding: '0.75rem 1.5rem',
+                                textAlign: 'center', // Centered
+                                color: '#60a5fa', // Blueish
+                                background: 'transparent',
+                                border: 'none',
+                                cursor: 'pointer',
+                                fontWeight: 'bold' // Match others
+                            }}
+                        >
+                            🤖 Wirtualny Asystent
+                        </button>
                     </div>
+
+                    <Link href="/kontakt" className={styles.mobileLink} onClick={closeMenu}>Kontakt</Link>
+                    <Link href="/rezerwacja" className="btn-primary" onClick={closeMenu} style={{ marginTop: '1rem', width: '100%', textAlign: 'center' }}>
+                        Umów wizytę
+                    </Link>
                 </div>
             </div>
-        </nav>
+        </div>
+        </nav >
     );
 }
