@@ -106,21 +106,16 @@ export async function analysisFaceAlignment(image: HTMLImageElement): Promise<Sm
                 308, 324, 318, 402, 317, 14, 87, 178, 88, 95, 78 // This is just reversing.
             ];
 
-            // Re-verified indices for Inner Lips (Mouth Hole):
-            // Upper: 78, 191, 80, 81, 82, 13, 312, 311, 317, 14, 324, 318, 402, 308
-            // Lower: 308, 324, 318, 402, 317, 14, 311, 312, 13, 82, 81, 80, 191, 78
-            // IMPORTANT: The "Lower" logic in MediaPipe often shares indices 13, 14 etc. but they are different vertices in 3D, mapped to same 2D? No.
-            // Let's return just points and let UI draw Hull or Loop.
-
-            // CORRECTED INNER MOUTH LOOP (Verified)
-            // This loop traces the HOLE between lips (Teeth visible area)
-            // Order: Left Corner -> Upper Arch -> Right Corner -> Lower Arch -> Left Corner
+            // CORRECTED "OUTER LIPS" LOOP (Most Robust)
+            // Instead of trying to find the inner hole (which fails if mouth is closed),
+            // we mask the entire mouth area (including lips).
+            // This allows the AI to reconstruct both teeth and lip shape/smile width.
 
             const explicitMouthHole = [
-                // Upper Inner Arch (Left to Right)
-                78, 191, 80, 81, 82, 13, 312, 311, 317, 402, 318, 324, 308,
-                // Lower Inner Arch (Right to Left)
-                415, 310, 311, 312, 14, 87, 178, 88, 95
+                // Upper Lip Outer (Left to Right)
+                61, 185, 40, 39, 37, 0, 267, 269, 270, 409, 291,
+                // Lower Lip Outer (Right to Left)
+                375, 321, 405, 314, 17, 84, 181, 91, 146, 61
             ];
             // Note: 78 and 308 are corners. 
             // 13 is Upper Lip Center (Inner). 
