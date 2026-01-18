@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import BeforeAfterSlider from '@/components/BeforeAfterSlider';
 import RevealOnScroll from '@/components/RevealOnScroll';
+import { useSimulator } from "@/context/SimulatorContext";
 
 interface MetamorphosisItem {
     id: number;
@@ -139,6 +140,7 @@ const METAMORPHOSES: MetamorphosisItem[] = [
 export default function MetamorphosisGallery({ initialIndex = 0 }: { initialIndex?: number }) {
     const [currentIndex, setCurrentIndex] = useState(initialIndex);
     const [isTransitioning, setIsTransitioning] = useState(false);
+    const { openSimulator } = useSimulator();
 
     // Tooltip State
     const [activeTooltip, setActiveTooltip] = useState<'left' | 'right' | null>(null);
@@ -217,13 +219,7 @@ export default function MetamorphosisGallery({ initialIndex = 0 }: { initialInde
 
     const currentItem = METAMORPHOSES[currentIndex];
 
-    import { useSimulator } from "@/context/SimulatorContext";
 
-    // ... (rest of component, inject hook)
-
-    const { openSimulator } = useSimulator();
-
-    // ...
 
     // Notification Component (Inline for simplicity)
     const SimulatorNotification = () => (

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import styles from './Navbar.module.css';
 
+import { useAssistant } from "@/context/AssistantContext";
 import { useSimulator } from "@/context/SimulatorContext";
 
 export default function Navbar() {
