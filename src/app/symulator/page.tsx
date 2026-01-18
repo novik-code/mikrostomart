@@ -34,7 +34,7 @@ export default function SmileStudioPage() {
     };
 
     return (
-        <main className="fixed inset-0 bg-[#08090a] overflow-hidden flex flex-col z-[100]">
+        <main className="fixed inset-0 bg-[#08090a] overflow-hidden flex flex-col z-[9999]">
             {/* Header / Nav could go here */}
 
             <div className="flex-1 relative w-full h-full max-w-4xl mx-auto">

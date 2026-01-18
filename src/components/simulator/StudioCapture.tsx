@@ -120,7 +120,7 @@ export default function StudioCapture({ onImageSelected }: StudioCaptureProps) {
                             accept="image/*"
                             ref={fileInputRef}
                             onChange={handleFileSelect}
-                            className="hidden"
+                            style={{ display: 'none' }}
                         />
                     </div>
                 </div>
