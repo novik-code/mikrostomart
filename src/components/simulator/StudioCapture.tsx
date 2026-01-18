@@ -233,20 +233,26 @@ export default function StudioCapture({ onImageSelected }: StudioCaptureProps) {
                         justifyContent: 'center'
                     }}>
                         <div style={{
-                            width: '75%',
+                            width: '80%', // Responsive width
+                            maxWidth: '350px', // Max width for desktop
                             aspectRatio: '3/4',
                             border: '2px dashed rgba(255,255,255,0.3)',
-                            borderRadius: '50%',
-                            boxShadow: '0 0 0 9999px rgba(0,0,0,0.5)' // Dim outside
+                            borderRadius: '30%', // Oval shape for face
+                            boxShadow: '0 0 0 9999px rgba(0,0,0,0.7)', // Darker dim
+                            position: 'relative'
                         }} />
                         <p style={{
                             position: 'absolute',
                             top: '10%',
+                            left: '50%',
+                            transform: 'translateX(-50%)',
                             color: 'white',
                             backgroundColor: 'rgba(0,0,0,0.5)',
                             padding: '8px 16px',
                             borderRadius: '20px',
-                            backdropFilter: 'blur(4px)'
+                            backdropFilter: 'blur(4px)',
+                            whiteSpace: 'nowrap',
+                            fontSize: '14px'
                         }}>
                             Ustaw twarz w centrum
                         </p>

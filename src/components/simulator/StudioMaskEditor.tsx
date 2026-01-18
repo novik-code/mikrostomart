@@ -290,7 +290,16 @@ export default function StudioMaskEditor({ imageSrc, onBack, onNext }: StudioMas
                 {/* Background Image Layer */}
                 <img
                     src={imageSrc}
-                    className="absolute max-w-full max-h-full object-contain pointer-events-none opacity-80"
+                    style={{
+                        position: 'absolute',
+                        maxWidth: '100%',
+                        maxHeight: '100%',
+                        width: 'auto',
+                        height: 'auto',
+                        objectFit: 'contain',
+                        pointerEvents: 'none',
+                        opacity: 0.8
+                    }}
                     alt="ref"
                 />
 
@@ -304,13 +313,15 @@ export default function StudioMaskEditor({ imageSrc, onBack, onNext }: StudioMas
                     onTouchStart={startDrawing}
                     onTouchMove={draw}
                     onTouchEnd={stopDrawing}
-                    className="max-w-full max-h-full object-contain cursor-crosshair relative z-10"
-                // Important: The canvas element's CSS size must match the flexible image size.
-                // But standard CSS object-contain centering is hard to match with a canvas absolute position unless we explicitly size it.
-                // Hack: We rely on "max-w-full" on both IMG and CANVAS to align them if they have same aspect ratio.
-                // Since specific pixel alignment is critical:
-                // Better approach: Let the Render loop handle sizing or use a wrapper with Aspect Ratio.
-                // For now, stacking them in a flex-center container with max-w/h usually aligns them if aspect ratios match.
+                    style={{
+                        position: 'relative',
+                        maxWidth: '100%',
+                        maxHeight: '100%',
+                        zIndex: 10,
+                        touchAction: 'none'
+                        // Canvas internal width/height is set by JS to match image natural size.
+                        // CSS max-w/h ensures it scales down visually to fit viewport.
+                    }}
                 />
 
                 {isAnalyzing && (
