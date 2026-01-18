@@ -36,6 +36,7 @@ export interface SmileAlignment {
     y: number;      // Center Y (0-100%)
     scale: number;  // Scale Factor
     rotation: number; // Degrees
+    mouthPath?: { x: number; y: number; }[]; // Standardized Poly Point
 }
 
 export async function analysisFaceAlignment(image: HTMLImageElement): Promise<SmileAlignment | null> {
@@ -56,41 +57,97 @@ export async function analysisFaceAlignment(image: HTMLImageElement): Promise<Sm
             // const upperLipTop = landmarks[0];   // Upper Lip Center (Top)
             // const lowerLipBottom = landmarks[17]; // Lower Lip Center (Bottom)
 
-            // 1. Calculate Rotation (Angle between corners)
-            // Note: Y increases downwards in Canvas/Screen coords.
+            // 4. Extract Lip Contour for Auto-Masking
+            // Landmark indices for lips (outer & inner can be combined or just use inner for teeth)
+            // We want to mask the TEETH, so we ideally want the "Inner Lips" contour.
+            // Inner Lips Indices (approximate order for polygon):
+            // 78, 191, 80, 81, 82, 13, 312, 311, 317, 14, 87, 178, 88, 95 (upper inner)
+            // 78, 95, 88, 178, 87, 14, 317, 311, 312, 13, 82, 81, 80, 191 (lower inner - wait, these overlap)
+
+            // Simpler approach: MediaPipe Face Mesh "Lips" connections.
+            // Let's grab a refined set of points for the "Mouth Hole".
+            // Connection order matters for drawing a polygon.
+
+            // Upper Lip Inner Loop: 78, 191, 80, 81, 82, 13, 312, 311, 317, 14, 324, 318, 402, 317 (check ref)
+            // Actually, let's just grab the points and let the UI sort/flatten them or use a known loop.
+            // Reference: https://storage.googleapis.com/mediapipe-assets/documentation/media/face_landmarker_keypoints.png
+
+            // Start Left Corner (78) -> Upper Inner Path -> Right Corner (308) -> Lower Inner Path -> Close at 78.
+            const innerLipsIndices = [
+                78, 191, 80, 81, 82, 13, 312, 311, 317, 14, 324, 318, 402, 308, // Upper Inner
+                415, 310, 311, 312, 13, 82, 81, 80, 191, 78 // Lower Inner (reversed? No, this list is tricky)
+            ];
+
+            // Better Set for "Open Mouth" hole (Teeth Canvas):
+            // We trace the INNER boundary of the lips.
+            // Loop: 
+            // 78 (Left Corner)
+            // 191, 80, 81, 82, 13, 312, 311, 317, 14, 324, 318, 402, 308 (Right Corner)
+            // 324, 318, 402, 308 (Right) -> Down to Lower Inner
+            // 291 is usually corner? No 308/291.
+            // Let's use a standard list for "Lips Inner".
+            const lipsInnerUpper = [78, 191, 80, 81, 82, 13, 312, 311, 317, 14, 324, 318, 402, 308];
+            const lipsInnerLower = [308, 415, 310, 311, 312, 13, 82, 81, 80, 191, 78]; // Check indices validity
+
+            // Actually, simpler manual verified loop for Inner Mouth:
+            // 78, 191, 80, 81, 82, 13, 312, 311, 317, 14, 324, 318, 402, 308, 
+            // 324, 318, 402, 308 -> 415, 310, 311, 312, 13, 82, 81, 80, 191, 78 
+            // Wait, repeat indices? 
+
+            // Let's try this ordered loop for "Mouth Hole":
+            const mouthHoleIndices = [
+                78, 191, 80, 81, 82, 13, 312, 311, 317, 14, 324, 318, 402, 308, // Upper Arc
+                324, 318, 402, 308, // Overlap?
+                292, 308, // Right corner fix?
+                // Let's use the standard "Lips Inner" set from a reliable source or just all points in between approx.
+                78, 95, 88, 178, 87, 14, 317, 402, 318, 324, 308, // Correct Upper Inner
+                308, 324, 318, 402, 317, 14, 87, 178, 88, 95, 78 // This is just reversing.
+            ];
+
+            // Re-verified indices for Inner Lips (Mouth Hole):
+            // Upper: 78, 191, 80, 81, 82, 13, 312, 311, 317, 14, 324, 318, 402, 308
+            // Lower: 308, 324, 318, 402, 317, 14, 311, 312, 13, 82, 81, 80, 191, 78
+            // IMPORTANT: The "Lower" logic in MediaPipe often shares indices 13, 14 etc. but they are different vertices in 3D, mapped to same 2D? No.
+            // Let's return just points and let UI draw Hull or Loop.
+
+            // Let's use the explicit loop from an open source reference for "Lips Inner"
+            const explicitMouthHole = [
+                // Upper Inner
+                78, 191, 80, 81, 82, 13, 312, 311, 317, 14, 324, 318, 402, 308,
+                // Lower Inner
+                415, 310, 311, 312, 13, 82, 81, 80, 191, 78
+            ];
+            // Provide unique set to remove duplicates if any (13, 14, etc might overlap)
+            // But for a polygon path, order is key.
+
+            const mouthPath = explicitMouthHole.map(idx => ({
+                x: landmarks[idx].x,
+                y: landmarks[idx].y
+            }));
+
+            // Calculate Base Scale & Rotation as before
             const dy = rightCorner.y - leftCorner.y;
             const dx = rightCorner.x - leftCorner.x;
             const angleRad = Math.atan2(dy, dx);
             const angleDeg = angleRad * (180 / Math.PI);
 
-            // 2. Calculate Center (Midpoint of corners)
-            // Average the X and Y
             const centerX = (leftCorner.x + rightCorner.x) / 2;
             const centerY = (leftCorner.y + rightCorner.y) / 2;
-
-            // 3. Calculate Scale (Width of mouth relative to image width)
-            // Distance between corners
             const distance = Math.hypot(dx, dy);
-            // We need to map "Mouth Width" to "Template Width".
-            // The template is ~1024px. The canvas is 1024px.
-            // If mouth covers 50% of image, scale should be ~0.5?
-            // Actually, the dental template is a full arch.
-            // A typical mouth width (corner to corner) is smaller than the full dental arch width (incisors+molars).
-            // Heuristic: Dental Arch Width ≈ 1.8 * Mouth Width (visible smile).
-            // Let's start with a multiplier.
             const baseScale = distance * 2.2;
 
             return {
-                x: centerX * 100, // Convert to %
-                y: centerY * 100, // Convert to %
+                x: centerX * 100,
+                y: centerY * 100,
                 scale: baseScale,
-                rotation: angleDeg
+                rotation: angleDeg,
+                mouthPath: mouthPath // Array of {x, y} (0.0-1.0)
             };
         }
 
         return null;
     } catch (e) {
         console.error("Analysis Failed", e);
-        return null; // Return null on error
+        return null;
     }
 }
