@@ -2,12 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import Replicate from "replicate";
 
 export const runtime = 'nodejs'; // Replicate SDK works best in Node env
-// Force Deploy Timestamp: 2025-12-31 22:00
-
-import { NextRequest, NextResponse } from "next/server";
-import Replicate from "replicate";
-
-export const runtime = 'nodejs'; // Replicate SDK Node env
 
 // --- GET: Check Status (Polling) ---
 export async function GET(req: NextRequest) {
@@ -111,19 +105,5 @@ function getStylePrompt(style: string): string {
         case "hollywood":
         default:
             return "Hollywood aesthetics: Ultra-white ceramic veneers shade BL1. Perfect symmetry. Flawless geometry.";
-    }
-}
-
-function getStylePrompt(style: string): string {
-    switch (style) {
-        case "natural":
-            return "Natural aesthetics: Shade A1/B1 (not blinding white). Realistic biomimetic tooth shapes with slight natural asymmetries and texture. Incisal edges should have subtle translucency and natural wear irregularities. Not artificially perfect.";
-        case "soft":
-            return "Soft aesthetics: Rounded tooth corners, oval shapes, feminine and gentle appearance. Shade BL2. Smooth surface texture, dominantly rounded canines, youthful smile.";
-        case "strong":
-            return "Strong aesthetics: Square tooth shapes, flat incisal edges, bold masculine appearance. Shade BL2. Prominent canines, strong distinct anatomy.";
-        case "hollywood":
-        default:
-            return "Hollywood aesthetics: Ultra-white ceramic veneers shade BL1. Perfect bilateral symmetry. Dominant central incisors, perfectly aligned. High gloss, smooth surface, flawless geometry. The 'perfect tv smile'.";
     }
 }
