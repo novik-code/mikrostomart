@@ -211,64 +211,79 @@ export default function StudioCapture({ onImageSelected }: StudioCaptureProps) {
                     position: 'absolute',
                     inset: 0,
                     backgroundColor: 'black',
+                    zIndex: 50,
                     display: 'flex',
-                    flexDirection: 'column',
-                    zIndex: 50
+                    flexDirection: 'column'
                 }}>
                     <video
                         ref={videoRef}
                         autoPlay
                         playsInline
                         muted
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        style={{
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover',
+                            position: 'absolute',
+                            top: 0,
+                            left: 0
+                        }}
                     />
 
-                    {/* Overlay Guide */}
+                    {/* Overlay Guide - Centered properly */}
                     <div style={{
                         position: 'absolute',
                         inset: 0,
                         pointerEvents: 'none',
                         display: 'flex',
                         alignItems: 'center',
-                        justifyContent: 'center'
+                        justifyContent: 'center',
+                        flexDirection: 'column',
+                        gap: '20px'
                     }}>
+                        {/* The Face Frame */}
                         <div style={{
-                            width: '80%', // Responsive width
-                            maxWidth: '350px', // Max width for desktop
+                            width: '85vw',
+                            maxWidth: '380px',
                             aspectRatio: '3/4',
-                            border: '2px dashed rgba(255,255,255,0.3)',
-                            borderRadius: '30%', // Oval shape for face
-                            boxShadow: '0 0 0 9999px rgba(0,0,0,0.7)', // Darker dim
+                            border: '2px dashed rgba(255,255,255,0.4)',
+                            borderRadius: '50% 50% 40% 40%', // More face-like shape
+                            boxShadow: '0 0 0 9999px rgba(0,0,0,0.85)', // Dark opaque mask
                             position: 'relative'
                         }} />
-                        <p style={{
-                            position: 'absolute',
-                            top: '10%',
-                            left: '50%',
-                            transform: 'translateX(-50%)',
-                            color: 'white',
-                            backgroundColor: 'rgba(0,0,0,0.5)',
-                            padding: '8px 16px',
-                            borderRadius: '20px',
-                            backdropFilter: 'blur(4px)',
-                            whiteSpace: 'nowrap',
-                            fontSize: '14px'
+
+                        {/* Instruction Text - Below Frame */}
+                        <div style={{
+                            backgroundColor: 'rgba(0,0,0,0.6)',
+                            padding: '10px 24px',
+                            borderRadius: '30px',
+                            backdropFilter: 'blur(8px)',
+                            border: '1px solid rgba(255,255,255,0.1)'
                         }}>
-                            Ustaw twarz w centrum
-                        </p>
+                            <p style={{
+                                color: 'white',
+                                margin: 0,
+                                fontSize: '16px',
+                                fontWeight: 500
+                            }}>
+                                Ustaw twarz w ramce
+                            </p>
+                        </div>
                     </div>
 
+                    {/* Controls Bar */}
                     <div style={{
                         position: 'absolute',
                         bottom: 0,
                         left: 0,
                         right: 0,
-                        padding: '40px 20px',
-                        background: 'linear-gradient(to top, rgba(0,0,0,0.9), transparent)',
+                        height: '120px',
+                        background: 'linear-gradient(to top, black, transparent)',
                         display: 'flex',
-                        justifyContent: 'space-around',
+                        justifyContent: 'space-evenly',
                         alignItems: 'center',
-                        pointerEvents: 'auto'
+                        pointerEvents: 'auto',
+                        zIndex: 60
                     }}>
                         <button
                             onClick={stopCamera}
