@@ -97,14 +97,8 @@ export async function analysisFaceAlignment(image: HTMLImageElement): Promise<Sm
             // Wait, repeat indices? 
 
             // Let's try this ordered loop for "Mouth Hole":
-            const mouthHoleIndices = [
-                78, 191, 80, 81, 82, 13, 312, 311, 317, 14, 324, 318, 402, 308, // Upper Arc
-                324, 318, 402, 308, // Overlap?
-                292, 308, // Right corner fix?
-                // Let's use the standard "Lips Inner" set from a reliable source or just all points in between approx.
-                78, 95, 88, 178, 87, 14, 317, 402, 318, 324, 308, // Correct Upper Inner
-                308, 324, 318, 402, 317, 14, 87, 178, 88, 95, 78 // This is just reversing.
-            ];
+            // CORRECTED "OUTER LIPS" LOOP (Most Robust)
+            // We mask the entire mouth area (including lips) for stability.
 
             // CORRECTED "OUTER LIPS" LOOP (Most Robust)
             // Instead of trying to find the inner hole (which fails if mouth is closed),

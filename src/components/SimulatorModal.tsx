@@ -204,19 +204,8 @@ export default function SimulatorModal() {
             ctx.stroke();
 
         } catch (e) {
-            console.warn("Face detection failed, using fallback mask for close-up/macro.");
-            // Fallback: Central Ellipse (Assumes mouth is roughly in center for close-ups)
-            ctx.fillStyle = 'white';
-            ctx.filter = 'blur(20px)'; // Heavy blur for soft generic mask
-            ctx.beginPath();
-            ctx.ellipse(
-                canvas.width / 2,
-                canvas.height / 2,
-                canvas.width * 0.25, // Radius X (50% width total)
-                canvas.height * 0.15, // Radius Y (30% height total)
-                0, 0, 2 * Math.PI
-            );
-            ctx.fill();
+            console.warn("Face detection failed.", e);
+            throw new Error("Nie udało się wykryć ust. Upewnij się, że twarz jest oświetlona i widoczna, lub oddal nieco aparat.");
         }
 
         const maskData = canvas.toDataURL('image/png');
