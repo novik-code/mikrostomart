@@ -6,11 +6,9 @@ const withPWA = withPWAInit({
   cacheOnFrontEndNav: false, // Changed from true
   aggressiveFrontEndNavCaching: false, // Changed from true
   reloadOnOnline: true,
-  disable: process.env.NODE_ENV === "development",
+  disable: true, // FORCE DISABLE PWA
   workboxOptions: {
     disableDevLogs: true,
-    skipWaiting: true, // Force new service worker to take over
-    clientsClaim: true,
   },
 });
 
