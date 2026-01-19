@@ -7,26 +7,45 @@ export const metadata = {
 
 export default function PainMapPage() {
     return (
-        <main className="min-h-screen pt-24 pb-20 bg-black text-white">
-            <div className="container px-4 text-center">
-                <h1 className="text-4xl font-heading mb-4 text-[#dcb14a]">Mapa Bólu (BETA)</h1>
-                <p className="text-gray-400 mb-8 max-w-2xl mx-auto">
-                    To jest strona testowa, aby zweryfikować poprawne wyświetlanie.
+        <main className="min-h-screen pt-24 pb-20 bg-black text-white flex flex-col items-center">
+            <div className="container px-4 w-full flex flex-col items-center">
+
+                <h1 className="text-4xl font-heading mb-4 text-[#dcb14a] text-center">Mapa Bólu (BETA)</h1>
+                <p className="text-gray-400 mb-8 max-w-2xl text-center">
+                    Wersja responsywna. Obraz dostosowuje się do szerokości ekranu, zachowując proporcje.
                 </p>
 
-                <div className="w-full max-w-[600px] mx-auto border border-white/20 rounded-xl overflow-hidden bg-white/5 shadow-2xl">
+                {/* 
+                   ROBUST CONTAINER:
+                   1. Max-width prevents it from being too huge on desktop.
+                   2. w-full makes it responsive on mobile.
+                   3. NO fixed height. Height is determined by the image itself.
+                */}
+                <div className="w-full max-w-[800px] border border-white/20 rounded-xl overflow-hidden bg-white/5 shadow-2xl relative">
+
+                    {/* 
+                       UNIVERSAL IMAGE SCALING:
+                       - width={0}, height={0}, sizes="100vw": Tells Next.js to not enforce specific aspect ratio from props.
+                       - style={{ width: '100%', height: 'auto' }}: CSS rule that forces full width and automatic height.
+                       - This ensures NO CLIPPING. If image is tall, container grows. If wide, container shrinks height.
+                    */}
                     <Image
                         src="/test_placeholder.png"
-                        alt="Karta Testowa 600x800"
-                        width={600}
-                        height={800}
-                        className="w-full h-auto block" // standard responsive behavior
+                        alt="Mapa Bólu - Widok"
+                        width={0}
+                        height={0}
+                        sizes="(max-width: 800px) 100vw, 800px"
+                        style={{ width: '100%', height: 'auto', display: 'block' }}
                         priority
                     />
+
                 </div>
 
-                <div className="mt-8 p-4 bg-blue-900/30 border border-blue-500 rounded-lg inline-block">
-                    <p className="text-blue-300 font-mono text-sm">Deployment Check: v3.0.0-INIT</p>
+                <div className="mt-8 p-4 bg-green-900/30 border border-green-500 rounded-lg inline-block text-center">
+                    <p className="text-green-300 font-mono text-sm">
+                        System: Auto-Height / Full-Width Container<br />
+                        Clipping: Impossible (Content Flow)
+                    </p>
                 </div>
             </div>
         </main>
