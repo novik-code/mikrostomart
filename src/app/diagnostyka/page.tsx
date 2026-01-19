@@ -1,4 +1,4 @@
-import PainMapContainer from "@/components/pain-map/PainMapContainer";
+import PainMapContainerV2 from "@/components/pain-map-v2/PainMapContainerV2";
 
 export const metadata = {
     title: 'Interaktywna Mapa Bólu Zębów | Mikrostomart',
@@ -17,17 +17,17 @@ export default function PainMapPage() {
             <div className="container relative z-10 px-4">
                 <div className="text-center mb-12">
                     <h1 className="text-4xl md:text-5xl font-heading font-bold text-white mb-4">
-                        <span className="text-[#dcb14a]">Mapa Bólu</span> - Co Ci dolega?
+                        <span className="text-[#dcb14a]">Mapa Bólu</span> - Diagnostyka
                     </h1>
-                    <div className="inline-block px-3 py-1 bg-white/10 rounded-full text-[10px] text-gray-500 mb-4">
-                        v.2026.01.18-DEBUG-FIX
+                    <div className="inline-block px-3 py-1 bg-[#dcb14a]/20 border border-[#dcb14a] rounded-full text-[10px] text-[#dcb14a] mb-4">
+                        SYSTEM V2 (NOWY)
                     </div>
                     <p className="text-lg text-gray-400 max-w-2xl mx-auto">
-                        Odczuwasz dyskomfort? Skorzystaj z naszego inteligentnego asystenta, aby wstępnie zdiagnozować problem i otrzymać zalecenia, zanim dotrzesz do gabinetu.
+                        Wybierz obszar na mapie, aby rozpocząć diagnozę.
                     </p>
                 </div>
 
-                <PainMapContainer />
+                <PainMapContainerV2 />
             </div>
         </main>
     );
