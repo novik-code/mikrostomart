@@ -14,12 +14,14 @@ export default function PainMapPage() {
                     To jest strona testowa, aby zweryfikować poprawne wyświetlanie.
                 </p>
 
-                <div className="relative w-full max-w-[500px] h-[700px] mx-auto border border-white/20 rounded-xl overflow-hidden bg-white/5">
+                <div className="w-full max-w-[600px] mx-auto border border-white/20 rounded-xl overflow-hidden bg-white/5 shadow-2xl">
                     <Image
                         src="/test_placeholder.png"
                         alt="Karta Testowa 600x800"
-                        fill
-                        className="object-contain" // Keep contain to ensure full visibility within square container
+                        width={600}
+                        height={800}
+                        className="w-full h-auto block" // standard responsive behavior
+                        priority
                     />
                 </div>
 
