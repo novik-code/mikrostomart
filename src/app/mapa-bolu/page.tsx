@@ -14,12 +14,12 @@ export default function PainMapPage() {
                     To jest strona testowa, aby zweryfikować poprawne wyświetlanie.
                 </p>
 
-                <div className="relative w-full max-w-[500px] mx-auto aspect-square border border-white/20 rounded-xl overflow-hidden bg-white/5">
+                <div className="relative w-full max-w-[500px] h-[700px] mx-auto border border-white/20 rounded-xl overflow-hidden bg-white/5">
                     <Image
-                        src="/intraoral_anatomy_natural.png"
-                        alt="Test Image"
+                        src="/test_placeholder.png"
+                        alt="Karta Testowa 600x800"
                         fill
-                        className="object-contain p-4"
+                        className="object-contain" // Keep contain to ensure full visibility within square container
                     />
                 </div>
 
