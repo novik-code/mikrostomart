@@ -1,4 +1,5 @@
 import Image from 'next/image';
+import PainMapInteractive from './PainMapInteractive';
 
 export const metadata = {
     title: 'Mapa Bólu Zębów | Mikrostomart',
@@ -22,6 +23,9 @@ export default function PainMapPage() {
                    3. NO fixed height. Height is determined by the image itself.
                 */}
                 <div className="w-full max-w-[800px] border border-white/20 rounded-xl overflow-hidden bg-white/5 shadow-2xl relative">
+
+                    {/* INTERACTIVE OVERLAY */}
+                    <PainMapInteractive />
 
                     {/* 
                        UNIVERSAL IMAGE SCALING:
