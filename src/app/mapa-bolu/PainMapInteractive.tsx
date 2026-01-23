@@ -2,16 +2,13 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { SYMPTOM_DATA, SymptomInfo } from './SymptomData';
+import { SYMPTOM_DATA } from './SymptomData';
 import Link from 'next/link';
 
 // ZONES CONFIGURATION (Percentages for robust responsiveness)
 // Top/Left/Width/Height are relative to the image container
 const ZONES = [
-    { id: "upper-posterior-left", top: "25%", left: "15%", width: "20%", height: "25%" },  // Upper Left Molars (Image Left is Patient Right? No, usually mirrored. Assuming standard view: Left side of screen = Patient Right)
-    // Wait, dental charts are usually mirrored (Left on screen = Right in mouth). Let's stick to screen-relative names for code clarity, but map to logic correctly.
-    // For simplicity: "left" means Screen Left.
-
+    { id: "upper-posterior-left", top: "25%", left: "15%", width: "20%", height: "25%" },  // Upper Left Molars
     { id: "upper-front", top: "20%", left: "35%", width: "30%", height: "20%" },           // Upper Incisors
     { id: "upper-posterior-right", top: "25%", left: "65%", width: "20%", height: "25%" }, // Upper Right Molars
 
@@ -31,7 +28,17 @@ export default function PainMapInteractive() {
     const selectedData = selectedZoneId ? SYMPTOM_DATA[selectedZoneId] : null;
 
     return (
-        <div className="absolute inset-0 z-50 pointer-events-none">
+        <div
+            style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                zIndex: 50,
+                pointerEvents: 'none'
+            }}
+        >
             {/* ZONES LAYER - DEBUG MODE ACTIVE */}
             {ZONES.map((zone) => (
                 <div
@@ -41,17 +48,18 @@ export default function PainMapInteractive() {
                     onMouseLeave={() => setHoveredZoneId(null)}
                     className="absolute cursor-pointer transition-all duration-300 pointer-events-auto"
                     style={{
+                        position: 'absolute', // Force absolute for children too
                         top: zone.top,
                         left: zone.left,
                         width: zone.width,
                         height: zone.height,
-                        // DEBUG: Always show a red border so user knows where to click
-                        border: '2px dashed rgba(255, 0, 0, 0.5)',
+                        // DEBUG: Red border for visibility
+                        border: '2px dashed rgba(255, 0, 0, 0.8)',
 
                         backgroundColor: (hoveredZoneId === zone.id || selectedZoneId === zone.id)
-                            ? 'rgba(220, 177, 74, 0.4)' // Stronger Gold
-                            : 'rgba(255, 255, 255, 0.1)', // Slight white tint to show zone exists
-                        borderRadius: '30%', // Soft shapes
+                            ? 'rgba(220, 177, 74, 0.4)'
+                            : 'rgba(255, 255, 255, 0.05)', // Tiny tint
+                        borderRadius: '30%',
                         boxShadow: (selectedZoneId === zone.id)
                             ? '0 0 20px rgba(220, 177, 74, 0.8)'
                             : 'none',
@@ -73,7 +81,8 @@ export default function PainMapInteractive() {
                     <div className="absolute inset-0 z-50 pointer-events-none flex items-end md:items-center justify-center p-4">
                         {/* Backdrop Click to Close */}
                         <div
-                            className="absolute inset-0 bg-black/60 backdrop-blur-sm pointer-events-auto"
+                            style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)' }}
+                            className="backdrop-blur-sm pointer-events-auto"
                             onClick={() => setSelectedZoneId(null)}
                         />
 
