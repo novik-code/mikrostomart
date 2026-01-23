@@ -14,28 +14,28 @@ const COMMON_DATA = {
         description: "Ząb przedni, odpowiedzialny za odgryzanie.",
         symptoms: ["Nadwrażliwość na zimno", "Ból przy odgryzaniu", "Ukruszenie brzegu", "Estetyka (przebarwienie)"],
         advice: "Ból przy odgryzaniu może sugerować uraz lub próchnicę. Jeśli to tylko estetyka - zapraszamy na bonding.",
-        urgency: 'low'
+        urgency: 'low' as const
     },
     canine: {
         title: "Kieł (Trójka)",
         description: "Ząb narożny, korzeń jest bardzo długi.",
         symptoms: ["Ból promieniujący do oka", "Nadwrażliwość przy szyjce (od dziąsła)", "Starcie wierzchołka"],
         advice: "Kły są kluczowe dla prowadzenia zgryzu. Ich ścieranie sugeruje bruksizm (zgrzytanie).",
-        urgency: 'medium'
+        urgency: 'medium' as const
     },
     premolar: {
         title: "Przedtrzonowiec (Czwórka/Piątka)",
         description: "Ząb boczny, strefa przejściowa.",
         symptoms: ["Pęknięcie pionowe", "Ból przy żuciu", "Ubytek klinowy przy dziąśle"],
         advice: "Często pękają od zaciskania zębów. Wymagają dokładnej diagnostyki pod mikroskopem.",
-        urgency: 'medium'
+        urgency: 'medium' as const
     },
     molar: {
         title: "Trzonowiec (Szóstka/Siódemka/Ósemka)",
         description: "Duży ząb trzonowy do rozgniatania pokarmu.",
         symptoms: ["Głęboki ból pulsujący", "Reakcja na ciepło", "Trudność w gryzieniu", "Jedzenie wchodzi między zęby"],
         advice: "Jeśli reaguje na ciepło - to może być stan zapalny miazgi (leczenie kanałowe). Jeśli jedzenie wchodzi - nieszczelna plomba.",
-        urgency: 'high'
+        urgency: 'high' as const
     }
 };
 
