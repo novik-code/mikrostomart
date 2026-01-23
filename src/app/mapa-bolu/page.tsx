@@ -24,9 +24,6 @@ export default function PainMapPage() {
                 */}
                 <div className="w-full max-w-[800px] border border-white/20 rounded-xl overflow-hidden bg-white/5 shadow-2xl relative">
 
-                    {/* INTERACTIVE OVERLAY */}
-                    <PainMapInteractive />
-
                     {/* 
                        UNIVERSAL IMAGE SCALING:
                        - width={0}, height={0}, sizes="100vw": Tells Next.js to not enforce specific aspect ratio from props.
@@ -42,6 +39,9 @@ export default function PainMapPage() {
                         style={{ width: '100%', height: 'auto', display: 'block' }}
                         priority
                     />
+
+                    {/* INTERACTIVE OVERLAY - MOVED AFTER IMAGE FOR Z-INDEX SAFETY */}
+                    <PainMapInteractive />
 
                 </div>
 
