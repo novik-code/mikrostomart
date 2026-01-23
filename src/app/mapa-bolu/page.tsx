@@ -22,26 +22,25 @@ export default function PainMapPage() {
                    2. w-full makes it responsive on mobile.
                    3. NO fixed height. Height is determined by the image itself.
                 */}
-                <div className="w-full max-w-[800px] border border-white/20 rounded-xl overflow-hidden bg-white/5 shadow-2xl relative">
+                <div className="w-full max-w-[800px] border border-white/20 rounded-xl overflow-hidden bg-white/5 shadow-2xl relative grid grid-cols-1 grid-rows-1">
 
-                    {/* 
-                       UNIVERSAL IMAGE SCALING:
-                       - width={0}, height={0}, sizes="100vw": Tells Next.js to not enforce specific aspect ratio from props.
-                       - style={{ width: '100%', height: 'auto' }}: CSS rule that forces full width and automatic height.
-                       - This ensures NO CLIPPING. If image is tall, container grows. If wide, container shrinks height.
-                    */}
-                    <Image
-                        src="/intraoral_anatomy_natural.png"
-                        alt="Anatomia Szczeki"
-                        width={0}
-                        height={0}
-                        sizes="(max-width: 800px) 100vw, 800px"
-                        style={{ width: '100%', height: 'auto', display: 'block' }}
-                        priority
-                    />
+                    {/* LAYER 1: IMAGE (Defines height) */}
+                    <div className="col-start-1 row-start-1 relative z-10">
+                        <Image
+                            src="/intraoral_anatomy_natural.png"
+                            alt="Anatomia Szczeki"
+                            width={0}
+                            height={0}
+                            sizes="(max-width: 800px) 100vw, 800px"
+                            style={{ width: '100%', height: 'auto', display: 'block' }}
+                            priority
+                        />
+                    </div>
 
-                    {/* INTERACTIVE OVERLAY - MOVED AFTER IMAGE FOR Z-INDEX SAFETY */}
-                    <PainMapInteractive />
+                    {/* LAYER 2: INTERACTIVE OVERLAY (Fills the same cell) */}
+                    <div className="col-start-1 row-start-1 relative z-20 w-full h-full">
+                        <PainMapInteractive />
+                    </div>
 
                 </div>
 
