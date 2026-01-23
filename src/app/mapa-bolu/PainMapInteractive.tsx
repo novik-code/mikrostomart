@@ -4,57 +4,64 @@ import { useState } from 'react';
 import { SYMPTOM_DATA } from './SymptomData';
 import Link from 'next/link';
 
-// Detailed Anatomy Mapping
-// Coordinates approximated for "intraoral_anatomy_natural.png"
+// SVG Coordinate System (0-100)
+// The mouth is roughly in the center 50% of the image.
+// We'll use a tighter coordinate set.
 const ZONES = [
     // --- SOFT TISSUES ---
-    { id: "tongue", label: "Język", top: "52%", left: "37%", width: "26%", height: "20%", borderRadius: "40%" },
-    { id: "palate", label: "Podniebienie", top: "35%", left: "35%", width: "30%", height: "15%", borderRadius: "50%" },
-    { id: "throat", label: "Gardło", top: "48%", left: "42%", width: "16%", height: "10%", borderRadius: "50%" },
-    { id: "cheek-left", label: "Policzek Lewy", top: "40%", left: "2%", width: "10%", height: "20%", borderRadius: "20%" },
-    { id: "cheek-right", label: "Policzek Prawy", top: "40%", left: "88%", width: "10%", height: "20%", borderRadius: "20%" },
+    { id: "tongue", label: "Język", cx: 50, cy: 60, r: 12 },
+    { id: "palate", label: "Podniebienie", cx: 50, cy: 35, r: 10 },
+    { id: "throat", label: "Gardło", cx: 50, cy: 45, r: 6 },
+    { id: "cheek-left", label: "Policzek Lewy", cx: 15, cy: 50, r: 8 },
+    { id: "cheek-right", label: "Policzek Prawy", cx: 85, cy: 50, r: 8 },
 
     // --- UPPER ARCH (Górny Łuk) ---
-    // Moved DOWN to sit on the teeth, not the lip
-    { id: "18", label: "18", top: "50%", left: "14%", width: "7%", height: "7%", borderRadius: "40%" },
-    { id: "17", label: "17", top: "46%", left: "15%", width: "7%", height: "7%", borderRadius: "40%" },
-    { id: "16", label: "16", top: "40%", left: "17%", width: "7%", height: "7%", borderRadius: "40%" },
-    { id: "15", label: "15", top: "35%", left: "20%", width: "6%", height: "6%", borderRadius: "50%" },
-    { id: "14", label: "14", top: "30%", left: "24%", width: "6%", height: "6%", borderRadius: "50%" },
-    { id: "13", label: "13", top: "27%", left: "29%", width: "5%", height: "6%", borderRadius: "50%" },
-    { id: "12", label: "12", top: "24%", left: "34%", width: "5%", height: "6%", borderRadius: "50%" },
-    { id: "11", label: "11", top: "22%", left: "41%", width: "6%", height: "7%", borderRadius: "30%" },
+    // Y approx 20-40 range
+    // Width approx 30-70 range
 
-    { id: "21", label: "21", top: "22%", left: "53%", width: "6%", height: "7%", borderRadius: "30%" },
-    { id: "22", label: "22", top: "24%", left: "61%", width: "5%", height: "6%", borderRadius: "50%" },
-    { id: "23", label: "23", top: "27%", left: "66%", width: "5%", height: "6%", borderRadius: "50%" },
-    { id: "24", label: "24", top: "30%", left: "70%", width: "6%", height: "6%", borderRadius: "50%" },
-    { id: "25", label: "25", top: "35%", left: "74%", width: "6%", height: "6%", borderRadius: "50%" },
-    { id: "26", label: "26", top: "40%", left: "76%", width: "7%", height: "7%", borderRadius: "40%" },
-    { id: "27", label: "27", top: "46%", left: "78%", width: "7%", height: "7%", borderRadius: "40%" },
-    { id: "28", label: "28", top: "50%", left: "79%", width: "7%", height: "7%", borderRadius: "40%" },
+    // Right Quadrant (Screen Left)
+    { id: "18", label: "18", cx: 28, cy: 52, r: 3 },
+    { id: "17", label: "17", cx: 29, cy: 46, r: 3 },
+    { id: "16", label: "16", cx: 31, cy: 40, r: 3.5 },
+    { id: "15", label: "15", cx: 33, cy: 35, r: 2.5 },
+    { id: "14", label: "14", cx: 36, cy: 31, r: 2.5 },
+    { id: "13", label: "13", cx: 40, cy: 28, r: 2.5 },
+    { id: "12", label: "12", cx: 44, cy: 26, r: 2.5 },
+    { id: "11", label: "11", cx: 48, cy: 25, r: 2.8 },
+
+    // Left Quadrant (Screen Right)
+    { id: "21", label: "21", cx: 52, cy: 25, r: 2.8 },
+    { id: "22", label: "22", cx: 56, cy: 26, r: 2.5 },
+    { id: "23", label: "23", cx: 60, cy: 28, r: 2.5 },
+    { id: "24", label: "24", cx: 64, cy: 31, r: 2.5 },
+    { id: "25", label: "25", cx: 67, cy: 35, r: 2.5 },
+    { id: "26", label: "26", cx: 69, cy: 40, r: 3.5 },
+    { id: "27", label: "27", cx: 71, cy: 46, r: 3 },
+    { id: "28", label: "28", cx: 72, cy: 52, r: 3 },
 
 
     // --- LOWER ARCH (Dolny Łuk) ---
-    // Moved UP to sit on the teeth, not the chin
-    { id: "48", label: "48", top: "58%", left: "14%", width: "7%", height: "7%", borderRadius: "40%" },
-    { id: "47", label: "47", top: "64%", left: "15%", width: "7%", height: "7%", borderRadius: "40%" },
-    { id: "46", label: "46", top: "70%", left: "18%", width: "7%", height: "7%", borderRadius: "40%" },
-    { id: "45", label: "45", top: "75%", left: "22%", width: "6%", height: "6%", borderRadius: "50%" },
-    { id: "44", label: "44", top: "79%", left: "27%", width: "5%", height: "6%", borderRadius: "50%" },
-    { id: "43", label: "43", top: "81%", left: "33%", width: "5%", height: "6%", borderRadius: "50%" },
-    { id: "42", label: "42", top: "82%", left: "39%", width: "4%", height: "5%", borderRadius: "50%" },
-    { id: "41", label: "41", top: "82%", left: "45%", width: "4%", height: "5%", borderRadius: "50%" },
+    // Y approx 70-90 range, curving up
 
-    { id: "31", label: "31", top: "82%", left: "51%", width: "4%", height: "5%", borderRadius: "50%" },
-    { id: "32", label: "32", top: "82%", left: "57%", width: "4%", height: "5%", borderRadius: "50%" },
-    { id: "33", label: "33", top: "81%", left: "62%", width: "5%", height: "6%", borderRadius: "50%" },
-    { id: "34", label: "34", top: "79%", left: "68%", width: "5%", height: "6%", borderRadius: "50%" },
-    { id: "35", label: "35", top: "75%", left: "72%", width: "6%", height: "6%", borderRadius: "50%" },
-    { id: "36", label: "36", top: "70%", left: "75%", width: "7%", height: "7%", borderRadius: "40%" },
-    { id: "37", label: "37", top: "64%", left: "78%", width: "7%", height: "7%", borderRadius: "40%" },
-    { id: "38", label: "38", top: "58%", left: "79%", width: "7%", height: "7%", borderRadius: "40%" },
+    // Right Quadrant (Screen Left)
+    { id: "48", label: "48", cx: 29, cy: 62, r: 3 },
+    { id: "47", label: "47", cx: 30, cy: 68, r: 3 },
+    { id: "46", label: "46", cx: 32, cy: 74, r: 3 },
+    { id: "45", label: "45", cx: 35, cy: 79, r: 2.5 },
+    { id: "44", label: "44", cx: 39, cy: 82, r: 2.5 },
+    { id: "43", label: "43", cx: 42, cy: 84, r: 2 },
+    { id: "42", label: "42", cx: 45, cy: 85, r: 2 },
+    { id: "41", label: "41", cx: 48, cy: 85, r: 2 },
 
+    // Left Quadrant (Screen Right)
+    { id: "31", label: "31", cx: 52, cy: 85, r: 2 },
+    { id: "32", label: "32", cx: 55, cy: 85, r: 2 },
+    { id: "33", label: "33", cx: 58, cy: 84, r: 2 },
+    { id: "34", label: "34", cx: 61, cy: 82, r: 2.5 },
+    { id: "35", label: "35", cx: 65, cy: 79, r: 2.5 },
+    { id: "36", label: "36", cx: 68, cy: 74, r: 3 },
+    { id: "37", label: "37", cx: 70, cy: 68, r: 3 },
+    { id: "38", label: "38", cx: 71, cy: 62, r: 3 },
 ];
 
 export default function PainMapInteractive() {
@@ -64,64 +71,62 @@ export default function PainMapInteractive() {
     const selectedData = selectedZoneId ? SYMPTOM_DATA[selectedZoneId] : null;
 
     return (
-        <div
-            style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '100%',
-                height: '100%',
-                zIndex: 50,
-                pointerEvents: 'none'
-            }}
-        >
-            {/* ZONES LAYER - HIT AREAS */}
-            {ZONES.map((zone) => (
-                <div
-                    key={zone.id}
-                    onClick={() => {
-                        console.log("Clicked zone:", zone.id);
-                        setSelectedZoneId(zone.id);
-                    }}
-                    onMouseEnter={() => setHoveredZoneId(zone.id)}
-                    onMouseLeave={() => setHoveredZoneId(null)}
-                    className="cursor-pointer group"
-                    style={{
-                        position: 'absolute',
-                        top: zone.top,
-                        left: zone.left,
-                        width: zone.width,
-                        height: zone.height,
-                        borderRadius: zone.borderRadius || '50%',
-                        pointerEvents: 'auto',
-
-                        // Visuals
-                        backgroundColor: (hoveredZoneId === zone.id || selectedZoneId === zone.id)
-                            ? 'rgba(220, 177, 74, 0.4)'
-                            : 'transparent',
-
-                        // Subtle Border Always Visible to indicate "Clickable"
-                        border: (hoveredZoneId === zone.id)
-                            ? '2px solid #dcb14a'
-                            : '1px dashed rgba(255,255,255,0.15)',
-
-                        transition: 'all 0.2s ease',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                    }}
-                >
-                    {/* Tiny Label on Hover */}
-                    <span
-                        className={`text-[8px] md:text-[10px] text-white bg-black/50 px-1 rounded transition-opacity duration-200 ${hoveredZoneId === zone.id ? 'opacity-100' : 'opacity-0'}`}
-                        style={{ pointerEvents: 'none' }}
+        <div className="absolute inset-0 z-50">
+            {/* SVG OVERLAY */}
+            <svg
+                viewBox="0 0 100 100"
+                preserveAspectRatio="none"
+                className="w-full h-full"
+                style={{ filter: 'drop-shadow(0px 0px 2px rgba(0,0,0,0.5))' }}
+            >
+                {ZONES.map((zone) => (
+                    <g
+                        key={zone.id}
+                        onClick={() => setSelectedZoneId(zone.id)}
+                        onMouseEnter={() => setHoveredZoneId(zone.id)}
+                        onMouseLeave={() => setHoveredZoneId(null)}
+                        className="cursor-pointer transition-all duration-300"
+                        style={{ transformOrigin: `${zone.cx}% ${zone.cy}%` }}
                     >
-                        {zone.label}
-                    </span>
-                </div>
-            ))}
+                        {/* Interactive Circle */}
+                        <circle
+                            cx={zone.cx}
+                            cy={zone.cy}
+                            r={zone.r}
+                            fill={
+                                (hoveredZoneId === zone.id || selectedZoneId === zone.id)
+                                    ? 'rgba(220, 177, 74, 0.4)'
+                                    : 'transparent'
+                            }
+                            stroke={
+                                (hoveredZoneId === zone.id)
+                                    ? '#dcb14a'
+                                    : 'rgba(255,255,255,0.1)'
+                            }
+                            strokeWidth={hoveredZoneId === zone.id ? 0.5 : 0.2}
+                            strokeDasharray={hoveredZoneId === zone.id ? '0' : '2,1'}
+                            className="transition-all duration-300"
+                        />
 
-            {/* MODAL - FIXED */}
+                        {/* Label (Only visible on hover/select) */}
+                        {(hoveredZoneId === zone.id) && (
+                            <text
+                                x={zone.cx}
+                                y={zone.cy}
+                                fontSize="3"
+                                fill="white"
+                                textAnchor="middle"
+                                alignmentBaseline="middle"
+                                style={{ pointerEvents: 'none', textShadow: '0px 1px 2px black' }}
+                            >
+                                {zone.label}
+                            </text>
+                        )}
+                    </g>
+                ))}
+            </svg>
+
+            {/* MODAL (Unchanged logic, just keeping it here) */}
             {selectedData && (
                 <div
                     style={{
@@ -135,76 +140,42 @@ export default function PainMapInteractive() {
                         pointerEvents: 'auto'
                     }}
                 >
-                    {/* Backdrop */}
                     <div
-                        style={{
-                            position: 'absolute',
-                            inset: 0,
-                            backgroundColor: 'rgba(0,0,0,0.85)',
-                            backdropFilter: 'blur(5px)'
-                        }}
+                        className="absolute inset-0 bg-black/85 backdrop-blur-sm"
                         onClick={() => setSelectedZoneId(null)}
                     />
 
-                    {/* Card */}
-                    <div
-                        className="bg-[#0a0a0a] border border-[#dcb14a] rounded-xl p-6 w-full max-w-lg shadow-2xl relative overflow-y-auto max-h-[90vh] flex flex-col items-center text-center"
-                        style={{ position: 'relative', zIndex: 10000 }}
-                    >
-                        {/* Close Button */}
+                    <div className="bg-[#0a0a0a] border border-[#dcb14a] rounded-xl p-6 w-full max-w-lg shadow-2xl relative overflow-y-auto max-h-[90vh] flex flex-col items-center text-center z-[10000]">
                         <button
                             onClick={() => setSelectedZoneId(null)}
-                            className="absolute top-3 right-3 text-gray-400 hover:text-[#dcb14a] transition-colors"
+                            className="absolute top-3 right-3 text-gray-400 hover:text-[#dcb14a]"
                         >
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <line x1="18" y1="6" x2="6" y2="18"></line>
-                                <line x1="6" y1="6" x2="18" y2="18"></line>
-                            </svg>
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
                         </button>
 
                         <div className="w-12 h-12 rounded-full bg-[#dcb14a]/10 flex items-center justify-center mb-4 border border-[#dcb14a]/30">
                             <span className="text-2xl">🦷</span>
                         </div>
 
-                        <h3 className="text-2xl font-heading text-[#dcb14a] mb-2">
-                            {selectedData.title}
-                        </h3>
-                        <p className="text-sm text-gray-400 mb-6 font-light italic max-w-xs">
-                            {selectedData.description}
-                        </p>
+                        <h3 className="text-2xl font-heading text-[#dcb14a] mb-2">{selectedData.title}</h3>
+                        <p className="text-sm text-gray-400 mb-6 font-light italic">{selectedData.description}</p>
 
                         <div className="w-full space-y-6 text-left">
                             <div className="bg-white/5 p-4 rounded-lg border border-white/5">
-                                <h4 className="text-[#dcb14a] text-xs font-bold uppercase tracking-widest mb-3 flex items-center gap-2">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-[#dcb14a]"></span>
-                                    Typowe objawy
-                                </h4>
+                                <h4 className="text-[#dcb14a] text-xs font-bold uppercase tracking-widest mb-3">Typowe objawy</h4>
                                 <ul className="text-sm text-gray-300 space-y-2">
-                                    {selectedData.symptoms.map((s, i) => (
-                                        <li key={i} className="flex items-start gap-2">
-                                            <span className="text-gray-600 mt-1">›</span>
-                                            {s}
-                                        </li>
-                                    ))}
+                                    {selectedData.symptoms.map((s, i) => <li key={i} className="flex gap-2"><span className="text-gray-500">›</span>{s}</li>)}
                                 </ul>
                             </div>
 
                             <div className={`p-4 rounded-lg border ${selectedData.urgency === 'high' ? 'bg-red-900/10 border-red-500/30' : 'bg-blue-900/10 border-blue-500/30'}`}>
-                                <h4 className={`text-xs font-bold uppercase tracking-widest mb-2 flex items-center gap-2 ${selectedData.urgency === 'high' ? 'text-red-400' : 'text-blue-400'}`}>
-                                    <span className={`w-1.5 h-1.5 rounded-full ${selectedData.urgency === 'high' ? 'bg-red-500' : 'bg-blue-500'}`}></span>
-                                    Zalecenie
-                                </h4>
-                                <p className="text-gray-200 text-sm leading-relaxed">
-                                    {selectedData.advice}
-                                </p>
+                                <h4 className={`text-xs font-bold uppercase tracking-widest mb-2 ${selectedData.urgency === 'high' ? 'text-red-400' : 'text-blue-400'}`}>Zalecenie</h4>
+                                <p className="text-gray-200 text-sm">{selectedData.advice}</p>
                             </div>
                         </div>
 
-                        <Link
-                            href="/rezerwacja"
-                            className="w-full mt-6 bg-[#dcb14a] hover:bg-[#c59d3e] text-black font-bold py-4 rounded-lg transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-[#dcb14a]/20"
-                        >
-                            Umów wizytę dla tego obszaru
+                        <Link href="/rezerwacja" className="w-full mt-6 bg-[#dcb14a] hover:bg-[#c59d3e] text-black font-bold py-4 rounded-lg shadow-lg hover:shadow-[#dcb14a]/20 transition-all">
+                            Umów wizytę
                         </Link>
                     </div>
                 </div>
