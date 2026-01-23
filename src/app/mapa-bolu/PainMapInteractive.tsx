@@ -4,64 +4,96 @@ import { useState } from 'react';
 import { SYMPTOM_DATA } from './SymptomData';
 import Link from 'next/link';
 
-// SVG Coordinate System (0-100)
-// The mouth is roughly in the center 50% of the image.
-// We'll use a tighter coordinate set.
-const ZONES = [
-    // --- SOFT TISSUES ---
-    { id: "tongue", label: "Język", cx: 50, cy: 60, r: 12 },
-    { id: "palate", label: "Podniebienie", cx: 50, cy: 35, r: 10 },
-    { id: "throat", label: "Gardło", cx: 50, cy: 45, r: 6 },
-    { id: "cheek-left", label: "Policzek Lewy", cx: 15, cy: 50, r: 8 },
-    { id: "cheek-right", label: "Policzek Prawy", cx: 85, cy: 50, r: 8 },
+// --- HELPER: POLAR TO CARTESIAN ---
+function polarToCartesian(centerX: number, centerY: number, radiusX: number, radiusY: number, angleInDegrees: number) {
+    const angleInRadians = (angleInDegrees - 90) * Math.PI / 180.0;
+    return {
+        x: centerX + (radiusX * Math.cos(angleInRadians)),
+        y: centerY + (radiusY * Math.sin(angleInRadians))
+    };
+}
 
-    // --- UPPER ARCH (Górny Łuk) ---
-    // Y approx 20-40 range
-    // Width approx 30-70 range
+// --- HELPER: SVG ARC PATH ---
+function describeSector(x: number, y: number, innerRx: number, innerRy: number, outerRx: number, outerRy: number, startAngle: number, endAngle: number) {
+    const startOuter = polarToCartesian(x, y, outerRx, outerRy, endAngle);
+    const endOuter = polarToCartesian(x, y, outerRx, outerRy, startAngle);
+    const startInner = polarToCartesian(x, y, innerRx, innerRy, endAngle);
+    const endInner = polarToCartesian(x, y, innerRx, innerRy, startAngle);
 
-    // Right Quadrant (Screen Left)
-    { id: "18", label: "18", cx: 28, cy: 52, r: 3 },
-    { id: "17", label: "17", cx: 29, cy: 46, r: 3 },
-    { id: "16", label: "16", cx: 31, cy: 40, r: 3.5 },
-    { id: "15", label: "15", cx: 33, cy: 35, r: 2.5 },
-    { id: "14", label: "14", cx: 36, cy: 31, r: 2.5 },
-    { id: "13", label: "13", cx: 40, cy: 28, r: 2.5 },
-    { id: "12", label: "12", cx: 44, cy: 26, r: 2.5 },
-    { id: "11", label: "11", cx: 48, cy: 25, r: 2.8 },
+    const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
 
-    // Left Quadrant (Screen Right)
-    { id: "21", label: "21", cx: 52, cy: 25, r: 2.8 },
-    { id: "22", label: "22", cx: 56, cy: 26, r: 2.5 },
-    { id: "23", label: "23", cx: 60, cy: 28, r: 2.5 },
-    { id: "24", label: "24", cx: 64, cy: 31, r: 2.5 },
-    { id: "25", label: "25", cx: 67, cy: 35, r: 2.5 },
-    { id: "26", label: "26", cx: 69, cy: 40, r: 3.5 },
-    { id: "27", label: "27", cx: 71, cy: 46, r: 3 },
-    { id: "28", label: "28", cx: 72, cy: 52, r: 3 },
+    // Draw the shape:
+    // 1. Move to Start Outer
+    // 2. Arc to End Outer
+    // 3. Line to Start Inner (which is actually endAngle for inner)
+    // 4. Arc to End Inner
+    // 5. Close path
 
+    // Note: Inner arc is drawn in reverse (End -> Start) to close loop properly
 
-    // --- LOWER ARCH (Dolny Łuk) ---
-    // Y approx 70-90 range, curving up
+    const d = [
+        "M", startOuter.x, startOuter.y,
+        "A", outerRx, outerRy, 0, largeArcFlag, 0, endOuter.x, endOuter.y,
+        "L", endInner.x, endInner.y,
+        "A", innerRx, innerRy, 0, largeArcFlag, 1, startInner.x, startInner.y,
+        "Z"
+    ].join(" ");
 
-    // Right Quadrant (Screen Left)
-    { id: "48", label: "48", cx: 29, cy: 62, r: 3 },
-    { id: "47", label: "47", cx: 30, cy: 68, r: 3 },
-    { id: "46", label: "46", cx: 32, cy: 74, r: 3 },
-    { id: "45", label: "45", cx: 35, cy: 79, r: 2.5 },
-    { id: "44", label: "44", cx: 39, cy: 82, r: 2.5 },
-    { id: "43", label: "43", cx: 42, cy: 84, r: 2 },
-    { id: "42", label: "42", cx: 45, cy: 85, r: 2 },
-    { id: "41", label: "41", cx: 48, cy: 85, r: 2 },
+    return d;
+}
 
-    // Left Quadrant (Screen Right)
-    { id: "31", label: "31", cx: 52, cy: 85, r: 2 },
-    { id: "32", label: "32", cx: 55, cy: 85, r: 2 },
-    { id: "33", label: "33", cx: 58, cy: 84, r: 2 },
-    { id: "34", label: "34", cx: 61, cy: 82, r: 2.5 },
-    { id: "35", label: "35", cx: 65, cy: 79, r: 2.5 },
-    { id: "36", label: "36", cx: 68, cy: 74, r: 3 },
-    { id: "37", label: "37", cx: 70, cy: 68, r: 3 },
-    { id: "38", label: "38", cx: 71, cy: 62, r: 3 },
+// --- TEETH DEFINITIONS ---
+// We map each tooth to a start/end angle.
+// 0 degrees is Top (12 o'clock). 
+// Negative goes Left, Positive goes Right (Screen view).
+const TEETH_ANGLES = [
+    // UPPER RIGHT (Q1) - Screen Left
+    { id: "18", start: -75, end: -60 },
+    { id: "17", start: -60, end: -48 },
+    { id: "16", start: -48, end: -36 },
+    { id: "15", start: -36, end: -26 },
+    { id: "14", start: -26, end: -18 },
+    { id: "13", start: -18, end: -10 },
+    { id: "12", start: -10, end: -4 },
+    { id: "11", start: -4, end: 0 },
+
+    // UPPER LEFT (Q2) - Screen Right
+    { id: "21", start: 0, end: 4 },
+    { id: "22", start: 4, end: 10 },
+    { id: "23", start: 10, end: 18 },
+    { id: "24", start: 18, end: 26 },
+    { id: "25", start: 26, end: 36 },
+    { id: "26", start: 36, end: 48 },
+    { id: "27", start: 48, end: 60 },
+    { id: "28", start: 60, end: 75 },
+
+    // LOWER RIGHT (Q4) - Screen Left (Bottom)
+    // Angles for bottom: 180 is Bottom (6 o'clock).
+    { id: "48", start: 255, end: 240 }, // -105 to -120 from top, normalized
+    { id: "47", start: 240, end: 228 },
+    { id: "46", start: 228, end: 216 },
+    { id: "45", start: 216, end: 206 },
+    { id: "44", start: 206, end: 198 },
+    { id: "43", start: 198, end: 190 },
+    { id: "42", start: 190, end: 184 },
+    { id: "41", start: 184, end: 180 },
+
+    // LOWER LEFT (Q3) - Screen Right (Bottom)
+    { id: "31", start: 180, end: 176 },
+    { id: "32", start: 176, end: 170 },
+    { id: "33", start: 170, end: 162 },
+    { id: "34", start: 162, end: 154 },
+    { id: "35", start: 154, end: 144 },
+    { id: "36", start: 144, end: 132 },
+    { id: "37", start: 132, end: 120 },
+    { id: "38", start: 120, end: 105 },
+];
+
+const SOFT_TISSUES = [
+    // Simple ellipses for soft tissues
+    { id: "tongue", label: "Język", cx: 50, cy: 65, rx: 15, ry: 12 },
+    { id: "palate", label: "Podniebienie", cx: 50, cy: 35, rx: 15, ry: 8 },
+    { id: "throat", label: "Gardło", cx: 50, cy: 50, rx: 8, ry: 5 },
 ];
 
 export default function PainMapInteractive() {
@@ -70,76 +102,88 @@ export default function PainMapInteractive() {
 
     const selectedData = selectedZoneId ? SYMPTOM_DATA[selectedZoneId] : null;
 
+    // Config for the dental arches
+    // Adjustable radiuses to match the image 'intraoral_anatomy_natural.png'
+    const UPPER_ARCH = { cx: 50, cy: 50, innerRx: 24, innerRy: 20, outerRx: 34, outerRy: 30 };
+    const LOWER_ARCH = { cx: 50, cy: 45, innerRx: 26, innerRy: 22, outerRx: 36, outerRy: 32 };
+    // Lower arch usually wider/lower in these photos.
+
     return (
         <div
             style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
                 width: '100%',
                 height: '100%',
+                position: 'relative',
                 zIndex: 50
             }}
         >
-            {/* SVG OVERLAY */}
             <svg
                 viewBox="0 0 100 100"
                 preserveAspectRatio="none"
-                style={{
-                    width: '100%',
-                    height: '100%',
-                    display: 'block',
-                    filter: 'drop-shadow(0px 0px 2px rgba(0,0,0,0.5))'
-                }}
+                style={{ width: '100%', height: '100%', display: 'block', filter: 'drop-shadow(0 0 2px rgba(0,0,0,0.5))' }}
             >
-                {ZONES.map((zone) => (
-                    <g
-                        key={zone.id}
-                        onClick={() => setSelectedZoneId(zone.id)}
-                        onMouseEnter={() => setHoveredZoneId(zone.id)}
-                        onMouseLeave={() => setHoveredZoneId(null)}
-                        className="cursor-pointer transition-all duration-300"
-                        style={{ transformOrigin: `${zone.cx}% ${zone.cy}%` }}
-                    >
-                        {/* Interactive Circle */}
-                        <circle
-                            cx={zone.cx}
-                            cy={zone.cy}
-                            r={zone.r}
-                            fill={
-                                (hoveredZoneId === zone.id || selectedZoneId === zone.id)
-                                    ? 'rgba(220, 177, 74, 0.4)'
-                                    : 'transparent'
-                            }
-                            stroke={
-                                (hoveredZoneId === zone.id)
-                                    ? '#dcb14a'
-                                    : 'rgba(255,255,255,0.1)'
-                            }
-                            strokeWidth={hoveredZoneId === zone.id ? 0.5 : 0.2}
-                            strokeDasharray={hoveredZoneId === zone.id ? '0' : '2,1'}
-                            className="transition-all duration-300"
-                        />
+                {/* TEETH SECTORS */}
+                {TEETH_ANGLES.map((tooth) => {
+                    const isUpper = parseInt(tooth.id) < 30;
+                    const config = isUpper ? UPPER_ARCH : LOWER_ARCH;
+                    const d = describeSector(
+                        config.cx, config.cy,
+                        config.innerRx, config.innerRy,
+                        config.outerRx, config.outerRy,
+                        tooth.start, tooth.end
+                    );
 
-                        {/* Label (Only visible on hover/select) */}
-                        {(hoveredZoneId === zone.id) && (
-                            <text
-                                x={zone.cx}
-                                y={zone.cy}
-                                fontSize="3"
-                                fill="white"
-                                textAnchor="middle"
-                                alignmentBaseline="middle"
-                                style={{ pointerEvents: 'none', textShadow: '0px 1px 2px black' }}
-                            >
-                                {zone.label}
-                            </text>
-                        )}
-                    </g>
+                    return (
+                        <path
+                            key={tooth.id}
+                            d={d}
+                            onClick={() => setSelectedZoneId(tooth.id)}
+                            onMouseEnter={() => setHoveredZoneId(tooth.id)}
+                            onMouseLeave={() => setHoveredZoneId(null)}
+                            fill={(hoveredZoneId === tooth.id || selectedZoneId === tooth.id) ? 'rgba(220, 177, 74, 0.5)' : 'transparent'}
+                            stroke={(hoveredZoneId === tooth.id) ? '#dcb14a' : 'rgba(255,255,255,0.1)'}
+                            strokeWidth="0.5"
+                            className="cursor-pointer transition-all duration-200"
+                        />
+                    );
+                })}
+
+                {/* SOFT TISSUE ELLIPSES */}
+                {SOFT_TISSUES.map((tissue) => (
+                    <ellipse
+                        key={tissue.id}
+                        cx={tissue.cx}
+                        cy={tissue.cy}
+                        rx={tissue.rx}
+                        ry={tissue.ry}
+                        onClick={() => setSelectedZoneId(tissue.id)}
+                        onMouseEnter={() => setHoveredZoneId(tissue.id)}
+                        onMouseLeave={() => setHoveredZoneId(null)}
+                        fill={(hoveredZoneId === tissue.id || selectedZoneId === tissue.id) ? 'rgba(220, 177, 74, 0.5)' : 'transparent'}
+                        stroke={(hoveredZoneId === tissue.id) ? '#dcb14a' : 'rgba(255,255,255,0.1)'}
+                        strokeWidth="0.5"
+                        strokeDasharray="2,2"
+                        className="cursor-pointer transition-all duration-200"
+                    />
                 ))}
+
+                {/* LABELS ON HOVER */}
+                {hoveredZoneId && (
+                    <text
+                        x="50"
+                        y="95"
+                        textAnchor="middle"
+                        fill="#dcb14a"
+                        fontSize="4"
+                        fontWeight="bold"
+                        style={{ pointerEvents: 'none', textShadow: '0 1px 2px black' }}
+                    >
+                        {selectedZoneId === hoveredZoneId ? "WYBRANO: " : ""}{SYMPTOM_DATA[hoveredZoneId]?.title || hoveredZoneId}
+                    </text>
+                )}
             </svg>
 
-            {/* MODAL (Unchanged logic, just keeping it here) */}
+            {/* MODAL */}
             {selectedData && (
                 <div
                     style={{
@@ -157,7 +201,6 @@ export default function PainMapInteractive() {
                         className="absolute inset-0 bg-black/85 backdrop-blur-sm"
                         onClick={() => setSelectedZoneId(null)}
                     />
-
                     <div className="bg-[#0a0a0a] border border-[#dcb14a] rounded-xl p-6 w-full max-w-lg shadow-2xl relative overflow-y-auto max-h-[90vh] flex flex-col items-center text-center z-[10000]">
                         <button
                             onClick={() => setSelectedZoneId(null)}
@@ -166,29 +209,22 @@ export default function PainMapInteractive() {
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
                         </button>
 
-                        <div className="w-12 h-12 rounded-full bg-[#dcb14a]/10 flex items-center justify-center mb-4 border border-[#dcb14a]/30">
-                            <span className="text-2xl">🦷</span>
-                        </div>
-
                         <h3 className="text-2xl font-heading text-[#dcb14a] mb-2">{selectedData.title}</h3>
-                        <p className="text-sm text-gray-400 mb-6 font-light italic">{selectedData.description}</p>
+                        <p className="text-sm text-gray-400 mb-6 font-light">{selectedData.description}</p>
 
-                        <div className="w-full space-y-6 text-left">
-                            <div className="bg-white/5 p-4 rounded-lg border border-white/5">
-                                <h4 className="text-[#dcb14a] text-xs font-bold uppercase tracking-widest mb-3">Typowe objawy</h4>
-                                <ul className="text-sm text-gray-300 space-y-2">
-                                    {selectedData.symptoms.map((s, i) => <li key={i} className="flex gap-2"><span className="text-gray-500">›</span>{s}</li>)}
-                                </ul>
+                        <div className="w-full space-y-4 mb-6 text-left">
+                            <div className="bg-white/5 p-3 rounded border border-white/5">
+                                <span className="text-xs font-bold text-[#dcb14a] uppercase block mb-1">Objawy</span>
+                                <p className="text-sm text-gray-300">{selectedData.symptoms.join(", ")}</p>
                             </div>
-
-                            <div className={`p-4 rounded-lg border ${selectedData.urgency === 'high' ? 'bg-red-900/10 border-red-500/30' : 'bg-blue-900/10 border-blue-500/30'}`}>
-                                <h4 className={`text-xs font-bold uppercase tracking-widest mb-2 ${selectedData.urgency === 'high' ? 'text-red-400' : 'text-blue-400'}`}>Zalecenie</h4>
-                                <p className="text-gray-200 text-sm">{selectedData.advice}</p>
+                            <div className="bg-white/5 p-3 rounded border border-white/5">
+                                <span className="text-xs font-bold text-[#dcb14a] uppercase block mb-1">Rada</span>
+                                <p className="text-sm text-gray-300">{selectedData.advice}</p>
                             </div>
                         </div>
 
-                        <Link href="/rezerwacja" className="w-full mt-6 bg-[#dcb14a] hover:bg-[#c59d3e] text-black font-bold py-4 rounded-lg shadow-lg hover:shadow-[#dcb14a]/20 transition-all">
-                            Umów wizytę
+                        <Link href="/rezerwacja" className="inline-block w-full bg-[#dcb14a] hover:bg-[#c59d3e] text-black font-bold py-3 rounded-lg transition-colors">
+                            Rezerwuj wizytę
                         </Link>
                     </div>
                 </div>
