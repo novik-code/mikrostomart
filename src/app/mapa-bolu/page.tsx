@@ -30,8 +30,8 @@ export default function PainMapPage() {
                        - This ensures NO CLIPPING. If image is tall, container grows. If wide, container shrinks height.
                     */}
                     <Image
-                        src="/test_placeholder.png"
-                        alt="Mapa Bólu - Widok"
+                        src="/intraoral_anatomy_natural.png"
+                        alt="Anatomia Szczeki"
                         width={0}
                         height={0}
                         sizes="(max-width: 800px) 100vw, 800px"
@@ -41,10 +41,9 @@ export default function PainMapPage() {
 
                 </div>
 
-                <div className="mt-8 p-4 bg-green-900/30 border border-green-500 rounded-lg inline-block text-center">
-                    <p className="text-green-300 font-mono text-sm">
-                        System: Auto-Height / Full-Width Container<br />
-                        Clipping: Impossible (Content Flow)
+                <div className="mt-8 text-center">
+                    <p className="text-[#dcb14a] font-heading text-lg">
+                        Wybierz obszar, który Cię boli
                     </p>
                 </div>
             </div>
