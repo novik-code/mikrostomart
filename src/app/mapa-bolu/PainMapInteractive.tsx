@@ -31,7 +31,6 @@ export default function PainMapInteractive() {
     const selectedData = selectedZoneId ? SYMPTOM_DATA[selectedZoneId] : null;
 
     return (
-    return (
         <div className="absolute inset-0 z-50 pointer-events-none">
             {/* ZONES LAYER - DEBUG MODE ACTIVE */}
             {ZONES.map((zone) => (
