@@ -8,61 +8,52 @@ import Link from 'next/link';
 // Coordinates approximated for "intraoral_anatomy_natural.png"
 const ZONES = [
     // --- SOFT TISSUES ---
-    { id: "tongue", label: "Język", top: "55%", left: "35%", width: "30%", height: "25%", borderRadius: "40%" },
-    { id: "palate", label: "Podniebienie", top: "40%", left: "35%", width: "30%", height: "15%", borderRadius: "50%" },
-    { id: "throat", label: "Gardło", top: "50%", left: "42%", width: "16%", height: "10%", borderRadius: "50%" }, // Deep center
-    { id: "cheek-left", label: "Policzek Lewy", top: "35%", left: "5%", width: "10%", height: "40%", borderRadius: "20%" },
-    { id: "cheek-right", label: "Policzek Prawy", top: "35%", left: "85%", width: "10%", height: "40%", borderRadius: "20%" },
+    { id: "tongue", label: "Język", top: "52%", left: "37%", width: "26%", height: "20%", borderRadius: "40%" },
+    { id: "palate", label: "Podniebienie", top: "35%", left: "35%", width: "30%", height: "15%", borderRadius: "50%" },
+    { id: "throat", label: "Gardło", top: "48%", left: "42%", width: "16%", height: "10%", borderRadius: "50%" },
+    { id: "cheek-left", label: "Policzek Lewy", top: "40%", left: "2%", width: "10%", height: "20%", borderRadius: "20%" },
+    { id: "cheek-right", label: "Policzek Prawy", top: "40%", left: "88%", width: "10%", height: "20%", borderRadius: "20%" },
 
     // --- UPPER ARCH (Górny Łuk) ---
-    // Start from Right Molars (Screen Left) -> Front -> Left Molars (Screen Right)
-    // Wait, standard dental view: Patient's Right is on Left side of screen.
-    // So "Screen Left" = "Right Quadrant (1)"
+    // Moved DOWN to sit on the teeth, not the lip
+    { id: "18", label: "18", top: "50%", left: "14%", width: "7%", height: "7%", borderRadius: "40%" },
+    { id: "17", label: "17", top: "46%", left: "15%", width: "7%", height: "7%", borderRadius: "40%" },
+    { id: "16", label: "16", top: "40%", left: "17%", width: "7%", height: "7%", borderRadius: "40%" },
+    { id: "15", label: "15", top: "35%", left: "20%", width: "6%", height: "6%", borderRadius: "50%" },
+    { id: "14", label: "14", top: "30%", left: "24%", width: "6%", height: "6%", borderRadius: "50%" },
+    { id: "13", label: "13", top: "27%", left: "29%", width: "5%", height: "6%", borderRadius: "50%" },
+    { id: "12", label: "12", top: "24%", left: "34%", width: "5%", height: "6%", borderRadius: "50%" },
+    { id: "11", label: "11", top: "22%", left: "41%", width: "6%", height: "7%", borderRadius: "30%" },
 
-    // Q1 (Upper Right) - Screen Left Side
-    { id: "18", label: "18", top: "60%", left: "20%", width: "7%", height: "6%", borderRadius: "40%" },
-    { id: "17", label: "17", top: "54%", left: "20%", width: "7%", height: "6%", borderRadius: "40%" },
-    { id: "16", label: "16", top: "48%", left: "21%", width: "7%", height: "6%", borderRadius: "40%" },
-    { id: "15", label: "15", top: "42%", left: "22%", width: "6%", height: "5%", borderRadius: "50%" },
-    { id: "14", label: "14", top: "37%", left: "24%", width: "6%", height: "5%", borderRadius: "50%" },
-    { id: "13", label: "13", top: "33%", left: "27%", width: "5%", height: "5%", borderRadius: "50%" },
-    { id: "12", label: "12", top: "30%", left: "32%", width: "5%", height: "5%", borderRadius: "50%" },
-    { id: "11", label: "11", top: "28%", left: "42%", width: "6%", height: "6%", borderRadius: "30%" },
-
-    // Q2 (Upper Left) - Screen Right Side
-    { id: "21", label: "21", top: "28%", left: "52%", width: "6%", height: "6%", borderRadius: "30%" },
-    { id: "22", label: "22", top: "30%", left: "63%", width: "5%", height: "5%", borderRadius: "50%" },
-    { id: "23", label: "23", top: "33%", left: "68%", width: "5%", height: "5%", borderRadius: "50%" },
-    { id: "24", label: "24", top: "37%", left: "70%", width: "6%", height: "5%", borderRadius: "50%" },
-    { id: "25", label: "25", top: "42%", left: "72%", width: "6%", height: "5%", borderRadius: "50%" },
-    { id: "26", label: "26", top: "48%", left: "73%", width: "7%", height: "6%", borderRadius: "40%" },
-    { id: "27", label: "27", top: "54%", left: "73%", width: "7%", height: "6%", borderRadius: "40%" },
-    { id: "28", label: "28", top: "60%", left: "73%", width: "7%", height: "6%", borderRadius: "40%" },
+    { id: "21", label: "21", top: "22%", left: "53%", width: "6%", height: "7%", borderRadius: "30%" },
+    { id: "22", label: "22", top: "24%", left: "61%", width: "5%", height: "6%", borderRadius: "50%" },
+    { id: "23", label: "23", top: "27%", left: "66%", width: "5%", height: "6%", borderRadius: "50%" },
+    { id: "24", label: "24", top: "30%", left: "70%", width: "6%", height: "6%", borderRadius: "50%" },
+    { id: "25", label: "25", top: "35%", left: "74%", width: "6%", height: "6%", borderRadius: "50%" },
+    { id: "26", label: "26", top: "40%", left: "76%", width: "7%", height: "7%", borderRadius: "40%" },
+    { id: "27", label: "27", top: "46%", left: "78%", width: "7%", height: "7%", borderRadius: "40%" },
+    { id: "28", label: "28", top: "50%", left: "79%", width: "7%", height: "7%", borderRadius: "40%" },
 
 
     // --- LOWER ARCH (Dolny Łuk) ---
-    // Usually visualized below tongue or overlapping. In "open mouth" view, lower teeth are at the bottom.
-    // Assuming U-shape at bottom.
+    // Moved UP to sit on the teeth, not the chin
+    { id: "48", label: "48", top: "58%", left: "14%", width: "7%", height: "7%", borderRadius: "40%" },
+    { id: "47", label: "47", top: "64%", left: "15%", width: "7%", height: "7%", borderRadius: "40%" },
+    { id: "46", label: "46", top: "70%", left: "18%", width: "7%", height: "7%", borderRadius: "40%" },
+    { id: "45", label: "45", top: "75%", left: "22%", width: "6%", height: "6%", borderRadius: "50%" },
+    { id: "44", label: "44", top: "79%", left: "27%", width: "5%", height: "6%", borderRadius: "50%" },
+    { id: "43", label: "43", top: "81%", left: "33%", width: "5%", height: "6%", borderRadius: "50%" },
+    { id: "42", label: "42", top: "82%", left: "39%", width: "4%", height: "5%", borderRadius: "50%" },
+    { id: "41", label: "41", top: "82%", left: "45%", width: "4%", height: "5%", borderRadius: "50%" },
 
-    // Q4 (Lower Right) - Screen Left
-    { id: "48", label: "48", top: "75%", left: "20%", width: "7%", height: "6%", borderRadius: "40%" },
-    { id: "47", label: "47", top: "80%", left: "22%", width: "6%", height: "5%", borderRadius: "40%" },
-    { id: "46", label: "46", top: "84%", left: "25%", width: "6%", height: "5%", borderRadius: "40%" },
-    { id: "45", label: "45", top: "87%", left: "30%", width: "5%", height: "5%", borderRadius: "50%" },
-    { id: "44", label: "44", top: "88%", left: "35%", width: "5%", height: "5%", borderRadius: "50%" },
-    { id: "43", label: "43", top: "89%", left: "40%", width: "4%", height: "4%", borderRadius: "50%" },
-    { id: "42", label: "42", top: "89%", left: "44%", width: "4%", height: "4%", borderRadius: "50%" },
-    { id: "41", label: "41", top: "89%", left: "48%", width: "4%", height: "4%", borderRadius: "50%" },
-
-    // Q3 (Lower Left) - Screen Right
-    { id: "31", label: "31", top: "89%", left: "52%", width: "4%", height: "4%", borderRadius: "50%" },
-    { id: "32", label: "32", top: "89%", left: "56%", width: "4%", height: "4%", borderRadius: "50%" },
-    { id: "33", label: "33", top: "89%", left: "60%", width: "4%", height: "4%", borderRadius: "50%" },
-    { id: "34", label: "34", top: "88%", left: "64%", width: "5%", height: "5%", borderRadius: "50%" },
-    { id: "35", label: "35", top: "87%", left: "69%", width: "5%", height: "5%", borderRadius: "50%" },
-    { id: "36", label: "36", top: "84%", left: "73%", width: "6%", height: "5%", borderRadius: "40%" },
-    { id: "37", label: "37", top: "80%", left: "76%", width: "6%", height: "5%", borderRadius: "40%" },
-    { id: "38", label: "38", top: "75%", left: "78%", width: "7%", height: "6%", borderRadius: "40%" },
+    { id: "31", label: "31", top: "82%", left: "51%", width: "4%", height: "5%", borderRadius: "50%" },
+    { id: "32", label: "32", top: "82%", left: "57%", width: "4%", height: "5%", borderRadius: "50%" },
+    { id: "33", label: "33", top: "81%", left: "62%", width: "5%", height: "6%", borderRadius: "50%" },
+    { id: "34", label: "34", top: "79%", left: "68%", width: "5%", height: "6%", borderRadius: "50%" },
+    { id: "35", label: "35", top: "75%", left: "72%", width: "6%", height: "6%", borderRadius: "50%" },
+    { id: "36", label: "36", top: "70%", left: "75%", width: "7%", height: "7%", borderRadius: "40%" },
+    { id: "37", label: "37", top: "64%", left: "78%", width: "7%", height: "7%", borderRadius: "40%" },
+    { id: "38", label: "38", top: "58%", left: "79%", width: "7%", height: "7%", borderRadius: "40%" },
 
 ];
 
