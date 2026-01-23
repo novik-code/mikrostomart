@@ -31,29 +31,31 @@ export default function PainMapInteractive() {
     const selectedData = selectedZoneId ? SYMPTOM_DATA[selectedZoneId] : null;
 
     return (
-        <div className="absolute inset-0 z-10">
-            {/* ZONES LAYER */}
+    return (
+        <div className="absolute inset-0 z-50 pointer-events-none">
+            {/* ZONES LAYER - DEBUG MODE ACTIVE */}
             {ZONES.map((zone) => (
                 <div
                     key={zone.id}
                     onClick={() => setSelectedZoneId(zone.id)}
                     onMouseEnter={() => setHoveredZoneId(zone.id)}
                     onMouseLeave={() => setHoveredZoneId(null)}
-                    className="absolute cursor-pointer transition-all duration-300"
+                    className="absolute cursor-pointer transition-all duration-300 pointer-events-auto"
                     style={{
                         top: zone.top,
                         left: zone.left,
                         width: zone.width,
                         height: zone.height,
-                        // Debug visuals or Actual UI
+                        // DEBUG: Always show a red border so user knows where to click
+                        border: '2px dashed rgba(255, 0, 0, 0.5)',
+
                         backgroundColor: (hoveredZoneId === zone.id || selectedZoneId === zone.id)
-                            ? 'rgba(220, 177, 74, 0.3)' // Gold highlight
-                            : 'transparent',
+                            ? 'rgba(220, 177, 74, 0.4)' // Stronger Gold
+                            : 'rgba(255, 255, 255, 0.1)', // Slight white tint to show zone exists
                         borderRadius: '30%', // Soft shapes
                         boxShadow: (selectedZoneId === zone.id)
-                            ? '0 0 20px rgba(220, 177, 74, 0.6)'
+                            ? '0 0 20px rgba(220, 177, 74, 0.8)'
                             : 'none',
-                        border: '1px solid rgba(255,255,255,0.05)' // Subtle guide
                     }}
                 >
                     {/* Pulsing Dot Effect on Center */}
