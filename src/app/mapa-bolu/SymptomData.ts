@@ -37,7 +37,7 @@ const COMMON_DATA = {
         advice: "Jeśli reaguje na ciepło - to może być stan zapalny miazgi (leczenie kanałowe). Jeśli jedzenie wchodzi - nieszczelna plomba.",
         urgency: 'high'
     }
-} as const;
+};
 
 export const SYMPTOM_DATA: Record<string, SymptomInfo> = {
     // UPPER LEFT (Quadrant 2)
