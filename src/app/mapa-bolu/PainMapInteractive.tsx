@@ -1,24 +1,19 @@
 "use client";
 
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { SYMPTOM_DATA } from './SymptomData';
 import Link from 'next/link';
 
-// ZONES CONFIGURATION (Percentages for robust responsiveness)
-// Top/Left/Width/Height are relative to the image container
+// ZONES CONFIGURATION
 const ZONES = [
-    { id: "upper-posterior-left", top: "25%", left: "15%", width: "20%", height: "25%" },  // Upper Left Molars
-    { id: "upper-front", top: "20%", left: "35%", width: "30%", height: "20%" },           // Upper Incisors
-    { id: "upper-posterior-right", top: "25%", left: "65%", width: "20%", height: "25%" }, // Upper Right Molars
-
-    { id: "palate", top: "45%", left: "35%", width: "30%", height: "15%" },                // Palate (Center)
-
-    { id: "tongue", top: "60%", left: "35%", width: "30%", height: "20%" },                // Tongue (Center Bottom)
-
-    { id: "lower-posterior-left", top: "60%", left: "15%", width: "20%", height: "25%" },  // Lower Left Molars
-    { id: "lower-front", top: "80%", left: "35%", width: "30%", height: "15%" },           // Lower Incisors
-    { id: "lower-posterior-right", top: "60%", left: "65%", width: "20%", height: "25%" }, // Lower Right Molars
+    { id: "upper-posterior-left", top: "25%", left: "15%", width: "20%", height: "25%" },
+    { id: "upper-front", top: "20%", left: "35%", width: "30%", height: "20%" },
+    { id: "upper-posterior-right", top: "25%", left: "65%", width: "20%", height: "25%" },
+    { id: "palate", top: "45%", left: "35%", width: "30%", height: "15%" },
+    { id: "tongue", top: "60%", left: "35%", width: "30%", height: "20%" },
+    { id: "lower-posterior-left", top: "60%", left: "15%", width: "20%", height: "25%" },
+    { id: "lower-front", top: "80%", left: "35%", width: "30%", height: "15%" },
+    { id: "lower-posterior-right", top: "60%", left: "65%", width: "20%", height: "25%" },
 ];
 
 export default function PainMapInteractive() {
@@ -39,105 +34,117 @@ export default function PainMapInteractive() {
                 pointerEvents: 'none'
             }}
         >
-            {/* ZONES LAYER - DEBUG MODE ACTIVE */}
+            {/* ZONES LAYER - HIT AREAS */}
             {ZONES.map((zone) => (
                 <div
                     key={zone.id}
-                    onClick={() => setSelectedZoneId(zone.id)}
+                    onClick={() => {
+                        console.log("Clicked zone:", zone.id);
+                        setSelectedZoneId(zone.id);
+                    }}
                     onMouseEnter={() => setHoveredZoneId(zone.id)}
                     onMouseLeave={() => setHoveredZoneId(null)}
-                    className="absolute cursor-pointer transition-all duration-300 pointer-events-auto"
+                    // pointer-events-auto IS CRITICAL HERE
+                    className="cursor-pointer"
                     style={{
-                        position: 'absolute', // Force absolute for children too
+                        position: 'absolute',
                         top: zone.top,
                         left: zone.left,
                         width: zone.width,
                         height: zone.height,
-                        // DEBUG: Red border for visibility
-                        border: '2px dashed rgba(255, 0, 0, 0.8)',
+                        pointerEvents: 'auto', // Ensure clicks are captured
 
+                        // VISUALS
                         backgroundColor: (hoveredZoneId === zone.id || selectedZoneId === zone.id)
-                            ? 'rgba(220, 177, 74, 0.4)'
-                            : 'rgba(255, 255, 255, 0.05)', // Tiny tint
+                            ? 'rgba(220, 177, 74, 0.3)' // Highlight
+                            : 'transparent',
+
+                        // Border visible only on hover to hint interaction, OR faint always?
+                        // User wanted links visual? Let's give a faint border always.
+                        border: (hoveredZoneId === zone.id)
+                            ? '2px solid #dcb14a'
+                            : '1px dashed rgba(255,255,255,0.2)',
+
                         borderRadius: '30%',
-                        boxShadow: (selectedZoneId === zone.id)
-                            ? '0 0 20px rgba(220, 177, 74, 0.8)'
-                            : 'none',
+                        transition: 'all 0.2s ease'
                     }}
-                >
-                    {/* Pulsing Dot Effect on Center */}
-                    {(hoveredZoneId === zone.id || selectedZoneId === zone.id) && (
-                        <motion.div
-                            layoutId="active-glow"
-                            className="absolute inset-0 bg-[#dcb14a] opacity-20 blur-xl rounded-full"
-                        />
-                    )}
-                </div>
+                />
             ))}
 
-            {/* MODAL / BOTTOM SHEET */}
-            <AnimatePresence>
-                {selectedData && (
-                    <div className="absolute inset-0 z-50 pointer-events-none flex items-end md:items-center justify-center p-4">
-                        {/* Backdrop Click to Close */}
-                        <div
-                            style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)' }}
-                            className="backdrop-blur-sm pointer-events-auto"
+            {/* MODAL - FIXED POSITION TO ESCAPE CONTAINER CLIPPING */}
+            {selectedData && (
+                <div
+                    style={{
+                        position: 'fixed',
+                        inset: 0,
+                        zIndex: 9999,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '1rem',
+                        pointerEvents: 'auto'
+                    }}
+                >
+                    {/* Backdrop */}
+                    <div
+                        style={{
+                            position: 'absolute',
+                            inset: 0,
+                            backgroundColor: 'rgba(0,0,0,0.8)',
+                            backdropFilter: 'blur(4px)'
+                        }}
+                        onClick={() => setSelectedZoneId(null)}
+                    />
+
+                    {/* Card */}
+                    <div
+                        className="bg-[#111] border border-[#dcb14a] rounded-xl p-6 w-full max-w-md shadow-2xl relative overflow-y-auto max-h-[90vh]"
+                        style={{ position: 'relative', zIndex: 10000 }}
+                    >
+                        {/* Close Button */}
+                        <button
                             onClick={() => setSelectedZoneId(null)}
-                        />
-
-                        {/* Card */}
-                        <motion.div
-                            initial={{ y: "100%", opacity: 0 }}
-                            animate={{ y: 0, opacity: 1 }}
-                            exit={{ y: "100%", opacity: 0 }}
-                            className="bg-[#111] border border-[#dcb14a] rounded-t-2xl md:rounded-2xl p-6 w-full max-w-md shadow-2xl pointer-events-auto relative max-h-[80vh] overflow-y-auto"
+                            className="absolute top-4 right-4 text-gray-400 hover:text-white text-xl p-2"
                         >
-                            {/* Close Button */}
-                            <button
-                                onClick={() => setSelectedZoneId(null)}
-                                className="absolute top-4 right-4 text-gray-400 hover:text-white"
-                            >
-                                ✕
-                            </button>
+                            ✕
+                        </button>
 
-                            <h3 className="text-xl font-heading text-[#dcb14a] mb-2 pr-8">
-                                {selectedData.title}
-                            </h3>
-                            <p className="text-sm text-gray-400 mb-4 font-light italic">
-                                {selectedData.description}
-                            </p>
+                        <h3 className="text-xl font-heading text-[#dcb14a] mb-2 pr-8">
+                            {selectedData.title}
+                        </h3>
+                        <p className="text-sm text-gray-400 mb-4 font-light italic">
+                            {selectedData.description}
+                        </p>
 
-                            <div className="space-y-4">
-                                <div>
-                                    <h4 className="text-white text-sm font-bold uppercase tracking-wide mb-2">Typowe objawy:</h4>
-                                    <ul className="text-sm text-gray-300 space-y-1 list-disc pl-4">
-                                        {selectedData.symptoms.map((s, i) => (
-                                            <li key={i}>{s}</li>
-                                        ))}
-                                    </ul>
-                                </div>
-
-                                <div className={`p-4 rounded-lg border ${selectedData.urgency === 'high' ? 'bg-red-900/20 border-red-500' : 'bg-blue-900/20 border-blue-500'}`}>
-                                    <h4 className={`text-sm font-bold uppercase tracking-wide mb-1 ${selectedData.urgency === 'high' ? 'text-red-400' : 'text-blue-400'}`}>
-                                        Rada Doktora:
-                                    </h4>
-                                    <p className="text-gray-200 text-sm">
-                                        {selectedData.advice}
-                                    </p>
-                                </div>
-
-                                <Link
-                                    href="/rezerwacja"
-                                    className="block w-full text-center bg-[#dcb14a] hover:bg-[#c59d3e] text-black font-bold py-3 rounded-lg transition-colors mt-4"
-                                >
-                                    Umów konsultację teraz
-                                </Link>
+                        <div className="space-y-4">
+                            <div>
+                                <h4 className="text-white text-sm font-bold uppercase tracking-wide mb-2">Typowe objawy:</h4>
+                                <ul className="text-sm text-gray-300 space-y-1 list-disc pl-4">
+                                    {selectedData.symptoms.map((s, i) => (
+                                        <li key={i}>{s}</li>
+                                    ))}
+                                </ul>
                             </div>
-                        </motion.div>
+
+                            <div className={`p-4 rounded-lg border ${selectedData.urgency === 'high' ? 'bg-red-900/20 border-red-500' : 'bg-blue-900/20 border-blue-500'}`}>
+                                <h4 className={`text-sm font-bold uppercase tracking-wide mb-1 ${selectedData.urgency === 'high' ? 'text-red-400' : 'text-blue-400'}`}>
+                                    Rada Doktora:
+                                </h4>
+                                <p className="text-gray-200 text-sm">
+                                    {selectedData.advice}
+                                </p>
+                            </div>
+
+                            <Link
+                                href="/rezerwacja"
+                                className="block w-full text-center bg-[#dcb14a] hover:bg-[#c59d3e] text-black font-bold py-3 rounded-lg transition-colors mt-4"
+                            >
+                                Umów konsultację teraz
+                            </Link>
+                        </div>
                     </div>
-                )}
-            </AnimatePresence>
+                </div>
+            )}
         </div>
     );
 }
