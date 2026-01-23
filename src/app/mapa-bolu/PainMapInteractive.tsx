@@ -71,13 +71,26 @@ export default function PainMapInteractive() {
     const selectedData = selectedZoneId ? SYMPTOM_DATA[selectedZoneId] : null;
 
     return (
-        <div className="absolute inset-0 z-50">
+        <div
+            style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                zIndex: 50
+            }}
+        >
             {/* SVG OVERLAY */}
             <svg
                 viewBox="0 0 100 100"
                 preserveAspectRatio="none"
-                className="w-full h-full"
-                style={{ filter: 'drop-shadow(0px 0px 2px rgba(0,0,0,0.5))' }}
+                style={{
+                    width: '100%',
+                    height: '100%',
+                    display: 'block',
+                    filter: 'drop-shadow(0px 0px 2px rgba(0,0,0,0.5))'
+                }}
             >
                 {ZONES.map((zone) => (
                     <g
