@@ -88,6 +88,22 @@ export default function Navbar() {
                                         🗺️ Mapa Bólu
                                     </Link>
                                     <Link
+                                        href="/baza-wiedzy"
+                                        className={styles.link}
+                                        style={{
+                                            display: 'block',
+                                            padding: '0.75rem 1.5rem',
+                                            width: '100%',
+                                            textAlign: 'center',
+                                            color: 'var(--color-text-main)',
+                                            whiteSpace: 'nowrap',
+                                            textTransform: 'uppercase',
+                                            letterSpacing: '0.05em'
+                                        }}
+                                    >
+                                        📚 Baza Wiedzy
+                                    </Link>
+                                    <Link
                                         href="/nowosielski"
                                         className={styles.link}
                                         style={{
