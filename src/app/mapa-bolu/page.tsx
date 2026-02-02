@@ -24,21 +24,8 @@ export default function PainMapPage() {
                 */}
                 <div className="w-full max-w-[800px] border border-white/20 rounded-xl overflow-hidden bg-white/5 shadow-2xl relative grid grid-cols-1 grid-rows-1">
 
-                    {/* LAYER 1: IMAGE (Defines height) */}
-                    <div className="col-start-1 row-start-1 relative z-10">
-                        <Image
-                            src="/intraoral_anatomy_natural.png"
-                            alt="Anatomia Szczeki"
-                            width={0}
-                            height={0}
-                            sizes="(max-width: 800px) 100vw, 800px"
-                            style={{ width: '100%', height: 'auto', display: 'block' }}
-                            priority
-                        />
-                    </div>
-
-                    {/* LAYER 2: INTERACTIVE OVERLAY (Fills the same cell) */}
-                    <div className="col-start-1 row-start-1 relative z-20 w-full h-full">
+                    {/* INTERACTIVE MAP COMPONENT (Handles its own background now) */}
+                    <div className="w-full relative aspect-square md:aspect-[4/3] max-h-[70vh]">
                         <PainMapInteractive />
                     </div>
 
