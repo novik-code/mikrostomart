@@ -266,13 +266,12 @@ export default function Navbar() {
                                 display: 'block',
                                 padding: '0.75rem 1.5rem',
                                 width: '100%',
-                                textAlign: 'center', // Centered
-                                color: '#dcb14a', // Gold
+                                textAlign: 'center',
+                                color: '#dcb14a',
                                 fontWeight: 'bold',
-                                border: '1px solid #dcb14a',
-                                borderRadius: '8px',
-                                marginTop: '10px',
-                                background: 'rgba(220, 177, 74, 0.1)'
+                                border: 'none',
+                                background: 'transparent',
+                                marginTop: '10px'
                             }}
                         >
                             ✨ Symulator Uśmiechu
@@ -287,19 +286,18 @@ export default function Navbar() {
                                 display: 'block',
                                 width: '100%',
                                 padding: '0.75rem 1.5rem',
-                                textAlign: 'center', // Centered
-                                color: '#60a5fa', // Blueish
+                                textAlign: 'center',
+                                color: '#60a5fa',
                                 background: 'transparent',
                                 border: 'none',
                                 cursor: 'pointer',
-                                fontWeight: 'bold' // Match others
+                                fontWeight: 'bold'
                             }}
                         >
                             🤖 Wirtualny Asystent
                         </button>
+                        <Link href="/kontakt" className={styles.mobileLink} onClick={closeMenu}>Kontakt</Link>
                     </div>
-
-                    <Link href="/kontakt" className={styles.mobileLink} onClick={closeMenu}>Kontakt</Link>
                 </div>
             </div>
         </nav>
