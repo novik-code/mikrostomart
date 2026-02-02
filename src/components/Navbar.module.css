@@ -19,6 +19,7 @@
 .logo {
     display: flex;
     align-items: center;
+    position: relative;
     z-index: 102;
     /* Above mobile menu */
 }
@@ -94,14 +95,20 @@
     height: 100vh;
     background-color: var(--color-background);
     display: flex;
-    justify-content: center;
+    justify-content: flex-start;
+    /* Align to top */
     align-items: center;
+    /* Center horizontally */
+    flex-direction: column;
     opacity: 0;
     visibility: hidden;
     transition: opacity 0.3s ease, visibility 0.3s ease;
     z-index: 101;
     /* Below logo/hamburger but above page content */
-    padding: 2rem;
+    padding: 7rem 2rem 3rem 2rem;
+    /* Top padding clears logo */
+    overflow-y: auto;
+    /* Allow scrolling */
 }
 
 .mobileMenuOpen {
