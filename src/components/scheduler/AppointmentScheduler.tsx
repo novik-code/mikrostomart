@@ -1,15 +1,15 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Loader2, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 import { format, addDays, startOfWeek, isSameDay, parseISO, getMinutes } from 'date-fns';
 import { pl } from 'date-fns/locale';
 
 interface Slot {
     doctor: string;
     doctorName: string;
-    start: string; // ISO
-    end: string;   // ISO
+    start: string;
+    end: string;
 }
 
 interface AppointmentSchedulerProps {
@@ -23,7 +23,7 @@ export default function AppointmentScheduler({ specialistId, specialistName, onS
     const [loading, setLoading] = useState(false);
     const [slots, setSlots] = useState<Slot[]>([]);
     const [selectedSlotStr, setSelectedSlotStr] = useState<string | null>(null);
-    const [selectedDateView, setSelectedDateView] = useState<Date | null>(null); // Which day is "expanded"
+    const [selectedDateView, setSelectedDateView] = useState<Date | null>(null);
     const [error, setError] = useState<string | null>(null);
 
     const duration = specialistId === 'malgorzata' ? '60' : '30';
@@ -34,7 +34,7 @@ export default function AppointmentScheduler({ specialistId, specialistName, onS
         setSlots([]);
 
         const weekDates = [];
-        for (let i = 0; i < 5; i++) { // Mon-Fri
+        for (let i = 0; i < 5; i++) {
             weekDates.push(addDays(currentWeekStart, i));
         }
 
@@ -47,9 +47,7 @@ export default function AppointmentScheduler({ specialistId, specialistName, onS
                         return res.json();
                     })
                     .then((data: Slot[]) => {
-                        // Filter logic
                         return data.filter(slot => {
-                            // 1. Specialist Filter
                             const apiName = slot.doctorName.toLowerCase();
                             const targetName = specialistName.toLowerCase().replace('lek. dent. ', '').replace('hig. stom. ', '');
 
@@ -66,8 +64,6 @@ export default function AppointmentScheduler({ specialistId, specialistName, onS
 
                             if (!isDoctorMatch) return false;
 
-                            // 2. TIME FILTER: Enforce :00 or :30 only
-                            // The user specifically requested to block 13:15 etc.
                             const slotDate = parseISO(slot.start);
                             const minutes = getMinutes(slotDate);
                             return minutes === 0 || minutes === 30;
@@ -80,12 +76,10 @@ export default function AppointmentScheduler({ specialistId, specialistName, onS
             const flatSlots = results.flat();
             setSlots(flatSlots);
 
-            // Auto-select first day with slots if none selected
             const firstDayWithSlots = weekDates.find(day =>
                 flatSlots.some(s => isSameDay(parseISO(s.start), day))
             );
 
-            // Always set view to Monday if no slots, or the day with slots
             setSelectedDateView(firstDayWithSlots || weekDates[0]);
 
         } catch (err) {
@@ -99,11 +93,9 @@ export default function AppointmentScheduler({ specialistId, specialistName, onS
         fetchSlotsForWeek();
     }, [currentWeekStart, specialistId, duration]);
 
-
     const handlePrevWeek = () => {
         const now = new Date();
         const prev = addDays(currentWeekStart, -7);
-        // Allow looking back? Maybe restrict to current week.
         if (prev < startOfWeek(now, { weekStartsOn: 1 })) return;
         setCurrentWeekStart(prev);
     };
@@ -136,43 +128,106 @@ export default function AppointmentScheduler({ specialistId, specialistName, onS
     }
 
     return (
-        <div className="w-full bg-black/20 rounded-xl border border-white/10 p-4">
+        <div style={{
+            background: "rgba(255, 255, 255, 0.03)",
+            backdropFilter: "blur(10px)",
+            padding: "2rem",
+            borderRadius: "1rem",
+            border: "1px solid rgba(255, 255, 255, 0.1)",
+        }}>
 
-            {/* Week Navigation */}
-            <div className="flex items-center justify-between mb-6">
+            {/* Header */}
+            <div style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: "2rem",
+                paddingBottom: "1.5rem",
+                borderBottom: "1px solid rgba(220, 177, 74, 0.2)"
+            }}>
                 <button
                     onClick={handlePrevWeek}
                     disabled={isSameDay(currentWeekStart, startOfWeek(new Date(), { weekStartsOn: 1 }))}
-                    className="p-2 hover:bg-white/10 rounded disabled:opacity-30 transition-colors"
+                    style={{
+                        padding: "0.75rem",
+                        background: "rgba(220, 177, 74, 0.1)",
+                        border: "1px solid rgba(220, 177, 74, 0.3)",
+                        borderRadius: "0.5rem",
+                        cursor: "pointer",
+                        transition: "all 0.2s",
+                        opacity: isSameDay(currentWeekStart, startOfWeek(new Date(), { weekStartsOn: 1 })) ? 0.3 : 1
+                    }}
                 >
-                    <ChevronLeft className="w-5 h-5 text-[#dcb14a]" />
+                    <ChevronLeft style={{ width: "1.25rem", height: "1.25rem", color: "#dcb14a" }} />
                 </button>
 
-                <div className="text-center">
-                    <span className="text-xs text-gray-400 block uppercase tracking-widest mb-1">Wyświetlany Tydzień</span>
-                    <span className="text-white font-bold text-lg">
+                <div style={{ textAlign: "center" }}>
+                    <div style={{
+                        fontSize: "0.75rem",
+                        color: "#9ca3af",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.1em",
+                        marginBottom: "0.5rem"
+                    }}>
+                        Wyświetlany Tydzień
+                    </div>
+                    <div style={{
+                        fontSize: "1.125rem",
+                        fontWeight: "600",
+                        color: "white",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.5rem"
+                    }}>
+                        <Calendar style={{ width: "1rem", height: "1rem", color: "#dcb14a" }} />
                         {format(currentWeekStart, 'd MMMM', { locale: pl })} - {format(addDays(currentWeekStart, 4), 'd MMMM', { locale: pl })}
-                    </span>
+                    </div>
                 </div>
 
                 <button
                     onClick={handleNextWeek}
-                    className="p-2 hover:bg-white/10 rounded transition-colors"
+                    style={{
+                        padding: "0.75rem",
+                        background: "rgba(220, 177, 74, 0.1)",
+                        border: "1px solid rgba(220, 177, 74, 0.3)",
+                        borderRadius: "0.5rem",
+                        cursor: "pointer",
+                        transition: "all 0.2s"
+                    }}
                 >
-                    <ChevronRight className="w-5 h-5 text-[#dcb14a]" />
+                    <ChevronRight style={{ width: "1.25rem", height: "1.25rem", color: "#dcb14a" }} />
                 </button>
             </div>
 
             {loading ? (
-                <div className="py-12 flex justify-center">
-                    <Loader2 className="w-8 h-8 text-[#dcb14a] animate-spin" />
+                <div style={{
+                    padding: "4rem 0",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: "1rem"
+                }}>
+                    <Loader2 style={{ width: "2rem", height: "2rem", color: "#dcb14a" }} className="animate-spin" />
+                    <p style={{ fontSize: "0.875rem", color: "#9ca3af" }}>Ładowanie dostępnych terminów...</p>
                 </div>
             ) : error ? (
-                <div className="py-8 text-center text-red-400 text-sm">{error}</div>
+                <div style={{
+                    padding: "2rem",
+                    textAlign: "center",
+                    color: "#ef4444",
+                    background: "rgba(239, 68, 68, 0.1)",
+                    borderRadius: "0.5rem",
+                    border: "1px solid rgba(239, 68, 68, 0.3)"
+                }}>{error}</div>
             ) : (
                 <>
-                    {/* DAYS OF WEEK TABLE */}
-                    <div className="grid grid-cols-5 gap-2 mb-6">
+                    {/* Days Grid */}
+                    <div style={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(5, 1fr)",
+                        gap: "1rem",
+                        marginBottom: "2rem"
+                    }}>
                         {weekDays.map(day => {
                             const daySlots = slots.filter(s => isSameDay(parseISO(s.start), day));
                             const hasSlots = daySlots.length > 0;
@@ -181,40 +236,90 @@ export default function AppointmentScheduler({ specialistId, specialistName, onS
                             return (
                                 <button
                                     key={day.toString()}
-                                    onClick={(e) => { e.preventDefault(); setSelectedDateView(day); }}
-                                    className={`
-                                        flex flex-col items-center justify-center py-3 rounded-lg border transition-all
-                                        ${isSelected
-                                            ? 'bg-[#dcb14a] border-[#dcb14a] text-black shadow-lg scale-105'
-                                            : hasSlots
-                                                ? 'bg-white/10 border-white/20 text-white hover:bg-white/20 hover:border-[#dcb14a]/50'
-                                                : 'bg-white/5 border-transparent text-gray-600 cursor-not-allowed opacity-50'
-                                        }
-                                    `}
+                                    onClick={(e) => { e.preventDefault(); if (hasSlots) setSelectedDateView(day); }}
                                     disabled={!hasSlots}
+                                    style={{
+                                        display: "flex",
+                                        flexDirection: "column",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        padding: "1.5rem 1rem",
+                                        borderRadius: "0.75rem",
+                                        border: isSelected
+                                            ? "2px solid #dcb14a"
+                                            : hasSlots
+                                                ? "1px solid rgba(255, 255, 255, 0.1)"
+                                                : "1px solid transparent",
+                                        background: isSelected
+                                            ? "#dcb14a"
+                                            : hasSlots
+                                                ? "rgba(255, 255, 255, 0.05)"
+                                                : "rgba(0, 0, 0, 0.2)",
+                                        cursor: hasSlots ? "pointer" : "not-allowed",
+                                        opacity: hasSlots ? 1 : 0.4,
+                                        transition: "all 0.3s",
+                                        transform: isSelected ? "scale(1.05)" : "scale(1)"
+                                    }}
                                 >
-                                    <span className="text-[10px] uppercase font-bold tracking-wider mb-1">
+                                    <div style={{
+                                        fontSize: "0.75rem",
+                                        fontWeight: "600",
+                                        textTransform: "uppercase",
+                                        letterSpacing: "0.05em",
+                                        color: isSelected ? "black" : "#9ca3af",
+                                        marginBottom: "0.5rem"
+                                    }}>
                                         {format(day, 'EEE', { locale: pl })}
-                                    </span>
-                                    <span className="text-xl font-bold leading-none">
+                                    </div>
+                                    <div style={{
+                                        fontSize: "1.875rem",
+                                        fontWeight: "700",
+                                        color: isSelected ? "black" : "white",
+                                        lineHeight: "1"
+                                    }}>
                                         {format(day, 'd')}
-                                    </span>
-                                    {hasSlots && (
-                                        <span className="mt-1 w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                                    </div>
+                                    {hasSlots && !isSelected && (
+                                        <div style={{
+                                            width: "0.5rem",
+                                            height: "0.5rem",
+                                            borderRadius: "50%",
+                                            background: "#10b981",
+                                            marginTop: "0.5rem",
+                                            boxShadow: "0 0 8px rgba(16, 185, 129, 0.6)"
+                                        }}></div>
                                     )}
                                 </button>
                             );
                         })}
                     </div>
 
-                    {/* HOURS GRID for Selected Date */}
+                    {/* Selected Day's Hours */}
                     {selectedDateView && (
-                        <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-                            <h4 className="text-sm text-gray-400 mb-3 border-b border-white/10 pb-2">
-                                Dostępne godziny: <span className="text-[#dcb14a]">{format(selectedDateView, 'EEEE, d MMMM', { locale: pl })}</span>
+                        <div style={{
+                            background: "rgba(0, 0, 0, 0.3)",
+                            padding: "1.5rem",
+                            borderRadius: "0.75rem",
+                            border: "1px solid rgba(220, 177, 74, 0.2)"
+                        }}>
+                            <h4 style={{
+                                fontSize: "1rem",
+                                color: "#9ca3af",
+                                marginBottom: "1.5rem",
+                                paddingBottom: "1rem",
+                                borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
+                                fontWeight: "500"
+                            }}>
+                                Dostępne godziny: <span style={{ color: "#dcb14a", fontWeight: "600" }}>
+                                    {format(selectedDateView, 'EEEE, d MMMM', { locale: pl })}
+                                </span>
                             </h4>
 
-                            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+                            <div style={{
+                                display: "grid",
+                                gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))",
+                                gap: "1rem"
+                            }}>
                                 {slots
                                     .filter(s => isSameDay(parseISO(s.start), selectedDateView))
                                     .sort((a, b) => a.start.localeCompare(b.start))
@@ -227,19 +332,36 @@ export default function AppointmentScheduler({ specialistId, specialistName, onS
                                             <button
                                                 key={fullStr}
                                                 onClick={(e) => { e.preventDefault(); handleSlotClick(slot); }}
-                                                className={`
-                                                    py-2 px-3 rounded text-sm font-bold transition-all border
-                                                    ${isSelected
-                                                        ? 'bg-white text-black border-white shadow-[0_0_15px_rgba(255,255,255,0.3)]'
-                                                        : 'bg-transparent text-[#dcb14a] border-[#dcb14a]/30 hover:border-[#dcb14a] hover:bg-[#dcb14a]/10'}
-                                                `}
+                                                style={{
+                                                    padding: "1rem",
+                                                    borderRadius: "0.5rem",
+                                                    border: isSelected
+                                                        ? "2px solid white"
+                                                        : "1px solid rgba(220, 177, 74, 0.3)",
+                                                    background: isSelected
+                                                        ? "white"
+                                                        : "rgba(220, 177, 74, 0.1)",
+                                                    color: isSelected ? "black" : "#dcb14a",
+                                                    fontSize: "1.125rem",
+                                                    fontWeight: "700",
+                                                    cursor: "pointer",
+                                                    transition: "all 0.2s",
+                                                    transform: isSelected ? "scale(1.05)" : "scale(1)",
+                                                    boxShadow: isSelected ? "0 0 20px rgba(255, 255, 255, 0.3)" : "none"
+                                                }}
                                             >
                                                 {timeLabel}
                                             </button>
                                         );
                                     })}
                                 {slots.filter(s => isSameDay(parseISO(s.start), selectedDateView)).length === 0 && (
-                                    <div className="col-span-full text-center py-4 text-gray-500 text-sm italic">
+                                    <div style={{
+                                        gridColumn: "1 / -1",
+                                        padding: "2rem",
+                                        textAlign: "center",
+                                        color: "#9ca3af",
+                                        fontStyle: "italic"
+                                    }}>
                                         Brak wolnych terminów w wybranym dniu.
                                     </div>
                                 )}
@@ -249,8 +371,24 @@ export default function AppointmentScheduler({ specialistId, specialistName, onS
                 </>
             )}
 
-            <div className="mt-6 text-[10px] text-gray-500 text-center border-t border-white/5 pt-2">
-                Terminy są pobierane w czasie rzeczywistym z systemu Prodentis.
+            <div style={{
+                marginTop: "2rem",
+                paddingTop: "1.5rem",
+                borderTop: "1px solid rgba(255, 255, 255, 0.05)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "0.5rem",
+                fontSize: "0.75rem",
+                color: "#6b7280"
+            }}>
+                <div style={{
+                    width: "0.5rem",
+                    height: "0.5rem",
+                    borderRadius: "50%",
+                    background: "#10b981"
+                }}></div>
+                <span>Terminy pobierane w czasie rzeczywistym z systemu Prodentis</span>
             </div>
         </div>
     );
