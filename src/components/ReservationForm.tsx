@@ -4,13 +4,15 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Calendar, CheckCircle, Loader2 } from "lucide-react";
+import { CheckCircle } from "lucide-react";
+import AppointmentScheduler from "./scheduler/AppointmentScheduler";
 
 // Specialists Data
 const SPECIALISTS = [
     { id: "marcin", name: "lek. dent. Marcin Nowosielski", role: "doctor" },
     { id: "ilona", name: "lek. dent. Ilona Piechaczek", role: "doctor" },
     { id: "katarzyna", name: "lek. dent. Katarzyna Halupczok", role: "doctor" },
+    { id: "dominika", name: "lek. dent. Dominika Walecko", role: "doctor" },
     { id: "malgorzata", name: "hig. stom. Małgorzata Maćków-Huras", role: "hygienist" },
 ] as const;
 
@@ -21,7 +23,7 @@ const SERVICES = {
         { id: "bol", label: "Pomoc doraźna (Ból)" },
         { id: "implanty", label: "Implanty" },
         { id: "licowki", label: "Licówki / Metamorfoza" },
-        { id: "ortodoncja", label: "Ortodoncja (Nakładki)" }, // Assuming docs do this too
+        { id: "ortodoncja", label: "Ortodoncja (Nakładki)" },
     ],
     hygienist: [
         { id: "higienizacja", label: "Higienizacja (Profilaktyka)" },
@@ -36,10 +38,10 @@ const reservationSchema = z.object({
     email: z.string().email("Podaj poprawny adres email").optional().or(z.literal("")),
     specialist: z.string().min(1, "Wybierz specjalistę"),
     service: z.string().min(1, "Wybierz rodzaj usługi"),
-    date: z.string().min(1, "Wybierz preferowaną datę"),
-    time: z.string().min(1, "Wybierz preferowaną godzinę"),
+    date: z.string().min(1, "Wybierz termin z kalendarza"), // Populated by Scheduler
+    time: z.string().min(1, "Wybierz termin z kalendarza"), // Populated by Scheduler
     description: z.string().optional(),
-    attachment: z.any().optional(), // For file input
+    attachment: z.any().optional(),
 });
 
 type ReservationFormData = z.infer<typeof reservationSchema>;
@@ -54,16 +56,21 @@ export default function ReservationForm() {
         handleSubmit,
         watch,
         setValue,
+        trigger,
         formState: { errors },
     } = useForm<ReservationFormData>({
         resolver: zodResolver(reservationSchema),
         defaultValues: {
             specialist: "",
             service: "",
+            date: "",
+            time: ""
         }
     });
 
     const selectedSpecialistId = watch("specialist");
+    const selectedDate = watch("date");
+    const selectedTime = watch("time");
 
     // Derived values
     const selectedSpecialist = SPECIALISTS.find(s => s.id === selectedSpecialistId);
@@ -71,17 +78,23 @@ export default function ReservationForm() {
         ? SERVICES[selectedSpecialist.role as keyof typeof SERVICES] || []
         : [];
 
-    // Reset service when specialist changes
+    // Reset service & slots when specialist changes
     useEffect(() => {
         setValue("service", "");
+        setValue("date", "");
+        setValue("time", "");
     }, [selectedSpecialistId, setValue]);
 
-    // Reset time when date changes
-    const selectedDate = watch("date");
-    useEffect(() => {
-        setValue("time", "");
-    }, [selectedDate, setValue]);
-
+    const handleSlotSelect = (slot: { date: string, time: string, doctor: string } | null) => {
+        if (slot) {
+            setValue("date", slot.date);
+            setValue("time", slot.time);
+            trigger(["date", "time"]); // Validate immediately
+        } else {
+            setValue("date", "");
+            setValue("time", "");
+        }
+    };
 
     const onSubmit = async (data: ReservationFormData) => {
         setIsSubmitting(true);
@@ -107,12 +120,11 @@ export default function ReservationForm() {
                 };
             } catch (e) {
                 console.error("File upload error", e);
-                // Continue without file or show error? Let's verify file size maybe?
             }
         }
 
         try {
-            const response = await fetch("/api/contact", {
+            const response = await fetch("/api/order-confirmation", { // Reusing confirmation endpoint which handles emails
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -145,18 +157,18 @@ export default function ReservationForm() {
                 border: "1px solid var(--color-surface-hover)"
             }}>
                 <div style={{ color: "var(--color-primary)", marginBottom: "1rem", display: 'flex', justifyContent: 'center' }}>
-                    <span style={{ fontSize: '3rem' }}>✨</span>
+                    <CheckCircle className="w-16 h-16 text-[#dcb14a]" />
                 </div>
                 <h3 style={{ fontSize: "1.5rem", marginBottom: "1rem" }}>Dziękujemy za zgłoszenie!</h3>
                 <p style={{ color: "var(--color-text-muted)" }}>
-                    Twoja prośba o wizytę została wysłana.<br />
-                    Skontaktujemy się z Tobą telefonicznie w celu potwierdzenia terminu.
+                    Twój termin został wstępnie zarezerwowany.<br />
+                    Otrzymasz potwierdzenie mailowe oraz telefoniczne.
                 </p>
                 <button
                     onClick={() => setIsSuccess(false)}
                     style={{ marginTop: '2rem', padding: '0.8rem 1.5rem', background: 'transparent', border: '1px solid var(--color-primary)', color: 'var(--color-primary)', borderRadius: 'var(--radius-md)', cursor: 'pointer' }}
                 >
-                    Wyślij kolejne zgłoszenie
+                    Umów kolejną wizytę
                 </button>
             </div>
         );
@@ -233,50 +245,6 @@ export default function ReservationForm() {
                 </div>
             </div>
 
-            {/* DESCRIPTION & PHOTO */}
-            <div className="form-group">
-                <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", color: "var(--color-text-muted)" }}>Opis problemu (Opcjonalnie)</label>
-                <textarea
-                    {...register("description")}
-                    placeholder="Opisz krótko z czym się zgłaszasz (np. ból zęba, chęć poprawy estetyki)..."
-                    rows={3}
-                    style={{
-                        width: "100%",
-                        padding: "0.8rem",
-                        background: "rgba(0, 0, 0, 0.2)",
-                        border: "1px solid var(--color-surface-hover)",
-                        borderRadius: "var(--radius-md)",
-                        color: "var(--color-text-main)",
-                        outline: "none",
-                        resize: "vertical",
-                        fontFamily: "inherit"
-                    }}
-                />
-            </div>
-
-            <div className="form-group">
-                <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", color: "var(--color-text-muted)" }}>
-                    Zdjęcie RVG / Pantomogram (Opcjonalnie) 📸
-                </label>
-                <p style={{ fontSize: "0.8rem", color: "var(--color-primary)", marginBottom: "0.5rem", marginTop: "-0.3rem" }}>
-                    Jeśli posiadasz zdjęcie rentgenowskie, dołącz je - pomoże to w szybszej diagnozie.
-                </p>
-                <input
-                    {...register("attachment")}
-                    type="file"
-                    accept="image/*,.pdf"
-                    style={{
-                        width: "100%",
-                        padding: "0.8rem",
-                        background: "rgba(0, 0, 0, 0.2)",
-                        border: "1px dashed var(--color-surface-hover)",
-                        borderRadius: "var(--radius-md)",
-                        color: "var(--color-text-muted)",
-                        cursor: "pointer"
-                    }}
-                />
-            </div>
-
             {/* SPECIALIST */}
             <div className="form-group">
                 <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", color: "var(--color-text-muted)" }}>Specjalista *</label>
@@ -329,86 +297,74 @@ export default function ReservationForm() {
                 {errors.service && <p style={{ color: "red", fontSize: "0.8rem", marginTop: "0.3rem" }}>{errors.service.message}</p>}
             </div>
 
-            {/* DATE & TIME GRID */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+            {/* NEW REAL-TIME SCHEDULER */}
+            {selectedSpecialist && (
                 <div className="form-group">
                     <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", color: "var(--color-text-muted)" }}>
-                        Preferowana Data * <br />
-                        <span style={{ fontSize: "0.8rem", color: "var(--color-primary)", fontWeight: "normal" }}>
-                            (Najbliższy termin: {new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('pl-PL')})
-                        </span>
+                        Dostępne Terminy * <span className="text-xs text-[#dcb14a]">(Czas trwania: {selectedSpecialist.id === 'malgorzata' ? '60min' : '30min'})</span>
                     </label>
-                    <input
-                        {...register("date")}
-                        type="date"
-                        min={new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
-                        style={{
-                            width: "100%",
-                            padding: "0.8rem",
-                            background: "rgba(0, 0, 0, 0.2)",
-                            border: errors.date ? "1px solid red" : "1px solid var(--color-surface-hover)",
-                            borderRadius: "var(--radius-md)",
-                            color: "var(--color-text-main)",
-                            colorScheme: "dark",
-                            outline: "none"
-                        }}
+                    <AppointmentScheduler
+                        specialistId={selectedSpecialist.id}
+                        specialistName={selectedSpecialist.name}
+                        onSlotSelect={handleSlotSelect}
                     />
-                    {errors.date && <p style={{ color: "red", fontSize: "0.8rem", marginTop: "0.3rem" }}>{errors.date.message}</p>}
+                    {/* Hidden inputs to hold values for react-hook-form validation */}
+                    <input type="hidden" {...register("date")} />
+                    <input type="hidden" {...register("time")} />
+
+                    {(errors.date || errors.time) && (
+                        <p style={{ color: "red", fontSize: "0.8rem", marginTop: "0.3rem" }}>
+                            Proszę wybrać termin z powyższego kalendarza.
+                        </p>
+                    )}
+
+                    {selectedDate && selectedTime && (
+                        <p style={{ marginTop: "0.5rem", fontSize: "0.9rem", color: "#dcb14a" }}>
+                            Wybrano: <strong>{selectedDate}, godz. {selectedTime}</strong>
+                        </p>
+                    )}
                 </div>
+            )}
 
-                <div className="form-group">
-                    <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", color: "var(--color-text-muted)" }}>Preferowana Godzina *</label>
+            {/* DESCRIPTION & PHOTO */}
+            <div className="form-group">
+                <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", color: "var(--color-text-muted)" }}>Opis problemu (Opcjonalnie)</label>
+                <textarea
+                    {...register("description")}
+                    placeholder="Opisz krótko z czym się zgłaszasz..."
+                    rows={3}
+                    style={{
+                        width: "100%",
+                        padding: "0.8rem",
+                        background: "rgba(0, 0, 0, 0.2)",
+                        border: "1px solid var(--color-surface-hover)",
+                        borderRadius: "var(--radius-md)",
+                        color: "var(--color-text-main)",
+                        outline: "none",
+                        resize: "vertical",
+                        fontFamily: "inherit"
+                    }}
+                />
+            </div>
 
-                    <select
-                        {...register("time")}
-                        style={{
-                            width: "100%",
-                            padding: "0.8rem",
-                            background: "rgba(0, 0, 0, 0.2)",
-                            border: errors.time ? "1px solid red" : "1px solid var(--color-surface-hover)",
-                            borderRadius: "var(--radius-md)",
-                            color: "var(--color-text-main)",
-                            outline: "none",
-                            appearance: "none"
-                        }}
-                    >
-                        <option value="">Wybierz godzinę...</option>
-                        <option value="">Wybierz godzinę...</option>
-                        {(() => {
-                            const selectedDate = watch("date");
-                            const specialistId = watch("specialist");
-
-                            if (!selectedDate) return <option disabled>Najpierw wybierz datę</option>;
-
-                            const dateObj = new Date(selectedDate);
-                            const day = dateObj.getDay(); // 0 = Sun, 6 = Sat
-
-                            // Weekend validation
-                            if (day === 0 || day === 6) {
-                                return <option disabled>Klinika nieczynna w weekendy</option>;
-                            }
-
-                            // Define intervals based on specialist
-                            let validSlots = [
-                                "09:00 - 12:00",
-                                "12:00 - 15:00",
-                                "15:00 - 18:00"
-                            ];
-
-                            // Marcin has fewer slots
-                            if (specialistId === "marcin") {
-                                validSlots = [
-                                    "09:00 - 12:00",
-                                    "12:00 - 15:00"
-                                ];
-                            }
-
-                            return validSlots.map(s => <option key={s} value={s}>{s}</option>);
-                        })()}
-                    </select>
-
-                    {errors.time && <p style={{ color: "red", fontSize: "0.8rem", marginTop: "0.3rem" }}>{errors.time.message}</p>}
-                </div>
+            <div className="form-group">
+                <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", color: "var(--color-text-muted)" }}>
+                    Zdjęcie RVG / Pantomogram (Opcjonalnie) 📸
+                </label>
+                <input
+                    {...register("attachment")}
+                    type="file"
+                    accept="image/*,.pdf"
+                    style={{
+                        width: "100%",
+                        padding: "0.8rem",
+                        background: "rgba(0, 0, 0, 0.2)",
+                        border: "1px dashed var(--color-surface-hover)",
+                        borderRadius: "var(--radius-md)",
+                        color: "var(--color-text-muted)",
+                        cursor: "pointer"
+                    }}
+                />
             </div>
 
             {/* INFO TEXT */}
