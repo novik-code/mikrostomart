@@ -371,25 +371,6 @@ export default function AppointmentScheduler({ specialistId, specialistName, onS
                 </>
             )}
 
-            <div style={{
-                marginTop: "2rem",
-                paddingTop: "1.5rem",
-                borderTop: "1px solid rgba(255, 255, 255, 0.05)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "0.5rem",
-                fontSize: "0.75rem",
-                color: "#6b7280"
-            }}>
-                <div style={{
-                    width: "0.5rem",
-                    height: "0.5rem",
-                    borderRadius: "50%",
-                    background: "#10b981"
-                }}></div>
-                <span>Terminy pobierane w czasie rzeczywistym z systemu Prodentis</span>
-            </div>
         </div>
     );
 }
