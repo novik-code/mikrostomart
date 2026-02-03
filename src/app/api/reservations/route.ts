@@ -26,10 +26,12 @@ export async function POST(req: NextRequest) {
                     name,
                     email,
                     phone,
-                    specialist,
-                    specialist_name: specialistName,
-                    appointment_date: `${date}T${time}`,
+                    date,
+                    time,
+                    specialist: specialistName,
+                    service: specialistName, // For backward compatibility
                     description,
+                    has_attachment: !!attachment,
                     status: 'pending',
                     created_at: new Date().toISOString()
                 });
