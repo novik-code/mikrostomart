@@ -8,11 +8,12 @@ export async function POST(req: NextRequest) {
         const body = await req.json();
         const { name, email, phone, specialist, specialistName, date, time, description, attachment } = body;
 
-        const appointmentDate = new Date(`${date}T${time}`).toLocaleString("pl-PL", {
-            timeZone: "Europe/Warsaw",
-            dateStyle: "full",
-            timeStyle: "short"
-        });
+        // Format date WITHOUT timezone conversion (date/time are already in Warsaw time)
+        const [year, month, day] = date.split('-');
+        const dateObj = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+        const dayName = dateObj.toLocaleDateString('pl-PL', { weekday: 'long' });
+        const formattedDate = dateObj.toLocaleDateString('pl-PL', { day: 'numeric', month: 'long', year: 'numeric' });
+        const appointmentDate = `${dayName}, ${formattedDate} o godz. ${time}`;
 
         // Save to Database (Supabase)
         try {
