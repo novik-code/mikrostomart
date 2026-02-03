@@ -124,14 +124,12 @@ export default function ReservationForm() {
         }
 
         try {
-            const response = await fetch("/api/order-confirmation", { // Reusing confirmation endpoint which handles emails
+            const response = await fetch("/api/reservations", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    type: "reservation",
                     ...data,
                     specialistName,
-                    description: data.description,
                     attachment: attachmentData
                 }),
             });
