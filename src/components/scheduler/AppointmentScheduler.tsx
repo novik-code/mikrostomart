@@ -128,25 +128,69 @@ export default function AppointmentScheduler({ specialistId, specialistName, onS
     }
 
     return (
-        <div className="w-full bg-white/[0.03] backdrop-blur-xl rounded-2xl border border-white/10 p-4 sm:p-6 md:p-8 shadow-2xl">
+        <div style={{
+            width: "100%",
+            background: "rgba(255, 255, 255, 0.03)",
+            backdropFilter: "blur(10px)",
+            padding: "1.5rem",
+            borderRadius: "1rem",
+            border: "1px solid rgba(255, 255, 255, 0.1)",
+        }}>
+            <style jsx>{`
+                @media (min-width: 640px) {
+                    .scheduler-container { padding: 2rem; }
+                }
+            `}</style>
 
             {/* Header */}
-            <div className="flex items-center justify-between mb-6 sm:mb-8 pb-4 sm:pb-6 border-b border-[#dcb14a]/20">
+            <div style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: "1.5rem",
+                paddingBottom: "1rem",
+                borderBottom: "1px solid rgba(220, 177, 74, 0.2)",
+                gap: "0.5rem"
+            }}>
                 <button
                     onClick={handlePrevWeek}
                     disabled={isSameDay(currentWeekStart, startOfWeek(new Date(), { weekStartsOn: 1 }))}
-                    className="p-2 sm:p-3 bg-[#dcb14a]/10 border border-[#dcb14a]/30 rounded-lg hover:bg-[#dcb14a]/20 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                    style={{
+                        padding: "0.625rem",
+                        background: "rgba(220, 177, 74, 0.1)",
+                        border: "1px solid rgba(220, 177, 74, 0.3)",
+                        borderRadius: "0.5rem",
+                        cursor: isSameDay(currentWeekStart, startOfWeek(new Date(), { weekStartsOn: 1 })) ? "not-allowed" : "pointer",
+                        transition: "all 0.2s",
+                        opacity: isSameDay(currentWeekStart, startOfWeek(new Date(), { weekStartsOn: 1 })) ? 0.3 : 1,
+                        flexShrink: 0
+                    }}
                 >
-                    <ChevronLeft className="w-5 h-5 text-[#dcb14a]" />
+                    <ChevronLeft style={{ width: "1.25rem", height: "1.25rem", color: "#dcb14a" }} />
                 </button>
 
-                <div className="text-center flex-1 mx-2 sm:mx-4">
-                    <div className="text-[10px] sm:text-xs text-gray-400 uppercase tracking-wider mb-1 sm:mb-2">
+                <div style={{ textAlign: "center", flex: 1, minWidth: 0 }}>
+                    <div style={{
+                        fontSize: "0.65rem",
+                        color: "#9ca3af",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.1em",
+                        marginBottom: "0.25rem"
+                    }}>
                         Wyświetlany Tydzień
                     </div>
-                    <div className="text-sm sm:text-lg font-semibold text-white flex items-center justify-center gap-1 sm:gap-2">
-                        <Calendar className="w-3 h-3 sm:w-4 sm:h-4 text-[#dcb14a] hidden sm:inline" />
-                        <span className="whitespace-nowrap">
+                    <div style={{
+                        fontSize: "0.9rem",
+                        fontWeight: "600",
+                        color: "white",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "0.5rem",
+                        flexWrap: "wrap"
+                    }}>
+                        <Calendar style={{ width: "0.9rem", height: "0.9rem", color: "#dcb14a", flexShrink: 0 }} />
+                        <span style={{ whiteSpace: "nowrap", fontSize: "0.85rem" }}>
                             {format(currentWeekStart, 'd MMM', { locale: pl })} - {format(addDays(currentWeekStart, 4), 'd MMM', { locale: pl })}
                         </span>
                     </div>
@@ -154,25 +198,50 @@ export default function AppointmentScheduler({ specialistId, specialistName, onS
 
                 <button
                     onClick={handleNextWeek}
-                    className="p-2 sm:p-3 bg-[#dcb14a]/10 border border-[#dcb14a]/30 rounded-lg hover:bg-[#dcb14a]/20 transition-all"
+                    style={{
+                        padding: "0.625rem",
+                        background: "rgba(220, 177, 74, 0.1)",
+                        border: "1px solid rgba(220, 177, 74, 0.3)",
+                        borderRadius: "0.5rem",
+                        cursor: "pointer",
+                        transition: "all 0.2s",
+                        flexShrink: 0
+                    }}
                 >
-                    <ChevronRight className="w-5 h-5 text-[#dcb14a]" />
+                    <ChevronRight style={{ width: "1.25rem", height: "1.25rem", color: "#dcb14a" }} />
                 </button>
             </div>
 
             {loading ? (
-                <div className="py-12 sm:py-16 flex flex-col items-center justify-center gap-3 sm:gap-4">
-                    <Loader2 className="w-8 h-8 sm:w-10 sm:h-10 text-[#dcb14a] animate-spin" />
-                    <p className="text-xs sm:text-sm text-gray-400">Ładowanie dostępnych terminów...</p>
+                <div style={{
+                    padding: "3rem 0",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: "1rem"
+                }}>
+                    <Loader2 style={{ width: "2rem", height: "2rem", color: "#dcb14a" }} className="animate-spin" />
+                    <p style={{ fontSize: "0.875rem", color: "#9ca3af" }}>Ładowanie dostępnych terminów...</p>
                 </div>
             ) : error ? (
-                <div className="py-6 sm:py-8 px-4 text-center text-red-400 text-sm bg-red-500/10 rounded-lg border border-red-500/20">
-                    {error}
-                </div>
+                <div style={{
+                    padding: "2rem",
+                    textAlign: "center",
+                    color: "#ef4444",
+                    background: "rgba(239, 68, 68, 0.1)",
+                    borderRadius: "0.5rem",
+                    border: "1px solid rgba(239, 68, 68, 0.3)",
+                    fontSize: "0.875rem"
+                }}>{error}</div>
             ) : (
                 <>
                     {/* Days Grid */}
-                    <div className="grid grid-cols-5 gap-2 sm:gap-3 md:gap-4 mb-6 sm:mb-8">
+                    <div style={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(5, 1fr)",
+                        gap: "0.5rem",
+                        marginBottom: "1.5rem"
+                    }}>
                         {weekDays.map(day => {
                             const daySlots = slots.filter(s => isSameDay(parseISO(s.start), day));
                             const hasSlots = daySlots.length > 0;
@@ -183,26 +252,59 @@ export default function AppointmentScheduler({ specialistId, specialistName, onS
                                     key={day.toString()}
                                     onClick={(e) => { e.preventDefault(); if (hasSlots) setSelectedDateView(day); }}
                                     disabled={!hasSlots}
-                                    className={`
-                                        flex flex-col items-center justify-center py-3 sm:py-4 md:py-5 px-1 sm:px-2 
-                                        rounded-lg sm:rounded-xl border transition-all duration-300 relative
-                                        ${isSelected
-                                            ? 'bg-[#dcb14a] border-[#dcb14a] scale-105 shadow-lg shadow-[#dcb14a]/20'
+                                    style={{
+                                        display: "flex",
+                                        flexDirection: "column",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        padding: "0.75rem 0.25rem",
+                                        borderRadius: "0.75rem",
+                                        border: isSelected
+                                            ? "2px solid #dcb14a"
                                             : hasSlots
-                                                ? 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-[#dcb14a]/50 hover:-translate-y-1'
-                                                : 'bg-black/20 border-transparent opacity-40 cursor-not-allowed grayscale'
-                                        }
-                                    `}
+                                                ? "1px solid rgba(255, 255, 255, 0.1)"
+                                                : "1px solid transparent",
+                                        background: isSelected
+                                            ? "#dcb14a"
+                                            : hasSlots
+                                                ? "rgba(255, 255, 255, 0.05)"
+                                                : "rgba(0, 0, 0, 0.2)",
+                                        cursor: hasSlots ? "pointer" : "not-allowed",
+                                        opacity: hasSlots ? 1 : 0.4,
+                                        transition: "all 0.3s",
+                                        transform: isSelected ? "scale(1.05)" : "scale(1)",
+                                        position: "relative"
+                                    }}
                                 >
-                                    <div className={`text-[9px] sm:text-[10px] md:text-xs font-semibold uppercase tracking-wide mb-1 ${isSelected ? 'text-black' : 'text-gray-400'}`}>
+                                    <div style={{
+                                        fontSize: "0.625rem",
+                                        fontWeight: "600",
+                                        textTransform: "uppercase",
+                                        letterSpacing: "0.05em",
+                                        color: isSelected ? "black" : "#9ca3af",
+                                        marginBottom: "0.25rem"
+                                    }}>
                                         {format(day, 'EEE', { locale: pl })}
                                     </div>
-                                    <div className={`text-xl sm:text-2xl md:text-3xl font-bold leading-none ${isSelected ? 'text-black' : 'text-white'}`}>
+                                    <div style={{
+                                        fontSize: "1.5rem",
+                                        fontWeight: "700",
+                                        color: isSelected ? "black" : "white",
+                                        lineHeight: "1"
+                                    }}>
                                         {format(day, 'd')}
                                     </div>
-
                                     {hasSlots && !isSelected && (
-                                        <div className="absolute top-1.5 right-1.5 w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]" />
+                                        <div style={{
+                                            position: "absolute",
+                                            top: "0.375rem",
+                                            right: "0.375rem",
+                                            width: "0.375rem",
+                                            height: "0.375rem",
+                                            borderRadius: "50%",
+                                            background: "#10b981",
+                                            boxShadow: "0 0 8px rgba(16, 185, 129, 0.6)"
+                                        }}></div>
                                     )}
                                 </button>
                             );
@@ -211,14 +313,30 @@ export default function AppointmentScheduler({ specialistId, specialistName, onS
 
                     {/* Selected Day's Hours */}
                     {selectedDateView && (
-                        <div className="bg-black/30 p-4 sm:p-5 md:p-6 rounded-xl border border-[#dcb14a]/20 animate-in fade-in slide-in-from-top-2 duration-300">
-                            <h4 className="text-xs sm:text-sm md:text-base text-gray-400 mb-4 sm:mb-5 pb-3 sm:pb-4 border-b border-white/5 font-medium">
-                                Dostępne godziny: <span className="text-[#dcb14a] font-semibold">
+                        <div style={{
+                            background: "rgba(0, 0, 0, 0.3)",
+                            padding: "1.25rem",
+                            borderRadius: "0.75rem",
+                            border: "1px solid rgba(220, 177, 74, 0.2)"
+                        }}>
+                            <h4 style={{
+                                fontSize: "0.875rem",
+                                color: "#9ca3af",
+                                marginBottom: "1rem",
+                                paddingBottom: "0.75rem",
+                                borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
+                                fontWeight: "500"
+                            }}>
+                                Dostępne godziny: <span style={{ color: "#dcb14a", fontWeight: "600" }}>
                                     {format(selectedDateView, 'EEEE, d MMMM', { locale: pl })}
                                 </span>
                             </h4>
 
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3">
+                            <div style={{
+                                display: "grid",
+                                gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))",
+                                gap: "0.75rem"
+                            }}>
                                 {slots
                                     .filter(s => isSameDay(parseISO(s.start), selectedDateView))
                                     .sort((a, b) => a.start.localeCompare(b.start))
@@ -231,21 +349,37 @@ export default function AppointmentScheduler({ specialistId, specialistName, onS
                                             <button
                                                 key={fullStr}
                                                 onClick={(e) => { e.preventDefault(); handleSlotClick(slot); }}
-                                                className={`
-                                                    py-3 sm:py-4 px-2 sm:px-3 rounded-lg border transition-all duration-200
-                                                    flex items-center justify-center font-bold
-                                                    ${isSelected
-                                                        ? 'bg-white text-black border-white scale-105 shadow-[0_0_20px_rgba(255,255,255,0.4)]'
-                                                        : 'bg-[#dcb14a]/10 text-[#dcb14a] border-[#dcb14a]/30 hover:border-[#dcb14a] hover:bg-[#dcb14a]/20'}
-                                                    text-base sm:text-lg
-                                                `}
+                                                style={{
+                                                    padding: "0.875rem",
+                                                    borderRadius: "0.5rem",
+                                                    border: isSelected
+                                                        ? "2px solid white"
+                                                        : "1px solid rgba(220, 177, 74, 0.3)",
+                                                    background: isSelected
+                                                        ? "white"
+                                                        : "rgba(220, 177, 74, 0.1)",
+                                                    color: isSelected ? "black" : "#dcb14a",
+                                                    fontSize: "1rem",
+                                                    fontWeight: "700",
+                                                    cursor: "pointer",
+                                                    transition: "all 0.2s",
+                                                    transform: isSelected ? "scale(1.05)" : "scale(1)",
+                                                    boxShadow: isSelected ? "0 0 20px rgba(255, 255, 255, 0.3)" : "none"
+                                                }}
                                             >
                                                 {timeLabel}
                                             </button>
                                         );
                                     })}
                                 {slots.filter(s => isSameDay(parseISO(s.start), selectedDateView)).length === 0 && (
-                                    <div className="col-span-full py-8 sm:py-12 text-center text-gray-400 italic text-sm sm:text-base">
+                                    <div style={{
+                                        gridColumn: "1 / -1",
+                                        padding: "2rem",
+                                        textAlign: "center",
+                                        color: "#9ca3af",
+                                        fontStyle: "italic",
+                                        fontSize: "0.875rem"
+                                    }}>
                                         Brak wolnych terminów w wybranym dniu.
                                     </div>
                                 )}
