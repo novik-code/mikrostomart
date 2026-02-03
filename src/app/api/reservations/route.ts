@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
 
                 <p><strong>⚠️ Uwaga:</strong> To nie jest ostateczne potwierdzenie wizyty. Recepcja skontaktuje się z Tobą telefonicznie lub emailem w celu ustalenia szczegółów.</p>
 
-                <p>W razie pytań prosimy o kontakt zwrotny na ten adres email lub telefonicznie: <a href="tel:+48500123456">500 123 456</a></p>
+                <p>W razie pytań prosimy o kontakt zwrotny na ten adres email lub telefonicznie: <a href="tel:+48570270470">570 270 470</a> lub <a href="tel:+48570810800">570 810 800</a></p>
                 <p>Pozdrawiamy,<br/>Zespół Mikrostomart</p>
             </div>
         `;
@@ -143,9 +143,10 @@ export async function POST(req: NextRequest) {
 
             await resend.emails.send(emailData);
 
-            // Email to Patient
+            // Email to Patient - FROM gabinet@ so they can reply
             await resend.emails.send({
-                from: fromEmail,
+                from: `Gabinet Mikrostomart <${adminEmail}>`,
+                replyTo: adminEmail,
                 to: email,
                 subject: patientSubject,
                 html: patientHtml
