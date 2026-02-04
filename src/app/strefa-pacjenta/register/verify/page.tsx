@@ -130,7 +130,7 @@ export default function VerifyPatient() {
                     color: '#dcb14a',
                 }}>
                     <strong>🧪 Demo</strong><br />
-                    Tel: <code>570270470</code> | Imię: <code>Anna</code> | PESEL: <code>85010112345</code>
+                    Tel: <code>792060718</code> | Imię: <code>Ewa</code> | PESEL: <code>61061804181</code>
                 </div>
 
                 {/* Form */}
@@ -150,7 +150,7 @@ export default function VerifyPatient() {
                             type="tel"
                             value={phone}
                             onChange={(e) => setPhone(e.target.value)}
-                            placeholder="570 270 470"
+                            placeholder="792 060 718"
                             required
                             style={{
                                 width: '100%',
@@ -189,7 +189,7 @@ export default function VerifyPatient() {
                             type="text"
                             value={firstName}
                             onChange={(e) => setFirstName(e.target.value)}
-                            placeholder="Anna"
+                            placeholder="Ewa"
                             required
                             style={{
                                 width: '100%',
@@ -228,7 +228,7 @@ export default function VerifyPatient() {
                             type="text"
                             value={pesel}
                             onChange={(e) => setPesel(e.target.value.replace(/\D/g, '').slice(0, 11))}
-                            placeholder="85010112345"
+                            placeholder="61061804181"
                             required
                             maxLength={11}
                             pattern="\d{11}"
