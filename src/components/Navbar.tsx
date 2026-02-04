@@ -220,6 +220,9 @@ export default function Navbar() {
                         )}
                     </div>
 
+                    <Link href="/strefa-pacjenta/login" className={styles.link}>
+                        Strefa Pacjenta
+                    </Link>
                     <Link href="/kontakt" className={styles.link}>Kontakt</Link>
                 </div>
 
@@ -296,6 +299,7 @@ export default function Navbar() {
                         >
                             🤖 Wirtualny Asystent
                         </button>
+                        <Link href="/strefa-pacjenta/login" className={styles.mobileLink} onClick={closeMenu}>Strefa Pacjenta</Link>
                         <Link href="/kontakt" className={styles.mobileLink} onClick={closeMenu}>Kontakt</Link>
                     </div>
                 </div>
