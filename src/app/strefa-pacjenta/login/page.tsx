@@ -95,21 +95,6 @@ export default function PatientLogin() {
                     </p>
                 </div>
 
-                {/* Demo Info */}
-                <div style={{
-                    background: 'rgba(220, 177, 74, 0.1)',
-                    border: '1px solid rgba(220, 177, 74, 0.3)',
-                    borderRadius: '0.75rem',
-                    padding: '1rem',
-                    marginBottom: '2rem',
-                    fontSize: '0.85rem',
-                    color: '#dcb14a',
-                }}>
-                    <strong>🧪 Tryb Testowy</strong><br />
-                    Telefon: <code style={{ background: 'rgba(0,0,0,0.3)', padding: '0.2rem 0.4rem', borderRadius: '4px' }}>570270470</code><br />
-                    Hasło: <code style={{ background: 'rgba(0,0,0,0.3)', padding: '0.2rem 0.4rem', borderRadius: '4px' }}>test123</code>
-                </div>
-
                 {/* Form */}
                 <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                     {/* Phone */}

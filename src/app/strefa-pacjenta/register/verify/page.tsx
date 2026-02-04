@@ -119,20 +119,6 @@ export default function VerifyPatient() {
                     System sprawdzi je w bazie Prodentis.
                 </div>
 
-                {/* Demo Hint */}
-                <div style={{
-                    background: 'rgba(220, 177, 74, 0.1)',
-                    border: '1px solid rgba(220, 177, 74, 0.3)',
-                    borderRadius: '0.75rem',
-                    padding: '1rem',
-                    marginBottom: '2rem',
-                    fontSize: '0.85rem',
-                    color: '#dcb14a',
-                }}>
-                    <strong>🧪 Demo</strong><br />
-                    Tel: <code>792060718</code> | Imię: <code>Ewa</code> | PESEL: <code>61061804181</code>
-                </div>
-
                 {/* Form */}
                 <form onSubmit={handleVerify} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                     {/* Phone */}
