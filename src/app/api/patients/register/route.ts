@@ -14,10 +14,17 @@ export async function POST(request: Request) {
         const body = await request.json();
         const { prodentisId, phone, password, email } = body;
 
-        // Validation
-        if (!prodentisId || !phone || !password || !email) {
+        // Validation - specific error messages
+        if (!email) {
             return NextResponse.json(
-                { error: 'Brak wymaganych danych: prodentisId, phone, password, email' },
+                { error: 'Adres email jest wymagany' },
+                { status: 400 }
+            );
+        }
+
+        if (!prodentisId || !phone || !password) {
+            return NextResponse.json(
+                { error: 'Brak wymaganych danych rejestracyjnych' },
                 { status: 400 }
             );
         }

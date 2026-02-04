@@ -38,6 +38,19 @@ export default function ConfirmData() {
     const handleContinue = () => {
         if (!patientData) return;
 
+        // Validate email before continuing
+        if (!email || email.trim() === '') {
+            alert('Adres email jest wymagany do utworzenia konta.');
+            return;
+        }
+
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            alert('Proszę podać prawidłowy adres email (np. twoj@email.pl)');
+            return;
+        }
+
         const updatedData = {
             ...patientData,
             email,

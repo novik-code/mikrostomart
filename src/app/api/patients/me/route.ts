@@ -38,7 +38,26 @@ export async function GET(request: Request) {
 
         const patientData = await response.json();
 
-        return NextResponse.json(patientData);
+        // Fetch email and phone from Supabase (stored during registration)
+        const { data: supabasePatient, error: supabaseError } = await supabase
+            .from('patients')
+            .select('email, phone')
+            .eq('prodentis_id', payload.prodentisId)
+            .single();
+
+        if (supabaseError) {
+            console.error('[Me] Supabase error:', supabaseError);
+            // Continue without email if Supabase fails (graceful degradation)
+        }
+
+        // Merge Supabase data (email, phone) with Prodentis data
+        const mergedData = {
+            ...patientData,
+            email: supabasePatient?.email || patientData.email || null,
+            phone: supabasePatient?.phone || patientData.phone || null,
+        };
+
+        return NextResponse.json(mergedData);
 
     } catch (error: any) {
         console.error('[Me] Error:', error);
