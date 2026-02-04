@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+import jwt, { SignOptions } from 'jsonwebtoken';
 
 export const dynamic = 'force-dynamic';
 
@@ -97,7 +97,10 @@ export async function POST(request: Request) {
 
         // Generate JWT
         const jwtSecret = process.env.JWT_SECRET!;
-        const jwtExpires = process.env.JWT_EXPIRES_IN || '7d';
+
+        const signOptions: SignOptions = {
+            expiresIn: '7d' as const
+        };
 
         const token = jwt.sign(
             {
@@ -106,7 +109,7 @@ export async function POST(request: Request) {
                 userId: patient.id,
             },
             jwtSecret,
-            { expiresIn: jwtExpires }
+            signOptions
         );
 
         // Update last_login
