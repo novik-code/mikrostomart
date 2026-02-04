@@ -405,49 +405,34 @@ export default function AdminPage() {
 
     // Patient Functions
     const fetchPatients = async () => {
-        // Mock patients data (in production, fetch from Supabase)
-        const mockPatients = [
-            {
-                id: '1',
-                firstName: 'Anna',
-                lastName: 'Kowalska',
-                phone: '570270470',
-                email: 'anna.kowalska@example.com',
-                lastLogin: '2026-02-03T14:20:00Z',
-                lastSync: '2026-02-03T14:25:00Z',
-                createdAt: '2025-12-15T10:30:00Z',
-                visitsCount: 5
-            },
-            {
-                id: '2',
-                firstName: 'Jan',
-                lastName: 'Nowak',
-                phone: '570810800',
-                email: 'jan.nowak@example.com',
-                lastLogin: '2026-02-01T11:45:00Z',
-                lastSync: '2026-02-01T11:50:00Z',
-                createdAt: '2026-01-05T09:15:00Z',
-                visitsCount: 3
-            },
-            {
-                id: '3',
-                firstName: 'Maria',
-                lastName: 'Wiśniewska',
-                phone: '600123456',
-                email: 'maria.wisniewska@example.com',
-                lastLogin: '2026-01-28T09:30:00Z',
-                lastSync: '2026-01-28T09:35:00Z',
-                createdAt: '2025-11-20T16:00:00Z',
-                visitsCount: 8
+        try {
+            const res = await fetch('/api/admin/patients');
+            if (res.ok) {
+                const data = await res.json();
+                setPatients(data.patients || []);
             }
-        ];
-        setPatients(mockPatients);
+        } catch (err) {
+            console.error('Failed to fetch patients:', err);
+        }
     };
 
-    const handleDeletePatient = (id: string) => {
+    const handleDeletePatient = async (id: string) => {
         if (confirm('Czy na pewno chcesz usunąć konto tego pacjenta?')) {
-            setPatients(patients.filter((p) => p.id !== id));
-            alert('Konto pacjenta zostało usunięte');
+            try {
+                const res = await fetch(`/api/admin/patients?id=${id}`, {
+                    method: 'DELETE',
+                });
+
+                if (res.ok) {
+                    setPatients(patients.filter((p) => p.id !== id));
+                    alert('Konto pacjenta zostało usunięte');
+                } else {
+                    alert('Nie udało się usunąć konta');
+                }
+            } catch (err) {
+                console.error('Failed to delete patient:', err);
+                alert('Błąd podczas usuwania konta');
+            }
         }
     };
 

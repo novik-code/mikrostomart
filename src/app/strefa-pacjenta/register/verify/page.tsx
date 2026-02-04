@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { MockAuth } from '@/lib/mock-patient-data';
 
 export default function VerifyPatient() {
     const [phone, setPhone] = useState('');
@@ -18,20 +17,30 @@ export default function VerifyPatient() {
         setError('');
         setIsLoading(true);
 
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        try {
+            const response = await fetch('/api/patients/verify', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ phone, firstName, pesel }),
+            });
 
-        const patient = MockAuth.verifyPatient(phone, firstName, pesel);
+            const data = await response.json();
 
-        if (patient) {
-            // Store patient data for next steps
-            sessionStorage.setItem('registration_data', JSON.stringify(patient));
-            router.push('/strefa-pacjenta/register/confirm');
-        } else {
-            setError('Nie znaleziono pacjenta w systemie. Upewnij się, że dane są poprawne lub skontaktuj się z rejestracją.');
+            if (data.success && data.patient) {
+                // Store patient data for next steps
+                sessionStorage.setItem('registration_data', JSON.stringify(data.patient));
+                router.push('/strefa-pacjenta/register/confirm');
+            } else {
+                setError(data.message || 'Nie znaleziono pacjenta w systemie. Upewnij się, że dane są poprawne lub skontaktuj się z rejestracją.');
+            }
+        } catch (err) {
+            console.error('Verification error:', err);
+            setError('Nie udało się połączyć z serwerem. Spróbuj ponownie.');
+        } finally {
+            setIsLoading(false);
         }
-
-        setIsLoading(false);
     };
 
     return (

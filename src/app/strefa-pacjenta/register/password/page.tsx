@@ -2,11 +2,18 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import type { MockPatient } from '@/lib/mock-patient-data';
-import { MockAuth } from '@/lib/mock-patient-data';
+
+interface PatientData {
+    id: string;
+    firstName: string;
+    lastName: string;
+    phone: string;
+    email: string | null;
+    address?: any;
+}
 
 export default function SetPassword() {
-    const [patientData, setPatientData] = useState<MockPatient | null>(null);
+    const [patientData, setPatientData] = useState<PatientData | null>(null);
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [error, setError] = useState('');
@@ -42,25 +49,41 @@ export default function SetPassword() {
             return;
         }
 
-        if (passwordStrength < 4) {
-            setError('Hasło jest zbyt słabe. Użyj min. 8 znaków, wielkich i małych liter, cyfr i znaków specjalnych.');
+        if (passwordStrength < 3) {
+            setError('Hasło jest zbyt słabe. Użyj min. 8 znaków, wielkich i małych liter oraz cyfr.');
             return;
         }
 
         setIsLoading(true);
-        await new Promise(resolve => setTimeout(resolve, 1000));
 
-        // Mock registration
-        const success = MockAuth.register(patientData!, password);
+        try {
+            const response = await fetch('/api/patients/register', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    prodentisId: patientData!.id,
+                    phone: patientData!.phone,
+                    password,
+                    email: patientData!.email,
+                }),
+            });
 
-        if (success) {
-            sessionStorage.removeItem('registration_data');
-            router.push('/strefa-pacjenta/login?registered=true');
-        } else {
-            setError('Wystąpił błąd podczas rejestracji');
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                sessionStorage.removeItem('registration_data');
+                router.push('/strefa-pacjenta/login?registered=true');
+            } else {
+                setError(data.error || 'Wystąpił błąd podczas rejestracji');
+            }
+        } catch (err) {
+            console.error('Registration error:', err);
+            setError('Nie udało się połączyć z serwerem. Spróbuj ponownie.');
+        } finally {
+            setIsLoading(false);
         }
-
-        setIsLoading(false);
     };
 
     if (!patientData) {

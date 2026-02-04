@@ -3,37 +3,147 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { MockAuth, getPatientVisits, getPatientStats, type MockPatient, type MockVisit } from '@/lib/mock-patient-data';
+
+interface PatientData {
+    id: string;
+    firstName: string;
+    lastName: string;
+    phone: string;
+    email: string | null;
+}
+
+interface Visit {
+    date: string;
+    endDate: string;
+    doctor: {
+        id: string;
+        name: string;
+    };
+    cost: number;
+    paid: number;
+    balance: number;
+    paymentStatus: string;
+    medicalDetails?: {
+        visitDescription?: string;
+    };
+}
 
 export default function PatientDashboard() {
-    const [patient, setPatient] = useState<MockPatient | null>(null);
-    const [visits, setVisits] = useState<MockVisit[]>([]);
+    const [patient, setPatient] = useState<PatientData | null>(null);
+    const [visits, setVisits] = useState<Visit[]>([]);
     const [stats, setStats] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [isSyncing, setIsSyncing] = useState(false);
     const router = useRouter();
 
+    const getAuthToken = () => {
+        const cookies = document.cookie.split('; ');
+        const tokenCookie = cookies.find(c => c.startsWith('patient_token='));
+        return tokenCookie ? tokenCookie.split('=')[1] : null;
+    };
+
     useEffect(() => {
-        const currentPatient = MockAuth.getCurrentPatient();
+        const loadData = async () => {
+            const token = getAuthToken();
 
-        if (!currentPatient) {
-            router.push('/strefa-pacjenta/login');
-            return;
-        }
+            if (!token) {
+                router.push('/strefa-pacjenta/login');
+                return;
+            }
 
-        setPatient(currentPatient);
-        const patientVisits = getPatientVisits(currentPatient.id);
-        setVisits(patientVisits.slice(0, 5)); // Latest 5
-        setStats(getPatientStats(currentPatient.id));
-        setIsLoading(false);
+            try {
+                // Fetch patient details
+                const patientRes = await fetch('/api/patients/me', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                    },
+                });
+
+                if (!patientRes.ok) {
+                    throw new Error('Unauthorized');
+                }
+
+                const patientData = await patientRes.json();
+                setPatient(patientData);
+
+                // Fetch visit history
+                const visitsRes = await fetch('/api/patients/me/visits?limit=5', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                    },
+                });
+
+                if (visitsRes.ok) {
+                    const visitsData = await visitsRes.json();
+                    setVisits(visitsData.appointments || []);
+
+                    // Calculate stats from visits
+                    const total = visitsData.total || 0;
+                    const allVisits = visitsData.appointments || [];
+                    const totalCost = allVisits.reduce((sum: number, v: Visit) => sum + v.cost, 0);
+                    const totalPaid = allVisits.reduce((sum: number, v: Visit) => sum + v.paid, 0);
+                    const balance = totalCost - totalPaid;
+
+                    setStats({
+                        totalVisits: total,
+                        totalCost: totalCost.toFixed(2),
+                        totalPaid: totalPaid.toFixed(2),
+                        balance: balance.toFixed(2),
+                    });
+                }
+            } catch (err) {
+                console.error('Failed to load data:', err);
+                router.push('/strefa-pacjenta/login');
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        loadData();
     }, [router]);
 
     const handleLogout = () => {
-        MockAuth.logout();
+        document.cookie = 'patient_token=; path=/; max-age=0';
+        localStorage.removeItem('patient_data');
         router.push('/strefa-pacjenta/login');
     };
 
     const handleSyncHistory = async () => {
-        alert('🔄 Synchronizacja historii wizyt z systemu Prodentis...\n\n(W wersji produkcyjnej pobierze rzeczywistą historię z API)');
+        setIsSyncing(true);
+        const token = getAuthToken();
+
+        try {
+            const visitsRes = await fetch('/api/patients/me/visits?limit=50', {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                },
+            });
+
+            if (visitsRes.ok) {
+                const visitsData = await visitsRes.json();
+                setVisits(visitsData.appointments?.slice(0, 5) || []);
+
+                // Recalculate stats
+                const allVisits = visitsData.appointments || [];
+                const totalCost = allVisits.reduce((sum: number, v: Visit) => sum + v.cost, 0);
+                const totalPaid = allVisits.reduce((sum: number, v: Visit) => sum + v.paid, 0);
+                const balance = totalCost - totalPaid;
+
+                setStats({
+                    totalVisits: visitsData.total || 0,
+                    totalCost: totalCost.toFixed(2),
+                    totalPaid: totalPaid.toFixed(2),
+                    balance: balance.toFixed(2),
+                });
+
+                alert('✅ Historia wizyt została zaktualizowana!');
+            }
+        } catch (err) {
+            console.error('Sync failed:', err);
+            alert('❌ Nie udało się zsynchronizować historii');
+        } finally {
+            setIsSyncing(false);
+        }
     };
 
     if (isLoading || !patient) {
@@ -143,7 +253,7 @@ export default function PatientDashboard() {
                         { icon: '📋', label: 'Wizyty w systemie', value: stats?.totalVisits || 0, color: '#dcb14a' },
                         { icon: '💰', label: 'Całkowity koszt', value: `${stats?.totalCost || 0} PLN`, color: '#60a5fa' },
                         { icon: '✅', label: 'Zapłacono', value: `${stats?.totalPaid || 0} PLN`, color: '#22c55e' },
-                        { icon: '📊', label: 'Saldo', value: `${stats?.balance || 0} PLN`, color: stats?.balance > 0 ? '#f97316' : '#22c55e' },
+                        { icon: '📊', label: 'Saldo', value: `${stats?.balance || 0} PLN`, color: parseFloat(stats?.balance || 0) > 0 ? '#f97316' : '#22c55e' },
                     ].map((card, idx) => (
                         <div key={idx} style={{
                             background: 'rgba(255, 255, 255, 0.03)',
@@ -190,20 +300,22 @@ export default function PatientDashboard() {
                         </div>
                         <button
                             onClick={handleSyncHistory}
+                            disabled={isSyncing}
                             style={{
                                 padding: '0.875rem 1.75rem',
-                                background: 'linear-gradient(135deg, #dcb14a, #f0c96c)',
+                                background: isSyncing ? 'rgba(220, 177, 74, 0.5)' : 'linear-gradient(135deg, #dcb14a, #f0c96c)',
                                 border: 'none',
                                 borderRadius: '0.5rem',
                                 color: '#000',
                                 fontWeight: 'bold',
-                                cursor: 'pointer',
+                                cursor: isSyncing ? 'not-allowed' : 'pointer',
                                 transition: 'transform 0.2s',
+                                opacity: isSyncing ? 0.7 : 1,
                             }}
-                            onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+                            onMouseEnter={(e) => !isSyncing && (e.currentTarget.style.transform = 'translateY(-2px)')}
                             onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
                         >
-                            🔄 Synchronizuj
+                            {isSyncing ? '⏳ Synchronizacja...' : '🔄 Synchronizuj'}
                         </button>
                     </div>
                 </div>
@@ -238,8 +350,8 @@ export default function PatientDashboard() {
                         </p>
                     ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                            {visits.map(visit => (
-                                <div key={visit.id} style={{
+                            {visits.map((visit, idx) => (
+                                <div key={idx} style={{
                                     background: 'rgba(255, 255, 255, 0.02)',
                                     border: '1px solid rgba(255, 255, 255, 0.05)',
                                     borderRadius: '0.75rem',
@@ -260,13 +372,13 @@ export default function PatientDashboard() {
                                                 year: 'numeric',
                                                 month: 'long',
                                                 day: 'numeric'
-                                            })} • {visit.time}
+                                            })} • {new Date(visit.date).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}
                                         </div>
                                         <div style={{ color: '#fff', fontWeight: 'bold', marginBottom: '0.5rem' }}>
-                                            {visit.doctorName}
+                                            {visit.doctor.name}
                                         </div>
                                         <div style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: '0.9rem' }}>
-                                            {visit.description}
+                                            {visit.medicalDetails?.visitDescription || 'Wizyta'}
                                         </div>
                                     </div>
                                     <div style={{ textAlign: 'right' }}>
@@ -276,7 +388,7 @@ export default function PatientDashboard() {
                                             fontWeight: 'bold',
                                             marginBottom: '0.25rem',
                                         }}>
-                                            {visit.cost} PLN
+                                            {visit.cost.toFixed(2)} PLN
                                         </div>
                                         <div style={{
                                             display: 'inline-block',
@@ -287,7 +399,7 @@ export default function PatientDashboard() {
                                             color: visit.balance === 0 ? '#22c55e' : '#f97316',
                                             fontSize: '0.8rem',
                                         }}>
-                                            {visit.balance === 0 ? '✓ Opłacono' : `Do zapłaty: ${visit.balance} PLN`}
+                                            {visit.balance === 0 ? '✓ Opłacono' : `Do zapłaty: ${visit.balance.toFixed(2)} PLN`}
                                         </div>
                                     </div>
                                 </div>

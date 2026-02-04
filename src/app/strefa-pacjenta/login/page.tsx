@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { MockAuth } from '@/lib/mock-patient-data';
 
 export default function PatientLogin() {
     const [phone, setPhone] = useState('');
@@ -17,18 +16,34 @@ export default function PatientLogin() {
         setError('');
         setIsLoading(true);
 
-        // Simulate API call delay
-        await new Promise(resolve => setTimeout(resolve, 800));
+        try {
+            const response = await fetch('/api/patients/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ phone, password }),
+            });
 
-        const patient = MockAuth.login(phone, password);
+            const data = await response.json();
 
-        if (patient) {
-            router.push('/strefa-pacjenta/dashboard');
-        } else {
-            setError('Nieprawidłowy numer telefonu lub hasło');
+            if (response.ok && data.success && data.token) {
+                // Store JWT token in cookie
+                document.cookie = `patient_token=${data.token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Strict`;
+
+                // Store patient data in localStorage
+                localStorage.setItem('patient_data', JSON.stringify(data.patient));
+
+                router.push('/strefa-pacjenta/dashboard');
+            } else {
+                setError(data.error || 'Nieprawidłowy numer telefonu lub hasło');
+            }
+        } catch (err) {
+            console.error('Login error:', err);
+            setError('Nie udało się połączyć z serwerem. Spróbuj ponownie.');
+        } finally {
+            setIsLoading(false);
         }
-
-        setIsLoading(false);
     };
 
     return (
