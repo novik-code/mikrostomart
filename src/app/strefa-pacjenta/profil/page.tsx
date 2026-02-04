@@ -77,12 +77,42 @@ export default function PatientProfile() {
         setIsSaving(true);
         setMessage('');
 
-        // TODO: Implement email update endpoint
-        // For now, just update localStorage
-        setTimeout(() => {
+        try {
+            const token = getAuthToken();
+
+            if (!token) {
+                router.push('/strefa-pacjenta/login');
+                return;
+            }
+
+            const res = await fetch('/api/patients/me', {
+                method: 'PATCH',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email }),
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                setMessage('❌ ' + (data.error || 'Nie udało się zaktualizować emaila'));
+                return;
+            }
+
             setMessage('✅ Email został zaktualizowany!');
+
+            // Update patient data
+            if (patient) {
+                setPatient({ ...patient, email });
+            }
+        } catch (err) {
+            console.error('Failed to update email:', err);
+            setMessage('❌ Wystąpił błąd podczas zapisywania');
+        } finally {
             setIsSaving(false);
-        }, 500);
+        }
     };
 
     if (isLoading || !patient) {

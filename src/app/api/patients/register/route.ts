@@ -15,9 +15,18 @@ export async function POST(request: Request) {
         const { prodentisId, phone, password, email } = body;
 
         // Validation
-        if (!prodentisId || !phone || !password) {
+        if (!prodentisId || !phone || !password || !email) {
             return NextResponse.json(
-                { error: 'Brak wymaganych danych: prodentisId, phone, password' },
+                { error: 'Brak wymaganych danych: prodentisId, phone, password, email' },
+                { status: 400 }
+            );
+        }
+
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            return NextResponse.json(
+                { error: 'Nieprawidłowy format adresu email' },
                 { status: 400 }
             );
         }
