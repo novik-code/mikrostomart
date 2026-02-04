@@ -22,14 +22,17 @@ export default function ConfirmData() {
             return;
         }
 
-        const patient = JSON.parse(data) as MockPatient;
+        const patient = JSON.parse(data) as any;
         setPatientData(patient);
         setEmail(patient.email || '');
-        setStreet(patient.street || '');
-        setHouseNumber(patient.houseNumber || '');
-        setApartmentNumber(patient.apartmentNumber || '');
-        setCity(patient.city || '');
-        setZipCode(patient.zipCode || '');
+
+        // Handle address object from Prodentis API
+        const addr = patient.address || {};
+        setStreet(addr.street || '');
+        setHouseNumber(addr.houseNumber || '');
+        setApartmentNumber(addr.apartmentNumber || '');
+        setCity(addr.city || '');
+        setZipCode(addr.postalCode || '');
     }, [router]);
 
     const handleContinue = () => {
