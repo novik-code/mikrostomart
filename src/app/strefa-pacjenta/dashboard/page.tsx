@@ -34,6 +34,7 @@ export default function PatientDashboard() {
     const [stats, setStats] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isSyncing, setIsSyncing] = useState(false);
+    const [accountStatus, setAccountStatus] = useState<string | null>(null);
     const router = useRouter();
 
     const getAuthToken = () => {
@@ -65,6 +66,7 @@ export default function PatientDashboard() {
 
                 const patientData = await patientRes.json();
                 setPatient(patientData);
+                setAccountStatus(patientData.account_status || null);
 
                 // Fetch visit history
                 const visitsRes = await fetch('/api/patients/me/visits?limit=5', {
@@ -201,6 +203,106 @@ export default function PatientDashboard() {
                     Wyloguj
                 </button>
             </div>
+
+            {/* Pending Approval Banner */}
+            {accountStatus === 'pending_admin_approval' && (
+                <div style={{
+                    background: 'linear-gradient(135deg, rgba(220, 177, 74, 0.15), rgba(220, 177, 74, 0.05))',
+                    border: '2px solid rgba(220, 177, 74, 0.4)',
+                    borderLeft: '6px solid #dcb14a',
+                    padding: '1.5rem 2rem',
+                    margin: '0',
+                }}>
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'start',
+                        gap: '1rem',
+                    }}>
+                        <div style={{
+                            fontSize: '2rem',
+                            lineHeight: 1,
+                        }}>
+                            ⏳
+                        </div>
+                        <div style={{ flex: 1 }}>
+                            <h3 style={{
+                                color: '#dcb14a',
+                                fontSize: '1.2rem',
+                                marginBottom: '0.5rem',
+                                fontWeight: 'bold',
+                            }}>
+                                Konto w trakcie weryfikacji
+                            </h3>
+                            <p style={{
+                                color: 'rgba(255, 255, 255, 0.9)',
+                                fontSize: '1rem',
+                                lineHeight: '1.6',
+                                marginBottom: '0.75rem',
+                            }}>
+                                Twoje konto oczekuje na zatwierdzenie przez administratora.<br />
+                                Weryfikacja potrwa do <strong>48 godzin</strong>.
+                            </p>
+                            <p style={{
+                                color: 'rgba(255, 255, 255, 0.7)',
+                                fontSize: '0.9rem',
+                                lineHeight: '1.6',
+                            }}>
+                                Otrzymasz powiadomienie email po zatwierdzeniu konta.<br />
+                                W razie pytań: 📞 <strong>570 270 470</strong> lub 📧 <strong>kontakt@mikrostomart.pl</strong>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Rejected Account Banner */}
+            {accountStatus === 'rejected' && (
+                <div style={{
+                    background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(239, 68, 68, 0.05))',
+                    border: '2px solid rgba(239, 68, 68, 0.4)',
+                    borderLeft: '6px solid #ef4444',
+                    padding: '1.5rem 2rem',
+                    margin: '0',
+                }}>
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'start',
+                        gap: '1rem',
+                    }}>
+                        <div style={{
+                            fontSize: '2rem',
+                            lineHeight: 1,
+                        }}>
+                            ❌
+                        </div>
+                        <div style={{ flex: 1 }}>
+                            <h3 style={{
+                                color: '#ef4444',
+                                fontSize: '1.2rem',
+                                marginBottom: '0.5rem',
+                                fontWeight: 'bold',
+                            }}>
+                                Rejestracja odrzucona
+                            </h3>
+                            <p style={{
+                                color: 'rgba(255, 255, 255, 0.9)',
+                                fontSize: '1rem',
+                                lineHeight: '1.6',
+                                marginBottom: '0.75rem',
+                            }}>
+                                Niestety nie mogliśmy zatwierdzić Twojej rejestracji.
+                            </p>
+                            <p style={{
+                                color: 'rgba(255, 255, 255, 0.7)',
+                                fontSize: '0.9rem',
+                                lineHeight: '1.6',
+                            }}>
+                                Skontaktuj się z recepcją: 📞 <strong>570 270 470</strong>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Navigation */}
             <div style={{

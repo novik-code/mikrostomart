@@ -38,10 +38,10 @@ export async function GET(request: Request) {
 
         const patientData = await response.json();
 
-        // Fetch email and phone from Supabase (stored during registration)
+        // Fetch email, phone, and account_status from Supabase
         const { data: supabasePatient, error: supabaseError } = await supabase
             .from('patients')
-            .select('email, phone')
+            .select('email, phone, account_status')
             .eq('prodentis_id', payload.prodentisId)
             .single();
 
@@ -50,11 +50,12 @@ export async function GET(request: Request) {
             // Continue without email if Supabase fails (graceful degradation)
         }
 
-        // Merge Supabase data (email, phone) with Prodentis data
+        // Merge Supabase data (email, phone, account_status) with Prodentis data
         const mergedData = {
             ...patientData,
             email: supabasePatient?.email || patientData.email || null,
             phone: supabasePatient?.phone || patientData.phone || null,
+            account_status: supabasePatient?.account_status || null,
         };
 
         return NextResponse.json(mergedData);
