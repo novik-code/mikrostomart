@@ -16,7 +16,8 @@ import {
     LogOut,
     Settings,
     Menu,
-    X
+    X,
+    Users
 } from "lucide-react";
 
 type Product = {
@@ -54,13 +55,14 @@ export default function AdminPage() {
     const [products, setProducts] = useState<Product[]>([]);
     const [error, setError] = useState<string | null>(null);
 
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'questions' | 'articles' | 'news' | 'orders' | 'reservations' | 'blog'>('dashboard');
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'questions' | 'articles' | 'news' | 'orders' | 'reservations' | 'blog' | 'patients'>('dashboard');
     const [questions, setQuestions] = useState<any[]>([]);
     const [articles, setArticles] = useState<any[]>([]);
     const [blogPosts, setBlogPosts] = useState<any[]>([]); // New Blog Posts state
     const [generationStatus, setGenerationStatus] = useState<Record<string, string>>({});
     const [orders, setOrders] = useState<any[]>([]);
     const [reservations, setReservations] = useState<any[]>([]);
+    const [patients, setPatients] = useState<any[]>([]);
 
     const [manualGenerationStatus, setManualGenerationStatus] = useState<string | null>(null);
 
@@ -93,6 +95,7 @@ export default function AdminPage() {
                 fetchBlogPosts(); // Fetch blog posts
                 fetchOrders();
                 fetchReservations();
+                fetchPatients(); // Fetch patients
             }
         };
         checkUser();
@@ -399,6 +402,55 @@ export default function AdminPage() {
         await fetch(`/api/admin/reservations?id=${id}`, { method: "DELETE" });
         fetchReservations();
     };
+
+    // Patient Functions
+    const fetchPatients = async () => {
+        // Mock patients data (in production, fetch from Supabase)
+        const mockPatients = [
+            {
+                id: '1',
+                firstName: 'Anna',
+                lastName: 'Kowalska',
+                phone: '570270470',
+                email: 'anna.kowalska@example.com',
+                lastLogin: '2026-02-03T14:20:00Z',
+                lastSync: '2026-02-03T14:25:00Z',
+                createdAt: '2025-12-15T10:30:00Z',
+                visitsCount: 5
+            },
+            {
+                id: '2',
+                firstName: 'Jan',
+                lastName: 'Nowak',
+                phone: '570810800',
+                email: 'jan.nowak@example.com',
+                lastLogin: '2026-02-01T11:45:00Z',
+                lastSync: '2026-02-01T11:50:00Z',
+                createdAt: '2026-01-05T09:15:00Z',
+                visitsCount: 3
+            },
+            {
+                id: '3',
+                firstName: 'Maria',
+                lastName: 'Wiśniewska',
+                phone: '600123456',
+                email: 'maria.wisniewska@example.com',
+                lastLogin: '2026-01-28T09:30:00Z',
+                lastSync: '2026-01-28T09:35:00Z',
+                createdAt: '2025-11-20T16:00:00Z',
+                visitsCount: 8
+            }
+        ];
+        setPatients(mockPatients);
+    };
+
+    const handleDeletePatient = (id: string) => {
+        if (confirm('Czy na pewno chcesz usunąć konto tego pacjenta?')) {
+            setPatients(patients.filter((p) => p.id !== id));
+            alert('Konto pacjenta zostało usunięte');
+        }
+    };
+
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -755,6 +807,72 @@ export default function AdminPage() {
         </>
     );
 
+    const renderPatientsTab = () => (
+        <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+            <h2>Pacjenci Strefy Pacjenta</h2>
+            {patients.length === 0 ? <p>Brak zarejestrowanych pacjentów.</p> : (
+                <div style={{ overflowX: "auto" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                        <thead>
+                            <tr style={{ borderBottom: "2px solid var(--color-border)" }}>
+                                <th style={{ padding: "1rem", textAlign: "left" }}>Imię i Nazwisko</th>
+                                <th style={{ padding: "1rem", textAlign: "left" }}>Telefon</th>
+                                <th style={{ padding: "1rem", textAlign: "left" }}>Email</th>
+                                <th style={{ padding: "1rem", textAlign: "left" }}>Ostatnie logowanie</th>
+                                <th style={{ padding: "1rem", textAlign: "left" }}>Liczba wizyt</th>
+                                <th style={{ padding: "1rem", textAlign: "left" }}>Data rejestracji</th>
+                                <th style={{ padding: "1rem", textAlign: "left" }}>Akcje</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {patients.map((patient) => (
+                                <tr key={patient.id} style={{ borderBottom: "1px solid var(--color-border)" }}>
+                                    <td style={{ padding: "1rem" }}>
+                                        <strong>{patient.firstName} {patient.lastName}</strong>
+                                    </td>
+                                    <td style={{ padding: "1rem" }}>{patient.phone}</td>
+                                    <td style={{ padding: "1rem" }}>{patient.email}</td>
+                                    <td style={{ padding: "1rem" }}>
+                                        {new Date(patient.lastLogin).toLocaleString('pl-PL')}
+                                    </td>
+                                    <td style={{ padding: "1rem", textAlign: "center" }}>
+                                        <span style={{
+                                            background: "var(--color-primary)",
+                                            color: "#000",
+                                            padding: "0.25rem 0.75rem",
+                                            borderRadius: "99px",
+                                            fontWeight: "bold"
+                                        }}>
+                                            {patient.visitsCount}
+                                        </span>
+                                    </td>
+                                    <td style={{ padding: "1rem" }}>
+                                        {new Date(patient.createdAt).toLocaleDateString('pl-PL')}
+                                    </td>
+                                    <td style={{ padding: "1rem" }}>
+                                        <button
+                                            onClick={() => handleDeletePatient(patient.id)}
+                                            style={{
+                                                padding: "0.5rem 1rem",
+                                                background: "var(--color-danger)",
+                                                border: "none",
+                                                borderRadius: "4px",
+                                                color: "white",
+                                                cursor: "pointer"
+                                            }}
+                                        >
+                                            Usuń
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+        </div>
+    );
+
     const NavItem = ({ id, label, icon: Icon }: any) => (
         <button
             onClick={() => setActiveTab(id)}
@@ -850,6 +968,7 @@ export default function AdminPage() {
                 <nav style={{ display: "flex", flexDirection: "column", gap: "0.5rem", flex: 1 }}>
                     <NavItem id="dashboard" label="Pulpit" icon={LayoutDashboard} />
                     <NavItem id="reservations" label="Rezerwacje" icon={Calendar} />
+                    <NavItem id="patients" label="Pacjenci" icon={Users} />
                     <NavItem id="orders" label="Zamówienia" icon={ShoppingBag} />
                     <NavItem id="products" label="Produkty (Sklep)" icon={Package} />
 
@@ -900,6 +1019,7 @@ export default function AdminPage() {
                         <h1 style={{ fontSize: "1.8rem" }}>
                             {activeTab === 'dashboard' && 'Pulpit'}
                             {activeTab === 'reservations' && 'Rezerwacje Wizyt'}
+                            {activeTab === 'patients' && 'Pacjenci Strefy Pacjenta'}
                             {activeTab === 'orders' && 'Zamówienia Sklepu'}
                             {activeTab === 'products' && 'Zarządzanie Produktami'}
                             {activeTab === 'news' && 'Aktualności'}
@@ -1128,6 +1248,7 @@ export default function AdminPage() {
                     {activeTab === 'articles' && renderArticlesTab()}
                     {activeTab === 'blog' && renderBlogTab()}
                     {activeTab === 'orders' && renderOrdersTab()}
+                    {activeTab === 'patients' && renderPatientsTab()}
                 </div>
             </main>
         </div>
