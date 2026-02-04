@@ -58,6 +58,7 @@ export async function POST(request: NextRequest) {
             .from('password_reset_tokens')
             .insert({
                 prodentis_id: patient.prodentis_id,
+                phone: phone.replace(/\s/g, ''),  // Normalized phone
                 token,
                 expires_at: expiresAt.toISOString(),
                 used: false
