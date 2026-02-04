@@ -80,8 +80,8 @@ export default function PatientDashboard() {
                     // Calculate stats from visits
                     const total = visitsData.total || 0;
                     const allVisits = visitsData.appointments || [];
-                    const totalCost = allVisits.reduce((sum: number, v: Visit) => sum + v.cost, 0);
-                    const totalPaid = allVisits.reduce((sum: number, v: Visit) => sum + v.paid, 0);
+                    const totalCost = allVisits.reduce((sum: number, v: Visit) => sum + (v.cost || 0), 0);
+                    const totalPaid = allVisits.reduce((sum: number, v: Visit) => sum + (v.paid || 0), 0);
                     const balance = totalCost - totalPaid;
 
                     setStats({
@@ -125,8 +125,8 @@ export default function PatientDashboard() {
 
                 // Recalculate stats
                 const allVisits = visitsData.appointments || [];
-                const totalCost = allVisits.reduce((sum: number, v: Visit) => sum + v.cost, 0);
-                const totalPaid = allVisits.reduce((sum: number, v: Visit) => sum + v.paid, 0);
+                const totalCost = allVisits.reduce((sum: number, v: Visit) => sum + (v.cost || 0), 0);
+                const totalPaid = allVisits.reduce((sum: number, v: Visit) => sum + (v.paid || 0), 0);
                 const balance = totalCost - totalPaid;
 
                 setStats({
@@ -388,7 +388,7 @@ export default function PatientDashboard() {
                                             fontWeight: 'bold',
                                             marginBottom: '0.25rem',
                                         }}>
-                                            {visit.cost.toFixed(2)} PLN
+                                            {visit.cost ? visit.cost.toFixed(2) : '0.00'} PLN
                                         </div>
                                         <div style={{
                                             display: 'inline-block',

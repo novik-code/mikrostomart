@@ -286,7 +286,7 @@ export default function VisitHistory() {
                                     </div>
                                     <div style={{ textAlign: 'right' }}>
                                         <div style={{ color: '#fff', fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>
-                                            {visit.cost.toFixed(2)} PLN
+                                            {visit.cost ? visit.cost.toFixed(2) : '0.00'} PLN
                                         </div>
                                         <div style={{
                                             display: 'inline-block',
@@ -298,7 +298,7 @@ export default function VisitHistory() {
                                             fontSize: '0.85rem',
                                             fontWeight: 'bold',
                                         }}>
-                                            {visit.balance === 0 ? '✓ Opłacono' : `Do zapłaty: ${visit.balance.toFixed(2)} PLN`}
+                                            {visit.balance === 0 ? '✓ Opłacono' : `Do zapłaty: ${(visit.balance || 0).toFixed(2)} PLN`}
                                         </div>
                                     </div>
                                 </div>
@@ -358,7 +358,7 @@ export default function VisitHistory() {
                                                             )}
                                                         </div>
                                                         <div style={{ color: '#dcb14a', fontWeight: 'bold' }}>
-                                                            {proc.price.toFixed(2)} PLN
+                                                            {(proc.price || 0).toFixed(2)} PLN
                                                         </div>
                                                     </div>
                                                 ))}
