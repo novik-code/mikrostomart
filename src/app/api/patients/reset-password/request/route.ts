@@ -22,15 +22,18 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Find patient by phone
+        // Find patient by phone (only select fields that exist in Supabase)
         const { data: patient, error: patientError } = await supabase
             .from('patients')
-            .select('prodentis_id, email, first_name, last_name')
+            .select('prodentis_id, email')
             .eq('phone', phone.replace(/\s/g, ''))
             .single();
 
+        console.log('[Password Reset] Patient lookup result:', { patient, patientError });
+
         // Always return success to prevent enumeration attacks
         if (patientError || !patient) {
+            console.log('[Password Reset] Patient not found, returning generic success');
             return NextResponse.json({
                 success: true,
                 message: 'Jeśli konto istnieje, wysłaliśmy link resetujący na podany email.'
