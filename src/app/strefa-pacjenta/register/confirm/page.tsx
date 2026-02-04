@@ -13,6 +13,9 @@ export default function ConfirmData() {
     const [apartmentNumber, setApartmentNumber] = useState('');
     const [city, setCity] = useState('');
     const [zipCode, setZipCode] = useState('');
+    const [showEmailMismatchModal, setShowEmailMismatchModal] = useState(false);
+    const [emailConfirmed, setEmailConfirmed] = useState(false);
+    const [prodentisEmail, setProdentisEmail] = useState<string | null>(null);
     const router = useRouter();
 
     useEffect(() => {
@@ -25,6 +28,9 @@ export default function ConfirmData() {
         const patient = JSON.parse(data) as any;
         setPatientData(patient);
         setEmail(patient.email || '');
+
+        // Store Prodentis email for comparison
+        setProdentisEmail(patient.email || null);
 
         // Handle address object from Prodentis API
         const addr = patient.address || {};
@@ -51,6 +57,19 @@ export default function ConfirmData() {
             return;
         }
 
+        // Check for email mismatch with Prodentis
+        const normalizedUserEmail = email.trim().toLowerCase();
+        const normalizedProdentisEmail = prodentisEmail?.trim().toLowerCase();
+
+        if (normalizedProdentisEmail && normalizedUserEmail !== normalizedProdentisEmail) {
+            // Email mismatch detected
+            if (!emailConfirmed) {
+                setShowEmailMismatchModal(true);
+                return;
+            }
+        }
+
+        // Proceed with registration
         const updatedData = {
             ...patientData,
             email,
@@ -397,6 +416,145 @@ export default function ConfirmData() {
                     </div>
                 </div>
             </div>
+
+            {/* Email Mismatch Warning Modal */}
+            {showEmailMismatchModal && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: 'rgba(0, 0, 0, 0.8)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 1000,
+                    padding: '1rem',
+                }}>
+                    <div style={{
+                        background: 'rgba(26, 26, 26, 0.98)',
+                        border: '2px solid rgba(220, 177, 74, 0.3)',
+                        borderRadius: '1rem',
+                        padding: '2rem',
+                        maxWidth: '500px',
+                        width: '100%',
+                        boxShadow: '0 20px 60px rgba(220, 177, 74, 0.2)',
+                    }}>
+                        <div style={{
+                            fontSize: '3rem',
+                            textAlign: 'center',
+                            marginBottom: '1rem',
+                        }}>
+                            ⚠️
+                        </div>
+                        <h3 style={{
+                            color: '#dcb14a',
+                            fontSize: '1.5rem',
+                            marginBottom: '1rem',
+                            textAlign: 'center',
+                        }}>
+                            Niezgodność adresu email
+                        </h3>
+                        <p style={{
+                            color: 'rgba(255, 255, 255, 0.9)',
+                            marginBottom: '1.5rem',
+                            lineHeight: '1.6',
+                        }}>
+                            Email w naszej bazie danych to:<br />
+                            <strong style={{ color: '#dcb14a' }}>{prodentisEmail}</strong>
+                        </p>
+                        <p style={{
+                            color: 'rgba(255, 255, 255, 0.9)',
+                            marginBottom: '1.5rem',
+                            lineHeight: '1.6',
+                        }}>
+                            Ty podałeś:<br />
+                            <strong style={{ color: '#dcb14a' }}>{email}</strong>
+                        </p>
+                        <p style={{
+                            color: 'rgba(255, 255, 255, 0.7)',
+                            marginBottom: '1.5rem',
+                            fontSize: '0.9rem',
+                        }}>
+                            Czy jesteś pewien, że chcesz użyć tego adresu email?
+                        </p>
+
+                        <label style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.75rem',
+                            padding: '1rem',
+                            background: 'rgba(255, 255, 255, 0.05)',
+                            borderRadius: '0.5rem',
+                            marginBottom: '1.5rem',
+                            cursor: 'pointer',
+                        }}>
+                            <input
+                                type="checkbox"
+                                checked={emailConfirmed}
+                                onChange={(e) => setEmailConfirmed(e.target.checked)}
+                                style={{
+                                    width: '20px',
+                                    height: '20px',
+                                    cursor: 'pointer',
+                                }}
+                            />
+                            <span style={{
+                                color: '#fff',
+                                fontSize: '0.95rem',
+                            }}>
+                                Potwierdzam prawidłowość podanego adresu email
+                            </span>
+                        </label>
+
+                        <div style={{ display: 'flex', gap: '1rem' }}>
+                            <button
+                                onClick={() => {
+                                    setShowEmailMismatchModal(false);
+                                    setEmailConfirmed(false);
+                                }}
+                                style={{
+                                    flex: 1,
+                                    padding: '0.875rem',
+                                    background: 'rgba(255, 255, 255, 0.1)',
+                                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                                    borderRadius: '0.5rem',
+                                    color: '#fff',
+                                    fontWeight: 'bold',
+                                    cursor: 'pointer',
+                                }}
+                            >
+                                Anuluj
+                            </button>
+                            <button
+                                onClick={() => {
+                                    if (emailConfirmed) {
+                                        setShowEmailMismatchModal(false);
+                                        handleContinue();
+                                    }
+                                }}
+                                disabled={!emailConfirmed}
+                                style={{
+                                    flex: 1,
+                                    padding: '0.875rem',
+                                    background: emailConfirmed
+                                        ? 'linear-gradient(135deg, #dcb14a, #f0c96c)'
+                                        : 'rgba(255, 255, 255, 0.1)',
+                                    border: 'none',
+                                    borderRadius: '0.5rem',
+                                    color: emailConfirmed ? '#000' : 'rgba(255, 255, 255, 0.3)',
+                                    fontWeight: 'bold',
+                                    cursor: emailConfirmed ? 'pointer' : 'not-allowed',
+                                    opacity: emailConfirmed ? 1 : 0.5,
+                                }}
+                            >
+                                Kontynuuj
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
