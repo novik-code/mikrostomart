@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import AppointmentActionsDropdown from '@/components/AppointmentActionsDropdown';
+import type { AppointmentStatusResponse } from '@/types/appointmentActions';
 
 interface PatientData {
     id: string;
@@ -48,6 +50,8 @@ export default function PatientDashboard() {
     const [nextAppointment, setNextAppointment] = useState<NextAppointment | null>(null);
     const [hasNextAppointment, setHasNextAppointment] = useState(false);
     const [isLoadingAppointment, setIsLoadingAppointment] = useState(true);
+    const [appointmentActionId, setAppointmentActionId] = useState<string | null>(null);
+    const [appointmentStatus, setAppointmentStatus] = useState<AppointmentStatusResponse | null>(null);
     const router = useRouter();
 
     const getAuthToken = () => {
@@ -117,7 +121,7 @@ export default function PatientDashboard() {
         loadData();
     }, [router]);
 
-    // Fetch next appointment from Prodentis API
+    // Fetch next appointment from Prodentis API + create/fetch appointment action
     useEffect(() => {
         const loadNextAppointment = async () => {
             if (!patient) return; // Wait for patient data first
@@ -139,6 +143,9 @@ export default function PatientDashboard() {
                 setHasNextAppointment(data.hasNextAppointment);
                 if (data.hasNextAppointment && data.nextAppointment) {
                     setNextAppointment(data.nextAppointment);
+
+                    // Create/fetch appointment action record
+                    await createOrFetchAppointmentAction(data.nextAppointment);
                 }
             } catch (error) {
                 console.error('Error loading next appointment:', error);
@@ -150,6 +157,82 @@ export default function PatientDashboard() {
 
         loadNextAppointment();
     }, [patient]); // Run when patient data is loaded
+
+    // Create or fetch appointment action record
+    const createOrFetchAppointmentAction = async (appointment: NextAppointment) => {
+        if (!patient) return;
+
+        try {
+            const token = getAuthToken();
+
+            // Try to create appointment action (will fail if exists due to unique constraint)
+            const createResponse = await fetch(`/api/patients/appointments/create`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    prodentis_id: patient.id,
+                    appointment_date: appointment.date,
+                    appointment_end_date: appointment.endDate,
+                    doctor_id: appointment.doctor.id,
+                    doctor_name: appointment.doctor.name.replace(/\s*\(I\)\s*/g, ' ').trim()
+                })
+            });
+
+            let actionId: string;
+
+            if (createResponse.ok) {
+                const createData = await createResponse.json();
+                actionId = createData.id;
+            } else {
+                // Record already exists, fetch it
+                const fetchResponse = await fetch(
+                    `/api/patients/appointments/by-date?date=${encodeURIComponent(appointment.date)}`,
+                    {
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    }
+                );
+
+                if (!fetchResponse.ok) {
+                    console.error('Failed to fetch appointment action');
+                    return;
+                }
+
+                const fetchData = await fetchResponse.json();
+                actionId = fetchData.id;
+            }
+
+            setAppointmentActionId(actionId);
+
+            // Fetch appointment status
+            await loadAppointmentStatus(actionId);
+        } catch (error) {
+            console.error('Error with appointment action:', error);
+        }
+    };
+
+    // Load appointment status
+    const loadAppointmentStatus = async (actionId: string) => {
+        try {
+            const token = getAuthToken();
+            const response = await fetch(`/api/patients/appointments/${actionId}/status`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (response.ok) {
+                const statusData = await response.json();
+                setAppointmentStatus(statusData);
+            }
+        } catch (error) {
+            console.error('Error loading appointment status:', error);
+        }
+    };
 
 
     const handleLogout = () => {
@@ -656,55 +739,27 @@ export default function PatientDashboard() {
                                             </div>
                                         </div>
 
-                                        {/* Actions */}
-                                        <div style={{
-                                            display: 'flex',
-                                            gap: '1rem',
-                                            flexWrap: 'wrap',
-                                        }}>
-                                            <a
-                                                href="tel:570270470"
-                                                style={{
-                                                    flex: 1,
-                                                    minWidth: '200px',
-                                                    padding: '0.875rem 1.5rem',
-                                                    background: 'rgba(59, 130, 246, 0.2)',
-                                                    border: '1px solid rgba(59, 130, 246, 0.4)',
-                                                    borderRadius: '0.5rem',
-                                                    color: '#60a5fa',
-                                                    fontSize: '0.95rem',
-                                                    fontWeight: '600',
-                                                    textDecoration: 'none',
-                                                    textAlign: 'center',
-                                                    transition: 'all 0.2s',
-                                                }}
-                                                onMouseEnter={(e) => {
-                                                    e.currentTarget.style.background = 'rgba(59, 130, 246, 0.3)';
-                                                    e.currentTarget.style.transform = 'translateY(-2px)';
-                                                }}
-                                                onMouseLeave={(e) => {
-                                                    e.currentTarget.style.background = 'rgba(59, 130, 246, 0.2)';
-                                                    e.currentTarget.style.transform = 'translateY(0)';
-                                                }}
-                                            >
-                                                📞 Kontakt: 570 270 470
-                                            </a>
-
-                                            <div style={{
-                                                flex: 1,
-                                                minWidth: '200px',
-                                                padding: '0.875rem 1.5rem',
-                                                background: 'rgba(34, 197, 94, 0.2)',
-                                                border: '1px solid rgba(34, 197, 94, 0.4)',
-                                                borderRadius: '0.5rem',
-                                                color: '#22c55e',
-                                                fontSize: '0.95rem',
-                                                fontWeight: '600',
-                                                textAlign: 'center',
-                                            }}>
-                                                ✅ Wizyta potwierdzona
+                                        {/* Appointment Actions Dropdown */}
+                                        {appointmentActionId && appointmentStatus && (
+                                            <div style={{ marginTop: '1.5rem' }}>
+                                                <AppointmentActionsDropdown
+                                                    appointmentId={appointmentActionId}
+                                                    appointmentDate={nextAppointment.date}
+                                                    appointmentEndDate={nextAppointment.endDate}
+                                                    currentStatus={appointmentStatus.status}
+                                                    depositPaid={appointmentStatus.depositPaid}
+                                                    attendanceConfirmed={appointmentStatus.attendanceConfirmed}
+                                                    hoursUntilAppointment={appointmentStatus.hoursUntilAppointment}
+                                                    doctorName={nextAppointment.doctor.name.replace(/\s*\(I\)\s*/g, ' ').trim()}
+                                                    onStatusChange={() => {
+                                                        // Reload appointment status
+                                                        if (appointmentActionId) {
+                                                            loadAppointmentStatus(appointmentActionId);
+                                                        }
+                                                    }}
+                                                />
                                             </div>
-                                        </div>
+                                        )}
 
                                         {/* Info note */}
                                         <div style={{
