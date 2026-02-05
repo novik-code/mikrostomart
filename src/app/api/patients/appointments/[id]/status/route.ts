@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { verifyToken } from '@/lib/jwt';
 import type { AppointmentAction, AppointmentStatusResponse } from '@/types/appointmentActions';
 
 const supabase = createClient(
@@ -14,31 +15,22 @@ export async function GET(
     try {
         const { id: appointmentId } = await params;
 
-        // Get JWT token from Authorization header
-        const authHeader = request.headers.get('authorization');
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        // Verify JWT
+        const authHeader = request.headers.get('Authorization');
+        const payload = verifyToken(authHeader);
+
+        if (!payload) {
             return NextResponse.json(
-                { error: 'Unauthorized - No token provided' },
+                { error: 'Unauthorized' },
                 { status: 401 }
             );
         }
 
-        const token = authHeader.substring(7);
-
-        // Verify JWT and get patient data
-        const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-        if (authError || !user) {
-            return NextResponse.json(
-                { error: 'Unauthorized - Invalid token' },
-                { status: 401 }
-            );
-        }
-
-        // Get patient record
+        // Get patient record using prodentisId from token
         const { data: patient, error: patientError } = await supabase
             .from('patients')
             .select('id, prodentis_id')
-            .eq('id', user.id)
+            .eq('prodentis_id', payload.prodentisId)
             .single();
 
         if (patientError || !patient) {
