@@ -125,9 +125,10 @@ export default function AppointmentActionsDropdown({
     const handlePayDeposit = () => {
         setIsOpen(false);
         const params = new URLSearchParams({ appointmentId });
-        if (patientName) params.append('name', patientName);
-        if (patientEmail) params.append('email', patientEmail);
-        if (patientPhone) params.append('phone', patientPhone);
+        if (patientName && patientName.trim()) params.append('name', patientName);
+        if (patientEmail && patientEmail.trim()) params.append('email', patientEmail);
+        if (patientPhone && patientPhone.trim()) params.append('phone', patientPhone);
+        console.log('[handlePayDeposit] Params:', params.toString(), { patientName, patientEmail, patientPhone });
         router.push(`/zadatek?${params.toString()}`);
     };
 
