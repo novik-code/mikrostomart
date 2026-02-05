@@ -623,7 +623,7 @@ export default function PatientDashboard() {
                                                     fontWeight: 'bold',
                                                     marginBottom: '0.25rem',
                                                 }}>
-                                                    {nextAppointment.doctor.name}
+                                                    {nextAppointment.doctor.name.replace(/\s*\(I\)\s*/g, '')}
                                                 </div>
                                                 <div style={{
                                                     color: '#dcb14a',
