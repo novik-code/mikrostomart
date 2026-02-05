@@ -12,6 +12,13 @@ interface PatientData {
     lastName: string;
     phone: string;
     email: string | null;
+    address?: {
+        street?: string;
+        houseNumber?: string;
+        apartmentNumber?: string;
+        postalCode?: string;
+        city?: string;
+    };
 }
 
 interface Visit {
@@ -755,6 +762,11 @@ export default function PatientDashboard() {
                                                     patientName={patient ? `${patient.firstName} ${patient.lastName}` : ''}
                                                     patientEmail={patient?.email || ''}
                                                     patientPhone={patient?.phone || ''}
+                                                    patientCity={patient?.address?.city || ''}
+                                                    patientZipCode={patient?.address?.postalCode || ''}
+                                                    patientStreet={patient?.address?.street || ''}
+                                                    patientHouseNumber={patient?.address?.houseNumber || ''}
+                                                    patientApartmentNumber={patient?.address?.apartmentNumber || ''}
                                                     onStatusChange={() => {
                                                         // Reload appointment status
                                                         if (appointmentActionId) {

@@ -21,6 +21,11 @@ interface AppointmentActionsDropdownProps {
     patientName?: string;
     patientEmail?: string;
     patientPhone?: string;
+    patientCity?: string;
+    patientZipCode?: string;
+    patientStreet?: string;
+    patientHouseNumber?: string;
+    patientApartmentNumber?: string;
 }
 
 export default function AppointmentActionsDropdown({
@@ -36,7 +41,12 @@ export default function AppointmentActionsDropdown({
     onStatusChange,
     patientName,
     patientEmail,
-    patientPhone
+    patientPhone,
+    patientCity,
+    patientZipCode,
+    patientStreet,
+    patientHouseNumber,
+    patientApartmentNumber
 }: AppointmentActionsDropdownProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -128,7 +138,15 @@ export default function AppointmentActionsDropdown({
         if (patientName && patientName.trim()) params.append('name', patientName);
         if (patientEmail && patientEmail.trim()) params.append('email', patientEmail);
         if (patientPhone && patientPhone.trim()) params.append('phone', patientPhone);
-        console.log('[handlePayDeposit] Params:', params.toString(), { patientName, patientEmail, patientPhone });
+        if (patientCity && patientCity.trim()) params.append('city', patientCity);
+        if (patientZipCode && patientZipCode.trim()) params.append('zipCode', patientZipCode);
+        if (patientStreet && patientStreet.trim()) params.append('street', patientStreet);
+        if (patientHouseNumber && patientHouseNumber.trim()) params.append('houseNumber', patientHouseNumber);
+        if (patientApartmentNumber && patientApartmentNumber.trim()) params.append('apartmentNumber', patientApartmentNumber);
+        console.log('[handlePayDeposit] Params:', params.toString(), {
+            patientName, patientEmail, patientPhone,
+            patientCity, patientZipCode, patientStreet, patientHouseNumber, patientApartmentNumber
+        });
         router.push(`/zadatek?${params.toString()}`);
     };
 

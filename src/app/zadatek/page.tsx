@@ -7,7 +7,16 @@ import ProductModal, { Product } from "@/components/ProductModal";
 function DepositPageContent() {
     const [product, setProduct] = useState<Product | null>(null);
     const [error, setError] = useState(false);
-    const [patientData, setPatientData] = useState<{ name?: string; email?: string; phone?: string }>({});
+    const [patientData, setPatientData] = useState<{
+        name?: string;
+        email?: string;
+        phone?: string;
+        city?: string;
+        zipCode?: string;
+        street?: string;
+        houseNumber?: string;
+        apartmentNumber?: string;
+    }>({});
     const router = useRouter();
     const searchParams = useSearchParams();
 
@@ -16,7 +25,12 @@ function DepositPageContent() {
         const name = searchParams.get('name') || '';
         const email = searchParams.get('email') || '';
         const phone = searchParams.get('phone') || '';
-        setPatientData({ name, email, phone });
+        const city = searchParams.get('city') || '';
+        const zipCode = searchParams.get('zipCode') || '';
+        const street = searchParams.get('street') || '';
+        const houseNumber = searchParams.get('houseNumber') || '';
+        const apartmentNumber = searchParams.get('apartmentNumber') || '';
+        setPatientData({ name, email, phone, city, zipCode, street, houseNumber, apartmentNumber });
 
         // Fetch the deposit product
         const fetchDepositProduct = async () => {

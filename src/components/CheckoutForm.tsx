@@ -16,6 +16,11 @@ interface CheckoutFormProps {
         name?: string;
         email?: string;
         phone?: string;
+        city?: string;
+        zipCode?: string;
+        street?: string;
+        houseNumber?: string;
+        apartmentNumber?: string;
     };
 }
 
@@ -28,11 +33,11 @@ export default function CheckoutForm({ onSuccess, initialValues }: CheckoutFormP
         name: initialValues?.name || '',
         email: initialValues?.email || '',
         phone: initialValues?.phone || '',
-        city: '',
-        zipCode: '',
-        street: '',
-        houseNumber: '',
-        apartmentNumber: ''
+        city: initialValues?.city || '',
+        zipCode: initialValues?.zipCode || '',
+        street: initialValues?.street || '',
+        houseNumber: initialValues?.houseNumber || '',
+        apartmentNumber: initialValues?.apartmentNumber || ''
     });
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
