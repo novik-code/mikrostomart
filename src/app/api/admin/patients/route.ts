@@ -55,6 +55,9 @@ export async function GET(request: Request) {
                             email: patient.email || details.email,
                             lastLogin: patient.last_login,
                             createdAt: patient.created_at,
+                            accountStatus: patient.account_status,
+                            emailVerified: patient.email_verified,
+                            visitsCount: 0, // TODO: Get from Prodentis if needed
                         };
                     }
                 } catch (err) {
@@ -71,6 +74,9 @@ export async function GET(request: Request) {
                     email: patient.email,
                     lastLogin: patient.last_login,
                     createdAt: patient.created_at,
+                    accountStatus: patient.account_status,
+                    emailVerified: patient.email_verified,
+                    visitsCount: 0,
                 };
             })
         );
