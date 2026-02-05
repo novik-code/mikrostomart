@@ -752,7 +752,7 @@ export default function PatientDashboard() {
                                                     hoursUntilAppointment={appointmentStatus.hoursUntilAppointment}
                                                     doctorName={nextAppointment.doctor.name.replace(/\s*\(I\)\s*/g, ' ').trim()}
                                                     authToken={getAuthToken() || ''}
-                                                    patientName={patient?.contact_person || ''}
+                                                    patientName={patient ? `${patient.firstName} ${patient.lastName}` : ''}
                                                     patientEmail={patient?.email || ''}
                                                     patientPhone={patient?.phone || ''}
                                                     onStatusChange={() => {
