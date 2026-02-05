@@ -5,10 +5,10 @@ const PRODENTIS_API_URL = process.env.PRODENTIS_API_URL || 'http://localhost:300
 
 export async function GET(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const prodentisId = params.id;
+        const { id: prodentisId } = await params;
 
         // Call Prodentis API
         const response = await fetch(
