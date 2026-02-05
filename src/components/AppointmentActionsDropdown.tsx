@@ -381,6 +381,12 @@ export default function AppointmentActionsDropdown({
                         throw new Error(error.error || 'Nie udało się potwierdzić obecności');
                     }
 
+                    const data = await response.json();
+                    console.log('[Confirm Attendance] Response:', data);
+                    if (!data.emailSent) {
+                        console.warn('[Confirm Attendance] Email was NOT sent!');
+                    }
+
                     onStatusChange();
                 }}
                 appointmentDate={new Date(appointmentDate).toLocaleDateString('pl-PL', {
@@ -413,6 +419,12 @@ export default function AppointmentActionsDropdown({
                     if (!response.ok) {
                         const error = await response.json();
                         throw new Error(error.error || 'Nie udało się odwołać wizyty');
+                    }
+
+                    const data = await response.json();
+                    console.log('[Cancel] Response:', data);
+                    if (!data.emailSent) {
+                        console.warn('[Cancel] Email was NOT sent!');
                     }
 
                     onStatusChange();
@@ -448,6 +460,10 @@ export default function AppointmentActionsDropdown({
                     }
 
                     const result = await response.json();
+                    console.log('[Reschedule] Response:', result);
+                    if (!result.emailSent) {
+                        console.warn('[Reschedule] Email was NOT sent!');
+                    }
                     onStatusChange();
                     return result;
                 }}
