@@ -423,7 +423,7 @@ export default function PatientDashboard() {
                         </div>
                     </div>
 
-                    {/* Recent Visits */}
+                    {/* Next Appointment */}
                     <div style={{
                         background: 'rgba(255, 255, 255, 0.03)',
                         backdropFilter: 'blur(10px)',
@@ -431,84 +431,275 @@ export default function PatientDashboard() {
                         borderRadius: '1rem',
                         padding: '2rem',
                     }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                            <h2 style={{ color: '#fff', fontSize: '1.5rem', fontWeight: 'bold' }}>
-                                Ostatnie wizyty
+                        <div style={{ marginBottom: '1.5rem' }}>
+                            <h2 style={{ color: '#fff', fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>
+                                📅 Następna wizyta
                             </h2>
-                            <Link
-                                href="/strefa-pacjenta/historia"
-                                style={{
-                                    color: '#dcb14a',
-                                    textDecoration: 'none',
-                                    fontSize: '0.9rem',
-                                }}
-                            >
-                                Zobacz wszystkie →
-                            </Link>
+                            <p style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '0.9rem' }}>
+                                Twoja nadchodząca wizyta w naszym gabinecie
+                            </p>
                         </div>
 
-                        {visits.length === 0 ? (
-                            <p style={{ color: 'rgba(255, 255, 255, 0.5)', textAlign: 'center', padding: '2rem' }}>
-                                Brak wizyt w historii
-                            </p>
-                        ) : (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                                {visits.map((visit, idx) => (
-                                    <div key={idx} style={{
+                        {/* Mock appointment - will be replaced with API data later */}
+                        {(() => {
+                            // TODO: Replace with real API call
+                            const hasAppointment = true; // Mock: Set to false to test no appointment state
+
+                            if (!hasAppointment) {
+                                return (
+                                    <div style={{
+                                        textAlign: 'center',
+                                        padding: '3rem 2rem',
                                         background: 'rgba(255, 255, 255, 0.02)',
-                                        border: '1px solid rgba(255, 255, 255, 0.05)',
                                         borderRadius: '0.75rem',
-                                        padding: '1.25rem',
-                                        display: 'flex',
-                                        justifyContent: 'space-between',
-                                        alignItems: 'flex-start',
-                                        gap: '1rem',
-                                        flexWrap: 'wrap',
+                                        border: '1px dashed rgba(255, 255, 255, 0.1)',
                                     }}>
-                                        <div style={{ flex: 1, minWidth: '200px' }}>
+                                        <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📆</div>
+                                        <p style={{ color: 'rgba(255, 255, 255, 0.7)', marginBottom: '1.5rem' }}>
+                                            Nie masz zaplanowanych wizyt
+                                        </p>
+                                        <a
+                                            href="tel:570270470"
+                                            style={{
+                                                display: 'inline-block',
+                                                padding: '0.75rem 2rem',
+                                                background: 'linear-gradient(135deg, #dcb14a, #f0c96c)',
+                                                border: 'none',
+                                                borderRadius: '0.5rem',
+                                                color: '#000',
+                                                fontSize: '1rem',
+                                                fontWeight: 'bold',
+                                                textDecoration: 'none',
+                                                transition: 'transform 0.2s',
+                                            }}
+                                            onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+                                            onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+                                        >
+                                            📞 Umów wizytę: 570 270 470
+                                        </a>
+                                    </div>
+                                );
+                            }
+
+                            // Mock appointment data - TODO: Replace with API
+                            const nextAppointment = {
+                                date: '2026-02-08', // Saturday
+                                time: '10:30',
+                                duration: 60, // minutes
+                                doctor: {
+                                    name: 'Dr Anna Kowalska',
+                                    specialization: 'Implantologia',
+                                },
+                                visitType: 'Konsultacja implantologiczna',
+                            };
+
+                            const appointmentDate = new Date(nextAppointment.date + 'T' + nextAppointment.time);
+                            const daysUntil = Math.ceil((appointmentDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+
+                            return (
+                                <div style={{
+                                    background: 'linear-gradient(135deg, rgba(220, 177, 74, 0.1), rgba(220, 177, 74, 0.05))',
+                                    border: '2px solid rgba(220, 177, 74, 0.3)',
+                                    borderRadius: '1rem',
+                                    padding: '2rem',
+                                    position: 'relative',
+                                    overflow: 'hidden',
+                                }}>
+                                    {/* Countdown badge */}
+                                    <div style={{
+                                        position: 'absolute',
+                                        top: '1rem',
+                                        right: '1rem',
+                                        background: 'linear-gradient(135deg, #dcb14a, #f0c96c)',
+                                        color: '#000',
+                                        padding: '0.5rem 1rem',
+                                        borderRadius: '99px',
+                                        fontWeight: 'bold',
+                                        fontSize: '0.85rem',
+                                    }}>
+                                        {daysUntil === 0 ? '🔥 Dziś!' : daysUntil === 1 ? '⏰ Jutro' : `Za ${daysUntil} dni`}
+                                    </div>
+
+                                    {/* Date & Time */}
+                                    <div style={{ marginBottom: '1.5rem', paddingRight: '7rem' }}>
+                                        <div style={{
+                                            color: '#dcb14a',
+                                            fontSize: '0.9rem',
+                                            fontWeight: '500',
+                                            marginBottom: '0.5rem',
+                                        }}>
+                                            📅 Data wizyty
+                                        </div>
+                                        <div style={{
+                                            color: '#fff',
+                                            fontSize: '1.75rem',
+                                            fontWeight: 'bold',
+                                            marginBottom: '0.25rem',
+                                        }}>
+                                            {appointmentDate.toLocaleDateString('pl-PL', {
+                                                weekday: 'long',
+                                                year: 'numeric',
+                                                month: 'long',
+                                                day: 'numeric'
+                                            })}
+                                        </div>
+                                        <div style={{
+                                            color: 'rgba(255, 255, 255, 0.8)',
+                                            fontSize: '1.25rem',
+                                            fontWeight: '600',
+                                        }}>
+                                            🕐 Godzina: {nextAppointment.time}
+                                        </div>
+                                    </div>
+
+                                    {/* Details Grid */}
+                                    <div style={{
+                                        display: 'grid',
+                                        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr)))',
+                                        gap: '1.5rem',
+                                        marginBottom: '1.5rem',
+                                    }}>
+                                        {/* Doctor */}
+                                        <div style={{
+                                            background: 'rgba(0, 0, 0, 0.2)',
+                                            padding: '1.25rem',
+                                            borderRadius: '0.75rem',
+                                        }}>
                                             <div style={{
-                                                color: '#dcb14a',
+                                                color: 'rgba(255, 255, 255, 0.6)',
                                                 fontSize: '0.85rem',
                                                 marginBottom: '0.5rem',
                                             }}>
-                                                {new Date(visit.date).toLocaleDateString('pl-PL', {
-                                                    year: 'numeric',
-                                                    month: 'long',
-                                                    day: 'numeric'
-                                                })} • {new Date(visit.date).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}
+                                                👨‍⚕️ Lekarz
                                             </div>
-                                            <div style={{ color: '#fff', fontWeight: 'bold', marginBottom: '0.5rem' }}>
-                                                {visit.doctor.name}
-                                            </div>
-                                            <div style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: '0.9rem' }}>
-                                                {visit.medicalDetails?.visitDescription || 'Wizyta'}
-                                            </div>
-                                        </div>
-                                        <div style={{ textAlign: 'right' }}>
                                             <div style={{
                                                 color: '#fff',
-                                                fontSize: '1.25rem',
+                                                fontSize: '1.1rem',
                                                 fontWeight: 'bold',
                                                 marginBottom: '0.25rem',
                                             }}>
-                                                {visit.cost ? visit.cost.toFixed(2) : '0.00'} PLN
+                                                {nextAppointment.doctor.name}
                                             </div>
                                             <div style={{
-                                                display: 'inline-block',
-                                                padding: '0.25rem 0.75rem',
-                                                background: visit.balance === 0 ? 'rgba(34, 197, 94, 0.2)' : 'rgba(249, 115, 22, 0.2)',
-                                                border: `1px solid ${visit.balance === 0 ? 'rgba(34, 197, 94, 0.3)' : 'rgba(249, 115, 22, 0.3)'}`,
-                                                borderRadius: '99px',
-                                                color: visit.balance === 0 ? '#22c55e' : '#f97316',
-                                                fontSize: '0.8rem',
+                                                color: '#dcb14a',
+                                                fontSize: '0.85rem',
                                             }}>
-                                                {visit.balance === 0 ? '✓ Opłacono' : `Do zapłaty: ${visit.balance.toFixed(2)} PLN`}
+                                                {nextAppointment.doctor.specialization}
+                                            </div>
+                                        </div>
+
+                                        {/* Duration */}
+                                        <div style={{
+                                            background: 'rgba(0, 0, 0, 0.2)',
+                                            padding: '1.25rem',
+                                            borderRadius: '0.75rem',
+                                        }}>
+                                            <div style={{
+                                                color: 'rgba(255, 255, 255, 0.6)',
+                                                fontSize: '0.85rem',
+                                                marginBottom: '0.5rem',
+                                            }}>
+                                                ⏱️ Czas trwania
+                                            </div>
+                                            <div style={{
+                                                color: '#fff',
+                                                fontSize: '1.5rem',
+                                                fontWeight: 'bold',
+                                            }}>
+                                                {nextAppointment.duration} min
+                                            </div>
+                                        </div>
+
+                                        {/* Visit Type */}
+                                        <div style={{
+                                            background: 'rgba(0, 0, 0, 0.2)',
+                                            padding: '1.25rem',
+                                            borderRadius: '0.75rem',
+                                            gridColumn: 'span 2',
+                                        }}>
+                                            <div style={{
+                                                color: 'rgba(255, 255, 255, 0.6)',
+                                                fontSize: '0.85rem',
+                                                marginBottom: '0.5rem',
+                                            }}>
+                                                🏥 Rodzaj wizyty
+                                            </div>
+                                            <div style={{
+                                                color: '#fff',
+                                                fontSize: '1.1rem',
+                                                fontWeight: '600',
+                                            }}>
+                                                {nextAppointment.visitType}
                                             </div>
                                         </div>
                                     </div>
-                                ))}
-                            </div>
-                        )}
+
+                                    {/* Actions */}
+                                    <div style={{
+                                        display: 'flex',
+                                        gap: '1rem',
+                                        flexWrap: 'wrap',
+                                    }}>
+                                        <a
+                                            href="tel:570270470"
+                                            style={{
+                                                flex: 1,
+                                                minWidth: '200px',
+                                                padding: '0.875rem 1.5rem',
+                                                background: 'rgba(59, 130, 246, 0.2)',
+                                                border: '1px solid rgba(59, 130, 246, 0.4)',
+                                                borderRadius: '0.5rem',
+                                                color: '#60a5fa',
+                                                fontSize: '0.95rem',
+                                                fontWeight: '600',
+                                                textDecoration: 'none',
+                                                textAlign: 'center',
+                                                transition: 'all 0.2s',
+                                            }}
+                                            onMouseEnter={(e) => {
+                                                e.currentTarget.style.background = 'rgba(59, 130, 246, 0.3)';
+                                                e.currentTarget.style.transform = 'translateY(-2px)';
+                                            }}
+                                            onMouseLeave={(e) => {
+                                                e.currentTarget.style.background = 'rgba(59, 130, 246, 0.2)';
+                                                e.currentTarget.style.transform = 'translateY(0)';
+                                            }}
+                                        >
+                                            📞 Kontakt: 570 270 470
+                                        </a>
+
+                                        <div style={{
+                                            flex: 1,
+                                            minWidth: '200px',
+                                            padding: '0.875rem 1.5rem',
+                                            background: 'rgba(34, 197, 94, 0.2)',
+                                            border: '1px solid rgba(34, 197, 94, 0.4)',
+                                            borderRadius: '0.5rem',
+                                            color: '#22c55e',
+                                            fontSize: '0.95rem',
+                                            fontWeight: '600',
+                                            textAlign: 'center',
+                                        }}>
+                                            ✅ Wizyta potwierdzona
+                                        </div>
+                                    </div>
+
+                                    {/* Info note */}
+                                    <div style={{
+                                        marginTop: '1.5rem',
+                                        padding: '1rem',
+                                        background: 'rgba(59, 130, 246, 0.1)',
+                                        border: '1px solid rgba(59, 130, 246, 0.2)',
+                                        borderRadius: '0.5rem',
+                                        fontSize: '0.85rem',
+                                        color: 'rgba(255, 255, 255, 0.7)',
+                                    }}>
+                                        💡 <strong>Przypomnienie:</strong> Prosimy o przybycie 10 minut przed umówioną godziną.
+                                        W razie potrzeby zmiany terminu, prosimy o kontakt co najmniej 24h wcześniej.
+                                    </div>
+                                </div>
+                            );
+                        })()}
                     </div>
                 </div>
             ) : (
