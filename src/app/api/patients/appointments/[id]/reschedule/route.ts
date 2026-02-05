@@ -145,7 +145,12 @@ export async function POST(
             });
             emailSent = true;
         } catch (emailError) {
-            console.error('Failed to send email:', emailError);
+            console.error('[RESCHEDULE] Failed to send email:', emailError);
+            console.error('[RESCHEDULE] Email error details:', {
+                message: emailError instanceof Error ? emailError.message : 'Unknown error',
+                stack: emailError instanceof Error ? emailError.stack : undefined,
+                fullError: JSON.stringify(emailError, Object.getOwnPropertyNames(emailError))
+            });
         }
 
         const response: AppointmentActionResponse = {
