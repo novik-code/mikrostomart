@@ -18,6 +18,9 @@ interface AppointmentActionsDropdownProps {
     doctorName: string;
     authToken: string;
     onStatusChange: () => void;
+    patientName?: string;
+    patientEmail?: string;
+    patientPhone?: string;
 }
 
 export default function AppointmentActionsDropdown({
@@ -30,7 +33,10 @@ export default function AppointmentActionsDropdown({
     hoursUntilAppointment,
     doctorName,
     authToken,
-    onStatusChange
+    onStatusChange,
+    patientName,
+    patientEmail,
+    patientPhone
 }: AppointmentActionsDropdownProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -118,7 +124,11 @@ export default function AppointmentActionsDropdown({
 
     const handlePayDeposit = () => {
         setIsOpen(false);
-        router.push(`/zadatek?appointmentId=${appointmentId}`);
+        const params = new URLSearchParams({ appointmentId });
+        if (patientName) params.append('name', patientName);
+        if (patientEmail) params.append('email', patientEmail);
+        if (patientPhone) params.append('phone', patientPhone);
+        router.push(`/zadatek?${params.toString()}`);
     };
 
     return (

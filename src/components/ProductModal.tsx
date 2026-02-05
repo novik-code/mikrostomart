@@ -23,11 +23,16 @@ interface ProductModalProps {
     product: Product | null;
     initialStep?: Step;
     onClose: () => void;
+    initialValues?: {
+        name?: string;
+        email?: string;
+        phone?: string;
+    };
 }
 
 type Step = "PRODUCT" | "CHECKOUT" | "SUCCESS";
 
-export default function ProductModal({ product, initialStep = "PRODUCT", onClose }: ProductModalProps) {
+export default function ProductModal({ product, initialStep = "PRODUCT", onClose, initialValues }: ProductModalProps) {
     const { addItem, items, updateQuantity, removeItem, total } = useCart();
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [step, setStep] = useState<Step>(initialStep);
@@ -139,7 +144,7 @@ export default function ProductModal({ product, initialStep = "PRODUCT", onClose
                     {/* RIGHT: Checkout Form */}
                     <div style={{ padding: '2rem', overflowY: 'auto', background: '#1c1c1c' }}>
                         <h3 style={{ color: 'white', marginBottom: '1.5rem', fontFamily: 'serif' }}>Finalizacja Zamówienia</h3>
-                        <CheckoutForm onSuccess={handleCheckoutSuccess} />
+                        <CheckoutForm onSuccess={handleCheckoutSuccess} initialValues={initialValues} />
                     </div>
                 </div>
             );

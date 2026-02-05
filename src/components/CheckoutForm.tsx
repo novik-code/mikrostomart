@@ -10,15 +10,24 @@ import StripePaymentForm from "./StripePaymentForm";
 // Replace with your Stripe Publishable Key
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "");
 
-export default function CheckoutForm({ onSuccess }: { onSuccess: () => void }) {
+interface CheckoutFormProps {
+    onSuccess: () => void;
+    initialValues?: {
+        name?: string;
+        email?: string;
+        phone?: string;
+    };
+}
+
+export default function CheckoutForm({ onSuccess, initialValues }: CheckoutFormProps) {
     const { clearCart, total, items } = useCart();
     const [step, setStep] = useState<'ADDRESS' | 'PAYMENT'>('ADDRESS');
     const [clientSecret, setClientSecret] = useState<string>("");
 
     const [formData, setFormData] = useState({
-        name: '',
-        email: '',
-        phone: '',
+        name: initialValues?.name || '',
+        email: initialValues?.email || '',
+        phone: initialValues?.phone || '',
         city: '',
         zipCode: '',
         street: '',

@@ -1,17 +1,24 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import ProductModal, { Product } from "@/components/ProductModal";
 
 export default function DepositPage() {
     const [product, setProduct] = useState<Product | null>(null);
     const [error, setError] = useState(false);
+    const [patientData, setPatientData] = useState<{ name?: string; email?: string; phone?: string }>({});
     const router = useRouter();
+    const searchParams = useSearchParams();
 
     useEffect(() => {
+        // Read URL params
+        const name = searchParams.get('name') || '';
+        const email = searchParams.get('email') || '';
+        const phone = searchParams.get('phone') || '';
+        setPatientData({ name, email, phone });
+
         // Fetch the deposit product
-        // We know the ID is 'deposit-payment' from our products.json check
         const fetchDepositProduct = async () => {
             try {
                 const res = await fetch("/api/products");
@@ -31,7 +38,7 @@ export default function DepositPage() {
         };
 
         fetchDepositProduct();
-    }, []);
+    }, [searchParams]);
 
     const handleClose = () => {
         // Redirect to home when closing the modal
@@ -67,6 +74,7 @@ export default function DepositPage() {
             <ProductModal
                 product={product}
                 initialStep="PRODUCT"
+                initialValues={patientData}
                 onClose={handleClose}
             />
         </div>
