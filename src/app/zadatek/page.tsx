@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import ProductModal, { Product } from "@/components/ProductModal";
 
-export default function DepositPage() {
+function DepositPageContent() {
     const [product, setProduct] = useState<Product | null>(null);
     const [error, setError] = useState(false);
     const [patientData, setPatientData] = useState<{ name?: string; email?: string; phone?: string }>({});
@@ -78,5 +78,17 @@ export default function DepositPage() {
                 onClose={handleClose}
             />
         </div>
+    );
+}
+
+export default function DepositPage() {
+    return (
+        <Suspense fallback={
+            <div style={{ height: "100vh", background: "var(--color-background)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <div style={{ color: "var(--color-primary)" }}>Ładowanie formularza płatności...</div>
+            </div>
+        }>
+            <DepositPageContent />
+        </Suspense>
     );
 }
