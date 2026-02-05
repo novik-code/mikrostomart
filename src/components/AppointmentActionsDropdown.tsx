@@ -223,6 +223,57 @@ export default function AppointmentActionsDropdown({
                             animation: 'slideDown 0.2s ease'
                         }}
                     >
+                        {/* Reset Status (TEST) - First for easy access */}
+                        <button
+                            onClick={async () => {
+                                setIsOpen(false);
+                                setIsLoading(true);
+                                try {
+                                    const response = await fetch(`/api/patients/appointments/${appointmentId}/reset-status`, {
+                                        method: 'POST',
+                                        headers: {
+                                            'Authorization': `Bearer ${authToken}`,
+                                            'Content-Type': 'application/json'
+                                        }
+                                    });
+
+                                    if (response.ok) {
+                                        alert('✅ Status zresetowany! Możesz ponownie testować akcje.');
+                                        onStatusChange();
+                                    } else {
+                                        alert('❌ Nie udało się zresetować statusu');
+                                    }
+                                } catch (error) {
+                                    console.error('Reset error:', error);
+                                    alert('❌ Błąd podczas resetowania');
+                                } finally {
+                                    setIsLoading(false);
+                                }
+                            }}
+                            className="dropdown-item"
+                            style={{
+                                width: '100%',
+                                padding: '0.875rem 1rem',
+                                background: 'rgba(234, 179, 8, 0.1)',
+                                color: '#fbbf24',
+                                border: 'none',
+                                borderBottom: '1px solid rgba(234, 179, 8, 0.2)',
+                                fontSize: '0.875rem',
+                                fontWeight: '600',
+                                textAlign: 'left',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.75rem',
+                                transition: 'background 0.2s ease'
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(234, 179, 8, 0.2)'}
+                            onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(234, 179, 8, 0.1)'}
+                        >
+                            <span style={{ fontSize: '1.2rem' }}>🔄</span>
+                            <span>Reset Status (TEST)</span>
+                        </button>
+
                         {/* Confirm Attendance (always visible, disabled if >24h) */}
                         <button
                             onClick={() => {
@@ -375,55 +426,6 @@ export default function AppointmentActionsDropdown({
                                 <span>Przełóż wizytę</span>
                             </button>
                         )}
-
-                        {/* Reset Status (TEST) - Always visible for testing */}
-                        <button
-                            onClick={async () => {
-                                setIsOpen(false);
-                                setIsLoading(true);
-                                try {
-                                    const response = await fetch(`/api/patients/appointments/${appointmentId}/reset-status`, {
-                                        method: 'POST',
-                                        headers: {
-                                            'Authorization': `Bearer ${authToken}`,
-                                            'Content-Type': 'application/json'
-                                        }
-                                    });
-
-                                    if (response.ok) {
-                                        alert('✅ Status zresetowany! Możesz ponownie testować akcje.');
-                                        onStatusChange();
-                                    } else {
-                                        alert('❌ Nie udało się zresetować statusu');
-                                    }
-                                } catch (error) {
-                                    console.error('Reset error:', error);
-                                    alert('❌ Błąd podczas resetowania');
-                                } finally {
-                                    setIsLoading(false);
-                                }
-                            }}
-                            className="dropdown-item"
-                            style={{
-                                width: '100%',
-                                padding: '0.875rem 1rem',
-                                background: 'rgba(100, 100, 100, 0.1)',
-                                color: '#999',
-                                border: 'none',
-                                fontSize: '0.75rem',
-                                textAlign: 'left',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.75rem',
-                                transition: 'background 0.2s ease'
-                            }}
-                            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(100, 100, 100, 0.2)'}
-                            onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(100, 100, 100, 0.1)'}
-                        >
-                            <span style={{ fontSize: '1rem' }}>🔄</span>
-                            <span>Reset Status (TEST)</span>
-                        </button>
                     </div>
                 )}
             </div>
