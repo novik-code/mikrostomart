@@ -61,6 +61,18 @@ export default function AppointmentActionsDropdown({
     const canCancel = hoursUntilAppointment > 0 && currentStatus !== 'cancellation_pending';
     const canReschedule = hoursUntilAppointment > 0 && currentStatus !== 'reschedule_pending';
 
+    // DEBUG: Log all conditions
+    console.log('[AppointmentActionsDropdown] Conditions:', {
+        hoursUntilAppointment,
+        currentStatus,
+        depositPaid,
+        attendanceConfirmed,
+        canConfirmAttendance,
+        canPayDeposit,
+        canCancel,
+        canReschedule
+    });
+
     // Status badge config
     const getStatusConfig = () => {
         switch (currentStatus) {
