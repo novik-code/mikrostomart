@@ -116,13 +116,13 @@ export default function AppointmentActionsDropdown({
                 <div
                     className="status-badge"
                     style={{
-                        background: statusConfig.bgColor,
-                        color: statusConfig.color,
-                        border: `1px solid ${statusConfig.color}`,
-                        padding: '0.75rem 1rem',
-                        borderRadius: '8px',
-                        marginBottom: '0.75rem',
-                        fontSize: '0.9rem',
+                        background: `rgba(255, 152, 0, 0.12)`,
+                        color: '#fb923c',
+                        border: `1px solid rgba(255, 152, 0, 0.25)`,
+                        padding: '0.5rem 0.875rem',
+                        borderRadius: '4px',
+                        marginBottom: '0.5rem',
+                        fontSize: '0.8rem',
                         fontWeight: '600',
                         display: 'flex',
                         alignItems: 'center',
@@ -139,27 +139,26 @@ export default function AppointmentActionsDropdown({
                     className="dropdown-toggle"
                     style={{
                         width: '100%',
-                        padding: '0.875rem 1.25rem',
-                        background: 'linear-gradient(135deg, #dcb14a 0%, #c9a13d 100%)',
-                        color: '#000',
-                        border: 'none',
-                        borderRadius: '8px',
-                        fontSize: '1rem',
+                        padding: '0.75rem 1rem',
+                        background: 'rgba(59, 130, 246, 0.12)',
+                        color: '#60a5fa',
+                        border: '1px solid rgba(59, 130, 246, 0.25)',
+                        borderRadius: '4px',
+                        fontSize: '0.875rem',
                         fontWeight: '600',
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
-                        transition: 'all 0.2s ease',
-                        boxShadow: '0 2px 8px rgba(220, 177, 74, 0.3)'
+                        transition: 'all 0.2s ease'
                     }}
                     onMouseEnter={(e) => {
-                        e.currentTarget.style.transform = 'translateY(-2px)';
-                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(220, 177, 74, 0.4)';
+                        e.currentTarget.style.background = 'rgba(59, 130, 246, 0.2)';
+                        e.currentTarget.style.transform = 'translateY(-1px)';
                     }}
                     onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'rgba(59, 130, 246, 0.12)';
                         e.currentTarget.style.transform = 'translateY(0)';
-                        e.currentTarget.style.boxShadow = '0 2px 8px rgba(220, 177, 74, 0.3)';
                     }}
                 >
                     <span>Zarządzaj wizytą</span>
@@ -227,12 +226,12 @@ export default function AppointmentActionsDropdown({
                                 className="dropdown-item primary"
                                 style={{
                                     width: '100%',
-                                    padding: '1rem 1.25rem',
-                                    background: '#dcb14a',
-                                    color: '#000',
+                                    padding: '0.875rem 1rem',
+                                    background: 'rgba(34, 197, 94, 0.15)',
+                                    color: '#4ade80',
                                     border: 'none',
-                                    borderBottom: '1px solid #c9a13d',
-                                    fontSize: '0.95rem',
+                                    borderBottom: '1px solid rgba(34, 197, 94, 0.2)',
+                                    fontSize: '0.875rem',
                                     fontWeight: '600',
                                     textAlign: 'left',
                                     cursor: 'pointer',
@@ -241,8 +240,8 @@ export default function AppointmentActionsDropdown({
                                     gap: '0.75rem',
                                     transition: 'background 0.2s ease'
                                 }}
-                                onMouseEnter={(e) => e.currentTarget.style.background = '#c9a13d'}
-                                onMouseLeave={(e) => e.currentTarget.style.background = '#dcb14a'}
+                                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(34, 197, 94, 0.25)'}
+                                onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(34, 197, 94, 0.15)'}
                             >
                                 <span style={{ fontSize: '1.2rem' }}>💳</span>
                                 <span>Wpłać zadatek (500 zł)</span>
@@ -279,12 +278,12 @@ export default function AppointmentActionsDropdown({
                                 className="dropdown-item danger"
                                 style={{
                                     width: '100%',
-                                    padding: '1rem 1.25rem',
-                                    background: 'transparent',
-                                    color: '#f44336',
+                                    padding: '0.875rem 1rem',
+                                    background: 'rgba(239, 68, 68, 0.1)',
+                                    color: '#f87171',
                                     border: 'none',
-                                    borderBottom: '1px solid #333',
-                                    fontSize: '0.95rem',
+                                    borderBottom: '1px solid rgba(239, 68, 68, 0.2)',
+                                    fontSize: '0.875rem',
                                     textAlign: 'left',
                                     cursor: 'pointer',
                                     display: 'flex',
@@ -292,8 +291,8 @@ export default function AppointmentActionsDropdown({
                                     gap: '0.75rem',
                                     transition: 'background 0.2s ease'
                                 }}
-                                onMouseEnter={(e) => e.currentTarget.style.background = '#2a1a1a'}
-                                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)'}
+                                onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
                             >
                                 <span style={{ fontSize: '1.2rem' }}>❌</span>
                                 <span>Odwołaj wizytę</span>
