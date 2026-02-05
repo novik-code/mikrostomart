@@ -120,7 +120,7 @@ export default function PatientProfile() {
     if (isLoading || !patient) {
         return <div style={{
             minHeight: '100vh',
-            background: 'linear-gradient(135deg, #0a0a0a, #1a1a1a)',
+            background: 'transparent',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -133,7 +133,7 @@ export default function PatientProfile() {
     return (
         <div style={{
             minHeight: '100vh',
-            background: 'linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%)',
+            background: 'transparent',
         }}>
             {/* Header */}
             <div style={{
