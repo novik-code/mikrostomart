@@ -198,12 +198,12 @@ export default function AppointmentActionsDropdown({
                                 className="dropdown-item"
                                 style={{
                                     width: '100%',
-                                    padding: '1rem 1.25rem',
-                                    background: 'transparent',
-                                    color: '#fff',
+                                    padding: '0.875rem 1rem',
+                                    background: 'rgba(59, 130, 246, 0.1)',
+                                    color: '#60a5fa',
                                     border: 'none',
-                                    borderBottom: '1px solid #333',
-                                    fontSize: '0.95rem',
+                                    borderBottom: '1px solid rgba(59, 130, 246, 0.2)',
+                                    fontSize: '0.875rem',
                                     textAlign: 'left',
                                     cursor: 'pointer',
                                     display: 'flex',
@@ -211,8 +211,8 @@ export default function AppointmentActionsDropdown({
                                     gap: '0.75rem',
                                     transition: 'background 0.2s ease'
                                 }}
-                                onMouseEnter={(e) => e.currentTarget.style.background = '#2a2a2a'}
-                                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(59, 130, 246, 0.2)'}
+                                onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)'}
                             >
                                 <span style={{ fontSize: '1.2rem' }}>✓</span>
                                 <span>Potwierdź obecność</span>
@@ -309,11 +309,11 @@ export default function AppointmentActionsDropdown({
                                 className="dropdown-item"
                                 style={{
                                     width: '100%',
-                                    padding: '1rem 1.25rem',
-                                    background: 'transparent',
-                                    color: '#fff',
+                                    padding: '0.875rem 1rem',
+                                    background: 'rgba(168, 85, 247, 0.1)',
+                                    color: '#c084fc',
                                     border: 'none',
-                                    fontSize: '0.95rem',
+                                    fontSize: '0.875rem',
                                     textAlign: 'left',
                                     cursor: 'pointer',
                                     display: 'flex',
@@ -321,8 +321,8 @@ export default function AppointmentActionsDropdown({
                                     gap: '0.75rem',
                                     transition: 'background 0.2s ease'
                                 }}
-                                onMouseEnter={(e) => e.currentTarget.style.background = '#2a2a2a'}
-                                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(168, 85, 247, 0.2)'}
+                                onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(168, 85, 247, 0.1)'}
                             >
                                 <span style={{ fontSize: '1.2rem' }}>📅</span>
                                 <span>Przełóż wizytę</span>
