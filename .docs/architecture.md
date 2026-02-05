@@ -77,15 +77,16 @@
 
 ---
 
-## 🔌 API Endpoints (31 total)
+## 🔌 API Endpoints (32 total)
 
-### Patient Portal API (10)
+### Patient Portal API (11)
 - `POST /api/patients/register` - Create account (sends verification email)
 - `POST /api/patients/verify-email` - Verify email token
 - `POST /api/patients/login` - Patient login
 - `POST /api/patients/verify` - Verify Prodentis ID
 - `GET /api/patients/me` - Get current patient data
 - `GET /api/patients/me/visits` - Get patient visit history
+- `GET /api/patients/[id]/next-appointment` - **NEW!** Get next appointment from Prodentis
 - `POST /api/patients/reset-password/request` - Request password reset
 - `POST /api/patients/reset-password/confirm` - Confirm password reset
 
@@ -259,7 +260,7 @@ One-time tokens for password reset.
 
 ### Special Pages
 - **One-time workflow popup** - Explains registration process (login page)
-- **Next appointment widget** - Shows upcoming visit (dashboard, mockup data)
+- **Next appointment widget** - Shows upcoming visit using real Prodentis API 3.0 (dashboard)
 - **Selfie booth** - Photo capture with face detection
 - **Treatment simulator** - Visual treatment planning
 - **Pain map** - Interactive tooth pain locator
@@ -348,7 +349,7 @@ mikrostomart/
 ✅ **3-phase registration** - Verify ID → Confirm → Password  
 ✅ **Email verification** - 24h token system  
 ✅ **Admin approval** - Manual review workflow  
-✅ **Dashboard** - Next appointment widget (mockup)  
+✅ **Dashboard** - Next appointment widget with real Prodentis API  
 ✅ **Visit history** - Full visit list in Historia tab  
 ✅ **Profile** - Personal data management  
 ✅ **Password reset** - Email-based reset flow
