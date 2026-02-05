@@ -139,7 +139,7 @@ export async function POST(
         try {
             await resend.emails.send({
                 from: 'Strefa Pacjenta <noreply@mikrostomart.pl>',
-                to: ['recepcja@mikrostomart.pl'],
+                to: ['gabinet@mikrostomart.pl'],
                 subject: '📅 Pacjent prosi o przełożenie wizyty',
                 html: emailHtml
             });

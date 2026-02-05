@@ -147,7 +147,7 @@ export async function POST(
         try {
             await resend.emails.send({
                 from: 'Strefa Pacjenta <noreply@mikrostomart.pl>',
-                to: ['recepcja@mikrostomart.pl'], // TODO: Get from env or config
+                to: ['gabinet@mikrostomart.pl'],
                 subject: '✅ Pacjent potwierdził obecność na wizycie',
                 html: emailHtml
             });
