@@ -751,6 +751,7 @@ export default function PatientDashboard() {
                                                     attendanceConfirmed={appointmentStatus.attendanceConfirmed}
                                                     hoursUntilAppointment={appointmentStatus.hoursUntilAppointment}
                                                     doctorName={nextAppointment.doctor.name.replace(/\s*\(I\)\s*/g, ' ').trim()}
+                                                    authToken={getAuthToken() || ''}
                                                     onStatusChange={() => {
                                                         // Reload appointment status
                                                         if (appointmentActionId) {

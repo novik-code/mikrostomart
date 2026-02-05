@@ -16,6 +16,7 @@ interface AppointmentActionsDropdownProps {
     attendanceConfirmed: boolean;
     hoursUntilAppointment: number;
     doctorName: string;
+    authToken: string;
     onStatusChange: () => void;
 }
 
@@ -28,6 +29,7 @@ export default function AppointmentActionsDropdown({
     attendanceConfirmed,
     hoursUntilAppointment,
     doctorName,
+    authToken,
     onStatusChange
 }: AppointmentActionsDropdownProps) {
     const [isOpen, setIsOpen] = useState(false);
@@ -336,7 +338,7 @@ export default function AppointmentActionsDropdown({
                 isOpen={showConfirmAttendanceModal}
                 onClose={() => setShowConfirmAttendanceModal(false)}
                 onConfirm={async () => {
-                    const token = localStorage.getItem('patientToken');
+                    const token = authToken;
                     const response = await fetch(`/api/patients/appointments/${appointmentId}/confirm-attendance`, {
                         method: 'POST',
                         headers: {
@@ -370,7 +372,7 @@ export default function AppointmentActionsDropdown({
                 isOpen={showCancelModal}
                 onClose={() => setShowCancelModal(false)}
                 onConfirm={async (reason) => {
-                    const token = localStorage.getItem('patientToken');
+                    const token = authToken;
                     const response = await fetch(`/api/patients/appointments/${appointmentId}/cancel`, {
                         method: 'POST',
                         headers: {
@@ -402,7 +404,7 @@ export default function AppointmentActionsDropdown({
                 isOpen={showRescheduleModal}
                 onClose={() => setShowRescheduleModal(false)}
                 onConfirm={async (reason) => {
-                    const token = localStorage.getItem('patientToken');
+                    const token = authToken;
                     const response = await fetch(`/api/patients/appointments/${appointmentId}/reschedule`, {
                         method: 'POST',
                         headers: {
