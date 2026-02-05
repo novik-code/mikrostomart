@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { verifyToken } from '@/lib/jwt';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -11,24 +12,19 @@ export async function POST(request: NextRequest) {
         const body = await request.json();
         const { prodentis_id, appointment_date, appointment_end_date, doctor_id, doctor_name } = body;
 
-        // Get JWT token
-        const authHeader = request.headers.get('authorization');
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        // Verify JWT
+        const authHeader = request.headers.get('Authorization');
+        const payload = verifyToken(authHeader);
+
+        if (!payload) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const token = authHeader.substring(7);
-        const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-
-        if (authError || !user) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
-
-        // Get patient record
+        // Get patient record using prodentisId from token
         const { data: patient, error: patientError } = await supabase
             .from('patients')
             .select('id, prodentis_id')
-            .eq('id', user.id)
+            .eq('prodentis_id', payload.prodentisId)
             .single();
 
         if (patientError || !patient) {
