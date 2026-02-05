@@ -184,7 +184,8 @@ export default function AppointmentActionsDropdown({
                             borderRadius: '8px',
                             boxShadow: '0 8px 24px rgba(0, 0, 0, 0.5)',
                             zIndex: 1000,
-                            overflow: 'hidden',
+                            maxHeight: '400px',
+                            overflow: 'auto',
                             animation: 'slideDown 0.2s ease'
                         }}
                     >
