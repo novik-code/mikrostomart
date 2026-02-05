@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
@@ -9,7 +9,18 @@ export default function PatientLogin() {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [showWorkflowModal, setShowWorkflowModal] = useState(false);
     const router = useRouter();
+
+    // Show workflow modal on first visit
+    useEffect(() => {
+        const hasSeenWorkflow = localStorage.getItem('hasSeenPatientWorkflow');
+        if (!hasSeenWorkflow) {
+            setShowWorkflowModal(true);
+            localStorage.setItem('hasSeenPatientWorkflow', 'true');
+        }
+    }, []);
+
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -49,7 +60,7 @@ export default function PatientLogin() {
     return (
         <div style={{
             minHeight: '100vh',
-            background: 'radial-gradient(circle at 20% 50%, rgba(220, 177, 74, 0.15), transparent 50%), radial-gradient(circle at 80% 80%, rgba(220, 177, 74, 0.1), transparent 40%), linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%)',
+            background: 'transparent',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -271,6 +282,240 @@ export default function PatientLogin() {
                     </Link>
                 </div>
             </div>
+
+            {/* Workflow Modal - Shows once on first visit */}
+            {showWorkflowModal && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: 'rgba(0, 0, 0, 0.85)',
+                    backdropFilter: 'blur(10px)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 9999,
+                    padding: '2rem',
+                }}>
+                    <div style={{
+                        background: 'linear-gradient(135deg, rgba(26, 26, 26, 0.98), rgba(10, 10, 10, 0.98))',
+                        border: '2px solid rgba(220, 177, 74, 0.3)',
+                        borderRadius: '1.5rem',
+                        maxWidth: '650px',
+                        width: '100%',
+                        maxHeight: '90vh',
+                        overflowY: 'auto',
+                        padding: '3rem 2.5rem',
+                        boxShadow: '0 25px 100px rgba(220, 177, 74, 0.2)',
+                    }}>
+                        {/* Header */}
+                        <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
+                            <div style={{
+                                fontSize: '3.5rem',
+                                marginBottom: '1rem',
+                            }}>
+                                🚀
+                            </div>
+                            <h2 style={{
+                                fontSize: '2rem',
+                                background: 'linear-gradient(135deg, #dcb14a, #f0c96c)',
+                                WebkitBackgroundClip: 'text',
+                                WebkitTextFillColor: 'transparent',
+                                marginBottom: '0.5rem',
+                            }}>
+                                Witaj w Strefie Pacjenta!
+                            </h2>
+                            <p style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: '1rem' }}>
+                                Poznaj proces rejestracji i korzystania z systemu
+                            </p>
+                        </div>
+
+                        {/* Steps */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                            {/* Step 1 */}
+                            <div style={{
+                                background: 'rgba(220, 177, 74, 0.08)',
+                                border: '1px solid rgba(220, 177, 74, 0.2)',
+                                borderRadius: '1rem',
+                                padding: '1.5rem',
+                            }}>
+                                <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+                                    <div style={{
+                                        background: 'linear-gradient(135deg, #dcb14a, #f0c96c)',
+                                        borderRadius: '50%',
+                                        width: '36px',
+                                        height: '36px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        fontWeight: 'bold',
+                                        color: '#000',
+                                        flexShrink: 0,
+                                    }}>
+                                        1
+                                    </div>
+                                    <div>
+                                        <h3 style={{ color: '#dcb14a', marginBottom: '0.5rem', fontSize: '1.15rem' }}>
+                                            Rejestracja konta
+                                        </h3>
+                                        <p style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '0.95rem', lineHeight: '1.6' }}>
+                                            Kliknij "Zarejestruj się" i podaj dane użyte podczas pierwszej wizyty (telefon, imię, PESEL).
+                                            System zweryfikuje je w bazie Mikrostomart.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Step 2 */}
+                            <div style={{
+                                background: 'rgba(34, 197, 94, 0.08)',
+                                border: '1px solid rgba(34, 197, 94, 0.2)',
+                                borderRadius: '1rem',
+                                padding: '1.5rem',
+                            }}>
+                                <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+                                    <div style={{
+                                        background: 'linear-gradient(135deg, #22c55e, #16a34a)',
+                                        borderRadius: '50%',
+                                        width: '36px',
+                                        height: '36px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        fontWeight: 'bold',
+                                        color: '#fff',
+                                        flexShrink: 0,
+                                    }}>
+                                        2
+                                    </div>
+                                    <div>
+                                        <h3 style={{ color: '#22c55e', marginBottom: '0.5rem', fontSize: '1.15rem' }}>
+                                            Weryfikacja email
+                                        </h3>
+                                        <p style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '0.95rem', lineHeight: '1.6' }}>
+                                            Otrzymasz link weryfikacyjny na podany email (ważny 24h).
+                                            Kliknij w link, aby potwierdzić adres email.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Step 3 */}
+                            <div style={{
+                                background: 'rgba(59, 130, 246, 0.08)',
+                                border: '1px solid rgba(59, 130, 246, 0.2)',
+                                borderRadius: '1rem',
+                                padding: '1.5rem',
+                            }}>
+                                <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+                                    <div style={{
+                                        background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                                        borderRadius: '50%',
+                                        width: '36px',
+                                        height: '36px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        fontWeight: 'bold',
+                                        color: '#fff',
+                                        flexShrink: 0,
+                                    }}>
+                                        3
+                                    </div>
+                                    <div>
+                                        <h3 style={{ color: '#3b82f6', marginBottom: '0.5rem', fontSize: '1.15rem' }}>
+                                            Zatwierdzenie przez administratora
+                                        </h3>
+                                        <p style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '0.95rem', lineHeight: '1.6' }}>
+                                            Twoje konto zostanie sprawdzone przez nasz zespół (zwykle do 48h).
+                                            Otrzymasz email z informacją o zatwierdzeniu.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Step 4 */}
+                            <div style={{
+                                background: 'rgba(168, 85, 247, 0.08)',
+                                border: '1px solid rgba(168, 85, 247, 0.2)',
+                                borderRadius: '1rem',
+                                padding: '1.5rem',
+                            }}>
+                                <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+                                    <div style={{
+                                        background: 'linear-gradient(135deg, #a855f7, #9333ea)',
+                                        borderRadius: '50%',
+                                        width: '36px',
+                                        height: '36px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        fontWeight: 'bold',
+                                        color: '#fff',
+                                        flexShrink: 0,
+                                    }}>
+                                        4
+                                    </div>
+                                    <div>
+                                        <h3 style={{ color: '#a855f7', marginBottom: '0.5rem', fontSize: '1.15rem' }}>
+                                            Pełny dostęp do portalu
+                                        </h3>
+                                        <p style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '0.95rem', lineHeight: '1.6' }}>
+                                            Po zatwierdzeniu uzyskasz dostęp do historii wizyt, dokumentacji medycznej,
+                                            możliwości umawiania wizyt i zarządzania swoim kontem.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Footer Info */}
+                        <div style={{
+                            background: 'rgba(59, 130, 246, 0.1)',
+                            border: '1px solid rgba(59, 130, 246, 0.2)',
+                            borderRadius: '0.75rem',
+                            padding: '1.25rem',
+                            marginTop: '2rem',
+                            textAlign: 'center',
+                        }}>
+                            <p style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '0.9rem', margin: 0 }}>
+                                💡 <strong>Wskazówka:</strong> Możesz się zalogować zaraz po weryfikacji email,
+                                ale pełny dostęp do danych otrzymasz dopiero po akceptacji przez administratora.
+                            </p>
+                        </div>
+
+                        {/* Close Button */}
+                        <button
+                            onClick={() => setShowWorkflowModal(false)}
+                            style={{
+                                marginTop: '2rem',
+                                width: '100%',
+                                padding: '1rem',
+                                background: 'linear-gradient(135deg, #dcb14a, #f0c96c)',
+                                border: 'none',
+                                borderRadius: '0.75rem',
+                                color: '#000',
+                                fontSize: '1rem',
+                                fontWeight: 'bold',
+                                cursor: 'pointer',
+                                transition: 'transform 0.2s, box-shadow 0.2s',
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.transform = 'translateY(-2px)';
+                                e.currentTarget.style.boxShadow = '0 10px 30px rgba(220, 177, 74, 0.4)';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.transform = 'translateY(0)';
+                                e.currentTarget.style.boxShadow = 'none';
+                            }}
+                        >
+                            Rozumiem, rozpocznij! 🚀
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

@@ -46,7 +46,7 @@ export default function VerifyPatient() {
     return (
         <div style={{
             minHeight: '100vh',
-            background: 'radial-gradient(circle at 20% 50%, rgba(220, 177, 74, 0.15), transparent 50%), radial-gradient(circle at 80% 80%, rgba(220, 177, 74, 0.1), transparent 40%), linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%)',
+            background: 'transparent',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -116,7 +116,7 @@ export default function VerifyPatient() {
                 }}>
                     <strong>ℹ️ Informacja</strong><br />
                     Podaj dane, które użyłeś podczas pierwszej wizyty w naszym gabinecie.
-                    System sprawdzi je w bazie Prodentis.
+                    System sprawdzi je w bazie Mikrostomart.
                 </div>
 
                 {/* Form */}
@@ -136,7 +136,7 @@ export default function VerifyPatient() {
                             type="tel"
                             value={phone}
                             onChange={(e) => setPhone(e.target.value)}
-                            placeholder="792 060 718"
+                            placeholder="123 456 789"
                             required
                             style={{
                                 width: '100%',
@@ -175,7 +175,7 @@ export default function VerifyPatient() {
                             type="text"
                             value={firstName}
                             onChange={(e) => setFirstName(e.target.value)}
-                            placeholder="Ewa"
+                            placeholder="Jan"
                             required
                             style={{
                                 width: '100%',
@@ -214,7 +214,7 @@ export default function VerifyPatient() {
                             type="text"
                             value={pesel}
                             onChange={(e) => setPesel(e.target.value.replace(/\D/g, '').slice(0, 11))}
-                            placeholder="61061804181"
+                            placeholder="12345678901"
                             required
                             maxLength={11}
                             pattern="\d{11}"

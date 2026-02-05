@@ -93,7 +93,7 @@ export default function ConfirmData() {
     return (
         <div style={{
             minHeight: '100vh',
-            background: 'radial-gradient(circle at 20% 50%, rgba(220, 177, 74, 0.15), transparent 50%), radial-gradient(circle at 80% 80%, rgba(220, 177, 74, 0.1), transparent 40%), linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%)',
+            background: 'transparent',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -243,7 +243,7 @@ export default function ConfirmData() {
                                 type="text"
                                 value={street}
                                 onChange={(e) => setStreet(e.target.value)}
-                                placeholder="Dworcowa"
+                                placeholder="Kwiatowa"
                                 style={{
                                     width: '100%',
                                     padding: '0.875rem 1rem',
@@ -270,7 +270,7 @@ export default function ConfirmData() {
                                 type="text"
                                 value={houseNumber}
                                 onChange={(e) => setHouseNumber(e.target.value)}
-                                placeholder="15"
+                                placeholder="10"
                                 style={{
                                     width: '100%',
                                     padding: '0.875rem 1rem',
@@ -297,7 +297,7 @@ export default function ConfirmData() {
                                 type="text"
                                 value={apartmentNumber}
                                 onChange={(e) => setApartmentNumber(e.target.value)}
-                                placeholder="3"
+                                placeholder="5"
                                 style={{
                                     width: '100%',
                                     padding: '0.875rem 1rem',
@@ -327,7 +327,7 @@ export default function ConfirmData() {
                                 type="text"
                                 value={city}
                                 onChange={(e) => setCity(e.target.value)}
-                                placeholder="Mikołów"
+                                placeholder="Warszawa"
                                 style={{
                                     width: '100%',
                                     padding: '0.875rem 1rem',
@@ -354,7 +354,7 @@ export default function ConfirmData() {
                                 type="text"
                                 value={zipCode}
                                 onChange={(e) => setZipCode(e.target.value)}
-                                placeholder="43-190"
+                                placeholder="00-001"
                                 style={{
                                     width: '100%',
                                     padding: '0.875rem 1rem',

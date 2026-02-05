@@ -398,7 +398,7 @@ export default function PatientDashboard() {
                                     💡 Aktualizuj swoją historię
                                 </h3>
                                 <p style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: '0.9rem' }}>
-                                    Pobierz najnowsze informacje o wizytach z systemu Prodentis
+                                    Pobierz najnowsze informacje o wizytach z systemu Mikrostomart
                                 </p>
                             </div>
                             <button

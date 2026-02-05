@@ -268,7 +268,7 @@ export default function PatientProfile() {
                                 fontSize: '0.9rem',
                                 color: '#60a5fa',
                             }}>
-                                ℹ️ Dane osobowe są pobierane z systemu Prodentis i nie mogą być zmieniane w portalu. W celu aktualizacji skontaktuj się z recepcją.
+                                ℹ️ Dane osobowe są pobierane z systemu Mikrostomart i nie mogą być zmieniane w portalu. W celu aktualizacji skontaktuj się z recepcją.
                             </div>
                         </div>
                     </div>
