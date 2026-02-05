@@ -261,7 +261,7 @@ export default function AppointmentActionsDropdown({
                                 onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(34, 197, 94, 0.15)'}
                             >
                                 <span style={{ fontSize: '1.2rem' }}>💳</span>
-                                <span>Wpłać zadatek (500 zł)</span>
+                                <span>Wpłać zadatek</span>
                             </button>
                         )}
 

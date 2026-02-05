@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
+import { verifyToken } from '@/lib/jwt';
 import type { RescheduleAppointmentRequest, AppointmentActionResponse, AppointmentAction } from '@/types/appointmentActions';
 
 const supabase = createClient(
@@ -18,16 +19,11 @@ export async function POST(
         const { id: appointmentId } = await params;
         const body: RescheduleAppointmentRequest = await request.json();
 
-        // Authentication
+        // Verify JWT
         const authHeader = request.headers.get('authorization');
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
+        const payload = verifyToken(authHeader);
 
-        const token = authHeader.substring(7);
-        const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-
-        if (authError || !user) {
+        if (!payload) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
@@ -35,7 +31,7 @@ export async function POST(
         const { data: patient, error: patientError } = await supabase
             .from('patients')
             .select('id, prodentis_id, phone')
-            .eq('id', user.id)
+            .eq('prodentis_id', payload.prodentisId)
             .single();
 
         if (patientError || !patient) {
