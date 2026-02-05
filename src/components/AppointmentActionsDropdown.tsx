@@ -194,36 +194,47 @@ export default function AppointmentActionsDropdown({
                             animation: 'slideDown 0.2s ease'
                         }}
                     >
-                        {/* Confirm Attendance (if <24h) */}
-                        {canConfirmAttendance && (
-                            <button
-                                onClick={() => {
-                                    setIsOpen(false);
-                                    setShowConfirmAttendanceModal(true);
-                                }}
-                                className="dropdown-item"
-                                style={{
-                                    width: '100%',
-                                    padding: '0.875rem 1rem',
-                                    background: 'rgba(59, 130, 246, 0.1)',
-                                    color: '#60a5fa',
-                                    border: 'none',
-                                    borderBottom: '1px solid rgba(59, 130, 246, 0.2)',
-                                    fontSize: '0.875rem',
-                                    textAlign: 'left',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.75rem',
-                                    transition: 'background 0.2s ease'
-                                }}
-                                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(59, 130, 246, 0.2)'}
-                                onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)'}
-                            >
-                                <span style={{ fontSize: '1.2rem' }}>✓</span>
-                                <span>Potwierdź obecność</span>
-                            </button>
-                        )}
+                        {/* Confirm Attendance (always visible, disabled if >24h) */}
+                        <button
+                            onClick={() => {
+                                if (!canConfirmAttendance) return;
+                                setIsOpen(false);
+                                setShowConfirmAttendanceModal(true);
+                            }}
+                            disabled={!canConfirmAttendance}
+                            className="dropdown-item"
+                            title={!canConfirmAttendance ? 'Dostępne 24h przed wizytą' : 'Potwierdź obecność'}
+                            style={{
+                                width: '100%',
+                                padding: '0.875rem 1rem',
+                                background: canConfirmAttendance ? 'rgba(59, 130, 246, 0.1)' : 'rgba(128, 128, 128, 0.05)',
+                                color: canConfirmAttendance ? '#60a5fa' : '#666',
+                                border: 'none',
+                                borderBottom: canConfirmAttendance ? '1px solid rgba(59, 130, 246, 0.2)' : '1px solid rgba(128, 128, 128, 0.1)',
+                                fontSize: '0.875rem',
+                                textAlign: 'left',
+                                cursor: canConfirmAttendance ? 'pointer' : 'not-allowed',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.75rem',
+                                opacity: canConfirmAttendance ? 1 : 0.5,
+                                transition: 'background 0.2s ease'
+                            }}
+                            onMouseEnter={(e) => {
+                                if (canConfirmAttendance) {
+                                    e.currentTarget.style.background = 'rgba(59, 130, 246, 0.2)';
+                                }
+                            }}
+                            onMouseLeave={(e) => {
+                                if (canConfirmAttendance) {
+                                    e.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)';
+                                }
+                            }}
+                        >
+                            <span style={{ fontSize: '1.2rem' }}>✓</span>
+                            <span>Potwierdź obecność {!canConfirmAttendance && '(dostępne <24h)'}</span>
+                        </button>
+
 
                         {/* Pay Deposit (if unpaid) */}
                         {canPayDeposit && (
