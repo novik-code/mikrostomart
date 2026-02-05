@@ -185,7 +185,6 @@ export default function AppointmentActionsDropdown({
                 {/* Dropdown Menu */}
                 {isOpen && (
                     <div
-                        className="dropdown-menu"
                         style={{
                             position: 'absolute',
                             top: 'calc(100% + 0.5rem)',
@@ -197,7 +196,8 @@ export default function AppointmentActionsDropdown({
                             boxShadow: '0 8px 24px rgba(0, 0, 0, 0.5)',
                             zIndex: 1000,
                             maxHeight: '400px',
-                            overflow: 'auto',
+                            overflowY: 'auto',
+                            overflowX: 'hidden',
                             animation: 'slideDown 0.2s ease'
                         }}
                     >
