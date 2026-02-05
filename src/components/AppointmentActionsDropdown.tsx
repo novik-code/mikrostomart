@@ -182,23 +182,15 @@ export default function AppointmentActionsDropdown({
                     </span>
                 </button>
 
-                {/* Dropdown Menu */}
+                {/* Expandable Actions Section */}
                 {isOpen && (
                     <div
                         style={{
-                            position: 'absolute',
-                            top: 'calc(100% + 0.5rem)',
-                            left: 0,
-                            right: 0,
+                            marginTop: '0.75rem',
                             background: '#1a1a1a',
                             border: '1px solid #333',
                             borderRadius: '8px',
-                            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.5)',
-                            zIndex: 1000,
-                            minHeight: '150px',
-                            maxHeight: '400px',
-                            overflowY: 'auto',
-                            overflowX: 'hidden',
+                            overflow: 'visible',
                             animation: 'slideDown 0.2s ease'
                         }}
                     >
