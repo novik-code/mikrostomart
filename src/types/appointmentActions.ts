@@ -85,6 +85,6 @@ export interface AppointmentActionResponse {
     success: boolean;
     message: string;
     emailSent?: boolean;
-    smsSent?: boolean;
+    telegramSent?: boolean;
     redirectUrl?: string;
 }

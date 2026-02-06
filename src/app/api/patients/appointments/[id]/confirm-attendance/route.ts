@@ -159,17 +159,49 @@ export async function POST(
                 stack: emailError instanceof Error ? emailError.stack : undefined,
                 fullError: JSON.stringify(emailError, Object.getOwnPropertyNames(emailError))
             });
-            // Don't fail the request if email fails
         }
 
-        // TODO: Send SMS (SMSAPI.pl integration in Phase 2)
-        const smsSent = false;
+        // Send Telegram notification
+        let telegramSent = false;
+        try {
+            const telegramToken = process.env.TELEGRAM_BOT_TOKEN;
+            const telegramChatIds = process.env.TELEGRAM_CHAT_ID?.split(",") || [];
+
+            if (telegramToken && telegramChatIds.length > 0) {
+                const telegramMessage = `✅ <b>PACJENT POTWIERDZIŁ OBECNOŚĆ</b>\n\n` +
+                    `📆 <b>Termin:</b> ${appointmentDateFormatted}, ${appointmentTime}\n` +
+                    `🩺 <b>Lekarz:</b> ${appointmentAction.doctor_name || 'Nie podano'}\n` +
+                    `📞 <b>Telefon pacjenta:</b> <a href="tel:${patient.phone}">${patient.phone}</a>`;
+
+                const tgUrl = `https://api.telegram.org/bot${telegramToken}/sendMessage`;
+                await Promise.all(telegramChatIds.map(async (chatId) => {
+                    const cleanChatId = chatId.trim();
+                    if (!cleanChatId) return;
+                    try {
+                        await fetch(tgUrl, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                chat_id: cleanChatId,
+                                text: telegramMessage,
+                                parse_mode: "HTML"
+                            }),
+                        });
+                        telegramSent = true;
+                    } catch (e) {
+                        console.error('[CONFIRM-ATTENDANCE] Telegram Error:', e);
+                    }
+                }));
+            }
+        } catch (telegramError) {
+            console.error('[CONFIRM-ATTENDANCE] Failed to send telegram:', telegramError);
+        }
 
         const response: AppointmentActionResponse = {
             success: true,
             message: 'Potwierdzenie obecności wysłane. Gabinet został powiadomiony.',
             emailSent,
-            smsSent
+            telegramSent
         };
 
         return NextResponse.json(response);
