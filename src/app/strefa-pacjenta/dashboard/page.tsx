@@ -686,10 +686,7 @@ export default function PatientDashboard() {
                                                 fontSize: '1.25rem',
                                                 fontWeight: '600',
                                             }}>
-                                                🕐 Godzina: {appointmentDate.toLocaleTimeString('pl-PL', {
-                                                    hour: '2-digit',
-                                                    minute: '2-digit'
-                                                })}
+                                                🕐 Godzina: {nextAppointment.date.split('T')[1].substring(0, 5)}
                                             </div>
                                         </div>
 
