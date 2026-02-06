@@ -131,25 +131,25 @@ export async function GET(req: Request) {
                     continue;
                 }
 
-                // 5f. Check if SMS already sent for this appointment
-                const { data: existingAction, error: actionError } = await supabase
-                    .from('appointment_actions')
-                    .select('id, reminder_sms_sent')
-                    .eq('prodentis_id', patient.prodentis_id)
+                // 5f. Check if SMS draft already exists for this appointment (prevent duplicates)
+                const { data: existingDraft, error: draftCheckError } = await supabase
+                    .from('sms_reminders')
+                    .select('id, status')
+                    .eq('prodentis_id', appointment.id)
                     .eq('appointment_date', appointment.date)
                     .maybeSingle();
 
-                if (actionError && actionError.code !== 'PGRST116') {
-                    console.error(`   ❌ DB error:`, actionError);
+                if (draftCheckError && draftCheckError.code !== 'PGRST116') {
+                    console.error(`   ❌ DB error (sms_reminders check):`, draftCheckError);
                     errors.push({
                         patient: patient.phone || patient.prodentis_id,
-                        error: `Database error: ${actionError.message}`
+                        error: `Database error: ${draftCheckError.message}`
                     });
                     continue;
                 }
 
-                if (existingAction?.reminder_sms_sent) {
-                    console.log(`   ℹ️  SMS already sent for this appointment`);
+                if (existingDraft) {
+                    console.log(`   ℹ️  SMS draft already exists (status: ${existingDraft.status})`);
                     continue;
                 }
 
