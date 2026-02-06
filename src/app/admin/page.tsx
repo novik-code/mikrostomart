@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import RevealOnScroll from "@/components/RevealOnScroll";
+import AppointmentInstructionsEditor from "@/components/AppointmentInstructionsEditor";
 import { createBrowserClient } from "@supabase/ssr";
 import { useRouter } from "next/navigation";
 import {
@@ -56,7 +57,7 @@ export default function AdminPage() {
     const [products, setProducts] = useState<Product[]>([]);
     const [error, setError] = useState<string | null>(null);
 
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'questions' | 'articles' | 'news' | 'orders' | 'reservations' | 'blog' | 'patients' | 'sms-reminders'>('dashboard');
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'questions' | 'articles' | 'news' | 'orders' | 'reservations' | 'blog' | 'patients' | 'sms-reminders' | 'appointment-instructions'>('dashboard');
     const [questions, setQuestions] = useState<any[]>([]);
     const [articles, setArticles] = useState<any[]>([]);
     const [blogPosts, setBlogPosts] = useState<any[]>([]); // New Blog Posts state
@@ -73,6 +74,12 @@ export default function AdminPage() {
     const [sendingAll, setSendingAll] = useState(false);
 
     const [manualGenerationStatus, setManualGenerationStatus] = useState<string | null>(null);
+
+    // Appointment Instructions state
+    const [appointmentInstructions, setAppointmentInstructions] = useState<any[]>([]);
+    const [editingInstruction, setEditingInstruction] = useState<any | null>(null);
+    const [savingInstruction, setSavingInstruction] = useState(false);
+
 
     // Responsive State
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -1434,6 +1441,7 @@ export default function AdminPage() {
                             )}
                         </div>
                     } icon={MessageCircle} />
+                    <NavItem id="appointment-instructions" label="Instrukcje Wizyt" icon={FileText} />
                     <NavItem id="orders" label="Zamówienia" icon={ShoppingBag} />
                     <NavItem id="products" label="Produkty (Sklep)" icon={Package} />
 
@@ -1485,6 +1493,8 @@ export default function AdminPage() {
                             {activeTab === 'dashboard' && 'Pulpit'}
                             {activeTab === 'reservations' && 'Rezerwacje Wizyt'}
                             {activeTab === 'patients' && 'Pacjenci Strefy Pacjenta'}
+                            {activeTab === 'sms-reminders' && 'SMS Przypomnienia'}
+                            {activeTab === 'appointment-instructions' && 'Instrukcje Wizyt'}
                             {activeTab === 'orders' && 'Zamówienia Sklepu'}
                             {activeTab === 'products' && 'Zarządzanie Produktami'}
                             {activeTab === 'news' && 'Aktualności'}
@@ -1715,6 +1725,7 @@ export default function AdminPage() {
                     {activeTab === 'orders' && renderOrdersTab()}
                     {activeTab === 'patients' && renderPatientsTab()}
                     {activeTab === 'sms-reminders' && renderSmsRemindersTab()}
+                    {activeTab === 'appointment-instructions' && <AppointmentInstructionsEditor />}
                 </div>
             </main>
         </div>
