@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sendSMS, getSMSTemplate, formatSMSMessage } from '@/lib/smsService';
+import { randomUUID } from 'crypto';
 
 export const maxDuration = 60; // Vercel function timeout
 
@@ -17,21 +18,20 @@ const REMINDER_DOCTORS = process.env.REMINDER_DOCTORS?.split(',').map(d => d.tri
 ];
 
 /**
- * SMS Draft Generation Cron Job (Stage 1 of 2)
+ * SMS Draft Generation Cron Job (Stage 1 of 2) - API 4.0
  * 
  * Runs daily at 7:00 AM UTC (8-9 AM Warsaw time)
  * 
- * Flow:
- * 1. Get all active patients
- * 2. For each patient: fetch next appointment from Prodentis API 3.2
- * 3. Filter: tomorrow + working hours + doctor in reminder list
- * 4. Generate personalized SMS based on appointment type
- * 5. Save as DRAFT in sms_reminders table (admin review before sending)
+ * Flow (NEW - API 4.0):
+ * 1. Fetch ALL appointments for tomorrow from Prodentis /api/appointments/by-date
+ * 2. Filter: working hours + doctor in reminder list + has phone number
+ * 3. Generate personalized SMS based on appointment type
+ * 4. Save as DRAFT in sms_reminders table (admin review before sending)
  * 
  * Stage 2: Admin reviews drafts in /admin panel OR auto-send at 10 AM
  */
 export async function GET(req: Request) {
-    console.log('🚀 [SMS Reminders] Starting cron job...');
+    console.log('🚀 [SMS Reminders] Starting cron job (API 4.0)...');
     const startTime = Date.now();
 
     // 1. Authentication check
@@ -50,88 +50,92 @@ export async function GET(req: Request) {
     );
 
     let processedCount = 0;
-    let sentCount = 0;
-    let failedCount = 0;
-    const errors: Array<{ patient: string; error: string }> = [];
+    let draftsCreated = 0;
+    let skippedCount = 0;
+    const errors: Array<{ appointment: string; error: string }> = [];
 
     try {
-        // 3. Get all active patients
-        const { data: patients, error: patientsError } = await supabase
-            .from('patients')
-            .select('id, prodentis_id, phone, account_status')
-            .eq('account_status', 'active');
+        // 3. Calculate tomorrow's date
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const tomorrowStr = tomorrow.toISOString().split('T')[0]; // YYYY-MM-DD
 
-        if (patientsError) {
-            throw new Error(`Failed to fetch patients: ${patientsError.message}`);
+        console.log(`📅 [SMS Reminders] Fetching appointments for: ${tomorrowStr}`);
+
+        // 4. Fetch ALL appointments for tomorrow from Prodentis API 4.0
+        const apiUrl = `${PRODENTIS_API_URL}/api/appointments/by-date?date=${tomorrowStr}`;
+        console.log(`🔍 [SMS Reminders] Calling: ${apiUrl}`);
+
+        const apiResponse = await fetch(apiUrl, {
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (!apiResponse.ok) {
+            throw new Error(`Prodentis API error: ${apiResponse.status} ${apiResponse.statusText}`);
         }
 
-        if (!patients || patients.length === 0) {
-            console.log('ℹ️  [SMS Reminders] No active patients found');
+        const data = await apiResponse.json();
+        const appointments = data.appointments || [];
+
+        if (appointments.length === 0) {
+            console.log('ℹ️  [SMS Reminders] No appointments found for tomorrow');
             return NextResponse.json({
                 success: true,
                 processed: 0,
-                sent: 0,
-                failed: 0,
-                message: 'No active patients'
+                draftsCreated: 0,
+                skipped: 0,
+                message: 'No appointments for tomorrow'
             });
         }
 
-        console.log(`📊 [SMS Reminders] Processing ${patients.length} active patients...`);
+        console.log(`📊 [SMS Reminders] Found ${appointments.length} appointments for tomorrow`);
 
-        // 4. Calculate tomorrow's date range
-        const tomorrow = getTomorrowDateRange();
-        console.log(`📅 [SMS Reminders] Checking for appointments on: ${tomorrow.start.toLocaleDateString('pl-PL')}`);
-
-        // 5. Process each patient
-        for (const patient of patients) {
+        // 5. Process each appointment
+        for (const appointment of appointments) {
             processedCount++;
 
             try {
-                // 5a. Fetch next appointment from Prodentis API 3.2
-                const apiUrl = `${PRODENTIS_API_URL}/api/patient/${patient.prodentis_id}/next-appointment`;
-                console.log(`🔍 [Patient ${patient.prodentis_id}] Checking appointment...`);
+                const appointmentTime = new Date(appointment.date).toLocaleTimeString('pl-PL', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    timeZone: 'Europe/Warsaw'
+                });
 
-                const apiResponse = await fetch(apiUrl);
+                console.log(`\n🔍 [Appointment ${appointment.id}] Processing...`);
+                console.log(`   Patient: ${appointment.patientName}`);
+                console.log(`   Doctor: ${appointment.doctor.name}`);
+                console.log(`   Time: ${appointmentTime}`);
+                console.log(`   Type: ${appointment.appointmentType.name}`);
+                console.log(`   Phone: ${appointment.patientPhone || 'MISSING'}`);
+                console.log(`   Working Hour: ${appointment.isWorkingHour}`);
 
-                if (!apiResponse.ok) {
+                // 5a. Filter: Is working hour? (white field in calendar)
+                if (appointment.isWorkingHour !== true) {
+                    console.log(`   ⚠️  Skipping: Non-working hour (grey/red field)`);
+                    skippedCount++;
+                    continue;
+                }
+
+                // 5b. Filter: Has phone number?
+                if (!appointment.patientPhone) {
+                    console.log(`   ⚠️  Skipping: No phone number`);
+                    skippedCount++;
                     errors.push({
-                        patient: patient.phone || patient.prodentis_id,
-                        error: `Prodentis API error: ${apiResponse.status}`
+                        appointment: `${appointment.patientName} (${appointment.id})`,
+                        error: 'Missing phone number'
                     });
                     continue;
                 }
 
-                const data = await apiResponse.json();
-
-                // 5b. Check if patient has next appointment
-                if (!data.hasNextAppointment) {
-                    console.log(`   ⚠️  No upcoming appointment`);
-                    continue;
-                }
-
-                const appointment = data.nextAppointment;
-                const appointmentDate = new Date(appointment.date);
-
-                // 5c. Filter: Is appointment tomorrow?
-                if (appointmentDate < tomorrow.start || appointmentDate > tomorrow.end) {
-                    console.log(`   ⚠️  Appointment not tomorrow (${appointmentDate.toLocaleDateString('pl-PL')})`);
-                    continue;
-                }
-
-                // 5d. Filter: Is working hour? (API 3.2 feature)
-                if (appointment.isWorkingHour !== true) {
-                    console.log(`   ⚠️  Appointment outside working hours (grey field)`);
-                    continue;
-                }
-
-                // 5e. Filter: Is doctor in reminder list?
+                // 5c. Filter: Is doctor in reminder list?
                 const doctorName = appointment.doctor.name.replace(/\s*\(I\)\s*/g, ' ').trim();
                 if (!REMINDER_DOCTORS.includes(doctorName)) {
-                    console.log(`   ⚠️  Doctor not in reminder list: ${doctorName}`);
+                    console.log(`   ⚠️  Skipping: Doctor not in reminder list (${doctorName})`);
+                    skippedCount++;
                     continue;
                 }
 
-                // 5f. Check if SMS draft already exists for this appointment (prevent duplicates)
+                // 5d. Check if SMS draft already exists for this appointment (prevent duplicates)
                 const { data: existingDraft, error: draftCheckError } = await supabase
                     .from('sms_reminders')
                     .select('id, status')
@@ -142,7 +146,7 @@ export async function GET(req: Request) {
                 if (draftCheckError && draftCheckError.code !== 'PGRST116') {
                     console.error(`   ❌ DB error (sms_reminders check):`, draftCheckError);
                     errors.push({
-                        patient: patient.phone || patient.prodentis_id,
+                        appointment: `${appointment.patientName} (${appointment.id})`,
                         error: `Database error: ${draftCheckError.message}`
                     });
                     continue;
@@ -150,117 +154,111 @@ export async function GET(req: Request) {
 
                 if (existingDraft) {
                     console.log(`   ℹ️  SMS draft already exists (status: ${existingDraft.status})`);
+                    skippedCount++;
                     continue;
                 }
 
                 // 6. Generate personalized SMS message
-                const appointmentTime = appointmentDate.toLocaleTimeString('pl-PL', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    timeZone: 'Europe/Warsaw'
-                });
-
-                // API 3.2: appointmentType.name is GUARANTEED to have value (never null)
                 const appointmentType = appointment.appointmentType.name;
+                const appointmentDate = new Date(appointment.date);
 
+                // Get template and format message
                 const template = getSMSTemplate(doctorName, appointmentType);
                 const message = formatSMSMessage(template, {
-                    time: appointmentTime,
+                    patientName: appointment.patientName.split(' ')[0], // First name only
                     doctor: doctorName,
+                    date: appointmentDate.toLocaleDateString('pl-PL', {
+                        weekday: 'long',
+                        day: 'numeric',
+                        month: 'long',
+                        timeZone: 'Europe/Warsaw'
+                    }),
+                    time: appointmentTime,
                     appointmentType: appointmentType
                 });
 
-                console.log(`   📝 Creating SMS draft: "${message.substring(0, 50)}..."`);
+                console.log(`   📝 Generated SMS (${message.length} chars): "${message.substring(0, 50)}..."`);
 
-                // 7. Create SMS draft in sms_reminders table (Stage 1: Generate)
+                // 7. Find or create patient_id (for FK relationship)
+                let patientId = null;
+                const { data: existingPatient } = await supabase
+                    .from('patients')
+                    .select('id')
+                    .eq('prodentis_id', appointment.patientId)
+                    .maybeSingle();
+
+                patientId = existingPatient?.id || null;
+
+                // 8. Create SMS draft in sms_reminders table (Stage 1: Generate)
                 const { data: draftData, error: draftError } = await supabase
                     .from('sms_reminders')
-                    .insert({
-                        patient_id: patient.id,
-                        prodentis_id: patient.prodentis_id,
-                        phone: patient.phone,
+                    .insert([{
+                        id: randomUUID(),
+                        patient_id: patientId, // May be null for patients without portal accounts
+                        prodentis_id: appointment.id,
+                        phone: appointment.patientPhone,
                         appointment_date: appointment.date,
-                        appointment_end_date: appointment.endDate,
-                        doctor_id: appointment.doctor.id,
                         doctor_name: doctorName,
                         appointment_type: appointmentType,
                         sms_message: message,
-                        template_used: `${doctorName}_${appointmentType}`,
-                        status: 'draft'
-                    })
-                    .select()
-                    .single();
+                        status: 'draft', // Set status to draft
+                        created_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString(),
+                    }])
+                    .select();
 
                 if (draftError) {
-                    // Handle duplicate (same appointment already has draft)
-                    if (draftError.code === '23505') {
-                        console.log(`   ℹ️  Draft already exists for this appointment`);
-                        continue;
-                    }
-
-                    failedCount++;
-                    console.error(`   ❌ Failed to create draft: ${draftError.message}`);
+                    console.error(`   ❌ Failed to create draft:`, draftError);
                     errors.push({
-                        patient: patient.phone || patient.prodentis_id,
+                        appointment: `${appointment.patientName} (${appointment.id})`,
                         error: `Draft creation failed: ${draftError.message}`
                     });
                     continue;
                 }
 
-                sentCount++;
-                console.log(`   ✅ Draft created successfully (ID: ${draftData.id})`);
+                console.log(`   ✅ Draft created successfully (ID: ${draftData[0].id})`);
+                draftsCreated++;
 
-            } catch (patientError) {
-                failedCount++;
-                const errorMsg = patientError instanceof Error ? patientError.message : 'Unknown error';
-                console.error(`   ❌ Error processing patient:`, errorMsg);
+            } catch (error: any) {
+                console.error(`   ❌ Error processing appointment:`, error);
                 errors.push({
-                    patient: patient.phone || patient.prodentis_id,
-                    error: errorMsg
+                    appointment: `${appointment.patientName || 'Unknown'} (${appointment.id})`,
+                    error: error.message
                 });
             }
         }
 
+        // Summary
         const duration = ((Date.now() - startTime) / 1000).toFixed(2);
-        console.log(`\n📊 [SMS Draft Generation] Job completed in ${duration}s`);
-        console.log(`   Processed: ${processedCount}`);
-        console.log(`   Drafts Created: ${sentCount}`);
-        console.log(`   Failed: ${failedCount}`);
+        console.log(`\n📊 [SMS Reminders] Summary:`);
+        console.log(`   Total appointments: ${processedCount}`);
+        console.log(`   Drafts created: ${draftsCreated}`);
+        console.log(`   Skipped: ${skippedCount}`);
+        console.log(`   Errors: ${errors.length}`);
+        console.log(`   Duration: ${duration}s`);
+
+        if (errors.length > 0) {
+            console.error(`\n❌ [SMS Reminders] Errors:`, errors);
+        }
 
         return NextResponse.json({
             success: true,
             processed: processedCount,
-            drafts_created: sentCount,
-            failed: failedCount,
-            errors: errors,
-            duration: `${duration}s`,
-            message: `Generated ${sentCount} SMS drafts for tomorrow's appointments`
+            draftsCreated: draftsCreated,
+            skipped: skippedCount,
+            failed: errors.length,
+            errors: errors.length > 0 ? errors : undefined,
+            duration: `${duration}s`
         });
 
-    } catch (error) {
-        const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-        console.error('❌ [SMS Reminders] Fatal error:', errorMsg);
-
+    } catch (error: any) {
+        console.error('💥 [SMS Reminders] Fatal error:', error);
         return NextResponse.json({
             success: false,
-            error: errorMsg,
+            error: error.message,
             processed: processedCount,
-            sent: sentCount,
-            failed: failedCount
+            draftsCreated: draftsCreated,
+            skipped: skippedCount
         }, { status: 500 });
     }
-}
-
-/**
- * Calculate tomorrow's date range (00:00:00 to 23:59:59)
- */
-function getTomorrowDateRange() {
-    const now = new Date();
-    const tomorrow = new Date(now);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
-    return {
-        start: new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate(), 0, 0, 0),
-        end: new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate(), 23, 59, 59)
-    };
 }
