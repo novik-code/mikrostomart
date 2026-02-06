@@ -1,0 +1,212 @@
+/**
+ * SMS Service for Mikrostomart
+ * 
+ * Handles SMS sending via configured provider (SMSAPI.pl, Twilio, etc.)
+ * Used for automated appointment reminders
+ */
+
+export interface SMSOptions {
+    to: string;           // Phone number (format: 48XXXXXXXXX for Polish numbers)
+    message: string;      // SMS content (recommended: under 160 chars for single SMS)
+    from?: string;        // Sender name (default: process.env.SMSAPI_FROM)
+}
+
+export interface SMSResponse {
+    success: boolean;
+    messageId?: string;   // Provider's message ID for tracking
+    error?: string;       // Error message if send failed
+}
+
+/**
+ * Send SMS via configured provider
+ * 
+ * @example
+ * const result = await sendSMS({
+ *   to: '48123456789',
+ *   message: 'Przypomnienie o wizycie jutro o 10:00'
+ * });
+ * 
+ * if (result.success) {
+ *   console.log('SMS sent, ID:', result.messageId);
+ * }
+ */
+export async function sendSMS(options: SMSOptions): Promise<SMSResponse> {
+    const { to, message, from = process.env.SMSAPI_FROM || 'Mikrostomart' } = options;
+
+    // Validate inputs
+    if (!to || !message) {
+        return {
+            success: false,
+            error: 'Missing required parameters: to and message'
+        };
+    }
+
+    // Validate phone format (Polish: 48XXXXXXXXX, 11 digits total)
+    const phoneRegex = /^48\d{9}$/;
+    if (!phoneRegex.test(to.replace(/\s+/g, ''))) {
+        return {
+            success: false,
+            error: `Invalid phone format: ${to}. Expected format: 48XXXXXXXXX`
+        };
+    }
+
+    // Check if SMS provider is configured
+    if (!process.env.SMSAPI_TOKEN) {
+        console.warn('⚠️  SMSAPI_TOKEN not configured - SMS send skipped');
+        return {
+            success: false,
+            error: 'SMS provider not configured. Set SMSAPI_TOKEN environment variable.'
+        };
+    }
+
+    try {
+        // TODO: User to select SMS provider and implement integration
+        // Option 1: SMSAPI.pl
+        // Option 2: Twilio
+        // Option 3: Other provider
+
+        // PLACEHOLDER IMPLEMENTATION - SMSAPI.pl
+        const response = await fetch('https://api.smsapi.pl/sms.do', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${process.env.SMSAPI_TOKEN}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                to: to,
+                message: message,
+                from: from,
+                format: 'json'
+            })
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            return {
+                success: false,
+                error: `SMSAPI error (${response.status}): ${errorText}`
+            };
+        }
+
+        const data = await response.json();
+
+        // SMSAPI.pl returns array of message statuses
+        if (data.count && data.count > 0) {
+            return {
+                success: true,
+                messageId: data.list?.[0]?.id || 'unknown'
+            };
+        }
+
+        return {
+            success: false,
+            error: 'No messages sent'
+        };
+
+    } catch (error) {
+        console.error('SMS send error:', error);
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error'
+        };
+    }
+}
+
+/**
+ * Get SMS template based on doctor and appointment type
+ * 
+ * Priority:
+ * 1. byDoctor[doctorName][appointmentType] (most specific)
+ * 2. byDoctor[doctorName].default
+ * 3. byAppointmentType[appointmentType]
+ * 4. default (fallback)
+ */
+export function getSMSTemplate(
+    doctorName: string,
+    appointmentType: string
+): string {
+    // Load templates from config file
+    const fs = require('fs');
+    const path = require('path');
+    const templatesPath = path.join(process.cwd(), 'smsTemplates.json');
+
+    let templates: any = {};
+    try {
+        const fileContent = fs.readFileSync(templatesPath, 'utf-8');
+        templates = JSON.parse(fileContent);
+    } catch (error) {
+        console.error('Failed to load SMS templates:', error);
+        // Return default template if file not found
+        return 'Przypomnienie o wizycie jutro o {time}. Zaloguj się do strefy pacjenta.';
+    }
+
+    // Normalize doctor name (remove "(I)" suffix that Prodentis adds)
+    const normalizedDoctor = doctorName.replace(/\s*\(I\)\s*/g, ' ').trim();
+
+    // Normalize appointment type (case-insensitive)
+    const normalizedType = appointmentType.toLowerCase();
+
+    // Priority 1: Doctor + Type specific
+    if (templates.byDoctor?.[normalizedDoctor]?.[normalizedType]) {
+        return templates.byDoctor[normalizedDoctor][normalizedType];
+    }
+
+    if (templates.byDoctor?.[normalizedDoctor]?.[appointmentType]) {
+        return templates.byDoctor[normalizedDoctor][appointmentType];
+    }
+
+    // Priority 2: Doctor default
+    if (templates.byDoctor?.[normalizedDoctor]?.default) {
+        return templates.byDoctor[normalizedDoctor].default;
+    }
+
+    // Priority 3: Type specific (try both normalized and original)
+    if (templates.byAppointmentType?.[normalizedType]) {
+        return templates.byAppointmentType[normalizedType];
+    }
+
+    if (templates.byAppointmentType?.[appointmentType]) {
+        return templates.byAppointmentType[appointmentType];
+    }
+
+    // Priority 4: Global default
+    return templates.default || 'Przypomnienie o wizycie jutro o {time}. Zaloguj się do strefy pacjenta.';
+}
+
+/**
+ * Format SMS message by replacing placeholders
+ */
+export function formatSMSMessage(
+    template: string,
+    variables: {
+        time?: string;
+        doctor?: string;
+        patientName?: string;
+        appointmentType?: string;
+        date?: string;
+    }
+): string {
+    let message = template;
+
+    if (variables.time) {
+        message = message.replace(/{time}/g, variables.time);
+    }
+
+    if (variables.doctor) {
+        message = message.replace(/{doctor}/g, variables.doctor);
+    }
+
+    if (variables.patientName) {
+        message = message.replace(/{patientName}/g, variables.patientName);
+    }
+
+    if (variables.appointmentType) {
+        message = message.replace(/{appointmentType}/g, variables.appointmentType);
+    }
+
+    if (variables.date) {
+        message = message.replace(/{date}/g, variables.date);
+    }
+
+    return message;
+}

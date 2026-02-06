@@ -1,0 +1,19 @@
+{
+    "default": "Dzień dobry! Przypominamy o wizycie jutro o {time}. Zaloguj się: mikrostomart.pl/strefa-pacjenta aby potwierdzić obecność. Pozdrawiamy, Mikrostomart",
+    "byAppointmentType": {
+        "pierwsza wizyta": "👋 Witamy! Pierwsza wizyta jutro o {time}. Zaloguj się: mikrostomart.pl/strefa-pacjenta Prosimy zabrać dowód. Mikrostomart",
+        "chirurgia": "⚕️ PRZYPOMNIENIE: Zabieg chirurgiczny jutro o {time}. Prosimy NIE jeść 2h przed. mikrostomart.pl/strefa-pacjenta",
+        "protetyka": "Wizyta protetyczna jutro o {time}. Zaloguj się: mikrostomart.pl/strefa-pacjenta aby potwierdzić. Pozdrawiamy, Mikrostomart",
+        "ORTODONCJA": "🦷 Wizyta ortodontyczna jutro o {time}. Zaloguj się: mikrostomart.pl/strefa-pacjenta Pozdrawiamy, Mikrostomart",
+        "KONTROLA": "📋 Wizyta kontrolna jutro o {time}. Zaloguj się: mikrostomart.pl/strefa-pacjenta aby potwierdzić. Mikrostomart",
+        "higienizacja": "✨ Higienizacja jutro o {time}. Zaloguj się: mikrostomart.pl/strefa-pacjenta Pozdrawiamy, Mikrostomart",
+        "endodoncja": "Leczenie kanałowe jutro o {time}. Zaloguj się: mikrostomart.pl/strefa-pacjenta Pozdrawiamy, Mikrostomart",
+        "konsultacja": "Konsultacja jutro o {time}. Zaloguj się: mikrostomart.pl/strefa-pacjenta aby potwierdzić. Pozdrawiamy, Mikrostomart",
+        "LASER": "Zabieg laserowy jutro o {time}. Zaloguj się: mikrostomart.pl/strefa-pacjenta Pozdrawiamy, Mikrostomart"
+    },
+    "byDoctor": {
+        "Marcin Nowosielski": {
+            "default": "Dzień dobry! Wizyta u Dr Nowosielskiego jutro o {time}. Zaloguj się: mikrostomart.pl/strefa-pacjenta Pozdrawiamy"
+        }
+    }
+}
