@@ -1,6 +1,6 @@
 # Mikrostomart - Project Architecture Overview
 
-> **Last Updated:** 2026-02-05  
+> **Last Updated:** 2026-02-06  
 > **Purpose:** Complete reference to prevent recreating existing functionality
 
 ---
@@ -14,6 +14,7 @@
 - **External APIs:** 
   - Prodentis (patient data, appointments)
   - Resend (email notifications)
+  - Telegram Bot API (appointment notifications)
   - Stripe (payments)
   - YouTube API (video feed)
 - **Deployment:** Vercel
@@ -77,18 +78,23 @@
 
 ---
 
-## 🔌 API Endpoints (32 total)
+## 🔌 API Endpoints (36 total)
 
-### Patient Portal API (11)
+### Patient Portal API (15)
 - `POST /api/patients/register` - Create account (sends verification email)
 - `POST /api/patients/verify-email` - Verify email token
 - `POST /api/patients/login` - Patient login
 - `POST /api/patients/verify` - Verify Prodentis ID
 - `GET /api/patients/me` - Get current patient data
 - `GET /api/patients/me/visits` - Get patient visit history
-- `GET /api/patients/[id]/next-appointment` - **NEW!** Get next appointment from Prodentis
+- `GET /api/patients/[id]/next-appointment` - Get next appointment from Prodentis
 - `POST /api/patients/reset-password/request` - Request password reset
 - `POST /api/patients/reset-password/confirm` - Confirm password reset
+- `POST /api/patients/appointments/[id]/reschedule` - **NEW!** Request appointment reschedule (email + Telegram)
+- `POST /api/patients/appointments/[id]/cancel` - **NEW!** Request appointment cancellation (email + Telegram)
+- `POST /api/patients/appointments/[id]/confirm-attendance` - **NEW!** Confirm attendance 24h before (email + Telegram)
+- `GET /api/patients/appointments/[id]/status` - **NEW!** Get appointment action status
+- `POST /api/patients/appointments/[id]/reset-status` - **NEW!** Reset appointment status (testing only)
 
 ### Admin API (11)
 - `GET /api/admin/patients` - List all patients
@@ -267,7 +273,7 @@ One-time tokens for password reset.
 
 ---
 
-## 📧 Email Notifications (Resend)
+## 📧 Notifications (Resend + Telegram)
 
 ### Patient Portal Emails
 1. **Email Verification** - Registration confirmation (24h expiry)
@@ -275,10 +281,20 @@ One-time tokens for password reset.
 3. **Account Rejected** - Explanation with admin reason + contact
 4. **Password Reset** - Reset link (1h expiry)
 
-### Admin Notifications
+### Admin Notifications (Email + Telegram)
 - Contact form submissions
 - New reservations
 - New expert questions
+- **Appointment Actions** (NEW):
+  - Reschedule requests (with reason)
+  - Cancellation requests (with reason)
+  - Attendance confirmations (24h before)
+
+### Telegram Integration
+- **Bot Token:** `TELEGRAM_BOT_TOKEN`
+- **Chat IDs:** `TELEGRAM_CHAT_ID` (comma-separated for multiple recipients)
+- **Parallel Delivery:** Telegram sends alongside email notifications
+- **Formatted Messages:** HTML format with clickable phone links
 
 ---
 
@@ -302,6 +318,10 @@ One-time tokens for password reset.
 ### YouTube API
 - Featured videos
 - **Key:** `YOUTUBE_API_KEY`
+
+### Telegram Bot API
+- Appointment action notifications (reschedule, cancel, confirm)
+- **Keys:** `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`
 
 ---
 
@@ -332,6 +352,12 @@ mikrostomart/
 - **Production URL:** https://www.mikrostomart.pl
 - **Auto-deploy:** On push to `main` branch
 
+### Recent Updates (2026-02-06)
+- ✅ Telegram notifications for appointment actions
+- ✅ Patient address auto-fill in payment forms
+- ✅ Timezone display fix (Warsaw time, no double conversion)
+- ✅ Reset status endpoint for testing appointment workflows
+
 ---
 
 ## ⚠️ IMPORTANT: Before Adding New Features
@@ -350,9 +376,11 @@ mikrostomart/
 ✅ **Email verification** - 24h token system  
 ✅ **Admin approval** - Manual review workflow  
 ✅ **Dashboard** - Next appointment widget with real Prodentis API  
+✅ **Appointment Actions** - Reschedule, cancel, confirm attendance (24h window)  
 ✅ **Visit history** - Full visit list in Historia tab  
 ✅ **Profile** - Personal data management  
-✅ **Password reset** - Email-based reset flow
+✅ **Password reset** - Email-based reset flow  
+✅ **Payment auto-fill** - Address data from patient profile
 
 ---
 
