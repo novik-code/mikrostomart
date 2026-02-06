@@ -9,9 +9,11 @@ const supabase = createClient(
 
 export async function POST(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id: appointmentId } = await params;
+
         // Verify JWT
         const authHeader = request.headers.get('Authorization');
         const payload = verifyToken(authHeader);
@@ -22,8 +24,6 @@ export async function POST(
                 { status: 401 }
             );
         }
-
-        const appointmentId = params.id;
 
         // Verify patient owns this appointment action
         const { data: patient } = await supabase
