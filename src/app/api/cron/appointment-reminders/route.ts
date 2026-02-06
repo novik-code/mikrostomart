@@ -17,7 +17,7 @@ const REMINDER_DOCTORS = process.env.REMINDER_DOCTORS?.split(',').map(d => d.tri
 ];
 
 /**
- * SMS Appointment Reminder Cron Job
+ * SMS Draft Generation Cron Job (Stage 1 of 2)
  * 
  * Runs daily at 7:00 AM UTC (8-9 AM Warsaw time)
  * 
@@ -25,8 +25,10 @@ const REMINDER_DOCTORS = process.env.REMINDER_DOCTORS?.split(',').map(d => d.tri
  * 1. Get all active patients
  * 2. For each patient: fetch next appointment from Prodentis API 3.2
  * 3. Filter: tomorrow + working hours + doctor in reminder list
- * 4. Send personalized SMS based on appointment type
- * 5. Track send status in appointment_actions table
+ * 4. Generate personalized SMS based on appointment type
+ * 5. Save as DRAFT in sms_reminders table (admin review before sending)
+ * 
+ * Stage 2: Admin reviews drafts in /admin panel OR auto-send at 10 AM
  */
 export async function GET(req: Request) {
     console.log('🚀 [SMS Reminders] Starting cron job...');
@@ -168,52 +170,45 @@ export async function GET(req: Request) {
                     appointmentType: appointmentType
                 });
 
-                console.log(`   📱 Sending SMS: "${message.substring(0, 50)}..."`);
+                console.log(`   📝 Creating SMS draft: "${message.substring(0, 50)}..."`);
 
-                // 7. Send SMS
-                const smsResult = await sendSMS({
-                    to: patient.phone,
-                    message: message
-                });
-
-                // 8. Update/create appointment_actions record
-                const actionData = {
-                    reminder_sms_sent: smsResult.success,
-                    reminder_sms_sent_at: new Date().toISOString(),
-                    reminder_sms_message_id: smsResult.messageId || null,
-                    reminder_sms_error: smsResult.error || null
-                };
-
-                if (existingAction) {
-                    // Update existing record
-                    await supabase
-                        .from('appointment_actions')
-                        .update(actionData)
-                        .eq('id', existingAction.id);
-                } else {
-                    // Create new record (shouldn't happen often - dashboard usually creates it)
-                    await supabase.from('appointment_actions').insert({
+                // 7. Create SMS draft in sms_reminders table (Stage 1: Generate)
+                const { data: draftData, error: draftError } = await supabase
+                    .from('sms_reminders')
+                    .insert({
                         patient_id: patient.id,
                         prodentis_id: patient.prodentis_id,
+                        phone: patient.phone,
                         appointment_date: appointment.date,
                         appointment_end_date: appointment.endDate,
                         doctor_id: appointment.doctor.id,
                         doctor_name: doctorName,
-                        ...actionData
-                    });
-                }
+                        appointment_type: appointmentType,
+                        sms_message: message,
+                        template_used: `${doctorName}_${appointmentType}`,
+                        status: 'draft'
+                    })
+                    .select()
+                    .single();
 
-                if (smsResult.success) {
-                    sentCount++;
-                    console.log(`   ✅ SMS sent successfully (ID: ${smsResult.messageId})`);
-                } else {
+                if (draftError) {
+                    // Handle duplicate (same appointment already has draft)
+                    if (draftError.code === '23505') {
+                        console.log(`   ℹ️  Draft already exists for this appointment`);
+                        continue;
+                    }
+
                     failedCount++;
-                    console.error(`   ❌ SMS send failed: ${smsResult.error}`);
+                    console.error(`   ❌ Failed to create draft: ${draftError.message}`);
                     errors.push({
                         patient: patient.phone || patient.prodentis_id,
-                        error: smsResult.error || 'Unknown error'
+                        error: `Draft creation failed: ${draftError.message}`
                     });
+                    continue;
                 }
+
+                sentCount++;
+                console.log(`   ✅ Draft created successfully (ID: ${draftData.id})`);
 
             } catch (patientError) {
                 failedCount++;
@@ -227,18 +222,19 @@ export async function GET(req: Request) {
         }
 
         const duration = ((Date.now() - startTime) / 1000).toFixed(2);
-        console.log(`\n📊 [SMS Reminders] Job completed in ${duration}s`);
+        console.log(`\n📊 [SMS Draft Generation] Job completed in ${duration}s`);
         console.log(`   Processed: ${processedCount}`);
-        console.log(`   Sent: ${sentCount}`);
+        console.log(`   Drafts Created: ${sentCount}`);
         console.log(`   Failed: ${failedCount}`);
 
         return NextResponse.json({
             success: true,
             processed: processedCount,
-            sent: sentCount,
+            drafts_created: sentCount,
             failed: failedCount,
             errors: errors,
-            duration: `${duration}s`
+            duration: `${duration}s`,
+            message: `Generated ${sentCount} SMS drafts for tomorrow's appointments`
         });
 
     } catch (error) {

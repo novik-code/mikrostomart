@@ -17,7 +17,8 @@ import {
     Settings,
     Menu,
     X,
-    Users
+    Users,
+    MessageCircle
 } from "lucide-react";
 
 type Product = {
@@ -55,7 +56,7 @@ export default function AdminPage() {
     const [products, setProducts] = useState<Product[]>([]);
     const [error, setError] = useState<string | null>(null);
 
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'questions' | 'articles' | 'news' | 'orders' | 'reservations' | 'blog' | 'patients'>('dashboard');
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'questions' | 'articles' | 'news' | 'orders' | 'reservations' | 'blog' | 'patients' | 'sms-reminders'>('dashboard');
     const [questions, setQuestions] = useState<any[]>([]);
     const [articles, setArticles] = useState<any[]>([]);
     const [blogPosts, setBlogPosts] = useState<any[]>([]); // New Blog Posts state
@@ -63,6 +64,13 @@ export default function AdminPage() {
     const [orders, setOrders] = useState<any[]>([]);
     const [reservations, setReservations] = useState<any[]>([]);
     const [patients, setPatients] = useState<any[]>([]);
+
+    // SMS Reminders state
+    const [smsReminders, setSmsReminders] = useState<any[]>([]);
+    const [smsStats, setSmsStats] = useState({ total: 0, draft: 0, sent: 0, failed: 0, cancelled: 0 });
+    const [editingSmsId, setEditingSmsId] = useState<string | null>(null);
+    const [editingSmsMessage, setEditingSmsMessage] = useState('');
+    const [sendingAll, setSendingAll] = useState(false);
 
     const [manualGenerationStatus, setManualGenerationStatus] = useState<string | null>(null);
 
@@ -96,6 +104,7 @@ export default function AdminPage() {
                 fetchOrders();
                 fetchReservations();
                 fetchPatients(); // Fetch patients
+                fetchSmsReminders(); // Fetch SMS reminders
             }
         };
         checkUser();
@@ -487,6 +496,112 @@ export default function AdminPage() {
             alert('Powód odrzucenia jest wymagany');
         }
     };
+
+    // SMS Reminders Functions
+    const fetchSmsReminders = async (status = 'draft') => {
+        try {
+            const res = await fetch(`/api/admin/sms-reminders?status=${status}`);
+            if (res.ok) {
+                const data = await res.json();
+                setSmsReminders(data.reminders);
+                setSmsStats(data.stats);
+            }
+        } catch (err) {
+            console.error('Failed to fetch SMS reminders:', err);
+        }
+    };
+
+    const handleEditSms = async (id: string, message: string) => {
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            const res = await fetch('/api/admin/sms-reminders', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id,
+                    sms_message: message,
+                    edited_by: user?.email || 'admin@mikrostomart.pl'
+                })
+            });
+
+            if (res.ok) {
+                setEditingSmsId(null);
+                setEditingSmsMessage('');
+                fetchSmsReminders();
+                alert('SMS zaktualizowany');
+            }
+        } catch (err) {
+            alert('Błąd aktualizacji');
+        }
+    };
+
+    const handleDeleteSms = async (id: string) => {
+        if (!confirm('Anulować ten SMS?')) return;
+
+        try {
+            const res = await fetch(`/api/admin/sms-reminders?id=${id}`, {
+                method: 'DELETE'
+            });
+
+            if (res.ok) {
+                fetchSmsReminders();
+                alert('SMS anulowany');
+            }
+        } catch (err) {
+            alert('Błąd');
+        }
+    };
+
+    const handleSendAllSms = async () => {
+        if (!confirm(`Wysłać ${smsStats.draft} SMS przypomnień?`)) return;
+
+        setSendingAll(true);
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            const res = await fetch('/api/admin/sms-reminders/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    reminder_ids: 'all',
+                    sent_by: user?.email || 'admin@mikrostomart.pl'
+                })
+            });
+
+            if (res.ok) {
+                const result = await res.json();
+                alert(`✅ Wysłano: ${result.sent}\n❌ Błędy: ${result.failed}`);
+                fetchSmsReminders();
+            }
+        } catch (err) {
+            alert('Błąd wysyłania');
+        } finally {
+            setSendingAll(false);
+        }
+    };
+
+    const handleSendSingleSms = async (id: string) => {
+        if (!confirm('Wysłać ten SMS teraz?')) return;
+
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            const res = await fetch('/api/admin/sms-reminders/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    reminder_ids: [id],
+                    sent_by: user?.email || 'admin@mikrostomart.pl'
+                })
+            });
+
+            if (res.ok) {
+                fetchSmsReminders();
+                alert('SMS wysłany!');
+            }
+        } catch (err) {
+            alert('Błąd wysyłania');
+        }
+    };
+
 
 
     const handleSave = async (e: React.FormEvent) => {
@@ -969,6 +1084,239 @@ export default function AdminPage() {
         </div>
     );
 
+    const renderSmsRemindersTab = () => (
+        <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+            {/* Header with stats */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--color-surface)", padding: "1.5rem", borderRadius: "var(--radius-md)" }}>
+                <div>
+                    <h2 style={{ margin: 0, marginBottom: "0.5rem" }}>📱 SMS Przypomnienia</h2>
+                    <p style={{ margin: 0, color: "var(--color-text-muted)", fontSize: "0.9rem" }}>
+                        Zarządzaj automatycznymi SMS przed wysyłką
+                    </p>
+                </div>
+                <div style={{ display: "flex", gap: "2rem", fontSize: "0.9rem" }}>
+                    <div>
+                        <span style={{ color: "var(--color-text-muted)" }}>Szkice: </span>
+                        <strong style={{ color: "var(--color-primary)", fontSize: "1.2rem" }}>{smsStats.draft}</strong>
+                    </div>
+                    <div>
+                        <span style={{ color: "var(--color-text-muted)" }}>Wysłane: </span>
+                        <strong>{smsStats.sent}</strong>
+                    </div>
+                    <div>
+                        <span style={{ color: "var(--color-text-muted)" }}>Błędy: </span>
+                        <strong>{smsStats.failed}</strong>
+                    </div>
+                </div>
+            </div>
+
+            {/* Send All Button */}
+            {smsStats.draft > 0 && (
+                <div style={{ display: "flex", gap: "1rem" }}>
+                    <button
+                        onClick={handleSendAllSms}
+                        disabled={sendingAll}
+                        className="btn-primary"
+                        style={{
+                            flex: 1,
+                            padding: "1rem",
+                            background: sendingAll ? "#666" : "linear-gradient(135deg, #dcb14a, #f0c96c)",
+                            fontSize: "1.1rem",
+                            fontWeight: "bold"
+                        }}
+                    >
+                        {sendingAll ? "Wysyłanie..." : `📤 Wyślij Wszystkie (${smsStats.draft})`}
+                    </button>
+                </div>
+            )}
+
+            {/* SMS List */}
+            {smsReminders.length === 0 ? (
+                <p style={{ textAlign: "center", padding: "2rem", color: "var(--color-text-muted)" }}>
+                    Brak SMS do wyświetlenia
+                </p>
+            ) : (
+                smsReminders.map(sms => {
+                    const isEditing = editingSmsId === sms.id;
+                    const appointmentTime = new Date(sms.appointment_date).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
+                    const appointmentDate = new Date(sms.appointment_date).toLocaleDateString('pl-PL');
+
+                    return (
+                        <div key={sms.id} style={{
+                            background: "var(--color-surface)",
+                            padding: "1.5rem",
+                            borderRadius: "var(--radius-md)",
+                            border: sms.status === 'failed' ? '2px solid var(--color-error)' : undefined
+                        }}>
+                            {/* Header */}
+                            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "1rem", flexWrap: "wrap", gap: "0.5rem" }}>
+                                <div>
+                                    <strong>{sms.phone}</strong>
+                                    <span style={{ marginLeft: "1rem", color: "var(--color-text-muted)" }}>
+                                        {appointmentDate} • {appointmentTime}
+                                    </span>
+                                </div>
+                                <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                                    <span style={{ fontSize: "0.8rem", color: "var(--color-text-muted)" }}>
+                                        {sms.doctor_name}
+                                    </span>
+                                    <span style={{
+                                        padding: "0.2rem 0.5rem",
+                                        borderRadius: "4px",
+                                        fontSize: "0.75rem",
+                                        background: sms.status === 'draft' ? '#ffc107' : sms.status === 'sent' ? '#4caf50' : '#f44336',
+                                        color: 'white'
+                                    }}>
+                                        {sms.status}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {/* Message */}
+                            {isEditing ? (
+                                <div style={{ marginBottom: "1rem" }}>
+                                    <textarea
+                                        value={editingSmsMessage}
+                                        onChange={(e) => setEditingSmsMessage(e.target.value)}
+                                        style={{
+                                            width: "100%",
+                                            minHeight: "80px",
+                                            padding: "0.8rem",
+                                            borderRadius: "4px",
+                                            border: "1px solid var(--color-border)",
+                                            background: "var(--color-background)",
+                                            color: "var(--color-text-main)",
+                                            fontSize: "0.9rem",
+                                            fontFamily: "inherit"
+                                        }}
+                                    />
+                                    <div style={{ marginTop: "0.5rem", fontSize: "0.8rem", color: "var(--color-text-muted)" }}>
+                                        {editingSmsMessage.length} znaków • {Math.ceil(editingSmsMessage.length / 160)} SMS
+                                    </div>
+                                </div>
+                            ) : (
+                                <div style={{
+                                    padding: "1rem",
+                                    background: "var(--color-background)",
+                                    borderRadius: "4px",
+                                    marginBottom: "1rem",
+                                    fontSize: "0.9rem",
+                                    lineHeight: "1.6"
+                                }}>
+                                    {sms.sms_message}
+                                    <div style={{ marginTop: "0.5rem", fontSize: "0.8rem", color: "var(--color-text-muted)" }}>
+                                        {sms.sms_message.length} znaków • {Math.ceil(sms.sms_message.length / 160)} SMS
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Actions */}
+                            <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                                {sms.status === 'draft' && (
+                                    <>
+                                        {isEditing ? (
+                                            <>
+                                                <button
+                                                    onClick={() => handleEditSms(sms.id, editingSmsMessage)}
+                                                    style={{
+                                                        padding: "0.5rem 1rem",
+                                                        background: "var(--color-primary)",
+                                                        border: "none",
+                                                        borderRadius: "4px",
+                                                        color: "black",
+                                                        cursor: "pointer",
+                                                        fontWeight: "bold"
+                                                    }}
+                                                >
+                                                    💾 Zapisz
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        setEditingSmsId(null);
+                                                        setEditingSmsMessage('');
+                                                    }}
+                                                    style={{
+                                                        padding: "0.5rem 1rem",
+                                                        background: "var(--color-surface-hover)",
+                                                        border: "none",
+                                                        borderRadius: "4px",
+                                                        color: "#fff",
+                                                        cursor: "pointer"
+                                                    }}
+                                                >
+                                                    Anuluj
+                                                </button>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <button
+                                                    onClick={() => {
+                                                        setEditingSmsId(sms.id);
+                                                        setEditingSmsMessage(sms.sms_message);
+                                                    }}
+                                                    style={{
+                                                        padding: "0.5rem 1rem",
+                                                        background: "var(--color-surface-hover)",
+                                                        border: "none",
+                                                        borderRadius: "4px",
+                                                        color: "#fff",
+                                                        cursor: "pointer"
+                                                    }}
+                                                >
+                                                    ✏️ Edytuj
+                                                </button>
+                                                <button
+                                                    onClick={() => handleSendSingleSms(sms.id)}
+                                                    style={{
+                                                        padding: "0.5rem 1rem",
+                                                        background: "var(--color-primary)",
+                                                        border: "none",
+                                                        borderRadius: "4px",
+                                                        color: "black",
+                                                        cursor: "pointer",
+                                                        fontWeight: "bold"
+                                                    }}
+                                                >
+                                                    📱 Wyślij
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeleteSms(sms.id)}
+                                                    style={{
+                                                        padding: "0.5rem 1rem",
+                                                        background: "var(--color-error)",
+                                                        border: "none",
+                                                        borderRadius: "4px",
+                                                        color: "white",
+                                                        cursor: "pointer"
+                                                    }}
+                                                >
+                                                    🗑️ Usuń
+                                                </button>
+                                            </>
+                                        )}
+                                    </>
+                                )}
+                                {sms.status === 'failed' && sms.send_error && (
+                                    <div style={{
+                                        flex: 1,
+                                        padding: "0.5rem",
+                                        background: "#fff3cd",
+                                        color: "#856404",
+                                        borderRadius: "4px",
+                                        fontSize: "0.8rem"
+                                    }}>
+                                        ❌ Błąd: {sms.send_error}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    );
+                })
+            )}
+        </div>
+    );
+
+
     const NavItem = ({ id, label, icon: Icon }: any) => (
         <button
             onClick={() => setActiveTab(id)}
@@ -1065,6 +1413,27 @@ export default function AdminPage() {
                     <NavItem id="dashboard" label="Pulpit" icon={LayoutDashboard} />
                     <NavItem id="reservations" label="Rezerwacje" icon={Calendar} />
                     <NavItem id="patients" label="Pacjenci" icon={Users} />
+                    <NavItem id="sms-reminders" label={
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", width: "100%" }}>
+                            <span>SMS</span>
+                            {smsStats.draft > 0 && (
+                                <span style={{
+                                    background: "#ff4444",
+                                    color: "white",
+                                    borderRadius: "50%",
+                                    width: "20px",
+                                    height: "20px",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    fontSize: "0.7rem",
+                                    fontWeight: "bold"
+                                }}>
+                                    {smsStats.draft}
+                                </span>
+                            )}
+                        </div>
+                    } icon={MessageCircle} />
                     <NavItem id="orders" label="Zamówienia" icon={ShoppingBag} />
                     <NavItem id="products" label="Produkty (Sklep)" icon={Package} />
 
@@ -1345,6 +1714,7 @@ export default function AdminPage() {
                     {activeTab === 'blog' && renderBlogTab()}
                     {activeTab === 'orders' && renderOrdersTab()}
                     {activeTab === 'patients' && renderPatientsTab()}
+                    {activeTab === 'sms-reminders' && renderSmsRemindersTab()}
                 </div>
             </main>
         </div>

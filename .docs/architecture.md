@@ -78,7 +78,7 @@
 
 ---
 
-## 🔌 API Endpoints (36 total)
+## 🔌 API Endpoints (39 total)
 
 ### Patient Portal API (15)
 - `POST /api/patients/register` - Create account (sends verification email)
@@ -96,7 +96,7 @@
 - `GET /api/patients/appointments/[id]/status` - **NEW!** Get appointment action status
 - `POST /api/patients/appointments/[id]/reset-status` - **NEW!** Reset appointment status (testing only)
 
-### Admin API (11)
+### Admin API (14)
 - `GET /api/admin/patients` - List all patients
 - `POST /api/admin/patients/approve` - Approve patient account
 - `POST /api/admin/patients/reject` - Reject patient account (with reason)
@@ -107,6 +107,10 @@
 - `GET/POST/PATCH/DELETE /api/admin/blog` - Blog management
 - `GET/POST/PATCH/DELETE /api/admin/articles` - Knowledge base management
 - `POST /api/admin/news/generate` - AI-generate news article
+- `GET /api/admin/sms-reminders` - **NEW!** List SMS drafts with filters (status, date)
+- `PUT /api/admin/sms-reminders` - **NEW!** Edit SMS message before sending
+- `DELETE /api/admin/sms-reminders` - **NEW!** Cancel/delete SMS draft
+- `POST /api/admin/sms-reminders/send` - **NEW!** Send SMS (single or bulk)
 
 ### Public API (10)
 - `POST /api/contact` - Contact form submission
@@ -120,8 +124,12 @@
 - `POST /api/chat` - AI chat assistant
 - `POST /api/simulate` - Treatment simulation
 - `GET /api/prodentis/slots` - Get available appointment slots
-- `POST /api/cron/daily-article` - Automated daily article generation
 - `POST /api/fix-db-images` - Database image migration utility
+
+### Cron Jobs (3)
+- `POST /api/cron/daily-article` - Generate daily article at 8:00 AM Warsaw
+- `POST /api/cron/appointment-reminders` - **NEW!** Generate SMS drafts at 8:00 AM Warsaw (2-stage system)
+- `POST /api/cron/sms-auto-send` - **NEW!** Auto-send unsent SMS drafts at 10:00 AM Warsaw
 
 ---
 
@@ -182,6 +190,33 @@ One-time tokens for password reset.
 - `used` BOOLEAN
 - `used_at` TIMESTAMP
 - `created_at` TIMESTAMP
+
+#### `sms_reminders`
+**NEW!** SMS reminder drafts for 2-stage send system (admin review before sending).
+
+**Key Columns:**
+- `id` UUID (PK)
+- `patient_id` UUID FK → patients.id
+- `prodentis_id` VARCHAR(50) - Prodentis appointment ID
+- `phone` VARCHAR(20) - Patient phone number
+- `appointment_date` TIMESTAMPTZ - Appointment datetime
+- `doctor_name` VARCHAR(255) - Doctor name
+- `appointment_type` VARCHAR(100) - Appointment type (implantologia, chirurgia, etc.)
+- `sms_message` TEXT - SMS content (editable by admin)
+- `status` VARCHAR(20) - `draft` | `sent` | `failed` | `cancelled`
+- `sent_at` TIMESTAMPTZ - When SMS was sent
+- `manually_sent_by` VARCHAR(255) - Admin email who sent manually (NULL if auto-sent)
+- `edited_by` VARCHAR(255) - Admin who last edited message
+- `edited_at` TIMESTAMPTZ - Last edit timestamp
+- `sms_message_id` VARCHAR(255) - SMSAPI message ID
+- `send_error` TEXT - Error message if send failed
+- `created_at` TIMESTAMPTZ - When draft was generated
+
+**Workflow:**
+1. Cron generates drafts (status='draft') at 8 AM
+2. Admin reviews/edits in `/admin` → SMS tab
+3. Admin sends manually OR auto-sent at 10 AM if not sent
+4. Status updated to 'sent' or 'failed'
 
 #### Other Tables
 - `orders` - E-commerce orders
