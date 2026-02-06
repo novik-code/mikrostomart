@@ -225,6 +225,7 @@ export default function PatientDashboard() {
     // Load appointment status
     const loadAppointmentStatus = async (actionId: string) => {
         try {
+            console.log('[Dashboard] Loading appointment status for:', actionId);
             const token = getAuthToken();
             const response = await fetch(`/api/patients/appointments/${actionId}/status`, {
                 headers: {
@@ -232,9 +233,14 @@ export default function PatientDashboard() {
                 }
             });
 
+            console.log('[Dashboard] Status response:', response.status);
+
             if (response.ok) {
                 const statusData = await response.json();
+                console.log('[Dashboard] Status data:', statusData);
                 setAppointmentStatus(statusData);
+            } else {
+                console.error('[Dashboard] Status fetch failed:', response.status, await response.text());
             }
         } catch (error) {
             console.error('Error loading appointment status:', error);
