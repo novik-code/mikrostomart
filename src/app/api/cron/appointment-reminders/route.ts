@@ -56,7 +56,7 @@ export async function GET(req: Request) {
         // 3. Get all active patients
         const { data: patients, error: patientsError } = await supabase
             .from('patients')
-            .select('id, prodentis_id, phone, first_name, account_status')
+            .select('id, prodentis_id, phone, account_status')
             .eq('account_status', 'active');
 
         if (patientsError) {
@@ -165,7 +165,6 @@ export async function GET(req: Request) {
                 const message = formatSMSMessage(template, {
                     time: appointmentTime,
                     doctor: doctorName,
-                    patientName: patient.first_name || '',
                     appointmentType: appointmentType
                 });
 
