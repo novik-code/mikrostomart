@@ -196,6 +196,7 @@ export async function GET(req: Request) {
                         id: randomUUID(),
                         patient_id: patientId, // May be null for patients without portal accounts
                         prodentis_id: appointment.id,
+                        patient_name: appointment.patientName, // Full name for admin display
                         phone: appointment.patientPhone,
                         appointment_date: appointment.date,
                         doctor_name: doctorName,

@@ -1151,15 +1151,15 @@ export default function AdminPage() {
                             {/* Header */}
                             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "1rem", flexWrap: "wrap", gap: "0.5rem" }}>
                                 <div>
-                                    <strong>{sms.phone}</strong>
-                                    <span style={{ marginLeft: "1rem", color: "var(--color-text-muted)" }}>
-                                        {appointmentDate} • {appointmentTime}
+                                    <strong style={{ fontSize: "1.1rem" }}>{sms.patient_name || sms.phone}</strong>
+                                    <div style={{ marginTop: "0.25rem", fontSize: "0.85rem", color: "var(--color-text-muted)" }}>
+                                        📞 {sms.phone} • 🦷 {sms.appointment_type}
+                                    </div>
+                                    <span style={{ fontSize: "0.85rem", color: "var(--color-text-muted)" }}>
+                                        📅 {appointmentDate} • ⏰ {appointmentTime} • 👨‍⚕️ {sms.doctor_name}
                                     </span>
                                 </div>
                                 <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-                                    <span style={{ fontSize: "0.8rem", color: "var(--color-text-muted)" }}>
-                                        {sms.doctor_name}
-                                    </span>
                                     <span style={{
                                         padding: "0.2rem 0.5rem",
                                         borderRadius: "4px",
