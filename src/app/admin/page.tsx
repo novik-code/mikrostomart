@@ -559,6 +559,43 @@ export default function AdminPage() {
         }
     };
 
+    // Manual SMS Generation (Trigger Cron)
+    const handleManualGenerate = async () => {
+        if (!confirm('Wywołać cron job do generowania SMS na jutro?')) return;
+
+        setManualGenerationStatus('Wywołuję cron job...');
+        try {
+            const res = await fetch('/api/cron/appointment-reminders', {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${process.env.NEXT_PUBLIC_CRON_SECRET || 'dev-secret'}`
+                }
+            });
+
+            if (res.ok) {
+                const result = await res.json();
+                setManualGenerationStatus(
+                    `✅ Sukces!\n` +
+                    `📊 Processed: ${result.processed}\n` +
+                    `✅ Drafts: ${result.draftsCreated}\n` +
+                    `⏭️ Skipped: ${result.skipped}\n` +
+                    `❌ Failed: ${result.failed || 0}`
+                );
+
+                // Refresh SMS list
+                setTimeout(() => {
+                    fetchSmsReminders();
+                    setManualGenerationStatus(null);
+                }, 3000);
+            } else {
+                const error = await res.json();
+                setManualGenerationStatus(`❌ Błąd: ${error.error || 'Nieznany błąd'}`);
+            }
+        } catch (err: any) {
+            setManualGenerationStatus(`❌ Błąd: ${err.message}`);
+        }
+    };
+
     const handleSendAllSms = async () => {
         if (!confirm(`Wysłać ${smsStats.draft} SMS przypomnień?`)) return;
 
@@ -1115,6 +1152,41 @@ export default function AdminPage() {
                         <strong>{smsStats.failed}</strong>
                     </div>
                 </div>
+            </div>
+
+
+            {/* Manual Trigger Button */}
+            <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
+                <button
+                    onClick={handleManualGenerate}
+                    disabled={!!manualGenerationStatus}
+                    className="btn-secondary"
+                    style={{
+                        flex: 1,
+                        padding: "1rem",
+                        background: manualGenerationStatus ? "#666" : "rgba(255, 255, 255, 0.05)",
+                        border: "2px solid var(--color-primary)",
+                        fontSize: "1rem",
+                        fontWeight: "600",
+                        minWidth: "200px"
+                    }}
+                >
+                    {manualGenerationStatus ? "⏳ Generuję..." : "🔄 Wywołaj Cron (Generuj SMS na jutro)"}
+                </button>
+
+                {manualGenerationStatus && (
+                    <div style={{
+                        width: "100%",
+                        padding: "1rem",
+                        background: "var(--color-surface)",
+                        borderRadius: "var(--radius-md)",
+                        whiteSpace: "pre-line",
+                        fontFamily: "monospace",
+                        fontSize: "0.9rem"
+                    }}>
+                        {manualGenerationStatus}
+                    </div>
+                )}
             </div>
 
             {/* Send All Button */}

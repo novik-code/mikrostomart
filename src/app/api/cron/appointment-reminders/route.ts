@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sendSMS, getSMSTemplate, formatSMSMessage } from '@/lib/smsService';
+import { mapAppointmentTypeToSlug } from '@/lib/appointmentTypeMapper';
 import { randomUUID } from 'crypto';
+import { nanoid } from 'nanoid';
 
 export const maxDuration = 60; // Vercel function timeout
 
@@ -219,6 +221,74 @@ export async function GET(req: Request) {
 
                 console.log(`   ✅ Draft created successfully (ID: ${draftData[0].id})`);
                 draftsCreated++;
+
+                // 9. Create appointment_action for confirm/cancel buttons
+                try {
+                    const appointmentActionId = randomUUID();
+
+                    const { error: actionError } = await supabase
+                        .from('appointment_actions')
+                        .insert({
+                            id: appointmentActionId,
+                            patient_id: patientId,
+                            prodentis_id: appointment.id,
+                            appointment_date: appointment.date,
+                            doctor_name: doctorName,
+                            appointment_type: appointmentType,
+                            status: 'pending',
+                            created_at: new Date().toISOString(),
+                            updated_at: new Date().toISOString()
+                        });
+
+                    if (actionError) {
+                        console.error(`   ⚠️  Failed to create appointment_action:`, actionError);
+                    } else {
+                        console.log(`   ✅ Appointment action created (ID: ${appointmentActionId})`);
+
+                        // 10. Generate short link for landing page
+                        const appointmentSlug = mapAppointmentTypeToSlug(appointmentType);
+                        const fullUrl = `https://mikrostomart.pl/wizyta/${appointmentSlug}?appointmentId=${appointmentActionId}&date=${tomorrowStr}&time=${appointmentTime}&doctor=${encodeURIComponent(doctorName)}`;
+
+                        const shortCode = nanoid(6);
+
+                        // Calculate expiration (3 days after appointment)
+                        const expiresAt = new Date(appointment.date);
+                        expiresAt.setDate(expiresAt.getDate() + 3);
+
+                        const { data: shortLink, error: shortLinkError } = await supabase
+                            .from('short_links')
+                            .insert({
+                                short_code: shortCode,
+                                destination_url: fullUrl,
+                                appointment_id: appointmentActionId,
+                                patient_id: patientId,
+                                appointment_type: appointmentSlug,
+                                expires_at: expiresAt.toISOString()
+                            })
+                            .select()
+                            .single();
+
+                        if (shortLinkError) {
+                            console.error(`   ⚠️  Failed to create short link:`, shortLinkError);
+                        } else {
+                            const shortUrl = `https://mikrostomart.pl/s/${shortCode}`;
+                            console.log(`   ✅ Short link created: ${shortUrl}`);
+
+                            // Update SMS draft with short link
+                            const messageWithLink = `${message}\n\n${shortUrl}`;
+
+                            await supabase
+                                .from('sms_reminders')
+                                .update({ sms_message: messageWithLink })
+                                .eq('id', draftData[0].id);
+
+                            console.log(`   📝 Updated SMS with short link`);
+                        }
+                    }
+                } catch (actionErr) {
+                    console.error(`   ⚠️  Error creating appointment_action or short link:`, actionErr);
+                }
+
 
             } catch (error: any) {
                 console.error(`   ❌ Error processing appointment:`, error);
