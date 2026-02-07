@@ -71,7 +71,9 @@ export async function sendSMS(options: SMSOptions): Promise<SMSResponse> {
         const requestBody = {
             to: normalizedPhone,
             message: message,
-            format: 'json'
+            format: 'json',
+            skip_link_detection: 1,  // Allow sending links (bypass error 94)
+            encoding: 'gsm'           // Use GSM 7-bit encoding (ASCII only)
         };
 
         console.log('[SMS] Request body:', JSON.stringify(requestBody, null, 2));

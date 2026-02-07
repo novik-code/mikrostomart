@@ -1,19 +1,19 @@
 {
-    "default": "Gabinet Mikrostomart przypomina o jutrzejszej wizycie o {time}. Aby potwierdzić kliknij",
+    "default": "Gabinet Mikrostomart przypomina o jutrzejszej wizycie o {time}. Prosimy o potwierdzenie:",
     "byAppointmentType": {
-        "pierwsza wizyta": "👋 Witamy! Pierwsza wizyta jutro o {time}. Prosimy zabrać dowód.",
-        "chirurgia": "⚕️ PRZYPOMNIENIE: Zabieg chirurgiczny jutro o {time}. Prosimy NIE jeść 2h przed.",
+        "pierwsza wizyta": "Witamy! Pierwsza wizyta jutro o {time}. Prosimy zabrac dowod.",
+        "chirurgia": "PRZYPOMNIENIE: Zabieg chirurgiczny jutro o {time}. Prosimy NIE jesc 2h przed.",
         "protetyka": "Wizyta protetyczna jutro o {time}.",
-        "ORTODONCJA": "🦷 Wizyta ortodontyczna jutro o {time}.",
-        "KONTROLA": "📋 Wizyta kontrolna jutro o {time}.",
-        "higienizacja": "✨ Higienizacja jutro o {time}.",
-        "endodoncja": "Leczenie kanałowe jutro o {time}.",
+        "ORTODONCJA": "Wizyta ortodontyczna jutro o {time}.",
+        "KONTROLA": "Wizyta kontrolna jutro o {time}.",
+        "higienizacja": "Higienizacja jutro o {time}.",
+        "endodoncja": "Leczenie kanalowe jutro o {time}.",
         "konsultacja": "Konsultacja jutro o {time}.",
         "LASER": "Zabieg laserowy jutro o {time}."
     },
     "byDoctor": {
         "Marcin Nowosielski": {
-            "default": "Gabinet Mikrostomart przypomina o jutrzejszej wizycie u Dr Nowosielskiego o {time}. Aby potwierdzić kliknij"
+            "default": "Gabinet Mikrostomart przypomina o jutrzejszej wizycie u Dr Nowosielskiego o {time}. Prosimy o potwierdzenie:"
         }
     }
 }
