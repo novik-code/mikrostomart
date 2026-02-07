@@ -744,6 +744,36 @@ NODE_ENV=production
 
 ## 📝 Recent Changes
 
+### February 7, 2026 (Evening — Late)
+**Novik Code Credit — Epic Full-Page Takeover Animation**
+
+#### Commits:
+- `64478cb` - Novik Code credit in footer with epic full-page takeover animation
+
+#### Features Added:
+1. **Footer Credit Text**
+   - "Designed and developed by Novik Code" above footer content
+   - Subtle hover effect: golden color, letter-spacing expansion
+   - Positioned above the grid layout in Footer.tsx
+
+2. **8-Layer Cinematic Takeover Animation** (on click)
+   - Layer 1: Black hole vortex background (expands from click position)
+   - Layer 2: 3 golden shockwave rings expanding outward
+   - Layer 3: 40 particle explosion (golden/white dots)
+   - Layer 4: Rotating conic gradient glow ring
+   - Layer 5: Pulsing radial glow
+   - Layer 6: Logo cinematic reveal (spring physics, blur → sharp, rotate)
+   - Layer 7: "Novik Code" + "Design · Development · Innovation" text
+   - Layer 8: "kliknij aby wrócić" hint
+   - ESC or click anywhere to close
+
+#### Files Modified/Added:
+- `src/components/NovikCodeCredit.tsx` [NEW] - Client component with Framer Motion animations
+- `src/components/Footer.tsx` - Added NovikCodeCredit import and component
+- `public/novik-code-logo.png` [NEW] - Novik Code logo image
+
+---
+
 ### February 7, 2026 (Evening)
 **Desktop Navigation Redesign — Animated Hamburger Menu**
 
