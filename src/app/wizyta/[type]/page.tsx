@@ -21,6 +21,14 @@ export default function AppointmentPreparationPage() {
     const [instruction, setInstruction] = useState<AppointmentInstruction | null>(null);
     const [loading, setLoading] = useState(true);
     const [notFound, setNotFound] = useState(false);
+    const [confirmationStatus, setConfirmationStatus] = useState<'idle' | 'confirming' | 'confirmed' | 'cancelling' | 'cancelled'>('idle');
+
+    // Extract appointment details from URL
+    const appointmentId = searchParams.get('appointmentId');
+    const appointmentDate = searchParams.get('date');
+    const appointmentTime = searchParams.get('time');
+    const doctorName = searchParams.get('doctor');
+    const patientId = searchParams.get('patientId');
 
     useEffect(() => {
         const fetchInstruction = async () => {
@@ -45,6 +53,71 @@ export default function AppointmentPreparationPage() {
         fetchInstruction();
     }, [params.type]);
 
+    const handleConfirm = async () => {
+        if (!appointmentId) {
+            alert('Brak ID wizyty');
+            return;
+        }
+
+        setConfirmationStatus('confirming');
+
+        try {
+            const res = await fetch('/api/appointments/confirm', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    appointmentId,
+                    patientId,
+                    prodentisId: appointmentId
+                })
+            });
+
+            if (res.ok) {
+                setConfirmationStatus('confirmed');
+            } else {
+                throw new Error('Confirmation failed');
+            }
+        } catch (error) {
+            console.error('[Confirm] Error:', error);
+            alert('Wystąpił błąd. Spróbuj ponownie.');
+            setConfirmationStatus('idle');
+        }
+    };
+
+    const handleCancel = async () => {
+        if (!appointmentId) {
+            alert('Brak ID wizyty');
+            return;
+        }
+
+        const confirmation = confirm('Czy na pewno chcesz odwołać wizytę?');
+        if (!confirmation) return;
+
+        setConfirmationStatus('cancelling');
+
+        try {
+            const res = await fetch('/api/appointments/cancel', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    appointmentId,
+                    patientId,
+                    prodentisId: appointmentId
+                })
+            });
+
+            if (res.ok) {
+                setConfirmationStatus('cancelled');
+            } else {
+                throw new Error('Cancellation failed');
+            }
+        } catch (error) {
+            console.error('[Cancel] Error:', error);
+            alert('Wystąpił błąd. Spróbuj ponownie.');
+            setConfirmationStatus('idle');
+        }
+    };
+
     if (loading) {
         return (
             <div className={styles.loading}>
@@ -63,13 +136,16 @@ export default function AppointmentPreparationPage() {
         );
     }
 
-    // Extract query params from SMS
-    const appointmentDate = searchParams.get('date');
-    const appointmentTime = searchParams.get('time');
-    const doctorName = searchParams.get('doctor');
-
     return (
         <div className={styles.page}>
+            {/* Video Background */}
+            <div className={styles.videoContainer}>
+                <video autoPlay loop muted playsInline>
+                    <source src="/videos/background.mp4" type="video/mp4" />
+                </video>
+            </div>
+            <div className={styles.videoOverlay}></div>
+
             {/* Hero Section */}
             <section className={styles.hero}>
                 <div className={styles.container}>
@@ -85,12 +161,19 @@ export default function AppointmentPreparationPage() {
                         {/* Appointment Details (if from SMS) */}
                         {(appointmentDate || appointmentTime || doctorName) && (
                             <div className={styles.appointmentDetails}>
-                                <h3>📅 Szczegóły Wizyty</h3>
+                                <h3>📅 Twoja Wizyta</h3>
                                 <div className={styles.detailsGrid}>
                                     {appointmentDate && (
                                         <div className={styles.detailItem}>
                                             <span className={styles.label}>Data:</span>
-                                            <span className={styles.value}>{new Date(appointmentDate).toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                                            <span className={styles.value}>
+                                                {new Date(appointmentDate).toLocaleDateString('pl-PL', {
+                                                    weekday: 'long',
+                                                    day: 'numeric',
+                                                    month: 'long',
+                                                    year: 'numeric'
+                                                })}
+                                            </span>
                                         </div>
                                     )}
                                     {appointmentTime && (
@@ -106,6 +189,93 @@ export default function AppointmentPreparationPage() {
                                         </div>
                                     )}
                                 </div>
+
+                                {/* Confirmation Buttons - Only show if appointmentId exists */}
+                                {appointmentId && confirmationStatus !== 'confirmed' && confirmationStatus !== 'cancelled' && (
+                                    <div style={{
+                                        marginTop: '2rem',
+                                        display: 'flex',
+                                        gap: '1rem',
+                                        justifyContent: 'center',
+                                        flexWrap: 'wrap'
+                                    }}>
+                                        <button
+                                            onClick={handleConfirm}
+                                            disabled={confirmationStatus === 'confirming'}
+                                            style={{
+                                                padding: '1rem 2rem',
+                                                background: 'var(--color-primary)',
+                                                color: '#000',
+                                                border: 'none',
+                                                borderRadius: 'var(--radius-md)',
+                                                fontWeight: '700',
+                                                fontSize: '1rem',
+                                                cursor: confirmationStatus === 'confirming' ? 'wait' : 'pointer',
+                                                opacity: confirmationStatus === 'confirming' ? 0.6 : 1,
+                                                transition: 'all 0.2s'
+                                            }}
+                                        >
+                                            {confirmationStatus === 'confirming' ? '⏳ Potwierdzanie...' : '✅ Potwierdzam Obecność'}
+                                        </button>
+                                        <button
+                                            onClick={handleCancel}
+                                            disabled={confirmationStatus === 'cancelling'}
+                                            style={{
+                                                padding: '1rem 2rem',
+                                                background: 'rgba(255, 255, 255, 0.05)',
+                                                color: 'var(--color-text-main)',
+                                                border: '2px solid rgba(239, 68, 68, 0.5)',
+                                                borderRadius: 'var(--radius-md)',
+                                                fontWeight: '600',
+                                                fontSize: '1rem',
+                                                cursor: confirmationStatus === 'cancelling' ? 'wait' : 'pointer',
+                                                opacity: confirmationStatus === 'cancelling' ? 0.6 : 1,
+                                                transition: 'all 0.2s'
+                                            }}
+                                        >
+                                            {confirmationStatus === 'cancelling' ? '⏳ Odwoływanie...' : '❌ Odwołuję Wizytę'}
+                                        </button>
+                                    </div>
+                                )}
+
+                                {/* Confirmation Status Messages */}
+                                {confirmationStatus === 'confirmed' && (
+                                    <div style={{
+                                        marginTop: '2rem',
+                                        padding: '1.5rem',
+                                        background: 'rgba(16, 185, 129, 0.15)',
+                                        border: '2px solid rgba(16, 185, 129, 0.5)',
+                                        borderRadius: 'var(--radius-md)',
+                                        textAlign: 'center',
+                                        color: '#10b981',
+                                        fontWeight: '600',
+                                        fontSize: '1.1rem'
+                                    }}>
+                                        ✅ <strong>Wizyta potwierdzona!</strong><br />
+                                        <span style={{ fontSize: '0.95rem', opacity: 0.9 }}>
+                                            Potwierdzenie zostało wysłane do lekarza.
+                                        </span>
+                                    </div>
+                                )}
+
+                                {confirmationStatus === 'cancelled' && (
+                                    <div style={{
+                                        marginTop: '2rem',
+                                        padding: '1.5rem',
+                                        background: 'rgba(239, 68, 68, 0.15)',
+                                        border: '2px solid rgba(239, 68, 68, 0.5)',
+                                        borderRadius: 'var(--radius-md)',
+                                        textAlign: 'center',
+                                        color: '#ef4444',
+                                        fontWeight: '600',
+                                        fontSize: '1.1rem'
+                                    }}>
+                                        ❌ <strong>Wizyta odwołana</strong><br />
+                                        <span style={{ fontSize: '0.95rem', opacity: 0.9 }}>
+                                            Informacja została przekazana do gabinetu.
+                                        </span>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
