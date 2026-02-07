@@ -506,9 +506,10 @@ export default function AdminPage() {
     };
 
     // SMS Reminders Functions
-    const fetchSmsReminders = async (status = 'draft') => {
+    const fetchSmsReminders = async () => {
         try {
-            const res = await fetch(`/api/admin/sms-reminders?status=${status}`);
+            // Fetch ALL SMS (draft, sent, failed) to populate both tabs
+            const res = await fetch('/api/admin/sms-reminders');
             if (res.ok) {
                 const data = await res.json();
                 setSmsReminders(data.reminders);

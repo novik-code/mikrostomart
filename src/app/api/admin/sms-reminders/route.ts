@@ -27,7 +27,7 @@ const supabase = createClient(
 export async function GET(req: Request) {
     try {
         const url = new URL(req.url);
-        const status = url.searchParams.get('status') || 'draft';
+        const status = url.searchParams.get('status') || 'all';
         const date = url.searchParams.get('date');
         const limit = parseInt(url.searchParams.get('limit') || '100');
 
