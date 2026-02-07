@@ -324,8 +324,8 @@ export default function SimulatorModal() {
             cx /= mp.length;
             cy /= mp.length;
 
-            // Dilation Factor (1.4 = 40% bigger to allow mouth opening)
-            const dilation = 1.4;
+            // Dilation Factor (1.15 = 15% bigger for clean edge blending)
+            const dilation = 1.15;
 
             const dilatedPath = mp.map(p => ({
                 x: (cx + (p.x - cx) * dilation) * canvas.width,
@@ -390,51 +390,78 @@ export default function SimulatorModal() {
         }
     };
 
+    // Convert mask: white=edit, black=keep → OpenAI format: transparent=edit, opaque=keep
+    const convertMaskForOpenAI = async (maskSrc: string): Promise<Blob> => {
+        const img = new Image();
+        img.src = maskSrc;
+        await new Promise(r => img.onload = r);
+
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) throw new Error('Canvas error');
+
+        ctx.drawImage(img, 0, 0);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+
+        // White pixels → transparent (edit area), Black pixels → opaque (keep area)
+        for (let i = 0; i < data.length; i += 4) {
+            const brightness = (data[i] + data[i + 1] + data[i + 2]) / 3;
+            if (brightness > 128) {
+                // White area → transparent (AI edits this)
+                data[i] = 0;
+                data[i + 1] = 0;
+                data[i + 2] = 0;
+                data[i + 3] = 0; // transparent
+            } else {
+                // Black area → opaque black (AI keeps this)
+                data[i] = 0;
+                data[i + 1] = 0;
+                data[i + 2] = 0;
+                data[i + 3] = 255; // opaque
+            }
+        }
+
+        ctx.putImageData(imageData, 0, 0);
+        return new Promise<Blob>((resolve, reject) => {
+            canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('toBlob failed')), 'image/png');
+        });
+    };
+
     const runSimulation = async (imgSrc: string, maskSrc: string) => {
-        // Convert to Blobs
-        const imgBlob = await (await fetch(imgSrc)).blob();
-        const maskBlob = await (await fetch(maskSrc)).blob();
+        try {
+            // Convert image to blob
+            const imgBlob = await (await fetch(imgSrc)).blob();
+            // Convert mask to OpenAI format (transparent = edit area)
+            const maskBlob = await convertMaskForOpenAI(maskSrc);
 
-        const formData = new FormData();
-        formData.append("image", imgBlob);
-        formData.append("mask", maskBlob);
-        formData.append("style", "hollywood");
+            const formData = new FormData();
+            formData.append("image", imgBlob, "image.png");
+            formData.append("mask", maskBlob, "mask.png");
+            formData.append("style", "hollywood");
 
-        const res = await fetch("/api/simulate", { method: "POST", body: formData });
-        if (!res.ok) throw new Error("Błąd serwera. Spróbuj później.");
-
-        const { id } = await res.json();
-
-        // Polling with Timeout
-        let attempts = 0;
-        const maxAttempts = 120; // Increased to 120 seconds (Flux cold starts)
-
-        const poll = async () => {
-            attempts++;
-            if (attempts > maxAttempts) {
-                setError("Zbyt długi czas oczekiwania (60s). Spróbuj ponownie.");
-                setStep('intro');
-                return;
+            // Synchronous call — OpenAI returns result directly, no polling needed
+            const res = await fetch("/api/simulate", { method: "POST", body: formData });
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.error || "Błąd serwera. Spróbuj później.");
             }
 
-            try {
-                const sRes = await fetch(`/api/simulate?id=${id}`);
-                const data = await sRes.json();
+            const result = await res.json();
 
-                if (data.status === 'succeeded') {
-                    setResultImage(data.url);
-                    setStep('result');
-                } else if (data.status === 'failed' || data.status === 'canceled') {
-                    setError("AI nie poradziło sobie z tym zdjęciem.");
-                    setStep('intro');
-                } else {
-                    setTimeout(poll, 1000);
-                }
-            } catch (err) {
-                setTimeout(poll, 1000); // Retry network glitches
+            if (result.status === 'succeeded' && result.url) {
+                setResultImage(result.url);
+                setStep('result');
+            } else {
+                throw new Error(result.error || "AI nie zwróciło wyniku.");
             }
-        };
-        poll();
+        } catch (err: any) {
+            console.error("Simulation error:", err);
+            setError(err.message || "Błąd generowania uśmiechu.");
+            setStep('intro');
+        }
     };
 
     // --- RENDER ---
