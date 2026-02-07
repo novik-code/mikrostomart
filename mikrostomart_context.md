@@ -744,6 +744,47 @@ NODE_ENV=production
 
 ## 📝 Recent Changes
 
+### February 7, 2026 (Evening)
+**Desktop Navigation Redesign — Animated Hamburger Menu**
+
+#### Commits:
+- `0311eb5` - Fixed nav link spacing to prevent logo overlap
+- `f329053` - Premium desktop nav with animated hamburger burst (Framer Motion)
+
+#### Features Added:
+1. **Animated Desktop Hamburger Menu**
+   - Replaced always-visible text links with centered hamburger icon (3 golden bars)
+   - On hover: links **burst outward** from hamburger center left & right
+   - Framer Motion staggered spring animations with blur-to-sharp effect
+   - Hamburger icon dissolves (scale + rotate + fade) when expanded
+   - Links collapse back smoothly when mouse leaves
+
+2. **Premium Visual Effects**
+   - Golden glow pulse animation on hamburger icon (CSS `@keyframes`)
+   - Animated golden underlines on individual link hover
+   - Hamburger bars "breathe" on initial hover (middle bar shrinks)
+   - Dropdown "Dodatki" uses AnimatePresence for smooth enter/exit
+   - Spring physics (damping: 20, stiffness: 250) for natural motion
+
+3. **Layout: Logo [—] ☰ [—] Umów wizytę**
+   - Logo stays left, "Umów wizytę" CTA stays right
+   - Hamburger centered with `flex: 1` wrapper
+   - Expanded links positioned absolutely (no layout shift)
+   - Mobile hamburger + overlay completely unchanged
+
+#### Files Modified:
+- `src/components/Navbar.tsx` - Complete rewrite with Framer Motion (AnimatePresence, motion.div, spring variants)
+- `src/components/Navbar.module.css` - New CSS: desktopMenuWrapper, desktopHamburger, linksLeft/Right, dropdownLink, pulseGlow keyframes
+
+#### Technical Notes:
+- Uses `framer-motion` (already in dependencies) for staggered AnimatePresence
+- Links positioned absolutely (`right: calc(50% + 25px)` / `left: calc(50% + 25px)`) to avoid layout shifts
+- No `overflow: hidden` — ensures dropdown "Dodatki" renders correctly
+- TypeScript: `as const` used for Framer Motion transition types compatibility
+- Font size reduced to `0.85rem` and gap to `1rem` to prevent logo overlap on smaller screens
+
+---
+
 ### February 7, 2026
 **SMS History Management System**
 

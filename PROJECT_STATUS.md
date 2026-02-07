@@ -1,8 +1,8 @@
 # PROJECT STATUS - Mikrostomart
 
-> **Last Updated:** February 7, 2026, 16:55  
+> **Last Updated:** February 7, 2026, 18:05  
 > **Build Status:** ✅ Production (Vercel)  
-> **Latest Commit:** `ca17b1a` - SMS fetch fixes
+> **Latest Commit:** `0311eb5` - Nav link spacing fix
 
 ---
 
@@ -31,6 +31,7 @@
 - [x] About, FAQ, Knowledge Base, Privacy pages
 - [x] YouTube feed integration
 - [x] AI assistant chat (OpenAI)
+- [x] **🎨 Animated Desktop Nav** - Framer Motion hamburger burst (Feb 7)
 
 #### Patient Portal (`/strefa-pacjenta`)
 - [x] Registration with email verification
@@ -145,6 +146,23 @@
 - `src/app/api/appointments/confirm/route.ts`
 - `src/app/api/appointments/cancel/route.ts`
 
+### Desktop Navigation Redesign (Evening)
+
+**Commits:**
+- `0311eb5` - Fixed nav link spacing to prevent logo overlap
+- `f329053` - Premium desktop nav with animated hamburger burst
+
+**Features:**
+1. **Animated Hamburger Menu (Desktop)**
+   - Centered hamburger with golden glow pulse
+   - Links burst outward on hover (Framer Motion staggered spring)
+   - Hamburger dissolves when expanded, no X icon
+   - Dropdown "Dodatki" fixed with AnimatePresence
+
+**Files Modified:**
+- `src/components/Navbar.tsx`
+- `src/components/Navbar.module.css`
+
 ---
 
 ## 📋 Future Enhancements (Not Started)
@@ -254,6 +272,7 @@ git push origin main
 1. ✅ **DONE:** SMS History Tab implementation
 2. 📞 **PENDING:** Contact SMSAPI.pl to enable link sending (Monday)
 3. ✅ **DONE:** Update all documentation
+4. ✅ **DONE:** Desktop navigation redesign (animated hamburger)
 
 ### Short-term (This Month)
 - Test full patient journey (registration → booking → confirmation)
