@@ -159,7 +159,7 @@ export async function POST(req: NextRequest) {
 
                 await resend.emails.send({
                     from: 'Mikrostomart \u003cnoreply@mikrostomart.pl\u003e',
-                    to: process.env.ADMIN_EMAIL || 'kontakt@mikrostomart.pl',
+                    to: process.env.ADMIN_EMAIL || 'gabinet@mikrostomart.pl',
                     subject: '✅ Pacjent potwierdził obecność',
                     html: `
                         \u003ch2\u003e✅ PACJENT POTWIERDZIŁ WIZYTĘ\u003c/h2\u003e

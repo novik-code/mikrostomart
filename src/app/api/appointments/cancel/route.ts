@@ -156,7 +156,7 @@ export async function POST(req: NextRequest) {
 
                 await resend.emails.send({
                     from: 'Mikrostomart <noreply@mikrostomart.pl>',
-                    to: process.env.ADMIN_EMAIL || 'kontakt@mikrostomart.pl',
+                    to: process.env.ADMIN_EMAIL || 'gabinet@mikrostomart.pl',
                     subject: '❌ Pacjent odwołał wizytę',
                     html: `
                         <h2>❌ PACJENT ODWOŁAŁ WIZYTĘ</h2>
