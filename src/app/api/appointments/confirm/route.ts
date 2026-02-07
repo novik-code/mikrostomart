@@ -89,12 +89,16 @@ export async function POST(req: NextRequest) {
             throw updateError;
         }
 
-        // Get patient details
-        const { data: patient } = await supabase
-            .from('patients')
-            .select('phone')
-            .eq('id', action.patient_id)
-            .single();
+        // Get patient details (may be null if patient has no account)
+        let patient = null;
+        if (action.patient_id) {
+            const { data } = await supabase
+                .from('patients')
+                .select('phone')
+                .eq('id', action.patient_id)
+                .single();
+            patient = data;
+        }
 
         // Format dates for notifications
         const appointmentDateFormatted = appointmentDate.toLocaleDateString('pl-PL', {

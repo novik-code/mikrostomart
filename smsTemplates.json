@@ -1,19 +1,19 @@
 {
-    "default": "Dzień dobry! Przypominamy o wizycie jutro o {time}. Zaloguj się: mikrostomart.pl/strefa-pacjenta aby potwierdzić obecność. Pozdrawiamy, Mikrostomart",
+    "default": "Dzień dobry! Przypominamy o wizycie jutro o {time}.",
     "byAppointmentType": {
-        "pierwsza wizyta": "👋 Witamy! Pierwsza wizyta jutro o {time}. Zaloguj się: mikrostomart.pl/strefa-pacjenta Prosimy zabrać dowód. Mikrostomart",
-        "chirurgia": "⚕️ PRZYPOMNIENIE: Zabieg chirurgiczny jutro o {time}. Prosimy NIE jeść 2h przed. mikrostomart.pl/strefa-pacjenta",
-        "protetyka": "Wizyta protetyczna jutro o {time}. Zaloguj się: mikrostomart.pl/strefa-pacjenta aby potwierdzić. Pozdrawiamy, Mikrostomart",
-        "ORTODONCJA": "🦷 Wizyta ortodontyczna jutro o {time}. Zaloguj się: mikrostomart.pl/strefa-pacjenta Pozdrawiamy, Mikrostomart",
-        "KONTROLA": "📋 Wizyta kontrolna jutro o {time}. Zaloguj się: mikrostomart.pl/strefa-pacjenta aby potwierdzić. Mikrostomart",
-        "higienizacja": "✨ Higienizacja jutro o {time}. Zaloguj się: mikrostomart.pl/strefa-pacjenta Pozdrawiamy, Mikrostomart",
-        "endodoncja": "Leczenie kanałowe jutro o {time}. Zaloguj się: mikrostomart.pl/strefa-pacjenta Pozdrawiamy, Mikrostomart",
-        "konsultacja": "Konsultacja jutro o {time}. Zaloguj się: mikrostomart.pl/strefa-pacjenta aby potwierdzić. Pozdrawiamy, Mikrostomart",
-        "LASER": "Zabieg laserowy jutro o {time}. Zaloguj się: mikrostomart.pl/strefa-pacjenta Pozdrawiamy, Mikrostomart"
+        "pierwsza wizyta": "👋 Witamy! Pierwsza wizyta jutro o {time}. Prosimy zabrać dowód.",
+        "chirurgia": "⚕️ PRZYPOMNIENIE: Zabieg chirurgiczny jutro o {time}. Prosimy NIE jeść 2h przed.",
+        "protetyka": "Wizyta protetyczna jutro o {time}.",
+        "ORTODONCJA": "🦷 Wizyta ortodontyczna jutro o {time}.",
+        "KONTROLA": "📋 Wizyta kontrolna jutro o {time}.",
+        "higienizacja": "✨ Higienizacja jutro o {time}.",
+        "endodoncja": "Leczenie kanałowe jutro o {time}.",
+        "konsultacja": "Konsultacja jutro o {time}.",
+        "LASER": "Zabieg laserowy jutro o {time}."
     },
     "byDoctor": {
         "Marcin Nowosielski": {
-            "default": "Dzień dobry! Wizyta u Dr Nowosielskiego jutro o {time}. Zaloguj się: mikrostomart.pl/strefa-pacjenta Pozdrawiamy"
+            "default": "Dzień dobry! Wizyta u Dr Nowosielskiego jutro o {time}."
         }
     }
 }
