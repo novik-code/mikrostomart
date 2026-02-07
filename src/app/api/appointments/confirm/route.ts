@@ -144,6 +144,31 @@ export async function POST(req: NextRequest) {
             console.error('[CONFIRM-PUBLIC] Failed to send telegram:', telegramError);
         }
 
+        // Send Email notification
+        let emailSent = false;
+        try {
+            if (process.env.RESEND_API_KEY) {
+                const { Resend } = await import('resend');
+                const resend = new Resend(process.env.RESEND_API_KEY);
+
+                await resend.emails.send({
+                    from: 'Mikrostomart \u003cnoreply@mikrostomart.pl\u003e',
+                    to: process.env.ADMIN_EMAIL || 'kontakt@mikrostomart.pl',
+                    subject: '✅ Pacjent potwierdził obecność',
+                    html: `
+                        \u003ch2\u003e✅ PACJENT POTWIERDZIŁ WIZYTĘ\u003c/h2\u003e
+                        \u003cp\u003e\u003cstrong\u003eTermin:\u003c/strong\u003e ${appointmentDateFormatted}, ${appointmentTime}\u003c/p\u003e
+                        \u003cp\u003e\u003cstrong\u003eLekarz:\u003c/strong\u003e ${action.doctor_name || 'Nie podano'}\u003c/p\u003e
+                        \u003cp\u003e\u003cstrong\u003eTelefon:\u003c/strong\u003e ${patient?.phone || 'Brak'}\u003c/p\u003e
+                        \u003cp\u003e\u003cem\u003ePotwierdzenie z landing page (${new Date().toLocaleString('pl-PL')})\u003c/em\u003e\u003c/p\u003e
+                    `
+                });
+                emailSent = true;
+            }
+        } catch (emailError) {
+            console.error('[CONFIRM-PUBLIC] Failed to send email:', emailError);
+        }
+
         // Send WhatsApp notification (using same Telegram bot)
         let whatsappSent = false;
         try {
@@ -172,13 +197,14 @@ export async function POST(req: NextRequest) {
             console.error('[CONFIRM-PUBLIC] WhatsApp notification failed:', whatsappError);
         }
 
-        console.log('[CONFIRM-PUBLIC] Success:', { telegramSent, whatsappSent });
+        console.log('[CONFIRM-PUBLIC] Success:', { telegramSent, whatsappSent, emailSent });
 
         return NextResponse.json({
             success: true,
             message: 'Potwierdzenie wysłane. Gabinet został powiadomiony.',
             telegramSent,
-            whatsappSent
+            whatsappSent,
+            emailSent
         });
 
     } catch (error) {
