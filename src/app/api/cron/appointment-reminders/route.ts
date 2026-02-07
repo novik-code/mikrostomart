@@ -105,10 +105,10 @@ export async function GET(req: Request) {
             processedCount++;
 
             try {
+                // Format time without timezone conversion (Prodentis already returns Poland local time)
                 const appointmentTime = new Date(appointment.date).toLocaleTimeString('pl-PL', {
                     hour: '2-digit',
-                    minute: '2-digit',
-                    timeZone: 'Europe/Warsaw'
+                    minute: '2-digit'
                 });
 
                 console.log(`\n🔍 [Appointment ${appointment.id}] Processing...`);
