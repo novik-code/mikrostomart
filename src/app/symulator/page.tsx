@@ -101,65 +101,36 @@ export default function SimulatorPage() {
         };
     };
 
-    // Convert mask for OpenAI: white=edit → transparent, black=keep → opaque
-    const convertMaskForOpenAI = async (maskSrc: string): Promise<Blob> => {
-        const img = new window.Image();
-        img.src = maskSrc;
-        await new Promise(r => img.onload = r);
-
-        const canvas = document.createElement('canvas');
-        canvas.width = img.naturalWidth;
-        canvas.height = img.naturalHeight;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) throw new Error('Canvas error');
-
-        ctx.drawImage(img, 0, 0);
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const data = imageData.data;
-
-        for (let i = 0; i < data.length; i += 4) {
-            const brightness = (data[i] + data[i + 1] + data[i + 2]) / 3;
-            if (brightness > 128) {
-                data[i] = data[i + 1] = data[i + 2] = 0;
-                data[i + 3] = 0; // transparent = edit
-            } else {
-                data[i] = data[i + 1] = data[i + 2] = 0;
-                data[i + 3] = 255; // opaque = keep
-            }
-        }
-
-        ctx.putImageData(imageData, 0, 0);
-        return new Promise<Blob>((resolve, reject) => {
-            canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('toBlob failed')), 'image/png');
-        });
-    };
-
     const sendToApi = async (image: string, mask: string) => {
         setStatusMessage("Projektuję nowy uśmiech...");
         try {
-            const imgBlob = await (await fetch(image)).blob();
-            const maskBlob = await convertMaskForOpenAI(mask);
-
             const formData = new FormData();
-            formData.append("image", imgBlob, "image.png");
-            formData.append("mask", maskBlob, "mask.png");
+            const fetchBlob = async (url: string) => await (await fetch(url)).blob();
+            formData.append("image", await fetchBlob(image));
+            formData.append("mask", await fetchBlob(mask));
             formData.append("style", "hollywood");
 
-            // Synchronous call — OpenAI returns result directly
             const res = await fetch("/api/simulate", { method: "POST", body: formData });
-            if (!res.ok) {
-                const errData = await res.json().catch(() => ({}));
-                throw new Error(errData.error || "Błąd połączenia z serwerem.");
-            }
+            if (!res.ok) throw new Error("Błąd połączenia z serwerem.");
 
-            const result = await res.json();
+            const { id } = await res.json();
 
-            if (result.status === 'succeeded' && result.url) {
-                setResultImage(result.url);
-                setStep('result');
-            } else {
-                throw new Error(result.error || "AI nie zwróciło wyniku.");
-            }
+            // Polling for Flux Fill Dev
+            const checkStatus = async () => {
+                const statusRes = await fetch(`/api/simulate?id=${id}`);
+                const statusData = await statusRes.json();
+
+                if (statusData.status === "succeeded") {
+                    setResultImage(statusData.url);
+                    setStep('result');
+                } else if (statusData.status === "failed") {
+                    throw new Error("Generowanie nie powiodło się. Spróbuj innego zdjęcia.");
+                } else {
+                    setTimeout(checkStatus, 1000);
+                }
+            };
+            checkStatus();
+
         } catch (err: any) {
             setError(err.message);
             setStep('upload');

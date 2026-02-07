@@ -1,91 +1,117 @@
 import { NextRequest, NextResponse } from "next/server";
-import OpenAI from "openai";
-import { toFile } from "openai/uploads";
+import Replicate from "replicate";
 
 export const runtime = 'nodejs';
-export const maxDuration = 60; // Allow up to 60s for image generation
 
-// --- POST: Generate smile simulation via OpenAI gpt-image-1 ---
+// --- GET: Check Status (Polling) ---
+export async function GET(req: NextRequest) {
+    const { searchParams } = new URL(req.url);
+    const predictionId = searchParams.get("id");
+
+    if (!predictionId) {
+        return NextResponse.json({ error: "Missing prediction ID" }, { status: 400 });
+    }
+
+    const replicateKey = process.env.REPLICATE_API_TOKEN;
+    if (!replicateKey) return NextResponse.json({ error: "Config Error" }, { status: 500 });
+
+    const replicate = new Replicate({ auth: replicateKey });
+
+    try {
+        const prediction = await replicate.predictions.get(predictionId);
+
+        if (prediction.status === "succeeded") {
+            const outputUrl = Array.isArray(prediction.output) ? prediction.output[0] : prediction.output;
+            return NextResponse.json({ status: "succeeded", url: outputUrl });
+        } else if (prediction.status === "failed" || prediction.status === "canceled") {
+            return NextResponse.json({ status: "failed", error: prediction.error });
+        } else {
+            return NextResponse.json({ status: prediction.status });
+        }
+    } catch (error: any) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+}
+
+// --- POST: Start Prediction ---
 export async function POST(req: NextRequest) {
     try {
-        const apiKey = process.env.OPENAI_API_KEY;
-        if (!apiKey) {
-            return NextResponse.json({ error: "Missing OpenAI API Key" }, { status: 500 });
+        const replicateKey = process.env.REPLICATE_API_TOKEN;
+        if (!replicateKey) {
+            return NextResponse.json({ error: "Missing API Token" }, { status: 500 });
         }
 
-        const openai = new OpenAI({ apiKey });
+        const replicate = new Replicate({ auth: replicateKey });
         const formData = await req.formData();
         const imageFile = formData.get("image") as File;
         const maskFile = formData.get("mask") as File;
-        const style = (formData.get("style") as string) || "hollywood";
+        const style = formData.get("style") as string || "hollywood";
 
         if (!imageFile || !maskFile) {
-            return NextResponse.json({ error: "Missing image or mask" }, { status: 400 });
+            return NextResponse.json({ error: "Missing image/mask" }, { status: 400 });
         }
 
-        // Convert uploaded Files to OpenAI-compatible format
-        const imageBuffer = Buffer.from(await imageFile.arrayBuffer());
-        const maskBuffer = Buffer.from(await maskFile.arrayBuffer());
+        // Convert to Base64
+        const fileToBase64 = async (file: File) => {
+            const bytes = await file.arrayBuffer();
+            const buffer = Buffer.from(bytes);
+            return `data:${file.type};base64,${buffer.toString("base64")}`;
+        };
 
-        const openaiImage = await toFile(imageBuffer, "image.png", { type: "image/png" });
-        const openaiMask = await toFile(maskBuffer, "mask.png", { type: "image/png" });
+        const imageUri = await fileToBase64(imageFile);
+        const maskUri = await fileToBase64(maskFile);
 
-        // --- CALL OpenAI Image Edit ---
-        const response = await openai.images.edit({
-            model: "gpt-image-1",
-            image: openaiImage,
-            mask: openaiMask,
-            prompt: buildSmilePrompt(style),
-            size: "1024x1024",
-            n: 1,
+        // Start Flux Fill
+        const modelRepo = await replicate.models.get("black-forest-labs", "flux-fill-dev");
+        const version = modelRepo.latest_version?.id;
+
+        if (!version) throw new Error("Model version not found");
+
+        const prediction = await replicate.predictions.create({
+            version: version,
+            input: {
+                image: imageUri,
+                mask: maskUri,
+                // DESCRIPTIVE PROMPT — describe the desired end state, NOT procedure
+                prompt: buildSmilePrompt(style),
+                guidance_scale: 15,
+                n_steps: 50,
+                output_format: "png",
+                output_quality: 100
+            }
         });
 
-        // gpt-image-1 returns base64 data
-        const b64 = response.data?.[0]?.b64_json;
-        if (b64) {
-            return NextResponse.json({
-                status: "succeeded",
-                url: `data:image/png;base64,${b64}`,
-            });
-        }
-
-        // Fallback: if URL is returned instead
-        const url = response.data?.[0]?.url;
-        if (url) {
-            return NextResponse.json({ status: "succeeded", url });
-        }
-
-        return NextResponse.json({ error: "No image returned from AI" }, { status: 500 });
+        return NextResponse.json({ id: prediction.id }, { status: 202 });
 
     } catch (error: any) {
-        console.error("Smile Simulation Error:", error);
+        console.error("API Error:", error);
         return NextResponse.json(
-            { error: error.message || "Failed to generate smile" },
+            { error: error.message || "Failed to start simulation" },
             { status: 500 }
         );
     }
 }
 
 // --- Descriptive prompt builder ---
-// Key principle: describe the DESIRED RESULT, never the procedure.
+// KEY PRINCIPLE: Describe the desired RESULT, not the procedure.
+// DO NOT use instructions like "open mouth", "reshape lips", "place veneers".
+// Simply describe what the final photo should look like.
 function buildSmilePrompt(style: string): string {
-    const base = `A photorealistic close-up portrait photograph of this exact same person with a beautiful, warm, natural-looking smile showing perfectly white, straight teeth. The smile is genuine, confident and photorealistic. Teeth are naturally proportioned, bright white, with perfect alignment and no gaps or discoloration. Healthy natural pink lips. The person's face, skin tone, identity, lighting, and background remain completely unchanged. Only the mouth area has a beautiful new smile.`;
+    const base = `Same person, same photo, same lighting. Only the mouth area is different: a beautiful, natural-looking smile with clean white teeth. Teeth are naturally proportioned, properly aligned, no gaps. Healthy lips. Photorealistic dental photography.`;
 
-    const styleAddition = getStyleAddition(style);
-
-    return `${base} ${styleAddition}`;
+    return `${base} ${getStyleSuffix(style)}`;
 }
 
-function getStyleAddition(style: string): string {
+function getStyleSuffix(style: string): string {
     switch (style) {
         case "natural":
-            return "The teeth have a natural warm white tone with very subtle, realistic imperfections for an authentic look. The smile is relaxed and genuine.";
+            return "Natural white teeth with subtle warmth. Genuine relaxed smile.";
         case "soft":
-            return "The smile is gentle and soft, with naturally rounded teeth and a warm, inviting expression. Teeth are a natural white, not overly bright.";
+            return "Gentle soft smile. Rounded teeth, natural white tone.";
         case "strong":
-            return "The smile is broad and confident, with well-defined, slightly square teeth. The expression conveys strength and command. Bright white teeth.";
+            return "Confident broad smile. Defined teeth, bright white.";
         case "hollywood":
         default:
-            return "Ultra-white Hollywood veneers with perfect symmetry. A broad, radiant, red-carpet-worthy smile. Flawlessly aligned, brilliant white teeth.";
+            return "Bright white Hollywood smile. Perfect symmetry.";
     }
 }
