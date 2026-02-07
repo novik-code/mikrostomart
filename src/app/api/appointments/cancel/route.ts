@@ -87,12 +87,16 @@ export async function POST(req: NextRequest) {
             throw updateError;
         }
 
-        // Get patient details
-        const { data: patient } = await supabase
-            .from('patients')
-            .select('phone')
-            .eq('id', action.patient_id)
-            .single();
+        // Get patient details (may be null if patient has no account)
+        let patient = null;
+        if (action.patient_id) {
+            const { data } = await supabase
+                .from('patients')
+                .select('phone')
+                .eq('id', action.patient_id)
+                .single();
+            patient = data;
+        }
 
         // Format dates for notifications
         const appointmentDateFormatted = appointmentDate.toLocaleDateString('pl-PL', {
@@ -143,6 +147,31 @@ export async function POST(req: NextRequest) {
             console.error('[CANCEL-PUBLIC] Failed to send telegram:', telegramError);
         }
 
+        // Send Email notification
+        let emailSent = false;
+        try {
+            if (process.env.RESEND_API_KEY) {
+                const { Resend } = await import('resend');
+                const resend = new Resend(process.env.RESEND_API_KEY);
+
+                await resend.emails.send({
+                    from: 'Mikrostomart <noreply@mikrostomart.pl>',
+                    to: process.env.ADMIN_EMAIL || 'kontakt@mikrostomart.pl',
+                    subject: '❌ Pacjent odwołał wizytę',
+                    html: `
+                        <h2>❌ PACJENT ODWOŁAŁ WIZYTĘ</h2>
+                        <p><strong>Termin:</strong> ${appointmentDateFormatted}, ${appointmentTime}</p>
+                        <p><strong>Lekarz:</strong> ${action.doctor_name || 'Nie podano'}</p>
+                        <p><strong>Telefon:</strong> ${patient?.phone || 'Brak'}</p>
+                        <p><em>⚠️ Proszę skontaktować się z pacjentem (${new Date().toLocaleString('pl-PL')})</em></p>
+                    `
+                });
+                emailSent = true;
+            }
+        } catch (emailError) {
+            console.error('[CANCEL-PUBLIC] Failed to send email:', emailError);
+        }
+
         // Send WhatsApp notification
         let whatsappSent = false;
         try {
@@ -172,13 +201,14 @@ export async function POST(req: NextRequest) {
             console.error('[CANCEL-PUBLIC] WhatsApp notification failed:', whatsappError);
         }
 
-        console.log('[CANCEL-PUBLIC] Success:', { telegramSent, whatsappSent });
+        console.log('[CANCEL-PUBLIC] Success:', { telegramSent, whatsappSent, emailSent });
 
         return NextResponse.json({
             success: true,
             message: 'Odwołanie wysłane. Gabinet został powiadomiony i skontaktuje się z Tobą.',
             telegramSent,
-            whatsappSent
+            whatsappSent,
+            emailSent
         });
 
     } catch (error) {

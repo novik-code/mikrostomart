@@ -21,7 +21,7 @@ export default function AppointmentPreparationPage() {
     const [instruction, setInstruction] = useState<AppointmentInstruction | null>(null);
     const [loading, setLoading] = useState(true);
     const [notFound, setNotFound] = useState(false);
-    const [confirmationStatus, setConfirmationStatus] = useState<'idle' | 'confirming' | 'confirmed' | 'cancelling' | 'cancelled'>('idle');
+    const [confirmationStatus, setConfirmationStatus] = useState<'idle' | 'confirming' | 'confirmed' | 'already-confirmed' | 'cancelling' | 'cancelled'>('idle');
 
     // Extract appointment details from URL
     const appointmentId = searchParams.get('appointmentId');
@@ -72,10 +72,17 @@ export default function AppointmentPreparationPage() {
                 })
             });
 
+            const data = await res.json();
+
             if (res.ok) {
-                setConfirmationStatus('confirmed');
+                // Check if already confirmed
+                if (data.alreadyConfirmed) {
+                    setConfirmationStatus('already-confirmed');
+                } else {
+                    setConfirmationStatus('confirmed');
+                }
             } else {
-                throw new Error('Confirmation failed');
+                throw new Error(data.error || 'Confirmation failed');
             }
         } catch (error) {
             console.error('[Confirm] Error:', error);
@@ -254,6 +261,25 @@ export default function AppointmentPreparationPage() {
                                         ✅ <strong>Wizyta potwierdzona!</strong><br />
                                         <span style={{ fontSize: '0.95rem', opacity: 0.9 }}>
                                             Potwierdzenie zostało wysłane do lekarza.
+                                        </span>
+                                    </div>
+                                )}
+
+                                {confirmationStatus === 'already-confirmed' && (
+                                    <div style={{
+                                        marginTop: '2rem',
+                                        padding: '1.5rem',
+                                        background: 'rgba(59, 130, 246, 0.15)',
+                                        border: '2px solid rgba(59, 130, 246, 0.5)',
+                                        borderRadius: 'var(--radius-md)',
+                                        textAlign: 'center',
+                                        color: '#3b82f6',
+                                        fontWeight: '600',
+                                        fontSize: '1.1rem'
+                                    }}>
+                                        ℹ️ <strong>Wizyta już potwierdzona</strong><br />
+                                        <span style={{ fontSize: '0.95rem', opacity: 0.9 }}>
+                                            Ta wizyta została wcześniej potwierdzona.
                                         </span>
                                     </div>
                                 )}
