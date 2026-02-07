@@ -1244,12 +1244,20 @@ export default function AdminPage() {
             </div>
 
             {/* SMS List */}
-            {smsReminders.filter(sms => smsTab === 'drafts' ? sms.status === 'draft' : sms.status === 'sent' || sms.status === 'failed').length === 0 ? (
+            {smsReminders.filter(sms =>
+                smsTab === 'drafts'
+                    ? sms.status === 'draft'
+                    : (sms.status === 'sent' || sms.status === 'failed')
+            ).length === 0 ? (
                 <p style={{ textAlign: "center", padding: "2rem", color: "var(--color-text-muted)" }}>
                     {smsTab === 'drafts' ? 'Brak szkiców SMS' : 'Brak wysłanych SMS'}
                 </p>
             ) : (
-                smsReminders.filter(sms => smsTab === 'drafts' ? sms.status === 'draft' : sms.status === 'sent' || sms.status === 'failed').map(sms => {
+                smsReminders.filter(sms =>
+                    smsTab === 'drafts'
+                        ? sms.status === 'draft'
+                        : (sms.status === 'sent' || sms.status === 'failed')
+                ).map(sms => {
                     const isEditing = editingSmsId === sms.id;
                     // Extract time from SMS message (e.g. "jutro o 11:00") to avoid UTC conversion
                     const timeMatch = sms.sms_message?.match(/(\d{1,2}):(\d{2})/);
