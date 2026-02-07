@@ -37,9 +37,6 @@ export default function Footer() {
                 />
             </div>
 
-            {/* Novik Code Credit — above footer content */}
-            <NovikCodeCredit />
-
             <div className="container" style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
@@ -145,6 +142,10 @@ export default function Footer() {
                     </a>
                 </div>
             </div>
+
+            {/* Novik Code Credit — very bottom of footer */}
+            <NovikCodeCredit />
+
         </footer>
     );
 }
