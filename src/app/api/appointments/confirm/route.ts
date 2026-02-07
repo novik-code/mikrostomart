@@ -163,9 +163,11 @@ export async function POST(req: NextRequest) {
                     subject: '✅ Pacjent potwierdził obecność',
                     html: `
                         \u003ch2\u003e✅ PACJENT POTWIERDZIŁ WIZYTĘ\u003c/h2\u003e
-                        \u003cp\u003e\u003cstrong\u003eTermin:\u003c/strong\u003e ${appointmentDateFormatted}, ${appointmentTime}\u003c/p\u003e
-                        \u003cp\u003e\u003cstrong\u003eLekarz:\u003c/strong\u003e ${action.doctor_name || 'Nie podano'}\u003c/p\u003e
-                        \u003cp\u003e\u003cstrong\u003eTelefon:\u003c/strong\u003e ${patient?.phone || 'Brak'}\u003c/p\u003e
+                        <p><strong>Pacjent:</strong> ${action.patient_name || 'Nieznany pacjent'}</p>
+                        <p><strong>Telefon:</strong> ${action.patient_phone || 'Brak'}</p>
+                        <p><strong>Data:</strong> ${appointmentDateFormatted}</p>
+                        <p><strong>Godzina:</strong> ${appointmentTime}</p>
+                        <p><strong>Lekarz:</strong> ${action.doctor_name || 'Nie podano'}</p>
                         \u003cp\u003e\u003cem\u003ePotwierdzenie z landing page (${new Date().toLocaleString('pl-PL')})\u003c/em\u003e\u003c/p\u003e
                     `
                 });

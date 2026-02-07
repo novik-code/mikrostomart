@@ -21,7 +21,7 @@ export default function AppointmentPreparationPage() {
     const [instruction, setInstruction] = useState<AppointmentInstruction | null>(null);
     const [loading, setLoading] = useState(true);
     const [notFound, setNotFound] = useState(false);
-    const [confirmationStatus, setConfirmationStatus] = useState<'idle' | 'confirming' | 'confirmed' | 'already-confirmed' | 'cancelling' | 'cancelled'>('idle');
+    const [confirmationStatus, setConfirmationStatus] = useState<'idle' | 'confirming' | 'confirmed' | 'already-confirmed' | 'cancelling' | 'cancelled' | 'already-cancelled'>('idle');
 
     // Extract appointment details from URL
     const appointmentId = searchParams.get('appointmentId');
@@ -113,10 +113,17 @@ export default function AppointmentPreparationPage() {
                 })
             });
 
+            const data = await res.json();
+
             if (res.ok) {
-                setConfirmationStatus('cancelled');
+                // Check if already cancelled
+                if (data.alreadyCancelled) {
+                    setConfirmationStatus('already-cancelled');
+                } else {
+                    setConfirmationStatus('cancelled');
+                }
             } else {
-                throw new Error('Cancellation failed');
+                throw new Error(data.error || 'Cancellation failed');
             }
         } catch (error) {
             console.error('[Cancel] Error:', error);
@@ -280,6 +287,25 @@ export default function AppointmentPreparationPage() {
                                         ℹ️ <strong>Wizyta już potwierdzona</strong><br />
                                         <span style={{ fontSize: '0.95rem', opacity: 0.9 }}>
                                             Ta wizyta została wcześniej potwierdzona.
+                                        </span>
+                                    </div>
+                                )}
+
+                                {confirmationStatus === 'already-cancelled' && (
+                                    <div style={{
+                                        marginTop: '2rem',
+                                        padding: '1.5rem',
+                                        background: 'rgba(59, 130, 246, 0.15)',
+                                        border: '2px solid rgba(59, 130, 246, 0.5)',
+                                        borderRadius: 'var(--radius-md)',
+                                        textAlign: 'center',
+                                        color: '#3b82f6',
+                                        fontWeight: '600',
+                                        fontSize: '1.1rem'
+                                    }}>
+                                        ℹ️ <strong>Wizyta już odwołana</strong><br />
+                                        <span style={{ fontSize: '0.95rem', opacity: 0.9 }}>
+                                            Ta wizyta została wcześniej odwołana.
                                         </span>
                                     </div>
                                 )}

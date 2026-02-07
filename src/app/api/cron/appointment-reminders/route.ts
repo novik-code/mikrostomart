@@ -305,6 +305,8 @@ export async function GET(req: Request) {
                             id: appointmentActionId,
                             patient_id: patientId, // Can be NULL for patients without accounts
                             prodentis_id: appointment.id,
+                            patient_name: appointment.patientName || 'Nieznany pacjent',
+                            patient_phone: appointment.patientPhone || 'Brak',
                             appointment_date: appointment.date,
                             appointment_end_date: appointmentEndDate.toISOString(),
                             doctor_name: doctorName,

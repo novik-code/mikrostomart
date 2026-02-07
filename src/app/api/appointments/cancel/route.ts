@@ -45,12 +45,14 @@ export async function POST(req: NextRequest) {
             status: action.status
         });
 
-        // Check if already cancelled
+        // Check if already cancelled - return success (not error)
         if (action.status === 'cancelled' || action.status === 'reschedule_requested') {
-            return NextResponse.json(
-                { error: 'Appointment already cancelled' },
-                { status: 400 }
-            );
+            console.log('[CANCEL-PUBLIC] Already cancelled - returning success');
+            return NextResponse.json({
+                success: true,
+                alreadyCancelled: true,
+                message: 'Wizyta została już wcześniej odwołana.'
+            });
         }
 
         // Validate timing (must be > 2 hours before appointment)
@@ -160,9 +162,11 @@ export async function POST(req: NextRequest) {
                     subject: '❌ Pacjent odwołał wizytę',
                     html: `
                         <h2>❌ PACJENT ODWOŁAŁ WIZYTĘ</h2>
-                        <p><strong>Termin:</strong> ${appointmentDateFormatted}, ${appointmentTime}</p>
+                        <p><strong>Pacjent:</strong> ${action.patient_name || 'Nieznany pacjent'}</p>
+                        <p><strong>Telefon:</strong> ${action.patient_phone || 'Brak'}</p>
+                        <p><strong>Data:</strong> ${appointmentDateFormatted}</p>
+                        <p><strong>Godzina:</strong> ${appointmentTime}</p>
                         <p><strong>Lekarz:</strong> ${action.doctor_name || 'Nie podano'}</p>
-                        <p><strong>Telefon:</strong> ${patient?.phone || 'Brak'}</p>
                         <p><em>⚠️ Proszę skontaktować się z pacjentem (${new Date().toLocaleString('pl-PL')})</em></p>
                     `
                 });
