@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
                                 
                                 <p>W razie pytań, skontaktuj się z nami:</p>
                                 <p>📞 570 270 470<br>
-                                📧 kontakt@mikrostomart.pl</p>
+                                📧 gabinet@mikrostomart.pl</p>
                             </div>
                             <div class="footer">
                                 <p>© ${new Date().getFullYear()} Mikrostomart - Gabinet Stomatologiczny</p>

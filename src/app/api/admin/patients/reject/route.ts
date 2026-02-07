@@ -87,7 +87,7 @@ export async function POST(request: Request) {
                             <p>Prosimy o kontakt z recepcją:</p>
                             <ul>
                                 <li>📞 <strong>570 270 470</strong></li>
-                                <li>📧 <strong>kontakt@mikrostomart.pl</strong></li>
+                                <li>📧 <strong>gabinet@mikrostomart.pl</strong></li>
                             </ul>
                             <p style="color: #666; font-size: 0.9rem; margin-top: 2rem;">
                                 Pozdrawiamy,<br/>

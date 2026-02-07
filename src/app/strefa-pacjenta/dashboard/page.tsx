@@ -392,7 +392,7 @@ export default function PatientDashboard() {
                                 lineHeight: '1.6',
                             }}>
                                 Otrzymasz powiadomienie email po zatwierdzeniu konta.<br />
-                                W razie pytań: 📞 <strong>570 270 470</strong> lub 📧 <strong>kontakt@mikrostomart.pl</strong>
+                                W razie pytań: 📞 <strong>570 270 470</strong> lub 📧 <strong>gabinet@mikrostomart.pl</strong>
                             </p>
                         </div>
                     </div>
