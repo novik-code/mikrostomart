@@ -41,12 +41,15 @@ export async function sendSMS(options: SMSOptions): Promise<SMSResponse> {
         };
     }
 
+    // Normalize phone number: remove + prefix and whitespace
+    const normalizedPhone = to.replace(/^\+/, '').replace(/\s+/g, '');
+
     // Validate phone format (Polish: 48XXXXXXXXX, 11 digits total)
     const phoneRegex = /^48\d{9}$/;
-    if (!phoneRegex.test(to.replace(/\s+/g, ''))) {
+    if (!phoneRegex.test(normalizedPhone)) {
         return {
             success: false,
-            error: `Invalid phone format: ${to}. Expected format: 48XXXXXXXXX`
+            error: `Invalid phone format: ${to}. Expected format: 48XXXXXXXXX or +48XXXXXXXXX`
         };
     }
 
@@ -73,7 +76,7 @@ export async function sendSMS(options: SMSOptions): Promise<SMSResponse> {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                to: to,
+                to: normalizedPhone,
                 message: message,
                 from: from,
                 format: 'json'
