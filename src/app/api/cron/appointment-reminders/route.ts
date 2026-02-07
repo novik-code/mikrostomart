@@ -100,7 +100,22 @@ export async function GET(req: Request) {
 
         console.log(`📊 [SMS Reminders] Found ${appointments.length} appointments for tomorrow`);
 
-        // 5. Process each appointment
+        // 5. Clean up old drafts for tomorrow's appointments (ensures fresh generation with correct time/links)
+        console.log(`🧹 [SMS Reminders] Cleaning up old drafts for ${tomorrowStr}...`);
+        const { error: deleteError } = await supabase
+            .from('sms_reminders')
+            .delete()
+            .gte('appointment_date', `${tomorrowStr}T00:00:00Z`)
+            .lt('appointment_date', `${tomorrowStr}T23:59:59Z`)
+            .in('status', ['draft', 'cancelled', 'failed']);
+
+        if (deleteError) {
+            console.error(`   ⚠️  Failed to delete old drafts:`, deleteError);
+        } else {
+            console.log(`   ✅ Old drafts cleaned up`);
+        }
+
+        // 6. Process each appointment
         for (const appointment of appointments) {
             processedCount++;
 
