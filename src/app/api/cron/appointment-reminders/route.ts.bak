@@ -335,7 +335,7 @@ export async function GET(req: Request) {
                             await supabase
                                 .from('sms_reminders')
                                 .update({ sms_message: messageWithLink })
-                                .eq('id', (shouldUpdateExisting ? existingDraftId : (draftData && draftData[0] ? draftData[0].id : null)) ?? '' );
+                                .eq('id', draftData[0].id);
 
                             console.log(`   📝 Updated SMS with short link`);
                         }

@@ -565,11 +565,8 @@ export default function AdminPage() {
 
         setManualGenerationStatus('Wywołuję cron job...');
         try {
-            const res = await fetch('/api/cron/appointment-reminders', {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${process.env.NEXT_PUBLIC_CRON_SECRET || 'dev-secret'}`
-                }
+            const res = await fetch('/api/cron/appointment-reminders?manual=true', {
+                method: 'GET'
             });
 
             if (res.ok) {
@@ -588,8 +585,8 @@ export default function AdminPage() {
                     setManualGenerationStatus(null);
                 }, 3000);
             } else {
-                const error = await res.json();
-                setManualGenerationStatus(`❌ Błąd: ${error.error || 'Nieznany błąd'}`);
+                const errorText = await res.text();
+                setManualGenerationStatus(`❌ Błąd (${res.status}): ${errorText}`);
             }
         } catch (err: any) {
             setManualGenerationStatus(`❌ Błąd: ${err.message}`);
