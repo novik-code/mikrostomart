@@ -1,6 +1,6 @@
 # Mikrostomart - Project Architecture Overview
 
-> **Last Updated:** 2026-02-06  
+> **Last Updated:** 2026-02-07  
 > **Purpose:** Complete reference to prevent recreating existing functionality
 
 ---
@@ -28,7 +28,7 @@
 
 ---
 
-## 📄 All Pages (38 total)
+## 📄 All Pages (40 total)
 
 ### Public Pages (18)
 - `/` - Homepage
@@ -73,12 +73,16 @@
 
 ### Admin Panel (3)
 - `/admin/login` - Admin login
-- `/admin` - Admin dashboard (patients, orders, reservations, news, etc.)
+- `/admin` - Admin dashboard (patients, orders, reservations, news, SMS reminders, appointment instructions)
 - `/admin/update-password` - Update admin password
+
+### Appointment Landing Pages (2)
+- `/wizyta/[type]` - Appointment preparation instructions (dynamic per type)
+- `/s/[code]` - Short link redirect (SMS-friendly URLs)
 
 ---
 
-## 🔌 API Endpoints (39 total)
+## 🔌 API Endpoints (46 total)
 
 ### Patient Portal API (15)
 - `POST /api/patients/register` - Create account (sends verification email)
@@ -96,7 +100,7 @@
 - `GET /api/patients/appointments/[id]/status` - **NEW!** Get appointment action status
 - `POST /api/patients/appointments/[id]/reset-status` - **NEW!** Reset appointment status (testing only)
 
-### Admin API (14)
+### Admin API (16)
 - `GET /api/admin/patients` - List all patients
 - `POST /api/admin/patients/approve` - Approve patient account
 - `POST /api/admin/patients/reject` - Reject patient account (with reason)
@@ -107,12 +111,14 @@
 - `GET/POST/PATCH/DELETE /api/admin/blog` - Blog management
 - `GET/POST/PATCH/DELETE /api/admin/articles` - Knowledge base management
 - `POST /api/admin/news/generate` - AI-generate news article
-- `GET /api/admin/sms-reminders` - **NEW!** List SMS drafts with filters (status, date)
-- `PUT /api/admin/sms-reminders` - **NEW!** Edit SMS message before sending
-- `DELETE /api/admin/sms-reminders` - **NEW!** Cancel/delete SMS draft
-- `POST /api/admin/sms-reminders/send` - **NEW!** Send SMS (single or bulk)
+- `GET /api/admin/sms-reminders` - List SMS drafts with filters (status, date)
+- `PUT /api/admin/sms-reminders` - Edit SMS message before sending
+- `DELETE /api/admin/sms-reminders` - Cancel/delete SMS draft
+- `POST /api/admin/sms-reminders/send` - Send SMS (single or bulk)
+- `GET /api/admin/appointment-instructions` - **NEW!** Get appointment type instructions
+- `PUT /api/admin/appointment-instructions/:type` - **NEW!** Update instruction content
 
-### Public API (10)
+### Public API (16)
 - `POST /api/contact` - Contact form submission
 - `POST /api/reservations` - Create reservation
 - `POST /api/ask-expert` - Submit expert question
@@ -125,11 +131,16 @@
 - `POST /api/simulate` - Treatment simulation
 - `GET /api/prodentis/slots` - Get available appointment slots
 - `POST /api/fix-db-images` - Database image migration utility
+- `GET /api/appointment-instructions/:type` - **NEW!** Get landing page instructions
+- `POST /api/appointments/confirm` - **NEW!** Confirm appointment (public, no JWT)
+- `POST /api/appointments/cancel` - **NEW!** Cancel appointment (public, no JWT)
+- `POST /api/short-links` - **NEW!** Create short link
+- `GET /api/short-links/:code` - **NEW!** Resolve short link + track clicks
 
 ### Cron Jobs (3)
 - `POST /api/cron/daily-article` - Generate daily article at 8:00 AM Warsaw
-- `POST /api/cron/appointment-reminders` - **NEW!** Generate SMS drafts at 8:00 AM Warsaw (2-stage system)
-- `POST /api/cron/sms-auto-send` - **NEW!** Auto-send unsent SMS drafts at 10:00 AM Warsaw
+- `POST /api/cron/appointment-reminders` - Generate SMS drafts + appointment_actions + short links at 8:00 AM Warsaw
+- `POST /api/cron/sms-auto-send` - Auto-send unsent SMS drafts at 10:00 AM Warsaw
 
 ---
 
@@ -218,6 +229,38 @@ One-time tokens for password reset.
 3. Admin sends manually OR auto-sent at 10 AM if not sent
 4. Status updated to 'sent' or 'failed'
 
+#### `appointment_instructions`
+**NEW!** Landing page content for appointment types (editable via admin CMS).
+
+**Key Columns:**
+- `id` UUID (PK)
+- `appointment_type` VARCHAR(100) UNIQUE - URL slug (e.g. 'chirurgia', 'pierwsza-wizyta')
+- `title` VARCHAR(255) - Page heading
+- `subtitle` TEXT - Subheading
+- `icon` VARCHAR(50) - Emoji icon
+- `content` TEXT - HTML content (instructions, preparation)
+- `preparation_time` VARCHAR(100) - How long before to prepare
+- `what_to_bring` JSONB - Array of items to bring
+- `important_notes` JSONB - Array of warning/important notes
+- `created_at`, `updated_at` TIMESTAMPTZ
+
+#### `short_links`
+**NEW!** URL shortener for SMS appointment reminders.
+
+**Key Columns:**
+- `id` UUID (PK)
+- `short_code` VARCHAR(20) UNIQUE - 6-char nanoid (e.g. 'abc123')
+- `destination_url` TEXT - Full URL to redirect to
+- `appointment_id` UUID FK - Links to appointment_actions
+- `patient_id` UUID FK - Links to patients
+- `appointment_type` VARCHAR(100) - Type slug
+- `click_count` INTEGER - Analytics
+- `last_clicked_at` TIMESTAMPTZ
+- `expires_at` TIMESTAMPTZ - Auto-expires 3 days after appointment
+- `created_at`, `updated_at` TIMESTAMPTZ
+
+**Usage:** `/s/abc123` → `/wizyta/chirurgia?appointmentId=...&date=...&time=...`
+
 #### Other Tables
 - `orders` - E-commerce orders
 - `reservations` - Appointment bookings
@@ -229,7 +272,7 @@ One-time tokens for password reset.
 
 ---
 
-## 🧩 Key Components (27 total)
+## 🧩 Key Components (28 total)
 
 ### Layout & Navigation
 - `Navbar.tsx` - Main navigation with cart, patient portal links
@@ -265,6 +308,9 @@ One-time tokens for password reset.
 - `AnimatedAt.tsx` - Animated @ symbol
 - `CookieConsent.tsx` - Cookie banner
 - `PWAInstallPrompt.tsx` - PWA installation
+
+### Admin Components
+- `AppointmentInstructionsEditor.tsx` - **NEW!** CMS editor for landing page content (split-screen edit/preview)
 
 ### Subdirectories
 - `components/scheduler/` - Appointment scheduling
@@ -387,11 +433,14 @@ mikrostomart/
 - **Production URL:** https://www.mikrostomart.pl
 - **Auto-deploy:** On push to `main` branch
 
-### Recent Updates (2026-02-06)
-- ✅ Telegram notifications for appointment actions
-- ✅ Patient address auto-fill in payment forms
-- ✅ Timezone display fix (Warsaw time, no double conversion)
-- ✅ Reset status endpoint for testing appointment workflows
+### Recent Updates (2026-02-07)
+- ✅ **Appointment Landing Pages** - Dynamic pages per appointment type (`/wizyta/[type]`)
+- ✅ **Short Links System** - SMS-friendly URLs (`/s/code`) with click analytics
+- ✅ **Admin CMS** - Editable appointment instructions with split-screen preview
+- ✅ **Appointment Actions** - Confirm/cancel buttons on landing pages (public, no JWT)
+- ✅ **Manual Trigger** - Admin panel button to invoke cron job for testing
+- ✅ **SMS Integration** - Short links appended to SMS messages automatically
+- ✅ **Appointment Type Mapper** - Smart mapping from Prodentis names to landing page slugs
 
 ---
 
