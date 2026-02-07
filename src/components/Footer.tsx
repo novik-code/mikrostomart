@@ -1,6 +1,7 @@
 import Image from 'next/image';
 import AnimatedPhone from "@/components/AnimatedPhone";
 import AnimatedAt from "@/components/AnimatedAt";
+import NovikCodeCredit from "@/components/NovikCodeCredit";
 
 export default function Footer() {
     return (
@@ -35,6 +36,9 @@ export default function Footer() {
                     style={{ objectFit: 'contain', transform: 'scale(1.5)' }}
                 />
             </div>
+
+            {/* Novik Code Credit — above footer content */}
+            <NovikCodeCredit />
 
             <div className="container" style={{
                 display: 'grid',
