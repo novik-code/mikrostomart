@@ -284,9 +284,10 @@ export async function GET(req: Request) {
                     const appointmentEndDate = new Date(appointment.date);
                     appointmentEndDate.setMinutes(appointmentEndDate.getMinutes() + 30);
 
-                    const { error: actionError } = await supabase
+                    // Upsert appointment_action (update if exists, insert if not)
+                    const { data: actionData, error: actionError } = await supabase
                         .from('appointment_actions')
-                        .insert({
+                        .upsert({
                             id: appointmentActionId,
                             patient_id: patientId, // Can be NULL for patients without accounts
                             prodentis_id: appointment.id,
@@ -297,16 +298,22 @@ export async function GET(req: Request) {
                             status: 'pending',
                             created_at: new Date().toISOString(),
                             updated_at: new Date().toISOString()
-                        });
+                        }, {
+                            onConflict: 'prodentis_id,appointment_date', // Update on duplicate
+                            ignoreDuplicates: false
+                        })
+                        .select()
+                        .single();
 
                     if (actionError) {
-                        console.error(`   ⚠️  Failed to create appointment_action:`, actionError);
+                        console.error(`   ⚠️  Failed to upsert appointment_action:`, actionError);
                     } else {
-                        console.log(`   ✅ Appointment action created (ID: ${appointmentActionId})`);
+                        const finalActionId = actionData?.id || appointmentActionId;
+                        console.log(`   ✅ Appointment action upserted (ID: ${finalActionId})`);
 
                         // 10. Generate short link for landing page
                         const appointmentSlug = mapAppointmentTypeToSlug(appointmentType);
-                        const fullUrl = `https://mikrostomart.pl/wizyta/${appointmentSlug}?appointmentId=${appointmentActionId}&date=${tomorrowStr}&time=${appointmentTime}&doctor=${encodeURIComponent(doctorName)}`;
+                        const fullUrl = `https://mikrostomart.pl/wizyta/${appointmentSlug}?appointmentId=${finalActionId}&date=${tomorrowStr}&time=${appointmentTime}&doctor=${encodeURIComponent(doctorName)}`;
 
                         const shortCode = nanoid(6);
 
