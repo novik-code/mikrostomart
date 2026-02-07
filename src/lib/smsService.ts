@@ -63,24 +63,26 @@ export async function sendSMS(options: SMSOptions): Promise<SMSResponse> {
     }
 
     try {
-        // TODO: User to select SMS provider and implement integration
-        // Option 1: SMSAPI.pl
-        // Option 2: Twilio
-        // Option 3: Other provider
+        console.log(`[SMS] Sending to: ${normalizedPhone}, message length: ${message.length} chars`);
 
-        // PLACEHOLDER IMPLEMENTATION - SMSAPI.pl
+        // SMSAPI.pl integration
+        // Note: 'from' field omitted - SMSAPI will use default sender ID from account settings
+        // To use custom sender, it must be registered in SMSAPI.pl dashboard first
+        const requestBody = {
+            to: normalizedPhone,
+            message: message,
+            format: 'json'
+        };
+
+        console.log('[SMS] Request body:', JSON.stringify(requestBody, null, 2));
+
         const response = await fetch('https://api.smsapi.pl/sms.do', {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${process.env.SMSAPI_TOKEN}`,
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                to: normalizedPhone,
-                message: message,
-                from: from,
-                format: 'json'
-            })
+            body: JSON.stringify(requestBody)
         });
 
         if (!response.ok) {
