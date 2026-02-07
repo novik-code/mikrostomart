@@ -1,13 +1,14 @@
+/* ═══════════════════════════════════════
+   NAVBAR — Base
+   ═══════════════════════════════════════ */
 .navbar {
     background-color: rgba(8, 9, 10, 0.85);
-    /* Dark semi-transparent */
     backdrop-filter: blur(12px);
     position: sticky;
     top: 0;
     z-index: 100;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
     padding: 1rem 0;
-    /* Slightly reduced for mobile friendliness */
 }
 
 .container {
@@ -21,22 +22,18 @@
     align-items: center;
     position: relative;
     z-index: 102;
-    /* Above mobile menu */
 }
 
-/* Desktop Links */
-.links {
-    display: flex;
-    gap: var(--spacing-md);
-    align-items: center;
-}
-
+/* ═══════════════════════════════════════
+   SHARED — Link Styles
+   ═══════════════════════════════════════ */
 .link {
     color: var(--color-text-main);
     font-size: 0.95rem;
     opacity: 0.8;
-    transition: opacity var(--transition-fast), color var(--transition-fast);
+    transition: opacity 0.3s ease, color 0.3s ease;
     position: relative;
+    white-space: nowrap;
 }
 
 .link:hover {
@@ -44,11 +41,163 @@
     color: var(--color-primary);
 }
 
-.desktopCta {
-    display: block;
+/* Animated underline on hover */
+.link::after {
+    content: '';
+    position: absolute;
+    bottom: -4px;
+    left: 50%;
+    width: 0;
+    height: 1.5px;
+    background: linear-gradient(90deg, transparent, var(--color-primary), transparent);
+    transition: width 0.3s ease, left 0.3s ease;
 }
 
-/* Hamburger Menu Icon */
+.link:hover::after {
+    width: 100%;
+    left: 0;
+}
+
+/* Link wrapper for motion.div */
+.linkWrapper {
+    display: inline-flex;
+}
+
+/* ═══════════════════════════════════════
+   DESKTOP — Expanding Hamburger Menu
+   ═══════════════════════════════════════ */
+
+/* Center wrapper — occupies space between logo and CTA */
+.desktopMenuWrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    position: relative;
+    min-height: 42px;
+}
+
+/* Desktop Hamburger Icon */
+.desktopHamburger {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    width: 28px;
+    height: 20px;
+    cursor: pointer;
+    padding: 11px 14px;
+    box-sizing: content-box;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 2;
+    border-radius: 50%;
+}
+
+/* Subtle golden glow behind hamburger */
+.desktopHamburger::before {
+    content: '';
+    position: absolute;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(212, 175, 55, 0.10) 0%, transparent 70%);
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    animation: pulseGlow 3s ease-in-out infinite;
+}
+
+@keyframes pulseGlow {
+
+    0%,
+    100% {
+        opacity: 0.4;
+        transform: translate(-50%, -50%) scale(1);
+    }
+
+    50% {
+        opacity: 0.8;
+        transform: translate(-50%, -50%) scale(1.3);
+    }
+}
+
+.desktopBar {
+    width: 100%;
+    height: 2px;
+    background: linear-gradient(90deg, rgba(212, 175, 55, 0.4), var(--color-primary), rgba(212, 175, 55, 0.4));
+    border-radius: 10px;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+/* Middle bar subtle breathing animation */
+.desktopHamburger:hover .desktopBar:nth-child(2) {
+    transform: scaleX(0.6);
+    opacity: 0.6;
+}
+
+.desktopHamburger:hover .desktopBar:nth-child(1) {
+    transform: scaleX(0.8) translateX(-2px);
+}
+
+.desktopHamburger:hover .desktopBar:nth-child(3) {
+    transform: scaleX(0.8) translateX(2px);
+}
+
+/* ═══════════════════════════════════════
+   DESKTOP — Expanded Link Containers
+   Positioned absolutely from center
+   ═══════════════════════════════════════ */
+.linksLeft {
+    position: absolute;
+    right: calc(50% + 28px);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    white-space: nowrap;
+}
+
+.linksRight {
+    position: absolute;
+    left: calc(50% + 28px);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    white-space: nowrap;
+}
+
+/* ═══════════════════════════════════════
+   DESKTOP — Dropdown Menu
+   ═══════════════════════════════════════ */
+.dropdownLink {
+    display: block;
+    padding: 0.75rem 1.5rem;
+    width: 100%;
+    text-align: center;
+    color: var(--color-text-main);
+    white-space: nowrap;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-size: 0.9rem;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+.dropdownLink:hover {
+    background: rgba(212, 175, 55, 0.08);
+    color: var(--color-primary);
+}
+
+/* ═══════════════════════════════════════
+   DESKTOP — CTA Button
+   ═══════════════════════════════════════ */
+.desktopCta {
+    display: block;
+    flex-shrink: 0;
+}
+
+/* ═══════════════════════════════════════
+   MOBILE — Hamburger Button (hidden on desktop)
+   ═══════════════════════════════════════ */
 .hamburger {
     display: none;
     flex-direction: column;
@@ -60,7 +209,6 @@
     cursor: pointer;
     padding: 0;
     z-index: 102;
-    /* Above mobile menu */
 }
 
 .bar {
@@ -72,7 +220,6 @@
     transform-origin: 1px;
 }
 
-/* Hamburger Animation */
 .barOpen:nth-child(1) {
     transform: rotate(45deg);
 }
@@ -86,7 +233,9 @@
     transform: rotate(-45deg);
 }
 
-/* Mobile Menu Overlay */
+/* ═══════════════════════════════════════
+   MOBILE — Full-screen Menu Overlay
+   ═══════════════════════════════════════ */
 .mobileMenu {
     position: fixed;
     top: 0;
@@ -96,19 +245,14 @@
     background-color: var(--color-background);
     display: flex;
     justify-content: flex-start;
-    /* Align to top */
     align-items: center;
-    /* Center horizontally */
     flex-direction: column;
     opacity: 0;
     visibility: hidden;
     transition: opacity 0.3s ease, visibility 0.3s ease;
     z-index: 101;
-    /* Below logo/hamburger but above page content */
     padding: 7rem 2rem 3rem 2rem;
-    /* Top padding clears logo */
     overflow-y: auto;
-    /* Allow scrolling */
 }
 
 .mobileMenuOpen {
@@ -136,11 +280,12 @@
     color: var(--color-primary);
 }
 
-
-/* Responsive Breakpoints */
+/* ═══════════════════════════════════════
+   RESPONSIVE — Switch to mobile layout
+   ═══════════════════════════════════════ */
 @media (max-width: 900px) {
 
-    .links,
+    .desktopMenuWrapper,
     .desktopCta {
         display: none;
     }
