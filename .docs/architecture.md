@@ -1,6 +1,6 @@
 # Mikrostomart - Project Architecture Overview
 
-> **Last Updated:** 2026-02-07  
+> **Last Updated:** 2026-02-07 (Post-Phase 4 SMS Integration)  
 > **Purpose:** Complete reference to prevent recreating existing functionality
 
 ---
@@ -82,7 +82,7 @@
 
 ---
 
-## 🔌 API Endpoints (46 total)
+## 🔌 API Endpoints (50 total)
 
 ### Patient Portal API (15)
 - `POST /api/patients/register` - Create account (sends verification email)
@@ -118,7 +118,7 @@
 - `GET /api/admin/appointment-instructions` - **NEW!** Get appointment type instructions
 - `PUT /api/admin/appointment-instructions/:type` - **NEW!** Update instruction content
 
-### Public API (16)
+### Public API (19)
 - `POST /api/contact` - Contact form submission
 - `POST /api/reservations` - Create reservation
 - `POST /api/ask-expert` - Submit expert question
@@ -272,7 +272,7 @@ One-time tokens for password reset.
 
 ---
 
-## 🧩 Key Components (28 total)
+## 🧩 Key Components (35 total)
 
 ### Layout & Navigation
 - `Navbar.tsx` - Main navigation with cart, patient portal links

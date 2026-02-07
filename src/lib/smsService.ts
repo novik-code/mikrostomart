@@ -137,7 +137,7 @@ export function getSMSTemplate(
     } catch (error) {
         console.error('Failed to load SMS templates:', error);
         // Return default template if file not found
-        return 'Przypomnienie o wizycie jutro o {time}. Zaloguj się do strefy pacjenta.';
+        return 'Przypomnienie o wizycie jutro o {time}.';
     }
 
     // Normalize doctor name (remove "(I)" suffix that Prodentis adds)
@@ -169,8 +169,8 @@ export function getSMSTemplate(
         return templates.byAppointmentType[appointmentType];
     }
 
-    // Priority 4: Global default
-    return templates.default || 'Przypomnienie o wizycie jutro o {time}. Zaloguj się do strefy pacjenta.';
+    // Priority 4: Global default (short link will be appended by cron job)
+    return templates.default || 'Przypomnienie o wizycie jutro o {time}.';
 }
 
 /**
