@@ -338,8 +338,8 @@ export default function AppointmentPreparationPage() {
                         <h2>Masz pytania?</h2>
                         <p>Skontaktuj się z nami - chętnie odpowiemy!</p>
                         <div className={styles.ctaButtons}>
-                            <a href="tel:+48774545225" className={`${styles.btn} ${styles.btnPrimary}`}>
-                                📞 Zadzwoń: 77 454 52 25
+                            <a href="tel:+48570270470" className={`${styles.btn} ${styles.btnPrimary}`}>
+                                📞 Zadzwoń: 570 270 470
                             </a>
                             <a href="/kontakt" className={`${styles.btn} ${styles.btnSecondary}`}>
                                 ✉️ Napisz do nas

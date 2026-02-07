@@ -40,14 +40,11 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // Verify patient match (if patientId provided)
-        if (patientId && action.patient_id !== patientId) {
-            console.error('[CONFIRM-PUBLIC] Patient mismatch');
-            return NextResponse.json(
-                { error: 'Unauthorized' },
-                { status: 403 }
-            );
-        }
+        console.log('[CONFIRM-PUBLIC] Found appointment:', {
+            id: action.id,
+            status: action.status,
+            confirmed: action.attendance_confirmed
+        });
 
         // Check if already confirmed
         if (action.attendance_confirmed) {

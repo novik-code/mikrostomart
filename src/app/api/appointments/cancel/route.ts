@@ -40,14 +40,10 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // Verify patient match (if patientId provided)
-        if (patientId && action.patient_id !== patientId) {
-            console.error('[CANCEL-PUBLIC] Patient mismatch');
-            return NextResponse.json(
-                { error: 'Unauthorized' },
-                { status: 403 }
-            );
-        }
+        console.log('[CANCEL-PUBLIC] Found appointment:', {
+            id: action.id,
+            status: action.status
+        });
 
         // Check if already cancelled
         if (action.status === 'cancelled' || action.status === 'reschedule_requested') {
