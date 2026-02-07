@@ -29,7 +29,7 @@
    ═══════════════════════════════════════ */
 .link {
     color: var(--color-text-main);
-    font-size: 0.95rem;
+    font-size: 0.85rem;
     opacity: 0.8;
     transition: opacity 0.3s ease, color 0.3s ease;
     position: relative;
@@ -150,19 +150,19 @@
    ═══════════════════════════════════════ */
 .linksLeft {
     position: absolute;
-    right: calc(50% + 28px);
+    right: calc(50% + 25px);
     display: flex;
     align-items: center;
-    gap: var(--spacing-md);
+    gap: 1rem;
     white-space: nowrap;
 }
 
 .linksRight {
     position: absolute;
-    left: calc(50% + 28px);
+    left: calc(50% + 25px);
     display: flex;
     align-items: center;
-    gap: var(--spacing-md);
+    gap: 1rem;
     white-space: nowrap;
 }
 
