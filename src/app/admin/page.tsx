@@ -1214,8 +1214,10 @@ export default function AdminPage() {
             ) : (
                 smsReminders.map(sms => {
                     const isEditing = editingSmsId === sms.id;
-                    const appointmentTime = new Date(sms.appointment_date).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
-                    const appointmentDate = new Date(sms.appointment_date).toLocaleDateString('pl-PL');
+                    // Extract time from SMS message (e.g. "jutro o 11:00") to avoid UTC conversion
+                    const timeMatch = sms.sms_message?.match(/(\d{1,2}):(\d{2})/);
+                    const appointmentTime = timeMatch ? `${timeMatch[1]}:${timeMatch[2]}` : new Date(sms.appointment_date).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
+                    const appointmentDate = new Date(sms.appointment_date).toLocaleDateString('pl-PL', { timeZone: 'UTC' });
 
                     return (
                         <div key={sms.id} style={{
