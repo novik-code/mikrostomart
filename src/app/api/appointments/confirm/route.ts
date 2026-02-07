@@ -121,10 +121,12 @@ export async function POST(req: NextRequest) {
             const telegramChatIds = process.env.TELEGRAM_CHAT_ID?.split(",") || [];
 
             if (telegramToken && telegramChatIds.length > 0) {
-                const telegramMessage = `✅ <b>PACJENT POTWIERDZIŁ OBECNOŚĆ</b> (Landing Page)\\n\\n` +
-                    `📆 <b>Termin:</b> ${appointmentDateFormatted}, ${appointmentTime}\\n` +
-                    `🩺 <b>Lekarz:</b> ${action.doctor_name || 'Nie podano'}\\n` +
-                    `📞 <b>Telefon:</b> <a href="tel:${patient?.phone}">${patient?.phone || 'Brak'}</a>`;
+                const telegramMessage = `✅ <b>PACJENT POTWIERDZIŁ OBECNOŚĆ</b>\\n\\n` +
+                    `👤 <b>Pacjent:</b> ${action.patient_name || 'Nieznany pacjent'}\\n` +
+                    `📞 <b>Telefon:</b> <a href="tel:${action.patient_phone}">${action.patient_phone || 'Brak'}</a>\\n` +
+                    `📅 <b>Data:</b> ${appointmentDateFormatted}\\n` +
+                    `⏰ <b>Godzina:</b> ${appointmentTime}\\n` +
+                    `🩺 <b>Lekarz:</b> ${action.doctor_name || 'Nie podano'}`;
 
                 const tgUrl = `https://api.telegram.org/bot${telegramToken}/sendMessage`;
                 await Promise.all(telegramChatIds.map(async (chatId) => {
@@ -168,7 +170,7 @@ export async function POST(req: NextRequest) {
                         <p><strong>Data:</strong> ${appointmentDateFormatted}</p>
                         <p><strong>Godzina:</strong> ${appointmentTime}</p>
                         <p><strong>Lekarz:</strong> ${action.doctor_name || 'Nie podano'}</p>
-                        \u003cp\u003e\u003cem\u003ePotwierdzenie z landing page (${new Date().toLocaleString('pl-PL')})\u003c/em\u003e\u003c/p\u003e
+                        <p><em>✅ Wizyta potwierdzona przez pacjenta</em></p>
                     `
                 });
                 emailSent = true;
