@@ -72,6 +72,7 @@ export default function AdminPage() {
     const [editingSmsId, setEditingSmsId] = useState<string | null>(null);
     const [editingSmsMessage, setEditingSmsMessage] = useState('');
     const [sendingAll, setSendingAll] = useState(false);
+    const [smsTab, setSmsTab] = useState<'drafts' | 'sent'>('drafts'); // New: tab state
 
     const [manualGenerationStatus, setManualGenerationStatus] = useState<string | null>(null);
 
@@ -1206,13 +1207,49 @@ export default function AdminPage() {
                 </div>
             )}
 
+            {/* SMS Tabs */}
+            <div style={{ display: "flex", gap: "1rem", borderBottom: "2px solid var(--color-border)", marginBottom: "1.5rem" }}>
+                <button
+                    onClick={() => setSmsTab('drafts')}
+                    style={{
+                        padding: "0.75rem 1.5rem",
+                        background: "none",
+                        border: "none",
+                        borderBottom: smsTab === 'drafts' ? "3px solid var(--color-primary)" : "3px solid transparent",
+                        color: smsTab === 'drafts' ? "var(--color-primary)" : "var(--color-text-muted)",
+                        fontWeight: smsTab === 'drafts' ? "bold" : "normal",
+                        fontSize: "1rem",
+                        cursor: "pointer",
+                        transition: "all 0.2s"
+                    }}
+                >
+                    📝 Szkice ({smsStats.draft})
+                </button>
+                <button
+                    onClick={() => setSmsTab('sent')}
+                    style={{
+                        padding: "0.75rem 1.5rem",
+                        background: "none",
+                        border: "none",
+                        borderBottom: smsTab === 'sent' ? "3px solid var(--color-primary)" : "3px solid transparent",
+                        color: smsTab === 'sent' ? "var(--color-primary)" : "var(--color-text-muted)",
+                        fontWeight: smsTab === 'sent' ? "bold" : "normal",
+                        fontSize: "1rem",
+                        cursor: "pointer",
+                        transition: "all 0.2s"
+                    }}
+                >
+                    📤 Wysłane ({smsStats.sent})
+                </button>
+            </div>
+
             {/* SMS List */}
-            {smsReminders.length === 0 ? (
+            {smsReminders.filter(sms => smsTab === 'drafts' ? sms.status === 'draft' : sms.status === 'sent' || sms.status === 'failed').length === 0 ? (
                 <p style={{ textAlign: "center", padding: "2rem", color: "var(--color-text-muted)" }}>
-                    Brak SMS do wyświetlenia
+                    {smsTab === 'drafts' ? 'Brak szkiców SMS' : 'Brak wysłanych SMS'}
                 </p>
             ) : (
-                smsReminders.map(sms => {
+                smsReminders.filter(sms => smsTab === 'drafts' ? sms.status === 'draft' : sms.status === 'sent' || sms.status === 'failed').map(sms => {
                     const isEditing = editingSmsId === sms.id;
                     // Extract time from SMS message (e.g. "jutro o 11:00") to avoid UTC conversion
                     const timeMatch = sms.sms_message?.match(/(\d{1,2}):(\d{2})/);
@@ -1373,6 +1410,23 @@ export default function AdminPage() {
                                             </>
                                         )}
                                     </>
+                                )}
+                                {/* Delete button for sent/failed SMS */}
+                                {(sms.status === 'sent' || sms.status === 'failed') && (
+                                    <button
+                                        onClick={() => handleDeleteSms(sms.id)}
+                                        style={{
+                                            padding: "0.5rem 1rem",
+                                            background: "var(--color-error)",
+                                            border: "none",
+                                            borderRadius: "4px",
+                                            color: "white",
+                                            cursor: "pointer",
+                                            fontWeight: "500"
+                                        }}
+                                    >
+                                        🗑️ Usuń
+                                    </button>
                                 )}
                                 {sms.status === 'failed' && sms.send_error && (
                                     <div style={{
