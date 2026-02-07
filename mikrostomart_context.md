@@ -748,24 +748,25 @@ NODE_ENV=production
 **Novik Code Credit — Epic Full-Page Takeover Animation**
 
 #### Commits:
-- `64478cb` - Novik Code credit in footer with epic full-page takeover animation
+- `869b825` - Final: credit at bottom, fullscreen logo bg, removed text
+- `64478cb` - Initial implementation with 8-layer animation
 
 #### Features Added:
-1. **Footer Credit Text**
-   - "Designed and developed by Novik Code" above footer content
+1. **Footer Credit Text (very bottom of page)**
+   - "Designed and developed by Novik Code" at the very bottom of footer
    - Subtle hover effect: golden color, letter-spacing expansion
-   - Positioned above the grid layout in Footer.tsx
+   - Positioned below copyright/links bar in Footer.tsx
 
-2. **8-Layer Cinematic Takeover Animation** (on click)
-   - Layer 1: Black hole vortex background (expands from click position)
-   - Layer 2: 3 golden shockwave rings expanding outward
-   - Layer 3: 40 particle explosion (golden/white dots)
-   - Layer 4: Rotating conic gradient glow ring
-   - Layer 5: Pulsing radial glow
-   - Layer 6: Logo cinematic reveal (spring physics, blur → sharp, rotate)
-   - Layer 7: "Novik Code" + "Design · Development · Innovation" text
-   - Layer 8: "kliknij aby wrócić" hint
-   - ESC or click anywhere to close
+2. **Fullscreen Cinematic Takeover Animation** (on click)
+   - `clip-path: circle()` expanding from click position (vortex effect)
+   - Logo displayed as **fullscreen background** (`background-size: cover`)
+   - Blur→sharp + scale + brightness transition on reveal
+   - Dark vignette overlay for depth
+   - 3 golden shockwave rings
+   - 50 particle explosion (golden/white/warm tones)
+   - "Design · Development · Innovation" subtitle
+   - "kliknij aby wrócić" close hint
+   - ESC or click anywhere to return
 
 #### Files Modified/Added:
 - `src/components/NovikCodeCredit.tsx` [NEW] - Client component with Framer Motion animations

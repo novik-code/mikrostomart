@@ -1,8 +1,8 @@
 # PROJECT STATUS - Mikrostomart
 
-> **Last Updated:** February 7, 2026, 18:05  
+> **Last Updated:** February 7, 2026, 18:30  
 > **Build Status:** ✅ Production (Vercel)  
-> **Latest Commit:** `0311eb5` - Nav link spacing fix
+> **Latest Commit:** `869b825` - Novik Code credit fullscreen takeover
 
 ---
 
@@ -163,6 +163,23 @@
 - `src/components/Navbar.tsx`
 - `src/components/Navbar.module.css`
 
+### Novik Code Credit — Fullscreen Takeover (Late Evening)
+
+**Commits:**
+- `869b825` - Final: credit at bottom, fullscreen logo bg
+- `64478cb` - Initial 8-layer animation
+
+**Features:**
+1. **"Designed and developed by Novik Code"** at very bottom of footer
+   - Fullscreen logo background on click (cover, blur→sharp, clip-path circle expansion)
+   - Particle explosion + shockwave rings
+   - ESC/click to close
+
+**Files Modified/Added:**
+- `src/components/NovikCodeCredit.tsx` [NEW]
+- `src/components/Footer.tsx`
+- `public/novik-code-logo.png` [NEW]
+
 ---
 
 ## 📋 Future Enhancements (Not Started)
@@ -273,6 +290,7 @@ git push origin main
 2. 📞 **PENDING:** Contact SMSAPI.pl to enable link sending (Monday)
 3. ✅ **DONE:** Update all documentation
 4. ✅ **DONE:** Desktop navigation redesign (animated hamburger)
+5. ✅ **DONE:** Novik Code credit with fullscreen takeover animation
 
 ### Short-term (This Month)
 - Test full patient journey (registration → booking → confirmation)
