@@ -744,6 +744,27 @@ NODE_ENV=production
 
 ## 📝 Recent Changes
 
+### February 7, 2026 (Night)
+**Smile Simulator — Complete AI Pipeline Redesign**
+
+#### Commits:
+- `e3dc727` - OpenAI gpt-image-1 replacing Flux Fill Dev
+
+#### Changes:
+1. **AI Model Swap:** Replicate `flux-fill-dev` → OpenAI `gpt-image-1`
+2. **Prompt Redesign:** Procedural ("OPEN MOUTH, place veneers") → Descriptive ("beautiful smile with white teeth")
+3. **No More Polling:** Synchronous API (was async with polling loop)
+4. **Mask Fix:** Dilation reduced 1.4× → 1.15× (less face distortion)
+5. **Mask Format:** Added alpha conversion (white→transparent for OpenAI)
+6. **4 Style Variants:** Hollywood, Natural, Soft, Strong
+
+#### Files Modified:
+- `src/app/api/simulate/route.ts` — Complete rewrite (OpenAI SDK)
+- `src/components/SimulatorModal.tsx` — Mask + API changes
+- `src/app/symulator/page.tsx` — Same API changes
+
+---
+
 ### February 7, 2026 (Evening — Late)
 **Novik Code Credit — Epic Full-Page Takeover Animation**
 
