@@ -85,6 +85,7 @@ export async function sendSMS(options: SMSOptions): Promise<SMSResponse> {
 
         if (!response.ok) {
             const errorText = await response.text();
+            console.error('[SMS] SMSAPI error response:', response.status, errorText);
             return {
                 success: false,
                 error: `SMSAPI error (${response.status}): ${errorText}`
@@ -92,18 +93,21 @@ export async function sendSMS(options: SMSOptions): Promise<SMSResponse> {
         }
 
         const data = await response.json();
+        console.log('[SMS] SMSAPI response:', JSON.stringify(data, null, 2));
 
         // SMSAPI.pl returns array of message statuses
         if (data.count && data.count > 0) {
+            console.log('[SMS] Success! Message ID:', data.list?.[0]?.id);
             return {
                 success: true,
                 messageId: data.list?.[0]?.id || 'unknown'
             };
         }
 
+        console.error('[SMS] No messages sent. Response:', data);
         return {
             success: false,
-            error: 'No messages sent'
+            error: `No messages sent. API response: ${JSON.stringify(data)}`
         };
 
     } catch (error) {
