@@ -277,17 +277,21 @@ export async function GET(req: Request) {
 
                 draftsCreated++;
 
-                // 9. Create appointment_action for confirm/cancel buttons
                 try {
                     const appointmentActionId = randomUUID();
+
+                    // Calculate end date (default 30 minutes duration)
+                    const appointmentEndDate = new Date(appointment.date);
+                    appointmentEndDate.setMinutes(appointmentEndDate.getMinutes() + 30);
 
                     const { error: actionError } = await supabase
                         .from('appointment_actions')
                         .insert({
                             id: appointmentActionId,
-                            patient_id: patientId,
+                            patient_id: patientId, // Can be NULL for patients without accounts
                             prodentis_id: appointment.id,
                             appointment_date: appointment.date,
+                            appointment_end_date: appointmentEndDate.toISOString(),
                             doctor_name: doctorName,
                             appointment_type: appointmentType,
                             status: 'pending',
@@ -335,7 +339,7 @@ export async function GET(req: Request) {
                             await supabase
                                 .from('sms_reminders')
                                 .update({ sms_message: messageWithLink })
-                                .eq('id', (shouldUpdateExisting ? existingDraftId : (draftData && draftData[0] ? draftData[0].id : null)) ?? '' );
+                                .eq('id', (shouldUpdateExisting ? existingDraftId : (draftData && draftData[0] ? draftData[0].id : null)) ?? '');
 
                             console.log(`   📝 Updated SMS with short link`);
                         }
