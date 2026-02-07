@@ -46,12 +46,14 @@ export async function POST(req: NextRequest) {
             confirmed: action.attendance_confirmed
         });
 
-        // Check if already confirmed
+        // Check if already confirmed - return success (not error)
         if (action.attendance_confirmed) {
-            return NextResponse.json(
-                { error: 'Appointment already confirmed' },
-                { status: 400 }
-            );
+            console.log('[CONFIRM-PUBLIC] Already confirmed - returning success');
+            return NextResponse.json({
+                success: true,
+                alreadyConfirmed: true,
+                message: 'Wizyta została już wcześniej potwierdzona.'
+            });
         }
 
         // Validate timing (within 7 days before appointment)
