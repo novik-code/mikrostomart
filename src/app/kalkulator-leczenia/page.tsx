@@ -797,7 +797,7 @@ export default function KalkulatorLeczeniaPage() {
                                     Potwierdzimy dokładny plan po badaniu i diagnostyce
                                 </p>
 
-                                <Link href="/rezerwacja" style={S.ctaPrimary}>
+                                <Link href={`/rezerwacja?specialist=${result.recommendedSpecialist}&reason=${encodeURIComponent(`Kalkulator: ${result.label}`)}`} style={S.ctaPrimary}>
                                     <CalendarDays size={18} /> Umów konsultację
                                 </Link>
 

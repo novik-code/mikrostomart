@@ -37,6 +37,7 @@ export interface Variant {
     durationLabel: string;  // human-readable, e.g. "3–6 miesięcy"
     stages: Stage[];
     extendingFactors: string[];
+    recommendedSpecialist: string; // specialist id matching ReservationForm SPECIALISTS
 }
 
 export interface TreatmentPath {
@@ -107,6 +108,7 @@ function getEndoVariant(answers: Record<string, string>): Variant {
             durationMinDays: 7,
             durationMaxDays: 42,
             durationLabel: "1–6 tygodni",
+            recommendedSpecialist: "marcin", // zaawansowana endodoncja
             stages: [
                 {
                     name: "Diagnostyka rozszerzona",
@@ -158,6 +160,7 @@ function getEndoVariant(answers: Record<string, string>): Variant {
             durationMinDays: 1,
             durationMaxDays: 21,
             durationLabel: "1–21 dni",
+            recommendedSpecialist: "ilona", // endodoncja mikroskopowa
             stages: [
                 {
                     name: "Kwalifikacja i diagnostyka",
@@ -207,6 +210,7 @@ function getEndoVariant(answers: Record<string, string>): Variant {
         durationMinDays: 1,
         durationMaxDays: 14,
         durationLabel: "1–14 dni",
+        recommendedSpecialist: "ilona", // endodoncja mikroskopowa
         stages: [
             {
                 name: "Kwalifikacja i diagnostyka",
@@ -302,6 +306,7 @@ function getImplantVariant(answers: Record<string, string>): Variant {
             durationMinDays: 150,
             durationMaxDays: 270,
             durationLabel: "5–9 miesięcy",
+            recommendedSpecialist: "marcin", // chirurgia, protetyka na implantach
             stages: [
                 {
                     name: "Konsultacja i diagnostyka",
@@ -365,6 +370,7 @@ function getImplantVariant(answers: Record<string, string>): Variant {
         durationMinDays: 90,
         durationMaxDays: 180,
         durationLabel: "3–6 miesięcy",
+        recommendedSpecialist: "marcin", // chirurgia, protetyka na implantach
         stages: [
             {
                 name: "Konsultacja i diagnostyka",
@@ -475,6 +481,7 @@ function getProtetykaVariant(answers: Record<string, string>): Variant {
             durationMinDays: 7,
             durationMaxDays: 21,
             durationLabel: "1–3 tygodnie",
+            recommendedSpecialist: "ilona", // protetyka cyfrowa
             stages: [
                 {
                     name: "Kwalifikacja i plan",
@@ -525,6 +532,7 @@ function getProtetykaVariant(answers: Record<string, string>): Variant {
         durationMinDays: 5,
         durationMaxDays: 14,
         durationLabel: "5–14 dni",
+        recommendedSpecialist: "ilona", // protetyka cyfrowa
         stages: [
             {
                 name: "Kwalifikacja i zdjęcia",
@@ -615,6 +623,7 @@ function getBondingVariant(answers: Record<string, string>): Variant {
             durationMinDays: 7,
             durationMaxDays: 21,
             durationLabel: "1–3 tygodnie",
+            recommendedSpecialist: "marcin", // stomatologia estetyczna zaawansowana
             stages: [
                 ...(needsHygiene ? [{
                     name: "Higienizacja",
@@ -664,6 +673,7 @@ function getBondingVariant(answers: Record<string, string>): Variant {
             durationMinDays: 1,
             durationMaxDays: 14,
             durationLabel: "1–14 dni",
+            recommendedSpecialist: "katarzyna", // stomatologia zachowawcza
             stages: [
                 {
                     name: "Plan i zdjęcia",
@@ -697,6 +707,7 @@ function getBondingVariant(answers: Record<string, string>): Variant {
         durationMinDays: 1,
         durationMaxDays: 1,
         durationLabel: "1 dzień",
+        recommendedSpecialist: "katarzyna", // stomatologia zachowawcza
         stages: [
             {
                 name: "Odbudowa bonding",
@@ -759,6 +770,7 @@ function getWybielanieVariant(answers: Record<string, string>): Variant {
             durationMinDays: 7,
             durationMaxDays: 14,
             durationLabel: "7–14 dni",
+            recommendedSpecialist: "malgorzata", // higienistka stom.
             stages: [
                 ...(needsHygiene ? [{
                     name: "Higienizacja profesjonalna",
@@ -794,6 +806,7 @@ function getWybielanieVariant(answers: Record<string, string>): Variant {
     return {
         id: "white-1",
         label: method === "combined" ? "Wybielanie mieszane (gabinet + nakładki)" : "Wybielanie gabinetowe",
+        recommendedSpecialist: "malgorzata", // higienistka stom.
         visitsMin: 1 + (needsHygiene ? 1 : 0),
         visitsMax: 2 + (needsHygiene ? 1 : 0),
         durationMinDays: 1,
