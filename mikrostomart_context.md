@@ -312,6 +312,7 @@ Interactive 3-step wizard for estimating treatment duration.
 - **Step C**: Visual timeline with stages, summary pills (visits + duration), extending factors
 - **5 paths**: Endodoncja, Implant, Protetyka, Bonding, Wybielanie
 - **Lead capture**: "Wyślij do recepcji" form → Telegram + Email
+- **Smart specialist pre-selection**: CTA passes `?specialist=ID&reason=TEXT` to booking form based on competencies
 - **No prices** — only visits, time, and stages
 - Data layer: `treatmentData.ts` with typed `TreatmentPath`, `Question`, `Stage`, `Variant`
 
@@ -877,6 +878,7 @@ NODE_ENV=production
 
 #### Commits:
 - `ede7a82` - Complete Treatment Time Calculator with 5 paths, lead API, navbar links, AI knowledge
+- `862f227` - Smart specialist pre-selection from calculator CTA
 
 #### Features Added:
 1. **3-step wizard**: Service tiles → questions → timeline results
@@ -886,6 +888,7 @@ NODE_ENV=production
 5. **"Wyślij do recepcji"**: Lead form → POST `/api/treatment-lead` → Telegram + Email
 6. **Navbar**: Added to Dodatki dropdown (desktop) and mobile menu
 7. **AI assistant**: Updated `knowledgeBase.ts` so chatbot recommends the calculator
+8. **Smart specialist pre-selection**: "Umów konsultację" CTA passes `?specialist=ID&reason=TEXT` to booking form based on treatment competencies (e.g. implant→Marcin, endo→Ilona, wybielanie→Małgorzata)
 
 #### Files Added:
 - `src/app/kalkulator-leczenia/treatmentData.ts` — Types, 5 paths, questions, variant logic
