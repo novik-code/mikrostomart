@@ -22,61 +22,71 @@ interface ZoneDef {
 }
 
 // ─── TOOTH ZONES ───
-// Mapped to the dental-map-premium.jpg positions
-// ViewBox is 100×100, image fills entire viewBox
-// Upper arch: teeth run roughly from y=12 to y=42
-// Lower arch: teeth run roughly from y=58 to y=88
+// Mapped to the dental-map-premium.jpg (2048×2048 square)
+// SVG viewBox is 100×100, coordinates are % of image dimensions
+//
+// Image anatomy reference:
+// - Upper arch: U-shape opening DOWN.  Front teeth at top (~y=8-18), molars at sides (~y=25-38)
+// - Lower arch: U-shape opening UP.    Front teeth at bottom (~y=82-93), molars at sides (~y=57-70)
+// - Mouth cavity (dark): center ~y=38-55
+// - Tongue: center ~y=55-72
+//
+// Patient's RIGHT = viewer's LEFT (standard dental convention)
+// Q1 = upper right (screen left), Q2 = upper left (screen right)
+// Q3 = lower left (screen right), Q4 = lower right (screen left)
 
-// Upper teeth — front view, mapped by visual position
+// Upper teeth — front view, mapped by visual position on the 2048×2048 image
 const UPPER_TEETH: ZoneDef[] = [
-    // Q1 — Upper Right (patient's right = screen left)
-    { id: "18", shape: "rect", x: 8, y: 22, w: 8, h: 10 },  // 3rd molar
-    { id: "17", shape: "rect", x: 10, y: 16, w: 8, h: 8 },   // 2nd molar
-    { id: "16", shape: "rect", x: 15, y: 12, w: 7, h: 8 },   // 1st molar
-    { id: "15", shape: "rect", x: 21, y: 9, w: 6, h: 8 },   // 2nd premolar
-    { id: "14", shape: "rect", x: 26, y: 7, w: 6, h: 8 },   // 1st premolar
-    { id: "13", shape: "rect", x: 31, y: 5, w: 5, h: 9 },   // canine
-    { id: "12", shape: "rect", x: 36, y: 4, w: 5, h: 8 },   // lateral incisor
-    { id: "11", shape: "rect", x: 41, y: 3, w: 6, h: 9 },   // central incisor
+    // Q1 — Upper Right (patient's right = screen LEFT)
+    // Molars are at the sides, incisors at center-top
+    { id: "18", shape: "rect", x: 10, y: 30, w: 7, h: 9 },   // 3rd molar (wisdom) — far left, deepest
+    { id: "17", shape: "rect", x: 12, y: 23, w: 8, h: 8 },   // 2nd molar
+    { id: "16", shape: "rect", x: 16, y: 17, w: 8, h: 8 },   // 1st molar
+    { id: "15", shape: "rect", x: 22, y: 13, w: 6, h: 7 },   // 2nd premolar
+    { id: "14", shape: "rect", x: 27, y: 11, w: 6, h: 7 },   // 1st premolar
+    { id: "13", shape: "rect", x: 32, y: 9, w: 5, h: 8 },   // canine
+    { id: "12", shape: "rect", x: 37, y: 8, w: 5, h: 8 },   // lateral incisor
+    { id: "11", shape: "rect", x: 42, y: 8, w: 6, h: 9 },   // central incisor
 
-    // Q2 — Upper Left (patient's left = screen right)
-    { id: "21", shape: "rect", x: 53, y: 3, w: 6, h: 9 },   // central incisor
-    { id: "22", shape: "rect", x: 59, y: 4, w: 5, h: 8 },   // lateral incisor
-    { id: "23", shape: "rect", x: 64, y: 5, w: 5, h: 9 },   // canine
-    { id: "24", shape: "rect", x: 68, y: 7, w: 6, h: 8 },   // 1st premolar
-    { id: "25", shape: "rect", x: 73, y: 9, w: 6, h: 8 },   // 2nd premolar
-    { id: "26", shape: "rect", x: 78, y: 12, w: 7, h: 8 },   // 1st molar
-    { id: "27", shape: "rect", x: 82, y: 16, w: 8, h: 8 },   // 2nd molar
-    { id: "28", shape: "rect", x: 84, y: 22, w: 8, h: 10 },  // 3rd molar
+    // Q2 — Upper Left (patient's left = screen RIGHT)
+    { id: "21", shape: "rect", x: 52, y: 8, w: 6, h: 9 },   // central incisor
+    { id: "22", shape: "rect", x: 58, y: 8, w: 5, h: 8 },   // lateral incisor
+    { id: "23", shape: "rect", x: 63, y: 9, w: 5, h: 8 },   // canine
+    { id: "24", shape: "rect", x: 67, y: 11, w: 6, h: 7 },   // 1st premolar
+    { id: "25", shape: "rect", x: 72, y: 13, w: 6, h: 7 },   // 2nd premolar
+    { id: "26", shape: "rect", x: 76, y: 17, w: 8, h: 8 },   // 1st molar
+    { id: "27", shape: "rect", x: 80, y: 23, w: 8, h: 8 },   // 2nd molar
+    { id: "28", shape: "rect", x: 83, y: 30, w: 7, h: 9 },   // 3rd molar (wisdom) — far right, deepest
 ];
 
 const LOWER_TEETH: ZoneDef[] = [
-    // Q4 — Lower Right (patient's right = screen left)
-    { id: "48", shape: "rect", x: 8, y: 68, w: 8, h: 10 },
-    { id: "47", shape: "rect", x: 10, y: 74, w: 8, h: 8 },
-    { id: "46", shape: "rect", x: 15, y: 78, w: 7, h: 8 },
-    { id: "45", shape: "rect", x: 21, y: 81, w: 6, h: 7 },
-    { id: "44", shape: "rect", x: 26, y: 83, w: 6, h: 7 },
-    { id: "43", shape: "rect", x: 31, y: 84, w: 5, h: 8 },
-    { id: "42", shape: "rect", x: 36, y: 86, w: 5, h: 7 },
-    { id: "41", shape: "rect", x: 41, y: 87, w: 6, h: 7 },
+    // Q4 — Lower Right (patient's right = screen LEFT)
+    // Molars at sides (higher on image), incisors at center-bottom
+    { id: "48", shape: "rect", x: 10, y: 58, w: 7, h: 9 },   // 3rd molar (wisdom)
+    { id: "47", shape: "rect", x: 12, y: 65, w: 8, h: 8 },   // 2nd molar
+    { id: "46", shape: "rect", x: 16, y: 71, w: 8, h: 8 },   // 1st molar
+    { id: "45", shape: "rect", x: 22, y: 76, w: 6, h: 7 },   // 2nd premolar
+    { id: "44", shape: "rect", x: 27, y: 79, w: 6, h: 7 },   // 1st premolar
+    { id: "43", shape: "rect", x: 32, y: 81, w: 5, h: 7 },   // canine
+    { id: "42", shape: "rect", x: 37, y: 83, w: 5, h: 7 },   // lateral incisor
+    { id: "41", shape: "rect", x: 42, y: 84, w: 6, h: 7 },   // central incisor
 
-    // Q3 — Lower Left (patient's left = screen right)
-    { id: "31", shape: "rect", x: 53, y: 87, w: 6, h: 7 },
-    { id: "32", shape: "rect", x: 59, y: 86, w: 5, h: 7 },
-    { id: "33", shape: "rect", x: 64, y: 84, w: 5, h: 8 },
-    { id: "34", shape: "rect", x: 68, y: 83, w: 6, h: 7 },
-    { id: "35", shape: "rect", x: 73, y: 81, w: 6, h: 7 },
-    { id: "36", shape: "rect", x: 78, y: 78, w: 7, h: 8 },
-    { id: "37", shape: "rect", x: 82, y: 74, w: 8, h: 8 },
-    { id: "38", shape: "rect", x: 84, y: 68, w: 8, h: 10 },
+    // Q3 — Lower Left (patient's left = screen RIGHT)
+    { id: "31", shape: "rect", x: 52, y: 84, w: 6, h: 7 },   // central incisor
+    { id: "32", shape: "rect", x: 58, y: 83, w: 5, h: 7 },   // lateral incisor
+    { id: "33", shape: "rect", x: 63, y: 81, w: 5, h: 7 },   // canine
+    { id: "34", shape: "rect", x: 67, y: 79, w: 6, h: 7 },   // 1st premolar
+    { id: "35", shape: "rect", x: 72, y: 76, w: 6, h: 7 },   // 2nd premolar
+    { id: "36", shape: "rect", x: 76, y: 71, w: 8, h: 8 },   // 1st molar
+    { id: "37", shape: "rect", x: 80, y: 65, w: 8, h: 8 },   // 2nd molar
+    { id: "38", shape: "rect", x: 83, y: 58, w: 7, h: 9 },   // 3rd molar (wisdom)
 ];
 
-// Soft tissues — small zones that don't overlap teeth
+// Soft tissues — zones between the arches
 const SOFT_ZONES: ZoneDef[] = [
-    { id: "tongue", shape: "rect", x: 35, y: 58, w: 30, h: 16 },
-    { id: "palate", shape: "rect", x: 35, y: 30, w: 30, h: 12 },
-    { id: "throat", shape: "rect", x: 42, y: 44, w: 16, h: 10 },
+    { id: "tongue", shape: "rect", x: 33, y: 56, w: 34, h: 18 },  // tongue fills center of lower arch
+    { id: "palate", shape: "rect", x: 33, y: 28, w: 34, h: 12 },  // upper palate (behind upper teeth)
+    { id: "throat", shape: "rect", x: 40, y: 42, w: 20, h: 12 },  // dark cavity center
 ];
 
 const ALL_ZONES = [...UPPER_TEETH, ...LOWER_TEETH, ...SOFT_ZONES];
@@ -98,8 +108,8 @@ export default function PainMapInteractive() {
         const isActive = isHovered || isSelected;
 
         const fill = isActive ? 'rgba(220, 177, 74, 0.35)' : 'transparent';
-        const stroke = isActive ? '#dcb14a' : 'transparent';
-        const strokeWidth = isSelected ? '0.8' : '0.5';
+        const stroke = isActive ? '#dcb14a' : 'rgba(220, 177, 74, 0.15)';
+        const strokeWidth = isSelected ? '0.8' : '0.3';
 
         const commonProps = {
             onClick: () => setSelectedZoneId(zone.id),
@@ -275,8 +285,8 @@ export default function PainMapInteractive() {
 
                             {/* Urgency Badge */}
                             <div className={`mb-3 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${selectedData.urgency === 'high' ? 'bg-red-500/20 text-red-400 border border-red-500/30' :
-                                    selectedData.urgency === 'medium' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
-                                        'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                                selectedData.urgency === 'medium' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
+                                    'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                                 }`}>
                                 {selectedData.urgency === 'high' ? '⚠️ Pilne — umów wizytę' :
                                     selectedData.urgency === 'medium' ? '🔶 Umiarkowane' :
