@@ -305,6 +305,16 @@ Clinic news/articles.
 - Deposit payment option (`/zadatek`)
 - Prodentis calendar integration
 
+#### Treatment Time Calculator (`/kalkulator-leczenia`)
+Interactive 3-step wizard for estimating treatment duration.
+- **Step A**: Service tile selection (6 services + "Nie wiem" → Mapa Bólu)
+- **Step B**: 3–5 questions per service (pill-button answers)
+- **Step C**: Visual timeline with stages, summary pills (visits + duration), extending factors
+- **5 paths**: Endodoncja, Implant, Protetyka, Bonding, Wybielanie
+- **Lead capture**: "Wyślij do recepcji" form → Telegram + Email
+- **No prices** — only visits, time, and stages
+- Data layer: `treatmentData.ts` with typed `TreatmentPath`, `Question`, `Stage`, `Variant`
+
 #### Pain Map (`/mapa-bolu`)
 Interactive dental pain diagnostic tool.
 - **Premium dental image** (`dental-map-premium.jpg`) as background
@@ -862,6 +872,33 @@ NODE_ENV=production
 
 ## 📝 Recent Changes
 
+### February 8, 2026 (Night)
+**Kalkulator Czasu Leczenia (/kalkulator-leczenia)**
+
+#### Commits:
+- `ede7a82` - Complete Treatment Time Calculator with 5 paths, lead API, navbar links, AI knowledge
+
+#### Features Added:
+1. **3-step wizard**: Service tiles → questions → timeline results
+2. **5 treatment paths**: Endodoncja, Implant, Protetyka, Bonding, Wybielanie + "Nie wiem" redirect to Mapa Bólu
+3. **20 questions** with modifier logic creating variant timelines
+4. **Visual timeline**: Numbered stage cards with duration badges, anesthesia/discomfort icons, gap indicators
+5. **"Wyślij do recepcji"**: Lead form → POST `/api/treatment-lead` → Telegram + Email
+6. **Navbar**: Added to Dodatki dropdown (desktop) and mobile menu
+7. **AI assistant**: Updated `knowledgeBase.ts` so chatbot recommends the calculator
+
+#### Files Added:
+- `src/app/kalkulator-leczenia/treatmentData.ts` — Types, 5 paths, questions, variant logic
+- `src/app/kalkulator-leczenia/page.tsx` — 3-step wizard component
+- `src/app/kalkulator-leczenia/layout.tsx` — SEO metadata
+- `src/app/api/treatment-lead/route.ts` — Lead endpoint (Telegram + Email)
+
+#### Files Modified:
+- `src/components/Navbar.tsx` — Added calculator link
+- `src/lib/knowledgeBase.ts` — AI assistant knowledge
+
+---
+
 ### February 8, 2026 (Evening)
 **Website Audit Fixes (P1/P2) & Legal Pages Premium Redesign**
 
@@ -1154,6 +1191,7 @@ OpenAI gpt-image-1 regenerates the entire masked area from scratch (+ forces 102
 - [x] Website audit fixes (P1/P2) — YouTube error, loading states, RODO text, Strefa Pacjenta redirect
 - [x] RODO compliance — consent checkboxes in both forms, honeypot antispam
 - [x] Legal pages premium redesign — RODO, Regulamin, Polityka Prywatności, Polityka Cookies
+- [x] Treatment Time Calculator — 5 paths, 20 questions, timeline results, lead API
 
 ### ⚠️ Partial/Pending
 - [ ] SMS link sending (blocked by SMSAPI.pl account setting - awaiting Monday support call)
