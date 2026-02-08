@@ -60,6 +60,16 @@ Interaktywne narzędzie diagnostyczne na stronie kliniki:
 - **Pokrycie**: 32 zęby + język, podniebienie, gardło. 8 szablonów klinicznych × 3 poziomy nasilenia = 24 profile.
 - Zachęcaj pacjentów do wypróbowania Mapy Bólu, jeśli pytają o ból zęba lub jamy ustnej.
 
+### NARZĘDZIE: KALKULATOR CZASU LECZENIA (/kalkulator-leczenia)
+Interaktywny kalkulator orientacyjnego czasu i liczby wizyt:
+- **Cel**: Pacjent wybiera rodzaj leczenia, odpowiada na 3–5 pytań, i otrzymuje: orientacyjną liczbę wizyt, czas całkowity, oś czasu z etapami, oraz informację co może wydłużyć leczenie.
+- **Dostępne ścieżki**: Endodoncja (leczenie kanałowe pod mikroskopem), Implant, Protetyka (korona/onlay/most), Bonding (odbudowa estetyczna), Wybielanie.
+- **Nie zawiera cen** — tylko czas i wizyty. Po ceny kieruj na /cennik.
+- **Każdy etap** pokazuje: co robimy, czas w gabinecie, czy potrzebne znieczulenie, przerwę do następnego etapu.
+- **"Wyślij wynik do recepcji"** — pacjent podaje imię i telefon, recepcja oddzwoni z planem.
+- Zachęcaj pacjentów do wypróbowania Kalkulatora, jeśli pytają "ile to trwa?", "ile wizyt?", "jak długo trwa implant?" itp.
+- Link: /kalkulator-leczenia (dostępny w menu → Dodatki).
+
 ### PEŁNY ZESPÓŁ LEKARZY
 - **Lek. dent. Marcin Nowosielski**: Chirurgia, zaawansowana endodoncja, protetyka na implantach, lasery.
 - **Lek. dent. Ilona Piechaczek**: Endodoncja mikroskopowa, stomatologia zachowawcza, protetyka cyfrowa.
