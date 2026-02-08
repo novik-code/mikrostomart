@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useCallback, useEffect } from 'react';
-import { SYMPTOM_DATA } from './SymptomData';
+import { SYMPTOM_DATA, type ZoneInfo, type SeverityLevel } from './SymptomData';
 import Link from 'next/link';
 
 // ─────────────────────────────────────────────────────────────
-// PREMIUM DENTAL MAP — Photorealistic image + invisible SVG overlay
-// Coordinates calibrated by user via interactive editor
+// PREMIUM DENTAL MAP — Multi-severity system
+// Each zone → 3 levels (łagodne / umiarkowane / zaawansowane)
 // ─────────────────────────────────────────────────────────────
 
 interface ZoneDef {
@@ -63,6 +63,8 @@ const SOFT_ZONES: ZoneDef[] = [
 ];
 const ALL_ZONES = [...UPPER_TEETH, ...LOWER_TEETH, ...SOFT_ZONES];
 
+type SeverityKey = 'low' | 'medium' | 'high';
+
 // ─── CSS KEYFRAMES (injected once) ───
 const STYLE_TAG = `
 @keyframes fadeInUp {
@@ -72,10 +74,6 @@ const STYLE_TAG = `
 @keyframes fadeIn {
   from { opacity: 0; }
   to   { opacity: 1; }
-}
-@keyframes pulseGold {
-  0%, 100% { box-shadow: 0 0 20px rgba(220,177,74,0.15); }
-  50%      { box-shadow: 0 0 30px rgba(220,177,74,0.3); }
 }
 @keyframes slideDown {
   from { opacity: 0; transform: translateY(-10px); }
@@ -90,8 +88,10 @@ export default function PainMapInteractive() {
     const [showIntro, setShowIntro] = useState(true);
     const [introClosing, setIntroClosing] = useState(false);
     const [modalClosing, setModalClosing] = useState(false);
+    const [activeSeverity, setActiveSeverity] = useState<SeverityKey>('low');
 
-    const selectedData = selectedZoneId ? SYMPTOM_DATA[selectedZoneId] : null;
+    const selectedData: ZoneInfo | null = selectedZoneId ? SYMPTOM_DATA[selectedZoneId] ?? null : null;
+    const activeLevel: SeverityLevel | null = selectedData ? selectedData.levels[activeSeverity] : null;
 
     // Inject keyframes on mount
     useEffect(() => {
@@ -112,10 +112,62 @@ export default function PainMapInteractive() {
         setTimeout(() => { setShowIntro(false); setIntroClosing(false); }, 300);
     }, []);
 
+    const handleSelectZone = useCallback((id: string) => {
+        setSelectedZoneId(id);
+        setActiveSeverity('low'); // reset to mild on new zone selection
+    }, []);
+
     const closeModal = useCallback(() => {
         setModalClosing(true);
         setTimeout(() => { setSelectedZoneId(null); setModalClosing(false); }, 250);
     }, []);
+
+    // ─── URGENCY STYLE HELPER ───
+    const getUrgencyStyle = (urgency: string) => {
+        switch (urgency) {
+            case 'high': return { bg: 'rgba(239,68,68,0.15)', text: '#f87171', border: 'rgba(239,68,68,0.3)', icon: '🔴', label: 'Pilne — umów wizytę' };
+            case 'medium': return { bg: 'rgba(245,158,11,0.15)', text: '#fbbf24', border: 'rgba(245,158,11,0.3)', icon: '🟡', label: 'Umiarkowane' };
+            default: return { bg: 'rgba(34,197,94,0.15)', text: '#4ade80', border: 'rgba(34,197,94,0.3)', icon: '🟢', label: 'Łagodne' };
+        }
+    };
+
+    // ─── SEVERITY TOGGLE COMPONENT ───
+    const renderSeverityToggle = () => {
+        const levels: { key: SeverityKey; label: string; color: string; activeColor: string; bg: string }[] = [
+            { key: 'low', label: '🟢 Łagodne', color: 'rgba(255,255,255,0.45)', activeColor: '#4ade80', bg: 'rgba(34,197,94,0.15)' },
+            { key: 'medium', label: '🟡 Umiarkowane', color: 'rgba(255,255,255,0.45)', activeColor: '#fbbf24', bg: 'rgba(245,158,11,0.15)' },
+            { key: 'high', label: '🔴 Zaawansowane', color: 'rgba(255,255,255,0.45)', activeColor: '#f87171', bg: 'rgba(239,68,68,0.15)' },
+        ];
+
+        return (
+            <div style={{
+                display: 'flex', gap: '4px', padding: '4px',
+                background: 'rgba(255,255,255,0.03)', borderRadius: '14px',
+                border: '1px solid rgba(255,255,255,0.06)',
+                marginBottom: '16px',
+            }}>
+                {levels.map(l => {
+                    const isActive = activeSeverity === l.key;
+                    return (
+                        <button
+                            key={l.key}
+                            onClick={() => setActiveSeverity(l.key)}
+                            style={{
+                                flex: 1, padding: '8px 6px', border: 'none', borderRadius: '10px',
+                                fontSize: '11px', fontWeight: 700, cursor: 'pointer',
+                                transition: 'all 0.2s ease', letterSpacing: '0.01em',
+                                background: isActive ? l.bg : 'transparent',
+                                color: isActive ? l.activeColor : l.color,
+                                outline: isActive ? `1px solid ${l.activeColor}33` : 'none',
+                            }}
+                        >
+                            {l.label}
+                        </button>
+                    );
+                })}
+            </div>
+        );
+    };
 
     // ─── RENDER: SVG ZONE ───
     const renderZone = useCallback((zone: ZoneDef) => {
@@ -135,13 +187,13 @@ export default function PainMapInteractive() {
                     strokeWidth={isSelected ? 0.8 : 0.5}
                     rx={1}
                     style={{ cursor: 'pointer', transition: 'all 0.2s ease' }}
-                    onClick={() => setSelectedZoneId(zone.id)}
+                    onClick={() => handleSelectZone(zone.id)}
                     onMouseEnter={() => setHoveredZoneId(zone.id)}
                     onMouseLeave={() => setHoveredZoneId(null)}
                 />
             </g>
         );
-    }, [hoveredZoneId, selectedZoneId]);
+    }, [hoveredZoneId, selectedZoneId, handleSelectZone]);
 
     // ─── RENDER: MAP VIEW ───
     const renderMap = () => (
@@ -208,11 +260,10 @@ export default function PainMapInteractive() {
                                 const info = SYMPTOM_DATA[key];
                                 if (!info) return null;
                                 const isSelected = selectedZoneId === key;
-                                const urgencyColor = info.urgency === 'high' ? '#ef4444' : info.urgency === 'medium' ? '#f59e0b' : '#22c55e';
                                 return (
                                     <button
                                         key={key}
-                                        onClick={() => setSelectedZoneId(key)}
+                                        onClick={() => handleSelectZone(key)}
                                         style={{
                                             display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
                                             padding: '10px 12px', borderRadius: '12px', border: 'none',
@@ -227,11 +278,13 @@ export default function PainMapInteractive() {
                                         }}
                                     >
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                                            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: urgencyColor, flexShrink: 0 }} />
                                             <span style={{ color: '#dcb14a', fontWeight: 700, fontSize: '13px' }}>{key}</span>
                                         </div>
-                                        <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '11px', lineHeight: 1.3 }}>
+                                        <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '11px', lineHeight: 1.3 }}>
                                             {info.title}
+                                        </span>
+                                        <span style={{ color: 'rgba(255,255,255,0.25)', fontSize: '10px', marginTop: '2px' }}>
+                                            {info.subtitle}
                                         </span>
                                     </button>
                                 );
@@ -241,15 +294,6 @@ export default function PainMapInteractive() {
                 ))}
             </div>
         );
-    };
-
-    // ─── URGENCY HELPERS ───
-    const getUrgencyStyle = (urgency: string) => {
-        switch (urgency) {
-            case 'high': return { bg: 'rgba(239,68,68,0.15)', text: '#f87171', border: 'rgba(239,68,68,0.3)', icon: '🔴', label: 'Pilne — umów wizytę' };
-            case 'medium': return { bg: 'rgba(245,158,11,0.15)', text: '#fbbf24', border: 'rgba(245,158,11,0.3)', icon: '🟡', label: 'Umiarkowane' };
-            default: return { bg: 'rgba(34,197,94,0.15)', text: '#4ade80', border: 'rgba(34,197,94,0.3)', icon: '🟢', label: 'Łagodne' };
-        }
     };
 
     return (
@@ -357,7 +401,7 @@ export default function PainMapInteractive() {
             </div>
 
             {/* ═══ DETAIL MODAL ═══ */}
-            {selectedData && (
+            {selectedData && activeLevel && (
                 <div
                     style={{
                         position: 'fixed', inset: 0, zIndex: 9999,
@@ -375,7 +419,7 @@ export default function PainMapInteractive() {
                     {/* Modal card — slides up from bottom */}
                     <div style={{
                         position: 'relative', zIndex: 1, width: '100%', maxWidth: '500px',
-                        maxHeight: '85vh', overflowY: 'auto',
+                        maxHeight: '88vh', overflowY: 'auto',
                         background: 'linear-gradient(180deg, rgba(18,18,18,0.98), rgba(10,10,10,0.99))',
                         borderTop: '2px solid rgba(220,177,74,0.4)',
                         borderRadius: '24px 24px 0 0',
@@ -407,9 +451,23 @@ export default function PainMapInteractive() {
                             ✕
                         </button>
 
+                        {/* Title + subtitle */}
+                        <h3 style={{
+                            color: '#dcb14a', fontSize: '22px', fontWeight: 700,
+                            margin: '0 0 2px', letterSpacing: '-0.01em',
+                        }}>
+                            {selectedData.title}
+                        </h3>
+                        <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '12px', display: 'block', marginBottom: '16px' }}>
+                            {selectedData.subtitle}
+                        </span>
+
+                        {/* ═══ SEVERITY TOGGLE ═══ */}
+                        {renderSeverityToggle()}
+
                         {/* Urgency badge */}
                         {(() => {
-                            const u = getUrgencyStyle(selectedData.urgency);
+                            const u = getUrgencyStyle(activeLevel.urgency);
                             return (
                                 <div style={{
                                     display: 'inline-flex', alignItems: 'center', gap: '6px',
@@ -417,31 +475,19 @@ export default function PainMapInteractive() {
                                     padding: '6px 14px', borderRadius: '20px',
                                     fontSize: '11px', fontWeight: 700, textTransform: 'uppercase',
                                     letterSpacing: '0.06em', border: `1px solid ${u.border}`,
-                                    marginBottom: '16px',
+                                    marginBottom: '12px',
                                 }}>
                                     {u.icon} {u.label}
                                 </div>
                             );
                         })()}
 
-                        {/* Title */}
-                        <h3 style={{
-                            color: '#dcb14a', fontSize: '22px', fontWeight: 700,
-                            margin: '0 0 4px', letterSpacing: '-0.01em',
-                        }}>
-                            {selectedData.title}
-                        </h3>
-                        {selectedZoneId && /^\d+$/.test(selectedZoneId) && (
-                            <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '12px' }}>
-                                Ząb nr {selectedZoneId}
-                            </span>
-                        )}
-
+                        {/* Description */}
                         <p style={{
                             color: 'rgba(255,255,255,0.5)', fontSize: '14px', lineHeight: 1.6,
-                            margin: '12px 0 20px',
+                            margin: '0 0 16px',
                         }}>
-                            {selectedData.description}
+                            {activeLevel.description}
                         </p>
 
                         {/* Symptoms card */}
@@ -458,7 +504,7 @@ export default function PainMapInteractive() {
                                 Możliwe objawy
                             </span>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                {selectedData.symptoms.map((s, i) => (
+                                {activeLevel.symptoms.map((s, i) => (
                                     <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
                                         <span style={{
                                             width: '6px', height: '6px', borderRadius: '50%',
@@ -466,6 +512,34 @@ export default function PainMapInteractive() {
                                         }} />
                                         <span style={{ color: 'rgba(255,255,255,0.65)', fontSize: '13px', lineHeight: 1.5 }}>
                                             {s}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Causes card */}
+                        <div style={{
+                            background: 'rgba(255,255,255,0.03)', borderRadius: '16px',
+                            padding: '16px', marginBottom: '12px',
+                            border: '1px solid rgba(255,255,255,0.06)',
+                        }}>
+                            <span style={{
+                                color: '#dcb14a', fontSize: '11px', fontWeight: 700,
+                                textTransform: 'uppercase', letterSpacing: '0.08em',
+                                display: 'block', marginBottom: '10px',
+                            }}>
+                                🔍 Możliwe przyczyny
+                            </span>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                {activeLevel.causes.map((c, i) => (
+                                    <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                                        <span style={{
+                                            width: '6px', height: '6px', borderRadius: '50%',
+                                            background: 'rgba(255,255,255,0.25)', flexShrink: 0, marginTop: '6px',
+                                        }} />
+                                        <span style={{ color: 'rgba(255,255,255,0.55)', fontSize: '13px', lineHeight: 1.5 }}>
+                                            {c}
                                         </span>
                                     </div>
                                 ))}
@@ -489,7 +563,7 @@ export default function PainMapInteractive() {
                                 color: 'rgba(255,255,255,0.6)', fontSize: '13px',
                                 lineHeight: 1.6, margin: 0,
                             }}>
-                                {selectedData.advice}
+                                {activeLevel.advice}
                             </p>
                         </div>
 
