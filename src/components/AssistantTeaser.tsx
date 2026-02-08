@@ -27,9 +27,6 @@ export default function AssistantTeaser() {
     const pathname = usePathname();
     const { isChatOpen, openChat, closeChat } = useAssistant();
     const [isVisible, setIsVisible] = useState(false);
-
-    // Hide on interactive tool pages
-    if (HIDDEN_PATHS.some(p => pathname?.startsWith(p))) return null;
     const [isHovered, setIsHovered] = useState(false);
 
     // Chat State
@@ -158,6 +155,8 @@ export default function AssistantTeaser() {
         }
     };
 
+    // Hide on interactive tool pages (must be after all hooks!)
+    if (HIDDEN_PATHS.some(p => pathname?.startsWith(p))) return null;
     if (!isVisible && !isChatOpen) return null;
 
     return (
