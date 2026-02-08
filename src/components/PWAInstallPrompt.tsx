@@ -1,9 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { X, Download, Share } from "lucide-react";
 
+// Pages where PWA prompt should be hidden
+const HIDDEN_PATHS = ["/mapa-bolu", "/symulator"];
+
 export default function PWAInstallPrompt() {
+    const pathname = usePathname();
     const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
     const [isIOS, setIsIOS] = useState(false);
     const [showPrompt, setShowPrompt] = useState(false);
@@ -60,6 +65,8 @@ export default function PWAInstallPrompt() {
         // localStorage.setItem("pwa_prompt_seen", "true");
     };
 
+    // Hide on interactive tool pages
+    if (HIDDEN_PATHS.some(p => pathname?.startsWith(p))) return null;
     if (!showPrompt) return null;
 
     return (

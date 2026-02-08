@@ -3,8 +3,11 @@
 import { useState, useEffect, useRef } from "react";
 import { Sparkles, X, Send, User, Bot, Loader2, Paperclip } from "lucide-react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useAssistant } from "@/context/AssistantContext";
+
+// Pages where the teaser should be hidden (interactive tools)
+const HIDDEN_PATHS = ["/mapa-bolu", "/symulator"];
 
 interface Message {
     role: "user" | "assistant";
@@ -21,8 +24,12 @@ const SUGGESTIONS = [
 
 export default function AssistantTeaser() {
     const router = useRouter();
+    const pathname = usePathname();
     const { isChatOpen, openChat, closeChat } = useAssistant();
     const [isVisible, setIsVisible] = useState(false);
+
+    // Hide on interactive tool pages
+    if (HIDDEN_PATHS.some(p => pathname?.startsWith(p))) return null;
     const [isHovered, setIsHovered] = useState(false);
 
     // Chat State
