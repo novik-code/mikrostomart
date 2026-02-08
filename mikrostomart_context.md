@@ -360,12 +360,22 @@ Full-featured AI chat assistant (441 lines, 22KB).
 - Modal form for submitting expert questions
 - Backend: `/api/ask-expert` (Supabase storage)
 
+#### Legal & Policy Pages (Premium Redesigned)
+All legal pages share a premium design: hero section with radial gold gradient, Lucide icons, Playfair Display headings, RevealOnScroll animations, CSS variable-based styling.
+- **RODO** (`/rodo`) — Klauzula informacyjna, 10 numbered sections with gold circle badges, PDF download button
+- **Regulamin** (`/regulamin`) — Regulamin organizacyjny, 12 § sections with gold pill badges, PDF download
+- **Polityka Prywatności** (`/polityka-prywatnosci`) — 4-card layout (Administrator, Cele, Prawa, Kontakt)
+- **Polityka Cookies** (`/polityka-cookies`) — 4-card layout (Czym są, Do czego, Zarządzanie, Rodzaje)
+
+#### Forms (RODO Compliance)
+- **ContactForm.tsx** — Math captcha + honeypot antispam + required RODO consent checkbox
+- **ReservationForm.tsx** — Required RODO consent checkbox with links to `/rodo` and `/polityka-prywatnosci`
+
 #### Other Pages
 - About Us (`/o-nas`)
 - Contact (`/kontakt`) — Google Maps integration, `ContactForm.tsx`
 - FAQ (`/faq`)
 - Knowledge Base (`/baza-wiedzy`) — articles from `data/articles.ts`
-- Privacy Policy, RODO, Terms (`/polityka-*`, `/rodo`, `/regulamin`)
 
 ---
 
@@ -852,6 +862,51 @@ NODE_ENV=production
 
 ## 📝 Recent Changes
 
+### February 8, 2026 (Evening)
+**Website Audit Fixes (P1/P2) & Legal Pages Premium Redesign**
+
+#### Commits:
+- `33cff17` - All P1/P2 audit fixes (YouTube error, loading states, RODO compliance, antispam)
+- `0309a0a` - Premium redesign of all 4 legal pages (RODO, Regulamin, Polityka Prywatności, Polityka Cookies)
+- `996b067` - Fix: regulamin blank page (RevealOnScroll opacity issue)
+
+#### Audit Fixes (P1/P2):
+1. **YouTube Feed** — Removed user-visible technical message "*Wyświetlam wybrane filmy. Aby widzieć najnowsze, skonfiguruj API.*" from `YouTubeFeed.tsx`
+2. **Loading States** — Replaced bare "Ładowanie..." text with animated gold spinners in `metamorfozy/page.tsx`, `sklep/page.tsx`, `aktualnosci/page.tsx`
+3. **Strefa Pacjenta Redirect** — Added spinner + fallback links (appear after 3s) instead of bare "Przekierowanie..." text
+4. **RODO Text** — Fixed copy-paste from law firm template: "doradztwo prawne" → "usługi stomatologiczne", "pisma procesowe" → "dokumentacja medyczna"
+5. **RODO Consent Checkboxes** — Added required consent checkbox with links to `/rodo` and `/polityka-prywatnosci` in both `ReservationForm.tsx` and `ContactForm.tsx`
+6. **Antispam Honeypot** — Added hidden honeypot field in `ContactForm.tsx` (bots fill → silent fake success)
+
+#### Legal Pages Premium Redesign:
+All 4 legal pages completely rewritten with consistent premium dark/gold aesthetic:
+- **`/rodo`** — Hero with Shield icon + radial gradient, numbered sections with gold circle badges
+- **`/regulamin`** — Hero with FileText icon, § badges in gold pills, 12 sections with subtle border separators
+- **`/polityka-prywatnosci`** — Card-based layout with Lucide icons (Database, Shield, UserCheck, Mail)
+- **`/polityka-cookies`** — Card-based layout + added new "Rodzaje cookies" section (was missing)
+
+Shared design language:
+- Radial gold gradient hero backgrounds
+- Playfair Display headings, Inter body text
+- RevealOnScroll staggered animations (except regulamin content — too tall for IntersectionObserver)
+- CSS variable-based styling (removed all Tailwind-like classes)
+- Gold dot bullets, `0.92rem` body text with `1.8` line-height
+
+#### Files Modified:
+- `src/components/YouTubeFeed.tsx` — Removed technical fallback message
+- `src/app/metamorfozy/page.tsx` — Animated loading spinner
+- `src/app/sklep/page.tsx` — Animated loading spinner
+- `src/app/aktualnosci/page.tsx` — Animated loading spinner
+- `src/app/strefa-pacjenta/page.tsx` — Spinner + 3s fallback links
+- `src/app/rodo/page.tsx` — Complete premium redesign + RODO text fixes
+- `src/app/regulamin/page.tsx` — Complete premium redesign
+- `src/app/polityka-prywatnosci/page.tsx` — Complete premium redesign
+- `src/app/polityka-cookies/page.tsx` — Complete premium redesign + added "Rodzaje cookies"
+- `src/components/ReservationForm.tsx` — RODO consent checkbox
+- `src/components/ContactForm.tsx` — RODO consent checkbox + honeypot antispam
+
+---
+
 ### February 8, 2026 (Afternoon)
 **Pain Map — Tooltips, Doctor Recommendations & Booking Integration**
 
@@ -1096,6 +1151,9 @@ OpenAI gpt-image-1 regenerates the entire masked area from scratch (+ forces 102
 - [x] PWA capabilities
 - [x] Pain Map — interactive dental diagnostic tool with premium UI
 - [x] Smile Simulator — AI-powered smile transformation
+- [x] Website audit fixes (P1/P2) — YouTube error, loading states, RODO text, Strefa Pacjenta redirect
+- [x] RODO compliance — consent checkboxes in both forms, honeypot antispam
+- [x] Legal pages premium redesign — RODO, Regulamin, Polityka Prywatności, Polityka Cookies
 
 ### ⚠️ Partial/Pending
 - [ ] SMS link sending (blocked by SMSAPI.pl account setting - awaiting Monday support call)
