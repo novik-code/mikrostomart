@@ -1,9 +1,8 @@
-import Image from 'next/image';
 import PainMapInteractive from './PainMapInteractive';
 
 export const metadata = {
     title: 'Mapa Bólu Zębów | Mikrostomart',
-    description: 'Narzędzie diagnostyczne - wersja testowa',
+    description: 'Interaktywna mapa bólu zębów — wskaż ząb, który boli, a podpowiemy co może być przyczyną.',
 };
 
 export default function PainMapPage() {
@@ -11,31 +10,18 @@ export default function PainMapPage() {
         <main className="min-h-screen pt-24 pb-20 bg-black text-white flex flex-col items-center">
             <div className="container px-4 w-full flex flex-col items-center">
 
-                <h1 className="text-4xl font-heading mb-4 text-[#dcb14a] text-center">Mapa Bólu (BETA)</h1>
-                <p className="text-gray-400 mb-8 max-w-2xl text-center">
-                    Wersja responsywna. Obraz dostosowuje się do szerokości ekranu, zachowując proporcje.
+                <h1 className="text-4xl font-heading mb-2 text-[#dcb14a] text-center">Mapa Bólu</h1>
+                <p className="text-gray-400 mb-6 max-w-md text-center text-sm">
+                    Dotknij ząb lub obszar, który Cię boli — podpowiemy, co może być przyczyną.
                 </p>
 
-                {/* 
-                   ROBUST CONTAINER:
-                   1. Max-width prevents it from being too huge on desktop.
-                   2. w-full makes it responsive on mobile.
-                   3. NO fixed height. Height is determined by the image itself.
-                */}
-                <div className="w-full max-w-[800px] border border-white/20 rounded-xl overflow-hidden bg-white/5 shadow-2xl relative grid grid-cols-1 grid-rows-1">
-
-                    {/* INTERACTIVE MAP COMPONENT (Handles its own background now) */}
-                    <div className="w-full relative aspect-square md:aspect-[4/3] max-h-[70vh]">
+                {/* Map Container */}
+                <div className="w-full max-w-[600px] rounded-2xl overflow-hidden bg-[#080808] shadow-2xl shadow-[#dcb14a]/5 border border-white/5 relative">
+                    <div className="w-full relative aspect-[3/4]">
                         <PainMapInteractive />
                     </div>
-
                 </div>
 
-                <div className="mt-8 text-center">
-                    <p className="text-[#dcb14a] font-heading text-lg">
-                        Wybierz obszar, który Cię boli
-                    </p>
-                </div>
             </div>
         </main>
     );
