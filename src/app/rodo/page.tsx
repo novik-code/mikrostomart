@@ -28,7 +28,7 @@ export default function RodoPage() {
                     Szanowna Pani / Szanowny Panie,
                 </p>
                 <p className="mb-4">
-                    Poniżej znajdzie Pani / Pan podstawowe informacje odnośnie przetwarzania Pani / Pana danych osobowych podanych w związku z zawarciem i wykonaniem umowy o świadczenie usług doradztwa prawnego, wymagane przepisami Rozporządzenia Parlamentu Europejskiego i Rady (UE) 2016/679 z dnia 27 kwietnia 2016 r. w sprawie ochrony osób fizycznych w związku z przetwarzaniem danych osobowych i w sprawie swobodnego przepływu takich danych oraz uchylenia dyrektywy 95/46/WA (ogólne rozporządzenie o ochrony danych) (Dz. U. UE L. z 2016 r. Nr 119, str. 1), zwanego dalej RODO.
+                    Poniżej znajdzie Pani / Pan podstawowe informacje odnośnie przetwarzania Pani / Pana danych osobowych podanych w związku z zawarciem i wykonaniem umowy o świadczenie usług stomatologicznych, wymagane przepisami Rozporządzenia Parlamentu Europejskiego i Rady (UE) 2016/679 z dnia 27 kwietnia 2016 r. w sprawie ochrony osób fizycznych w związku z przetwarzaniem danych osobowych i w sprawie swobodnego przepływu takich danych oraz uchylenia dyrektywy 95/46/WA (ogólne rozporządzenie o ochrony danych) (Dz. U. UE L. z 2016 r. Nr 119, str. 1), zwanego dalej RODO.
                 </p>
 
                 <h3 className="text-[#dcb14a] font-bold mt-6 mb-2">1. Administrator danych</h3>
@@ -47,7 +47,7 @@ export default function RodoPage() {
 
                 <h3 className="text-[#dcb14a] font-bold mt-6 mb-2">3. Cel i podstawa przetwarzania</h3>
                 <p className="mb-4">
-                    Dane podane przez Panią / Pana w związku z zawartą umową o świadczenie usług stomatologiczne będą przetwarzane w celu zawarcia i wykonania tej umowy (m. in. ustalenie stanu faktycznego, sformułowanie porady prawnej, przygotowanie pisma procesowego, reprezentacja w postępowaniu sądowym i/lub administracyjnym itd.) – podstawę prawną przetwarzania danych stanowi niezbędność przetwarzania danych do zawarcia i wykonania umowy, której jest Pani / Pan stroną (art. 6 ust. 1 lit. b RODO).
+                    Dane podane przez Panią / Pana w związku z zawartą umową o świadczenie usług stomatologicznych będą przetwarzane w celu zawarcia i wykonania tej umowy (m. in. ustalenie stanu zdrowia jamy ustnej, diagnozowanie, planowanie leczenia, prowadzenie dokumentacji medycznej, realizację świadczeń stomatologicznych itd.) – podstawę prawną przetwarzania danych stanowi niezbędność przetwarzania danych do zawarcia i wykonania umowy, której jest Pani / Pan stroną (art. 6 ust. 1 lit. b RODO).
                 </p>
 
                 <h3 className="text-[#dcb14a] font-bold mt-6 mb-2">4. Inne cele przetwarzania</h3>

@@ -160,7 +160,11 @@ export default function NewsPage() {
                             WebkitOverflowScrolling: "touch"
                         }}>
                         {loading ? (
-                            <p style={{ textAlign: "center", width: "100%", padding: "2rem" }}>Ładowanie aktualności...</p>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', padding: '4rem 2rem', gap: '1.5rem' }}>
+                                <div style={{ width: '48px', height: '48px', border: '3px solid rgba(212,175,55,0.15)', borderTop: '3px solid var(--color-primary)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                                <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>Ładowanie aktualności...</p>
+                                <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+                            </div>
                         ) : articles.length === 0 ? (
                             <p style={{ textAlign: "center", width: "100%", padding: "2rem" }}>Brak aktualności.</p>
                         ) : articles.map((article) => (

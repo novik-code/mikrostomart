@@ -37,6 +37,10 @@ export default function ContactForm() {
     const [num1, setNum1] = useState(0);
     const [num2, setNum2] = useState(0);
     const [userAnswer, setUserAnswer] = useState("");
+    // Honeypot (anti-bot)
+    const [honeypot, setHoneypot] = useState("");
+    // RODO consent
+    const [rodoConsent, setRodoConsent] = useState(false);
 
     useEffect(() => {
         setNum1(Math.floor(Math.random() * 10) + 1);
@@ -65,6 +69,13 @@ export default function ContactForm() {
 
 
     const onSubmit = async (data: ContactFormData) => {
+        // Honeypot check — bots fill hidden fields
+        if (honeypot) {
+            // Silently "succeed" to fool the bot
+            setIsSuccess(true);
+            return;
+        }
+
         // Captcha Validation
         if (parseInt(userAnswer) !== num1 + num2) {
             setError(`Błędny wynik działania. Ile to jest ${num1} + ${num2}?`);
@@ -333,9 +344,40 @@ export default function ContactForm() {
                 </div>
             </div>
 
+            {/* HONEYPOT — hidden from humans, bots auto-fill */}
+            <div style={{ position: 'absolute', left: '-9999px', opacity: 0, height: 0, overflow: 'hidden' }} aria-hidden="true">
+                <label htmlFor="website">Website</label>
+                <input
+                    type="text"
+                    id="website"
+                    name="website"
+                    tabIndex={-1}
+                    autoComplete="off"
+                    value={honeypot}
+                    onChange={(e) => setHoneypot(e.target.value)}
+                />
+            </div>
+
+            {/* RODO CONSENT CHECKBOX */}
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+                <input
+                    type="checkbox"
+                    id="rodo-consent-contact"
+                    checked={rodoConsent}
+                    onChange={(e) => setRodoConsent(e.target.checked)}
+                    style={{ marginTop: '3px', accentColor: '#dcb14a', minWidth: '18px', minHeight: '18px', cursor: 'pointer' }}
+                />
+                <label htmlFor="rodo-consent-contact" style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', lineHeight: 1.5, cursor: 'pointer' }}>
+                    Wyrażam zgodę na przetwarzanie moich danych osobowych w celu obsługi zapytania, zgodnie z{' '}
+                    <a href="/rodo" target="_blank" style={{ color: '#dcb14a', textDecoration: 'underline' }}>Klauzulą RODO</a>{' '}
+                    oraz{' '}
+                    <a href="/polityka-prywatnosci" target="_blank" style={{ color: '#dcb14a', textDecoration: 'underline' }}>Polityką Prywatności</a>.
+                </label>
+            </div>
+
             <button
                 type="submit"
-                disabled={isSubmitting}
+                disabled={isSubmitting || !rodoConsent}
                 className="btn-primary"
                 style={{
                     width: "100%",
@@ -344,8 +386,8 @@ export default function ContactForm() {
                     justifyContent: "center",
                     alignItems: "center",
                     gap: "0.5rem",
-                    opacity: isSubmitting ? 0.7 : 1,
-                    cursor: isSubmitting ? "wait" : "pointer",
+                    opacity: (isSubmitting || !rodoConsent) ? 0.7 : 1,
+                    cursor: (isSubmitting || !rodoConsent) ? "not-allowed" : "pointer",
                     marginTop: "0.5rem"
                 }}
             >

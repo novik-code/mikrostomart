@@ -50,6 +50,7 @@ export default function ReservationForm() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [rodoConsent, setRodoConsent] = useState(false);
 
     const {
         register,
@@ -381,11 +382,28 @@ export default function ReservationForm() {
                 Administratorem Twoich danych osobowych jest Mikrostomart. Dane będą przetwarzane w celu obsługi zgłoszenia.
             </p>
 
+            {/* RODO CONSENT CHECKBOX */}
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+                <input
+                    type="checkbox"
+                    id="rodo-consent-reservation"
+                    checked={rodoConsent}
+                    onChange={(e) => setRodoConsent(e.target.checked)}
+                    style={{ marginTop: '3px', accentColor: '#dcb14a', minWidth: '18px', minHeight: '18px', cursor: 'pointer' }}
+                />
+                <label htmlFor="rodo-consent-reservation" style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', lineHeight: 1.5, cursor: 'pointer' }}>
+                    Wyrażam zgodę na przetwarzanie moich danych osobowych w celu umówienia wizyty, zgodnie z{' '}
+                    <a href="/rodo" target="_blank" style={{ color: '#dcb14a', textDecoration: 'underline' }}>Klauzulą RODO</a>{' '}
+                    oraz{' '}
+                    <a href="/polityka-prywatnosci" target="_blank" style={{ color: '#dcb14a', textDecoration: 'underline' }}>Polityką Prywatności</a>.
+                </label>
+            </div>
+
             {error && <div style={{ color: "#ff4d4d", background: "rgba(255, 0, 0, 0.1)", padding: "10px", borderRadius: "5px", fontSize: "0.9rem" }}>{error}</div>}
 
             <button
                 type="submit"
-                disabled={isSubmitting}
+                disabled={isSubmitting || !rodoConsent}
                 className="btn-primary"
                 style={{
                     width: "100%",
@@ -394,8 +412,8 @@ export default function ReservationForm() {
                     justifyContent: "center",
                     alignItems: "center",
                     gap: "0.5rem",
-                    opacity: isSubmitting ? 0.7 : 1,
-                    cursor: isSubmitting ? "wait" : "pointer"
+                    opacity: (isSubmitting || !rodoConsent) ? 0.7 : 1,
+                    cursor: (isSubmitting || !rodoConsent) ? "not-allowed" : "pointer"
                 }}
             >
                 {isSubmitting ? "Wysyłanie..." : "Umów Wizytę"}

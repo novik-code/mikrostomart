@@ -301,11 +301,7 @@ export default function YouTubeFeed() {
                             ))}
                         </div>
 
-                        {!isApiWorking && (
-                            <p style={{ marginTop: "1rem", fontSize: "0.8rem", color: "var(--color-text-muted)" }}>
-                                * Wyświetlam wybrane filmy. Aby widzieć najnowsze, skonfiguruj API.
-                            </p>
-                        )}
+                        {/* Fallback videos are used seamlessly — no message needed */}
                     </RevealOnScroll>
                 </div>
             </div>
