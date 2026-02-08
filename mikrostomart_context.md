@@ -273,7 +273,9 @@ Interactive dental pain diagnostic tool.
 - **Welcome popup** — intro text + disclaimer, glassmorphic design, dismissable with animation
 - **Map/List toggle** — switch between interactive map and categorized list view
 - **List view** — teeth grouped by quadrant (Q1-Q4 + soft tissues), urgency color dots, glassmorphic cards
-- **Detail modal** — bottom-sheet slide-up with urgency badge, symptoms, specialist advice, CTA to book
+- **Detail modal** — bottom-sheet slide-up with severity toggle, urgency badge, symptoms, causes, specialist advice, CTA to book
+- **Multi-severity system** — each zone has 3 levels (Łagodne / Umiarkowane / Zaawansowane) with independent symptoms, causes, and advice
+- **7 clinical templates** — incisor, canine, premolar, molar, wisdom tooth, tongue, palate, throat — each ×3 severity levels
 - **Hover tooltips** — zone name appears on hover
 - **Symptom data** — `SymptomData.ts` with description, symptoms list, advice, urgency level per zone
 - **Zone editor** (`/mapa-bolu/editor`) — drag-and-drop tool to reposition zones, resize handles, keyboard nudging, export to clipboard
@@ -766,6 +768,7 @@ NODE_ENV=production
 
 #### Commits:
 - `8e5945e` - Premium UI redesign: intro popup, bottom-sheet modal, glassmorphic list view
+- `e99c61f` - Multi-severity system: 7 templates × 3 levels (21 clinical profiles), severity toggle, causes section
 - `5f688cb` - Applied user-calibrated zone coordinates from editor tool
 - `79c1e23` - Built interactive drag-and-drop zone editor at `/mapa-bolu/editor`
 - `9f8f02c` - Pushed teeth 4-7 outward, tucked 8s behind arch in gum tissue
