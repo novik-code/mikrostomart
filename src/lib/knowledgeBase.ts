@@ -102,36 +102,102 @@ Interaktywne narzędzie diagnostyczne na stronie kliniki:
    - Leczenie Bruksizmu (szyny relaksacyjne).
    - Resorpcja (leczenie zaniku korzeni).
 
-## CENNIK USŁUG (Stan na 01.03.2025)
+## CENNIK USŁUG (Stan na 08.02.2026)
 *Podane ceny są orientacyjne. Ostateczny koszt ustala lekarz po konsultacji.*
 
-### CHIRURGIA I IMPLANTOLOGIA
-- **Usunięcie zęba**: 400 - 800 zł (z szyciem, PRF, laserem).
-- **Usunięcie ósemki**: 600 - 900 zł.
-- **Usunięcie ósemki zatrzymanej**: 600 - 1500 zł.
-- **Implant (wszczepienie)**: od 3500 zł.
-- **Korona na implancie**: 3000 - 4000 zł.
-- **Podniesienie dna zatoki (Sinus Lift)**: 1500 - 6000 zł (zależnie od metody).
-- **Resekcja korzenia**: 1500 - 2500 zł.
+### USŁUGI PODSTAWOWE
+- **Badanie stomatologiczne z przeglądem i zdjęciem OPG**: 300 zł.
+- **Konsultacja**: 200 - 300 zł.
+- **Wizyta kontrolna**: 100 zł.
+- **Znieczulenie miejscowe systemem komputerowym**: 50 zł.
+- **Doraźna pomoc w razie bólu (recepta, lekarstwo do zęba)**: 500 zł.
+- **Zdjęcie punktowe RVG cyfrowe + przeniesienie na nośnik**: 50 zł.
+- **Zdjęcie pantomograficzne**: 100 zł.
+- **Tomografia komputerowa CBCT szczęki i żuchwy**: 300 zł.
+- **Tomografia komputerowa CBCT wycinkowa**: 200 zł.
+- **Skan wewnątrzustny zamiast wycisków diagnostycznych / modele diagnostyczne**: 300 zł.
 
-### PROTETYKA I ESTETYKA
-- **Korona pełnoceramiczna (Cerkon, EMAX)**: 2100 zł.
-- **Licówka porcelanowa**: 2500 zł.
-- **Licówka kompozytowa**: 1200 zł.
-- **Licówka tymczasowa (druk 3D)**: 800 zł.
+### LECZENIE ZACHOWAWCZE I LASEROWE
+- **Wypełnienie estetyczne zęba przedniego (1–3) z laserem Fotona LightWalker**: 400 - 900 zł.
+- **Znoszenie nadwrażliwości zęba laserem (1 ząb / 1 wizyta)**: 250 zł.
+- **Leczenie próchnicy powierzchownej bez wiercenia (ICON)**: 350 - 400 zł.
+- **Oczyszczenie kieszonek dziąsłowych laserem Er:YAG + Nd:YAG (TwinLight Perio Treatment)**: 400 zł / przestrzeń.
+- **Szyna relaksacyjna**: 600 zł.
+
+### PROFILAKTYKA I HIGIENIZACJA
+*Ceny dotyczą dwóch łuków zębowych.*
+- **Usunięcie kamienia nazębnego (skaling ultradźwiękowy)**: 400 zł / wizyta.
+- **Piaskowanie zębów (profesjonalne usunięcie osadów i przebarwień)**: 300 zł.
+- **Wzmocnienie zębów fluorem (fluoryzacja kontaktowa)**: 150 zł.
+- **Pakiet higienizacyjny (skaling + piaskowanie + fluoryzacja + instruktaż higieny + indywidualny zestaw do higieny)**: 450 zł / wizyta.
+- **Kolejna wizyta higienizacyjna przy obfitych złogach lub leczeniu choroby przyzębia**: 300 - 350 zł.
+
+### ZABIEGI ESTETYCZNE
+*Ceny dotyczą dwóch łuków zębowych.*
+- **Wybielanie zębów w gabinecie**: 1 500 zł.
+- **Szyna do wybielania zębów**: 900 zł.
+- **Biżuteria nazębna (1 cyrkonia)**: 300 zł.
+
+### SPECJALISTYCZNE LECZENIE KANAŁOWE POD MIKROSKOPEM
+*Podana cena dotyczy kompletnej usługi leczenia kanałowego (niezależnie od zastosowanej metody, ilości kanałów, ilości wykonanych zdjęć RVG, ilości wizyt, znieczuleń itp.), bez kosztów odbudowy zęba po leczeniu kanałowym.*
+- **Odbudowa do leczenia kanałowego**: 400 - 500 zł za każdą odbudowywaną ścianę (powierzchnię). Jeśli w zębie leczymy dwie powierzchnie — cena ×2, trzy — cena ×3 itd.
+- **Leczenie kanałowe**: 1 100 zł za pierwszy kanał + 500 zł za każdy kolejny kanał.
+- **Ponowne leczenie kanałowe**: +200 zł do ceny zasadniczej.
+- **Usunięcie złamanego narzędzia z kanału (jedno narzędzie z jednego kanału)**: +400 - 1 000 zł do ceny zasadniczej.
+- **Usunięcie wkładu koronowo-korzeniowego z kanału**: +400 - 600 zł do ceny zasadniczej.
+
+### ODBUDOWA ZĘBÓW PO LECZENIU KANAŁOWYM (osobny koszt)
+- **Wypełnienie estetyczne zęba bocznego (4–8)**: 450 - 900 zł za powierzchnię (zasada jak wyżej).
+- **Wypełnienie estetyczne zęba przedniego (1–3)**: 450 - 900 zł za powierzchnię (zasada jak wyżej).
+- **Zacementowanie wkładu koronowo-korzeniowego standardowego złotego lub z włókna szklanego**: +400 - 600 zł do ceny zasadniczej.
+- **Wkład koronowy porcelanowy (inlay, onlay, overlay)**: 2 500 zł.
+- **Korona protetyczna porcelanowa pełnoceramiczna (cerkon, EMAX)**: 2 500 zł.
+
+### LECZENIE CHIRURGICZNE
+- **Usunięcie zęba mlecznego**: 250 - 500 zł.
+- **Usunięcie zęba mlecznego z niezresorbowanymi korzeniami**: 300 - 800 zł.
+- **Usunięcie zęba z szyciem, PRF, laseroterapią przeciwbólową, receptą**: 400 - 800 zł.
+- **Usunięcie ósemki z szyciem, PRF, laseroterapią, receptą**: 600 - 1 000 zł.
+- **Usunięcie ósemki zatrzymanej z szyciem, PRF, laseroterapią, receptą**: 900 - 1 800 zł.
+- **Plastyka połączenia ustno-zębodołowo-zatokowego**: 500 zł.
+- **Resekcja korzenia zęba (mikrochirurgia endodontyczna)**: 1 500 - 4 500 zł.
+- **Nacięcie ropnia**: 200 - 450 zł.
+- **Podcięcie wędzidełka laserem Er:YAG lub kauterem**: 500 - 700 zł.
+- **Wycięcie kapturka dziąsłowego przy utrudnionym wyrzynaniu zęba laserem lub kauterem**: 250 - 400 zł.
+- **Wydłużenie koron klinicznych (gingiwektomia) laserem lub kauterem**: 200 - 250 zł / punkt.
+- **Szycie chirurgiczne**: 100 zł.
+- **Usunięcie szwów**: 0 - 50 zł.
+
+### LECZENIE PROTETYCZNE POD MIKROSKOPEM — PROTEZY STAŁE
+- **Korona porcelanowa pełnoceramiczna (Cerkon, EMAX)**: 2 500 zł.
+- **Licówka porcelanowa**: 2 500 zł.
+- **Licówka kompozytowa bezpośrednia lub pośrednia**: 1 200 zł.
+- **Korona/Licówka tymczasowa pośrednia drukowana na drukarce 3D**: 800 zł.
+
+### IMPLANTOLOGIA
+*Podane ceny są orientacyjne, ceny ostateczne ustalane są indywidualnie po konsultacji.*
+- **Wszczepienie implantu**: 3 500 zł.
+- **Zastosowanie materiału kościozastępczego**: 1 000 - 5 500 zł.
+- **PRF (zastosowanie własnej fibryny bogatopłytkowej do zębodołu)**: 200 zł.
+- **Korona na implancie**: 3 000 - 4 000 zł.
+- **Podniesienie dna zatoki metodą otwartą**: 4 000 - 6 000 zł.
+- **Podniesienie dna zatoki metodą zamkniętą**: 2 000 - 4 000 zł.
+- **Przeszczep tkanki miękkiej**: 1 500 - 3 000 zł (zależnie od stopnia skomplikowania).
+- **Usunięcie torbieli z ewentualną augmentacją oraz badaniem hist-pat**: 1 500 - 8 000 zł.
+- Ceny bardziej skomplikowanych zabiegów ustalane są indywidualnie.
 
 ### ORTODONCJA
-- **Nakładki Clear Correct (Całe leczenie)**: 12 000 - 14 000 zł.
+- **Nakładki Clear Correct (całe leczenie)**: 13 000 - 15 000 zł.
 
 ### STOMATOLOGIA DZIECIĘCA
-- **Wypełnienie w zębie mlecznym**: 400 zł.
-- **Wizyta adaptacyjna (30 min)**: 200 zł.
-- **Lakowanie**: 200 - 300 zł.
-- **Lapisowanie**: 300 zł.
-
-### INNE
-- **Szycie chirurgiczne**: 50 zł (często w cenie zabiegu).
-- **Znieczulenie**: Zazwyczaj wliczone w cenę zabiegu (komputerowe).
+- **Wypełnienie w zębie mlecznym**: 400 - 800 zł.
+- **Lapisowanie zębów mlecznych**: 400 zł.
+- **Lakowanie zęba**: 300 zł.
+- **Poszerzone lakowanie zęba**: 400 zł.
+- **Impregnacja zębów**: 400 zł.
+- **Wizyta adaptacyjna (30 min)**: 300 zł.
+- **Wizyta kontrolna**: 250 zł.
+- **30 min pracy gabinetu — dziecko niewspółpracujące**: 250 zł.
 
 ## RĘKOJMIA
 Klinika udziela **2-letniej rękojmi** na wypełnienia i protetykę, pod warunkiem:
