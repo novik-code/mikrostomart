@@ -351,6 +351,49 @@ export default function AdminPage() {
         }
     };
 
+    // --- BLOG AI GENERATOR (dedicated) ---
+    const handleBlogAiGenerate = async () => {
+        if (!aiTopic) {
+            alert("Wpisz temat posta");
+            return;
+        }
+        setIsGenerating(true);
+        try {
+            const res = await fetch("/api/admin/blog/generate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    topic: aiTopic,
+                    instructions: aiInstructions,
+                    model: aiModel
+                })
+            });
+
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || "Błąd generowania");
+            }
+
+            const data = await res.json();
+
+            // Populate BLOG form (not news form!)
+            setBlogFormData({
+                title: data.title,
+                slug: data.slug || "",
+                date: new Date().toISOString().split('T')[0],
+                excerpt: data.excerpt || "",
+                content: data.content || "",
+                image: data.image || "",
+                tags: Array.isArray(data.tags) ? data.tags.join(", ") : (data.tags || "")
+            });
+
+            alert("Wygenerowano pomyślnie! Sprawdź formularz poniżej.");
+        } catch (e: any) {
+            alert("Błąd: " + e.message);
+        } finally {
+            setIsGenerating(false);
+        }
+    };
 
     const resetNewsForm = () => {
         setEditingNewsId(null);
@@ -944,12 +987,7 @@ export default function AdminPage() {
                                 rows={2}
                             />
                             <button
-                                onClick={() => {
-                                    // Hack: We reuse the news generator but we could make a specific one later
-                                    // Ideally we should pass a 'type' to the generator API
-                                    setAiInstructions(prev => prev + " [Styl: Dr Marcin Nowosielski, Dental MacGyver, luźny język, pierwsza osoba liczby pojedynczej]");
-                                    handleAiGenerate();
-                                }}
+                                onClick={handleBlogAiGenerate}
                                 disabled={isGenerating}
                                 className="btn-primary"
                                 style={{
@@ -958,7 +996,7 @@ export default function AdminPage() {
                                     background: "linear-gradient(135deg, #dcb14a, #f0c96c)"
                                 }}
                             >
-                                {isGenerating ? "Generowanie..." : "Generuj Post na Bloga ✍️"}
+                                {isGenerating ? "Generowanie (ok. 30-60s)..." : "Generuj Post na Bloga ✍️"}
                             </button>
                         </div>
                     </div>
