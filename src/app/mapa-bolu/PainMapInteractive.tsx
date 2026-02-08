@@ -37,50 +37,51 @@ interface ZoneDef {
 
 // Upper teeth — front view, mapped by visual position on the 2048×2048 image
 // IMAGE NOTE: Only 7 teeth visible per quadrant (1-7). 8s (wisdom) are behind/impacted.
+// Incisors (1,2) ≈ OK from last iteration. Canines (3) ≈ OK.
+// Premolars (4,5) and molars (6,7) were too far inward — pushed OUTWARD.
+// 8s were sticking sideways — now tucked behind the arch in gum tissue.
 const UPPER_TEETH: ZoneDef[] = [
     // Q1 — Upper Right (patient's right = screen LEFT)
-    // 7 visible teeth: 17 is LAST visible (far left), then premolars, canine, incisors toward center
-    { id: "18", shape: "rect", x: 5, y: 36, w: 6, h: 7 },   // wisdom — BEHIND 17, in gum/not visible
-    { id: "17", shape: "rect", x: 10, y: 30, w: 8, h: 9 },   // 2nd molar — last visible tooth (far left)
-    { id: "16", shape: "rect", x: 14, y: 23, w: 8, h: 8 },   // 1st molar
-    { id: "15", shape: "rect", x: 19, y: 17, w: 7, h: 8 },   // 2nd premolar
-    { id: "14", shape: "rect", x: 25, y: 13, w: 6, h: 7 },   // 1st premolar
-    { id: "13", shape: "rect", x: 30, y: 11, w: 6, h: 8 },   // canine
-    { id: "12", shape: "rect", x: 36, y: 9, w: 5, h: 8 },   // lateral incisor
-    { id: "11", shape: "rect", x: 42, y: 8, w: 7, h: 9 },   // central incisor
+    { id: "18", shape: "rect", x: 10, y: 37, w: 5, h: 5 },   // wisdom — behind arch, in gum above 17
+    { id: "17", shape: "rect", x: 12, y: 29, w: 7, h: 7 },   // 2nd molar — last visible (far left)
+    { id: "16", shape: "rect", x: 17, y: 22, w: 7, h: 7 },   // 1st molar
+    { id: "15", shape: "rect", x: 22, y: 17, w: 6, h: 6 },   // 2nd premolar
+    { id: "14", shape: "rect", x: 27, y: 14, w: 5, h: 6 },   // 1st premolar
+    { id: "13", shape: "rect", x: 31, y: 11, w: 5, h: 7 },   // canine
+    { id: "12", shape: "rect", x: 36, y: 9, w: 4, h: 7 },   // lateral incisor
+    { id: "11", shape: "rect", x: 41, y: 8, w: 7, h: 8 },   // central incisor
 
     // Q2 — Upper Left (patient's left = screen RIGHT) — mirror of Q1
-    { id: "21", shape: "rect", x: 51, y: 8, w: 7, h: 9 },   // central incisor
-    { id: "22", shape: "rect", x: 59, y: 9, w: 5, h: 8 },   // lateral incisor
-    { id: "23", shape: "rect", x: 64, y: 11, w: 6, h: 8 },   // canine
-    { id: "24", shape: "rect", x: 69, y: 13, w: 6, h: 7 },   // 1st premolar
-    { id: "25", shape: "rect", x: 74, y: 17, w: 7, h: 8 },   // 2nd premolar
-    { id: "26", shape: "rect", x: 78, y: 23, w: 8, h: 8 },   // 1st molar
-    { id: "27", shape: "rect", x: 82, y: 30, w: 8, h: 9 },   // 2nd molar — last visible tooth (far right)
-    { id: "28", shape: "rect", x: 89, y: 36, w: 6, h: 7 },   // wisdom — BEHIND 27, in gum/not visible
+    { id: "21", shape: "rect", x: 52, y: 8, w: 7, h: 8 },   // central incisor
+    { id: "22", shape: "rect", x: 60, y: 9, w: 4, h: 7 },   // lateral incisor
+    { id: "23", shape: "rect", x: 64, y: 11, w: 5, h: 7 },   // canine
+    { id: "24", shape: "rect", x: 68, y: 14, w: 5, h: 6 },   // 1st premolar
+    { id: "25", shape: "rect", x: 72, y: 17, w: 6, h: 6 },   // 2nd premolar
+    { id: "26", shape: "rect", x: 76, y: 22, w: 7, h: 7 },   // 1st molar
+    { id: "27", shape: "rect", x: 81, y: 29, w: 7, h: 7 },   // 2nd molar — last visible (far right)
+    { id: "28", shape: "rect", x: 85, y: 37, w: 5, h: 5 },   // wisdom — behind arch, in gum above 27
 ];
 
 const LOWER_TEETH: ZoneDef[] = [
     // Q4 — Lower Right (patient's right = screen LEFT)
-    // 7 visible teeth: 47 is LAST visible (far left), incisors at center-bottom
-    { id: "48", shape: "rect", x: 5, y: 57, w: 6, h: 7 },   // wisdom — BEHIND 47, in gum/not visible
-    { id: "47", shape: "rect", x: 10, y: 60, w: 8, h: 9 },   // 2nd molar — last visible tooth
-    { id: "46", shape: "rect", x: 14, y: 67, w: 8, h: 8 },   // 1st molar
-    { id: "45", shape: "rect", x: 19, y: 73, w: 7, h: 7 },   // 2nd premolar
-    { id: "44", shape: "rect", x: 25, y: 77, w: 6, h: 7 },   // 1st premolar
-    { id: "43", shape: "rect", x: 30, y: 80, w: 6, h: 7 },   // canine
-    { id: "42", shape: "rect", x: 36, y: 82, w: 5, h: 7 },   // lateral incisor
-    { id: "41", shape: "rect", x: 42, y: 83, w: 7, h: 7 },   // central incisor
+    { id: "48", shape: "rect", x: 10, y: 56, w: 5, h: 5 },   // wisdom — behind arch, in gum below 47
+    { id: "47", shape: "rect", x: 12, y: 61, w: 7, h: 7 },   // 2nd molar — last visible
+    { id: "46", shape: "rect", x: 17, y: 67, w: 7, h: 7 },   // 1st molar
+    { id: "45", shape: "rect", x: 22, y: 73, w: 6, h: 6 },   // 2nd premolar
+    { id: "44", shape: "rect", x: 27, y: 77, w: 5, h: 6 },   // 1st premolar
+    { id: "43", shape: "rect", x: 31, y: 80, w: 5, h: 6 },   // canine
+    { id: "42", shape: "rect", x: 36, y: 82, w: 4, h: 7 },   // lateral incisor
+    { id: "41", shape: "rect", x: 41, y: 83, w: 7, h: 7 },   // central incisor
 
     // Q3 — Lower Left (patient's left = screen RIGHT) — mirror of Q4
-    { id: "31", shape: "rect", x: 51, y: 83, w: 7, h: 7 },   // central incisor
-    { id: "32", shape: "rect", x: 59, y: 82, w: 5, h: 7 },   // lateral incisor
-    { id: "33", shape: "rect", x: 64, y: 80, w: 6, h: 7 },   // canine
-    { id: "34", shape: "rect", x: 69, y: 77, w: 6, h: 7 },   // 1st premolar
-    { id: "35", shape: "rect", x: 74, y: 73, w: 7, h: 7 },   // 2nd premolar
-    { id: "36", shape: "rect", x: 78, y: 67, w: 8, h: 8 },   // 1st molar
-    { id: "37", shape: "rect", x: 82, y: 60, w: 8, h: 9 },   // 2nd molar — last visible tooth
-    { id: "38", shape: "rect", x: 89, y: 57, w: 6, h: 7 },   // wisdom — BEHIND 37, in gum/not visible
+    { id: "31", shape: "rect", x: 52, y: 83, w: 7, h: 7 },   // central incisor
+    { id: "32", shape: "rect", x: 60, y: 82, w: 4, h: 7 },   // lateral incisor
+    { id: "33", shape: "rect", x: 64, y: 80, w: 5, h: 6 },   // canine
+    { id: "34", shape: "rect", x: 68, y: 77, w: 5, h: 6 },   // 1st premolar
+    { id: "35", shape: "rect", x: 72, y: 73, w: 6, h: 6 },   // 2nd premolar
+    { id: "36", shape: "rect", x: 76, y: 67, w: 7, h: 7 },   // 1st molar
+    { id: "37", shape: "rect", x: 81, y: 61, w: 7, h: 7 },   // 2nd molar — last visible
+    { id: "38", shape: "rect", x: 85, y: 56, w: 5, h: 5 },   // wisdom — behind arch, in gum below 37
 ];
 
 // Soft tissues — zones between the arches
