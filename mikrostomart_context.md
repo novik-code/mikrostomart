@@ -272,12 +272,15 @@ Interactive dental pain diagnostic tool.
 - **Coordinates calibrated** by user via drag-and-drop editor (`/mapa-bolu/editor`)
 - **Welcome popup** — intro text + disclaimer, glassmorphic design, dismissable with animation
 - **Map/List toggle** — switch between interactive map and categorized list view
-- **List view** — teeth grouped by quadrant (Q1-Q4 + soft tissues), urgency color dots, glassmorphic cards
-- **Detail modal** — bottom-sheet slide-up with severity toggle, urgency badge, symptoms, causes, specialist advice, CTA to book
-- **Multi-severity system** — each zone has 3 levels (Łagodne / Umiarkowane / Zaawansowane) with independent symptoms, causes, and advice
-- **7 clinical templates** — incisor, canine, premolar, molar, wisdom tooth, tongue, palate, throat — each ×3 severity levels
-- **Hover tooltips** — zone name appears on hover
-- **Symptom data** — `SymptomData.ts` with description, symptoms list, advice, urgency level per zone
+- **List view** — teeth grouped by quadrant (Q1-Q4 + soft tissues), subtitle display, glassmorphic cards
+- **Detail modal** — bottom-sheet slide-up with severity toggle, urgency badge, symptoms, causes, doctor recommendations, specialist advice, CTA to book
+- **Multi-severity system** — each zone has 3 levels (Łagodne / Umiarkowane / Zaawansowane) with independent symptoms, causes, advice, and recommended doctors
+- **8 clinical templates** — incisor, canine, premolar, molar, wisdom tooth, tongue, palate, throat — each ×3 severity levels
+- **Hover tooltips** — ⓘ icon on symptoms/causes; dark floating tooltip with expanded medical description on hover
+- **Clickable causes** — each cause links to `/rezerwacja` with `?specialist=` and `?reason=` query params, pre-selecting the recommended specialist
+- **Doctor recommendation cards** — each severity level shows recommended specialists with name, specialties, and "Umów →" CTA linking to booking
+- **Booking integration** — `ReservationForm.tsx` reads `specialist` and `reason` query params from URL to pre-populate form
+- **Symptom data** — `SymptomData.ts` with `TipItem` type (`text` + `tip`), `doctors` array per severity, `DOCTORS` constant mapping IDs → names/specialties, 216 tooltip descriptions
 - **Zone editor** (`/mapa-bolu/editor`) — drag-and-drop tool to reposition zones, resize handles, keyboard nudging, export to clipboard
 - **Popup suppression** — `AssistantTeaser` and `PWAInstallPrompt` hidden on `/mapa-bolu` paths
 
@@ -762,6 +765,28 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### February 8, 2026 (Afternoon)
+**Pain Map — Tooltips, Doctor Recommendations & Booking Integration**
+
+#### Commits:
+- `17e3bd1` - Tooltip structure, doctor recommendations, clickable causes, floating tooltip popup
+- `76b77a3` - All 216 tooltip descriptions populated across 8 templates × 3 severity levels
+
+#### Features Added:
+1. **Hover Tooltips** — ⓘ icon on symptoms/causes; dark floating tooltip with expanded medical context
+2. **Clickable Causes** — Each cause links to booking with `?specialist=X&reason=Y` query params
+3. **Doctor Recommendation Cards** — Each severity level shows recommended specialists with specialties and "Umów →" CTA
+4. **Booking Integration** — `ReservationForm.tsx` reads `specialist` and `reason` query params via `window.location`
+5. **Data Model** — `TipItem` type (`{text, tip}`), `doctors` array per severity, `DOCTORS` constant
+6. **Doctor Name Fix** — Dominika Walecko → Dominika Milicz
+
+#### Files Modified:
+- `src/app/mapa-bolu/SymptomData.ts` — TipItem type, DOCTORS constant, 216 tooltip descriptions
+- `src/app/mapa-bolu/PainMapInteractive.tsx` — Tooltip UI, doctor cards, clickable causes, floating tooltip
+- `src/components/ReservationForm.tsx` — Query param support, doctor name fix
+
+---
 
 ### February 8, 2026
 **Pain Map — Interactive Zone Alignment & Premium UI Redesign**

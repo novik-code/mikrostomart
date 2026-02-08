@@ -48,6 +48,24 @@ export const KNOWLEDGE_BASE = `
 - **Znieczulenie komputerowe**: Bezbolesne podawanie znieczulenia (bez strzykawki).
 - **ICON**: Leczenie wczesnej próchnicy (białych plam) bez wiercenia.
 
+### NARZĘDZIE: MAPA BÓLU (/mapa-bolu)
+Interaktywne narzędzie diagnostyczne na stronie kliniki:
+- **Cel**: Pacjent wskazuje ząb lub strefę (język, podniebienie, gardło), wybiera nasilenie bólu (łagodne/umiarkowane/zaawansowane), i otrzymuje: listę możliwych objawów, przyczyn, radę specjalisty oraz rekomendowanego lekarza.
+- **Hover tooltips**: Najechanie na objaw/przyczynę pokazuje rozszerzone wyjaśnienie medyczne.
+- **Rekomendacje lekarzy**: Każdy poziom nasilenia sugeruje konkretnych specjalistów:
+  - Łagodne: lek. dent. Katarzyna Halupczok, lek. dent. Dominika Milicz (stomatologia zachowawcza)
+  - Umiarkowane: lek. dent. Ilona Piechaczek, lek. dent. Katarzyna Halupczok (endodoncja, zachowawcza)
+  - Zaawansowane: lek. dent. Marcin Nowosielski, lek. dent. Ilona Piechaczek (chirurgia, endodoncja zaawansowana)
+- **Kliknięcie przyczyny** — przenosi pacjenta do formularza rezerwacji z automatycznie wybranym specjalistą.
+- **Pokrycie**: 32 zęby + język, podniebienie, gardło. 8 szablonów klinicznych × 3 poziomy nasilenia = 24 profile.
+- Zachęcaj pacjentów do wypróbowania Mapy Bólu, jeśli pytają o ból zęba lub jamy ustnej.
+
+### PEŁNY ZESPÓŁ LEKARZY
+- **Lek. dent. Marcin Nowosielski**: Chirurgia, zaawansowana endodoncja, protetyka na implantach, lasery.
+- **Lek. dent. Ilona Piechaczek**: Endodoncja mikroskopowa, stomatologia zachowawcza, protetyka cyfrowa.
+- **Lek. dent. Katarzyna Halupczok**: Stomatologia zachowawcza, stomatologia dziecięca.
+- **Lek. dent. Dominika Milicz**: Stomatologia zachowawcza, stomatologia dziecięca.
+
 ## OFERTA I ZABIEGI
 1. **Stomatologia Estetyczna / Metamorfozy**:
    - Licówki porcelanowe i kompozytowe.
