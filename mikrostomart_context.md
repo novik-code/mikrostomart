@@ -89,31 +89,60 @@ mikrostomart/
 ├── src/
 │   ├── app/                    # Next.js App Router pages
 │   │   ├── admin/              # Admin panel
-│   │   ├── strefa-pacjenta/    # Patient portal
+│   │   ├── strefa-pacjenta/    # Patient portal (login, register, dashboard, profil, historia)
 │   │   ├── api/                # API routes (21 directories)
 │   │   ├── aktualnosci/        # News/articles
 │   │   ├── mapa-bolu/          # Pain Map (interactive dental map)
 │   │   │   ├── editor/         # Zone position editor tool (debug)
-│   │   │   ├── PainMapInteractive.tsx  # SVG overlay + modals
-│   │   │   └── SymptomData.ts  # 32 teeth + 3 soft tissue data
+│   │   │   ├── PainMapInteractive.tsx  # SVG overlay + modals + tooltips + doctor cards
+│   │   │   └── SymptomData.ts  # 32 teeth + 3 soft tissue data (TipItem, DOCTORS)
 │   │   ├── metamorfozy/        # Before/after gallery
+│   │   ├── nowosielski/        # Dr Nowosielski's blog (Supabase-backed)
+│   │   │   ├── [slug]/         # Dynamic blog post pages
+│   │   │   ├── blog.v2.css     # Blog-specific styling
+│   │   │   └── page.tsx        # Blog listing page
 │   │   ├── oferta/             # Services
+│   │   │   └── implantologia/  # Implantology subpage with pricing
+│   │   ├── selfie/             # Selfie Booth page (SelfieBooth component)
+│   │   ├── symulator/          # Smile Simulator page
 │   │   ├── sklep/              # E-commerce shop
 │   │   ├── kontakt/            # Contact page
-│   │   ├── rezerwacja/         # Booking
-│   │   └── wizyta/[type]/      # Appointment types
-│   ├── components/             # React components (37 files)
-│   ├── context/                # React Context (Cart, Assistant, Auth)
+│   │   ├── rezerwacja/         # Booking (query param support: ?specialist=&reason=)
+│   │   ├── wizyta/[type]/      # Appointment types
+│   │   ├── baza-wiedzy/        # Knowledge base articles
+│   │   ├── faq/                # FAQ page
+│   │   └── zadatek/            # Deposit payment
+│   ├── components/             # React components (31 files + 3 subdirs)
+│   │   ├── modals/             # Appointment modals (Cancel, Confirm, Reschedule)
+│   │   ├── scheduler/          # AppointmentScheduler (Prodentis live slots)
+│   │   ├── simulator/          # Smile simulator studio (Capture, MaskEditor, Results)
+│   │   ├── AssistantTeaser.tsx  # AI chat assistant (full chat mode, suggestions, file upload)
+│   │   ├── AskExpertButton.tsx  # "Ask Expert" CTA button
+│   │   ├── AskExpertModal.tsx   # Expert Q&A form (Supabase-backed)
+│   │   ├── GoogleReviews.tsx    # Google reviews carousel
+│   │   ├── NovikCodeCredit.tsx  # Footer credit with fullscreen takeover animation
+│   │   ├── OverlayEditor.tsx    # Image alignment/overlay editor (simulator)
+│   │   ├── SimulatorModal.tsx   # Smile simulator main modal
+│   │   └── ...                 # (+ 20 more components)
+│   ├── context/                # React Context providers
+│   │   ├── CartContext.tsx      # Shopping cart state
+│   │   ├── AssistantContext.tsx # AI assistant open/close state
+│   │   └── SimulatorContext.tsx # Smile simulator open/close state
 │   ├── lib/                    # Utilities & services
 │   │   ├── smsService.ts       # SMS integration
 │   │   ├── productService.ts   # Product management
 │   │   ├── githubService.ts    # GitHub blog integration
-│   │   ├── knowledgeBase.ts    # AI assistant knowledge
-│   │   └── auth.ts             # Authentication helpers
+│   │   ├── knowledgeBase.ts    # AI assistant knowledge (incl. Pain Map, doctors)
+│   │   ├── appointmentTypeMapper.ts  # Maps Prodentis appointment types
+│   │   ├── mock-patient-data.ts     # Mock data for patient portal dev
+│   │   ├── auth.ts             # Authentication helpers
+│   │   └── jwt.ts              # JWT token utilities
 │   ├── data/                   # Static data
+│   │   ├── articles.ts         # Knowledge base articles
+│   │   └── reviews.ts          # Google reviews data
 │   ├── helpers/                # Helper utilities
 │   └── middleware.ts           # Request middleware
-├── supabase_migrations/        # Database migrations (11 files)
+├── supabase_migrations/        # Database migrations (11 files: 003-014)
 ├── public/                     # Static assets
 ├── scripts/                    # Utility scripts (13 files)
 ├── smsTemplates.json           # SMS message templates
@@ -229,6 +258,7 @@ Clinic news/articles.
 - Hero section with video background
 - Services showcase (Precision, Aesthetics, Experience)
 - YouTube video feed (latest clinic videos)
+- Google Reviews carousel (`GoogleReviews.tsx` with data from `data/reviews.ts`)
 - Metamorphoses preview
 - Products carousel
 - Contact CTA
@@ -242,6 +272,7 @@ Clinic news/articles.
   - Higienizacja (Dental hygiene)
   - Endodoncja (Endodontics)
   - LASER
+- **Implantology subpage** (`/oferta/implantologia`) — dedicated implant page with pricing, SEO-optimized
 
 #### Metamorphoses (`/metamorfozy`)
 - Before/after image gallery
@@ -254,14 +285,23 @@ Clinic news/articles.
 - Carousel layout with snap scroll
 - AI-generated unique graphics for key articles
 
+#### Dr Nowosielski Blog (`/nowosielski`)
+- Supabase-backed blog platform
+- Dynamic slug routes (`/nowosielski/[slug]`)
+- Custom blog CSS (`blog.v2.css`)
+- Client-side rendering with `force-dynamic`
+- Script to migrate blog posts (`scripts/migrate_nowosielski_blog.js`)
+
 #### E-commerce (`/sklep`, `/koszyk`)
-- Product browsing
-- Shopping cart (CartContext)
-- Stripe integration for payments
+- Product browsing with `ProductModal.tsx`
+- Shopping cart (`CartContext.tsx`)
+- Stripe integration for payments (`StripePaymentForm.tsx`, `CheckoutForm.tsx`)
 - Order confirmation emails
 
 #### Booking (`/rezerwacja`, `/wizyta/[type]`)
 - Appointment type selection
+- Specialist pre-selection via URL params (`?specialist=`, `?reason=`)
+- **AppointmentScheduler** — live slot picker from Prodentis API (week navigation, slot selection)
 - Deposit payment option (`/zadatek`)
 - Prodentis calendar integration
 
@@ -284,11 +324,47 @@ Interactive dental pain diagnostic tool.
 - **Zone editor** (`/mapa-bolu/editor`) — drag-and-drop tool to reposition zones, resize handles, keyboard nudging, export to clipboard
 - **Popup suppression** — `AssistantTeaser` and `PWAInstallPrompt` hidden on `/mapa-bolu` paths
 
+#### Smile Simulator (`/symulator`)
+AI-powered smile transformation tool.
+- **SimulatorModal.tsx** — main simulator modal (27KB)
+- **Studio components** (`components/simulator/`):
+  - `StudioCapture.tsx` — camera capture or image upload
+  - `StudioMaskEditor.tsx` — mask editing for inpainting region
+  - `StudioResults.tsx` — display AI-generated results
+- **OverlayEditor.tsx** — drag/rotate/scale image alignment tool for composite generation
+- **SimulatorContext.tsx** — global open/close state provider
+- **AI Backend** — Flux Fill Dev (Replicate) for true inpainting
+- **4 style variants** — Hollywood, Natural, Soft, Strong
+- **Mask parameters** — guidance_scale 15, mask dilation 1.15×
+- **Popup suppression** — `AssistantTeaser` and `PWAInstallPrompt` hidden on `/symulator`
+
+#### Selfie Booth (`/selfie`)
+- `SelfieBooth.tsx` component (12KB)
+- Camera-based face capture
+- MediaPipe face detection integration
+
+#### AI Assistant (`AssistantTeaser.tsx`)
+Full-featured AI chat assistant (441 lines, 22KB).
+- **Chat mode** — expands from teaser bubble into full chat window
+- **Conversation history** — scrollable message thread (user/assistant roles)
+- **Quick suggestions** — predefined questions (godziny, mikroskop, zespół, wizyta)
+- **Action shortcuts** — "📅 Rezerwacja" and "💰 Cennik" buttons navigate to pages
+- **File attachments** — users can attach images to questions (📎 Paperclip icon)
+- **Auto-hiding** — hidden on `/mapa-bolu` and `/symulator` paths (HIDDEN_PATHS)
+- **Dismissable** — teaser can be closed, remembers state
+- **Backend** — `/api/chat` (OpenAI GPT-4) with `knowledgeBase.ts`
+- **Context** — `AssistantContext.tsx` for global open/close state
+
+#### Ask Expert (`AskExpertButton.tsx`, `AskExpertModal.tsx`)
+- "Zadaj Pytanie Ekspertowi" CTA button
+- Modal form for submitting expert questions
+- Backend: `/api/ask-expert` (Supabase storage)
+
 #### Other Pages
 - About Us (`/o-nas`)
-- Contact (`/kontakt`) - Google Maps integration
+- Contact (`/kontakt`) — Google Maps integration, `ContactForm.tsx`
 - FAQ (`/faq`)
-- Knowledge Base (`/baza-wiedzy`)
+- Knowledge Base (`/baza-wiedzy`) — articles from `data/articles.ts`
 - Privacy Policy, RODO, Terms (`/polityka-*`, `/rodo`, `/regulamin`)
 
 ---
@@ -320,8 +396,15 @@ Features:
    - Confirm/cancel via short links
    - Email confirmations
    - Pre-appointment instructions (e.g., "Don't eat 2h before surgery")
+   - **Appointment Modals** (`components/modals/`):
+     - `ConfirmAttendanceModal.tsx` — confirm appointment attendance
+     - `CancelAppointmentModal.tsx` — cancel with optional reason
+     - `RescheduleAppointmentModal.tsx` — request reschedule
 
----
+6. **Novik Code Credit** (`NovikCodeCredit.tsx`)
+   - "Designed and developed by Novik Code" at footer bottom
+   - Epic full-page takeover animation on click (fullscreen logo background, Framer Motion)
+   - Click or ESC to dismiss
 
 ### 🛡 Admin Panel (`/admin`)
 
@@ -394,6 +477,22 @@ Features:
 
 ## 🔌 API Endpoints
 
+### Public APIs
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/chat` | POST | AI assistant (OpenAI GPT-4 + knowledgeBase) |
+| `/api/ask-expert` | POST | Expert Q&A form submission |
+| `/api/contact` | POST | Contact form |
+| `/api/products` | GET | Public product list |
+| `/api/news` | GET | News articles |
+| `/api/youtube` | GET | YouTube feed |
+| `/api/create-payment-intent` | POST | Stripe payment |
+| `/api/order-confirmation` | POST | Order confirmation emails |
+| `/api/simulate` | POST | Smile simulator (Replicate AI) |
+| `/api/short-links/[id]` | GET | Short link resolver |
+| `/api/prodentis` | GET | Prodentis API proxy |
+
 ### Admin APIs (`/api/admin/*`)
 
 | Endpoint | Method | Purpose |
@@ -430,22 +529,9 @@ Features:
 
 | Endpoint | Purpose | Schedule |
 |----------|---------|----------|
-| `/cron/generate-sms-reminders` | Generate SMS drafts | Daily 5:00 AM UTC |
-| `/cron/send-sms-reminders` | Auto-send SMS (if enabled) | Not currently scheduled |
-| `/cron/daily-stats` | Statistics aggregation | Daily |
-| ... | ... | (5 cron directories) |
-
-### Other APIs
-- `/api/prodentis` - Prodentis API proxy
-- `/api/short-links/*` - URL shortener (create, resolve)
-- `/api/contact` - Contact form
-- `/api/create-payment-intent` - Stripe payment
-- `/api/order-confirmation` - Order emails
-- `/api/chat` - AI assistant (OpenAI)
-- `/api/products` - Public product list
-- `/api/youtube` - YouTube feed
-- `/api/simulate` - Test/simulation endpoint
-- `/api/news` - News articles
+| `/cron/appointment-reminders` | Generate SMS drafts for tomorrow | Daily 5:00 AM UTC |
+| `/cron/sms-auto-send` | Auto-send SMS (if enabled) | Not currently scheduled |
+| `/cron/daily-article` | Daily article publishing | Daily |
 
 ---
 
