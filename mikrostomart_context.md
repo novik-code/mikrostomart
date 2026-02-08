@@ -744,24 +744,32 @@ NODE_ENV=production
 
 ## 📝 Recent Changes
 
-### February 7, 2026 (Night)
-**Smile Simulator — Complete AI Pipeline Redesign**
+### February 7–8, 2026 (Night)
+**Smile Simulator — AI Prompt & Parameter Overhaul**
 
 #### Commits:
-- `e3dc727` - OpenAI gpt-image-1 replacing Flux Fill Dev
+- `ee433c1` - Revert to Flux Fill Dev with improved prompt & params
+- `e3dc727` - (reverted) OpenAI gpt-image-1 attempt — changed person's face
 
-#### Changes:
-1. **AI Model Swap:** Replicate `flux-fill-dev` → OpenAI `gpt-image-1`
-2. **Prompt Redesign:** Procedural ("OPEN MOUTH, place veneers") → Descriptive ("beautiful smile with white teeth")
-3. **No More Polling:** Synchronous API (was async with polling loop)
-4. **Mask Fix:** Dilation reduced 1.4× → 1.15× (less face distortion)
-5. **Mask Format:** Added alpha conversion (white→transparent for OpenAI)
-6. **4 Style Variants:** Hollywood, Natural, Soft, Strong
+#### Problem:
+Original Flux Fill Dev settings produced horse-like smiles, face distortion, and identity changes due to aggressive procedural prompt and guidance_scale 30.
+
+#### Solution (final — `ee433c1`):
+1. **Model:** Kept Flux Fill Dev (true inpainting, preserves identity better than gpt-image-1)
+2. **Prompt Redesign:** Procedural → Descriptive
+   - Was: `"CRITICAL: OPEN THE MOUTH... place porcelain veneers shade BL1"`
+   - Now: `"Same person, same photo. Beautiful natural-looking smile with clean white teeth."`
+3. **guidance_scale:** 30 → **15** (much less aggressive)
+4. **Mask Dilation:** 1.4× → **1.15×** (less face area affected)
+5. **4 Style Variants:** Hollywood, Natural, Soft, Strong
+
+#### Lesson Learned:
+OpenAI gpt-image-1 regenerates the entire masked area from scratch (+ forces 1024×1024 square), destroying identity. Flux Fill Dev does real context-aware inpainting.
 
 #### Files Modified:
-- `src/app/api/simulate/route.ts` — Complete rewrite (OpenAI SDK)
-- `src/components/SimulatorModal.tsx` — Mask + API changes
-- `src/app/symulator/page.tsx` — Same API changes
+- `src/app/api/simulate/route.ts` — New prompt, guidance_scale 15
+- `src/components/SimulatorModal.tsx` — Mask dilation 1.15
+- `src/app/symulator/page.tsx` — Matching frontend changes
 
 ---
 
