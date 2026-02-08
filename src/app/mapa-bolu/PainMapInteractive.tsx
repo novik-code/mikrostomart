@@ -35,60 +35,53 @@ interface ZoneDef {
 // Q1 = upper right (screen left), Q2 = upper left (screen right)
 // Q3 = lower left (screen right), Q4 = lower right (screen left)
 
-// Upper teeth — front view, mapped by visual position on the 2048×2048 image
-// IMAGE NOTE: Only 7 teeth visible per quadrant (1-7). 8s (wisdom) are behind/impacted.
-// Incisors (1,2) ≈ OK from last iteration. Canines (3) ≈ OK.
-// Premolars (4,5) and molars (6,7) were too far inward — pushed OUTWARD.
-// 8s were sticking sideways — now tucked behind the arch in gum tissue.
+// Coordinates calibrated by user via interactive editor (/mapa-bolu/editor)
 const UPPER_TEETH: ZoneDef[] = [
-    // Q1 — Upper Right (patient's right = screen LEFT)
-    { id: "18", shape: "rect", x: 10, y: 37, w: 5, h: 5 },   // wisdom — behind arch, in gum above 17
-    { id: "17", shape: "rect", x: 12, y: 29, w: 7, h: 7 },   // 2nd molar — last visible (far left)
-    { id: "16", shape: "rect", x: 17, y: 22, w: 7, h: 7 },   // 1st molar
-    { id: "15", shape: "rect", x: 22, y: 17, w: 6, h: 6 },   // 2nd premolar
-    { id: "14", shape: "rect", x: 27, y: 14, w: 5, h: 6 },   // 1st premolar
-    { id: "13", shape: "rect", x: 31, y: 11, w: 5, h: 7 },   // canine
-    { id: "12", shape: "rect", x: 36, y: 9, w: 4, h: 7 },   // lateral incisor
-    { id: "11", shape: "rect", x: 41, y: 8, w: 7, h: 8 },   // central incisor
-
-    // Q2 — Upper Left (patient's left = screen RIGHT) — mirror of Q1
-    { id: "21", shape: "rect", x: 52, y: 8, w: 7, h: 8 },   // central incisor
-    { id: "22", shape: "rect", x: 60, y: 9, w: 4, h: 7 },   // lateral incisor
-    { id: "23", shape: "rect", x: 64, y: 11, w: 5, h: 7 },   // canine
-    { id: "24", shape: "rect", x: 68, y: 14, w: 5, h: 6 },   // 1st premolar
-    { id: "25", shape: "rect", x: 72, y: 17, w: 6, h: 6 },   // 2nd premolar
-    { id: "26", shape: "rect", x: 76, y: 22, w: 7, h: 7 },   // 1st molar
-    { id: "27", shape: "rect", x: 81, y: 29, w: 7, h: 7 },   // 2nd molar — last visible (far right)
-    { id: "28", shape: "rect", x: 85, y: 37, w: 5, h: 5 },   // wisdom — behind arch, in gum above 27
+    // Q1 — Upper Right (screen LEFT)
+    { id: "18", shape: "rect", x: 17.4, y: 48.2, w: 6.1, h: 4.6 },
+    { id: "17", shape: "rect", x: 16.7, y: 40.8, w: 7, h: 7 },
+    { id: "16", shape: "rect", x: 18.2, y: 34.6, w: 7, h: 7 },
+    { id: "15", shape: "rect", x: 18.9, y: 28.6, w: 6, h: 6 },
+    { id: "14", shape: "rect", x: 22.5, y: 23.1, w: 5, h: 6 },
+    { id: "13", shape: "rect", x: 25.9, y: 14.9, w: 5, h: 7 },
+    { id: "12", shape: "rect", x: 33.3, y: 10.6, w: 4.1, h: 6.7 },
+    { id: "11", shape: "rect", x: 41, y: 8, w: 7, h: 8 },
+    // Q2 — Upper Left (screen RIGHT)
+    { id: "21", shape: "rect", x: 52, y: 8, w: 7, h: 8 },
+    { id: "22", shape: "rect", x: 63.2, y: 10.4, w: 4, h: 7 },
+    { id: "23", shape: "rect", x: 69.2, y: 15.7, w: 5, h: 7 },
+    { id: "24", shape: "rect", x: 72.8, y: 22.2, w: 5.3, h: 7 },
+    { id: "25", shape: "rect", x: 75.3, y: 28.5, w: 6, h: 6 },
+    { id: "26", shape: "rect", x: 76.4, y: 33.9, w: 7, h: 7 },
+    { id: "27", shape: "rect", x: 77.3, y: 40.4, w: 7, h: 7 },
+    { id: "28", shape: "rect", x: 78, y: 46.7, w: 5, h: 5 },
 ];
 
 const LOWER_TEETH: ZoneDef[] = [
-    // Q4 — Lower Right (patient's right = screen LEFT)
-    { id: "48", shape: "rect", x: 10, y: 56, w: 5, h: 5 },   // wisdom — behind arch, in gum below 47
-    { id: "47", shape: "rect", x: 12, y: 61, w: 7, h: 7 },   // 2nd molar — last visible
-    { id: "46", shape: "rect", x: 17, y: 67, w: 7, h: 7 },   // 1st molar
-    { id: "45", shape: "rect", x: 22, y: 73, w: 6, h: 6 },   // 2nd premolar
-    { id: "44", shape: "rect", x: 27, y: 77, w: 5, h: 6 },   // 1st premolar
-    { id: "43", shape: "rect", x: 31, y: 80, w: 5, h: 6 },   // canine
-    { id: "42", shape: "rect", x: 36, y: 82, w: 4, h: 7 },   // lateral incisor
-    { id: "41", shape: "rect", x: 41, y: 83, w: 7, h: 7 },   // central incisor
-
-    // Q3 — Lower Left (patient's left = screen RIGHT) — mirror of Q4
-    { id: "31", shape: "rect", x: 52, y: 83, w: 7, h: 7 },   // central incisor
-    { id: "32", shape: "rect", x: 60, y: 82, w: 4, h: 7 },   // lateral incisor
-    { id: "33", shape: "rect", x: 64, y: 80, w: 5, h: 6 },   // canine
-    { id: "34", shape: "rect", x: 68, y: 77, w: 5, h: 6 },   // 1st premolar
-    { id: "35", shape: "rect", x: 72, y: 73, w: 6, h: 6 },   // 2nd premolar
-    { id: "36", shape: "rect", x: 76, y: 67, w: 7, h: 7 },   // 1st molar
-    { id: "37", shape: "rect", x: 81, y: 61, w: 7, h: 7 },   // 2nd molar — last visible
-    { id: "38", shape: "rect", x: 85, y: 56, w: 5, h: 5 },   // wisdom — behind arch, in gum below 37
+    // Q4 — Lower Right (screen LEFT)
+    { id: "48", shape: "rect", x: 18.8, y: 52.4, w: 5, h: 5 },
+    { id: "47", shape: "rect", x: 17.7, y: 56.4, w: 7, h: 7 },
+    { id: "46", shape: "rect", x: 19, y: 62.3, w: 7, h: 7 },
+    { id: "45", shape: "rect", x: 20.9, y: 68.8, w: 6, h: 6 },
+    { id: "44", shape: "rect", x: 24.4, y: 73.4, w: 5, h: 6 },
+    { id: "43", shape: "rect", x: 29.1, y: 79.1, w: 5, h: 6 },
+    { id: "42", shape: "rect", x: 36.2, y: 81.5, w: 4, h: 7 },
+    { id: "41", shape: "rect", x: 42.1, y: 82.2, w: 7, h: 7 },
+    // Q3 — Lower Left (screen RIGHT)
+    { id: "31", shape: "rect", x: 50.6, y: 82, w: 7, h: 7 },
+    { id: "32", shape: "rect", x: 59.5, y: 81.9, w: 4, h: 7 },
+    { id: "33", shape: "rect", x: 66, y: 79.2, w: 5, h: 6 },
+    { id: "34", shape: "rect", x: 71.2, y: 74.2, w: 5, h: 6 },
+    { id: "35", shape: "rect", x: 74, y: 69.2, w: 6, h: 6 },
+    { id: "36", shape: "rect", x: 74.6, y: 62.7, w: 7, h: 7 },
+    { id: "37", shape: "rect", x: 76.2, y: 56.7, w: 7, h: 7 },
+    { id: "38", shape: "rect", x: 77.9, y: 52, w: 5, h: 5 },
 ];
 
-// Soft tissues — zones between the arches
 const SOFT_ZONES: ZoneDef[] = [
-    { id: "tongue", shape: "rect", x: 33, y: 56, w: 34, h: 18 },  // tongue fills center of lower arch
-    { id: "palate", shape: "rect", x: 33, y: 28, w: 34, h: 12 },  // upper palate (behind upper teeth)
-    { id: "throat", shape: "rect", x: 40, y: 42, w: 20, h: 12 },  // dark cavity center
+    { id: "tongue", shape: "rect", x: 35.8, y: 56.6, w: 28.4, h: 22 },
+    { id: "palate", shape: "rect", x: 33.4, y: 19.7, w: 33.1, h: 25 },
+    { id: "throat", shape: "rect", x: 41.6, y: 46.5, w: 16.8, h: 7.7 },
 ];
 
 const ALL_ZONES = [...UPPER_TEETH, ...LOWER_TEETH, ...SOFT_ZONES];
@@ -110,8 +103,8 @@ export default function PainMapInteractive() {
         const isActive = isHovered || isSelected;
 
         const fill = isActive ? 'rgba(220, 177, 74, 0.35)' : 'transparent';
-        const stroke = isActive ? '#dcb14a' : 'rgba(220, 177, 74, 0.15)';
-        const strokeWidth = isSelected ? '0.8' : '0.3';
+        const stroke = isActive ? '#dcb14a' : 'transparent';
+        const strokeWidth = isSelected ? '0.8' : '0.5';
 
         const commonProps = {
             onClick: () => setSelectedZoneId(zone.id),
