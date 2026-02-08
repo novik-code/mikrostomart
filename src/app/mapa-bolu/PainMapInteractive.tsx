@@ -1,43 +1,26 @@
 "use client";
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { SYMPTOM_DATA } from './SymptomData';
 import Link from 'next/link';
 
 // ─────────────────────────────────────────────────────────────
-// PREMIUM DENTAL MAP — Photorealistic background + invisible SVG overlay
-// The image is dental-map-premium.jpg (1080×1080 approx)
-// SVG viewBox coordinated to percentage positions on the image
+// PREMIUM DENTAL MAP — Photorealistic image + invisible SVG overlay
+// Coordinates calibrated by user via interactive editor
 // ─────────────────────────────────────────────────────────────
 
 interface ZoneDef {
     id: string;
-    // SVG path or rect coordinates (in 100×100 viewBox)
     shape: 'rect' | 'path';
-    d?: string;       // for path
-    x?: number;       // for rect
+    d?: string;
+    x?: number;
     y?: number;
     w?: number;
     h?: number;
 }
 
-// ─── TOOTH ZONES ───
-// Mapped to the dental-map-premium.jpg (2048×2048 square)
-// SVG viewBox is 100×100, coordinates are % of image dimensions
-//
-// Image anatomy reference:
-// - Upper arch: U-shape opening DOWN.  Front teeth at top (~y=8-18), molars at sides (~y=25-38)
-// - Lower arch: U-shape opening UP.    Front teeth at bottom (~y=82-93), molars at sides (~y=57-70)
-// - Mouth cavity (dark): center ~y=38-55
-// - Tongue: center ~y=55-72
-//
-// Patient's RIGHT = viewer's LEFT (standard dental convention)
-// Q1 = upper right (screen left), Q2 = upper left (screen right)
-// Q3 = lower left (screen right), Q4 = lower right (screen left)
-
-// Coordinates calibrated by user via interactive editor (/mapa-bolu/editor)
+// ─── TOOTH ZONES (user-calibrated via /mapa-bolu/editor) ───
 const UPPER_TEETH: ZoneDef[] = [
-    // Q1 — Upper Right (screen LEFT)
     { id: "18", shape: "rect", x: 17.4, y: 48.2, w: 6.1, h: 4.6 },
     { id: "17", shape: "rect", x: 16.7, y: 40.8, w: 7, h: 7 },
     { id: "16", shape: "rect", x: 18.2, y: 34.6, w: 7, h: 7 },
@@ -46,7 +29,6 @@ const UPPER_TEETH: ZoneDef[] = [
     { id: "13", shape: "rect", x: 25.9, y: 14.9, w: 5, h: 7 },
     { id: "12", shape: "rect", x: 33.3, y: 10.6, w: 4.1, h: 6.7 },
     { id: "11", shape: "rect", x: 41, y: 8, w: 7, h: 8 },
-    // Q2 — Upper Left (screen RIGHT)
     { id: "21", shape: "rect", x: 52, y: 8, w: 7, h: 8 },
     { id: "22", shape: "rect", x: 63.2, y: 10.4, w: 4, h: 7 },
     { id: "23", shape: "rect", x: 69.2, y: 15.7, w: 5, h: 7 },
@@ -56,9 +38,7 @@ const UPPER_TEETH: ZoneDef[] = [
     { id: "27", shape: "rect", x: 77.3, y: 40.4, w: 7, h: 7 },
     { id: "28", shape: "rect", x: 78, y: 46.7, w: 5, h: 5 },
 ];
-
 const LOWER_TEETH: ZoneDef[] = [
-    // Q4 — Lower Right (screen LEFT)
     { id: "48", shape: "rect", x: 18.8, y: 52.4, w: 5, h: 5 },
     { id: "47", shape: "rect", x: 17.7, y: 56.4, w: 7, h: 7 },
     { id: "46", shape: "rect", x: 19, y: 62.3, w: 7, h: 7 },
@@ -67,7 +47,6 @@ const LOWER_TEETH: ZoneDef[] = [
     { id: "43", shape: "rect", x: 29.1, y: 79.1, w: 5, h: 6 },
     { id: "42", shape: "rect", x: 36.2, y: 81.5, w: 4, h: 7 },
     { id: "41", shape: "rect", x: 42.1, y: 82.2, w: 7, h: 7 },
-    // Q3 — Lower Left (screen RIGHT)
     { id: "31", shape: "rect", x: 50.6, y: 82, w: 7, h: 7 },
     { id: "32", shape: "rect", x: 59.5, y: 81.9, w: 4, h: 7 },
     { id: "33", shape: "rect", x: 66, y: 79.2, w: 5, h: 6 },
@@ -77,150 +56,183 @@ const LOWER_TEETH: ZoneDef[] = [
     { id: "37", shape: "rect", x: 76.2, y: 56.7, w: 7, h: 7 },
     { id: "38", shape: "rect", x: 77.9, y: 52, w: 5, h: 5 },
 ];
-
 const SOFT_ZONES: ZoneDef[] = [
     { id: "tongue", shape: "rect", x: 35.8, y: 56.6, w: 28.4, h: 22 },
     { id: "palate", shape: "rect", x: 33.4, y: 19.7, w: 33.1, h: 25 },
     { id: "throat", shape: "rect", x: 41.6, y: 46.5, w: 16.8, h: 7.7 },
 ];
-
 const ALL_ZONES = [...UPPER_TEETH, ...LOWER_TEETH, ...SOFT_ZONES];
+
+// ─── CSS KEYFRAMES (injected once) ───
+const STYLE_TAG = `
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes pulseGold {
+  0%, 100% { box-shadow: 0 0 20px rgba(220,177,74,0.15); }
+  50%      { box-shadow: 0 0 30px rgba(220,177,74,0.3); }
+}
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+`;
 
 export default function PainMapInteractive() {
     const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null);
     const [hoveredZoneId, setHoveredZoneId] = useState<string | null>(null);
     const [viewMode, setViewMode] = useState<'map' | 'list'>('map');
+    const [showIntro, setShowIntro] = useState(true);
+    const [introClosing, setIntroClosing] = useState(false);
+    const [modalClosing, setModalClosing] = useState(false);
 
     const selectedData = selectedZoneId ? SYMPTOM_DATA[selectedZoneId] : null;
+
+    // Inject keyframes on mount
+    useEffect(() => {
+        if (typeof document !== 'undefined' && !document.getElementById('painmap-styles')) {
+            const style = document.createElement('style');
+            style.id = 'painmap-styles';
+            style.textContent = STYLE_TAG;
+            document.head.appendChild(style);
+        }
+    }, []);
 
     const getZoneName = useCallback((id: string) => {
         return SYMPTOM_DATA[id]?.title || id;
     }, []);
 
+    const closeIntro = useCallback(() => {
+        setIntroClosing(true);
+        setTimeout(() => { setShowIntro(false); setIntroClosing(false); }, 300);
+    }, []);
+
+    const closeModal = useCallback(() => {
+        setModalClosing(true);
+        setTimeout(() => { setSelectedZoneId(null); setModalClosing(false); }, 250);
+    }, []);
+
+    // ─── RENDER: SVG ZONE ───
     const renderZone = useCallback((zone: ZoneDef) => {
         const isHovered = hoveredZoneId === zone.id;
         const isSelected = selectedZoneId === zone.id;
         const isActive = isHovered || isSelected;
 
-        const fill = isActive ? 'rgba(220, 177, 74, 0.35)' : 'transparent';
-        const stroke = isActive ? '#dcb14a' : 'transparent';
-        const strokeWidth = isSelected ? '0.8' : '0.5';
-
-        const commonProps = {
-            onClick: () => setSelectedZoneId(zone.id),
-            onMouseEnter: () => setHoveredZoneId(zone.id),
-            onMouseLeave: () => setHoveredZoneId(null),
-            fill,
-            stroke,
-            strokeWidth,
-            rx: 1.5,
-            style: { cursor: 'pointer' as const, transition: 'all 0.15s ease' },
-        };
-
         return (
             <g key={zone.id}>
-                {zone.shape === 'rect' ? (
-                    <rect
-                        x={zone.x}
-                        y={zone.y}
-                        width={zone.w}
-                        height={zone.h}
-                        {...commonProps}
-                    />
-                ) : (
-                    <path d={zone.d} {...commonProps} />
-                )}
+                <rect
+                    x={zone.x}
+                    y={zone.y}
+                    width={zone.w}
+                    height={zone.h}
+                    fill={isActive ? 'rgba(220, 177, 74, 0.3)' : 'transparent'}
+                    stroke={isActive ? '#dcb14a' : 'transparent'}
+                    strokeWidth={isSelected ? 0.8 : 0.5}
+                    rx={1}
+                    style={{ cursor: 'pointer', transition: 'all 0.2s ease' }}
+                    onClick={() => setSelectedZoneId(zone.id)}
+                    onMouseEnter={() => setHoveredZoneId(zone.id)}
+                    onMouseLeave={() => setHoveredZoneId(null)}
+                />
             </g>
         );
     }, [hoveredZoneId, selectedZoneId]);
 
+    // ─── RENDER: MAP VIEW ───
     const renderMap = () => (
         <div style={{ position: 'relative', width: '100%' }}>
             <svg
                 viewBox="0 0 100 100"
                 preserveAspectRatio="xMidYMid meet"
-                style={{
-                    width: '100%',
-                    height: '100%',
-                    display: 'block',
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    zIndex: 10,
-                }}
+                style={{ width: '100%', height: '100%', display: 'block', position: 'absolute', top: 0, left: 0, zIndex: 10 }}
             >
-                {/* Invisible interactive zones */}
                 {ALL_ZONES.map(renderZone)}
             </svg>
-
-            {/* The premium dental image as background */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
                 src="/dental-map-premium.jpg"
                 alt="Mapa bólu zębów"
-                style={{
-                    width: '100%',
-                    height: 'auto',
-                    display: 'block',
-                    pointerEvents: 'none',
-                }}
+                style={{ width: '100%', height: 'auto', display: 'block', pointerEvents: 'none' }}
                 draggable={false}
             />
-
             {/* Hover tooltip */}
             {hoveredZoneId && !selectedZoneId && (
                 <div style={{
-                    position: 'absolute',
-                    bottom: '8px',
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    background: 'rgba(0,0,0,0.85)',
-                    color: '#dcb14a',
-                    padding: '6px 16px',
-                    borderRadius: '20px',
-                    fontSize: '13px',
-                    fontWeight: 'bold',
-                    whiteSpace: 'nowrap',
-                    zIndex: 20,
-                    border: '1px solid rgba(220,177,74,0.3)',
-                    backdropFilter: 'blur(8px)',
-                    pointerEvents: 'none',
+                    position: 'absolute', bottom: '12px', left: '50%', transform: 'translateX(-50%)',
+                    background: 'rgba(10,10,10,0.9)', color: '#dcb14a',
+                    padding: '8px 20px', borderRadius: '24px', fontSize: '13px',
+                    fontWeight: 600, whiteSpace: 'nowrap', zIndex: 20,
+                    border: '1px solid rgba(220,177,74,0.4)', backdropFilter: 'blur(12px)',
+                    pointerEvents: 'none', animation: 'slideDown 0.15s ease-out',
+                    boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
+                    letterSpacing: '0.02em',
                 }}>
-                    {getZoneName(hoveredZoneId)}
+                    🦷 {getZoneName(hoveredZoneId)}
                 </div>
             )}
         </div>
     );
 
+    // ─── RENDER: LIST VIEW ───
     const renderList = () => {
-        const quadrants = {
-            'Góra Prawa (1)': Object.keys(SYMPTOM_DATA).filter(k => k.startsWith('1')),
-            'Góra Lewa (2)': Object.keys(SYMPTOM_DATA).filter(k => k.startsWith('2')),
-            'Dół Lewa (3)': Object.keys(SYMPTOM_DATA).filter(k => k.startsWith('3')),
-            'Dół Prawa (4)': Object.keys(SYMPTOM_DATA).filter(k => k.startsWith('4')),
-            'Tkanki Miękkie': ['tongue', 'palate', 'throat', 'cheek-left', 'cheek-right']
-        };
+        const quadrants = [
+            { title: 'Górny Łuk Prawy', subtitle: 'Q1 · Zęby 11–18', keys: ['11', '12', '13', '14', '15', '16', '17', '18'] },
+            { title: 'Górny Łuk Lewy', subtitle: 'Q2 · Zęby 21–28', keys: ['21', '22', '23', '24', '25', '26', '27', '28'] },
+            { title: 'Dolny Łuk Lewy', subtitle: 'Q3 · Zęby 31–38', keys: ['31', '32', '33', '34', '35', '36', '37', '38'] },
+            { title: 'Dolny Łuk Prawy', subtitle: 'Q4 · Zęby 41–48', keys: ['41', '42', '43', '44', '45', '46', '47', '48'] },
+            { title: 'Tkanki Miękkie', subtitle: 'Język · Podniebienie · Gardło', keys: ['tongue', 'palate', 'throat'] },
+        ];
 
         return (
-            <div className="w-full p-4 overflow-y-auto max-h-[600px] bg-neutral-900/50 backdrop-blur rounded-xl border border-white/10">
-                {Object.entries(quadrants).map(([title, keys]) => (
-                    <div key={title} className="mb-6">
-                        <h3 className="text-[#dcb14a] font-bold text-sm uppercase mb-3 border-b border-[#dcb14a]/20 pb-1">{title}</h3>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                            {keys.map(key => {
+            <div style={{
+                width: '100%', maxHeight: '75vh', overflowY: 'auto',
+                padding: '16px', background: 'rgba(10,10,10,0.7)',
+                backdropFilter: 'blur(16px)', borderRadius: '16px',
+                border: '1px solid rgba(255,255,255,0.08)',
+            }}>
+                {quadrants.map((q, qi) => (
+                    <div key={q.title} style={{ marginBottom: qi < quadrants.length - 1 ? '24px' : 0 }}>
+                        <div style={{ marginBottom: '12px' }}>
+                            <h3 style={{ color: '#dcb14a', fontWeight: 700, fontSize: '14px', letterSpacing: '0.05em', textTransform: 'uppercase', margin: 0 }}>
+                                {q.title}
+                            </h3>
+                            <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '11px' }}>{q.subtitle}</span>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '8px' }}>
+                            {q.keys.map(key => {
                                 const info = SYMPTOM_DATA[key];
                                 if (!info) return null;
+                                const isSelected = selectedZoneId === key;
+                                const urgencyColor = info.urgency === 'high' ? '#ef4444' : info.urgency === 'medium' ? '#f59e0b' : '#22c55e';
                                 return (
                                     <button
                                         key={key}
                                         onClick={() => setSelectedZoneId(key)}
-                                        className={`text-xs p-2 rounded border transition-all text-left ${selectedZoneId === key
-                                            ? 'bg-[#dcb14a] text-black border-[#dcb14a]'
-                                            : 'bg-white/5 text-gray-300 border-white/10 hover:bg-white/10 hover:border-[#dcb14a]/50'
-                                            }`}
+                                        style={{
+                                            display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
+                                            padding: '10px 12px', borderRadius: '12px', border: 'none',
+                                            cursor: 'pointer', textAlign: 'left', transition: 'all 0.2s ease',
+                                            background: isSelected ? 'rgba(220,177,74,0.15)' : 'rgba(255,255,255,0.04)',
+                                            outline: isSelected ? '1px solid rgba(220,177,74,0.5)' : '1px solid rgba(255,255,255,0.06)',
+                                        }}
+                                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(220,177,74,0.1)'; e.currentTarget.style.outline = '1px solid rgba(220,177,74,0.3)'; }}
+                                        onMouseLeave={e => {
+                                            e.currentTarget.style.background = isSelected ? 'rgba(220,177,74,0.15)' : 'rgba(255,255,255,0.04)';
+                                            e.currentTarget.style.outline = isSelected ? '1px solid rgba(220,177,74,0.5)' : '1px solid rgba(255,255,255,0.06)';
+                                        }}
                                     >
-                                        <div className="font-bold">{key}</div>
-                                        <div className="truncate opacity-80">{info.title}</div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                                            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: urgencyColor, flexShrink: 0 }} />
+                                            <span style={{ color: '#dcb14a', fontWeight: 700, fontSize: '13px' }}>{key}</span>
+                                        </div>
+                                        <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '11px', lineHeight: 1.3 }}>
+                                            {info.title}
+                                        </span>
                                     </button>
                                 );
                             })}
@@ -231,97 +243,274 @@ export default function PainMapInteractive() {
         );
     };
 
+    // ─── URGENCY HELPERS ───
+    const getUrgencyStyle = (urgency: string) => {
+        switch (urgency) {
+            case 'high': return { bg: 'rgba(239,68,68,0.15)', text: '#f87171', border: 'rgba(239,68,68,0.3)', icon: '🔴', label: 'Pilne — umów wizytę' };
+            case 'medium': return { bg: 'rgba(245,158,11,0.15)', text: '#fbbf24', border: 'rgba(245,158,11,0.3)', icon: '🟡', label: 'Umiarkowane' };
+            default: return { bg: 'rgba(34,197,94,0.15)', text: '#4ade80', border: 'rgba(34,197,94,0.3)', icon: '🟢', label: 'Łagodne' };
+        }
+    };
+
     return (
-        <div className="w-full h-full relative flex flex-col">
-            {/* VIEW TOGGLE */}
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[60] flex gap-2 bg-black/80 p-1 rounded-full border border-white/10 shadow-xl backdrop-blur">
-                <button
-                    onClick={() => setViewMode('map')}
-                    className={`px-4 py-1.5 rounded-full text-xs font-bold transition-colors ${viewMode === 'map' ? 'bg-[#dcb14a] text-black' : 'text-gray-400 hover:text-white'}`}
-                >
-                    Mapa 🗺️
-                </button>
-                <button
-                    onClick={() => setViewMode('list')}
-                    className={`px-4 py-1.5 rounded-full text-xs font-bold transition-colors ${viewMode === 'list' ? 'bg-[#dcb14a] text-black' : 'text-gray-400 hover:text-white'}`}
-                >
-                    Lista 📋
-                </button>
-            </div>
+        <div style={{ width: '100%', maxWidth: '600px', margin: '0 auto', position: 'relative', paddingTop: '72px' }}>
 
-            <div style={{ width: '100%', position: 'relative', zIndex: 50 }}>
-                {viewMode === 'map' ? renderMap() : renderList()}
-
-                {/* DETAIL MODAL */}
-                {selectedData && (
+            {/* ═══ INTRO POPUP ═══ */}
+            {showIntro && (
+                <div style={{
+                    position: 'fixed', inset: 0, zIndex: 9999,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    padding: '1rem',
+                    animation: introClosing ? 'fadeIn 0.3s ease reverse forwards' : 'fadeIn 0.3s ease',
+                }}>
                     <div
-                        style={{
-                            position: 'fixed',
-                            inset: 0,
-                            zIndex: 9999,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            padding: '1rem',
-                            pointerEvents: 'auto'
-                        }}
-                    >
-                        <div
-                            className="absolute inset-0 bg-black/85 backdrop-blur-sm"
-                            onClick={() => setSelectedZoneId(null)}
-                        />
-                        <div className="bg-[#0a0a0a] border border-[#dcb14a]/50 rounded-2xl p-6 w-full max-w-lg shadow-2xl shadow-[#dcb14a]/10 relative overflow-y-auto max-h-[90vh] flex flex-col items-center text-center z-[10000]">
-                            <button
-                                onClick={() => setSelectedZoneId(null)}
-                                className="absolute top-3 right-3 text-gray-400 hover:text-[#dcb14a] transition-colors"
-                            >
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
-                            </button>
-
-                            {/* Urgency Badge */}
-                            <div className={`mb-3 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${selectedData.urgency === 'high' ? 'bg-red-500/20 text-red-400 border border-red-500/30' :
-                                selectedData.urgency === 'medium' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
-                                    'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                                }`}>
-                                {selectedData.urgency === 'high' ? '⚠️ Pilne — umów wizytę' :
-                                    selectedData.urgency === 'medium' ? '🔶 Umiarkowane' :
-                                        '🟢 Łagodne'}
-                            </div>
-
-                            <h3 className="text-2xl font-heading text-[#dcb14a] mb-1">{selectedData.title}</h3>
-                            {selectedZoneId && /^\d+$/.test(selectedZoneId) && (
-                                <span className="text-xs text-gray-500 mb-3">Ząb nr {selectedZoneId}</span>
-                            )}
-                            <p className="text-sm text-gray-400 mb-6 font-light">{selectedData.description}</p>
-
-                            <div className="w-full space-y-3 mb-6 text-left">
-                                <div className="bg-white/5 p-4 rounded-xl border border-white/5">
-                                    <span className="text-xs font-bold text-[#dcb14a] uppercase tracking-wider block mb-2">Możliwe objawy</span>
-                                    <ul className="space-y-1">
-                                        {selectedData.symptoms.map((s, i) => (
-                                            <li key={i} className="text-sm text-gray-300 flex items-start gap-2">
-                                                <span className="text-[#dcb14a] mt-0.5">•</span>
-                                                {s}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                                <div className="bg-white/5 p-4 rounded-xl border border-white/5">
-                                    <span className="text-xs font-bold text-[#dcb14a] uppercase tracking-wider block mb-2">Rada specjalisty</span>
-                                    <p className="text-sm text-gray-300 leading-relaxed">{selectedData.advice}</p>
-                                </div>
-                            </div>
-
-                            <Link
-                                href="/rezerwacja"
-                                className="inline-block w-full bg-[#dcb14a] hover:bg-[#c59d3e] text-black font-bold py-3 rounded-xl transition-all hover:shadow-lg hover:shadow-[#dcb14a]/20 text-center"
-                            >
-                                Rezerwuj wizytę
-                            </Link>
+                        style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)' }}
+                        onClick={closeIntro}
+                    />
+                    <div style={{
+                        position: 'relative', zIndex: 1,
+                        background: 'linear-gradient(145deg, rgba(20,20,20,0.95), rgba(10,10,10,0.98))',
+                        border: '1px solid rgba(220,177,74,0.3)',
+                        borderRadius: '24px', padding: '32px 28px', maxWidth: '420px', width: '100%',
+                        textAlign: 'center', backdropFilter: 'blur(20px)',
+                        boxShadow: '0 25px 60px rgba(0,0,0,0.7), 0 0 40px rgba(220,177,74,0.08)',
+                        animation: introClosing ? 'fadeInUp 0.3s ease reverse forwards' : 'fadeInUp 0.4s ease',
+                    }}>
+                        <div style={{ fontSize: '48px', marginBottom: '12px' }}>🦷</div>
+                        <h2 style={{
+                            color: '#dcb14a', fontSize: '24px', fontWeight: 700,
+                            marginBottom: '12px', letterSpacing: '-0.01em',
+                        }}>
+                            Mapa Bólu
+                        </h2>
+                        <p style={{
+                            color: 'rgba(255,255,255,0.6)', fontSize: '14px', lineHeight: 1.7,
+                            marginBottom: '20px',
+                        }}>
+                            Dotknij ząb lub obszar, który Cię boli — podpowiemy, co może być przyczyną
+                            i kiedy warto umówić wizytę.
+                        </p>
+                        <div style={{
+                            background: 'rgba(255,255,255,0.04)', borderRadius: '12px',
+                            padding: '10px 16px', marginBottom: '24px',
+                            border: '1px solid rgba(255,255,255,0.06)',
+                        }}>
+                            <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '11px', margin: 0, lineHeight: 1.5 }}>
+                                ⓘ Narzędzie ma charakter informacyjny i nie zastępuje wizyty u specjalisty.
+                            </p>
                         </div>
+                        <button
+                            onClick={closeIntro}
+                            style={{
+                                width: '100%', padding: '14px', border: 'none', borderRadius: '14px',
+                                background: 'linear-gradient(135deg, #dcb14a, #c59d3e)',
+                                color: '#000', fontWeight: 700, fontSize: '15px', cursor: 'pointer',
+                                transition: 'all 0.2s ease', letterSpacing: '0.02em',
+                                boxShadow: '0 4px 16px rgba(220,177,74,0.3)',
+                            }}
+                            onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 24px rgba(220,177,74,0.4)'; }}
+                            onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(220,177,74,0.3)'; }}
+                        >
+                            Rozpocznij diagnostykę
+                        </button>
                     </div>
-                )}
+                </div>
+            )}
+
+            {/* ═══ VIEW TOGGLE ═══ */}
+            <div style={{
+                display: 'flex', justifyContent: 'center', marginBottom: '12px', padding: '0 16px',
+            }}>
+                <div style={{
+                    display: 'inline-flex', gap: '4px',
+                    background: 'rgba(255,255,255,0.04)', padding: '4px',
+                    borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)',
+                }}>
+                    {(['map', 'list'] as const).map(mode => (
+                        <button
+                            key={mode}
+                            onClick={() => setViewMode(mode)}
+                            style={{
+                                padding: '8px 20px', border: 'none', borderRadius: '10px',
+                                fontSize: '13px', fontWeight: 600, cursor: 'pointer',
+                                transition: 'all 0.2s ease', letterSpacing: '0.02em',
+                                background: viewMode === mode ? 'linear-gradient(135deg, #dcb14a, #c59d3e)' : 'transparent',
+                                color: viewMode === mode ? '#000' : 'rgba(255,255,255,0.4)',
+                                boxShadow: viewMode === mode ? '0 2px 12px rgba(220,177,74,0.25)' : 'none',
+                            }}
+                        >
+                            {mode === 'map' ? '🗺️ Mapa' : '📋 Lista'}
+                        </button>
+                    ))}
+                </div>
             </div>
+
+            {/* ═══ CONTENT ═══ */}
+            <div style={{ padding: '0 8px' }}>
+                <div style={{
+                    borderRadius: '20px', overflow: 'hidden',
+                    boxShadow: '0 8px 40px rgba(0,0,0,0.5)',
+                    border: '1px solid rgba(255,255,255,0.06)',
+                }}>
+                    {viewMode === 'map' ? renderMap() : renderList()}
+                </div>
+            </div>
+
+            {/* ═══ DETAIL MODAL ═══ */}
+            {selectedData && (
+                <div
+                    style={{
+                        position: 'fixed', inset: 0, zIndex: 9999,
+                        display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+                        padding: '0',
+                        animation: modalClosing ? 'fadeIn 0.25s ease reverse forwards' : 'fadeIn 0.2s ease',
+                    }}
+                >
+                    {/* Backdrop */}
+                    <div
+                        style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)' }}
+                        onClick={closeModal}
+                    />
+
+                    {/* Modal card — slides up from bottom */}
+                    <div style={{
+                        position: 'relative', zIndex: 1, width: '100%', maxWidth: '500px',
+                        maxHeight: '85vh', overflowY: 'auto',
+                        background: 'linear-gradient(180deg, rgba(18,18,18,0.98), rgba(10,10,10,0.99))',
+                        borderTop: '2px solid rgba(220,177,74,0.4)',
+                        borderRadius: '24px 24px 0 0',
+                        padding: '28px 24px 32px',
+                        boxShadow: '0 -10px 50px rgba(0,0,0,0.6), 0 0 30px rgba(220,177,74,0.05)',
+                        backdropFilter: 'blur(20px)',
+                        animation: modalClosing ? 'fadeInUp 0.25s ease reverse forwards' : 'fadeInUp 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
+                    }}>
+                        {/* Handle bar */}
+                        <div style={{
+                            width: '36px', height: '4px', borderRadius: '2px',
+                            background: 'rgba(255,255,255,0.15)', margin: '0 auto 20px',
+                        }} />
+
+                        {/* Close button */}
+                        <button
+                            onClick={closeModal}
+                            style={{
+                                position: 'absolute', top: '16px', right: '16px',
+                                width: '32px', height: '32px', borderRadius: '50%',
+                                background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)',
+                                color: 'rgba(255,255,255,0.4)', cursor: 'pointer',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                transition: 'all 0.2s ease', fontSize: '16px',
+                            }}
+                            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(220,177,74,0.15)'; e.currentTarget.style.color = '#dcb14a'; e.currentTarget.style.borderColor = 'rgba(220,177,74,0.3)'; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = 'rgba(255,255,255,0.4)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; }}
+                        >
+                            ✕
+                        </button>
+
+                        {/* Urgency badge */}
+                        {(() => {
+                            const u = getUrgencyStyle(selectedData.urgency);
+                            return (
+                                <div style={{
+                                    display: 'inline-flex', alignItems: 'center', gap: '6px',
+                                    background: u.bg, color: u.text,
+                                    padding: '6px 14px', borderRadius: '20px',
+                                    fontSize: '11px', fontWeight: 700, textTransform: 'uppercase',
+                                    letterSpacing: '0.06em', border: `1px solid ${u.border}`,
+                                    marginBottom: '16px',
+                                }}>
+                                    {u.icon} {u.label}
+                                </div>
+                            );
+                        })()}
+
+                        {/* Title */}
+                        <h3 style={{
+                            color: '#dcb14a', fontSize: '22px', fontWeight: 700,
+                            margin: '0 0 4px', letterSpacing: '-0.01em',
+                        }}>
+                            {selectedData.title}
+                        </h3>
+                        {selectedZoneId && /^\d+$/.test(selectedZoneId) && (
+                            <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '12px' }}>
+                                Ząb nr {selectedZoneId}
+                            </span>
+                        )}
+
+                        <p style={{
+                            color: 'rgba(255,255,255,0.5)', fontSize: '14px', lineHeight: 1.6,
+                            margin: '12px 0 20px',
+                        }}>
+                            {selectedData.description}
+                        </p>
+
+                        {/* Symptoms card */}
+                        <div style={{
+                            background: 'rgba(255,255,255,0.03)', borderRadius: '16px',
+                            padding: '16px', marginBottom: '12px',
+                            border: '1px solid rgba(255,255,255,0.06)',
+                        }}>
+                            <span style={{
+                                color: '#dcb14a', fontSize: '11px', fontWeight: 700,
+                                textTransform: 'uppercase', letterSpacing: '0.08em',
+                                display: 'block', marginBottom: '10px',
+                            }}>
+                                Możliwe objawy
+                            </span>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                {selectedData.symptoms.map((s, i) => (
+                                    <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                                        <span style={{
+                                            width: '6px', height: '6px', borderRadius: '50%',
+                                            background: '#dcb14a', flexShrink: 0, marginTop: '6px',
+                                        }} />
+                                        <span style={{ color: 'rgba(255,255,255,0.65)', fontSize: '13px', lineHeight: 1.5 }}>
+                                            {s}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Advice card */}
+                        <div style={{
+                            background: 'rgba(220,177,74,0.04)', borderRadius: '16px',
+                            padding: '16px', marginBottom: '24px',
+                            border: '1px solid rgba(220,177,74,0.1)',
+                        }}>
+                            <span style={{
+                                color: '#dcb14a', fontSize: '11px', fontWeight: 700,
+                                textTransform: 'uppercase', letterSpacing: '0.08em',
+                                display: 'block', marginBottom: '8px',
+                            }}>
+                                💡 Rada specjalisty
+                            </span>
+                            <p style={{
+                                color: 'rgba(255,255,255,0.6)', fontSize: '13px',
+                                lineHeight: 1.6, margin: 0,
+                            }}>
+                                {selectedData.advice}
+                            </p>
+                        </div>
+
+                        {/* CTA */}
+                        <Link
+                            href="/rezerwacja"
+                            style={{
+                                display: 'block', width: '100%', padding: '14px',
+                                borderRadius: '14px', textAlign: 'center',
+                                background: 'linear-gradient(135deg, #dcb14a, #c59d3e)',
+                                color: '#000', fontWeight: 700, fontSize: '15px',
+                                textDecoration: 'none', transition: 'all 0.2s ease',
+                                boxShadow: '0 4px 20px rgba(220,177,74,0.3)',
+                                letterSpacing: '0.02em',
+                            }}
+                        >
+                            Rezerwuj wizytę
+                        </Link>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
