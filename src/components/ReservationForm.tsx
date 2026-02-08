@@ -12,7 +12,7 @@ const SPECIALISTS = [
     { id: "marcin", name: "lek. dent. Marcin Nowosielski", role: "doctor" },
     { id: "ilona", name: "lek. dent. Ilona Piechaczek", role: "doctor" },
     { id: "katarzyna", name: "lek. dent. Katarzyna Halupczok", role: "doctor" },
-    { id: "dominika", name: "lek. dent. Dominika Walecko", role: "doctor" },
+    { id: "dominika", name: "lek. dent. Dominika Milicz", role: "doctor" },
     { id: "malgorzata", name: "hig. stom. Małgorzata Maćków-Huras", role: "hygienist" },
 ] as const;
 
@@ -64,9 +64,20 @@ export default function ReservationForm() {
             specialist: "",
             service: "",
             date: "",
-            time: ""
+            time: "",
+            description: "",
         }
     });
+
+    // Read query params from Pain Map links (client-side only)
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const params = new URLSearchParams(window.location.search);
+        const specialist = params.get('specialist');
+        const reason = params.get('reason');
+        if (specialist) setValue('specialist', specialist);
+        if (reason) setValue('description', `Mapa Bólu: ${reason}`);
+    }, [setValue]);
 
     const selectedSpecialistId = watch("specialist");
     const selectedDate = watch("date");

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useCallback, useEffect } from 'react';
-import { SYMPTOM_DATA, type ZoneInfo, type SeverityLevel } from './SymptomData';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { SYMPTOM_DATA, DOCTORS, type ZoneInfo, type SeverityLevel, type TipItem } from './SymptomData';
 import Link from 'next/link';
 
 // ─────────────────────────────────────────────────────────────
@@ -89,9 +89,22 @@ export default function PainMapInteractive() {
     const [introClosing, setIntroClosing] = useState(false);
     const [modalClosing, setModalClosing] = useState(false);
     const [activeSeverity, setActiveSeverity] = useState<SeverityKey>('low');
+    const [hoveredTip, setHoveredTip] = useState<{ text: string; x: number; y: number } | null>(null);
+    const tipTimeout = useRef<NodeJS.Timeout | null>(null);
 
     const selectedData: ZoneInfo | null = selectedZoneId ? SYMPTOM_DATA[selectedZoneId] ?? null : null;
     const activeLevel: SeverityLevel | null = selectedData ? selectedData.levels[activeSeverity] : null;
+
+    // Tooltip handlers
+    const showTip = useCallback((tip: string, e: React.MouseEvent) => {
+        if (!tip) return;
+        if (tipTimeout.current) clearTimeout(tipTimeout.current);
+        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        setHoveredTip({ text: tip, x: rect.left + rect.width / 2, y: rect.top - 8 });
+    }, []);
+    const hideTip = useCallback(() => {
+        tipTimeout.current = setTimeout(() => setHoveredTip(null), 150);
+    }, []);
 
     // Inject keyframes on mount
     useEffect(() => {
@@ -505,20 +518,25 @@ export default function PainMapInteractive() {
                             </span>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                 {activeLevel.symptoms.map((s, i) => (
-                                    <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                                    <div key={i}
+                                        style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', position: 'relative', cursor: s.tip ? 'help' : 'default' }}
+                                        onMouseEnter={e => showTip(s.tip, e)}
+                                        onMouseLeave={hideTip}
+                                    >
                                         <span style={{
                                             width: '6px', height: '6px', borderRadius: '50%',
                                             background: '#dcb14a', flexShrink: 0, marginTop: '6px',
                                         }} />
                                         <span style={{ color: 'rgba(255,255,255,0.65)', fontSize: '13px', lineHeight: 1.5 }}>
-                                            {s}
+                                            {s.text}
+                                            {s.tip && <span style={{ color: 'rgba(220,177,74,0.5)', fontSize: '11px', marginLeft: '4px' }}>ⓘ</span>}
                                         </span>
                                     </div>
                                 ))}
                             </div>
                         </div>
 
-                        {/* Causes card */}
+                        {/* Causes card — clickable → booking */}
                         <div style={{
                             background: 'rgba(255,255,255,0.03)', borderRadius: '16px',
                             padding: '16px', marginBottom: '12px',
@@ -531,20 +549,83 @@ export default function PainMapInteractive() {
                             }}>
                                 🔍 Możliwe przyczyny
                             </span>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                                 {activeLevel.causes.map((c, i) => (
-                                    <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                                    <Link
+                                        key={i}
+                                        href={`/rezerwacja?specialist=${activeLevel.doctors?.[0] || ''}&reason=${encodeURIComponent(c.text)}`}
+                                        style={{
+                                            display: 'flex', alignItems: 'flex-start', gap: '8px',
+                                            textDecoration: 'none', padding: '6px 8px', borderRadius: '10px',
+                                            transition: 'all 0.15s ease', cursor: 'pointer',
+                                            background: 'transparent', border: 'none',
+                                        }}
+                                        onMouseEnter={e => {
+                                            (e.currentTarget as HTMLElement).style.background = 'rgba(220,177,74,0.08)';
+                                            showTip(c.tip, e);
+                                        }}
+                                        onMouseLeave={e => {
+                                            (e.currentTarget as HTMLElement).style.background = 'transparent';
+                                            hideTip();
+                                        }}
+                                    >
                                         <span style={{
                                             width: '6px', height: '6px', borderRadius: '50%',
-                                            background: 'rgba(255,255,255,0.25)', flexShrink: 0, marginTop: '6px',
+                                            background: 'rgba(255,255,255,0.25)', flexShrink: 0, marginTop: '7px',
                                         }} />
-                                        <span style={{ color: 'rgba(255,255,255,0.55)', fontSize: '13px', lineHeight: 1.5 }}>
-                                            {c}
+                                        <span style={{ color: 'rgba(255,255,255,0.55)', fontSize: '13px', lineHeight: 1.5, flex: 1 }}>
+                                            {c.text}
+                                            {c.tip && <span style={{ color: 'rgba(220,177,74,0.4)', fontSize: '11px', marginLeft: '4px' }}>ⓘ</span>}
                                         </span>
-                                    </div>
+                                        <span style={{ color: 'rgba(220,177,74,0.5)', fontSize: '11px', flexShrink: 0, marginTop: '3px' }}>umów →</span>
+                                    </Link>
                                 ))}
                             </div>
                         </div>
+
+                        {/* Recommended doctors */}
+                        {activeLevel.doctors && activeLevel.doctors.length > 0 && (
+                            <div style={{
+                                background: 'rgba(220,177,74,0.03)', borderRadius: '16px',
+                                padding: '16px', marginBottom: '12px',
+                                border: '1px solid rgba(220,177,74,0.08)',
+                            }}>
+                                <span style={{
+                                    color: '#dcb14a', fontSize: '11px', fontWeight: 700,
+                                    textTransform: 'uppercase', letterSpacing: '0.08em',
+                                    display: 'block', marginBottom: '10px',
+                                }}>
+                                    👨‍⚕️ Rekomendowani specjaliści
+                                </span>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                    {activeLevel.doctors.map(docId => {
+                                        const doc = DOCTORS[docId];
+                                        if (!doc) return null;
+                                        return (
+                                            <Link
+                                                key={docId}
+                                                href={`/rezerwacja?specialist=${docId}`}
+                                                style={{
+                                                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                                    padding: '10px 14px', borderRadius: '12px',
+                                                    background: 'rgba(255,255,255,0.03)',
+                                                    border: '1px solid rgba(255,255,255,0.06)',
+                                                    textDecoration: 'none', transition: 'all 0.15s ease',
+                                                }}
+                                                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(220,177,74,0.1)'; e.currentTarget.style.borderColor = 'rgba(220,177,74,0.3)'; }}
+                                                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'; }}
+                                            >
+                                                <div>
+                                                    <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '13px', fontWeight: 600 }}>{doc.name}</div>
+                                                    <div style={{ color: 'rgba(255,255,255,0.35)', fontSize: '11px', marginTop: '2px' }}>{doc.specialties}</div>
+                                                </div>
+                                                <span style={{ color: '#dcb14a', fontSize: '12px', fontWeight: 600, flexShrink: 0, marginLeft: '12px' }}>Umów →</span>
+                                            </Link>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
 
                         {/* Advice card */}
                         <div style={{
@@ -569,7 +650,7 @@ export default function PainMapInteractive() {
 
                         {/* CTA */}
                         <Link
-                            href="/rezerwacja"
+                            href={`/rezerwacja${activeLevel.doctors?.[0] ? `?specialist=${activeLevel.doctors[0]}` : ''}`}
                             style={{
                                 display: 'block', width: '100%', padding: '14px',
                                 borderRadius: '14px', textAlign: 'center',
@@ -582,6 +663,32 @@ export default function PainMapInteractive() {
                         >
                             Rezerwuj wizytę
                         </Link>
+
+                        {/* Floating tooltip */}
+                        {hoveredTip && (
+                            <div style={{
+                                position: 'fixed',
+                                left: Math.min(hoveredTip.x, typeof window !== 'undefined' ? window.innerWidth - 280 : 300),
+                                top: hoveredTip.y,
+                                transform: 'translate(-50%, -100%)',
+                                maxWidth: '260px', padding: '10px 14px',
+                                background: 'rgba(10,10,10,0.95)', color: 'rgba(255,255,255,0.8)',
+                                fontSize: '12px', lineHeight: 1.5, borderRadius: '12px',
+                                border: '1px solid rgba(220,177,74,0.3)',
+                                boxShadow: '0 8px 30px rgba(0,0,0,0.6)',
+                                zIndex: 10001, pointerEvents: 'none',
+                                animation: 'fadeIn 0.15s ease',
+                            }}>
+                                {hoveredTip.text}
+                                <div style={{
+                                    position: 'absolute', bottom: '-5px', left: '50%',
+                                    width: '10px', height: '10px', background: 'rgba(10,10,10,0.95)',
+                                    borderRight: '1px solid rgba(220,177,74,0.3)',
+                                    borderBottom: '1px solid rgba(220,177,74,0.3)',
+                                    transform: 'translateX(-50%) rotate(45deg)',
+                                }} />
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
