@@ -1,6 +1,6 @@
 # Mikrostomart - Complete Project Context
 
-> **Last Updated:** 2026-02-07  
+> **Last Updated:** 2026-02-08  
 > **Version:** Production (Vercel Deployment)  
 > **Status:** Active Development
 
@@ -92,6 +92,10 @@ mikrostomart/
 │   │   ├── strefa-pacjenta/    # Patient portal
 │   │   ├── api/                # API routes (21 directories)
 │   │   ├── aktualnosci/        # News/articles
+│   │   ├── mapa-bolu/          # Pain Map (interactive dental map)
+│   │   │   ├── editor/         # Zone position editor tool (debug)
+│   │   │   ├── PainMapInteractive.tsx  # SVG overlay + modals
+│   │   │   └── SymptomData.ts  # 32 teeth + 3 soft tissue data
 │   │   ├── metamorfozy/        # Before/after gallery
 │   │   ├── oferta/             # Services
 │   │   ├── sklep/              # E-commerce shop
@@ -261,12 +265,25 @@ Clinic news/articles.
 - Deposit payment option (`/zadatek`)
 - Prodentis calendar integration
 
+#### Pain Map (`/mapa-bolu`)
+Interactive dental pain diagnostic tool.
+- **Premium dental image** (`dental-map-premium.jpg`) as background
+- **SVG overlay** with 35 interactive zones (32 teeth + 3 soft tissues: tongue, palate, throat)
+- **Coordinates calibrated** by user via drag-and-drop editor (`/mapa-bolu/editor`)
+- **Welcome popup** — intro text + disclaimer, glassmorphic design, dismissable with animation
+- **Map/List toggle** — switch between interactive map and categorized list view
+- **List view** — teeth grouped by quadrant (Q1-Q4 + soft tissues), urgency color dots, glassmorphic cards
+- **Detail modal** — bottom-sheet slide-up with urgency badge, symptoms, specialist advice, CTA to book
+- **Hover tooltips** — zone name appears on hover
+- **Symptom data** — `SymptomData.ts` with description, symptoms list, advice, urgency level per zone
+- **Zone editor** (`/mapa-bolu/editor`) — drag-and-drop tool to reposition zones, resize handles, keyboard nudging, export to clipboard
+- **Popup suppression** — `AssistantTeaser` and `PWAInstallPrompt` hidden on `/mapa-bolu` paths
+
 #### Other Pages
 - About Us (`/o-nas`)
 - Contact (`/kontakt`) - Google Maps integration
 - FAQ (`/faq`)
 - Knowledge Base (`/baza-wiedzy`)
-- Pain Map (`/mapa-bolu`)
 - Privacy Policy, RODO, Terms (`/polityka-*`, `/rodo`, `/regulamin`)
 
 ---
@@ -744,6 +761,49 @@ NODE_ENV=production
 
 ## 📝 Recent Changes
 
+### February 8, 2026
+**Pain Map — Interactive Zone Alignment & Premium UI Redesign**
+
+#### Commits:
+- `8e5945e` - Premium UI redesign: intro popup, bottom-sheet modal, glassmorphic list view
+- `5f688cb` - Applied user-calibrated zone coordinates from editor tool
+- `79c1e23` - Built interactive drag-and-drop zone editor at `/mapa-bolu/editor`
+- `9f8f02c` - Pushed teeth 4-7 outward, tucked 8s behind arch in gum tissue
+- `05ea042` - Wisdom teeth (8s) placed behind visible 7s, fixed cascade misalignment
+
+#### Features Added:
+1. **Interactive Zone Editor** (`/mapa-bolu/editor`)
+   - Drag-and-drop zones onto correct teeth
+   - Resize handles (bottom-right corner)
+   - Keyboard arrows for precision (Shift = ±0.5)
+   - Labeled tooth numbers, soft tissue toggle
+   - Export button copies ready-to-paste coordinates to clipboard
+
+2. **Precise Zone Calibration**
+   - User manually positioned all 35 zones in editor
+   - 32 teeth (4 quadrants × 8 teeth) + tongue, palate, throat
+   - Wisdom teeth (8s) positioned behind arch in gum tissue
+   - Coordinates exported and applied directly to production code
+
+3. **Premium UI Redesign**
+   - **Welcome popup**: glassmorphic intro card, emoji, gradient CTA button, fade animations
+   - **Bottom-sheet detail modal**: slides up from bottom, handle bar, urgency badges (🔴🟡🟢), symptom cards, advice cards, animated close
+   - **List view**: teeth grouped by quadrant, urgency color dots, glassmorphic card grid
+   - **View toggle**: gradient-highlighted active state, premium pill design
+   - CSS keyframe animations: `fadeInUp`, `fadeIn`, `pulseGold`, `slideDown`
+
+4. **Popup Suppression**
+   - `AssistantTeaser` and `PWAInstallPrompt` hidden on `/mapa-bolu` and `/symulator` paths
+   - Fixed React hooks violation in `AssistantTeaser.tsx` (early return before useState)
+
+#### Files Modified/Added:
+- `src/app/mapa-bolu/PainMapInteractive.tsx` - Complete rewrite: zone coordinates, intro popup, detail modal, list view, animations
+- `src/app/mapa-bolu/page.tsx` - Simplified wrapper (text moved to popup)
+- `src/app/mapa-bolu/editor/page.tsx` [NEW] - Interactive drag-and-drop zone editor
+- `src/components/AssistantTeaser.tsx` - Path-based hiding + hooks fix
+
+---
+
 ### February 7–8, 2026 (Night)
 **Smile Simulator — AI Prompt & Parameter Overhaul**
 
@@ -920,6 +980,8 @@ OpenAI gpt-image-1 regenerates the entire masked area from scratch (+ forces 102
 - [x] YouTube feed
 - [x] AI assistant
 - [x] PWA capabilities
+- [x] Pain Map — interactive dental diagnostic tool with premium UI
+- [x] Smile Simulator — AI-powered smile transformation
 
 ### ⚠️ Partial/Pending
 - [ ] SMS link sending (blocked by SMSAPI.pl account setting - awaiting Monday support call)
