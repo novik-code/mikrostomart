@@ -579,19 +579,27 @@ Features:
 ## 🔗 Integrations
 
 ### 1. Prodentis API
-**Purpose:** Appointment calendar synchronization
+**Purpose:** Appointment calendar synchronization + patient search
 
 **Endpoints Used:**
-- Get appointments by date
-- Patient lookup (potentially)
+- `GET /api/patients/search?q=&limit=` — **v5.0** Patient search by name (for manual SMS)
+- `GET /api/appointments/by-date?date=` — Appointments by date
+- `GET /api/patient/{id}/details` — Patient details by ID
+- `GET /api/patient/verify?phone=&firstName=&pesel=` — Patient verification
+- `GET /api/patient/{id}/next-appointment` — Next appointment
+- `GET /api/patient/{id}/appointments?page=&limit=` — Appointment history
+- `GET /api/slots/free?date=&duration=` — Free time slots
 
 **Authentication:** Direct API access (no auth key required)
 
 **Base URL:** Configured via `PRODENTIS_API_URL` env var (production: `http://83.230.40.14:3000`)
 
+**Phone Format:** API returns phones with `+48` prefix; our system normalizes to `48XXXXXXXXX` (strips `+`)
+
 **Integration Files:**
-- `/api/prodentis/route.ts`
-- `/api/appointments/by-date/route.ts`
+- `/api/admin/patients/search/route.ts` — Proxy to Prodentis patient search
+- `/api/cron/appointment-reminders/route.ts` — SMS draft generation
+- `/api/appointments/by-date/route.ts` — Appointment lookup
 
 ---
 
@@ -923,11 +931,11 @@ NODE_ENV=production
 1. **Sent SMS Grouped by Date** — Sent tab now groups SMS by send date with collapsible date headers and a dropdown date picker for filtering
 2. **Resend Button** — Every sent/failed SMS now has a "🔄 Wyślij ponownie" button for quick resend
 3. **Manual SMS Tab** — New 3rd tab "✉️ Wyślij SMS ręcznie" with:
-   - Patient name search (searches Supabase patients enriched with Prodentis names)
-   - Auto-fill phone number from patient record
+   - Patient name search via Prodentis API 5.0 (`/api/patients/search`)
+   - Auto-fill phone number from Prodentis patient record
    - Message editor with character counter (160-char warning)
    - Direct send button
-4. **Patient Search API** — New `/api/admin/patients/search?q=name` endpoint
+4. **Patient Search API** — Proxy to Prodentis `/api/patients/search?q=name` (v5.0)
 5. **Manual Send API** — New `/api/admin/sms-reminders/send-manual` endpoint (sends + logs to sms_reminders with `appointment_type: 'manual'`)
 
 #### Files Added:

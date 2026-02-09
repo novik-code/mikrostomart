@@ -5,106 +5,61 @@ export const dynamic = 'force-dynamic';
 const PRODENTIS_API_URL = process.env.PRODENTIS_API_URL || 'http://localhost:3000';
 
 /**
- * GET /api/admin/patients/search?q=searchTerm
+ * GET /api/admin/patients/search?q=searchTerm&limit=10
  * 
- * Search patients by name in Prodentis appointment system.
- * Queries appointments across the next 14 days and past 7 days to build
- * a patient list, then filters by name query.
- * Returns unique patients with phone numbers.
+ * Proxy to Prodentis API 5.0 patient search endpoint.
+ * Searches patients by name directly in the Prodentis database.
+ * Normalizes phone numbers (strips + prefix) for SMS compatibility.
  */
 export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
-        const query = searchParams.get('q')?.trim().toLowerCase();
+        const query = searchParams.get('q')?.trim();
+        const limit = searchParams.get('limit') || '10';
 
-        if (!query || query.length < 2) {
-            return NextResponse.json({ patients: [], message: 'Query must be at least 2 characters' });
+        if (!query || query.length < 1) {
+            return NextResponse.json({ patients: [], message: 'Query must be at least 1 character' });
         }
 
-        // Build date range: past 7 days + next 14 days = 21 days of appointments
-        const dates: string[] = [];
-        const now = new Date();
-        for (let i = -7; i <= 14; i++) {
-            const d = new Date(now);
-            d.setDate(d.getDate() + i);
-            dates.push(d.toISOString().split('T')[0]);
-        }
+        // Call Prodentis API 5.0 patient search
+        const prodentisUrl = `${PRODENTIS_API_URL}/api/patients/search?q=${encodeURIComponent(query)}&limit=${limit}`;
 
-        // Fetch appointments for each date from Prodentis (in parallel batches)
-        const allAppointments: any[] = [];
-        const batchSize = 5;
+        console.log(`[Patient Search] Querying Prodentis: ${prodentisUrl}`);
 
-        for (let i = 0; i < dates.length; i += batchSize) {
-            const batch = dates.slice(i, i + batchSize);
-            const results = await Promise.all(
-                batch.map(async (date) => {
-                    try {
-                        const res = await fetch(
-                            `${PRODENTIS_API_URL}/api/appointments/by-date?date=${date}`,
-                            {
-                                headers: { 'Content-Type': 'application/json' },
-                                signal: AbortSignal.timeout(5000)
-                            }
-                        );
-                        if (res.ok) {
-                            const data = await res.json();
-                            return data.appointments || [];
-                        }
-                    } catch {
-                        // Skip dates that fail
-                    }
-                    return [];
-                })
+        const res = await fetch(prodentisUrl, {
+            headers: { 'Content-Type': 'application/json' },
+            signal: AbortSignal.timeout(5000)
+        });
+
+        if (!res.ok) {
+            const errorText = await res.text();
+            console.error(`[Patient Search] Prodentis error ${res.status}: ${errorText}`);
+            return NextResponse.json(
+                { error: `Prodentis API error: ${res.status}`, patients: [] },
+                { status: res.status }
             );
-            allAppointments.push(...results.flat());
         }
 
-        // Deduplicate patients by phone number and filter by name
-        const patientMap = new Map<string, {
-            phone: string;
-            firstName: string;
-            lastName: string;
-            fullName: string;
-        }>();
+        const data = await res.json();
 
-        for (const apt of allAppointments) {
-            const name = apt.patientName || '';
-            const phone = apt.patientPhone || '';
+        // Normalize phone numbers: Prodentis returns "+48XXXXXXXXX", 
+        // our SMS system uses "48XXXXXXXXX" (no + prefix)
+        const patients = (data.patients || []).map((p: any) => ({
+            id: p.id,
+            firstName: p.firstName || '',
+            lastName: p.lastName || '',
+            phone: p.phone ? p.phone.replace(/^\+/, '') : '',
+            fullName: `${p.firstName || ''} ${p.lastName || ''}`.trim()
+        }));
 
-            if (!name || !phone) continue;
+        console.log(`[Patient Search] Found ${patients.length} patients for query "${query}"`);
 
-            // Check if name matches query
-            if (!name.toLowerCase().includes(query)) continue;
-
-            // Deduplicate by phone
-            if (patientMap.has(phone)) continue;
-
-            // Split name into parts (Prodentis gives "Imię NAZWISKO" or "Imię Nazwisko")
-            const parts = name.trim().split(/\s+/);
-            const firstName = parts[0] || '';
-            const lastName = parts.slice(1).join(' ') || '';
-
-            patientMap.set(phone, {
-                phone,
-                firstName,
-                lastName,
-                fullName: name.trim()
-            });
-
-            // Stop after 10 results
-            if (patientMap.size >= 10) break;
-        }
-
-        const patients = Array.from(patientMap.values());
-
-        console.log(`[Patient Search] Query: "${query}" → Found ${patients.length} matches from ${allAppointments.length} appointments`);
-
-        return NextResponse.json({ patients });
+        return NextResponse.json({ patients, total: data.total || patients.length });
 
     } catch (error) {
         console.error('[Patient Search] Error:', error);
         return NextResponse.json(
-            { error: error instanceof Error ? error.message : 'Unknown error' },
+            { error: error instanceof Error ? error.message : 'Unknown error', patients: [] },
             { status: 500 }
         );
     }
