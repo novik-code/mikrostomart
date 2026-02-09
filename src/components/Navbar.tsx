@@ -126,16 +126,26 @@ export default function Navbar() {
     return (
         <nav className={styles.navbar}>
             <div className={`container ${styles.container}`}>
-                <Link href="/" className={styles.logo} onClick={closeMenu}>
-                    <Image
-                        src="/logo-transparent.png"
-                        alt="Mikrostomart Logo"
-                        width={220}
-                        height={70}
-                        style={{ width: 'auto', height: '50px' }}
-                        priority
-                    />
-                </Link>
+                <motion.div
+                    initial={{ opacity: 0, y: -8, scale: 0.92, filter: 'blur(4px)' }}
+                    animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
+                    transition={{
+                        duration: 0.6,
+                        ease: [0.23, 1, 0.32, 1],
+                        delay: 0.1,
+                    }}
+                >
+                    <Link href="/" className={styles.logo} onClick={closeMenu}>
+                        <Image
+                            src="/logo-transparent.png"
+                            alt="Mikrostomart Logo"
+                            width={220}
+                            height={70}
+                            style={{ width: 'auto', height: '50px' }}
+                            priority
+                        />
+                    </Link>
+                </motion.div>
 
                 {/* ═══════════════════════════════════════════════════
                     DESKTOP: Animated Hamburger Menu
