@@ -133,6 +133,15 @@ export async function GET(req: Request) {
                 console.log(`   Phone: ${appointment.patientPhone || 'MISSING'}`);
                 console.log(`   Working Hour: ${appointment.isWorkingHour}`);
 
+                // 5a-0. HARD FILTER: Only business hours 8:00-19:59 (white fields)
+                // Entries before 8:00 and after 20:00 are internal/staff reminders, not patient visits
+                const appointmentHour = new Date(appointment.date).getHours();
+                if (appointmentHour < 8 || appointmentHour >= 20) {
+                    console.log(`   ⛔ Skipping: Outside business hours (${appointmentTime}, hour=${appointmentHour})`);
+                    skippedCount++;
+                    continue;
+                }
+
                 // 5a. Filter: Is working hour? (white field in calendar)
                 if (appointment.isWorkingHour !== true) {
                     console.log(`   ⚠️  Skipping: Non-working hour (grey/red field)`);
