@@ -125,14 +125,14 @@ export async function GET(req: Request) {
 
         console.log(`📊 [SMS Reminders] Found ${appointments.length} appointments for tomorrow`);
 
-        // 4b. Fetch WHITE FIELDS (working hours) from Prodentis slots/free API
-        // This is the same endpoint used by the online appointment scheduler
-        // It returns actual working-hour slots per doctor — the source of truth
+        // 4b. Fetch working doctor info from Prodentis slots/free API
+        // NOTE: This endpoint returns only FREE (unfilled) slots — not all working slots.
+        // So we use it ONLY to build a set of doctors who are definitely working today.
+        // For individual appointment validation, we rely on the isWorkingHour flag.
         const slotsUrl = `${PRODENTIS_API_URL}/api/slots/free?date=${tomorrowStr}&duration=30`;
-        console.log(`📋 [SMS Reminders] Fetching white fields from: ${slotsUrl}`);
+        console.log(`📋 [SMS Reminders] Fetching working doctors from: ${slotsUrl}`);
 
-        let workingSlots = new Set<string>(); // "doctorId:HH:MM" entries
-        let workingDoctorIds = new Set<string>(); // doctor IDs that have ANY white field
+        let workingDoctorIds = new Set<string>(); // doctor IDs that have ANY free slot today
 
         try {
             const slotsResponse = await fetch(slotsUrl, {
@@ -141,25 +141,19 @@ export async function GET(req: Request) {
 
             if (slotsResponse.ok) {
                 const slotsData: Array<{ doctor: string; doctorName: string; start: string; end: string }> = await slotsResponse.json();
-                console.log(`   ✅ Received ${slotsData.length} white-field slots`);
+                console.log(`   ✅ Received ${slotsData.length} free slots`);
 
                 for (const slot of slotsData) {
-                    const slotTime = new Date(slot.start);
-                    const hh = slotTime.getHours().toString().padStart(2, '0');
-                    const mm = slotTime.getMinutes().toString().padStart(2, '0');
-                    workingSlots.add(`${slot.doctor}:${hh}:${mm}`);
                     workingDoctorIds.add(slot.doctor);
                 }
 
-                console.log(`   📋 Working doctors: ${workingDoctorIds.size}, unique time slots: ${workingSlots.size}`);
+                console.log(`   📋 Confirmed working doctors (with free slots): ${workingDoctorIds.size}`);
             } else {
-                console.error(`   ⚠️  Failed to fetch white fields: ${slotsResponse.status} — falling back to isWorkingHour flag`);
+                console.error(`   ⚠️  Failed to fetch free slots: ${slotsResponse.status}`);
             }
         } catch (slotsErr) {
-            console.error(`   ⚠️  White fields fetch error:`, slotsErr, '— falling back to isWorkingHour flag');
+            console.error(`   ⚠️  Free slots fetch error:`, slotsErr);
         }
-
-        const useWhiteFieldValidation = workingSlots.size > 0;
 
         // 5. Clean up ALL old drafts (ensures fresh generation with correct time/links)
         console.log(`🧹 [SMS Reminders] Cleaning up ALL old drafts...`);
@@ -180,50 +174,55 @@ export async function GET(req: Request) {
             processedCount++;
 
             try {
-                // Format time without timezone conversion (Prodentis already returns Poland local time)
-                const appointmentTime = new Date(appointment.date).toLocaleTimeString('pl-PL', {
-                    hour: '2-digit',
-                    minute: '2-digit'
-                });
+                // Prodentis returns Poland local time but Vercel parses in UTC.
+                // We extract hours/minutes in UTC then add CET offset (+1h winter, +2h summer).
+                const appointmentDate = new Date(appointment.date);
+                const utcHour = appointmentDate.getUTCHours();
+                const utcMinute = appointmentDate.getUTCMinutes();
+
+                // Determine CET/CEST offset (Poland: UTC+1 winter, UTC+2 summer)
+                // Simple check: CEST is last Sunday of March to last Sunday of October
+                const month = appointmentDate.getUTCMonth(); // 0-indexed
+                const isSummer = month >= 2 && month <= 9; // rough March-October
+                const cetOffset = isSummer ? 2 : 1;
+                const polishHour = (utcHour + cetOffset) % 24;
+
+                const appointmentTime = `${polishHour.toString().padStart(2, '0')}:${utcMinute.toString().padStart(2, '0')}`;
 
                 console.log(`\n🔍 [Appointment ${appointment.id}] Processing...`);
                 console.log(`   Patient: ${appointment.patientName}`);
                 console.log(`   Doctor: ${appointment.doctor.name}`);
-                console.log(`   Time: ${appointmentTime}`);
+                console.log(`   Time: ${appointmentTime} (UTC: ${utcHour}:${utcMinute.toString().padStart(2, '0')})`);
                 console.log(`   Type: ${appointment.appointmentType.name}`);
                 console.log(`   Phone: ${appointment.patientPhone || 'MISSING'}`);
                 console.log(`   Working Hour: ${appointment.isWorkingHour}`);
 
-                // 5a. WHITE-FIELD VALIDATION: Check if appointment is in a working-hour slot
-                // Uses the same Prodentis /api/slots/free data as the online scheduler
-                const appointmentDate = new Date(appointment.date);
-                const appointmentHour = appointmentDate.getHours();
-                const appointmentMinute = appointmentDate.getMinutes();
                 const doctorId = appointment.doctor?.id || '';
+                const doctorConfirmedWorking = workingDoctorIds.has(doctorId);
 
-                if (useWhiteFieldValidation) {
-                    // Round down to nearest 30-min slot for matching
-                    const roundedMinute = appointmentMinute >= 30 ? 30 : 0;
-                    const slotKey = `${doctorId}:${appointmentHour.toString().padStart(2, '0')}:${roundedMinute.toString().padStart(2, '0')}`;
+                // 6a. WORKING HOUR VALIDATION
+                // Strategy: trust isWorkingHour flag (from Prodentis calendar) + business hours safety net
+                // White-field data only used for extra confirmation logging
 
-                    if (!workingSlots.has(slotKey)) {
-                        console.log(`   ⛔ Skipping: NOT in white field (slot ${slotKey} not found in ${workingSlots.size} working slots)`);
-                        skippedCount++;
-                        continue;
-                    }
-                    console.log(`   ✅ White-field confirmed (slot ${slotKey})`);
+                // Filter 1: isWorkingHour flag — this comes from Prodentis calendar (white vs grey/red)
+                if (appointment.isWorkingHour !== true) {
+                    console.log(`   ⛔ Skipping: Non-working hour (grey/red field in Prodentis calendar)`);
+                    skippedCount++;
+                    continue;
+                }
+
+                // Filter 2: Business hours safety net (6:00 - 20:00 Polish time)
+                if (polishHour < 6 || polishHour >= 20) {
+                    console.log(`   ⛔ Skipping: Outside business hours (${appointmentTime} Polish time)`);
+                    skippedCount++;
+                    continue;
+                }
+
+                // Log white-field confirmation status
+                if (doctorConfirmedWorking) {
+                    console.log(`   ✅ Doctor confirmed working (has free slots today)`);
                 } else {
-                    // Fallback: hardcoded 8-20 filter + isWorkingHour flag
-                    if (appointmentHour < 8 || appointmentHour >= 20) {
-                        console.log(`   ⛔ Skipping: Outside business hours (${appointmentTime}, hour=${appointmentHour})`);
-                        skippedCount++;
-                        continue;
-                    }
-                    if (appointment.isWorkingHour !== true) {
-                        console.log(`   ⚠️  Skipping: Non-working hour (grey/red field) [fallback mode]`);
-                        skippedCount++;
-                        continue;
-                    }
+                    console.log(`   ℹ️  Doctor has no free slots (fully booked or not in slots API) — trusting isWorkingHour flag`);
                 }
 
                 // 5b. Filter: Has phone number?
