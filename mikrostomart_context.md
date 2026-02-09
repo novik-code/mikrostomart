@@ -1,6 +1,6 @@
 # Mikrostomart - Complete Project Context
 
-> **Last Updated:** 2026-02-08  
+> **Last Updated:** 2026-02-09  
 > **Version:** Production (Vercel Deployment)  
 > **Status:** Active Development
 
@@ -33,7 +33,7 @@
 **Target Users:**
 - Patients (booking, appointments, purchasing products)
 - Clinic Staff (admin panel, patient management, SMS coordination)
-- Doctors (Marcin Nowosielski, Tomasz Nowosielski, and team)
+- Doctors (Marcin Nowosielski, Elżbieta Nowosielska, and team)
 
 **Business Model:**
 - Patient appointment booking (integrated with Prodentis calendaring system)
@@ -52,7 +52,7 @@
 
 ### Backend & Database
 - **Supabase** (PostgreSQL database, authentication, storage)
-  - Database: 11 migrations (email verification, appointment actions, SMS reminders, etc.)
+  - Database: 11+ migrations (email verification, appointment actions, SMS reminders, sms_templates, etc.)
   - Auth: Email/password, magic links, JWT tokens
   - Storage: Product images, patient documents
 
@@ -60,7 +60,7 @@
 | Service | Purpose | Status |
 |---------|---------|--------|
 | **Prodentis API** | Appointment synchronization | ✅ Active |
-| **SMSAPI.pl** | SMS notifications | ⚠️ Link blocking issue (awaiting support) |
+| **SMSAPI.pl** | SMS notifications | ✅ Active (link blocking resolved) |
 | **Resend** | Email notifications | ✅ Active |
 | **Stripe** | Payment processing | ✅ Active |
 | **OpenAI** | AI assistant (chat support) | ✅ Active |
@@ -145,8 +145,7 @@ mikrostomart/
 ├── supabase_migrations/        # Database migrations (11 files: 003-014)
 ├── public/                     # Static assets
 ├── scripts/                    # Utility scripts (13 files)
-├── smsTemplates.json           # SMS message templates
-└── vercel.json                 # Deployment configuration
+└── vercel.json                 # Deployment configuration (3 cron jobs)
 ```
 
 ### Request Flow
@@ -467,26 +466,26 @@ Features:
 - Appointment history
 
 #### 5. SMS Przypomnienia (`sms-reminders` tab)
-**NEW FEATURE - Recently Implemented**
 
 **Tabs:**
 - **📝 Szkice (Drafts):** Draft SMS ready to send
-- **📤 Wysłane (Sent):** Sent/failed SMS history with manual delete option
+- **📤 Wysłane (Sent):** Sent/failed SMS history with delete option
 
 **Actions:**
-- Generate SMS drafts for tomorrow's appointments (Cron job)
+- Generate SMS drafts for tomorrow's appointments (Cron job or manual trigger)
 - Edit SMS message before sending
 - Send individual SMS
 - Send all SMS in bulk
-- Delete sent SMS (manual cleanup
+- Delete any SMS (draft or sent) — permanently removed from database
 - View send errors
 
 **Workflow:**
-1. Cron job generates drafts daily (5:00 AM UTC)
-2. Admin reviews/edits drafts
-3. Admin sends SMS (manually or bulk)
+1. Cron job generates drafts daily at 7:00 AM UTC (8-9 AM Warsaw time)
+2. Admin reviews/edits drafts in panel
+3. Admin sends SMS (individually or bulk)
 4. Sent SMS move to "Wysłane" tab
-5. Admin can delete old SMS manually
+5. Admin can delete any SMS (draft or sent) from history
+6. New drafts always regenerate regardless of previous sent status
 
 #### 6. Reservations (`reservations` tab)
 - Booking requests
@@ -534,7 +533,7 @@ Features:
 |----------|--------|---------|
 | `/admin/sms-reminders` | GET | Fetch SMS (all statuses by default) |
 | `/admin/sms-reminders` | PUT | Edit draft SMS message |
-| `/admin/sms-reminders` | DELETE | Cancel draft SMS |
+| `/admin/sms-reminders` | DELETE | Permanently delete any SMS (draft or sent) |
 | `/admin/sms-reminders/generate` | POST | Generate drafts for tomorrow |
 | `/admin/sms-reminders/send` | POST | Send SMS (single or bulk) |
 | `/admin/products` | GET, POST, DELETE | Product CRUD |
@@ -564,9 +563,9 @@ Features:
 
 | Endpoint | Purpose | Schedule |
 |----------|---------|----------|
-| `/cron/appointment-reminders` | Generate SMS drafts for tomorrow | Daily 5:00 AM UTC |
-| `/cron/sms-auto-send` | Auto-send SMS (if enabled) | Not currently scheduled |
-| `/cron/daily-article` | Daily article publishing | Daily |
+| `/cron/appointment-reminders` | Generate SMS drafts for tomorrow | Daily 7:00 AM UTC |
+| `/cron/sms-auto-send` | Auto-send approved drafts | Daily 9:00 AM UTC |
+| `/cron/daily-article` | Daily article publishing | Daily 7:00 AM UTC |
 
 ---
 
@@ -579,9 +578,9 @@ Features:
 - Get appointments by date
 - Patient lookup (potentially)
 
-**Authentication:** API key stored in `PRODENTIS_API_KEY` env var
+**Authentication:** Direct API access (no auth key required)
 
-**Base URL:** `http://83.230.40.14:3000/api/appointments/*`
+**Base URL:** Configured via `PRODENTIS_API_URL` env var (production: `http://83.230.40.14:3000`)
 
 **Integration Files:**
 - `/api/prodentis/route.ts`
@@ -592,35 +591,37 @@ Features:
 ### 2. SMSAPI.pl
 **Purpose:** SMS notifications for appointment reminders
 
-**Current Status:** ⚠️ **Partial - Link Blocking Issue**
-- SMS sending works for basic messages
-- Error 94: "Not allowed to send messages with link"
-- `skip_link_detection: 1` parameter added but requires account setting change
-- User will call SMSAPI support on Monday to enable link sending
+**Current Status:** ✅ **Active**
+- SMS sending works for messages with short links
+- Link blocking issue resolved
 
 **Configuration:**
 - Token: `SMSAPI_TOKEN` env var
 - Endpoint: `https://api.smsapi.pl/sms.do`
 - Phone format: `48XXXXXXXXX` (no + prefix)
 
-**Templates:** `smsTemplates.json` (ASCII-only to avoid encoding issues)
+**Templates:** Stored in Supabase `sms_templates` table (managed via admin API, with defaults seeded on first access)
 
 **Integration Files:**
-- `src/lib/smsService.ts`
-- `/api/admin/sms-reminders/*`
-- `/api/cron/generate-sms-reminders/*`
+- `src/lib/smsService.ts` — SMS sending, template matching, message formatting
+- `/api/admin/sms-reminders/*` — CRUD for SMS drafts/history
+- `/api/admin/sms-templates/*` — Template management (CRUD + default seeding)
+- `/api/cron/appointment-reminders/*` — Draft generation cron
 
 **Features:**
 - Phone number normalization (removes `+` and whitespace)
-- Template selection by doctor and appointment type
+- Template selection by appointment type (with `byType:` prefix matching)
+- Fuzzy doctor name matching (handles `-`, `(I)`, multi-word variations)
 - Short link integration for confirm/cancel actions
+- SMS content optimized for 160-char GSM-7 limit
 - Detailed error logging
 
-**Recent Fixes:**
+**Resolved Issues:**
 - ✅ Phone format validation
 - ✅ Removed invalid `from` field
 - ✅ Polish character encoding (switched to ASCII templates)
-- ⚠️ Link detection bypass (pending SMSAPI account setting)
+- ✅ Link detection bypass (resolved with SMSAPI support)
+- ✅ SMS templates shortened to fit under 160 chars with link
 
 ---
 
@@ -756,44 +757,65 @@ Features:
 
 ## ⏰ Cron Jobs & Automation
 
-### 1. Generate SMS Reminders
-**Path:** `/api/cron/generate-sms-reminders`  
-**Schedule:** Daily at 5:00 AM UTC  
+### 1. Generate SMS Reminders (appointment-reminders)
+**Path:** `/api/cron/appointment-reminders`  
+**Schedule:** Daily at 7:00 AM UTC (8-9 AM Warsaw time)  
 **Trigger:** Vercel Cron (configured in `vercel.json`)
 
 **Workflow:**
-1. Fetch tomorrow's appointments from Prodentis
-2. Check if SMS already exists (skip if sent)
-3. Generate short link for confirm/cancel actions
-4. Create SMS draft in database with template message
-5. Log results
+1. Fetch tomorrow's appointments from Prodentis API
+2. Fetch free slots to confirm which doctors are working (informational logging only)
+3. Clean up ALL old drafts (`draft`, `cancelled`, `failed` statuses)
+4. For each appointment, apply filters (see below)
+5. Generate personalized SMS from Supabase `sms_templates`
+6. Create short link for confirm/cancel landing page
+7. Save SMS draft with short link in `sms_reminders` table
+
+**Filters (in order):**
+1. **Nowosielska exception** — Elżbieta Nowosielska bypasses isWorkingHour + doctor list checks, uses custom hours 08:30-16:00
+2. **isWorkingHour flag** — must be `true` (white field in Prodentis calendar)
+3. **Business hours** — appointment must be between 8:00-20:00 (filters informational entries at 5:45, 6:45, 7:15 etc.)
+4. **Phone number** — must exist
+5. **Doctor list** — must be in `REMINDER_DOCTORS` env var (fuzzy matching)
+6. **No sent-duplicate-check** — new drafts always regenerate regardless of previous sent status
 
 **Environment Variables Used:**
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
-- `PRODENTIS_API_BASE_URL`
+- `PRODENTIS_API_URL` (not `PRODENTIS_API_BASE_URL`)
 - `NEXT_PUBLIC_BASE_URL` (for short links)
+- `REMINDER_DOCTORS` (comma-separated doctor names)
 
 **Configuration:**
-- Cleanup: Deletes old drafts (only `status='draft'`)
-- Preserves: `sent`, `failed`, `cancelled` SMS for history
-- Working hours check: Only appointments between 8:00-20:00
+- Cleanup: Deletes ALL old drafts/cancelled/failed on each run
+- Always regenerates drafts (no sent-status blocking)
+- Working hours: 8:00-20:00 (standard) or 8:30-16:00 (Nowosielska)
+- Uses Prodentis `isWorkingHour` flag for white-field validation
 
 ---
 
-### 2. Daily Stats (assumed)
-**Path:** `/api/cron/daily-stats`  
-**Purpose:** Aggregate daily statistics
+### 2. Auto-Send SMS (sms-auto-send)
+**Path:** `/api/cron/sms-auto-send`  
+**Schedule:** Daily at 9:00 AM UTC (10-11 AM Warsaw time)  
+**Purpose:** Automatically send approved SMS drafts
+
+---
+
+### 3. Daily Article Publishing
+**Path:** `/api/cron/daily-article`  
+**Schedule:** Daily at 7:00 AM UTC  
+**Purpose:** Auto-publish scheduled articles
 
 ---
 
 ### Vercel Cron Configuration (`vercel.json`)
 ```json
 {
-  "crons": [{
-    "path": "/api/cron/generate-sms-reminders",
-    "schedule": "0 5 * * *"
-  }]
+  "crons": [
+    { "path": "/api/cron/daily-article", "schedule": "0 7 * * *" },
+    { "path": "/api/cron/appointment-reminders", "schedule": "0 7 * * *" },
+    { "path": "/api/cron/sms-auto-send", "schedule": "0 9 * * *" }
+  ]
 }
 ```
 
@@ -847,11 +869,11 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=...
 SUPABASE_SERVICE_ROLE_KEY=...
 
 # Prodentis
-PRODENTIS_API_KEY=...
-PRODENTIS_API_BASE_URL=http://83.230.40.14:3000
+PRODENTIS_API_URL=http://83.230.40.14:3000
 
 # SMS
 SMSAPI_TOKEN=...
+REMINDER_DOCTORS=Marcin Nowosielski,Ilona Piechaczek,Katarzyna Halupczok,...
 
 # Email
 RESEND_API_KEY=...
@@ -887,14 +909,39 @@ NODE_ENV=production
 
 ## 📝 Recent Changes
 
-### February 8, 2026 (Night)
-**Kalkulator Czasu Leczenia (/kalkulator-leczenia)**
+### February 9, 2026 (Afternoon)
+**SMS Cron Major Overhaul — Working Hours, Templates, Nowosielska Exception**
 
 #### Commits:
-- `ede7a82` - Complete Treatment Time Calculator with 5 paths, lead API, navbar links, AI knowledge
-- `862f227` - Smart specialist pre-selection from calculator CTA
+- `4f9985a` - Nowosielska exception bypasses REMINDER_DOCTORS list check
+- `e0cd437` - Special exception for Elżbieta Nowosielska (practice owner)
+- `da4f205` - Enable SMS deletion for sent records + always regenerate drafts
+- `8029bd0` - Replace per-doctor earliest-slot filter with global MIN_HOUR=8
+- `eb01b9c` - Shorten SMS templates to fit 160 char GSM-7 limit
+- `94d2c1d` - Filter informational entries using per-doctor earliest working hour
+- `e4c4243` - Remove incorrect CET offset — Prodentis returns Polish local time
+- `a811406` - White-field validation using isWorkingHour + business hours
+- `e2889b5` - Unified SMS template wording
+- `c6540cb` - Simplify SMS template matching — only byType, {doctor} as variable
 
-### February 9, 2026
+#### Major Changes:
+1. **Timezone Fix** — Removed incorrect CET/CEST offset. Prodentis returns Polish local time; when parsed as UTC on Vercel, hours are already correct
+2. **Working Hours Filter** — Replaced slot-matching with `isWorkingHour` flag + 8:00-20:00 business hours window. Per-doctor earliest-slot approach was broken (earliest free slot ≠ earliest working hour when mornings are fully booked)
+3. **Elżbieta Nowosielska Exception** — Practice owner books patients on any field (white/grey/red). Bypasses `isWorkingHour` and `REMINDER_DOCTORS` checks. Custom hours: 08:30-16:00
+4. **SMS Delete** — DELETE endpoint now permanently removes SMS from database regardless of status (was only cancelling drafts)
+5. **Draft Regeneration** — Removed sent-duplicate-check; new drafts always generate even if SMS was already sent for same appointment
+6. **SMS Templates Shortened** — All templates optimized to stay under 160-char GSM-7 limit (template + 36 chars for short link URL)
+7. **Template Matching Simplified** — Uses `byType:` prefix matching only, `{doctor}` as variable in template text
+
+#### Files Modified:
+- `src/app/api/cron/appointment-reminders/route.ts` — Major refactor: timezone, working hours, Nowosielska exception, no sent-duplicate-check
+- `src/app/api/admin/sms-reminders/route.ts` — DELETE now permanently deletes any status
+- `src/app/api/admin/sms-templates/route.ts` — Shortened default templates
+- `src/lib/smsService.ts` — Updated fallback templates, simplified matching
+
+---
+
+### February 9, 2026 (Morning)
 **Porównywarka Rozwiązań → Konsola Decyzji Pacjenta (/porownywarka)**
 
 #### Expansion: Full Decision Console
@@ -923,6 +970,14 @@ NODE_ENV=production
 - `src/app/porownywarka/page.tsx` — Added category selection step to wizard
 - `src/lib/knowledgeBase.ts` — Updated for expanded comparator
 
+---
+
+### February 8, 2026 (Night)
+**Kalkulator Czasu Leczenia (/kalkulator-leczenia)**
+
+#### Commits:
+- `ede7a82` - Complete Treatment Time Calculator with 5 paths, lead API, navbar links, AI knowledge
+- `862f227` - Smart specialist pre-selection from calculator CTA
 
 #### Features Added:
 1. **3-step wizard**: Service tiles → questions → timeline results
@@ -1239,9 +1294,15 @@ OpenAI gpt-image-1 regenerates the entire masked area from scratch (+ forces 102
 - [x] RODO compliance — consent checkboxes in both forms, honeypot antispam
 - [x] Legal pages premium redesign — RODO, Regulamin, Polityka Prywatności, Polityka Cookies
 - [x] Treatment Time Calculator — 5 paths, 20 questions, timeline results, lead API
+- [x] Solution Comparator (Konsola Decyzji Pacjenta) — 7 categories, 29 comparators, 73 methods
+- [x] SMS link sending — resolved with SMSAPI.pl support
+- [x] SMS working hour validation — isWorkingHour flag + 8-20 business hours
+- [x] Elżbieta Nowosielska exception — custom 08:30-16:00, bypasses field type rules
+- [x] SMS delete for sent records — permanent deletion from database
+- [x] SMS draft regeneration — no longer blocked by previous sent status
+- [x] SMS templates shortened — under 160-char GSM-7 limit
 
 ### ⚠️ Partial/Pending
-- [ ] SMS link sending (blocked by SMSAPI.pl account setting - awaiting Monday support call)
 - [ ] Comprehensive testing of all workflows
 - [ ] Performance optimization
 - [ ] SEO optimization
@@ -1252,8 +1313,6 @@ OpenAI gpt-image-1 regenerates the entire masked area from scratch (+ forces 102
 - [ ] Multi-language support
 - [ ] Payment plan management
 - [ ] Patient feedback system
-- [ ] Automated appointment reminders (auto-send SMS)
-- [ ] Bulk SMS delete for admin
 - [ ] SMS date filters (last 7 days, 30 days, etc.)
 
 ---
