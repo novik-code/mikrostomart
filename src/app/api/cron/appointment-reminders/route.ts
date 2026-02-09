@@ -198,30 +198,47 @@ export async function GET(req: Request) {
                 console.log(`   Working Hour: ${appointment.isWorkingHour}`);
 
                 const doctorId = appointment.doctor?.id || '';
+                const doctorName = appointment.doctor.name.replace(/\s*\(I\)\s*/g, ' ').trim();
 
-                // 6a. WORKING HOUR VALIDATION
-                // Three filters: isWorkingHour flag + business hours window (8-20) + doctor list
+                // ======== SPECIAL EXCEPTION: Elżbieta Nowosielska ========
+                // She's the practice owner — books patients on any field type (white/grey/red).
+                // No isWorkingHour rule applies. Custom hours: 8:30-16:00.
+                const isNowosielska = doctorName.toLowerCase().includes('nowosielska')
+                    && (doctorName.toLowerCase().includes('elżbieta') || doctorName.toLowerCase().includes('elzbieta'));
 
-                // Filter 1: isWorkingHour flag — from Prodentis calendar (white vs grey/red)
-                if (appointment.isWorkingHour !== true) {
-                    console.log(`   ⛔ Skipping: Non-working hour (grey/red field in Prodentis calendar)`);
-                    skippedCount++;
-                    continue;
-                }
-
-                // Filter 2: Business hours window (8:00 - 20:00)
-                // Catches informational entries at 5:45, 6:45, 7:15 etc. that have isWorkingHour=true
-                if (appointmentHour < MIN_BUSINESS_HOUR || appointmentHour >= MAX_BUSINESS_HOUR) {
-                    console.log(`   ⛔ Skipping: Outside business hours (${appointmentTime}, must be ${MIN_BUSINESS_HOUR}:00-${MAX_BUSINESS_HOUR}:00)`);
-                    skippedCount++;
-                    continue;
-                }
-
-                // Log working doctor confirmation
-                if (workingDoctorIds.has(doctorId)) {
-                    console.log(`   ✅ Doctor confirmed working today (has free slots)`);
+                if (isNowosielska) {
+                    const totalMinutes = appointmentHour * 60 + appointmentMinute;
+                    if (totalMinutes < 8 * 60 + 30 || totalMinutes >= 16 * 60) {
+                        console.log(`   ⛔ Skipping: Nowosielska outside custom hours (${appointmentTime}, must be 08:30-16:00)`);
+                        skippedCount++;
+                        continue;
+                    }
+                    console.log(`   👑 Nowosielska exception: bypassing isWorkingHour check (custom 08:30-16:00)`);
                 } else {
-                    console.log(`   ℹ️  Doctor not in free slots (fully booked) — proceeding with isWorkingHour=true`);
+                    // 6a. WORKING HOUR VALIDATION (standard doctors)
+                    // Three filters: isWorkingHour flag + business hours window (8-20) + doctor list
+
+                    // Filter 1: isWorkingHour flag — from Prodentis calendar (white vs grey/red)
+                    if (appointment.isWorkingHour !== true) {
+                        console.log(`   ⛔ Skipping: Non-working hour (grey/red field in Prodentis calendar)`);
+                        skippedCount++;
+                        continue;
+                    }
+
+                    // Filter 2: Business hours window (8:00 - 20:00)
+                    // Catches informational entries at 5:45, 6:45, 7:15 etc. that have isWorkingHour=true
+                    if (appointmentHour < MIN_BUSINESS_HOUR || appointmentHour >= MAX_BUSINESS_HOUR) {
+                        console.log(`   ⛔ Skipping: Outside business hours (${appointmentTime}, must be ${MIN_BUSINESS_HOUR}:00-${MAX_BUSINESS_HOUR}:00)`);
+                        skippedCount++;
+                        continue;
+                    }
+
+                    // Log working doctor confirmation
+                    if (workingDoctorIds.has(doctorId)) {
+                        console.log(`   ✅ Doctor confirmed working today (has free slots)`);
+                    } else {
+                        console.log(`   ℹ️  Doctor not in free slots (fully booked) — proceeding with isWorkingHour=true`);
+                    }
                 }
 
                 // 5b. Filter: Has phone number?
@@ -236,7 +253,6 @@ export async function GET(req: Request) {
                 }
 
                 // 5c. Filter: Is doctor in reminder list? (fuzzy matching)
-                const doctorName = appointment.doctor.name.replace(/\s*\(I\)\s*/g, ' ').trim();
                 if (!isDoctorInList(doctorName, REMINDER_DOCTORS)) {
                     console.log(`   ⚠️  Skipping: Doctor not in reminder list (${doctorName})`);
                     skippedCount++;
