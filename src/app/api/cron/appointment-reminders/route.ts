@@ -174,25 +174,19 @@ export async function GET(req: Request) {
             processedCount++;
 
             try {
-                // Prodentis returns Poland local time but Vercel parses in UTC.
-                // We extract hours/minutes in UTC then add CET offset (+1h winter, +2h summer).
+                // Prodentis returns Poland local time WITHOUT timezone info.
+                // When JS parses on Vercel (UTC), the UTC hours = Polish hours directly.
+                // NO timezone conversion needed — confirmed by Telegram/email showing correct times.
                 const appointmentDate = new Date(appointment.date);
-                const utcHour = appointmentDate.getUTCHours();
-                const utcMinute = appointmentDate.getUTCMinutes();
+                const appointmentHour = appointmentDate.getUTCHours();
+                const appointmentMinute = appointmentDate.getUTCMinutes();
 
-                // Determine CET/CEST offset (Poland: UTC+1 winter, UTC+2 summer)
-                // Simple check: CEST is last Sunday of March to last Sunday of October
-                const month = appointmentDate.getUTCMonth(); // 0-indexed
-                const isSummer = month >= 2 && month <= 9; // rough March-October
-                const cetOffset = isSummer ? 2 : 1;
-                const polishHour = (utcHour + cetOffset) % 24;
-
-                const appointmentTime = `${polishHour.toString().padStart(2, '0')}:${utcMinute.toString().padStart(2, '0')}`;
+                const appointmentTime = `${appointmentHour.toString().padStart(2, '0')}:${appointmentMinute.toString().padStart(2, '0')}`;
 
                 console.log(`\n🔍 [Appointment ${appointment.id}] Processing...`);
                 console.log(`   Patient: ${appointment.patientName}`);
                 console.log(`   Doctor: ${appointment.doctor.name}`);
-                console.log(`   Time: ${appointmentTime} (UTC: ${utcHour}:${utcMinute.toString().padStart(2, '0')})`);
+                console.log(`   Time: ${appointmentTime}`);
                 console.log(`   Type: ${appointment.appointmentType.name}`);
                 console.log(`   Phone: ${appointment.patientPhone || 'MISSING'}`);
                 console.log(`   Working Hour: ${appointment.isWorkingHour}`);
@@ -211,9 +205,9 @@ export async function GET(req: Request) {
                     continue;
                 }
 
-                // Filter 2: Business hours safety net (6:00 - 20:00 Polish time)
-                if (polishHour < 6 || polishHour >= 20) {
-                    console.log(`   ⛔ Skipping: Outside business hours (${appointmentTime} Polish time)`);
+                // Filter 2: Business hours safety net (7:00 - 20:00)
+                if (appointmentHour < 7 || appointmentHour >= 20) {
+                    console.log(`   ⛔ Skipping: Outside business hours (${appointmentTime})`);
                     skippedCount++;
                     continue;
                 }
