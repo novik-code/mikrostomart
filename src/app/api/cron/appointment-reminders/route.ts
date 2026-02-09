@@ -126,14 +126,14 @@ export async function GET(req: Request) {
         console.log(`📊 [SMS Reminders] Found ${appointments.length} appointments for tomorrow`);
 
         // 4b. Fetch working doctor info from Prodentis slots/free API
-        // NOTE: This endpoint returns only FREE (unfilled) slots — not all working slots.
-        // We use it to determine the EARLIEST working hour per doctor.
-        // Appointments before a doctor's earliest slot = informational entries, not real visits.
+        // NOTE: This endpoint returns only FREE (unfilled) slots — not all working-hour slots.
+        // We use it ONLY to confirm which doctors are working today (for logging).
+        // We do NOT use it for filtering because earliest free slot ≠ earliest working hour
+        // (a doctor with fully booked mornings would show free slots starting at e.g. 10:00).
         const slotsUrl = `${PRODENTIS_API_URL}/api/slots/free?date=${tomorrowStr}&duration=30`;
         console.log(`📋 [SMS Reminders] Fetching working doctors from: ${slotsUrl}`);
 
-        // Map: doctorId → earliest working hour (e.g. 8, 9, etc.)
-        let doctorEarliestHour = new Map<string, number>();
+        let workingDoctorIds = new Set<string>();
 
         try {
             const slotsResponse = await fetch(slotsUrl, {
@@ -145,17 +145,10 @@ export async function GET(req: Request) {
                 console.log(`   ✅ Received ${slotsData.length} free slots`);
 
                 for (const slot of slotsData) {
-                    const slotHour = new Date(slot.start).getUTCHours();
-                    const current = doctorEarliestHour.get(slot.doctor);
-                    if (current === undefined || slotHour < current) {
-                        doctorEarliestHour.set(slot.doctor, slotHour);
-                    }
+                    workingDoctorIds.add(slot.doctor);
                 }
 
-                for (const [docId, earliest] of doctorEarliestHour) {
-                    console.log(`   📋 Doctor ${docId}: earliest free slot at ${earliest}:00`);
-                }
-                console.log(`   📋 Confirmed working doctors: ${doctorEarliestHour.size}`);
+                console.log(`   📋 Confirmed working doctors (with free slots): ${workingDoctorIds.size}`);
             } else {
                 console.error(`   ⚠️  Failed to fetch free slots: ${slotsResponse.status}`);
             }
@@ -163,8 +156,10 @@ export async function GET(req: Request) {
             console.error(`   ⚠️  Free slots fetch error:`, slotsErr);
         }
 
-        // Default minimum hour if we have no data for a doctor (conservative)
-        const DEFAULT_MIN_HOUR = 8;
+        // Business hours: appointments must be between 8:00 and 20:00
+        // This filters informational entries that appear at 5:45, 6:45, 7:15 etc.
+        const MIN_BUSINESS_HOUR = 8;
+        const MAX_BUSINESS_HOUR = 20;
 
         // 5. Clean up ALL old drafts (ensures fresh generation with correct time/links)
         console.log(`🧹 [SMS Reminders] Cleaning up ALL old drafts...`);
@@ -205,36 +200,28 @@ export async function GET(req: Request) {
                 const doctorId = appointment.doctor?.id || '';
 
                 // 6a. WORKING HOUR VALIDATION
-                // Uses per-doctor earliest working hour from free slots + isWorkingHour + business hours
+                // Three filters: isWorkingHour flag + business hours window (8-20) + doctor list
 
-                // Filter 1: isWorkingHour flag — this comes from Prodentis calendar (white vs grey/red)
+                // Filter 1: isWorkingHour flag — from Prodentis calendar (white vs grey/red)
                 if (appointment.isWorkingHour !== true) {
                     console.log(`   ⛔ Skipping: Non-working hour (grey/red field in Prodentis calendar)`);
                     skippedCount++;
                     continue;
                 }
 
-                // Filter 2: Business hours ceiling (max 20:00)
-                if (appointmentHour >= 20) {
-                    console.log(`   ⛔ Skipping: Outside business hours (${appointmentTime})`);
+                // Filter 2: Business hours window (8:00 - 20:00)
+                // Catches informational entries at 5:45, 6:45, 7:15 etc. that have isWorkingHour=true
+                if (appointmentHour < MIN_BUSINESS_HOUR || appointmentHour >= MAX_BUSINESS_HOUR) {
+                    console.log(`   ⛔ Skipping: Outside business hours (${appointmentTime}, must be ${MIN_BUSINESS_HOUR}:00-${MAX_BUSINESS_HOUR}:00)`);
                     skippedCount++;
                     continue;
                 }
 
-                // Filter 3: Per-doctor minimum working hour
-                // Uses earliest free slot for the doctor, or DEFAULT_MIN_HOUR (8:00) if unknown
-                const doctorMinHour = doctorEarliestHour.get(doctorId) ?? DEFAULT_MIN_HOUR;
-                if (appointmentHour < doctorMinHour) {
-                    console.log(`   ⛔ Skipping: Before doctor's working hours (${appointmentTime} < ${doctorMinHour}:00 — likely informational entry)`);
-                    skippedCount++;
-                    continue;
-                }
-
-                // Log confirmation
-                if (doctorEarliestHour.has(doctorId)) {
-                    console.log(`   ✅ Within working range (doctor starts at ${doctorMinHour}:00, has free slots)`);
+                // Log working doctor confirmation
+                if (workingDoctorIds.has(doctorId)) {
+                    console.log(`   ✅ Doctor confirmed working today (has free slots)`);
                 } else {
-                    console.log(`   ℹ️  Doctor not in free slots — using default minimum ${DEFAULT_MIN_HOUR}:00`);
+                    console.log(`   ℹ️  Doctor not in free slots (fully booked) — proceeding with isWorkingHour=true`);
                 }
 
                 // 5b. Filter: Has phone number?
