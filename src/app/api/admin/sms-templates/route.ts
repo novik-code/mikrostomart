@@ -20,17 +20,18 @@ const supabase = createClient(
 
 // Default templates to seed on first run
 // All templates use {doctor} as a variable — matching is ONLY by appointment type
+// Target: max ~120 chars per template (short link adds ~36 chars → total ≤ 160 for 1 SMS)
 const DEFAULT_TEMPLATES = [
-    { key: 'default', label: 'Domyślny', template: 'Gabinet Mikrostomart przypomina o jutrzejszej wizycie u {doctor} o godz. {time}. Prosimy o potwierdzenie:' },
-    { key: 'byType:pierwsza wizyta', label: 'Pierwsza wizyta', template: 'Gabinet Mikrostomart przypomina o jutrzejszej pierwszej wizycie u {doctor} o godz. {time}. Prosimy o potwierdzenie:' },
-    { key: 'byType:chirurgia', label: 'Chirurgia', template: 'Gabinet Mikrostomart przypomina o jutrzejszej wizycie chirurgicznej u {doctor} o godz. {time}. Prosimy o potwierdzenie:' },
-    { key: 'byType:protetyka', label: 'Protetyka', template: 'Gabinet Mikrostomart przypomina o jutrzejszej wizycie protetycznej u {doctor} o godz. {time}. Prosimy o potwierdzenie:' },
-    { key: 'byType:ortodoncja', label: 'Ortodoncja', template: 'Gabinet Mikrostomart przypomina o jutrzejszej wizycie ortodontycznej u {doctor} o godz. {time}. Prosimy o potwierdzenie:' },
-    { key: 'byType:kontrola', label: 'Kontrola', template: 'Gabinet Mikrostomart przypomina o jutrzejszej wizycie kontrolnej u {doctor} o godz. {time}. Prosimy o potwierdzenie:' },
-    { key: 'byType:higienizacja', label: 'Higienizacja', template: 'Gabinet Mikrostomart przypomina o jutrzejszej higienizacji u {doctor} o godz. {time}. Prosimy o potwierdzenie:' },
-    { key: 'byType:endodoncja', label: 'Endodoncja (kanałowe)', template: 'Gabinet Mikrostomart przypomina o jutrzejszym leczeniu kanałowym u {doctor} o godz. {time}. Prosimy o potwierdzenie:' },
-    { key: 'byType:konsultacja', label: 'Konsultacja', template: 'Gabinet Mikrostomart przypomina o jutrzejszej konsultacji u {doctor} o godz. {time}. Prosimy o potwierdzenie:' },
-    { key: 'byType:laser', label: 'Laser', template: 'Gabinet Mikrostomart przypomina o jutrzejszym zabiegu laserowym u {doctor} o godz. {time}. Prosimy o potwierdzenie:' },
+    { key: 'default', label: 'Domyślny', template: 'Mikrostomart: wizyta u {doctor} jutro o {time}. Potwierdz:' },
+    { key: 'byType:pierwsza wizyta', label: 'Pierwsza wizyta', template: 'Mikrostomart: pierwsza wizyta u {doctor} jutro o {time}. Potwierdz:' },
+    { key: 'byType:chirurgia', label: 'Chirurgia', template: 'Mikrostomart: zabieg chirurgiczny u {doctor} jutro o {time}. Potwierdz:' },
+    { key: 'byType:protetyka', label: 'Protetyka', template: 'Mikrostomart: wizyta protetyczna u {doctor} jutro o {time}. Potwierdz:' },
+    { key: 'byType:ortodoncja', label: 'Ortodoncja', template: 'Mikrostomart: wizyta ortodontyczna u {doctor} jutro o {time}. Potwierdz:' },
+    { key: 'byType:kontrola', label: 'Kontrola', template: 'Mikrostomart: kontrola u {doctor} jutro o {time}. Potwierdz:' },
+    { key: 'byType:higienizacja', label: 'Higienizacja', template: 'Mikrostomart: higienizacja u {doctor} jutro o {time}. Potwierdz:' },
+    { key: 'byType:endodoncja', label: 'Endodoncja (kanałowe)', template: 'Mikrostomart: leczenie kanalowe u {doctor} jutro o {time}. Potwierdz:' },
+    { key: 'byType:konsultacja', label: 'Konsultacja', template: 'Mikrostomart: konsultacja u {doctor} jutro o {time}. Potwierdz:' },
+    { key: 'byType:laser', label: 'Laser', template: 'Mikrostomart: zabieg laserowy u {doctor} jutro o {time}. Potwierdz:' },
 ];
 
 async function ensureTemplatesSeeded() {

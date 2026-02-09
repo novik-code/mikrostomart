@@ -186,9 +186,9 @@ export async function getSMSTemplate(
         if (templates.byAppointmentType?.[normalizedType]) {
             return templates.byAppointmentType[normalizedType];
         }
-        return templates.default || 'Gabinet Mikrostomart przypomina o wizycie u {doctor} jutro o {time}. Prosimy o potwierdzenie:';
+        return templates.default || 'Mikrostomart: wizyta u {doctor} jutro o {time}. Potwierdz:';
     } catch {
-        return 'Gabinet Mikrostomart przypomina o wizycie u {doctor} jutro o {time}. Prosimy o potwierdzenie:';
+        return 'Mikrostomart: wizyta u {doctor} jutro o {time}. Potwierdz:';
     }
 }
 
