@@ -168,39 +168,19 @@ export async function GET(req: Request) {
                     continue;
                 }
 
-                // 5d. Check if SMS draft already exists for this appointment (prevent duplicates)
-                const { data: existingDraft, error: draftCheckError } = await supabase
+                // 5d. Check if SMS was already SENT for this appointment (only skip sent)
+                const { data: existingSent } = await supabase
                     .from('sms_reminders')
-                    .select('id, status')
+                    .select('id')
                     .eq('prodentis_id', appointment.id)
                     .eq('appointment_date', appointment.date)
+                    .eq('status', 'sent')
                     .maybeSingle();
 
-                if (draftCheckError && draftCheckError.code !== 'PGRST116') {
-                    console.error(`   ❌ DB error (sms_reminders check):`, draftCheckError);
-                    errors.push({
-                        appointment: `${appointment.patientName} (${appointment.id})`,
-                        error: `Database error: ${draftCheckError.message}`
-                    });
+                if (existingSent) {
+                    console.log(`   ⏭️  SMS already sent - skipping`);
+                    skippedCount++;
                     continue;
-                }
-
-                // Check if draft exists
-                let shouldUpdateExisting = false;
-                let existingDraftId = null;
-
-                if (existingDraft) {
-                    // Skip only if SMS was already sent successfully
-                    if (existingDraft.status === 'sent') {
-                        console.log(`   ⏭️  SMS already sent - skipping`);
-                        skippedCount++;
-                        continue;
-                    }
-
-                    // For draft/failed/cancelled - allow regeneration (update)
-                    console.log(`   🔄 Existing draft found (status: ${existingDraft.status}) - will update`);
-                    shouldUpdateExisting = true;
-                    existingDraftId = existingDraft.id;
                 }
 
                 // 6. Generate personalized SMS message
@@ -234,59 +214,28 @@ export async function GET(req: Request) {
 
                 patientId = existingPatient?.id || null;
 
-                // 8. Create or Update SMS draft in sms_reminders table
-                let draftData, draftError;
+                // 8. Always INSERT new draft (old drafts cleaned up at step 5)
+                const draftId = randomUUID();
+                const { data: draftData, error: draftError } = await supabase
+                    .from('sms_reminders')
+                    .insert([{
+                        id: draftId,
+                        patient_id: patientId,
+                        prodentis_id: appointment.id,
+                        patient_name: appointment.patientName,
+                        phone: appointment.patientPhone,
+                        appointment_date: appointment.date,
+                        doctor_name: doctorName,
+                        appointment_type: appointmentType,
+                        sms_message: message,
+                        status: 'draft',
+                        created_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString(),
+                    }])
+                    .select();
 
-                if (shouldUpdateExisting && existingDraftId) {
-                    // UPDATE existing draft
-                    const result = await supabase
-                        .from('sms_reminders')
-                        .update({
-                            patient_id: patientId,
-                            patient_name: appointment.patientName,
-                            phone: appointment.patientPhone,
-                            appointment_date: appointment.date,
-                            doctor_name: doctorName,
-                            appointment_type: appointmentType,
-                            sms_message: message,
-                            status: 'draft', // Reset to draft
-                            updated_at: new Date().toISOString(),
-                        })
-                        .eq('id', existingDraftId)
-                        .select();
-
-                    draftData = result.data;
-                    draftError = result.error;
-
-                    if (!draftError) {
-                        console.log(`   🔄 Draft updated (ID: ${existingDraftId})`);
-                    }
-                } else {
-                    // INSERT new draft
-                    const result = await supabase
-                        .from('sms_reminders')
-                        .insert([{
-                            id: randomUUID(),
-                            patient_id: patientId,
-                            prodentis_id: appointment.id,
-                            patient_name: appointment.patientName,
-                            phone: appointment.patientPhone,
-                            appointment_date: appointment.date,
-                            doctor_name: doctorName,
-                            appointment_type: appointmentType,
-                            sms_message: message,
-                            status: 'draft',
-                            created_at: new Date().toISOString(),
-                            updated_at: new Date().toISOString(),
-                        }])
-                        .select();
-
-                    draftData = result.data;
-                    draftError = result.error;
-
-                    if (!draftError && draftData && draftData[0]) {
-                        console.log(`   ✅ Draft created (ID: ${draftData[0].id})`);
-                    }
+                if (!draftError && draftData && draftData[0]) {
+                    console.log(`   ✅ Draft created (ID: ${draftData[0].id})`);
                 }
 
                 if (draftError) {
@@ -371,7 +320,7 @@ export async function GET(req: Request) {
                             await supabase
                                 .from('sms_reminders')
                                 .update({ sms_message: messageWithLink })
-                                .eq('id', (shouldUpdateExisting ? existingDraftId : (draftData && draftData[0] ? draftData[0].id : null)) ?? '');
+                                .eq('id', draftId);
 
                             console.log(`   📝 Updated SMS with short link`);
                         }

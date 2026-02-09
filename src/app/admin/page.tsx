@@ -604,6 +604,24 @@ export default function AdminPage() {
         }
     };
 
+    const handleDeleteAllDrafts = async () => {
+        if (!confirm(`Usunąć wszystkie szkice SMS (${smsStats.draft})?`)) return;
+
+        try {
+            const res = await fetch('/api/admin/sms-reminders?id=all-drafts', {
+                method: 'DELETE'
+            });
+
+            if (res.ok) {
+                const result = await res.json();
+                fetchSmsReminders();
+                alert(`Usunięto ${result.deleted} szkiców`);
+            }
+        } catch (err) {
+            alert('Błąd usuwania');
+        }
+    };
+
     // Manual SMS Generation (Trigger Cron)
     const handleManualGenerate = async () => {
         if (!confirm('Wywołać cron job do generowania SMS na jutro?')) return;
@@ -1242,6 +1260,21 @@ export default function AdminPage() {
                         }}
                     >
                         {sendingAll ? "Wysyłanie..." : `📤 Wyślij Wszystkie (${smsStats.draft})`}
+                    </button>
+                    <button
+                        onClick={handleDeleteAllDrafts}
+                        style={{
+                            padding: "1rem 1.5rem",
+                            background: "rgba(239, 68, 68, 0.15)",
+                            border: "2px solid #ef4444",
+                            borderRadius: "var(--radius-md)",
+                            color: "#ef4444",
+                            cursor: "pointer",
+                            fontWeight: "600",
+                            fontSize: "1rem"
+                        }}
+                    >
+                        🗑️ Usuń wszystkie szkice
                     </button>
                 </div>
             )}

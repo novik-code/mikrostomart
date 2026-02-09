@@ -160,7 +160,26 @@ export async function DELETE(req: Request) {
             );
         }
 
-        // Mark as cancelled instead of deleting (keep audit trail)
+        // Bulk delete all drafts
+        if (id === 'all-drafts') {
+            const { data: deleted, error } = await supabase
+                .from('sms_reminders')
+                .delete()
+                .eq('status', 'draft')
+                .select();
+
+            if (error) {
+                throw new Error(`Failed to delete drafts: ${error.message}`);
+            }
+
+            return NextResponse.json({
+                success: true,
+                deleted: deleted?.length || 0,
+                message: `Usunięto ${deleted?.length || 0} szkiców`
+            });
+        }
+
+        // Single draft: mark as cancelled (keep audit trail)
         const { data, error } = await supabase
             .from('sms_reminders')
             .update({ status: 'cancelled' })
