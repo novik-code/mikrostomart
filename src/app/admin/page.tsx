@@ -72,7 +72,17 @@ export default function AdminPage() {
     const [editingSmsId, setEditingSmsId] = useState<string | null>(null);
     const [editingSmsMessage, setEditingSmsMessage] = useState('');
     const [sendingAll, setSendingAll] = useState(false);
-    const [smsTab, setSmsTab] = useState<'drafts' | 'sent'>('drafts');
+    const [smsTab, setSmsTab] = useState<'drafts' | 'sent' | 'manual'>('drafts');
+    const [sentDateFilter, setSentDateFilter] = useState<string>('');
+
+    // Manual SMS state
+    const [manualPhone, setManualPhone] = useState('');
+    const [manualMessage, setManualMessage] = useState('');
+    const [manualPatientName, setManualPatientName] = useState('');
+    const [patientSearchQuery, setPatientSearchQuery] = useState('');
+    const [patientSearchResults, setPatientSearchResults] = useState<any[]>([]);
+    const [searchingPatients, setSearchingPatients] = useState(false);
+    const [sendingManual, setSendingManual] = useState(false);
 
     const [manualGenerationStatus, setManualGenerationStatus] = useState<string | null>(null);
 
@@ -712,6 +722,100 @@ export default function AdminPage() {
         }
     };
 
+    const handleResendSms = async (sms: any) => {
+        if (!confirm(`Wysłać ponownie SMS do ${sms.patient_name || sms.phone}?`)) return;
+
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            const res = await fetch('/api/admin/sms-reminders/send-manual', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    phone: sms.phone,
+                    message: sms.sms_message,
+                    patient_name: sms.patient_name,
+                    sent_by: user?.email || 'admin@mikrostomart.pl'
+                })
+            });
+
+            const result = await res.json();
+            if (result.success) {
+                alert('SMS wysłany ponownie!');
+                fetchSmsReminders();
+            } else {
+                alert(`Błąd: ${result.error}`);
+            }
+        } catch (err) {
+            alert('Błąd wysyłania');
+        }
+    };
+
+    const handleSearchPatients = async (query: string) => {
+        setPatientSearchQuery(query);
+        if (query.length < 2) {
+            setPatientSearchResults([]);
+            return;
+        }
+
+        setSearchingPatients(true);
+        try {
+            const res = await fetch(`/api/admin/patients/search?q=${encodeURIComponent(query)}`);
+            if (res.ok) {
+                const data = await res.json();
+                setPatientSearchResults(data.patients || []);
+            }
+        } catch (err) {
+            console.error('Patient search error:', err);
+        } finally {
+            setSearchingPatients(false);
+        }
+    };
+
+    const handleSelectPatient = (patient: any) => {
+        setManualPatientName(`${patient.firstName} ${patient.lastName}`);
+        setManualPhone(patient.phone || '');
+        setPatientSearchQuery('');
+        setPatientSearchResults([]);
+    };
+
+    const handleSendManualSms = async () => {
+        if (!manualPhone || !manualMessage) {
+            alert('Wypełnij numer telefonu i treść SMS');
+            return;
+        }
+        if (!confirm(`Wysłać SMS do ${manualPatientName || manualPhone}?`)) return;
+
+        setSendingManual(true);
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            const res = await fetch('/api/admin/sms-reminders/send-manual', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    phone: manualPhone,
+                    message: manualMessage,
+                    patient_name: manualPatientName,
+                    sent_by: user?.email || 'admin@mikrostomart.pl'
+                })
+            });
+
+            const result = await res.json();
+            if (result.success) {
+                alert('✅ SMS wysłany!');
+                setManualPhone('');
+                setManualMessage('');
+                setManualPatientName('');
+                fetchSmsReminders();
+            } else {
+                alert(`❌ Błąd: ${result.error}`);
+            }
+        } catch (err) {
+            alert('Błąd wysyłania');
+        } finally {
+            setSendingManual(false);
+        }
+    };
+
 
 
     const handleSave = async (e: React.FormEvent) => {
@@ -1286,39 +1390,33 @@ export default function AdminPage() {
             )}
 
             {/* SMS Tabs */}
-            <div style={{ display: "flex", gap: "1rem", borderBottom: "2px solid var(--color-border)", marginBottom: "1.5rem" }}>
-                <button
-                    onClick={() => setSmsTab('drafts')}
-                    style={{
-                        padding: "0.75rem 1.5rem",
-                        background: "none",
-                        border: "none",
-                        borderBottom: smsTab === 'drafts' ? "3px solid var(--color-primary)" : "3px solid transparent",
-                        color: smsTab === 'drafts' ? "var(--color-primary)" : "var(--color-text-muted)",
-                        fontWeight: smsTab === 'drafts' ? "bold" : "normal",
-                        fontSize: "1rem",
-                        cursor: "pointer",
-                        transition: "all 0.2s"
-                    }}
-                >
-                    📝 Szkice ({smsStats.draft})
-                </button>
-                <button
-                    onClick={() => setSmsTab('sent')}
-                    style={{
-                        padding: "0.75rem 1.5rem",
-                        background: "none",
-                        border: "none",
-                        borderBottom: smsTab === 'sent' ? "3px solid var(--color-primary)" : "3px solid transparent",
-                        color: smsTab === 'sent' ? "var(--color-primary)" : "var(--color-text-muted)",
-                        fontWeight: smsTab === 'sent' ? "bold" : "normal",
-                        fontSize: "1rem",
-                        cursor: "pointer",
-                        transition: "all 0.2s"
-                    }}
-                >
-                    📤 Wysłane ({smsStats.sent})
-                </button>
+            <div style={{ display: "flex", gap: "0", borderBottom: "2px solid var(--color-border)", marginBottom: "1.5rem" }}>
+                {(['drafts', 'sent', 'manual'] as const).map(tab => {
+                    const labels = {
+                        drafts: `📝 Szkice (${smsStats.draft})`,
+                        sent: `📤 Wysłane (${smsStats.sent})`,
+                        manual: '✉️ Wyślij SMS ręcznie'
+                    };
+                    return (
+                        <button
+                            key={tab}
+                            onClick={() => setSmsTab(tab)}
+                            style={{
+                                padding: "0.75rem 1.5rem",
+                                background: "none",
+                                border: "none",
+                                borderBottom: smsTab === tab ? "3px solid var(--color-primary)" : "3px solid transparent",
+                                color: smsTab === tab ? "var(--color-primary)" : "var(--color-text-muted)",
+                                fontWeight: smsTab === tab ? "bold" : "normal",
+                                fontSize: "0.95rem",
+                                cursor: "pointer",
+                                transition: "all 0.2s"
+                            }}
+                        >
+                            {labels[tab]}
+                        </button>
+                    );
+                })}
             </div>
 
             {/* Template Editor Toggle */}
@@ -1478,215 +1576,358 @@ export default function AdminPage() {
                 </div>
             )}
 
-            {/* SMS List */}
-            {smsReminders.filter(sms =>
-                smsTab === 'drafts'
-                    ? sms.status === 'draft'
-                    : (sms.status === 'sent' || sms.status === 'failed')
-            ).length === 0 ? (
-                <p style={{ textAlign: "center", padding: "2rem", color: "var(--color-text-muted)" }}>
-                    {smsTab === 'drafts' ? 'Brak szkiców SMS' : 'Brak wysłanych SMS'}
-                </p>
-            ) : (
-                smsReminders.filter(sms =>
-                    smsTab === 'drafts'
-                        ? sms.status === 'draft'
-                        : (sms.status === 'sent' || sms.status === 'failed')
-                ).map(sms => {
-                    const isEditing = editingSmsId === sms.id;
-                    // Extract time from SMS message (e.g. "jutro o 11:00") to avoid UTC conversion
-                    const timeMatch = sms.sms_message?.match(/(\d{1,2}):(\d{2})/);
-                    const appointmentTime = timeMatch ? `${timeMatch[1]}:${timeMatch[2]}` : new Date(sms.appointment_date).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
-                    const appointmentDate = new Date(sms.appointment_date).toLocaleDateString('pl-PL', { timeZone: 'UTC' });
+            {/* ═══ DRAFTS TAB ═══ */}
+            {smsTab === 'drafts' && (
+                <>
+                    {smsReminders.filter(sms => sms.status === 'draft').length === 0 ? (
+                        <p style={{ textAlign: "center", padding: "2rem", color: "var(--color-text-muted)" }}>Brak szkiców SMS</p>
+                    ) : (
+                        smsReminders.filter(sms => sms.status === 'draft').map(sms => {
+                            const isEditing = editingSmsId === sms.id;
+                            const timeMatch = sms.sms_message?.match(/(\d{1,2}):(\d{2})/);
+                            const appointmentTime = timeMatch ? `${timeMatch[1]}:${timeMatch[2]}` : new Date(sms.appointment_date).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
+                            const appointmentDate = new Date(sms.appointment_date).toLocaleDateString('pl-PL', { timeZone: 'UTC' });
 
-                    return (
-                        <div key={sms.id} style={{
-                            background: "var(--color-surface)",
-                            padding: "1.5rem",
-                            borderRadius: "var(--radius-md)",
-                            border: sms.status === 'failed' ? '2px solid var(--color-error)' : undefined
-                        }}>
-                            {/* Header */}
-                            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "1rem", flexWrap: "wrap", gap: "0.5rem" }}>
-                                <div>
-                                    <strong style={{ fontSize: "1.1rem" }}>{sms.patient_name || sms.phone}</strong>
-                                    <div style={{ marginTop: "0.25rem", fontSize: "0.85rem", color: "var(--color-text-muted)" }}>
-                                        📞 {sms.phone} • 🦷 {sms.appointment_type}
+                            return (
+                                <div key={sms.id} style={{ background: "var(--color-surface)", padding: "1.5rem", borderRadius: "var(--radius-md)" }}>
+                                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "1rem", flexWrap: "wrap", gap: "0.5rem" }}>
+                                        <div>
+                                            <strong style={{ fontSize: "1.1rem" }}>{sms.patient_name || sms.phone}</strong>
+                                            <div style={{ marginTop: "0.25rem", fontSize: "0.85rem", color: "var(--color-text-muted)" }}>📞 {sms.phone} • 🦷 {sms.appointment_type}</div>
+                                            <span style={{ fontSize: "0.85rem", color: "var(--color-text-muted)" }}>📅 {appointmentDate} • ⏰ {appointmentTime} • 👨‍⚕️ {sms.doctor_name}</span>
+                                        </div>
+                                        <span style={{ padding: "0.2rem 0.5rem", borderRadius: "4px", fontSize: "0.75rem", background: '#ffc107', color: 'white' }}>draft</span>
                                     </div>
-                                    <span style={{ fontSize: "0.85rem", color: "var(--color-text-muted)" }}>
-                                        📅 {appointmentDate} • ⏰ {appointmentTime} • 👨‍⚕️ {sms.doctor_name}
-                                    </span>
-                                </div>
-                                <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-                                    <span style={{
-                                        padding: "0.2rem 0.5rem",
-                                        borderRadius: "4px",
-                                        fontSize: "0.75rem",
-                                        background: sms.status === 'draft' ? '#ffc107' : sms.status === 'sent' ? '#4caf50' : '#f44336',
-                                        color: 'white'
-                                    }}>
-                                        {sms.status}
-                                    </span>
-                                </div>
-                            </div>
 
-                            {/* Message */}
-                            {isEditing ? (
-                                <div style={{ marginBottom: "1rem" }}>
-                                    <textarea
-                                        value={editingSmsMessage}
-                                        onChange={(e) => setEditingSmsMessage(e.target.value)}
-                                        style={{
-                                            width: "100%",
-                                            minHeight: "80px",
-                                            padding: "0.8rem",
-                                            borderRadius: "4px",
-                                            border: "1px solid var(--color-border)",
-                                            background: "var(--color-background)",
-                                            color: "var(--color-text-main)",
-                                            fontSize: "0.9rem",
-                                            fontFamily: "inherit"
-                                        }}
-                                    />
-                                    <div style={{ marginTop: "0.5rem", fontSize: "0.8rem", color: "var(--color-text-muted)" }}>
-                                        {editingSmsMessage.length} znaków • {Math.ceil(editingSmsMessage.length / 160)} SMS
-                                    </div>
-                                </div>
-                            ) : (
-                                <div style={{
-                                    padding: "1rem",
-                                    background: "var(--color-background)",
-                                    borderRadius: "4px",
-                                    marginBottom: "1rem",
-                                    fontSize: "0.9rem",
-                                    lineHeight: "1.6"
-                                }}>
-                                    {sms.sms_message}
-                                    <div style={{ marginTop: "0.5rem", fontSize: "0.8rem", color: "var(--color-text-muted)" }}>
-                                        {sms.sms_message.length} znaków • {Math.ceil(sms.sms_message.length / 160)} SMS
-                                    </div>
-                                </div>
-                            )}
+                                    {isEditing ? (
+                                        <div style={{ marginBottom: "1rem" }}>
+                                            <textarea value={editingSmsMessage} onChange={(e) => setEditingSmsMessage(e.target.value)} style={{ width: "100%", minHeight: "80px", padding: "0.8rem", borderRadius: "4px", border: "1px solid var(--color-border)", background: "var(--color-background)", color: "var(--color-text-main)", fontSize: "0.9rem", fontFamily: "inherit" }} />
+                                            <div style={{ marginTop: "0.5rem", fontSize: "0.8rem", color: "var(--color-text-muted)" }}>{editingSmsMessage.length} znaków • {Math.ceil(editingSmsMessage.length / 160)} SMS</div>
+                                        </div>
+                                    ) : (
+                                        <div style={{ padding: "1rem", background: "var(--color-background)", borderRadius: "4px", marginBottom: "1rem", fontSize: "0.9rem", lineHeight: "1.6" }}>
+                                            {sms.sms_message}
+                                            <div style={{ marginTop: "0.5rem", fontSize: "0.8rem", color: "var(--color-text-muted)" }}>{sms.sms_message.length} znaków • {Math.ceil(sms.sms_message.length / 160)} SMS</div>
+                                        </div>
+                                    )}
 
-                            {/* Actions */}
-                            <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-                                {sms.status === 'draft' && (
-                                    <>
+                                    <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
                                         {isEditing ? (
                                             <>
-                                                <button
-                                                    onClick={() => handleEditSms(sms.id, editingSmsMessage)}
-                                                    style={{
-                                                        padding: "0.5rem 1rem",
-                                                        background: "var(--color-primary)",
-                                                        border: "none",
-                                                        borderRadius: "4px",
-                                                        color: "black",
-                                                        cursor: "pointer",
-                                                        fontWeight: "bold"
-                                                    }}
-                                                >
-                                                    💾 Zapisz
-                                                </button>
-                                                <button
-                                                    onClick={() => {
-                                                        setEditingSmsId(null);
-                                                        setEditingSmsMessage('');
-                                                    }}
-                                                    style={{
-                                                        padding: "0.5rem 1rem",
-                                                        background: "var(--color-surface-hover)",
-                                                        border: "none",
-                                                        borderRadius: "4px",
-                                                        color: "#fff",
-                                                        cursor: "pointer"
-                                                    }}
-                                                >
-                                                    Anuluj
-                                                </button>
+                                                <button onClick={() => handleEditSms(sms.id, editingSmsMessage)} style={{ padding: "0.5rem 1rem", background: "var(--color-primary)", border: "none", borderRadius: "4px", color: "black", cursor: "pointer", fontWeight: "bold" }}>💾 Zapisz</button>
+                                                <button onClick={() => { setEditingSmsId(null); setEditingSmsMessage(''); }} style={{ padding: "0.5rem 1rem", background: "var(--color-surface-hover)", border: "none", borderRadius: "4px", color: "#fff", cursor: "pointer" }}>Anuluj</button>
                                             </>
                                         ) : (
                                             <>
-                                                <button
-                                                    onClick={() => {
-                                                        setEditingSmsId(sms.id);
-                                                        setEditingSmsMessage(sms.sms_message);
-                                                    }}
-                                                    style={{
-                                                        padding: "0.5rem 1rem",
-                                                        background: "var(--color-surface-hover)",
-                                                        border: "none",
-                                                        borderRadius: "4px",
-                                                        color: "#fff",
-                                                        cursor: "pointer"
-                                                    }}
-                                                >
-                                                    ✏️ Edytuj
-                                                </button>
-                                                <button
-                                                    onClick={() => handleSendSingleSms(sms.id)}
-                                                    style={{
-                                                        padding: "0.5rem 1rem",
-                                                        background: "var(--color-primary)",
-                                                        border: "none",
-                                                        borderRadius: "4px",
-                                                        color: "black",
-                                                        cursor: "pointer",
-                                                        fontWeight: "bold"
-                                                    }}
-                                                >
-                                                    📱 Wyślij
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDeleteSms(sms.id)}
-                                                    style={{
-                                                        padding: "0.5rem 1rem",
-                                                        background: "var(--color-error)",
-                                                        border: "none",
-                                                        borderRadius: "4px",
-                                                        color: "white",
-                                                        cursor: "pointer"
-                                                    }}
-                                                >
-                                                    🗑️ Usuń
-                                                </button>
+                                                <button onClick={() => { setEditingSmsId(sms.id); setEditingSmsMessage(sms.sms_message); }} style={{ padding: "0.5rem 1rem", background: "var(--color-surface-hover)", border: "none", borderRadius: "4px", color: "#fff", cursor: "pointer" }}>✏️ Edytuj</button>
+                                                <button onClick={() => handleSendSingleSms(sms.id)} style={{ padding: "0.5rem 1rem", background: "var(--color-primary)", border: "none", borderRadius: "4px", color: "black", cursor: "pointer", fontWeight: "bold" }}>📱 Wyślij</button>
+                                                <button onClick={() => handleDeleteSms(sms.id)} style={{ padding: "0.5rem 1rem", background: "var(--color-error)", border: "none", borderRadius: "4px", color: "white", cursor: "pointer" }}>🗑️ Usuń</button>
                                             </>
                                         )}
-                                    </>
-                                )}
-                                {/* Delete button for sent/failed SMS */}
-                                {(sms.status === 'sent' || sms.status === 'failed') && (
-                                    <button
-                                        onClick={() => handleDeleteSms(sms.id)}
-                                        style={{
-                                            padding: "0.5rem 1rem",
-                                            background: "var(--color-error)",
-                                            border: "none",
-                                            borderRadius: "4px",
-                                            color: "white",
-                                            cursor: "pointer",
-                                            fontWeight: "500"
-                                        }}
-                                    >
-                                        🗑️ Usuń
-                                    </button>
-                                )}
-                                {sms.status === 'failed' && sms.send_error && (
-                                    <div style={{
-                                        flex: 1,
-                                        padding: "0.5rem",
-                                        background: "#fff3cd",
-                                        color: "#856404",
-                                        borderRadius: "4px",
-                                        fontSize: "0.8rem"
-                                    }}>
-                                        ❌ Błąd: {sms.send_error}
                                     </div>
-                                )}
+                                </div>
+                            );
+                        })
+                    )}
+                </>
+            )}
+
+            {/* ═══ SENT TAB — Grouped by Date ═══ */}
+            {smsTab === 'sent' && (() => {
+                const sentSms = smsReminders.filter(sms => sms.status === 'sent' || sms.status === 'failed');
+
+                // Group by appointment date
+                const grouped: Record<string, any[]> = {};
+                sentSms.forEach(sms => {
+                    const dateKey = new Date(sms.sent_at || sms.appointment_date).toLocaleDateString('pl-PL', { timeZone: 'UTC' });
+                    if (!grouped[dateKey]) grouped[dateKey] = [];
+                    grouped[dateKey].push(sms);
+                });
+
+                // Sort dates newest first
+                const sortedDates = Object.keys(grouped).sort((a, b) => {
+                    const [da, ma, ya] = a.split('.').map(Number);
+                    const [db, mb, yb] = b.split('.').map(Number);
+                    return (yb * 10000 + mb * 100 + db) - (ya * 10000 + ma * 100 + da);
+                });
+
+                // Filter by selected date
+                const visibleDates = sentDateFilter
+                    ? sortedDates.filter(d => d === sentDateFilter)
+                    : sortedDates;
+
+                return (
+                    <>
+                        {/* Date Filter */}
+                        <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", marginBottom: "1rem", flexWrap: "wrap" }}>
+                            <label style={{ fontSize: "0.9rem", color: "var(--color-text-muted)", fontWeight: "600" }}>📅 Filtruj po dacie:</label>
+                            <select
+                                value={sentDateFilter}
+                                onChange={(e) => setSentDateFilter(e.target.value)}
+                                style={{
+                                    padding: "0.5rem 1rem",
+                                    borderRadius: "6px",
+                                    border: "1px solid var(--color-border)",
+                                    background: "var(--color-surface)",
+                                    color: "var(--color-text-main)",
+                                    fontSize: "0.9rem",
+                                    cursor: "pointer"
+                                }}
+                            >
+                                <option value="">Wszystkie daty ({sentSms.length})</option>
+                                {sortedDates.map(date => (
+                                    <option key={date} value={date}>{date} ({grouped[date].length} SMS)</option>
+                                ))}
+                            </select>
+                            {sentDateFilter && (
+                                <button
+                                    onClick={() => setSentDateFilter('')}
+                                    style={{ padding: "0.4rem 0.8rem", background: "var(--color-surface-hover)", border: "none", borderRadius: "4px", color: "#fff", cursor: "pointer", fontSize: "0.85rem" }}
+                                >✕ Pokaż wszystkie</button>
+                            )}
+                        </div>
+
+                        {visibleDates.length === 0 ? (
+                            <p style={{ textAlign: "center", padding: "2rem", color: "var(--color-text-muted)" }}>Brak wysłanych SMS</p>
+                        ) : (
+                            visibleDates.map(dateKey => (
+                                <div key={dateKey} style={{ marginBottom: "1.5rem" }}>
+                                    {/* Date group header */}
+                                    <div style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: "0.75rem",
+                                        marginBottom: "0.75rem",
+                                        padding: "0.6rem 1rem",
+                                        background: "rgba(220, 177, 74, 0.08)",
+                                        borderRadius: "6px",
+                                        borderLeft: "3px solid var(--color-primary)"
+                                    }}>
+                                        <span style={{ fontSize: "1rem" }}>📅</span>
+                                        <strong style={{ fontSize: "0.95rem", color: "var(--color-primary)" }}>{dateKey}</strong>
+                                        <span style={{ fontSize: "0.8rem", color: "var(--color-text-muted)" }}>({grouped[dateKey].length} SMS)</span>
+                                    </div>
+
+                                    {/* SMS cards for this date */}
+                                    <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", paddingLeft: "0.5rem" }}>
+                                        {grouped[dateKey].map(sms => {
+                                            const timeMatch = sms.sms_message?.match(/(\d{1,2}):(\d{2})/);
+                                            const appointmentTime = timeMatch ? `${timeMatch[1]}:${timeMatch[2]}` : '';
+
+                                            return (
+                                                <div key={sms.id} style={{
+                                                    background: "var(--color-surface)",
+                                                    padding: "1.25rem",
+                                                    borderRadius: "var(--radius-md)",
+                                                    border: sms.status === 'failed' ? '2px solid var(--color-error)' : undefined
+                                                }}>
+                                                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.75rem", flexWrap: "wrap", gap: "0.5rem" }}>
+                                                        <div>
+                                                            <strong>{sms.patient_name || sms.phone}</strong>
+                                                            <div style={{ fontSize: "0.85rem", color: "var(--color-text-muted)", marginTop: "0.2rem" }}>
+                                                                📞 {sms.phone} {appointmentTime && `• ⏰ ${appointmentTime}`} • 👨‍⚕️ {sms.doctor_name}
+                                                            </div>
+                                                        </div>
+                                                        <span style={{
+                                                            padding: "0.2rem 0.5rem",
+                                                            borderRadius: "4px",
+                                                            fontSize: "0.75rem",
+                                                            background: sms.status === 'sent' ? '#4caf50' : '#f44336',
+                                                            color: 'white',
+                                                            alignSelf: 'flex-start'
+                                                        }}>{sms.status}</span>
+                                                    </div>
+
+                                                    <div style={{ padding: "0.75rem", background: "var(--color-background)", borderRadius: "4px", marginBottom: "0.75rem", fontSize: "0.88rem", lineHeight: "1.6" }}>
+                                                        {sms.sms_message}
+                                                    </div>
+
+                                                    <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center" }}>
+                                                        <button
+                                                            onClick={() => handleResendSms(sms)}
+                                                            style={{ padding: "0.4rem 0.9rem", background: "var(--color-primary)", border: "none", borderRadius: "4px", color: "black", cursor: "pointer", fontWeight: "bold", fontSize: "0.85rem" }}
+                                                        >🔄 Wyślij ponownie</button>
+                                                        <button
+                                                            onClick={() => handleDeleteSms(sms.id)}
+                                                            style={{ padding: "0.4rem 0.9rem", background: "var(--color-error)", border: "none", borderRadius: "4px", color: "white", cursor: "pointer", fontSize: "0.85rem" }}
+                                                        >🗑️ Usuń</button>
+                                                        {sms.status === 'failed' && sms.send_error && (
+                                                            <div style={{ flex: 1, padding: "0.4rem 0.6rem", background: "#fff3cd", color: "#856404", borderRadius: "4px", fontSize: "0.8rem" }}>❌ {sms.send_error}</div>
+                                                        )}
+                                                        {sms.sent_at && (
+                                                            <span style={{ fontSize: "0.78rem", color: "var(--color-text-muted)", marginLeft: "auto" }}>
+                                                                Wysłano: {new Date(sms.sent_at).toLocaleString('pl-PL', { timeZone: 'UTC' })}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </>
+                );
+            })()}
+
+            {/* ═══ MANUAL SMS TAB ═══ */}
+            {smsTab === 'manual' && (
+                <div style={{ maxWidth: "600px" }}>
+                    <div style={{ background: "var(--color-surface)", padding: "2rem", borderRadius: "var(--radius-md)", border: "1px solid var(--color-border)" }}>
+                        <h3 style={{ margin: "0 0 0.5rem", fontSize: "1.15rem" }}>✉️ Wyślij SMS ręcznie</h3>
+                        <p style={{ margin: "0 0 1.5rem", fontSize: "0.88rem", color: "var(--color-text-muted)" }}>Wyszukaj pacjenta po nazwisku, system automatycznie uzupełni numer telefonu.</p>
+
+                        {/* Patient search */}
+                        <div style={{ marginBottom: "1.25rem", position: "relative" }}>
+                            <label style={{ display: "block", marginBottom: "0.35rem", fontSize: "0.85rem", fontWeight: "600" }}>🔍 Wyszukaj pacjenta</label>
+                            <input
+                                type="text"
+                                value={patientSearchQuery}
+                                onChange={(e) => handleSearchPatients(e.target.value)}
+                                placeholder="Wpisz imię lub nazwisko..."
+                                style={{
+                                    width: "100%",
+                                    padding: "0.7rem 1rem",
+                                    borderRadius: "6px",
+                                    border: "2px solid var(--color-border)",
+                                    background: "var(--color-background)",
+                                    color: "var(--color-text-main)",
+                                    fontSize: "0.95rem",
+                                    fontFamily: "inherit"
+                                }}
+                            />
+                            {searchingPatients && (
+                                <div style={{ position: "absolute", right: "12px", top: "36px", fontSize: "0.85rem", color: "var(--color-text-muted)" }}>Szukam...</div>
+                            )}
+
+                            {/* Search results dropdown */}
+                            {patientSearchResults.length > 0 && (
+                                <div style={{
+                                    position: "absolute",
+                                    top: "100%",
+                                    left: 0,
+                                    right: 0,
+                                    background: "var(--color-surface)",
+                                    border: "1px solid var(--color-border)",
+                                    borderRadius: "0 0 8px 8px",
+                                    boxShadow: "0 8px 24px rgba(0,0,0,0.3)",
+                                    zIndex: 100,
+                                    maxHeight: "200px",
+                                    overflowY: "auto"
+                                }}>
+                                    {patientSearchResults.map((patient, idx) => (
+                                        <div
+                                            key={patient.id || idx}
+                                            onClick={() => handleSelectPatient(patient)}
+                                            style={{
+                                                padding: "0.65rem 1rem",
+                                                cursor: "pointer",
+                                                borderBottom: "1px solid var(--color-border)",
+                                                transition: "background 0.15s",
+                                                fontSize: "0.9rem"
+                                            }}
+                                            onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(220, 177, 74, 0.1)')}
+                                            onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                                        >
+                                            <strong>{patient.firstName} {patient.lastName}</strong>
+                                            <span style={{ marginLeft: "0.75rem", fontSize: "0.8rem", color: "var(--color-text-muted)" }}>📞 {patient.phone || 'brak numeru'}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Patient name (auto-filled or manual) */}
+                        <div style={{ marginBottom: "1rem" }}>
+                            <label style={{ display: "block", marginBottom: "0.35rem", fontSize: "0.85rem", fontWeight: "600" }}>👤 Imię i nazwisko</label>
+                            <input
+                                type="text"
+                                value={manualPatientName}
+                                onChange={(e) => setManualPatientName(e.target.value)}
+                                placeholder="Jan Kowalski"
+                                style={{
+                                    width: "100%",
+                                    padding: "0.7rem 1rem",
+                                    borderRadius: "6px",
+                                    border: "2px solid var(--color-border)",
+                                    background: manualPatientName ? "rgba(220, 177, 74, 0.05)" : "var(--color-background)",
+                                    color: "var(--color-text-main)",
+                                    fontSize: "0.95rem",
+                                    fontFamily: "inherit"
+                                }}
+                            />
+                        </div>
+
+                        {/* Phone (auto-filled or manual) */}
+                        <div style={{ marginBottom: "1rem" }}>
+                            <label style={{ display: "block", marginBottom: "0.35rem", fontSize: "0.85rem", fontWeight: "600" }}>📞 Numer telefonu</label>
+                            <input
+                                type="text"
+                                value={manualPhone}
+                                onChange={(e) => setManualPhone(e.target.value)}
+                                placeholder="48123456789"
+                                style={{
+                                    width: "100%",
+                                    padding: "0.7rem 1rem",
+                                    borderRadius: "6px",
+                                    border: `2px solid ${manualPhone ? 'var(--color-primary)' : 'var(--color-border)'}`,
+                                    background: manualPhone ? "rgba(220, 177, 74, 0.05)" : "var(--color-background)",
+                                    color: "var(--color-text-main)",
+                                    fontSize: "0.95rem",
+                                    fontFamily: "inherit"
+                                }}
+                            />
+                            <div style={{ marginTop: "0.25rem", fontSize: "0.75rem", color: "var(--color-text-muted)" }}>Format: 48XXXXXXXXX (bez + i spacji)</div>
+                        </div>
+
+                        {/* Message */}
+                        <div style={{ marginBottom: "1.25rem" }}>
+                            <label style={{ display: "block", marginBottom: "0.35rem", fontSize: "0.85rem", fontWeight: "600" }}>💬 Treść SMS</label>
+                            <textarea
+                                value={manualMessage}
+                                onChange={(e) => setManualMessage(e.target.value)}
+                                placeholder="Wpisz treść wiadomości SMS..."
+                                rows={4}
+                                style={{
+                                    width: "100%",
+                                    padding: "0.7rem 1rem",
+                                    borderRadius: "6px",
+                                    border: "2px solid var(--color-border)",
+                                    background: "var(--color-background)",
+                                    color: "var(--color-text-main)",
+                                    fontSize: "0.95rem",
+                                    fontFamily: "inherit",
+                                    resize: "vertical",
+                                    lineHeight: "1.5"
+                                }}
+                            />
+                            <div style={{ marginTop: "0.3rem", fontSize: "0.8rem", color: manualMessage.length > 160 ? 'var(--color-error)' : 'var(--color-text-muted)' }}>
+                                {manualMessage.length} / 160 znaków {manualMessage.length > 160 && `(${Math.ceil(manualMessage.length / 160)} SMS)`}
                             </div>
                         </div>
-                    );
-                })
+
+                        {/* Send button */}
+                        <button
+                            onClick={handleSendManualSms}
+                            disabled={sendingManual || !manualPhone || !manualMessage}
+                            style={{
+                                width: "100%",
+                                padding: "0.85rem",
+                                background: (!manualPhone || !manualMessage) ? "#666" : "var(--color-primary)",
+                                border: "none",
+                                borderRadius: "8px",
+                                color: "#1a1a1a",
+                                fontWeight: "700",
+                                fontSize: "1rem",
+                                cursor: (!manualPhone || !manualMessage) ? "not-allowed" : "pointer",
+                                transition: "all 0.2s"
+                            }}
+                        >
+                            {sendingManual ? '⏳ Wysyłanie...' : '📱 Wyślij SMS'}
+                        </button>
+                    </div>
+                </div>
             )}
         </div>
     );

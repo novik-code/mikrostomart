@@ -469,23 +469,28 @@ Features:
 
 **Tabs:**
 - **📝 Szkice (Drafts):** Draft SMS ready to send
-- **📤 Wysłane (Sent):** Sent/failed SMS history with delete option
+- **📤 Wysłane (Sent):** Sent/failed SMS history grouped by date, with date picker filter and resend button
+- **✉️ Wyślij SMS ręcznie (Manual):** Send SMS directly to a patient — search by name, auto-fill phone, compose message
 
 **Actions:**
 - Generate SMS drafts for tomorrow's appointments (Cron job or manual trigger)
 - Edit SMS message before sending
 - Send individual SMS
 - Send all SMS in bulk
+- Resend previously sent/failed SMS
+- Send manual SMS to any patient (search by name → phone auto-fill)
 - Delete any SMS (draft or sent) — permanently removed from database
 - View send errors
+- Filter sent SMS by date
 
 **Workflow:**
 1. Cron job generates drafts daily at 7:00 AM UTC (8-9 AM Warsaw time)
 2. Admin reviews/edits drafts in panel
 3. Admin sends SMS (individually or bulk)
-4. Sent SMS move to "Wysłane" tab
-5. Admin can delete any SMS (draft or sent) from history
+4. Sent SMS move to "Wysłane" tab, grouped by date
+5. Admin can resend or delete any SMS from history
 6. New drafts always regenerate regardless of previous sent status
+7. Manual SMS can be sent anytime via "Wyślij SMS ręcznie" tab
 
 #### 6. Reservations (`reservations` tab)
 - Booking requests
@@ -536,10 +541,12 @@ Features:
 | `/admin/sms-reminders` | DELETE | Permanently delete any SMS (draft or sent) |
 | `/admin/sms-reminders/generate` | POST | Generate drafts for tomorrow |
 | `/admin/sms-reminders/send` | POST | Send SMS (single or bulk) |
+| `/admin/sms-reminders/send-manual` | POST | Send manual SMS directly (phone + message) |
+| `/admin/patients/search` | GET | Search patients by name (query param `q`) |
 | `/admin/products` | GET, POST, DELETE | Product CRUD |
 | `/admin/orders` | GET | Fetch orders |
 | `/admin/patients` | GET | Fetch patient list |
-| ... | ... | (14 admin API directories total) |
+| ... | ... | (16 admin API directories total) |
 
 ### Appointment APIs (`/api/appointments/*`)
 
@@ -908,6 +915,29 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### February 9, 2026 (Evening)
+**Admin SMS Panel Enhancements — Date Grouping, Manual Send, Patient Search**
+
+#### Major Changes:
+1. **Sent SMS Grouped by Date** — Sent tab now groups SMS by send date with collapsible date headers and a dropdown date picker for filtering
+2. **Resend Button** — Every sent/failed SMS now has a "🔄 Wyślij ponownie" button for quick resend
+3. **Manual SMS Tab** — New 3rd tab "✉️ Wyślij SMS ręcznie" with:
+   - Patient name search (searches Supabase patients enriched with Prodentis names)
+   - Auto-fill phone number from patient record
+   - Message editor with character counter (160-char warning)
+   - Direct send button
+4. **Patient Search API** — New `/api/admin/patients/search?q=name` endpoint
+5. **Manual Send API** — New `/api/admin/sms-reminders/send-manual` endpoint (sends + logs to sms_reminders with `appointment_type: 'manual'`)
+
+#### Files Added:
+- `src/app/api/admin/patients/search/route.ts` — Patient search by name
+- `src/app/api/admin/sms-reminders/send-manual/route.ts` — Direct manual SMS send
+
+#### Files Modified:
+- `src/app/admin/page.tsx` — 3rd tab, date grouping, resend, patient search UI
+
+---
 
 ### February 9, 2026 (Afternoon)
 **SMS Cron Major Overhaul — Working Hours, Templates, Nowosielska Exception**
