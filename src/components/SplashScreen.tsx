@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 
@@ -8,33 +8,42 @@ import Image from 'next/image';
  * SplashScreen — Cinematic intro animation
  * 
  * Sequence:
- * 1. Black screen (0.3s)
- * 2. Golden particles converge toward center
+ * 1. Black screen (0.5s)
+ * 2. ~80 golden particles drift inward like a star nebula
  * 3. Logo materializes at center with golden glow burst
- * 4. Logo holds center briefly
- * 5. Logo flies to top-left (navbar position) + shrinks
- * 6. Black overlay dissolves, revealing the page
+ * 4. Logo holds center (1.5s)
+ * 5. Logo flies to top-left (navbar position), page fades in simultaneously
+ * 6. Overlay fully dissolves
  * 
  * Only plays once per session (sessionStorage).
  */
 
-// Golden particle positions (random-ish starting points)
-const particles = Array.from({ length: 24 }, (_, i) => ({
-    id: i,
-    startX: (Math.random() - 0.5) * 800,
-    startY: (Math.random() - 0.5) * 600,
-    size: 2 + Math.random() * 4,
-    delay: Math.random() * 0.6,
-    opacity: 0.3 + Math.random() * 0.7,
-}));
+// Star nebula particles — many more, varied sizes
+const particles = Array.from({ length: 80 }, (_, i) => {
+    const angle = Math.random() * Math.PI * 2;
+    const distance = 300 + Math.random() * 500;
+    return {
+        id: i,
+        startX: Math.cos(angle) * distance,
+        startY: Math.sin(angle) * distance,
+        size: 1 + Math.random() * 3.5,
+        delay: Math.random() * 1.0,
+        opacity: 0.2 + Math.random() * 0.8,
+        // Small offset from center to create more natural convergence
+        endX: (Math.random() - 0.5) * 40,
+        endY: (Math.random() - 0.5) * 30,
+    };
+});
 
 type Phase = 'idle' | 'particles' | 'logo-center' | 'logo-fly' | 'reveal' | 'done';
 
 export default function SplashScreen({ children }: { children: React.ReactNode }) {
     const [phase, setPhase] = useState<Phase>('idle');
     const [shouldShow, setShouldShow] = useState(false);
+    const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
+        setMounted(true);
         if (typeof window !== 'undefined') {
             const seen = sessionStorage.getItem('splash-seen');
             if (!seen) {
@@ -47,20 +56,29 @@ export default function SplashScreen({ children }: { children: React.ReactNode }
         }
     }, []);
 
-    // Animation timeline
+    // Slower, more cinematic timeline
     useEffect(() => {
         if (!shouldShow) return;
 
         const timers: NodeJS.Timeout[] = [];
 
-        timers.push(setTimeout(() => setPhase('particles'), 300));
-        timers.push(setTimeout(() => setPhase('logo-center'), 1200));
-        timers.push(setTimeout(() => setPhase('logo-fly'), 2800));
-        timers.push(setTimeout(() => setPhase('reveal'), 3600));
+        // Phase 1: Star nebula particles drift in (0.5s delay → ~1.5s animation)
+        timers.push(setTimeout(() => setPhase('particles'), 500));
+
+        // Phase 2: Logo materializes at center (after particles have mostly converged)
+        timers.push(setTimeout(() => setPhase('logo-center'), 2000));
+
+        // Phase 3: Logo flies to navbar corner + page starts fading in simultaneously
+        timers.push(setTimeout(() => setPhase('logo-fly'), 4000));
+
+        // Phase 4: Overlay fully gone
+        timers.push(setTimeout(() => setPhase('reveal'), 5200));
+
+        // Phase 5: Cleanup
         timers.push(setTimeout(() => {
             setPhase('done');
             document.body.style.overflow = '';
-        }, 4400));
+        }, 6000));
 
         return () => {
             timers.forEach(clearTimeout);
@@ -77,35 +95,36 @@ export default function SplashScreen({ children }: { children: React.ReactNode }
     const is = (p: Phase) => phase === p;
     const isAny = (...ps: Phase[]) => ps.includes(phase);
 
-    const showOverlay = phase !== 'done';
+    const showOverlay = isAny('idle', 'particles', 'logo-center', 'logo-fly');
     const showParticles = isAny('particles', 'logo-center');
-    const showLogo = isAny('logo-center', 'logo-fly', 'reveal');
-    const isRevealing = is('reveal');
-    const isLogoFlying = isAny('logo-fly', 'reveal');
+    const showLogo = isAny('logo-center', 'logo-fly');
+    const isLogoFlying = is('logo-fly');
+    const isDone = is('done');
+    // Page starts fading in when logo flies, fully visible on reveal/done
+    const pageVisible = isAny('logo-fly', 'reveal', 'done');
 
-    if (!showOverlay) {
+    // When done, render children directly without any wrappers
+    if (isDone) {
         return <>{children}</>;
     }
 
+    // Calculate navbar logo target position
+    const targetX = mounted && typeof window !== 'undefined' ? -(window.innerWidth / 2 - 140) : -500;
+    const targetY = mounted && typeof window !== 'undefined' ? -(window.innerHeight / 2 - 42) : -400;
+
     return (
         <>
-            {/* Page content renders underneath */}
+            {/* Page content — always rendered, opacity controlled smoothly */}
             <div style={{
-                opacity: isRevealing ? 1 : 0,
-                transition: 'opacity 0.8s ease-out',
-                pointerEvents: isRevealing ? 'auto' : 'none'
+                opacity: pageVisible ? 1 : 0,
+                transition: 'opacity 1.2s ease-out',
             }}>
                 {children}
             </div>
 
             {/* Full-screen overlay */}
-            <AnimatePresence>
-                <motion.div
-                    key="splash-overlay"
-                    initial={{ opacity: 1 }}
-                    animate={{ opacity: isRevealing ? 0 : 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.8, ease: 'easeInOut' }}
+            {showOverlay && (
+                <div
                     style={{
                         position: 'fixed',
                         inset: 0,
@@ -115,7 +134,10 @@ export default function SplashScreen({ children }: { children: React.ReactNode }
                         alignItems: 'center',
                         justifyContent: 'center',
                         cursor: 'pointer',
-                        pointerEvents: isRevealing ? 'none' : 'auto',
+                        // Fade out the overlay when logo is flying
+                        opacity: isLogoFlying ? 0 : 1,
+                        transition: 'opacity 1.2s ease-in-out',
+                        pointerEvents: isLogoFlying ? 'none' : 'auto',
                     }}
                     onClick={handleSkip}
                 >
@@ -123,21 +145,21 @@ export default function SplashScreen({ children }: { children: React.ReactNode }
                     <motion.div
                         initial={{ opacity: 0, scale: 0.5 }}
                         animate={{
-                            opacity: isAny('logo-center', 'logo-fly') ? 0.6 : 0,
-                            scale: is('logo-center') ? 1.2 : is('logo-fly') ? 2 : 0.5,
+                            opacity: isAny('logo-center', 'logo-fly') ? 0.6 : isAny('particles') ? 0.15 : 0,
+                            scale: is('logo-center') ? 1.3 : is('logo-fly') ? 2 : is('particles') ? 0.8 : 0.5,
                         }}
-                        transition={{ duration: 1.2, ease: 'easeOut' }}
+                        transition={{ duration: 1.5, ease: 'easeOut' }}
                         style={{
                             position: 'absolute',
                             width: '600px',
                             height: '600px',
                             borderRadius: '50%',
-                            background: 'radial-gradient(circle, rgba(212,175,55,0.08) 0%, rgba(212,175,55,0.02) 40%, transparent 70%)',
+                            background: 'radial-gradient(circle, rgba(212,175,55,0.1) 0%, rgba(212,175,55,0.03) 40%, transparent 70%)',
                             pointerEvents: 'none',
                         }}
                     />
 
-                    {/* Converging particles */}
+                    {/* Star nebula particles */}
                     {showParticles && particles.map((p) => (
                         <motion.div
                             key={p.id}
@@ -148,14 +170,14 @@ export default function SplashScreen({ children }: { children: React.ReactNode }
                                 opacity: 0,
                             }}
                             animate={{
-                                x: 0,
-                                y: 0,
-                                scale: is('logo-center') ? 0 : [0, 1.5, 1],
-                                opacity: is('logo-center') ? 0 : [0, p.opacity, p.opacity],
+                                x: is('logo-center') ? p.endX * 0.5 : p.endX,
+                                y: is('logo-center') ? p.endY * 0.5 : p.endY,
+                                scale: is('logo-center') ? [1, 0.5, 0] : [0, 0.8, 1.2, 1],
+                                opacity: is('logo-center') ? [p.opacity, 0.3, 0] : [0, p.opacity * 0.5, p.opacity],
                             }}
                             transition={{
-                                duration: 0.8,
-                                delay: p.delay,
+                                duration: is('logo-center') ? 0.8 : 1.2,
+                                delay: is('logo-center') ? p.delay * 0.3 : p.delay,
                                 ease: [0.23, 1, 0.32, 1],
                             }}
                             style={{
@@ -163,8 +185,10 @@ export default function SplashScreen({ children }: { children: React.ReactNode }
                                 width: p.size,
                                 height: p.size,
                                 borderRadius: '50%',
-                                background: `radial-gradient(circle, rgba(255,223,100,0.9), rgba(212,175,55,0.4))`,
-                                boxShadow: `0 0 ${p.size * 3}px rgba(212,175,55,0.5)`,
+                                background: p.size > 3
+                                    ? `radial-gradient(circle, rgba(255,235,130,0.95), rgba(212,175,55,0.3))`
+                                    : `radial-gradient(circle, rgba(255,255,220,0.9), rgba(212,175,55,0.2))`,
+                                boxShadow: `0 0 ${p.size * 2}px rgba(212,175,55,${p.opacity * 0.4})`,
                                 pointerEvents: 'none',
                             }}
                         />
@@ -190,17 +214,18 @@ export default function SplashScreen({ children }: { children: React.ReactNode }
                                         y: 0,
                                     }
                                     : {
-                                        scale: 0.35,
-                                        opacity: 0,
-                                        filter: 'blur(2px) brightness(1)',
-                                        x: typeof window !== 'undefined' ? -(window.innerWidth / 2 - 140) : -500,
-                                        y: typeof window !== 'undefined' ? -(window.innerHeight / 2 - 40) : -400,
+                                        // Fly to navbar position — stay visible during flight
+                                        scale: 0.4,
+                                        opacity: [1, 0.9, 0.6, 0],
+                                        filter: 'blur(1px) brightness(1)',
+                                        x: targetX,
+                                        y: targetY,
                                     }
                             }
                             transition={
                                 is('logo-center')
-                                    ? { duration: 0.8, ease: [0.23, 1, 0.32, 1] }
-                                    : { duration: 0.7, ease: [0.77, 0, 0.18, 1] }
+                                    ? { duration: 1.0, ease: [0.23, 1, 0.32, 1] }
+                                    : { duration: 1.0, ease: [0.65, 0, 0.35, 1] }
                             }
                             style={{
                                 position: 'absolute',
@@ -215,34 +240,52 @@ export default function SplashScreen({ children }: { children: React.ReactNode }
                                 initial={{ opacity: 0, scale: 0.8 }}
                                 animate={{
                                     opacity: is('logo-center') ? [0, 0.8, 0.4] : 0,
-                                    scale: is('logo-center') ? [0.8, 1.4, 1.1] : 0.5,
+                                    scale: is('logo-center') ? [0.8, 1.5, 1.1] : 0.5,
                                 }}
-                                transition={{ duration: 1.2, ease: 'easeOut' }}
+                                transition={{ duration: 1.5, ease: 'easeOut' }}
                                 style={{
                                     position: 'absolute',
                                     width: '500px',
                                     height: '200px',
                                     borderRadius: '50%',
-                                    background: 'radial-gradient(ellipse, rgba(212,175,55,0.2) 0%, rgba(212,175,55,0.05) 50%, transparent 70%)',
+                                    background: 'radial-gradient(ellipse, rgba(212,175,55,0.25) 0%, rgba(212,175,55,0.05) 50%, transparent 70%)',
                                     pointerEvents: 'none',
                                 }}
                             />
 
-                            {/* Shimmer ring */}
+                            {/* Shimmer ring expands outward */}
                             <motion.div
                                 initial={{ opacity: 0, scale: 0.5, rotate: 0 }}
                                 animate={{
-                                    opacity: is('logo-center') ? [0, 0.6, 0] : 0,
-                                    scale: is('logo-center') ? [0.5, 1.8, 2.5] : 0.5,
-                                    rotate: 90,
+                                    opacity: is('logo-center') ? [0, 0.5, 0] : 0,
+                                    scale: is('logo-center') ? [0.5, 2.0, 3.0] : 0.5,
+                                    rotate: 120,
                                 }}
-                                transition={{ duration: 1.5, ease: 'easeOut' }}
+                                transition={{ duration: 2.0, ease: 'easeOut' }}
                                 style={{
                                     position: 'absolute',
                                     width: '350px',
                                     height: '350px',
                                     borderRadius: '50%',
-                                    border: '1px solid rgba(212,175,55,0.3)',
+                                    border: '1px solid rgba(212,175,55,0.25)',
+                                    pointerEvents: 'none',
+                                }}
+                            />
+
+                            {/* Second ring, slower */}
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.3 }}
+                                animate={{
+                                    opacity: is('logo-center') ? [0, 0.3, 0] : 0,
+                                    scale: is('logo-center') ? [0.3, 1.6, 2.2] : 0.3,
+                                }}
+                                transition={{ duration: 2.5, ease: 'easeOut', delay: 0.3 }}
+                                style={{
+                                    position: 'absolute',
+                                    width: '280px',
+                                    height: '280px',
+                                    borderRadius: '50%',
+                                    border: '1px solid rgba(212,175,55,0.15)',
                                     pointerEvents: 'none',
                                 }}
                             />
@@ -269,9 +312,9 @@ export default function SplashScreen({ children }: { children: React.ReactNode }
                         initial={{ scaleX: 0, opacity: 0 }}
                         animate={{
                             scaleX: is('logo-center') ? [0, 1, 0.8] : 0,
-                            opacity: is('logo-center') ? [0, 0.6, 0.3] : 0,
+                            opacity: is('logo-center') ? [0, 0.5, 0.2] : 0,
                         }}
-                        transition={{ duration: 1.2, ease: 'easeOut', delay: 0.2 }}
+                        transition={{ duration: 1.5, ease: 'easeOut', delay: 0.3 }}
                         style={{
                             position: 'absolute',
                             width: '80%',
@@ -281,11 +324,11 @@ export default function SplashScreen({ children }: { children: React.ReactNode }
                         }}
                     />
 
-                    {/* Skip hint */}
+                    {/* "kliknij aby pominąć" hint */}
                     <motion.div
                         initial={{ opacity: 0 }}
-                        animate={{ opacity: !isRevealing ? 0.3 : 0 }}
-                        transition={{ delay: 1.5, duration: 0.5 }}
+                        animate={{ opacity: 0.3 }}
+                        transition={{ delay: 2.0, duration: 0.8 }}
                         style={{
                             position: 'absolute',
                             bottom: '2rem',
@@ -298,8 +341,8 @@ export default function SplashScreen({ children }: { children: React.ReactNode }
                     >
                         kliknij aby pominąć
                     </motion.div>
-                </motion.div>
-            </AnimatePresence>
+                </div>
+            )}
         </>
     );
 }
