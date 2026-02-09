@@ -72,9 +72,15 @@ export default function AdminPage() {
     const [editingSmsId, setEditingSmsId] = useState<string | null>(null);
     const [editingSmsMessage, setEditingSmsMessage] = useState('');
     const [sendingAll, setSendingAll] = useState(false);
-    const [smsTab, setSmsTab] = useState<'drafts' | 'sent'>('drafts'); // New: tab state
+    const [smsTab, setSmsTab] = useState<'drafts' | 'sent'>('drafts');
 
     const [manualGenerationStatus, setManualGenerationStatus] = useState<string | null>(null);
+
+    // SMS Templates state
+    const [smsTemplates, setSmsTemplates] = useState<any[]>([]);
+    const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
+    const [editingTemplateText, setEditingTemplateText] = useState('');
+    const [showTemplateEditor, setShowTemplateEditor] = useState(false);
 
     // Appointment Instructions state
     const [appointmentInstructions, setAppointmentInstructions] = useState<any[]>([]);
@@ -1314,6 +1320,163 @@ export default function AdminPage() {
                     📤 Wysłane ({smsStats.sent})
                 </button>
             </div>
+
+            {/* Template Editor Toggle */}
+            <button
+                onClick={() => {
+                    setShowTemplateEditor(!showTemplateEditor);
+                    if (!showTemplateEditor && smsTemplates.length === 0) {
+                        fetch('/api/admin/sms-templates')
+                            .then(r => r.json())
+                            .then(d => setSmsTemplates(d.templates || []))
+                            .catch(() => { });
+                    }
+                }}
+                style={{
+                    width: "100%",
+                    padding: "0.75rem 1rem",
+                    background: showTemplateEditor ? "rgba(220, 177, 74, 0.15)" : "var(--color-surface)",
+                    border: showTemplateEditor ? "2px solid var(--color-primary)" : "1px solid var(--color-border)",
+                    borderRadius: "var(--radius-md)",
+                    color: showTemplateEditor ? "var(--color-primary)" : "var(--color-text-muted)",
+                    cursor: "pointer",
+                    fontWeight: "600",
+                    fontSize: "0.95rem",
+                    textAlign: "left",
+                    marginBottom: "1rem"
+                }}
+            >
+                {showTemplateEditor ? '▼' : '▶'} 📝 Szablony SMS (kliknij aby {showTemplateEditor ? 'schować' : 'edytować'})
+            </button>
+
+            {/* Template Editor */}
+            {showTemplateEditor && (
+                <div style={{
+                    background: "var(--color-surface)",
+                    padding: "1.5rem",
+                    borderRadius: "var(--radius-md)",
+                    marginBottom: "1.5rem",
+                    border: "1px solid rgba(220, 177, 74, 0.2)"
+                }}>
+                    <div style={{ marginBottom: "1rem" }}>
+                        <h3 style={{ margin: 0, marginBottom: "0.5rem" }}>📝 Szablony treści SMS</h3>
+                        <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--color-text-muted)" }}>
+                            Placeholders: <code>{'{time}'}</code> = godzina, <code>{'{doctor}'}</code> = lekarz, <code>{'{patientName}'}</code> = imię, <code>{'{date}'}</code> = data, <code>{'{appointmentType}'}</code> = typ
+                        </p>
+                    </div>
+
+                    {smsTemplates.length === 0 ? (
+                        <p style={{ color: "var(--color-text-muted)", textAlign: "center", padding: "1rem" }}>Ładowanie szablonów...</p>
+                    ) : (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                            {smsTemplates.map(tmpl => {
+                                const isEditing = editingTemplateId === tmpl.id;
+                                return (
+                                    <div key={tmpl.id} style={{
+                                        padding: "1rem",
+                                        background: "var(--color-background)",
+                                        borderRadius: "6px",
+                                        border: isEditing ? "2px solid var(--color-primary)" : "1px solid var(--color-border)"
+                                    }}>
+                                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+                                            <strong style={{ fontSize: "0.9rem" }}>
+                                                {tmpl.label || tmpl.key}
+                                            </strong>
+                                            <span style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", fontFamily: "monospace" }}>
+                                                {tmpl.key}
+                                            </span>
+                                        </div>
+
+                                        {isEditing ? (
+                                            <div>
+                                                <textarea
+                                                    value={editingTemplateText}
+                                                    onChange={(e) => setEditingTemplateText(e.target.value)}
+                                                    style={{
+                                                        width: "100%",
+                                                        minHeight: "70px",
+                                                        padding: "0.8rem",
+                                                        borderRadius: "4px",
+                                                        border: "1px solid var(--color-border)",
+                                                        background: "var(--color-surface)",
+                                                        color: "var(--color-text-main)",
+                                                        fontSize: "0.9rem",
+                                                        fontFamily: "inherit",
+                                                        resize: "vertical"
+                                                    }}
+                                                />
+                                                <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}>
+                                                    <button
+                                                        onClick={async () => {
+                                                            const res = await fetch('/api/admin/sms-templates', {
+                                                                method: 'PUT',
+                                                                headers: { 'Content-Type': 'application/json' },
+                                                                body: JSON.stringify({ id: tmpl.id, template: editingTemplateText })
+                                                            });
+                                                            if (res.ok) {
+                                                                setSmsTemplates(prev => prev.map(t => t.id === tmpl.id ? { ...t, template: editingTemplateText } : t));
+                                                                setEditingTemplateId(null);
+                                                                setEditingTemplateText('');
+                                                            } else {
+                                                                alert('Błąd zapisu szablonu');
+                                                            }
+                                                        }}
+                                                        style={{
+                                                            padding: "0.4rem 1rem",
+                                                            background: "var(--color-primary)",
+                                                            border: "none",
+                                                            borderRadius: "4px",
+                                                            color: "black",
+                                                            cursor: "pointer",
+                                                            fontWeight: "bold",
+                                                            fontSize: "0.85rem"
+                                                        }}
+                                                    >
+                                                        💾 Zapisz
+                                                    </button>
+                                                    <button
+                                                        onClick={() => { setEditingTemplateId(null); setEditingTemplateText(''); }}
+                                                        style={{
+                                                            padding: "0.4rem 1rem",
+                                                            background: "var(--color-surface-hover)",
+                                                            border: "none",
+                                                            borderRadius: "4px",
+                                                            color: "#fff",
+                                                            cursor: "pointer",
+                                                            fontSize: "0.85rem"
+                                                        }}
+                                                    >
+                                                        Anuluj
+                                                    </button>
+                                                </div>
+                                                <div style={{ marginTop: "0.25rem", fontSize: "0.75rem", color: "var(--color-text-muted)" }}>
+                                                    {editingTemplateText.length} znaków
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div
+                                                onClick={() => { setEditingTemplateId(tmpl.id); setEditingTemplateText(tmpl.template); }}
+                                                style={{
+                                                    padding: "0.5rem",
+                                                    fontSize: "0.85rem",
+                                                    color: "var(--color-text-muted)",
+                                                    cursor: "pointer",
+                                                    borderRadius: "4px",
+                                                    transition: "background 0.2s"
+                                                }}
+                                                title="Kliknij aby edytować"
+                                            >
+                                                {tmpl.template}
+                                                <span style={{ marginLeft: "0.5rem", fontSize: "0.75rem", opacity: 0.6 }}>✏️</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* SMS List */}
             {smsReminders.filter(sms =>

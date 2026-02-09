@@ -16,8 +16,33 @@ const REMINDER_DOCTORS = process.env.REMINDER_DOCTORS?.split(',').map(d => d.tri
     'Ilona Piechaczek',
     'Katarzyna Halupczok',
     'Małgorzata Maćków Huras',
-    'Dominika Milicz'
+    'Dominika Milicz',
+    'Elżbieta Nowosielska'
 ];
+
+/**
+ * Fuzzy doctor name matching — normalizes and compares name parts
+ * Handles variations like "Maćków-Huras" vs "Maćków Huras", with/without "(I)" suffix
+ */
+function isDoctorInList(apiDoctorName: string, doctorList: string[]): boolean {
+    const normalize = (name: string) =>
+        name.replace(/\s*\(I\)\s*/g, ' ')
+            .replace(/-/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .toLowerCase();
+
+    const normalizedApi = normalize(apiDoctorName);
+
+    return doctorList.some(listName => {
+        const normalizedList = normalize(listName);
+        // Check if all parts of one name appear in the other
+        const apiParts = normalizedApi.split(' ');
+        const listParts = normalizedList.split(' ');
+        return listParts.every(part => apiParts.some(ap => ap.includes(part) || part.includes(ap)))
+            || apiParts.every(part => listParts.some(lp => lp.includes(part) || part.includes(lp)));
+    });
+}
 
 /**
  * SMS Draft Generation Cron Job (Stage 1 of 2) - API 4.0
@@ -100,6 +125,42 @@ export async function GET(req: Request) {
 
         console.log(`📊 [SMS Reminders] Found ${appointments.length} appointments for tomorrow`);
 
+        // 4b. Fetch WHITE FIELDS (working hours) from Prodentis slots/free API
+        // This is the same endpoint used by the online appointment scheduler
+        // It returns actual working-hour slots per doctor — the source of truth
+        const slotsUrl = `${PRODENTIS_API_URL}/api/slots/free?date=${tomorrowStr}&duration=30`;
+        console.log(`📋 [SMS Reminders] Fetching white fields from: ${slotsUrl}`);
+
+        let workingSlots = new Set<string>(); // "doctorId:HH:MM" entries
+        let workingDoctorIds = new Set<string>(); // doctor IDs that have ANY white field
+
+        try {
+            const slotsResponse = await fetch(slotsUrl, {
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            if (slotsResponse.ok) {
+                const slotsData: Array<{ doctor: string; doctorName: string; start: string; end: string }> = await slotsResponse.json();
+                console.log(`   ✅ Received ${slotsData.length} white-field slots`);
+
+                for (const slot of slotsData) {
+                    const slotTime = new Date(slot.start);
+                    const hh = slotTime.getHours().toString().padStart(2, '0');
+                    const mm = slotTime.getMinutes().toString().padStart(2, '0');
+                    workingSlots.add(`${slot.doctor}:${hh}:${mm}`);
+                    workingDoctorIds.add(slot.doctor);
+                }
+
+                console.log(`   📋 Working doctors: ${workingDoctorIds.size}, unique time slots: ${workingSlots.size}`);
+            } else {
+                console.error(`   ⚠️  Failed to fetch white fields: ${slotsResponse.status} — falling back to isWorkingHour flag`);
+            }
+        } catch (slotsErr) {
+            console.error(`   ⚠️  White fields fetch error:`, slotsErr, '— falling back to isWorkingHour flag');
+        }
+
+        const useWhiteFieldValidation = workingSlots.size > 0;
+
         // 5. Clean up ALL old drafts (ensures fresh generation with correct time/links)
         console.log(`🧹 [SMS Reminders] Cleaning up ALL old drafts...`);
         const { data: deletedDrafts, error: deleteError } = await supabase
@@ -133,20 +194,36 @@ export async function GET(req: Request) {
                 console.log(`   Phone: ${appointment.patientPhone || 'MISSING'}`);
                 console.log(`   Working Hour: ${appointment.isWorkingHour}`);
 
-                // 5a-0. HARD FILTER: Only business hours 8:00-19:59 (white fields)
-                // Entries before 8:00 and after 20:00 are internal/staff reminders, not patient visits
-                const appointmentHour = new Date(appointment.date).getHours();
-                if (appointmentHour < 8 || appointmentHour >= 20) {
-                    console.log(`   ⛔ Skipping: Outside business hours (${appointmentTime}, hour=${appointmentHour})`);
-                    skippedCount++;
-                    continue;
-                }
+                // 5a. WHITE-FIELD VALIDATION: Check if appointment is in a working-hour slot
+                // Uses the same Prodentis /api/slots/free data as the online scheduler
+                const appointmentDate = new Date(appointment.date);
+                const appointmentHour = appointmentDate.getHours();
+                const appointmentMinute = appointmentDate.getMinutes();
+                const doctorId = appointment.doctor?.id || '';
 
-                // 5a. Filter: Is working hour? (white field in calendar)
-                if (appointment.isWorkingHour !== true) {
-                    console.log(`   ⚠️  Skipping: Non-working hour (grey/red field)`);
-                    skippedCount++;
-                    continue;
+                if (useWhiteFieldValidation) {
+                    // Round down to nearest 30-min slot for matching
+                    const roundedMinute = appointmentMinute >= 30 ? 30 : 0;
+                    const slotKey = `${doctorId}:${appointmentHour.toString().padStart(2, '0')}:${roundedMinute.toString().padStart(2, '0')}`;
+
+                    if (!workingSlots.has(slotKey)) {
+                        console.log(`   ⛔ Skipping: NOT in white field (slot ${slotKey} not found in ${workingSlots.size} working slots)`);
+                        skippedCount++;
+                        continue;
+                    }
+                    console.log(`   ✅ White-field confirmed (slot ${slotKey})`);
+                } else {
+                    // Fallback: hardcoded 8-20 filter + isWorkingHour flag
+                    if (appointmentHour < 8 || appointmentHour >= 20) {
+                        console.log(`   ⛔ Skipping: Outside business hours (${appointmentTime}, hour=${appointmentHour})`);
+                        skippedCount++;
+                        continue;
+                    }
+                    if (appointment.isWorkingHour !== true) {
+                        console.log(`   ⚠️  Skipping: Non-working hour (grey/red field) [fallback mode]`);
+                        skippedCount++;
+                        continue;
+                    }
                 }
 
                 // 5b. Filter: Has phone number?
@@ -160,9 +237,9 @@ export async function GET(req: Request) {
                     continue;
                 }
 
-                // 5c. Filter: Is doctor in reminder list?
+                // 5c. Filter: Is doctor in reminder list? (fuzzy matching)
                 const doctorName = appointment.doctor.name.replace(/\s*\(I\)\s*/g, ' ').trim();
-                if (!REMINDER_DOCTORS.includes(doctorName)) {
+                if (!isDoctorInList(doctorName, REMINDER_DOCTORS)) {
                     console.log(`   ⚠️  Skipping: Doctor not in reminder list (${doctorName})`);
                     skippedCount++;
                     continue;
@@ -185,10 +262,10 @@ export async function GET(req: Request) {
 
                 // 6. Generate personalized SMS message
                 const appointmentType = appointment.appointmentType.name;
-                const appointmentDate = new Date(appointment.date);
+                // appointmentDate already declared in white-field validation above
 
                 // Get template and format message
-                const template = getSMSTemplate(doctorName, appointmentType);
+                const template = await getSMSTemplate(doctorName, appointmentType);
                 const message = formatSMSMessage(template, {
                     patientName: appointment.patientName.split(' ')[0], // First name only
                     doctor: doctorName,

@@ -125,62 +125,84 @@ export async function sendSMS(options: SMSOptions): Promise<SMSResponse> {
 /**
  * Get SMS template based on doctor and appointment type
  * 
+ * Reads from Supabase 'sms_templates' table (editable via admin panel)
+ * Falls back to smsTemplates.json file if Supabase unavailable
+ * 
+ * Key format in DB: 'default', 'byType:chirurgia', 'byDoctor:Marcin Nowosielski'
+ * 
  * Priority:
- * 1. byDoctor[doctorName][appointmentType] (most specific)
- * 2. byDoctor[doctorName].default
- * 3. byAppointmentType[appointmentType]
- * 4. default (fallback)
+ * 1. byDoctor:DoctorName (doctor-specific default)
+ * 2. byType:appointmentType (type-specific)
+ * 3. default (global fallback)
  */
-export function getSMSTemplate(
+export async function getSMSTemplate(
     doctorName: string,
     appointmentType: string
-): string {
-    // Load templates from config file
-    const fs = require('fs');
-    const path = require('path');
-    const templatesPath = path.join(process.cwd(), 'smsTemplates.json');
-
-    let templates: any = {};
-    try {
-        const fileContent = fs.readFileSync(templatesPath, 'utf-8');
-        templates = JSON.parse(fileContent);
-    } catch (error) {
-        console.error('Failed to load SMS templates:', error);
-        // Return default template if file not found
-        return 'Przypomnienie o wizycie jutro o {time}.';
-    }
-
-    // Normalize doctor name (remove "(I)" suffix that Prodentis adds)
+): Promise<string> {
+    // Normalize
     const normalizedDoctor = doctorName.replace(/\s*\(I\)\s*/g, ' ').trim();
-
-    // Normalize appointment type (case-insensitive)
     const normalizedType = appointmentType.toLowerCase();
 
-    // Priority 1: Doctor + Type specific
-    if (templates.byDoctor?.[normalizedDoctor]?.[normalizedType]) {
-        return templates.byDoctor[normalizedDoctor][normalizedType];
+    // Try Supabase first
+    try {
+        const { createClient } = require('@supabase/supabase-js');
+        const supabase = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!
+        );
+
+        const { data: templates } = await supabase
+            .from('sms_templates')
+            .select('key, template');
+
+        if (templates && templates.length > 0) {
+            const templateMap = new Map<string, string>();
+            for (const t of templates) {
+                templateMap.set(t.key.toLowerCase(), t.template);
+            }
+
+            // Priority 1: Doctor-specific template
+            const doctorKey = `bydoctor:${normalizedDoctor.toLowerCase()}`;
+            if (templateMap.has(doctorKey)) {
+                return templateMap.get(doctorKey)!;
+            }
+
+            // Priority 2: Type-specific template
+            const typeKey = `bytype:${normalizedType}`;
+            if (templateMap.has(typeKey)) {
+                return templateMap.get(typeKey)!;
+            }
+
+            // Priority 3: Global default
+            if (templateMap.has('default')) {
+                return templateMap.get('default')!;
+            }
+        }
+    } catch (err) {
+        console.error('[getSMSTemplate] Supabase error, falling back to file:', err);
     }
 
-    if (templates.byDoctor?.[normalizedDoctor]?.[appointmentType]) {
-        return templates.byDoctor[normalizedDoctor][appointmentType];
-    }
+    // Fallback: Load from file
+    try {
+        const fs = require('fs');
+        const path = require('path');
+        const templatesPath = path.join(process.cwd(), 'smsTemplates.json');
+        const fileContent = fs.readFileSync(templatesPath, 'utf-8');
+        const templates = JSON.parse(fileContent);
 
-    // Priority 2: Doctor default
-    if (templates.byDoctor?.[normalizedDoctor]?.default) {
-        return templates.byDoctor[normalizedDoctor].default;
+        if (templates.byDoctor?.[normalizedDoctor]?.default) {
+            return templates.byDoctor[normalizedDoctor].default;
+        }
+        if (templates.byAppointmentType?.[normalizedType]) {
+            return templates.byAppointmentType[normalizedType];
+        }
+        if (templates.byAppointmentType?.[appointmentType]) {
+            return templates.byAppointmentType[appointmentType];
+        }
+        return templates.default || 'Przypomnienie o wizycie jutro o {time}.';
+    } catch {
+        return 'Przypomnienie o wizycie jutro o {time}.';
     }
-
-    // Priority 3: Type specific (try both normalized and original)
-    if (templates.byAppointmentType?.[normalizedType]) {
-        return templates.byAppointmentType[normalizedType];
-    }
-
-    if (templates.byAppointmentType?.[appointmentType]) {
-        return templates.byAppointmentType[appointmentType];
-    }
-
-    // Priority 4: Global default (short link will be appended by cron job)
-    return templates.default || 'Przypomnienie o wizycie jutro o {time}.';
 }
 
 /**
