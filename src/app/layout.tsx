@@ -10,6 +10,7 @@ import SimulatorModal from "@/components/SimulatorModal";
 import AssistantTeaser from "@/components/AssistantTeaser";
 import BackgroundVideo from "@/components/BackgroundVideo";
 import CookieConsent from "@/components/CookieConsent";
+import SplashScreen from "@/components/SplashScreen";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
@@ -92,16 +93,18 @@ export default function RootLayout({
                 <CartProvider>
                     <AssistantProvider>
                         <SimulatorProvider>
-                            <BackgroundVideo videoId="vGAu6rdJ8WQ" />
-                            <CookieConsent />
-                            <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-                                <Navbar />
-                                {children}
-                                <AssistantTeaser />
-                                <PWAInstallPrompt />
-                                <Footer />
-                                <SimulatorModal />
-                            </div>
+                            <SplashScreen>
+                                <BackgroundVideo videoId="vGAu6rdJ8WQ" />
+                                <CookieConsent />
+                                <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+                                    <Navbar />
+                                    {children}
+                                    <AssistantTeaser />
+                                    <PWAInstallPrompt />
+                                    <Footer />
+                                    <SimulatorModal />
+                                </div>
+                            </SplashScreen>
                         </SimulatorProvider>
                     </AssistantProvider>
                 </CartProvider>
