@@ -123,24 +123,23 @@ export async function sendSMS(options: SMSOptions): Promise<SMSResponse> {
 }
 
 /**
- * Get SMS template based on doctor and appointment type
+ * Get SMS template based on appointment type
  * 
  * Reads from Supabase 'sms_templates' table (editable via admin panel)
  * Falls back to smsTemplates.json file if Supabase unavailable
  * 
- * Key format in DB: 'default', 'byType:chirurgia', 'byDoctor:Marcin Nowosielski'
+ * Key format in DB: 'default', 'byType:chirurgia', 'byType:protetyka', etc.
  * 
- * Priority:
- * 1. byDoctor:DoctorName (doctor-specific default)
- * 2. byType:appointmentType (type-specific)
- * 3. default (global fallback)
+ * Matching logic (simple):
+ * 1. byType:appointmentType → best match for specific visit type
+ * 2. default → global fallback
+ * 
+ * Doctor name is a {doctor} variable in template text, not a matching key.
  */
 export async function getSMSTemplate(
     doctorName: string,
     appointmentType: string
 ): Promise<string> {
-    // Normalize
-    const normalizedDoctor = doctorName.replace(/\s*\(I\)\s*/g, ' ').trim();
     const normalizedType = appointmentType.toLowerCase();
 
     // Try Supabase first
@@ -161,19 +160,13 @@ export async function getSMSTemplate(
                 templateMap.set(t.key.toLowerCase(), t.template);
             }
 
-            // Priority 1: Doctor-specific template
-            const doctorKey = `bydoctor:${normalizedDoctor.toLowerCase()}`;
-            if (templateMap.has(doctorKey)) {
-                return templateMap.get(doctorKey)!;
-            }
-
-            // Priority 2: Type-specific template
+            // Priority 1: Type-specific template
             const typeKey = `bytype:${normalizedType}`;
             if (templateMap.has(typeKey)) {
                 return templateMap.get(typeKey)!;
             }
 
-            // Priority 3: Global default
+            // Priority 2: Global default
             if (templateMap.has('default')) {
                 return templateMap.get('default')!;
             }
@@ -190,18 +183,12 @@ export async function getSMSTemplate(
         const fileContent = fs.readFileSync(templatesPath, 'utf-8');
         const templates = JSON.parse(fileContent);
 
-        if (templates.byDoctor?.[normalizedDoctor]?.default) {
-            return templates.byDoctor[normalizedDoctor].default;
-        }
         if (templates.byAppointmentType?.[normalizedType]) {
             return templates.byAppointmentType[normalizedType];
         }
-        if (templates.byAppointmentType?.[appointmentType]) {
-            return templates.byAppointmentType[appointmentType];
-        }
-        return templates.default || 'Przypomnienie o wizycie jutro o {time}.';
+        return templates.default || 'Gabinet Mikrostomart przypomina o wizycie u {doctor} jutro o {time}. Prosimy o potwierdzenie:';
     } catch {
-        return 'Przypomnienie o wizycie jutro o {time}.';
+        return 'Gabinet Mikrostomart przypomina o wizycie u {doctor} jutro o {time}. Prosimy o potwierdzenie:';
     }
 }
 

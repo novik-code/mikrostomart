@@ -19,18 +19,18 @@ const supabase = createClient(
 );
 
 // Default templates to seed on first run
+// All templates use {doctor} as a variable — matching is ONLY by appointment type
 const DEFAULT_TEMPLATES = [
-    { key: 'default', label: 'Domyślny', template: 'Gabinet Mikrostomart przypomina o jutrzejszej wizycie o {time}. Prosimy o potwierdzenie:' },
-    { key: 'byType:pierwsza wizyta', label: 'Pierwsza wizyta', template: 'Witamy! Pierwsza wizyta jutro o {time}. Prosimy zabrac dowod.' },
-    { key: 'byType:chirurgia', label: 'Chirurgia', template: 'PRZYPOMNIENIE: Zabieg chirurgiczny jutro o {time}. Prosimy NIE jesc 2h przed.' },
-    { key: 'byType:protetyka', label: 'Protetyka', template: 'Wizyta protetyczna jutro o {time}.' },
-    { key: 'byType:ortodoncja', label: 'Ortodoncja', template: 'Wizyta ortodontyczna jutro o {time}.' },
-    { key: 'byType:kontrola', label: 'Kontrola', template: 'Wizyta kontrolna jutro o {time}.' },
-    { key: 'byType:higienizacja', label: 'Higienizacja', template: 'Higienizacja jutro o {time}.' },
-    { key: 'byType:endodoncja', label: 'Endodoncja (kanałowe)', template: 'Leczenie kanalowe jutro o {time}.' },
-    { key: 'byType:konsultacja', label: 'Konsultacja', template: 'Konsultacja jutro o {time}.' },
-    { key: 'byType:laser', label: 'Laser', template: 'Zabieg laserowy jutro o {time}.' },
-    { key: 'byDoctor:Marcin Nowosielski', label: 'Dr Nowosielski (domyślny)', template: 'Gabinet Mikrostomart przypomina o jutrzejszej wizycie u Dr Nowosielskiego o {time}. Prosimy o potwierdzenie:' },
+    { key: 'default', label: 'Domyślny', template: 'Gabinet Mikrostomart przypomina o jutrzejszej wizycie u {doctor} o godz. {time}. Prosimy o potwierdzenie:' },
+    { key: 'byType:pierwsza wizyta', label: 'Pierwsza wizyta', template: 'Witamy! Pierwsza wizyta u {doctor} jutro o {time}. Prosimy zabrac dowod.' },
+    { key: 'byType:chirurgia', label: 'Chirurgia', template: 'PRZYPOMNIENIE: Zabieg chirurgiczny u {doctor} jutro o {time}. Prosimy NIE jesc 2h przed.' },
+    { key: 'byType:protetyka', label: 'Protetyka', template: 'Wizyta protetyczna u {doctor} jutro o {time}.' },
+    { key: 'byType:ortodoncja', label: 'Ortodoncja', template: 'Wizyta ortodontyczna u {doctor} jutro o {time}.' },
+    { key: 'byType:kontrola', label: 'Kontrola', template: 'Wizyta kontrolna u {doctor} jutro o {time}.' },
+    { key: 'byType:higienizacja', label: 'Higienizacja', template: 'Higienizacja u {doctor} jutro o {time}.' },
+    { key: 'byType:endodoncja', label: 'Endodoncja (kanałowe)', template: 'Leczenie kanalowe u {doctor} jutro o {time}.' },
+    { key: 'byType:konsultacja', label: 'Konsultacja', template: 'Konsultacja u {doctor} jutro o {time}.' },
+    { key: 'byType:laser', label: 'Laser', template: 'Zabieg laserowy u {doctor} jutro o {time}.' },
 ];
 
 async function ensureTemplatesSeeded() {
