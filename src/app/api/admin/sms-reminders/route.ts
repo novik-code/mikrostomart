@@ -179,29 +179,28 @@ export async function DELETE(req: Request) {
             });
         }
 
-        // Single draft: mark as cancelled (keep audit trail)
+        // Single SMS: permanently delete from database (any status)
         const { data, error } = await supabase
             .from('sms_reminders')
-            .update({ status: 'cancelled' })
+            .delete()
             .eq('id', id)
-            .eq('status', 'draft')
             .select()
             .single();
 
         if (error) {
-            throw new Error(`Failed to cancel: ${error.message}`);
+            throw new Error(`Failed to delete: ${error.message}`);
         }
 
         if (!data) {
             return NextResponse.json(
-                { error: 'Draft not found or already sent' },
+                { error: 'SMS not found' },
                 { status: 404 }
             );
         }
 
         return NextResponse.json({
             success: true,
-            message: 'Draft cancelled'
+            message: 'SMS deleted'
         });
 
     } catch (error) {

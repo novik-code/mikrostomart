@@ -243,20 +243,8 @@ export async function GET(req: Request) {
                     continue;
                 }
 
-                // 5d. Check if SMS was already SENT for this appointment (only skip sent)
-                const { data: existingSent } = await supabase
-                    .from('sms_reminders')
-                    .select('id')
-                    .eq('prodentis_id', appointment.id)
-                    .eq('appointment_date', appointment.date)
-                    .eq('status', 'sent')
-                    .maybeSingle();
-
-                if (existingSent) {
-                    console.log(`   ⏭️  SMS already sent - skipping`);
-                    skippedCount++;
-                    continue;
-                }
+                // NOTE: No duplicate-check needed — we always clean up old drafts above (step 5)
+                // and new drafts should always be generated regardless of previous sent status
 
                 // 6. Generate personalized SMS message
                 const appointmentType = appointment.appointmentType.name;
