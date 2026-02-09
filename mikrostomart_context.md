@@ -895,32 +895,34 @@ NODE_ENV=production
 - `862f227` - Smart specialist pre-selection from calculator CTA
 
 ### February 9, 2026
-**Porównywarka Rozwiązań (/porownywarka)**
+**Porównywarka Rozwiązań → Konsola Decyzji Pacjenta (/porownywarka)**
 
-#### Commits:
-- `1697979` - Complete Solution Comparator with 2 scenarios, 7 methods, scoring, gating rules
-
-#### Features Added:
-1. **4-step wizard**: Scenario tiles → priority → questions → comparison table
-2. **2 scenarios**: Missing tooth (implant/most/proteza) + Aesthetics (bonding/licówki/korony)
-3. **7 methods** with full clinical data: time, visits, durability, invasiveness, risk, hygiene, maintenance
-4. **5-segment scale bars** for visual criteria comparison
-5. **Weighted scoring**: 5 priority modes × 5 metrics + 10 gating rules with warning badges
-6. **Responsive**: Table (desktop) / cards (mobile)
-7. **Lead form** → POST `/api/treatment-lead` → Telegram + Email
-8. **Specialist pre-selection** on CTA based on method competencies
-9. **Cross-link** to `/kalkulator-leczenia`
-10. **Navbar**: Added to Dodatki dropdown (desktop + mobile)
-11. **AI knowledge base**: Updated for comparator recommendations
+#### Expansion: Full Decision Console
+- **7 categories** with tile-based selection: Estetyka, Braki zębowe, Kanałowe, Dziąsła i higiena, Chirurgia, Profilaktyka, Dzieci
+- **29 comparators** (up from 2): each with 3 context-specific questions
+- **73 methods** (up from 7): full clinical data including time, visits, durability, invasiveness, risk, hygiene, worksWhen, notIdealWhen, maintenance
+- **59 gating rules** (up from 10): answer-dependent score modifiers and warning badges
+- **5-step wizard**: Category → Scenario → Priority → Questions → Comparison table
+- **Modular architecture**: 10 data files with category-specific method modules
+- **Responsive**: Table (desktop) / cards (mobile), category tiles grid
 
 #### Files Added:
-- `src/app/porownywarka/comparatorData.ts` — Types, 2 scenarios, 7 methods, scoring, gating rules
-- `src/app/porownywarka/page.tsx` — 4-step wizard component
-- `src/app/porownywarka/layout.tsx` — SEO metadata
+- `src/app/porownywarka/comparatorTypes.ts` — Shared types
+- `src/app/porownywarka/methodsEstetyka.ts` — 17 methods
+- `src/app/porownywarka/methodsBraki.ts` — 16 methods
+- `src/app/porownywarka/methodsKanalowe.ts` — 9 methods
+- `src/app/porownywarka/methodsPerio.ts` — 9 methods
+- `src/app/porownywarka/methodsChirurgia.ts` — 6 methods
+- `src/app/porownywarka/methodsProfilaktyka.ts` — 8 methods
+- `src/app/porownywarka/methodsDzieci.ts` — 8 methods
+- `src/app/porownywarka/comparatorScenarios.ts` — 29 comparators
+- `src/app/porownywarka/comparatorGating.ts` — 59 gating rules
 
 #### Files Modified:
-- `src/components/Navbar.tsx` — Added comparator link
-- `src/lib/knowledgeBase.ts` — Added comparator knowledge
+- `src/app/porownywarka/comparatorData.ts` — Refactored to hub with imports, scoring engine
+- `src/app/porownywarka/page.tsx` — Added category selection step to wizard
+- `src/lib/knowledgeBase.ts` — Updated for expanded comparator
+
 
 #### Features Added:
 1. **3-step wizard**: Service tiles → questions → timeline results

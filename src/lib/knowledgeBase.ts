@@ -71,13 +71,17 @@ Interaktywny kalkulator orientacyjnego czasu i liczby wizyt:
 - Link: /kalkulator-leczenia (dostępny w menu → Dodatki).
 
 ### NARZĘDZIE: PORÓWNYWARKA ROZWIĄZAŃ (/porownywarka)
-Interaktywny moduł porównujący metody leczenia:
-- **Cel**: Pacjent wybiera scenariusz, priorytet (trwałość/inwazyjność/szybkość/higiena) i odpowiada na 3 pytania → otrzymuje tabelę porównawczą z rekomendacją.
-- **Scenariusz A**: Brak zęba — Implant vs Most vs Proteza częściowa.
-- **Scenariusz B**: Estetyka uśmiechu — Bonding vs Licówki kompozytowe vs Licówki porcelanowe vs Korony.
+Interaktywna konsola decyzji pacjenta — porównuje metody leczenia w 7 kategoriach:
+- **Estetyka** (6 porównań): metamorfoza uśmiechu, licówki, bonding, alignery, diastema, bruksizm/starcia.
+- **Braki zębowe** (7 porównań): implant vs most vs proteza, implant natychmiastowy vs odroczony, typy protez, onlay vs korona.
+- **Kanałowe** (4 porównań): endo vs ekstrakcja, re-endo vs resekcja, 1 wizyta vs 2 wizyty, odbudowa po endo.
+- **Dziąsła i higiena** (3): skaling vs AIRFLOW vs kiretaż, leczenie dziąseł, nadwrażliwość.
+- **Chirurgia** (3): ekstrakcja prosta vs chirurgiczna, ósemki zostawić vs usunąć, sinus lift.
+- **Profilaktyka** (3): szczoteczki, czyszczenie międzyzębowe, szyna przeciw bruksizmowi.
+- **Dzieci** (3): lakowanie vs fluoryzacja, metody fluoryzacji, próchnica mleczaków.
+- **73 metody**, **59 reguł kwalifikacyjnych**, **5 priorytetów** (trwałość, inwazyjność, szybkość, higiena, zbalansowane).
 - **Nie zawiera cen** — pokazuje: czas, wizyty, trwałość, inwazyjność, ryzyko, higienę, serwis.
-- **Rekomendacja** na podstawie priorytetu pacjenta (scoring + reguły kwalifikacyjne).
-- Zachęcaj pacjentów jeśli pytają: "co lepsze implant czy most?", "licówki czy bonding?", "jaka metoda jest najlepsza?" itp.
+- Zachęcaj pacjentów jeśli pytają: "co lepsze implant czy most?", "licówki czy bonding?", "szczoteczka manualna czy elektryczna?", "czy usuwać ósemkę?", "co po leczeniu kanałowym?", "lakowanie czy fluor?" itp.
 - Link: /porownywarka (dostępny w menu → Dodatki).
 
 ### PEŁNY ZESPÓŁ LEKARZY

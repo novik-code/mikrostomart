@@ -3,7 +3,7 @@
 import { useState, useCallback, useMemo, useEffect } from "react";
 import Link from "next/link";
 import {
-    COMPARATORS, PRIORITIES, METHODS, TABLE_ROW_LABELS,
+    CATEGORIES, COMPARATORS, PRIORITIES, METHODS, TABLE_ROW_LABELS,
     rankMethods, getRecommendationText,
     type Comparator, type ScoredMethod, type TableCell,
 } from "./comparatorData";
@@ -544,10 +544,11 @@ function renderBold(text: string) {
    COMPONENT
    ═══════════════════════════════════════════════════════════════════════════ */
 
-type Step = "scenario" | "priority" | "questions" | "results";
+type Step = "category" | "scenario" | "priority" | "questions" | "results";
 
 export default function PorownywarkaPage() {
-    const [step, setStep] = useState<Step>("scenario");
+    const [step, setStep] = useState<Step>("category");
+    const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
     const [comparator, setComparator] = useState<Comparator | null>(null);
     const [priority, setPriority] = useState<string>("");
     const [questionIndex, setQuestionIndex] = useState(0);
@@ -564,7 +565,7 @@ export default function PorownywarkaPage() {
     // ── Ranking (memoised) ──
     const ranking = useMemo(() => {
         if (!comparator || !priority) return [];
-        return rankMethods(comparator, priority, answers);
+        return rankMethods(comparator.id, priority, answers);
     }, [comparator, priority, answers]);
 
     const topMethod = ranking[0] ? METHODS[ranking[0].methodId] : null;
@@ -579,6 +580,17 @@ export default function PorownywarkaPage() {
     }, []);
 
     // ── Handlers ──
+    const selectCategory = useCallback((catId: string) => {
+        setSelectedCategory(catId);
+        setComparator(null);
+        setPriority("");
+        setQuestionIndex(0);
+        setAnswers({});
+        setShowLeadForm(false);
+        setLeadSent(false);
+        setStep("scenario");
+    }, []);
+
     const selectComparator = useCallback((c: Comparator) => {
         setComparator(c);
         setPriority("");
@@ -617,7 +629,8 @@ export default function PorownywarkaPage() {
     }, [questionIndex]);
 
     const resetAll = useCallback(() => {
-        setStep("scenario");
+        setStep("category");
+        setSelectedCategory(null);
         setComparator(null);
         setPriority("");
         setQuestionIndex(0);
@@ -625,6 +638,13 @@ export default function PorownywarkaPage() {
         setShowLeadForm(false);
         setLeadSent(false);
     }, []);
+
+    const filteredComparators = useMemo(() => {
+        if (!selectedCategory) return COMPARATORS;
+        return COMPARATORS.filter(c => c.categoryId === selectedCategory);
+    }, [selectedCategory]);
+
+    const currentCat = CATEGORIES.find(c => c.id === selectedCategory);
 
     const submitLead = useCallback(async () => {
         if (!leadName.trim() || !leadPhone.trim() || !comparator) return;
@@ -678,14 +698,70 @@ export default function PorownywarkaPage() {
 
             <div style={S.container}>
 
+                {/* ═══ STEP 0: Category ═══ */}
+                {step === "category" && (
+                    <div>
+                        <h2 style={{ fontFamily: "var(--font-heading)", fontSize: "1.2rem", color: "#fff", textAlign: "center" }}>
+                            Wybierz kategorię
+                        </h2>
+                        <p style={{ textAlign: "center", color: "var(--color-text-muted)", fontSize: "0.9rem", marginTop: "0.5rem", marginBottom: "0.5rem" }}>
+                            Jaki temat Cię interesuje?
+                        </p>
+                        <div style={{
+                            display: "grid",
+                            gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
+                            gap: "1rem",
+                            marginTop: "2rem",
+                        }}>
+                            {CATEGORIES.map(cat => (
+                                <div
+                                    key={cat.id}
+                                    style={S.tile(cat.color, hoveredTile === cat.id)}
+                                    onMouseEnter={() => setHoveredTile(cat.id)}
+                                    onMouseLeave={() => setHoveredTile(null)}
+                                    onClick={() => selectCategory(cat.id)}
+                                    role="button"
+                                    tabIndex={0}
+                                    onKeyDown={e => e.key === "Enter" && selectCategory(cat.id)}
+                                >
+                                    <span style={{ fontSize: "2.2rem", display: "block", marginBottom: "0.5rem" }}>{cat.icon}</span>
+                                    <div style={S.tileTitle}>{cat.title}</div>
+                                    <div style={S.tileSub}>{cat.subtitle}</div>
+                                    <div style={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.3)", marginTop: "0.5rem" }}>
+                                        {COMPARATORS.filter(c => c.categoryId === cat.id).length} porównań
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                        <p style={{ ...S.microCopy, textAlign: "center", marginTop: "2rem" }}>
+                            To narzędzie ma charakter informacyjny i nie zastępuje badania lekarskiego.
+                        </p>
+                    </div>
+                )}
+
                 {/* ═══ STEP 1: Scenario ═══ */}
                 {step === "scenario" && (
                     <div>
+                        <button style={{ ...S.backBtn, marginBottom: "1rem" }} onClick={() => setStep("category")}>
+                            <ArrowLeft size={14} /> Zmień kategorię
+                        </button>
+                        {currentCat && (
+                            <div style={{ textAlign: "center", marginBottom: "1rem" }}>
+                                <div style={{
+                                    display: "inline-flex", alignItems: "center", gap: "8px",
+                                    padding: "6px 14px", background: `${currentCat.color}15`,
+                                    border: `1px solid ${currentCat.color}33`, borderRadius: "999px",
+                                    fontSize: "0.82rem", color: currentCat.color,
+                                }}>
+                                    {currentCat.icon} {currentCat.title}
+                                </div>
+                            </div>
+                        )}
                         <h2 style={{ fontFamily: "var(--font-heading)", fontSize: "1.2rem", color: "#fff", textAlign: "center" }}>
                             Co chcesz porównać?
                         </h2>
                         <div style={S.tilesGrid}>
-                            {COMPARATORS.map(c => (
+                            {filteredComparators.map(c => (
                                 <div
                                     key={c.id}
                                     style={S.tile(c.color, hoveredTile === c.id)}
@@ -702,16 +778,13 @@ export default function PorownywarkaPage() {
                                 </div>
                             ))}
                         </div>
-                        <p style={{ ...S.microCopy, textAlign: "center", marginTop: "2rem" }}>
-                            To narzędzie ma charakter informacyjny i nie zastępuje badania lekarskiego.
-                        </p>
                     </div>
                 )}
 
                 {/* ═══ STEP 2: Priority ═══ */}
                 {step === "priority" && comparator && (
                     <div>
-                        <button style={{ ...S.backBtn, marginBottom: "1rem" }} onClick={resetAll}>
+                        <button style={{ ...S.backBtn, marginBottom: "1rem" }} onClick={() => setStep("scenario")}>
                             <ArrowLeft size={14} /> Zmień scenariusz
                         </button>
 
@@ -884,7 +957,7 @@ export default function PorownywarkaPage() {
                                                     </td>
                                                     {ranking.map(r => {
                                                         const m = METHODS[r.methodId];
-                                                        const cell = m.table[row.key] as TableCell;
+                                                        const cell = (m.table as unknown as Record<string, TableCell>)[row.key];
                                                         return (
                                                             <td key={r.methodId} style={S.td} title={cell.tooltip}>
                                                                 <CellContent cell={cell} />
@@ -912,7 +985,7 @@ export default function PorownywarkaPage() {
                                                     {m.short}
                                                 </div>
                                                 {TABLE_ROW_LABELS.map(row => {
-                                                    const cell = m.table[row.key] as TableCell;
+                                                    const cell = (m.table as unknown as Record<string, TableCell>)[row.key];
                                                     return (
                                                         <div key={row.key} style={S.cardRow}>
                                                             <span style={{ color: "var(--color-text-muted)" }}>{row.label}</span>
