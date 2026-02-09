@@ -253,7 +253,8 @@ export async function GET(req: Request) {
                 }
 
                 // 5c. Filter: Is doctor in reminder list? (fuzzy matching)
-                if (!isDoctorInList(doctorName, REMINDER_DOCTORS)) {
+                // Nowosielska bypasses this — she's hardcoded as a special case
+                if (!isNowosielska && !isDoctorInList(doctorName, REMINDER_DOCTORS)) {
                     console.log(`   ⚠️  Skipping: Doctor not in reminder list (${doctorName})`);
                     skippedCount++;
                     continue;
