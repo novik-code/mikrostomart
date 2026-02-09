@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { sendTelegramNotification } from '@/lib/telegram';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -117,37 +118,14 @@ export async function POST(req: NextRequest) {
         // Send Telegram notification
         let telegramSent = false;
         try {
-            const telegramToken = process.env.TELEGRAM_BOT_TOKEN;
-            const telegramChatIds = process.env.TELEGRAM_CHAT_ID?.split(",") || [];
+            const telegramMessage = `✅ <b>PACJENT POTWIERDZIŁ OBECNOŚĆ</b>\\n\\n` +
+                `👤 <b>Pacjent:</b> ${action.patient_name || 'Nieznany pacjent'}\\n` +
+                `📞 <b>Telefon:</b> <a href="tel:${action.patient_phone}">${action.patient_phone || 'Brak'}</a>\\n` +
+                `📅 <b>Data:</b> ${appointmentDateFormatted}\\n` +
+                `⏰ <b>Godzina:</b> ${appointmentTime}\\n` +
+                `🩺 <b>Lekarz:</b> ${action.doctor_name || 'Nie podano'}`;
 
-            if (telegramToken && telegramChatIds.length > 0) {
-                const telegramMessage = `✅ <b>PACJENT POTWIERDZIŁ OBECNOŚĆ</b>\\n\\n` +
-                    `👤 <b>Pacjent:</b> ${action.patient_name || 'Nieznany pacjent'}\\n` +
-                    `📞 <b>Telefon:</b> <a href="tel:${action.patient_phone}">${action.patient_phone || 'Brak'}</a>\\n` +
-                    `📅 <b>Data:</b> ${appointmentDateFormatted}\\n` +
-                    `⏰ <b>Godzina:</b> ${appointmentTime}\\n` +
-                    `🩺 <b>Lekarz:</b> ${action.doctor_name || 'Nie podano'}`;
-
-                const tgUrl = `https://api.telegram.org/bot${telegramToken}/sendMessage`;
-                await Promise.all(telegramChatIds.map(async (chatId) => {
-                    const cleanChatId = chatId.trim();
-                    if (!cleanChatId) return;
-                    try {
-                        await fetch(tgUrl, {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({
-                                chat_id: cleanChatId,
-                                text: telegramMessage,
-                                parse_mode: "HTML"
-                            }),
-                        });
-                        telegramSent = true;
-                    } catch (e) {
-                        console.error('[CONFIRM-PUBLIC] Telegram Error:', e);
-                    }
-                }));
-            }
+            telegramSent = await sendTelegramNotification(telegramMessage, 'appointments');
         } catch (telegramError) {
             console.error('[CONFIRM-PUBLIC] Failed to send telegram:', telegramError);
         }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { sendTelegramNotification } from '@/lib/telegram';
 
 export const runtime = "nodejs";
 
@@ -16,8 +17,6 @@ export async function POST(req: NextRequest) {
             : "";
 
         // ── Telegram notification ──
-        const telegramToken = process.env.TELEGRAM_BOT_TOKEN;
-        const telegramChatIds = process.env.TELEGRAM_CHAT_ID?.split(",") || [];
         let telegramSent = false;
 
         const telegramMessage =
@@ -29,31 +28,10 @@ export async function POST(req: NextRequest) {
             `📅 <b>Wizyty:</b> ${visitsRange} | <b>Czas:</b> ${durationRange}\n` +
             (answersText ? `\n📋 <b>Odpowiedzi:</b>\n${answersText}` : "");
 
-        if (telegramToken && telegramChatIds.length > 0) {
-            try {
-                const tgUrl = `https://api.telegram.org/bot${telegramToken}/sendMessage`;
-                const notifications = telegramChatIds.map(async (chatId) => {
-                    const cleanChatId = chatId.trim();
-                    if (!cleanChatId) return;
-                    const tgRes = await fetch(tgUrl, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                            chat_id: cleanChatId,
-                            text: telegramMessage,
-                            parse_mode: "HTML",
-                        }),
-                    });
-                    if (!tgRes.ok) {
-                        console.error(`Telegram Error (${cleanChatId}):`, await tgRes.text());
-                    } else {
-                        telegramSent = true;
-                    }
-                });
-                await Promise.all(notifications);
-            } catch (tgErr) {
-                console.error("Telegram send error:", tgErr);
-            }
+        try {
+            telegramSent = await sendTelegramNotification(telegramMessage, 'default');
+        } catch (tgErr) {
+            console.error("Telegram send error:", tgErr);
         }
 
         // ── Email notification (Resend) ──

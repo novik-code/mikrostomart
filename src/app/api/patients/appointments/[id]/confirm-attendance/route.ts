@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 import { verifyToken } from '@/lib/jwt';
+import { sendTelegramNotification } from '@/lib/telegram';
 import type { ConfirmAttendanceRequest, AppointmentActionResponse, AppointmentAction } from '@/types/appointmentActions';
 
 const supabase = createClient(
@@ -164,35 +165,12 @@ export async function POST(
         // Send Telegram notification
         let telegramSent = false;
         try {
-            const telegramToken = process.env.TELEGRAM_BOT_TOKEN;
-            const telegramChatIds = process.env.TELEGRAM_CHAT_ID?.split(",") || [];
+            const telegramMessage = `✅ <b>PACJENT POTWIERDZIŁ OBECNOŚĆ</b>\n\n` +
+                `📆 <b>Termin:</b> ${appointmentDateFormatted}, ${appointmentTime}\n` +
+                `🩺 <b>Lekarz:</b> ${appointmentAction.doctor_name || 'Nie podano'}\n` +
+                `📞 <b>Telefon pacjenta:</b> <a href="tel:${patient.phone}">${patient.phone}</a>`;
 
-            if (telegramToken && telegramChatIds.length > 0) {
-                const telegramMessage = `✅ <b>PACJENT POTWIERDZIŁ OBECNOŚĆ</b>\n\n` +
-                    `📆 <b>Termin:</b> ${appointmentDateFormatted}, ${appointmentTime}\n` +
-                    `🩺 <b>Lekarz:</b> ${appointmentAction.doctor_name || 'Nie podano'}\n` +
-                    `📞 <b>Telefon pacjenta:</b> <a href="tel:${patient.phone}">${patient.phone}</a>`;
-
-                const tgUrl = `https://api.telegram.org/bot${telegramToken}/sendMessage`;
-                await Promise.all(telegramChatIds.map(async (chatId) => {
-                    const cleanChatId = chatId.trim();
-                    if (!cleanChatId) return;
-                    try {
-                        await fetch(tgUrl, {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({
-                                chat_id: cleanChatId,
-                                text: telegramMessage,
-                                parse_mode: "HTML"
-                            }),
-                        });
-                        telegramSent = true;
-                    } catch (e) {
-                        console.error('[CONFIRM-ATTENDANCE] Telegram Error:', e);
-                    }
-                }));
-            }
+            telegramSent = await sendTelegramNotification(telegramMessage, 'appointments');
         } catch (telegramError) {
             console.error('[CONFIRM-ATTENDANCE] Failed to send telegram:', telegramError);
         }

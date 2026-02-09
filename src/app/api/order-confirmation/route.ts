@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
+import { sendTelegramNotification } from '@/lib/telegram';
 
 export const runtime = 'nodejs';
 
@@ -96,23 +97,7 @@ export async function POST(req: NextRequest) {
         `;
 
         // 2. Send Telegram
-        const telegramToken = process.env.TELEGRAM_BOT_TOKEN;
-        const telegramChatIds = process.env.TELEGRAM_CHAT_ID?.split(",") || [];
-
-        if (telegramToken && telegramChatIds.length > 0) {
-            const tgUrl = `https://api.telegram.org/bot${telegramToken}/sendMessage`;
-            await Promise.all(telegramChatIds.map(async (chatId) => {
-                const cleanChatId = chatId.trim();
-                if (!cleanChatId) return;
-                try {
-                    await fetch(tgUrl, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ chat_id: cleanChatId, text: telegramMessage, parse_mode: "HTML" }),
-                    });
-                } catch (e) { console.error("Telegram Error:", e); }
-            }));
-        }
+        await sendTelegramNotification(telegramMessage, 'default');
 
         // 3. Send Emails (Resend)
         const resendKey = process.env.RESEND_API_KEY;

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import fs from "fs";
 import path from "path";
+import { sendTelegramNotification } from '@/lib/telegram';
 
 export const runtime = 'nodejs';
 
@@ -111,41 +112,14 @@ export async function POST(req: NextRequest) {
         }
 
         // 2. Try Telegram Notification
-        const telegramToken = process.env.TELEGRAM_BOT_TOKEN;
-        const telegramChatIds = process.env.TELEGRAM_CHAT_ID?.split(",") || [];
         let telegramSent = false;
 
-        if (telegramToken && telegramChatIds.length > 0) {
-            try {
-                const tgUrl = `https://api.telegram.org/bot${telegramToken}/sendMessage`;
-
-                const notifications = telegramChatIds.map(async (chatId) => {
-                    const cleanChatId = chatId.trim();
-                    if (!cleanChatId) return;
-
-                    const tgRes = await fetch(tgUrl, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                            chat_id: cleanChatId,
-                            text: telegramMessage,
-                            parse_mode: "HTML"
-                        }),
-                    });
-
-                    if (!tgRes.ok) {
-                        console.error(`Telegram Error (${cleanChatId}):`, await tgRes.text());
-                    } else {
-                        telegramSent = true; // Mark true if at least one succeeds
-                        console.log(`Telegram notification sent to ${cleanChatId}!`);
-                    }
-                });
-
-                await Promise.all(notifications);
-
-            } catch (tgErr) {
-                console.error("Failed to send Telegram notification:", tgErr);
-            }
+        try {
+            // Route: contact messages → 'messages' channel, reservations → 'default'
+            const channel = type === 'contact' ? 'messages' as const : 'default' as const;
+            telegramSent = await sendTelegramNotification(telegramMessage, channel);
+        } catch (tgErr) {
+            console.error("Failed to send Telegram notification:", tgErr);
         }
 
         // 3. Try Email Notification (Resend) or Mock
