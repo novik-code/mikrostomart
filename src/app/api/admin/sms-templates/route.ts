@@ -22,15 +22,15 @@ const supabase = createClient(
 // All templates use {doctor} as a variable — matching is ONLY by appointment type
 const DEFAULT_TEMPLATES = [
     { key: 'default', label: 'Domyślny', template: 'Gabinet Mikrostomart przypomina o jutrzejszej wizycie u {doctor} o godz. {time}. Prosimy o potwierdzenie:' },
-    { key: 'byType:pierwsza wizyta', label: 'Pierwsza wizyta', template: 'Witamy! Pierwsza wizyta u {doctor} jutro o {time}. Prosimy zabrac dowod.' },
-    { key: 'byType:chirurgia', label: 'Chirurgia', template: 'PRZYPOMNIENIE: Zabieg chirurgiczny u {doctor} jutro o {time}. Prosimy NIE jesc 2h przed.' },
-    { key: 'byType:protetyka', label: 'Protetyka', template: 'Wizyta protetyczna u {doctor} jutro o {time}.' },
-    { key: 'byType:ortodoncja', label: 'Ortodoncja', template: 'Wizyta ortodontyczna u {doctor} jutro o {time}.' },
-    { key: 'byType:kontrola', label: 'Kontrola', template: 'Wizyta kontrolna u {doctor} jutro o {time}.' },
-    { key: 'byType:higienizacja', label: 'Higienizacja', template: 'Higienizacja u {doctor} jutro o {time}.' },
-    { key: 'byType:endodoncja', label: 'Endodoncja (kanałowe)', template: 'Leczenie kanalowe u {doctor} jutro o {time}.' },
-    { key: 'byType:konsultacja', label: 'Konsultacja', template: 'Konsultacja u {doctor} jutro o {time}.' },
-    { key: 'byType:laser', label: 'Laser', template: 'Zabieg laserowy u {doctor} jutro o {time}.' },
+    { key: 'byType:pierwsza wizyta', label: 'Pierwsza wizyta', template: 'Gabinet Mikrostomart przypomina o jutrzejszej pierwszej wizycie u {doctor} o godz. {time}. Prosimy o potwierdzenie:' },
+    { key: 'byType:chirurgia', label: 'Chirurgia', template: 'Gabinet Mikrostomart przypomina o jutrzejszej wizycie chirurgicznej u {doctor} o godz. {time}. Prosimy o potwierdzenie:' },
+    { key: 'byType:protetyka', label: 'Protetyka', template: 'Gabinet Mikrostomart przypomina o jutrzejszej wizycie protetycznej u {doctor} o godz. {time}. Prosimy o potwierdzenie:' },
+    { key: 'byType:ortodoncja', label: 'Ortodoncja', template: 'Gabinet Mikrostomart przypomina o jutrzejszej wizycie ortodontycznej u {doctor} o godz. {time}. Prosimy o potwierdzenie:' },
+    { key: 'byType:kontrola', label: 'Kontrola', template: 'Gabinet Mikrostomart przypomina o jutrzejszej wizycie kontrolnej u {doctor} o godz. {time}. Prosimy o potwierdzenie:' },
+    { key: 'byType:higienizacja', label: 'Higienizacja', template: 'Gabinet Mikrostomart przypomina o jutrzejszej higienizacji u {doctor} o godz. {time}. Prosimy o potwierdzenie:' },
+    { key: 'byType:endodoncja', label: 'Endodoncja (kanałowe)', template: 'Gabinet Mikrostomart przypomina o jutrzejszym leczeniu kanałowym u {doctor} o godz. {time}. Prosimy o potwierdzenie:' },
+    { key: 'byType:konsultacja', label: 'Konsultacja', template: 'Gabinet Mikrostomart przypomina o jutrzejszej konsultacji u {doctor} o godz. {time}. Prosimy o potwierdzenie:' },
+    { key: 'byType:laser', label: 'Laser', template: 'Gabinet Mikrostomart przypomina o jutrzejszym zabiegu laserowym u {doctor} o godz. {time}. Prosimy o potwierdzenie:' },
 ];
 
 async function ensureTemplatesSeeded() {
