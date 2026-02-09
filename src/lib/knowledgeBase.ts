@@ -70,6 +70,16 @@ Interaktywny kalkulator orientacyjnego czasu i liczby wizyt:
 - Zachęcaj pacjentów do wypróbowania Kalkulatora, jeśli pytają "ile to trwa?", "ile wizyt?", "jak długo trwa implant?" itp.
 - Link: /kalkulator-leczenia (dostępny w menu → Dodatki).
 
+### NARZĘDZIE: PORÓWNYWARKA ROZWIĄZAŃ (/porownywarka)
+Interaktywny moduł porównujący metody leczenia:
+- **Cel**: Pacjent wybiera scenariusz, priorytet (trwałość/inwazyjność/szybkość/higiena) i odpowiada na 3 pytania → otrzymuje tabelę porównawczą z rekomendacją.
+- **Scenariusz A**: Brak zęba — Implant vs Most vs Proteza częściowa.
+- **Scenariusz B**: Estetyka uśmiechu — Bonding vs Licówki kompozytowe vs Licówki porcelanowe vs Korony.
+- **Nie zawiera cen** — pokazuje: czas, wizyty, trwałość, inwazyjność, ryzyko, higienę, serwis.
+- **Rekomendacja** na podstawie priorytetu pacjenta (scoring + reguły kwalifikacyjne).
+- Zachęcaj pacjentów jeśli pytają: "co lepsze implant czy most?", "licówki czy bonding?", "jaka metoda jest najlepsza?" itp.
+- Link: /porownywarka (dostępny w menu → Dodatki).
+
 ### PEŁNY ZESPÓŁ LEKARZY
 - **Lek. dent. Marcin Nowosielski**: Chirurgia, zaawansowana endodoncja, protetyka na implantach, lasery.
 - **Lek. dent. Ilona Piechaczek**: Endodoncja mikroskopowa, stomatologia zachowawcza, protetyka cyfrowa.

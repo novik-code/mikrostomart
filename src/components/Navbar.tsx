@@ -253,6 +253,9 @@ export default function Navbar() {
                                                         <Link href="/kalkulator-leczenia" className={styles.dropdownLink} style={{ color: '#38bdf8', fontWeight: 'bold', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                                                             🧮 Kalkulator Leczenia
                                                         </Link>
+                                                        <Link href="/porownywarka" className={styles.dropdownLink} style={{ color: '#a855f7', fontWeight: 'bold', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                                                            ⚖️ Porównywarka
+                                                        </Link>
                                                         <Link href="/cennik" className={styles.dropdownLink} style={{ color: '#10b981', fontWeight: 'bold' }}>
                                                             💰 Cennik
                                                         </Link>
@@ -336,6 +339,7 @@ export default function Navbar() {
                         <div style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Dodatki</div>
                         <Link href="/mapa-bolu" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem', color: '#dcb14a', fontWeight: 'bold' }}>🗺️ Mapa Bólu</Link>
                         <Link href="/kalkulator-leczenia" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem', color: '#38bdf8', fontWeight: 'bold' }}>🧮 Kalkulator Leczenia</Link>
+                        <Link href="/porownywarka" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem', color: '#a855f7', fontWeight: 'bold' }}>⚖️ Porównywarka</Link>
                         <Link href="/cennik" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem', color: '#10b981', fontWeight: 'bold' }}>💰 Cennik</Link>
                         <Link href="/baza-wiedzy" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem' }}>📚 Baza Wiedzy</Link>
                         <Link href="/nowosielski" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem', color: '#d4af37', fontWeight: 'bold' }}>👨‍⚕️ Blog Dr. Marcin</Link>
