@@ -316,6 +316,20 @@ Interactive 3-step wizard for estimating treatment duration.
 - **No prices** — only visits, time, and stages
 - Data layer: `treatmentData.ts` with typed `TreatmentPath`, `Question`, `Stage`, `Variant`
 
+#### Solution Comparator (`/porownywarka`)
+Interactive comparison tool for dental treatment options.
+- **Step 1**: Scenario selection (Missing tooth / Aesthetics)
+- **Step 2**: Priority selection (balanced/durable/min_invasive/fast/easy_maintenance)
+- **Step 3**: 3 questions per scenario
+- **Step 4**: Comparison table (desktop) / cards (mobile) with scale bars, gating badges, recommendations
+- **Scenario A**: Implant vs Most vs Proteza częściowa (3 methods)
+- **Scenario B**: Bonding vs Licówki kompozytowe vs Licówki porcelanowe vs Korony (4 methods)
+- **Scoring system**: weighted metrics (0-100) × priority weights + gating rules
+- **Lead capture**: "Wyślij wynik do recepcji" → Telegram + Email
+- **Smart specialist pre-selection**: CTA passes `?specialist=ID&reason=TEXT` to booking form
+- **Cross-link**: "Zobacz etapy i czas leczenia" → /kalkulator-leczenia
+- Data layer: `comparatorData.ts` with typed `Comparator`, `Method`, `GatingRule`, `ScoredMethod`
+
 #### Pain Map (`/mapa-bolu`)
 Interactive dental pain diagnostic tool.
 - **Premium dental image** (`dental-map-premium.jpg`) as background
@@ -879,6 +893,34 @@ NODE_ENV=production
 #### Commits:
 - `ede7a82` - Complete Treatment Time Calculator with 5 paths, lead API, navbar links, AI knowledge
 - `862f227` - Smart specialist pre-selection from calculator CTA
+
+### February 9, 2026
+**Porównywarka Rozwiązań (/porownywarka)**
+
+#### Commits:
+- `1697979` - Complete Solution Comparator with 2 scenarios, 7 methods, scoring, gating rules
+
+#### Features Added:
+1. **4-step wizard**: Scenario tiles → priority → questions → comparison table
+2. **2 scenarios**: Missing tooth (implant/most/proteza) + Aesthetics (bonding/licówki/korony)
+3. **7 methods** with full clinical data: time, visits, durability, invasiveness, risk, hygiene, maintenance
+4. **5-segment scale bars** for visual criteria comparison
+5. **Weighted scoring**: 5 priority modes × 5 metrics + 10 gating rules with warning badges
+6. **Responsive**: Table (desktop) / cards (mobile)
+7. **Lead form** → POST `/api/treatment-lead` → Telegram + Email
+8. **Specialist pre-selection** on CTA based on method competencies
+9. **Cross-link** to `/kalkulator-leczenia`
+10. **Navbar**: Added to Dodatki dropdown (desktop + mobile)
+11. **AI knowledge base**: Updated for comparator recommendations
+
+#### Files Added:
+- `src/app/porownywarka/comparatorData.ts` — Types, 2 scenarios, 7 methods, scoring, gating rules
+- `src/app/porownywarka/page.tsx` — 4-step wizard component
+- `src/app/porownywarka/layout.tsx` — SEO metadata
+
+#### Files Modified:
+- `src/components/Navbar.tsx` — Added comparator link
+- `src/lib/knowledgeBase.ts` — Added comparator knowledge
 
 #### Features Added:
 1. **3-step wizard**: Service tiles → questions → timeline results
