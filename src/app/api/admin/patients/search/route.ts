@@ -1,20 +1,16 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
 
-const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
-const prodentisUrl = process.env.PRODENTIS_API_URL || 'http://localhost:3000';
+const PRODENTIS_API_URL = process.env.PRODENTIS_API_URL || 'http://localhost:3000';
 
 /**
  * GET /api/admin/patients/search?q=searchTerm
  * 
- * Search patients by name — fetches from Supabase, enriches with Prodentis names,
- * then filters by query. Returns top 10 matches with phone numbers.
+ * Search patients by name in Prodentis appointment system.
+ * Queries appointments across the next 14 days and past 7 days to build
+ * a patient list, then filters by name query.
+ * Returns unique patients with phone numbers.
  */
 export async function GET(request: Request) {
     try {
@@ -25,76 +21,85 @@ export async function GET(request: Request) {
             return NextResponse.json({ patients: [], message: 'Query must be at least 2 characters' });
         }
 
-        // Fetch all patients from Supabase
-        const { data: patients, error } = await supabase
-            .from('patients')
-            .select('id, prodentis_id, phone, email')
-            .order('created_at', { ascending: false });
-
-        if (error) {
-            throw new Error(`Supabase error: ${error.message}`);
+        // Build date range: past 7 days + next 14 days = 21 days of appointments
+        const dates: string[] = [];
+        const now = new Date();
+        for (let i = -7; i <= 14; i++) {
+            const d = new Date(now);
+            d.setDate(d.getDate() + i);
+            dates.push(d.toISOString().split('T')[0]);
         }
 
-        if (!patients || patients.length === 0) {
-            return NextResponse.json({ patients: [] });
+        // Fetch appointments for each date from Prodentis (in parallel batches)
+        const allAppointments: any[] = [];
+        const batchSize = 5;
+
+        for (let i = 0; i < dates.length; i += batchSize) {
+            const batch = dates.slice(i, i + batchSize);
+            const results = await Promise.all(
+                batch.map(async (date) => {
+                    try {
+                        const res = await fetch(
+                            `${PRODENTIS_API_URL}/api/appointments/by-date?date=${date}`,
+                            {
+                                headers: { 'Content-Type': 'application/json' },
+                                signal: AbortSignal.timeout(5000)
+                            }
+                        );
+                        if (res.ok) {
+                            const data = await res.json();
+                            return data.appointments || [];
+                        }
+                    } catch {
+                        // Skip dates that fail
+                    }
+                    return [];
+                })
+            );
+            allAppointments.push(...results.flat());
         }
 
-        // Enrich with Prodentis names and filter by query
-        const results: Array<{
-            id: string;
-            prodentisId: string;
+        // Deduplicate patients by phone number and filter by name
+        const patientMap = new Map<string, {
             phone: string;
             firstName: string;
             lastName: string;
             fullName: string;
-        }> = [];
+        }>();
 
-        // Process in parallel batches of 10 for speed
-        const batchSize = 10;
-        for (let i = 0; i < patients.length && results.length < 10; i += batchSize) {
-            const batch = patients.slice(i, i + batchSize);
+        for (const apt of allAppointments) {
+            const name = apt.patientName || '';
+            const phone = apt.patientPhone || '';
 
-            const enriched = await Promise.all(
-                batch.map(async (patient) => {
-                    try {
-                        const res = await fetch(
-                            `${prodentisUrl}/api/patient/${patient.prodentis_id}/details`,
-                            { signal: AbortSignal.timeout(2000) }
-                        );
+            if (!name || !phone) continue;
 
-                        if (res.ok) {
-                            const details = await res.json();
-                            const firstName = details.firstName || '';
-                            const lastName = details.lastName || '';
-                            const fullName = `${firstName} ${lastName}`.trim();
+            // Check if name matches query
+            if (!name.toLowerCase().includes(query)) continue;
 
-                            // Check if name matches query
-                            if (fullName.toLowerCase().includes(query)) {
-                                return {
-                                    id: patient.id,
-                                    prodentisId: patient.prodentis_id,
-                                    phone: patient.phone || '',
-                                    firstName,
-                                    lastName,
-                                    fullName
-                                };
-                            }
-                        }
-                    } catch {
-                        // Skip patients whose details can't be fetched
-                    }
-                    return null;
-                })
-            );
+            // Deduplicate by phone
+            if (patientMap.has(phone)) continue;
 
-            for (const result of enriched) {
-                if (result && results.length < 10) {
-                    results.push(result);
-                }
-            }
+            // Split name into parts (Prodentis gives "Imię NAZWISKO" or "Imię Nazwisko")
+            const parts = name.trim().split(/\s+/);
+            const firstName = parts[0] || '';
+            const lastName = parts.slice(1).join(' ') || '';
+
+            patientMap.set(phone, {
+                phone,
+                firstName,
+                lastName,
+                fullName: name.trim()
+            });
+
+            // Stop after 10 results
+            if (patientMap.size >= 10) break;
         }
 
-        return NextResponse.json({ patients: results });
+        const patients = Array.from(patientMap.values());
+
+        console.log(`[Patient Search] Query: "${query}" → Found ${patients.length} matches from ${allAppointments.length} appointments`);
+
+        return NextResponse.json({ patients });
 
     } catch (error) {
         console.error('[Patient Search] Error:', error);
