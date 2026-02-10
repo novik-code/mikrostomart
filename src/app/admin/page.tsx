@@ -766,9 +766,6 @@ export default function AdminPage() {
             alert('Podaj poprawny adres email');
             return;
         }
-        if (!confirm(`Utworzy\u0107 konto pracownika dla ${staffName}?\n\nEmail: ${email}\n\nZostanie wys\u0142any email z linkiem do ustawienia has\u0142a.`)) {
-            return;
-        }
         setAddingEmployee(staffId);
         try {
             const res = await fetch('/api/admin/roles/promote', {
