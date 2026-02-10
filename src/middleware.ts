@@ -39,15 +39,17 @@ export async function middleware(request: NextRequest) {
 
     // If accessing admin routes
     if (request.nextUrl.pathname.startsWith("/admin")) {
-        // Allow access to login and reset-password
-        if (
-            request.nextUrl.pathname === "/admin/login" ||
-            request.nextUrl.pathname === "/admin/update-password"
-        ) {
-            // If already logged in, redirect to admin panel
+        // Allow access to login and update-password without auth
+        if (request.nextUrl.pathname === "/admin/login") {
+            // If already logged in on login page, redirect to admin panel
             if (user) {
                 return NextResponse.redirect(new URL("/admin", request.url));
             }
+            return response;
+        }
+
+        // Always allow access to update-password (user arrives here after recovery)
+        if (request.nextUrl.pathname === "/admin/update-password") {
             return response;
         }
 
