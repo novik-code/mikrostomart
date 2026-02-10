@@ -57,32 +57,6 @@ export default function EmployeeLoginPage() {
         }
     };
 
-    const handleResetPassword = async () => {
-        if (!email) {
-            setError("Podaj email, aby zresetować hasło.");
-            return;
-        }
-        setLoading(true);
-        setError(null);
-        try {
-            const res = await fetch('/api/auth/reset-password', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email }),
-            });
-            const data = await res.json();
-            if (!res.ok) {
-                setError(data.error || 'Wystąpił błąd. Spróbuj ponownie.');
-            } else {
-                alert(data.message || "Sprawdź email. Wysłano link do resetowania hasła.");
-            }
-        } catch (err: any) {
-            setError('Nie udało się połączyć z serwerem. Spróbuj ponownie.');
-        } finally {
-            setLoading(false);
-        }
-    };
-
     return (
         <main style={{
             minHeight: "100vh",
@@ -256,21 +230,18 @@ export default function EmployeeLoginPage() {
                     </button>
                 </form>
 
-                <button
-                    onClick={handleResetPassword}
-                    style={{
-                        marginTop: "1.5rem",
-                        width: "100%",
-                        background: "none",
-                        border: "none",
-                        color: "rgba(255, 255, 255, 0.5)",
-                        fontSize: "0.85rem",
-                        cursor: "pointer",
-                        textDecoration: "underline",
-                    }}
-                >
-                    Zapomniałeś hasła?
-                </button>
+                <div style={{ textAlign: "center", marginTop: "1.5rem" }}>
+                    <a
+                        href="/pracownik/reset-haslo"
+                        style={{
+                            color: "rgba(255, 255, 255, 0.5)",
+                            fontSize: "0.85rem",
+                            textDecoration: "underline",
+                        }}
+                    >
+                        Zapomniałeś hasła?
+                    </a>
+                </div>
 
                 {/* Back to home */}
                 <div style={{ textAlign: "center", marginTop: "1.5rem", paddingTop: "1.5rem", borderTop: "1px solid rgba(255, 255, 255, 0.08)" }}>
