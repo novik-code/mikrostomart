@@ -55,14 +55,22 @@ export async function middleware(request: NextRequest) {
         if (!user) {
             return NextResponse.redirect(new URL("/admin/login", request.url));
         }
+    }
 
-        // Optional: Check specific email
-        if (user.email !== "dr.nowosielski@gmail.com") {
-            // Log out unauthorized user? Or just show 403.
-            // For better UX, redirect to login with error, or maybe just home.
-            // returning new NextResponse("Unauthorized", { status: 403 }); 
-            // For now, let's just allow login for any created user in Supabase, 
-            // assuming user creation is disabled or restricted.
+    // If accessing employee routes (/pracownik)
+    if (request.nextUrl.pathname.startsWith("/pracownik")) {
+        // Allow access to login page
+        if (request.nextUrl.pathname === "/pracownik/login") {
+            // If already logged in, redirect to employee dashboard
+            if (user) {
+                return NextResponse.redirect(new URL("/pracownik", request.url));
+            }
+            return response;
+        }
+
+        // Checking authentication for employee pages
+        if (!user) {
+            return NextResponse.redirect(new URL("/pracownik/login", request.url));
         }
     }
 

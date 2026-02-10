@@ -19,7 +19,8 @@ import {
     Menu,
     X,
     Users,
-    MessageCircle
+    MessageCircle,
+    Shield
 } from "lucide-react";
 
 type Product = {
@@ -57,7 +58,7 @@ export default function AdminPage() {
     const [products, setProducts] = useState<Product[]>([]);
     const [error, setError] = useState<string | null>(null);
 
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'questions' | 'articles' | 'news' | 'orders' | 'reservations' | 'blog' | 'patients' | 'sms-reminders' | 'appointment-instructions'>('dashboard');
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'questions' | 'articles' | 'news' | 'orders' | 'reservations' | 'blog' | 'patients' | 'sms-reminders' | 'appointment-instructions' | 'roles'>('dashboard');
     const [questions, setQuestions] = useState<any[]>([]);
     const [articles, setArticles] = useState<any[]>([]);
     const [blogPosts, setBlogPosts] = useState<any[]>([]); // New Blog Posts state
@@ -65,6 +66,11 @@ export default function AdminPage() {
     const [orders, setOrders] = useState<any[]>([]);
     const [reservations, setReservations] = useState<any[]>([]);
     const [patients, setPatients] = useState<any[]>([]);
+
+    // Roles state
+    const [rolesUsers, setRolesUsers] = useState<any[]>([]);
+    const [rolesLoading, setRolesLoading] = useState(false);
+    const [rolesError, setRolesError] = useState<string | null>(null);
 
     // SMS Reminders state
     const [smsReminders, setSmsReminders] = useState<any[]>([]);
@@ -136,6 +142,7 @@ export default function AdminPage() {
                 fetchReservations();
                 fetchPatients(); // Fetch patients
                 fetchSmsReminders(); // Fetch SMS reminders
+                if (activeTab === 'roles') fetchRoles(); // Fetch roles on tab switch
             }
         };
         checkUser();
@@ -568,6 +575,61 @@ export default function AdminPage() {
             }
         } else if (reason !== null) {
             alert('Powód odrzucenia jest wymagany');
+        }
+    };
+
+    // Roles Functions
+    const fetchRoles = async () => {
+        setRolesLoading(true);
+        setRolesError(null);
+        try {
+            const res = await fetch('/api/admin/roles');
+            if (res.ok) {
+                const data = await res.json();
+                setRolesUsers(data.users || []);
+            } else {
+                const errData = await res.json();
+                setRolesError(errData.error || 'Blad pobierania danych');
+            }
+        } catch (err) {
+            console.error('Failed to fetch roles:', err);
+            setRolesError('Blad polaczenia z serwerem');
+        } finally {
+            setRolesLoading(false);
+        }
+    };
+
+    const toggleRole = async (userId: string, email: string, role: string, hasRole: boolean) => {
+        try {
+            if (hasRole) {
+                // Revoke
+                const res = await fetch('/api/admin/roles', {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId, role }),
+                });
+                if (!res.ok) {
+                    const errData = await res.json();
+                    alert(errData.error || 'Blad usuwania roli');
+                    return;
+                }
+            } else {
+                // Grant
+                const res = await fetch('/api/admin/roles', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId, email, role }),
+                });
+                if (!res.ok) {
+                    const errData = await res.json();
+                    alert(errData.error || 'Blad nadawania roli');
+                    return;
+                }
+            }
+            fetchRoles();
+        } catch (err) {
+            console.error('Failed to toggle role:', err);
+            alert('Blad polaczenia z serwerem');
         }
     };
 
@@ -1302,6 +1364,117 @@ export default function AdminPage() {
             )}
         </div>
     );
+
+    const renderRolesTab = () => {
+        if (rolesLoading && rolesUsers.length === 0) {
+            return <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-text-muted)' }}>Ladowanie...</div>;
+        }
+        if (rolesError) {
+            return <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-error)' }}>{rolesError}</div>;
+        }
+        if (rolesUsers.length === 0) {
+            return (
+                <div style={{ textAlign: 'center', padding: '3rem' }}>
+                    <p style={{ color: 'var(--color-text-muted)' }}>Brak uzytkownikow</p>
+                    <button onClick={fetchRoles} style={{
+                        marginTop: '1rem', padding: '0.5rem 1.5rem',
+                        background: 'var(--color-primary)', color: '#000',
+                        border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold'
+                    }}>Zaladuj uprawnienia</button>
+                </div>
+            );
+        }
+
+        const roleDefs = [
+            { key: 'admin', label: 'Admin', emoji: '🟢', color: '#22c55e' },
+            { key: 'employee', label: 'Pracownik', emoji: '🔵', color: '#3b82f6' },
+            { key: 'patient', label: 'Pacjent', emoji: '🟡', color: '#eab308' },
+        ];
+
+        return (
+            <div>
+                <div style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>
+                        {rolesUsers.length} uzytkownikow w systemie
+                    </p>
+                    <button onClick={fetchRoles} style={{
+                        padding: '0.4rem 1rem', background: 'var(--color-surface)',
+                        border: '1px solid var(--color-border)', borderRadius: '6px',
+                        color: 'var(--color-text-main)', cursor: 'pointer', fontSize: '0.85rem'
+                    }}>Odswiez</button>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    {rolesUsers.map((user: any) => (
+                        <div key={user.user_id} style={{
+                            background: 'var(--color-surface)',
+                            borderRadius: '12px',
+                            padding: '1.25rem',
+                            border: '1px solid var(--color-border)',
+                        }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                                <div>
+                                    <div style={{ fontWeight: 'bold', fontSize: '1rem', color: 'var(--color-text-main)' }}>
+                                        {user.email}
+                                    </div>
+                                    <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', marginTop: '0.2rem', fontFamily: 'monospace' }}>
+                                        ID: {user.user_id.slice(0, 8)}...
+                                    </div>
+                                </div>
+                                <div style={{ display: 'flex', gap: '0.4rem' }}>
+                                    {user.roles.map((r: string) => {
+                                        const rd = roleDefs.find(d => d.key === r);
+                                        return rd ? (
+                                            <span key={r} style={{
+                                                background: rd.color + '22', color: rd.color,
+                                                padding: '0.2rem 0.6rem', borderRadius: '12px',
+                                                fontSize: '0.7rem', fontWeight: '600'
+                                            }}>{rd.emoji} {rd.label}</span>
+                                        ) : null;
+                                    })}
+                                </div>
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                {roleDefs.map(rd => {
+                                    const has = user.roles.includes(rd.key);
+                                    return (
+                                        <button
+                                            key={rd.key}
+                                            onClick={() => toggleRole(user.user_id, user.email, rd.key, has)}
+                                            style={{
+                                                padding: '0.4rem 0.9rem',
+                                                background: has ? rd.color : 'transparent',
+                                                color: has ? '#fff' : 'var(--color-text-muted)',
+                                                border: `1px solid ${has ? rd.color : 'var(--color-border)'}`,
+                                                borderRadius: '6px',
+                                                cursor: 'pointer',
+                                                fontSize: '0.8rem',
+                                                fontWeight: has ? 'bold' : 'normal',
+                                                transition: 'all 0.2s',
+                                            }}
+                                        >
+                                            {has ? `${rd.emoji} ${rd.label} ✓` : `+ ${rd.label}`}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+
+                            {user.roleDetails && user.roleDetails.length > 0 && (
+                                <div style={{ marginTop: '0.6rem', fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>
+                                    {user.roleDetails.map((rd: any, i: number) => (
+                                        <span key={i} style={{ marginRight: '1rem' }}>
+                                            {rd.role}: nadane przez {rd.granted_by || 'system'} ({new Date(rd.granted_at).toLocaleDateString('pl-PL')})
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
+    };
 
     const renderSmsRemindersTab = () => (
         <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
@@ -2134,6 +2307,7 @@ export default function AdminPage() {
                         </div>
                     } icon={MessageCircle} />
                     <NavItem id="appointment-instructions" label="Instrukcje Wizyt" icon={FileText} />
+                    <NavItem id="roles" label="Uprawnienia" icon={Shield} />
                     <NavItem id="orders" label="Zamówienia" icon={ShoppingBag} />
                     <NavItem id="products" label="Produkty (Sklep)" icon={Package} />
 
@@ -2193,6 +2367,7 @@ export default function AdminPage() {
                             {activeTab === 'articles' && 'Baza Wiedzy'}
                             {activeTab === 'blog' && 'Blog (Dr. Marcin Nowosielski)'}
                             {activeTab === 'questions' && 'Pytania do Eksperta'}
+                            {activeTab === 'roles' && 'Uprawnienia — Zarządzanie Rolami'}
                         </h1>
                         <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
                             {/* Header Actions if needed */}
@@ -2418,6 +2593,7 @@ export default function AdminPage() {
                     {activeTab === 'patients' && renderPatientsTab()}
                     {activeTab === 'sms-reminders' && renderSmsRemindersTab()}
                     {activeTab === 'appointment-instructions' && <AppointmentInstructionsEditor />}
+                    {activeTab === 'roles' && renderRolesTab()}
                 </div>
             </main>
         </div>
