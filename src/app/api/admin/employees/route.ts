@@ -18,8 +18,10 @@ interface ProdentisDoctor {
 
 /**
  * GET /api/admin/employees
- * Fetches staff from Prodentis appointments (current + next week) and 
- * cross-references with Supabase to show account status.
+ * Fetches ALL staff from Prodentis by scanning 60 days back + 14 days forward.
+ * This captures doctors, hygienists, assistants, receptionists — anyone who 
+ * appears as an operator in appointment data.
+ * Cross-references with Supabase to show account status.
  */
 export async function GET() {
     const user = await verifyAdmin();
@@ -28,12 +30,15 @@ export async function GET() {
     }
 
     try {
-        // Fetch unique doctors from Prodentis by scanning 14 days of appointments
+        // Scan 60 days back + 14 days forward = 74 days total
         const doctors = new Map<string, ProdentisDoctor>();
         const today = new Date();
         const fetchPromises: Promise<void>[] = [];
 
-        for (let i = 0; i < 14; i++) {
+        const DAYS_BACK = 60;
+        const DAYS_FORWARD = 14;
+
+        for (let i = -DAYS_BACK; i < DAYS_FORWARD; i++) {
             const date = new Date(today);
             date.setDate(date.getDate() + i);
             const dateStr = date.toISOString().split('T')[0];
@@ -78,13 +83,11 @@ export async function GET() {
         await Promise.all(fetchPromises);
 
         // Get all Supabase Auth users + employee roles for cross-reference
-        const { data: authUsers } = await supabase.auth.admin.listUsers();
         const { data: employeeRoles } = await supabase
             .from('user_roles')
             .select('user_id, email, granted_at')
             .eq('role', 'employee');
 
-        const employeeEmails = new Set((employeeRoles || []).map(r => r.email));
         const employeeMap = new Map((employeeRoles || []).map(r => [r.email, r]));
 
         // Build staff list from Prodentis
@@ -108,12 +111,11 @@ export async function GET() {
             });
 
         // Also get currently registered employees that may not appear in Prodentis
-        // (e.g. reception, assistants who don't have their own appointments)
         const registeredEmployees = (employeeRoles || [])
             .filter(r => !staff.some(s => s.accountEmail === r.email))
             .map(r => ({
                 id: `supabase-${r.user_id}`,
-                name: r.email, // We only have email for these
+                name: r.email,
                 hasAccount: true,
                 accountEmail: r.email,
                 grantedAt: r.granted_at,
@@ -124,6 +126,7 @@ export async function GET() {
             staff,
             registeredEmployees,
             prodentisAvailable: doctors.size > 0,
+            scannedDays: DAYS_BACK + DAYS_FORWARD,
         });
     } catch (error) {
         console.error('[Employees] Error:', error);
