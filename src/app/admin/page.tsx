@@ -85,6 +85,13 @@ export default function AdminPage() {
     const [sendingManual, setSendingManual] = useState(false);
 
     const [manualGenerationStatus, setManualGenerationStatus] = useState<string | null>(null);
+    const [skippedPatients, setSkippedPatients] = useState<Array<{
+        patientName: string;
+        doctorName: string;
+        appointmentTime: string;
+        appointmentType: string;
+        reason: string;
+    }>>([]);
 
     // SMS Templates state
     const [smsTemplates, setSmsTemplates] = useState<any[]>([]);
@@ -657,6 +664,9 @@ export default function AdminPage() {
                     `⏭️ Skipped: ${result.skipped}\n` +
                     `❌ Failed: ${result.failed || 0}`
                 );
+
+                // Save skipped patients for display
+                setSkippedPatients(result.skippedPatients || []);
 
                 // Refresh SMS list
                 setTimeout(() => {
@@ -1628,6 +1638,79 @@ export default function AdminPage() {
                                 </div>
                             );
                         })
+                    )}
+
+                    {/* ═══ SKIPPED PATIENTS ═══ */}
+                    {skippedPatients.length > 0 && (
+                        <div style={{
+                            marginTop: "1.5rem",
+                            padding: "1.25rem",
+                            background: "rgba(255, 193, 7, 0.08)",
+                            border: "2px solid rgba(255, 193, 7, 0.3)",
+                            borderRadius: "var(--radius-md)"
+                        }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "1rem" }}>
+                                <span style={{ fontSize: "1.1rem" }}>⚠️</span>
+                                <strong style={{ fontSize: "1rem", color: "#ffc107" }}>Pominięci pacjenci ({skippedPatients.length})</strong>
+                                <span style={{ fontSize: "0.8rem", color: "var(--color-text-muted)" }}>— w godzinach pracy, ale bez SMS</span>
+                            </div>
+
+                            <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+                                {skippedPatients.map((sp, idx) => (
+                                    <div key={idx} style={{
+                                        display: "flex",
+                                        justifyContent: "space-between",
+                                        alignItems: "center",
+                                        padding: "0.75rem 1rem",
+                                        background: "var(--color-surface)",
+                                        borderRadius: "6px",
+                                        gap: "1rem",
+                                        flexWrap: "wrap"
+                                    }}>
+                                        <div style={{ flex: 1, minWidth: "200px" }}>
+                                            <strong style={{ fontSize: "0.95rem" }}>{sp.patientName}</strong>
+                                            <div style={{ fontSize: "0.82rem", color: "var(--color-text-muted)", marginTop: "0.2rem" }}>
+                                                ⏰ {sp.appointmentTime} • 👨‍⚕️ {sp.doctorName} • 🦷 {sp.appointmentType}
+                                            </div>
+                                        </div>
+                                        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
+                                            <span style={{
+                                                padding: "0.25rem 0.6rem",
+                                                background: "rgba(255, 193, 7, 0.15)",
+                                                color: "#ffc107",
+                                                borderRadius: "4px",
+                                                fontSize: "0.78rem",
+                                                fontWeight: "600",
+                                                whiteSpace: "nowrap"
+                                            }}>
+                                                {sp.reason}
+                                            </span>
+                                            {sp.reason.includes('telefonu') && (
+                                                <button
+                                                    onClick={() => {
+                                                        setSmsTab('manual');
+                                                        setPatientSearchQuery(sp.patientName);
+                                                    }}
+                                                    style={{
+                                                        padding: "0.35rem 0.75rem",
+                                                        background: "var(--color-primary)",
+                                                        border: "none",
+                                                        borderRadius: "4px",
+                                                        color: "black",
+                                                        cursor: "pointer",
+                                                        fontWeight: "600",
+                                                        fontSize: "0.8rem",
+                                                        whiteSpace: "nowrap"
+                                                    }}
+                                                >
+                                                    ✉️ Wyślij ręcznie
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
                     )}
                 </>
             )}

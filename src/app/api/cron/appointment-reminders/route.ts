@@ -88,6 +88,13 @@ export async function GET(req: Request) {
     let draftsCreated = 0;
     let skippedCount = 0;
     const errors: Array<{ appointment: string; error: string }> = [];
+    const skippedPatients: Array<{
+        patientName: string;
+        doctorName: string;
+        appointmentTime: string;
+        appointmentType: string;
+        reason: string;
+    }> = [];
 
     try {
         // 3. Calculate tomorrow's date
@@ -245,6 +252,13 @@ export async function GET(req: Request) {
                 if (!appointment.patientPhone) {
                     console.log(`   ⚠️  Skipping: No phone number`);
                     skippedCount++;
+                    skippedPatients.push({
+                        patientName: appointment.patientName || 'Nieznany pacjent',
+                        doctorName: doctorName,
+                        appointmentTime: appointmentTime,
+                        appointmentType: appointment.appointmentType?.name || '',
+                        reason: 'Brak numeru telefonu'
+                    });
                     errors.push({
                         appointment: `${appointment.patientName} (${appointment.id})`,
                         error: 'Missing phone number'
@@ -257,6 +271,13 @@ export async function GET(req: Request) {
                 if (!isNowosielska && !isDoctorInList(doctorName, REMINDER_DOCTORS)) {
                     console.log(`   ⚠️  Skipping: Doctor not in reminder list (${doctorName})`);
                     skippedCount++;
+                    skippedPatients.push({
+                        patientName: appointment.patientName || 'Nieznany pacjent',
+                        doctorName: doctorName,
+                        appointmentTime: appointmentTime,
+                        appointmentType: appointment.appointmentType?.name || '',
+                        reason: `Lekarz spoza listy przypomnień (${doctorName})`
+                    });
                     continue;
                 }
 
@@ -437,6 +458,7 @@ export async function GET(req: Request) {
             processed: processedCount,
             draftsCreated: draftsCreated,
             skipped: skippedCount,
+            skippedPatients: skippedPatients.length > 0 ? skippedPatients : undefined,
             failed: errors.length,
             errors: errors.length > 0 ? errors : undefined,
             duration: `${duration}s`

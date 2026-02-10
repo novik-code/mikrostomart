@@ -1,6 +1,6 @@
 # Mikrostomart - Complete Project Context
 
-> **Last Updated:** 2026-02-09  
+> **Last Updated:** 2026-02-10  
 > **Version:** Production (Vercel Deployment)  
 > **Status:** Active Development
 
@@ -486,11 +486,12 @@ Features:
 **Workflow:**
 1. Cron job generates drafts daily at 7:00 AM UTC (8-9 AM Warsaw time)
 2. Admin reviews/edits drafts in panel
-3. Admin sends SMS (individually or bulk)
-4. Sent SMS move to "Wysłane" tab, grouped by date
-5. Admin can resend or delete any SMS from history
-6. New drafts always regenerate regardless of previous sent status
-7. Manual SMS can be sent anytime via "Wyślij SMS ręcznie" tab
+3. **Skipped patients section** — yellow warning below drafts shows patients within working hours who were skipped (missing phone, wrong doctor) with "Wyślij ręcznie" CTA
+4. Admin sends SMS (individually or bulk)
+5. Sent SMS move to "Wysłane" tab, grouped by date
+6. Admin can resend or delete any SMS from history
+7. New drafts always regenerate regardless of previous sent status
+8. Manual SMS can be sent anytime via "Wyślij SMS ręcznie" tab
 
 #### 6. Reservations (`reservations` tab)
 - Booking requests
@@ -675,16 +676,32 @@ Features:
 
 ---
 
-### 4. Telegram Bot
-**Purpose:** Real-time admin notifications
+### 4. Telegram Bot (Multi-Bot Architecture)
+**Purpose:** Real-time admin notifications split across 3 bots
 
-**Configuration:**
-- Bot Token: `TELEGRAM_BOT_TOKEN`
-- Chat ID: `TELEGRAM_CHAT_ID`
+**Architecture:**
+Centralized via `src/lib/telegram.ts` with `sendTelegramNotification(message, channel)` helper.
 
-**Notification Types:**
-1. **Appointment Confirmed** - Patient confirms via SMS link
-2. **Appointment Cancelled** - Patient cancels
+| Bot | Env Token | Env Chat ID | Notifications |
+|-----|-----------|-------------|---------------|
+| **Mikrostomart potwierdzenia** | `TELEGRAM_BOT_TOKEN_APPOINTMENTS` | `TELEGRAM_CHAT_ID_APPOINTMENTS` | Appointment confirm/cancel/reschedule |
+| **Mikrostomart wiadomości** | `TELEGRAM_BOT_TOKEN_MESSAGES` | `TELEGRAM_CHAT_ID_MESSAGES` | Contact form messages |
+| **Mikrostomart Powiadomienia** (original) | `TELEGRAM_BOT_TOKEN` | `TELEGRAM_CHAT_ID` | Reservations, orders, leads |
+
+**Fallback:** If channel-specific env vars not set, uses original bot.
+**Multi-recipient:** Each chat_id env var supports comma-separated IDs.
+
+**Integration Files:**
+- `src/lib/telegram.ts` — Central helper with channel routing
+- `src/app/api/appointments/confirm/route.ts` → `appointments` channel
+- `src/app/api/appointments/cancel/route.ts` → `appointments` channel
+- `src/app/api/patients/appointments/[id]/confirm-attendance/route.ts` → `appointments` channel
+- `src/app/api/patients/appointments/[id]/cancel/route.ts` → `appointments` channel
+- `src/app/api/patients/appointments/[id]/reschedule/route.ts` → `appointments` channel
+- `src/app/api/contact/route.ts` → `messages` (contact) / `default` (reservation)
+- `src/app/api/reservations/route.ts` → `default` channel
+- `src/app/api/order-confirmation/route.ts` → `default` channel
+- `src/app/api/treatment-lead/route.ts` → `default` channel
 
 **Message Format:**
 ```
@@ -696,16 +713,6 @@ Features:
 ⏰ Godzina: 15:00
 🩺 Lekarz: Dr Nowosielski
 ```
-
-**Integration Files:**
-- `/api/appointments/confirm/route.ts` (lines 122-127)
-- `/api/appointments/cancel/route.ts` (lines 122-132)
-
-**Recent Updates:**
-- ✅ Added patient name to notifications
-- ✅ Added clickable phone number link
-- ✅ Removed "(Landing Page)" text
-- ✅ Improved formatting with emojis
 
 ---
 
@@ -923,6 +930,35 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### February 10, 2026
+**Skipped Patients Reporting + Telegram 3-Bot Split**
+
+#### Major Changes:
+1. **Skipped Patients in Admin Panel** — Cron `appointment-reminders` now returns `skippedPatients` array (patients within working hours skipped due to missing phone or doctor not in list). Admin panel shows them in a yellow warning section below SMS drafts with "Wyślij ręcznie" button.
+2. **Telegram 3-Bot Architecture** — Notifications split across 3 separate Telegram bots:
+   - `@mikrostomart_appointments_bot` — appointment confirmations/cancellations/reschedules
+   - `@mikrostomart_messages_bot` — contact form messages
+   - Original bot — reservations, orders, leads
+3. **Centralized Telegram Helper** — New `src/lib/telegram.ts` with `sendTelegramNotification(msg, channel)` replacing duplicated inline code in 8 API routes.
+
+#### Files Added:
+- `src/lib/telegram.ts` — Central Telegram multi-bot routing function
+
+#### Files Modified:
+- `src/app/api/cron/appointment-reminders/route.ts` — Added `skippedPatients` collection and return
+- `src/app/admin/page.tsx` — Added skipped patients section below drafts
+- `src/app/api/appointments/confirm/route.ts` — Uses `sendTelegramNotification('appointments')`
+- `src/app/api/appointments/cancel/route.ts` — Uses `sendTelegramNotification('appointments')`
+- `src/app/api/patients/appointments/[id]/confirm-attendance/route.ts` — Uses `sendTelegramNotification('appointments')`
+- `src/app/api/patients/appointments/[id]/cancel/route.ts` — Uses `sendTelegramNotification('appointments')`
+- `src/app/api/patients/appointments/[id]/reschedule/route.ts` — Uses `sendTelegramNotification('appointments')`
+- `src/app/api/contact/route.ts` — Uses `sendTelegramNotification('messages'/'default')`
+- `src/app/api/reservations/route.ts` — Uses `sendTelegramNotification('default')`
+- `src/app/api/order-confirmation/route.ts` — Uses `sendTelegramNotification('default')`
+- `src/app/api/treatment-lead/route.ts` — Uses `sendTelegramNotification('default')`
+
+---
 
 ### February 9, 2026 (Evening)
 **Admin SMS Panel Enhancements — Date Grouping, Manual Send, Patient Search**
