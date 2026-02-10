@@ -102,10 +102,17 @@ export async function GET(req: Request) {
             }
 
             const data = await response.json();
-            const appointments: ScheduleAppointment[] = [];
+            const rawApts: ProdentisAppointment[] = (data.appointments || []);
 
-            for (const apt of (data.appointments || []) as ProdentisAppointment[]) {
-                // Parse time from Prodentis date field
+            // First pass: parse all appointments and group by doctor
+            interface ParsedApt {
+                raw: ProdentisAppointment;
+                startMinutes: number;
+                doctorName: string;
+            }
+            const parsed: ParsedApt[] = [];
+
+            for (const apt of rawApts) {
                 const aptDate = new Date(apt.date);
                 const startHour = aptDate.getUTCHours();
                 const startMinute = aptDate.getUTCMinutes();
@@ -113,32 +120,69 @@ export async function GET(req: Request) {
                 // Skip very early informational entries
                 if (startHour < 7) continue;
 
-                const startTime = `${startHour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')}`;
-
-                // Estimate duration (default 30 min if not provided)
-                const duration = apt.duration || 30;
-                const endMinutes = startHour * 60 + startMinute + duration;
-                const endHour = Math.floor(endMinutes / 60);
-                const endMinute = endMinutes % 60;
-                const endTime = `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`;
-
                 const doctorName = apt.doctor?.name?.replace(/\s*\(I\)\s*/g, ' ').trim() || 'Nieznany';
-
                 allDoctors.add(doctorName);
 
-                appointments.push({
-                    id: apt.id,
-                    patientName: apt.patientName || 'Brak danych',
+                parsed.push({
+                    raw: apt,
+                    startMinutes: startHour * 60 + startMinute,
                     doctorName,
-                    doctorId: apt.doctor?.id || '',
-                    startTime,
-                    endTime,
-                    duration,
-                    appointmentType: apt.appointmentType?.name || 'Wizyta',
-                    appointmentTypeId: apt.appointmentType?.id || '',
-                    isWorkingHour: apt.isWorkingHour ?? true,
-                    patientPhone: apt.patientPhone || '',
                 });
+            }
+
+            // Group by doctor for duration inference
+            const byDoctor = new Map<string, ParsedApt[]>();
+            for (const p of parsed) {
+                if (!byDoctor.has(p.doctorName)) byDoctor.set(p.doctorName, []);
+                byDoctor.get(p.doctorName)!.push(p);
+            }
+
+            // Sort each doctor's appointments by time
+            for (const [, docApts] of byDoctor) {
+                docApts.sort((a, b) => a.startMinutes - b.startMinutes);
+            }
+
+            // Second pass: build ScheduleAppointments with inferred durations
+            const appointments: ScheduleAppointment[] = [];
+
+            for (const [doctorName, docApts] of byDoctor) {
+                for (let j = 0; j < docApts.length; j++) {
+                    const p = docApts[j];
+                    const startHour = Math.floor(p.startMinutes / 60);
+                    const startMinute = p.startMinutes % 60;
+                    const startTime = `${startHour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')}`;
+
+                    // Infer duration from gap to next appointment for same doctor
+                    let duration: number;
+                    if (j + 1 < docApts.length) {
+                        duration = docApts[j + 1].startMinutes - p.startMinutes;
+                        // Sanity: cap at 4 hours, minimum 15 min
+                        if (duration <= 0) duration = 15;
+                        if (duration > 240) duration = 30;
+                    } else {
+                        // Last appointment of the day — default 30 min
+                        duration = 30;
+                    }
+
+                    const endMinutes = p.startMinutes + duration;
+                    const endHour = Math.floor(endMinutes / 60);
+                    const endMinute = endMinutes % 60;
+                    const endTime = `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`;
+
+                    appointments.push({
+                        id: p.raw.id,
+                        patientName: p.raw.patientName || 'Brak danych',
+                        doctorName,
+                        doctorId: p.raw.doctor?.id || '',
+                        startTime,
+                        endTime,
+                        duration,
+                        appointmentType: p.raw.appointmentType?.name || 'Wizyta',
+                        appointmentTypeId: p.raw.appointmentType?.id || '',
+                        isWorkingHour: p.raw.isWorkingHour ?? true,
+                        patientPhone: p.raw.patientPhone || '',
+                    });
+                }
             }
 
             // Sort by time
