@@ -76,10 +76,14 @@ export default function AdminPage() {
 
     // Employees state
     const [employeesList, setEmployeesList] = useState<any[]>([]);
+    const [registeredEmployees, setRegisteredEmployees] = useState<any[]>([]);
     const [employeesLoading, setEmployeesLoading] = useState(false);
-    const [newEmployeeName, setNewEmployeeName] = useState('');
-    const [newEmployeeEmail, setNewEmployeeEmail] = useState('');
-    const [addingEmployee, setAddingEmployee] = useState(false);
+    const [prodentisAvailable, setProdentisAvailable] = useState(true);
+    const [employeeEmails, setEmployeeEmails] = useState<Record<string, string>>({});
+    const [addingEmployee, setAddingEmployee] = useState<string | null>(null);
+    const [newManualName, setNewManualName] = useState('');
+    const [newManualEmail, setNewManualEmail] = useState('');
+    const [addingManual, setAddingManual] = useState(false);
 
     // SMS Reminders state
     const [smsReminders, setSmsReminders] = useState<any[]>([]);
@@ -738,7 +742,9 @@ export default function AdminPage() {
             const res = await fetch('/api/admin/employees');
             if (res.ok) {
                 const data = await res.json();
-                setEmployeesList(data.employees || []);
+                setEmployeesList(data.staff || []);
+                setRegisteredEmployees(data.registeredEmployees || []);
+                setProdentisAvailable(data.prodentisAvailable ?? false);
             } else {
                 console.error('Failed to fetch employees');
             }
@@ -749,21 +755,54 @@ export default function AdminPage() {
         }
     };
 
-    const addEmployee = async () => {
-        const name = newEmployeeName.trim();
-        const email = newEmployeeEmail.trim();
-        if (!name) {
-            alert('Podaj imi\u0119 i nazwisko pracownika');
+    const addEmployee = async (staffId: string, staffName: string) => {
+        const email = employeeEmails[staffId]?.trim();
+        if (!email) {
+            alert('Podaj adres email pracownika');
             return;
         }
-        if (!email || !email.includes('@')) {
+        if (!email.includes('@')) {
             alert('Podaj poprawny adres email');
             return;
         }
-        if (!confirm(`Utworzy\u0107 konto pracownika?\n\nImi\u0119 i nazwisko: ${name}\nEmail: ${email}\n\nZostanie wys\u0142any email z linkiem do ustawienia has\u0142a.`)) {
+        if (!confirm(`Utworzy\u0107 konto pracownika dla ${staffName}?\n\nEmail: ${email}\n\nZostanie wys\u0142any email z linkiem do ustawienia has\u0142a.`)) {
             return;
         }
-        setAddingEmployee(true);
+        setAddingEmployee(staffId);
+        try {
+            const res = await fetch('/api/admin/roles/promote', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    patientEmail: email,
+                    roles: ['employee'],
+                    sendPasswordReset: true,
+                    employeeName: staffName,
+                }),
+            });
+            const data = await res.json();
+            if (res.ok) {
+                alert(`\u2705 ${data.message}`);
+                setEmployeeEmails(prev => ({ ...prev, [staffId]: '' }));
+                fetchEmployees();
+            } else {
+                alert(`\u274c B\u0142\u0105d: ${data.error}`);
+            }
+        } catch (err) {
+            console.error('Add employee error:', err);
+            alert('B\u0142\u0105d po\u0142\u0105czenia z serwerem');
+        } finally {
+            setAddingEmployee(null);
+        }
+    };
+
+    const addManualEmployee = async () => {
+        const name = newManualName.trim();
+        const email = newManualEmail.trim();
+        if (!name) { alert('Podaj imi\u0119 i nazwisko'); return; }
+        if (!email || !email.includes('@')) { alert('Podaj poprawny adres email'); return; }
+        if (!confirm(`Utworzy\u0107 konto pracownika?\n\n${name}\n${email}`)) return;
+        setAddingManual(true);
         try {
             const res = await fetch('/api/admin/roles/promote', {
                 method: 'POST',
@@ -778,22 +817,21 @@ export default function AdminPage() {
             const data = await res.json();
             if (res.ok) {
                 alert(`\u2705 ${data.message}`);
-                setNewEmployeeName('');
-                setNewEmployeeEmail('');
+                setNewManualName('');
+                setNewManualEmail('');
                 fetchEmployees();
             } else {
                 alert(`\u274c B\u0142\u0105d: ${data.error}`);
             }
-        } catch (err) {
-            console.error('Add employee error:', err);
-            alert('B\u0142\u0105d po\u0142\u0105czenia z serwerem');
+        } catch {
+            alert('B\u0142\u0105d po\u0142\u0105czenia');
         } finally {
-            setAddingEmployee(false);
+            setAddingManual(false);
         }
     };
 
     const removeEmployee = async (userId: string, email: string) => {
-        if (!confirm(`Czy na pewno chcesz usun\u0105\u0107 rol\u0119 pracownika dla ${email}?`)) return;
+        if (!confirm(`Usun\u0105\u0107 rol\u0119 pracownika dla ${email}?`)) return;
         try {
             const res = await fetch('/api/admin/roles', {
                 method: 'DELETE',
@@ -801,11 +839,11 @@ export default function AdminPage() {
                 body: JSON.stringify({ userId, role: 'employee' }),
             });
             if (res.ok) {
-                alert('\u2705 Rola pracownika usuni\u0119ta');
+                alert('\u2705 Rola usuni\u0119ta');
                 fetchEmployees();
             } else {
                 const data = await res.json();
-                alert(`\u274c B\u0142\u0105d: ${data.error}`);
+                alert(`\u274c ${data.error}`);
             }
         } catch {
             alert('B\u0142\u0105d po\u0142\u0105czenia');
@@ -813,95 +851,33 @@ export default function AdminPage() {
     };
 
     const renderEmployeesTab = () => {
+        if (employeesLoading && employeesList.length === 0) {
+            return <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-text-muted)' }}>\u0141adowanie danych z Prodentis...</div>;
+        }
+
         return (
             <div>
-                {/* Add New Employee Form */}
-                <div style={{
-                    background: 'var(--color-surface)',
-                    borderRadius: '12px',
-                    padding: '1.5rem',
-                    border: '1px solid var(--color-border)',
-                    marginBottom: '2rem',
-                }}>
-                    <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem', color: 'var(--color-text-main)' }}>
-                        \u2795 Dodaj nowego pracownika
-                    </h3>
-                    <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
-                        <div style={{ flex: 1, minWidth: '180px' }}>
-                            <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--color-text-muted)', marginBottom: '0.3rem' }}>
-                                Imi\u0119 i nazwisko
-                            </label>
-                            <input
-                                type="text"
-                                placeholder="np. Anna Kowalska"
-                                value={newEmployeeName}
-                                onChange={(e) => setNewEmployeeName(e.target.value)}
-                                style={{
-                                    width: '100%', boxSizing: 'border-box',
-                                    padding: '0.6rem 0.75rem',
-                                    borderRadius: '6px',
-                                    border: '2px solid var(--color-border)',
-                                    background: 'var(--color-background)',
-                                    color: 'var(--color-text-main)',
-                                    fontSize: '0.9rem',
-                                    fontFamily: 'inherit',
-                                }}
-                            />
-                        </div>
-                        <div style={{ flex: 1, minWidth: '200px' }}>
-                            <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--color-text-muted)', marginBottom: '0.3rem' }}>
-                                Adres email
-                            </label>
-                            <input
-                                type="email"
-                                placeholder="pracownik@email.pl"
-                                value={newEmployeeEmail}
-                                onChange={(e) => setNewEmployeeEmail(e.target.value)}
-                                style={{
-                                    width: '100%', boxSizing: 'border-box',
-                                    padding: '0.6rem 0.75rem',
-                                    borderRadius: '6px',
-                                    border: '2px solid var(--color-border)',
-                                    background: 'var(--color-background)',
-                                    color: 'var(--color-text-main)',
-                                    fontSize: '0.9rem',
-                                    fontFamily: 'inherit',
-                                }}
-                                onKeyDown={(e) => { if (e.key === 'Enter') addEmployee(); }}
-                            />
-                        </div>
-                        <button
-                            onClick={addEmployee}
-                            disabled={addingEmployee || !newEmployeeName.trim() || !newEmployeeEmail.trim()}
-                            style={{
-                                padding: '0.6rem 1.5rem',
-                                background: (addingEmployee || !newEmployeeName.trim() || !newEmployeeEmail.trim()) ? '#444' : 'var(--color-primary)',
-                                border: 'none',
-                                borderRadius: '6px',
-                                color: '#000',
-                                fontWeight: 'bold',
-                                cursor: (addingEmployee || !newEmployeeName.trim() || !newEmployeeEmail.trim()) ? 'not-allowed' : 'pointer',
-                                fontSize: '0.9rem',
-                                transition: 'all 0.2s',
-                                whiteSpace: 'nowrap',
-                            }}
-                        >
-                            {addingEmployee ? '\u23f3 Tworzenie...' : '\u2795 Dodaj pracownika'}
-                        </button>
-                    </div>
-                    <p style={{
-                        margin: '0.75rem 0 0 0', fontSize: '0.75rem',
-                        color: 'var(--color-text-muted)',
+                {/* Prodentis connection status */}
+                {!prodentisAvailable && (
+                    <div style={{
+                        padding: '0.75rem 1rem', marginBottom: '1.5rem',
+                        background: '#eab30815', border: '1px solid #eab30840',
+                        borderRadius: '8px', fontSize: '0.85rem', color: '#eab308'
                     }}>
-                        \ud83d\udca1 Wpisz dane nowego pracownika. System za\u0142o\u017cy konto i wy\u015ble email z linkiem do ustawienia has\u0142a.
-                    </p>
-                </div>
+                        \u26a0\ufe0f Brak po\u0142\u0105czenia z Prodentis \u2014 lista pracownik\u00f3w mo\u017ce by\u0107 niepe\u0142na. Mo\u017cesz doda\u0107 pracownika r\u0119cznie poni\u017cej.
+                    </div>
+                )}
 
-                {/* Current Employees List */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                    <h3 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--color-text-main)' }}>
-                        Aktualni pracownicy ({employeesLoading ? '...' : employeesList.length})
-                    </h3>
+                {/* Staff from Prodentis */}
+                <div style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                        <h3 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--color-text-main)' }}>
+                            Pracownicy z Prodentis ({employeesList.length})
+                        </h3>
+                        <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+                            Lista operator\u00f3w/lekarzy z systemu Prodentis
+                        </p>
+                    </div>
                     <button onClick={fetchEmployees} style={{
                         padding: '0.4rem 1rem', background: 'var(--color-surface)',
                         border: '1px solid var(--color-border)', borderRadius: '6px',
@@ -909,78 +885,233 @@ export default function AdminPage() {
                     }}>Od\u015bwie\u017c</button>
                 </div>
 
-                {employeesLoading && employeesList.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-text-muted)' }}>\u0141adowanie...</div>
-                ) : employeesList.length === 0 ? (
+                {employeesList.length === 0 && !employeesLoading ? (
                     <div style={{
                         textAlign: 'center', padding: '2rem',
                         background: 'var(--color-surface)', borderRadius: '12px',
                         border: '1px solid var(--color-border)',
                         color: 'var(--color-text-muted)',
                     }}>
-                        Brak pracownik\u00f3w z nadaną rol\u0105. Dodaj pierwszego pracownika powyżej.
+                        Brak danych z Prodentis. Spr\u00f3buj od\u015bwie\u017cy\u0107 lub dodaj pracownika r\u0119cznie.
                     </div>
                 ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                        {employeesList.map((emp: any) => (
-                            <div key={emp.userId} style={{
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                        {employeesList.map((staff: any) => (
+                            <div key={staff.id} style={{
                                 background: 'var(--color-surface)',
-                                borderRadius: '10px',
-                                padding: '1rem 1.25rem',
-                                border: '1px solid var(--color-border)',
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                gap: '1rem',
-                                flexWrap: 'wrap',
+                                borderRadius: '12px',
+                                padding: '1.25rem',
+                                border: `1px solid ${staff.hasAccount ? 'var(--color-border)' : 'rgba(220, 177, 74, 0.3)'}`,
                             }}>
-                                <div style={{ flex: 1 }}>
-                                    <div style={{ fontWeight: 'bold', color: 'var(--color-text-main)', fontSize: '1rem' }}>
-                                        {emp.email}
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+                                    <div>
+                                        <div style={{ fontWeight: 'bold', fontSize: '1.05rem', color: 'var(--color-text-main)' }}>
+                                            {staff.name}
+                                        </div>
+                                        <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: '0.15rem' }}>
+                                            Prodentis ID: {staff.id}
+                                        </div>
                                     </div>
-                                    <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: '0.2rem', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-                                        <span>Dodano: {emp.grantedAt ? new Date(emp.grantedAt).toLocaleDateString('pl-PL') : '\u2014'}</span>
-                                        {emp.lastSignIn && <span>Ostatnie logowanie: {new Date(emp.lastSignIn).toLocaleDateString('pl-PL')}</span>}
-                                        {emp.isAlsoAdmin && <span style={{ color: '#22c55e' }}>\u2605 Admin</span>}
+                                    <div style={{
+                                        padding: '0.25rem 0.75rem',
+                                        borderRadius: '12px',
+                                        fontSize: '0.75rem',
+                                        fontWeight: '600',
+                                        background: staff.hasAccount ? '#22c55e22' : '#eab30822',
+                                        color: staff.hasAccount ? '#22c55e' : '#eab308',
+                                    }}>
+                                        {staff.hasAccount ? '\u2705 Ma konto' : '\u23f3 Brak konta'}
                                     </div>
                                 </div>
-                                <div style={{ display: 'flex', gap: '0.4rem' }}>
+
+                                {staff.hasAccount && staff.accountEmail && (
+                                    <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginBottom: '0.5rem' }}>
+                                        \ud83d\udce7 {staff.accountEmail}
+                                        {staff.grantedAt && <span style={{ marginLeft: '1rem' }}>Dodano: {new Date(staff.grantedAt).toLocaleDateString('pl-PL')}</span>}
+                                    </div>
+                                )}
+
+                                {!staff.hasAccount && (
+                                    <div style={{
+                                        display: 'flex', gap: '0.5rem', alignItems: 'center',
+                                        marginTop: '0.75rem', flexWrap: 'wrap'
+                                    }}>
+                                        <input
+                                            type="email"
+                                            placeholder="Adres email pracownika..."
+                                            value={employeeEmails[staff.id] || ''}
+                                            onChange={(e) => setEmployeeEmails(prev => ({ ...prev, [staff.id]: e.target.value }))}
+                                            style={{
+                                                flex: 1, minWidth: '200px',
+                                                padding: '0.5rem 0.75rem',
+                                                borderRadius: '6px',
+                                                border: '2px solid var(--color-border)',
+                                                background: 'var(--color-background)',
+                                                color: 'var(--color-text-main)',
+                                                fontSize: '0.9rem',
+                                                fontFamily: 'inherit',
+                                            }}
+                                            onKeyDown={(e) => { if (e.key === 'Enter') addEmployee(staff.id, staff.name); }}
+                                        />
+                                        <button
+                                            onClick={() => addEmployee(staff.id, staff.name)}
+                                            disabled={addingEmployee === staff.id || !employeeEmails[staff.id]?.trim()}
+                                            style={{
+                                                padding: '0.5rem 1.25rem',
+                                                background: (!employeeEmails[staff.id]?.trim() || addingEmployee === staff.id) ? '#444' : 'var(--color-primary)',
+                                                border: 'none',
+                                                borderRadius: '6px',
+                                                color: '#000',
+                                                fontWeight: 'bold',
+                                                cursor: (!employeeEmails[staff.id]?.trim() || addingEmployee === staff.id) ? 'not-allowed' : 'pointer',
+                                                fontSize: '0.85rem',
+                                                transition: 'all 0.2s',
+                                                whiteSpace: 'nowrap',
+                                            }}
+                                        >
+                                            {addingEmployee === staff.id ? '\u23f3 Tworz\u0119...' : '\u2795 Dodaj konto'}
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {/* Registered employees not in Prodentis */}
+                {registeredEmployees.length > 0 && (
+                    <div style={{ marginTop: '2rem' }}>
+                        <h3 style={{ margin: '0 0 0.75rem 0', fontSize: '1rem', color: 'var(--color-text-main)' }}>
+                            Pozosta\u0142e konta pracownicze ({registeredEmployees.length})
+                        </h3>
+                        <p style={{ margin: '0 0 0.75rem 0', fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+                            Konta z rol\u0105 pracownika, kt\u00f3re nie s\u0105 powi\u0105zane z operatorem Prodentis
+                        </p>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            {registeredEmployees.map((emp: any) => (
+                                <div key={emp.id} style={{
+                                    background: 'var(--color-surface)',
+                                    borderRadius: '10px',
+                                    padding: '0.75rem 1rem',
+                                    border: '1px solid var(--color-border)',
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    gap: '0.75rem',
+                                    flexWrap: 'wrap',
+                                }}>
+                                    <div>
+                                        <div style={{ fontWeight: 'bold', color: 'var(--color-text-main)', fontSize: '0.9rem' }}>
+                                            {emp.accountEmail}
+                                        </div>
+                                        {emp.grantedAt && (
+                                            <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', marginTop: '0.15rem' }}>
+                                                Dodano: {new Date(emp.grantedAt).toLocaleDateString('pl-PL')}
+                                            </div>
+                                        )}
+                                    </div>
                                     <button
-                                        onClick={() => sendResetPassword(emp.email)}
+                                        onClick={() => removeEmployee(emp.userId, emp.accountEmail)}
                                         style={{
-                                            padding: '0.35rem 0.7rem',
-                                            background: 'transparent',
-                                            color: 'var(--color-text-muted)',
-                                            border: '1px solid var(--color-border)',
-                                            borderRadius: '5px',
-                                            cursor: 'pointer',
-                                            fontSize: '0.75rem',
-                                        }}
-                                    >
-                                        \ud83d\udd11 Reset has\u0142a
-                                    </button>
-                                    <button
-                                        onClick={() => removeEmployee(emp.userId, emp.email)}
-                                        style={{
-                                            padding: '0.35rem 0.7rem',
+                                            padding: '0.3rem 0.7rem',
                                             background: 'transparent',
                                             color: 'var(--color-error, #ef4444)',
                                             border: '1px solid var(--color-error, #ef4444)',
                                             borderRadius: '5px',
                                             cursor: 'pointer',
-                                            fontSize: '0.75rem',
+                                            fontSize: '0.7rem',
                                         }}
                                     >
                                         \u2716 Usu\u0144 rol\u0119
                                     </button>
                                 </div>
-                            </div>
-                        ))}
+                            ))}
+                        </div>
                     </div>
                 )}
+
+                {/* Manual add (for staff not in Prodentis) */}
+                <div style={{
+                    marginTop: '2rem',
+                    background: 'var(--color-surface)',
+                    borderRadius: '12px',
+                    padding: '1.25rem',
+                    border: '1px dashed var(--color-border)',
+                }}>
+                    <h3 style={{ margin: '0 0 0.75rem 0', fontSize: '1rem', color: 'var(--color-text-main)' }}>
+                        \u2795 Dodaj r\u0119cznie (np. recepcja, asystentka)
+                    </h3>
+                    <p style={{ margin: '0 0 0.75rem 0', fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+                        Dla pracownik\u00f3w, kt\u00f3rzy nie wyst\u0119puj\u0105 jako operatorzy w Prodentis
+                    </p>
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                        <div style={{ flex: 1, minWidth: '150px' }}>
+                            <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--color-text-muted)', marginBottom: '0.25rem' }}>
+                                Imi\u0119 i nazwisko
+                            </label>
+                            <input
+                                type="text"
+                                placeholder="np. Anna Kowalska"
+                                value={newManualName}
+                                onChange={(e) => setNewManualName(e.target.value)}
+                                style={{
+                                    width: '100%', boxSizing: 'border-box',
+                                    padding: '0.5rem 0.75rem',
+                                    borderRadius: '6px',
+                                    border: '2px solid var(--color-border)',
+                                    background: 'var(--color-background)',
+                                    color: 'var(--color-text-main)',
+                                    fontSize: '0.9rem',
+                                    fontFamily: 'inherit',
+                                }}
+                            />
+                        </div>
+                        <div style={{ flex: 1, minWidth: '180px' }}>
+                            <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--color-text-muted)', marginBottom: '0.25rem' }}>
+                                Adres email
+                            </label>
+                            <input
+                                type="email"
+                                placeholder="pracownik@email.pl"
+                                value={newManualEmail}
+                                onChange={(e) => setNewManualEmail(e.target.value)}
+                                style={{
+                                    width: '100%', boxSizing: 'border-box',
+                                    padding: '0.5rem 0.75rem',
+                                    borderRadius: '6px',
+                                    border: '2px solid var(--color-border)',
+                                    background: 'var(--color-background)',
+                                    color: 'var(--color-text-main)',
+                                    fontSize: '0.9rem',
+                                    fontFamily: 'inherit',
+                                }}
+                                onKeyDown={(e) => { if (e.key === 'Enter') addManualEmployee(); }}
+                            />
+                        </div>
+                        <button
+                            onClick={addManualEmployee}
+                            disabled={addingManual || !newManualName.trim() || !newManualEmail.trim()}
+                            style={{
+                                padding: '0.5rem 1.25rem',
+                                background: (addingManual || !newManualName.trim() || !newManualEmail.trim()) ? '#444' : 'var(--color-primary)',
+                                border: 'none',
+                                borderRadius: '6px',
+                                color: '#000',
+                                fontWeight: 'bold',
+                                cursor: (addingManual || !newManualName.trim() || !newManualEmail.trim()) ? 'not-allowed' : 'pointer',
+                                fontSize: '0.85rem',
+                                transition: 'all 0.2s',
+                                whiteSpace: 'nowrap',
+                            }}
+                        >
+                            {addingManual ? '\u23f3...' : '\u2795 Dodaj'}
+                        </button>
+                    </div>
+                </div>
             </div>
         );
     };
+
 
     // SMS Reminders Functions
     const fetchSmsReminders = async () => {
@@ -1853,6 +1984,138 @@ export default function AdminPage() {
                         </div>
                     ))}
                 </div>
+
+                {/* Patient Candidates for Promotion */}
+                {patientCandidates.length > 0 && (
+                    <div style={{
+                        marginTop: '2rem',
+                        borderTop: '2px solid var(--color-primary)',
+                        paddingTop: '1.5rem',
+                    }}>
+                        <div style={{
+                            display: 'flex', alignItems: 'center', gap: '0.75rem',
+                            marginBottom: '1rem'
+                        }}>
+                            <span style={{ fontSize: '1.3rem' }}>🔔</span>
+                            <div>
+                                <h3 style={{ margin: 0, color: 'var(--color-primary)' }}>Pacjenci do awansowania</h3>
+                                <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
+                                    Pacjenci zarejestrowani w Strefie Pacjenta, którzy nie mają jeszcze konta admin/pracownik
+                                </p>
+                            </div>
+                            <span style={{
+                                background: 'var(--color-primary)',
+                                color: '#000',
+                                padding: '0.2rem 0.6rem',
+                                borderRadius: '12px',
+                                fontSize: '0.8rem',
+                                fontWeight: 'bold',
+                                marginLeft: 'auto',
+                            }}>{patientCandidates.length}</span>
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                            {patientCandidates.map((patient: any) => (
+                                <div key={patient.id} style={{
+                                    background: 'var(--color-surface)',
+                                    borderRadius: '12px',
+                                    padding: '1.25rem',
+                                    border: '1px solid rgba(220, 177, 74, 0.3)',
+                                    borderLeft: '4px solid var(--color-primary)',
+                                }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}>
+                                        <div>
+                                            <div style={{ fontWeight: 'bold', fontSize: '1rem', color: 'var(--color-text-main)' }}>
+                                                {patient.email}
+                                            </div>
+                                            <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: '0.3rem', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                                                <span>📞 {patient.phone || 'brak'}</span>
+                                                <span>📅 {new Date(patient.createdAt).toLocaleDateString('pl-PL')}</span>
+                                                <span style={{
+                                                    color: patient.accountStatus === 'approved' ? '#22c55e' :
+                                                        patient.accountStatus === 'pending' ? '#eab308' : '#ef4444',
+                                                }}>● {patient.accountStatus || 'nieznany'}</span>
+                                                {patient.emailVerified && <span style={{ color: '#22c55e' }}>✓ email zweryfikowany</span>}
+                                            </div>
+                                        </div>
+                                        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                                            <button
+                                                onClick={() => promotePatient(patient.email, ['employee'])}
+                                                disabled={promotingEmail === patient.email}
+                                                style={{
+                                                    padding: '0.5rem 1rem',
+                                                    background: '#3b82f6',
+                                                    color: '#fff',
+                                                    border: 'none',
+                                                    borderRadius: '6px',
+                                                    cursor: promotingEmail === patient.email ? 'wait' : 'pointer',
+                                                    fontSize: '0.8rem',
+                                                    fontWeight: 'bold',
+                                                    opacity: promotingEmail === patient.email ? 0.5 : 1,
+                                                }}
+                                            >
+                                                {promotingEmail === patient.email ? '⏳...' : '🔵 Pracownik'}
+                                            </button>
+                                            <button
+                                                onClick={() => promotePatient(patient.email, ['admin'])}
+                                                disabled={promotingEmail === patient.email}
+                                                style={{
+                                                    padding: '0.5rem 1rem',
+                                                    background: '#22c55e',
+                                                    color: '#fff',
+                                                    border: 'none',
+                                                    borderRadius: '6px',
+                                                    cursor: promotingEmail === patient.email ? 'wait' : 'pointer',
+                                                    fontSize: '0.8rem',
+                                                    fontWeight: 'bold',
+                                                    opacity: promotingEmail === patient.email ? 0.5 : 1,
+                                                }}
+                                            >
+                                                {promotingEmail === patient.email ? '⏳...' : '🟢 Admin'}
+                                            </button>
+                                            <button
+                                                onClick={() => promotePatient(patient.email, ['employee', 'admin'])}
+                                                disabled={promotingEmail === patient.email}
+                                                style={{
+                                                    padding: '0.5rem 1rem',
+                                                    background: 'linear-gradient(135deg, #3b82f6, #22c55e)',
+                                                    color: '#fff',
+                                                    border: 'none',
+                                                    borderRadius: '6px',
+                                                    cursor: promotingEmail === patient.email ? 'wait' : 'pointer',
+                                                    fontSize: '0.8rem',
+                                                    fontWeight: 'bold',
+                                                    opacity: promotingEmail === patient.email ? 0.5 : 1,
+                                                }}
+                                            >
+                                                {promotingEmail === patient.email ? '⏳...' : '🔵🟢 Oba'}
+                                            </button>
+                                            <button
+                                                onClick={() => dismissPatient(patient.id, patient.email)}
+                                                title="Ukryj z listy"
+                                                style={{
+                                                    padding: '0.5rem 0.7rem',
+                                                    background: 'transparent',
+                                                    color: 'var(--color-text-muted)',
+                                                    border: '1px solid var(--color-border)',
+                                                    borderRadius: '6px',
+                                                    cursor: 'pointer',
+                                                    fontSize: '0.9rem',
+                                                    lineHeight: 1,
+                                                    transition: 'all 0.2s',
+                                                }}
+                                                onMouseEnter={(e) => { e.currentTarget.style.background = '#ef444422'; e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.borderColor = '#ef4444'; }}
+                                                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--color-text-muted)'; e.currentTarget.style.borderColor = 'var(--color-border)'; }}
+                                            >
+                                                ✕
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
 
             </div>
         );
