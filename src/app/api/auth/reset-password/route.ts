@@ -33,7 +33,8 @@ function checkRateLimit(email: string): boolean {
 /**
  * POST /api/auth/reset-password
  * Server-side password reset using Admin API + Resend.
- * Bypasses Supabase's built-in email rate limits.
+ * Generates a recovery token and sends a DIRECT link to our update-password page.
+ * NO Supabase redirect — our page calls verifyOtp() directly with the token.
  */
 export async function POST(request: NextRequest) {
     try {
@@ -48,7 +49,6 @@ export async function POST(request: NextRequest) {
 
         const normalizedEmail = email.trim().toLowerCase();
 
-        // Our own rate limiting (gentler than Supabase's)
         if (!checkRateLimit(normalizedEmail)) {
             return NextResponse.json(
                 { error: 'Zbyt wiele prób. Spróbuj ponownie za kilka minut.' },
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
         );
 
         if (!user) {
-            // Don't reveal whether user exists — return success anyway
+            // Don't reveal whether user exists
             console.log('[ResetPassword] User not found:', normalizedEmail);
             return NextResponse.json({
                 success: true,
@@ -71,17 +71,13 @@ export async function POST(request: NextRequest) {
             });
         }
 
-        // Generate recovery link via Admin API (bypasses Supabase email rate limits)
-        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.mikrostomart.pl';
+        // Generate recovery link via Admin API
         const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
             type: 'recovery',
             email: normalizedEmail,
-            options: {
-                redirectTo: `${siteUrl}/auth/callback?next=/admin/update-password`,
-            },
         });
 
-        if (linkError || !linkData?.properties?.action_link) {
+        if (linkError || !linkData?.properties?.hashed_token) {
             console.error('[ResetPassword] Failed to generate link:', linkError);
             return NextResponse.json(
                 { error: 'Nie udało się wygenerować linku. Spróbuj ponownie.' },
@@ -89,9 +85,14 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const recoveryUrl = linkData.properties.action_link;
+        // Build a DIRECT link to our page (no Supabase redirect!)
+        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.mikrostomart.pl';
+        const tokenHash = linkData.properties.hashed_token;
+        const recoveryUrl = `${siteUrl}/admin/update-password?token_hash=${encodeURIComponent(tokenHash)}&type=recovery`;
 
-        // Send email via Resend (bypasses Supabase email sending)
+        console.log('[ResetPassword] Generated direct recovery URL for', normalizedEmail);
+
+        // Send email via Resend
         const resend = new Resend(process.env.RESEND_API_KEY!);
         const { error: emailError } = await resend.emails.send({
             from: 'Mikrostomart <noreply@mikrostomart.pl>',
@@ -114,7 +115,7 @@ export async function POST(request: NextRequest) {
                         <p>Lub skopiuj i wklej ten link do przeglądarki:</p>
                         <p style="word-break: break-all; background: white; padding: 10px; border-radius: 5px; font-size: 0.85rem;">${recoveryUrl}</p>
                         <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0;">
-                            <strong>⚠️ Ważne:</strong> Link jest jednorazowy i wygasa po 24 godzinach.<br>
+                            <strong>⚠️ Ważne:</strong> Link jest jednorazowy i wygasa po 1 godzinie.<br>
                             Jeśli nie prosiłeś o zmianę hasła, zignoruj tę wiadomość.
                         </div>
                         <p>📞 570 270 470<br>📧 gabinet@mikrostomart.pl</p>
