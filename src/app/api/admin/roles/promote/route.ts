@@ -32,35 +32,23 @@ export async function POST(request: Request) {
     try {
         const { patientEmail, roles, sendPasswordReset = true } = await request.json();
 
-        if (!patientEmail || !roles || !Array.isArray(roles) || roles.length === 0) {
+        if (!patientEmail) {
             return NextResponse.json(
-                { error: 'Wymagany email pacjenta i co najmniej jedna rola' },
+                { error: 'Wymagany email pacjenta' },
                 { status: 400 }
             );
         }
 
+        const rolesToGrant = Array.isArray(roles) ? roles : [];
+
         const validRoles: UserRole[] = ['admin', 'employee', 'patient'];
-        for (const r of roles) {
+        for (const r of rolesToGrant) {
             if (!validRoles.includes(r)) {
                 return NextResponse.json(
                     { error: `Nieprawidłowa rola: ${r}` },
                     { status: 400 }
                 );
             }
-        }
-
-        // Check if patient exists in patients table
-        const { data: patient, error: patientError } = await supabase
-            .from('patients')
-            .select('id, email, phone, prodentis_id')
-            .eq('email', patientEmail)
-            .single();
-
-        if (patientError || !patient) {
-            return NextResponse.json(
-                { error: 'Nie znaleziono pacjenta z tym adresem email' },
-                { status: 404 }
-            );
         }
 
         // Check if Supabase Auth account already exists
@@ -74,6 +62,47 @@ export async function POST(request: Request) {
         if (existingUser) {
             // Auth account already exists — just grant the roles
             userId = existingUser.id;
+
+            // Also send a password reset email in case user doesn't know their password
+            if (sendPasswordReset) {
+                try {
+                    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.mikrostomart.pl';
+                    const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
+                        type: 'recovery',
+                        email: patientEmail,
+                        options: { redirectTo: `${siteUrl}/admin/update-password` },
+                    });
+                    if (!linkError && linkData?.properties?.action_link) {
+                        const resend = new Resend(process.env.RESEND_API_KEY!);
+                        await resend.emails.send({
+                            from: 'Mikrostomart <noreply@mikrostomart.pl>',
+                            to: patientEmail,
+                            subject: 'Ustaw hasło do panelu Mikrostomart',
+                            html: `
+                                <!DOCTYPE html><html><head><meta charset="utf-8"></head>
+                                <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+                                <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                                    <div style="background: linear-gradient(135deg, #38bdf8, #0ea5e9); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+                                        <h1 style="color: #fff; margin: 0; font-size: 24px;">🦷 Mikrostomart</h1>
+                                    </div>
+                                    <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+                                        <h2>Witaj!</h2>
+                                        <p>Ustaw hasło do panelu klikając poniższy przycisk:</p>
+                                        <div style="text-align: center;">
+                                            <a href="${linkData.properties.action_link}" style="display: inline-block; padding: 15px 30px; background: linear-gradient(135deg, #38bdf8, #0ea5e9); color: #fff; text-decoration: none; border-radius: 5px; font-weight: bold; margin: 20px 0;">Ustaw hasło</a>
+                                        </div>
+                                        <p style="word-break: break-all; background: white; padding: 10px; border-radius: 5px; font-size: 0.85rem;">${linkData.properties.action_link}</p>
+                                        <p>📞 570 270 470<br>📧 gabinet@mikrostomart.pl</p>
+                                    </div>
+                                </div></body></html>
+                            `
+                        });
+                        console.log('[Promote] Recovery email sent to existing user', patientEmail);
+                    }
+                } catch (e) {
+                    console.error('[Promote] Failed to send recovery email to existing user:', e);
+                }
+            }
         } else {
             // Create Supabase Auth account with a random temporary password
             const tempPassword = crypto.randomBytes(16).toString('hex');
@@ -160,7 +189,7 @@ export async function POST(request: Request) {
         const grantedRoles: string[] = [];
         const failedRoles: string[] = [];
 
-        for (const role of roles) {
+        for (const role of rolesToGrant) {
             const success = await grantRole(userId, patientEmail, role, adminUser.email || 'admin');
             if (success) {
                 grantedRoles.push(role);

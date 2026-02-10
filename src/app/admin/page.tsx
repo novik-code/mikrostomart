@@ -684,6 +684,25 @@ export default function AdminPage() {
         }
     };
 
+    const sendResetPassword = async (email: string) => {
+        if (!confirm(`Wyślij email z resetem hasła do ${email}?`)) return;
+        try {
+            const res = await fetch('/api/admin/roles/promote', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ patientEmail: email, roles: [], sendPasswordReset: true }),
+            });
+            if (res.ok) {
+                alert('✅ Email z linkiem do ustawienia hasła został wysłany!');
+            } else {
+                const data = await res.json();
+                alert(`❌ Błąd: ${data.error}`);
+            }
+        } catch {
+            alert('Błąd połączenia');
+        }
+    };
+
     // SMS Reminders Functions
     const fetchSmsReminders = async () => {
         try {
@@ -1520,6 +1539,21 @@ export default function AdminPage() {
                                     ))}
                                 </div>
                             )}
+                            <button
+                                onClick={() => sendResetPassword(user.email)}
+                                style={{
+                                    marginTop: '0.5rem',
+                                    padding: '0.3rem 0.7rem',
+                                    background: 'transparent',
+                                    color: 'var(--color-text-muted)',
+                                    border: '1px solid var(--color-border)',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    fontSize: '0.7rem',
+                                }}
+                            >
+                                🔑 Reset hasła
+                            </button>
                         </div>
                     ))}
                 </div>
