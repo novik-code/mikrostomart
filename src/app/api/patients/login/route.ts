@@ -38,31 +38,34 @@ export async function POST(request: Request) {
         // Validation
         if (!phone || !password) {
             return NextResponse.json(
-                { error: 'Brak numeru telefonu lub hasła' },
+                { error: 'Brak numeru telefonu/email lub hasła' },
                 { status: 400 }
             );
         }
 
-        // Normalize phone
-        const normalizedPhone = phone.replace(/[\s-]/g, '');
+        // Detect if input is email or phone
+        const isEmail = phone.includes('@');
+        const loginIdentifier = isEmail ? phone.trim().toLowerCase() : phone.replace(/[\s-]/g, '');
 
         // Rate limiting
-        if (!checkRateLimit(normalizedPhone)) {
+        if (!checkRateLimit(loginIdentifier)) {
             return NextResponse.json(
                 { error: 'Zbyt wiele prób logowania. Spróbuj za chwilę.' },
                 { status: 429 }
             );
         }
 
-        // Find patient in Supabase
-        const { data: patient, error } = await supabase
-            .from('patients')
-            .select('*')
-            .eq('phone', normalizedPhone)
-            .single();
+        // Find patient in Supabase — by email or phone
+        let query = supabase.from('patients').select('*');
+        if (isEmail) {
+            query = query.ilike('email', loginIdentifier);
+        } else {
+            query = query.eq('phone', loginIdentifier);
+        }
+        const { data: patient, error } = await query.single();
 
         if (error || !patient) {
-            console.log('[Login] Patient not found:', normalizedPhone);
+            console.log('[Login] Patient not found:', loginIdentifier);
             return NextResponse.json(
                 { error: 'Nieprawidłowy numer telefonu lub hasło' },
                 { status: 401 }
@@ -73,7 +76,7 @@ export async function POST(request: Request) {
         const valid = await bcrypt.compare(password, patient.password_hash);
 
         if (!valid) {
-            console.log('[Login] Invalid password for:', normalizedPhone);
+            console.log('[Login] Invalid password for:', loginIdentifier);
             return NextResponse.json(
                 { error: 'Nieprawidłowy numer telefonu lub hasło' },
                 { status: 401 }

@@ -117,13 +117,13 @@ export default function PatientLogin() {
                             fontSize: '0.9rem',
                             fontWeight: '500',
                         }}>
-                            Numer telefonu
+                            Numer telefonu lub email
                         </label>
                         <input
-                            type="tel"
+                            type="text"
                             value={phone}
                             onChange={(e) => setPhone(e.target.value)}
-                            placeholder="570 270 470"
+                            placeholder="570 270 470 lub email@przykład.pl"
                             required
                             style={{
                                 width: '100%',
