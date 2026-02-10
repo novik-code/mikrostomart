@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { verifyAdmin } from '@/lib/auth';
 import { grantRole, type UserRole } from '@/lib/roles';
 import { createClient } from '@supabase/supabase-js';
+import { Resend } from 'resend';
 import crypto from 'crypto';
 
 export const dynamic = 'force-dynamic';
@@ -95,16 +96,61 @@ export async function POST(request: Request) {
 
             // Send password reset email so the user can set their own password
             if (sendPasswordReset) {
-                const { error: resetError } = await supabase.auth.admin.generateLink({
-                    type: 'recovery',
-                    email: patientEmail,
-                    options: {
-                        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.mikrostomart.pl'}/admin/update-password`,
-                    },
-                });
+                try {
+                    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.mikrostomart.pl';
 
-                if (resetError) {
-                    console.error('[Promote] Failed to send password reset:', resetError);
+                    // Generate a recovery link (admin API - returns the link but doesn't send email)
+                    const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
+                        type: 'recovery',
+                        email: patientEmail,
+                        options: {
+                            redirectTo: `${siteUrl}/admin/update-password`,
+                        },
+                    });
+
+                    if (linkError || !linkData?.properties?.action_link) {
+                        console.error('[Promote] Failed to generate recovery link:', linkError);
+                    } else {
+                        // Send the recovery link via Resend
+                        const resend = new Resend(process.env.RESEND_API_KEY!);
+                        const recoveryUrl = linkData.properties.action_link;
+
+                        await resend.emails.send({
+                            from: 'Mikrostomart <noreply@mikrostomart.pl>',
+                            to: patientEmail,
+                            subject: 'Ustaw hasło do panelu Mikrostomart',
+                            html: `
+                                <!DOCTYPE html>
+                                <html>
+                                <head><meta charset="utf-8"></head>
+                                <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+                                    <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                                        <div style="background: linear-gradient(135deg, #38bdf8, #0ea5e9); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+                                            <h1 style="color: #fff; margin: 0; font-size: 24px;">🦷 Mikrostomart</h1>
+                                        </div>
+                                        <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+                                            <h2>Witaj!</h2>
+                                            <p>Twoje konto w systemie Mikrostomart zostało aktywowane z dodatkowymi uprawnieniami.</p>
+                                            <p>Aby się zalogować, najpierw ustaw hasło klikając poniższy przycisk:</p>
+                                            <div style="text-align: center;">
+                                                <a href="${recoveryUrl}" style="display: inline-block; padding: 15px 30px; background: linear-gradient(135deg, #38bdf8, #0ea5e9); color: #fff; text-decoration: none; border-radius: 5px; font-weight: bold; margin: 20px 0;">Ustaw hasło</a>
+                                            </div>
+                                            <p>Lub skopiuj i wklej ten link do przeglądarki:</p>
+                                            <p style="word-break: break-all; background: white; padding: 10px; border-radius: 5px; font-size: 0.85rem;">${recoveryUrl}</p>
+                                            <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0;">
+                                                <strong>⚠️ Ważne:</strong> Link jest jednorazowy. Po ustawieniu hasła możesz się logować na <a href="${siteUrl}/pracownik/login">${siteUrl}/pracownik/login</a> lub <a href="${siteUrl}/admin">${siteUrl}/admin</a>.
+                                            </div>
+                                            <p>📞 570 270 470<br>📧 gabinet@mikrostomart.pl</p>
+                                        </div>
+                                    </div>
+                                </body>
+                                </html>
+                            `
+                        });
+                        console.log('[Promote] Password setup email sent to', patientEmail);
+                    }
+                } catch (emailError) {
+                    console.error('[Promote] Failed to send password reset email:', emailError);
                     // Don't fail — account was created, just log the error
                 }
             }

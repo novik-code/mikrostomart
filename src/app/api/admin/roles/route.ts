@@ -57,6 +57,7 @@ export async function GET() {
             .from('patients')
             .select('id, prodentis_id, phone, email, account_status, email_verified, created_at')
             .not('email', 'is', null)
+            .neq('promotion_dismissed', true)
             .order('created_at', { ascending: false });
 
         if (patientsError) {

@@ -666,6 +666,24 @@ export default function AdminPage() {
         }
     };
 
+    const dismissPatient = async (patientId: string, email: string) => {
+        if (!confirm(`Ukryć ${email} z listy awansowania?`)) return;
+        try {
+            const res = await fetch('/api/admin/roles/dismiss', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ patientId }),
+            });
+            if (res.ok) {
+                setPatientCandidates(prev => prev.filter(p => p.id !== patientId));
+            } else {
+                alert('Błąd ukrywania pacjenta');
+            }
+        } catch {
+            alert('Błąd połączenia');
+        }
+    };
+
     // SMS Reminders Functions
     const fetchSmsReminders = async () => {
         try {
@@ -1610,6 +1628,25 @@ export default function AdminPage() {
                                                 }}
                                             >
                                                 {promotingEmail === patient.email ? '⏳...' : '🔵🟢 Oba'}
+                                            </button>
+                                            <button
+                                                onClick={() => dismissPatient(patient.id, patient.email)}
+                                                title="Ukryj z listy"
+                                                style={{
+                                                    padding: '0.5rem 0.7rem',
+                                                    background: 'transparent',
+                                                    color: 'var(--color-text-muted)',
+                                                    border: '1px solid var(--color-border)',
+                                                    borderRadius: '6px',
+                                                    cursor: 'pointer',
+                                                    fontSize: '0.9rem',
+                                                    lineHeight: 1,
+                                                    transition: 'all 0.2s',
+                                                }}
+                                                onMouseEnter={(e) => { e.currentTarget.style.background = '#ef444422'; e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.borderColor = '#ef4444'; }}
+                                                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--color-text-muted)'; e.currentTarget.style.borderColor = 'var(--color-border)'; }}
+                                            >
+                                                ✕
                                             </button>
                                         </div>
                                     </div>
