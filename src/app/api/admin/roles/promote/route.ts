@@ -30,7 +30,7 @@ export async function POST(request: Request) {
     }
 
     try {
-        const { patientEmail, roles, sendPasswordReset = true } = await request.json();
+        const { patientEmail, roles, sendPasswordReset = true, employeeName } = await request.json();
 
         if (!patientEmail) {
             return NextResponse.json(
@@ -87,7 +87,7 @@ export async function POST(request: Request) {
                                         <h1 style="color: #fff; margin: 0; font-size: 24px;">🦷 Mikrostomart</h1>
                                     </div>
                                     <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
-                                        <h2>Witaj!</h2>
+                                        <h2>Witaj${employeeName ? `, ${employeeName.split(' ')[0]}` : ''}!</h2>
                                         <p>Ustaw hasło do panelu klikając poniższy przycisk:</p>
                                         <div style="text-align: center;">
                                             <a href="${recoveryUrl}" style="display: inline-block; padding: 15px 30px; background: linear-gradient(135deg, #38bdf8, #0ea5e9); color: #fff; text-decoration: none; border-radius: 5px; font-weight: bold; margin: 20px 0;">Ustaw hasło</a>
@@ -157,7 +157,7 @@ export async function POST(request: Request) {
                                             <h1 style="color: #fff; margin: 0; font-size: 24px;">🦷 Mikrostomart</h1>
                                         </div>
                                         <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
-                                            <h2>Witaj!</h2>
+                                            <h2>Witaj${employeeName ? `, ${employeeName.split(' ')[0]}` : ''}!</h2>
                                             <p>Twoje konto w systemie Mikrostomart zostało aktywowane z dodatkowymi uprawnieniami.</p>
                                             <p>Aby się zalogować, najpierw ustaw hasło klikając poniższy przycisk:</p>
                                             <div style="text-align: center;">
