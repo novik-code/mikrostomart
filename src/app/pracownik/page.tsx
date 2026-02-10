@@ -15,6 +15,7 @@ interface ScheduleAppointment {
     endTime: string;
     duration: number;
     appointmentType: string;
+    appointmentTypeId: string;
     isWorkingHour: boolean;
     patientPhone: string;
 }
@@ -31,44 +32,30 @@ interface ScheduleData {
     doctors: string[];
 }
 
-// ─── Color mapping for appointment types ─────────────────────────
-function getAppointmentColor(type: string): { bg: string; border: string; text: string } {
-    const t = type.toLowerCase();
+// ─── Prodentis appointment type color map (by ID, matching desktop app) ────
+const PRODENTIS_COLORS: Record<string, { bg: string; border: string; text: string; label: string }> = {
+    '0000000001': { bg: '#FFD700', border: '#DAA520', text: '#000', label: 'Zachowawcza' },       // zachowawcza — yellow
+    '0000000003': { bg: '#FF00FF', border: '#CC00CC', text: '#fff', label: 'Chirurgia' },          // chirurgia — magenta
+    '0000000006': { bg: '#FFA500', border: '#E08900', text: '#000', label: 'Pierwsza wizyta' },    // pierwsza wizyta — orange
+    '0000000010': { bg: '#00CC00', border: '#009900', text: '#000', label: 'Protetyka' },          // protetyka — green
+    '0000000012': { bg: '#FFFF00', border: '#CCCC00', text: '#000', label: 'Konsultacja' },        // konsultacja — bright yellow
+    '0000000014': { bg: '#00CCCC', border: '#009999', text: '#000', label: 'Higienizacja' },       // higienizacja — cyan/teal
+    '0000000016': { bg: '#00FF00', border: '#00CC00', text: '#000', label: 'KONTROLA' },           // KONTROLA — bright green
+    '0000000027': { bg: '#6699FF', border: '#3366CC', text: '#fff', label: 'Gabinet nr 1' },       // Gabinet nr 1 — blue
+    '0000000029': { bg: '#FF0000', border: '#CC0000', text: '#fff', label: 'LASER' },              // LASER — red
+    '0000000030': { bg: '#FF66CC', border: '#CC3399', text: '#000', label: 'Odbudowa do ENDO' },   // odbudowa do ENDO — pink
+    '0000000033': { bg: '#FF3333', border: '#CC0000', text: '#fff', label: 'ORTODONCJA' },         // ORTODONCJA — red
+    '0000000034': { bg: '#CC99FF', border: '#9966CC', text: '#000', label: 'Endodoncja' },         // endodoncja — purple
+    '0000000035': { bg: '#FFFFFF', border: '#CCCCCC', text: '#000', label: 'Wolny termin' },       // wolny termin — white
+    '0000000036': { bg: '#999999', border: '#666666', text: '#fff', label: 'Obiąd' },              // Obiąd — gray
+    '0000000037': { bg: '#66CCFF', border: '#3399CC', text: '#000', label: 'Siłownia' },           // Siłownia — light blue
+    '0000000038': { bg: '#FF9966', border: '#CC6633', text: '#000', label: 'Badanie + leczenie' }, // Badanie + leczenie — orange-ish
+};
 
-    // Green — standard check-ups
-    if (t.includes('kontrola') || t.includes('przegląd') || t.includes('konsultacja'))
-        return { bg: '#22c55e', border: '#16a34a', text: '#fff' };
+const DEFAULT_COLOR = { bg: '#14b8a6', border: '#0d9488', text: '#fff', label: 'Inne' };
 
-    // Yellow — procedures
-    if (t.includes('wypełnieni') || t.includes('leczeni') || t.includes('zachowawcz'))
-        return { bg: '#eab308', border: '#ca8a04', text: '#000' };
-
-    // Pink/magenta — surgery, implants
-    if (t.includes('chirurgi') || t.includes('implant') || t.includes('ekstrakcj') || t.includes('usunięci'))
-        return { bg: '#ec4899', border: '#db2777', text: '#fff' };
-
-    // Cyan — hygiene
-    if (t.includes('higien') || t.includes('skaling') || t.includes('piaskowan'))
-        return { bg: '#06b6d4', border: '#0891b2', text: '#fff' };
-
-    // Orange — reservations, special
-    if (t.includes('rezerw') || t.includes('wolny termin'))
-        return { bg: '#f97316', border: '#ea580c', text: '#fff' };
-
-    // Purple — endodontics
-    if (t.includes('endodoncj') || t.includes('kanałow'))
-        return { bg: '#a855f7', border: '#9333ea', text: '#fff' };
-
-    // Blue — prosthetics
-    if (t.includes('protetyk') || t.includes('koron') || t.includes('most') || t.includes('protez'))
-        return { bg: '#3b82f6', border: '#2563eb', text: '#fff' };
-
-    // Red — orthodontics, LASER
-    if (t.includes('ortodoncj') || t.includes('laser'))
-        return { bg: '#ef4444', border: '#dc2626', text: '#fff' };
-
-    // Default — teal
-    return { bg: '#14b8a6', border: '#0d9488', text: '#fff' };
+function getAppointmentColor(typeId: string): { bg: string; border: string; text: string } {
+    return PRODENTIS_COLORS[typeId] || DEFAULT_COLOR;
 }
 
 // ─── Time helpers ────────────────────────────────────────────────
@@ -111,6 +98,7 @@ export default function EmployeePage() {
     const [hoveredAppointment, setHoveredAppointment] = useState<ScheduleAppointment | null>(null);
     const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
     const [userEmail, setUserEmail] = useState<string>('');
+    const [hiddenDoctors, setHiddenDoctors] = useState<Set<string>>(new Set());
     const router = useRouter();
 
     const supabase = createBrowserClient(
@@ -219,6 +207,22 @@ export default function EmployeePage() {
 
     const visibleDays = getVisibleDays();
     const doctors = scheduleData?.doctors || [];
+    const visibleDoctors = doctors.filter(d => !hiddenDoctors.has(d));
+
+    const toggleDoctor = (doctor: string) => {
+        setHiddenDoctors(prev => {
+            const next = new Set(prev);
+            if (next.has(doctor)) {
+                next.delete(doctor);
+            } else {
+                next.add(doctor);
+            }
+            return next;
+        });
+    };
+
+    const showAllDoctors = () => setHiddenDoctors(new Set());
+    const hideAllDoctors = () => setHiddenDoctors(new Set(doctors));
 
     return (
         <div style={{
@@ -478,6 +482,69 @@ export default function EmployeePage() {
                         </div>
                     </div>
 
+                    {/* Operator Toggle Bar */}
+                    <div style={{
+                        marginBottom: '1rem',
+                        background: 'rgba(255,255,255,0.02)',
+                        border: '1px solid rgba(255,255,255,0.08)',
+                        borderRadius: '0.75rem',
+                        padding: '0.75rem 1rem',
+                    }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', marginRight: '0.25rem' }}>Operatorzy:</span>
+                            <button
+                                onClick={showAllDoctors}
+                                style={{
+                                    padding: '0.25rem 0.6rem',
+                                    background: 'rgba(56, 189, 248, 0.1)',
+                                    border: '1px solid rgba(56, 189, 248, 0.2)',
+                                    borderRadius: '4px',
+                                    color: '#38bdf8',
+                                    cursor: 'pointer',
+                                    fontSize: '0.7rem',
+                                    fontWeight: '600',
+                                }}
+                            >Wszyscy</button>
+                            <button
+                                onClick={hideAllDoctors}
+                                style={{
+                                    padding: '0.25rem 0.6rem',
+                                    background: 'rgba(255, 255, 255, 0.05)',
+                                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                                    borderRadius: '4px',
+                                    color: 'rgba(255,255,255,0.5)',
+                                    cursor: 'pointer',
+                                    fontSize: '0.7rem',
+                                }}
+                            >Żaden</button>
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+                            {doctors.map(doctor => {
+                                const isVisible = !hiddenDoctors.has(doctor);
+                                return (
+                                    <button
+                                        key={doctor}
+                                        onClick={() => toggleDoctor(doctor)}
+                                        style={{
+                                            padding: '0.3rem 0.7rem',
+                                            background: isVisible ? 'rgba(56, 189, 248, 0.15)' : 'rgba(255,255,255,0.03)',
+                                            border: `1px solid ${isVisible ? 'rgba(56, 189, 248, 0.3)' : 'rgba(255,255,255,0.08)'}`,
+                                            borderRadius: '6px',
+                                            color: isVisible ? '#38bdf8' : 'rgba(255,255,255,0.3)',
+                                            cursor: 'pointer',
+                                            fontSize: '0.75rem',
+                                            fontWeight: isVisible ? '600' : '400',
+                                            transition: 'all 0.15s',
+                                            textDecoration: isVisible ? 'none' : 'line-through',
+                                        }}
+                                    >
+                                        {isVisible ? '✓ ' : ''}{doctor.split(' ').slice(0, 2).join(' ')}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+
                     {/* The grid table — scrollable container */}
                     <div style={{
                         background: 'rgba(255,255,255,0.02)',
@@ -489,7 +556,7 @@ export default function EmployeePage() {
                         <table style={{
                             width: '100%',
                             borderCollapse: 'collapse',
-                            minWidth: `${(visibleDays.length * doctors.length * 120) + 80}px`,
+                            minWidth: `${(visibleDays.length * visibleDoctors.length * 120) + 80}px`,
                             tableLayout: 'fixed',
                         }}>
                             {/* Header Row 1: Day names */}
@@ -511,7 +578,7 @@ export default function EmployeePage() {
                                     {visibleDays.map((day) => (
                                         <th
                                             key={day.date}
-                                            colSpan={doctors.length}
+                                            colSpan={visibleDoctors.length}
                                             style={{
                                                 background: isToday(day.date) ? 'rgba(56, 189, 248, 0.12)' : 'rgba(0,0,0,0.4)',
                                                 borderBottom: '1px solid rgba(255,255,255,0.1)',
@@ -551,7 +618,7 @@ export default function EmployeePage() {
                                         zIndex: 10,
                                     }} />
                                     {visibleDays.map((day) =>
-                                        doctors.map((doctor, dIdx) => {
+                                        visibleDoctors.map((doctor, dIdx) => {
                                             // Count appointments for this doctor on this day
                                             const count = day.appointments.filter(a => a.doctorName === doctor).length;
                                             return (
@@ -560,7 +627,7 @@ export default function EmployeePage() {
                                                     style={{
                                                         background: isToday(day.date) ? 'rgba(56, 189, 248, 0.06)' : 'rgba(0,0,0,0.3)',
                                                         borderBottom: '2px solid rgba(56, 189, 248, 0.3)',
-                                                        borderRight: dIdx === doctors.length - 1
+                                                        borderRight: dIdx === visibleDoctors.length - 1
                                                             ? '2px solid rgba(255,255,255,0.1)'
                                                             : '1px solid rgba(255,255,255,0.05)',
                                                         padding: '0.35rem 0.25rem',
@@ -624,7 +691,7 @@ export default function EmployeePage() {
 
                                             {/* Cells for each doctor × day */}
                                             {visibleDays.map((day) =>
-                                                doctors.map((doctor, dIdx) => {
+                                                visibleDoctors.map((doctor, dIdx) => {
                                                     const dayAppointments = getAppointmentsForCell(doctor, day);
                                                     const apt = getAppointmentAtSlot(dayAppointments, slotTime);
 
@@ -636,7 +703,7 @@ export default function EmployeePage() {
                                                     }
 
                                                     const rowSpan = isStart ? getAppointmentRowSpan(apt) : 1;
-                                                    const color = isStart ? getAppointmentColor(apt.appointmentType) : null;
+                                                    const color = isStart ? getAppointmentColor(apt.appointmentTypeId) : null;
 
                                                     return (
                                                         <td
@@ -644,7 +711,7 @@ export default function EmployeePage() {
                                                             rowSpan={rowSpan}
                                                             style={{
                                                                 borderBottom: isHourStart ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(255,255,255,0.02)',
-                                                                borderRight: dIdx === doctors.length - 1
+                                                                borderRight: dIdx === visibleDoctors.length - 1
                                                                     ? '2px solid rgba(255,255,255,0.08)'
                                                                     : '1px solid rgba(255,255,255,0.03)',
                                                                 padding: isStart ? '2px 3px' : '0',
@@ -732,23 +799,14 @@ export default function EmployeePage() {
                         border: '1px solid rgba(255,255,255,0.05)',
                     }}>
                         <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginRight: '0.5rem' }}>Legenda:</span>
-                        {[
-                            { label: 'Kontrola', color: '#22c55e' },
-                            { label: 'Leczenie', color: '#eab308' },
-                            { label: 'Chirurgia', color: '#ec4899' },
-                            { label: 'Higienizacja', color: '#06b6d4' },
-                            { label: 'Endodoncja', color: '#a855f7' },
-                            { label: 'Protetyka', color: '#3b82f6' },
-                            { label: 'Ortodoncja', color: '#ef4444' },
-                            { label: 'Rezerwacja', color: '#f97316' },
-                            { label: 'Inne', color: '#14b8a6' },
-                        ].map(item => (
+                        {Object.values(PRODENTIS_COLORS).map(item => (
                             <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
                                 <div style={{
                                     width: '12px',
                                     height: '12px',
                                     borderRadius: '3px',
-                                    background: item.color,
+                                    background: item.bg,
+                                    border: `1px solid ${item.border}`,
                                 }} />
                                 <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.7)' }}>{item.label}</span>
                             </div>

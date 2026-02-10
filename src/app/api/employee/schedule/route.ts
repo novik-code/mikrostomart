@@ -32,6 +32,7 @@ interface ScheduleAppointment {
     endTime: string;
     duration: number;
     appointmentType: string;
+    appointmentTypeId: string;
     isWorkingHour: boolean;
     patientPhone: string;
 }
@@ -134,6 +135,7 @@ export async function GET(req: Request) {
                     endTime,
                     duration,
                     appointmentType: apt.appointmentType?.name || 'Wizyta',
+                    appointmentTypeId: apt.appointmentType?.id || '',
                     isWorkingHour: apt.isWorkingHour ?? true,
                     patientPhone: apt.patientPhone || '',
                 });
