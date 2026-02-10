@@ -438,7 +438,6 @@ export default function EmployeePage() {
             {!loading && scheduleData && (
                 <div style={{
                     padding: '1rem',
-                    overflowX: 'auto',
                 }}>
                     {/* Statistics bar */}
                     <div style={{
@@ -479,12 +478,13 @@ export default function EmployeePage() {
                         </div>
                     </div>
 
-                    {/* The grid table */}
+                    {/* The grid table — scrollable container */}
                     <div style={{
                         background: 'rgba(255,255,255,0.02)',
                         border: '1px solid rgba(255,255,255,0.08)',
                         borderRadius: '1rem',
-                        overflow: 'hidden',
+                        overflowX: 'auto',
+                        WebkitOverflowScrolling: 'touch',
                     }}>
                         <table style={{
                             width: '100%',
