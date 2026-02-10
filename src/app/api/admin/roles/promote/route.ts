@@ -70,9 +70,10 @@ export async function POST(request: Request) {
                     const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
                         type: 'recovery',
                         email: patientEmail,
-                        options: { redirectTo: `${siteUrl}/auth/callback?next=/admin/update-password` },
                     });
-                    if (!linkError && linkData?.properties?.action_link) {
+                    if (!linkError && linkData?.properties?.hashed_token) {
+                        const tokenHash = linkData.properties.hashed_token;
+                        const recoveryUrl = `${siteUrl}/admin/update-password?token_hash=${encodeURIComponent(tokenHash)}&type=recovery`;
                         const resend = new Resend(process.env.RESEND_API_KEY!);
                         await resend.emails.send({
                             from: 'Mikrostomart <noreply@mikrostomart.pl>',
@@ -89,9 +90,9 @@ export async function POST(request: Request) {
                                         <h2>Witaj!</h2>
                                         <p>Ustaw hasło do panelu klikając poniższy przycisk:</p>
                                         <div style="text-align: center;">
-                                            <a href="${linkData.properties.action_link}" style="display: inline-block; padding: 15px 30px; background: linear-gradient(135deg, #38bdf8, #0ea5e9); color: #fff; text-decoration: none; border-radius: 5px; font-weight: bold; margin: 20px 0;">Ustaw hasło</a>
+                                            <a href="${recoveryUrl}" style="display: inline-block; padding: 15px 30px; background: linear-gradient(135deg, #38bdf8, #0ea5e9); color: #fff; text-decoration: none; border-radius: 5px; font-weight: bold; margin: 20px 0;">Ustaw hasło</a>
                                         </div>
-                                        <p style="word-break: break-all; background: white; padding: 10px; border-radius: 5px; font-size: 0.85rem;">${linkData.properties.action_link}</p>
+                                        <p style="word-break: break-all; background: white; padding: 10px; border-radius: 5px; font-size: 0.85rem;">${recoveryUrl}</p>
                                         <p>📞 570 270 470<br>📧 gabinet@mikrostomart.pl</p>
                                     </div>
                                 </div></body></html>
@@ -132,17 +133,15 @@ export async function POST(request: Request) {
                     const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
                         type: 'recovery',
                         email: patientEmail,
-                        options: {
-                            redirectTo: `${siteUrl}/auth/callback?next=/admin/update-password`,
-                        },
                     });
 
-                    if (linkError || !linkData?.properties?.action_link) {
+                    if (linkError || !linkData?.properties?.hashed_token) {
                         console.error('[Promote] Failed to generate recovery link:', linkError);
                     } else {
-                        // Send the recovery link via Resend
+                        // Send direct link via Resend (no Supabase redirect)
                         const resend = new Resend(process.env.RESEND_API_KEY!);
-                        const recoveryUrl = linkData.properties.action_link;
+                        const tokenHash = linkData.properties.hashed_token;
+                        const recoveryUrl = `${siteUrl}/admin/update-password?token_hash=${encodeURIComponent(tokenHash)}&type=recovery`;
 
                         await resend.emails.send({
                             from: 'Mikrostomart <noreply@mikrostomart.pl>',
