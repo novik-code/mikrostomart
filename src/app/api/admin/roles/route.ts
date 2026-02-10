@@ -50,7 +50,39 @@ export async function GET() {
         // Sort by email
         allUsers.sort((a, b) => a.email.localeCompare(b.email));
 
-        return NextResponse.json({ users: allUsers });
+        // Also fetch patients from the patients table who could be promoted
+        // These are patients registered through the patient portal (custom JWT auth)
+        // who don't yet have a Supabase Auth account
+        const { data: patients, error: patientsError } = await supabase
+            .from('patients')
+            .select('id, prodentis_id, phone, email, account_status, email_verified, created_at')
+            .not('email', 'is', null)
+            .order('created_at', { ascending: false });
+
+        if (patientsError) {
+            console.error('[Admin/Roles] Error listing patients:', patientsError);
+        }
+
+        // Find patients whose email is NOT already in Supabase Auth
+        const authEmails = new Set(
+            (authUsers?.users || [])
+                .map(u => u.email?.toLowerCase())
+                .filter(Boolean)
+        );
+
+        const patientCandidates = (patients || [])
+            .filter(p => p.email && !authEmails.has(p.email.toLowerCase()))
+            .map(p => ({
+                id: p.id,
+                prodentisId: p.prodentis_id,
+                phone: p.phone,
+                email: p.email,
+                accountStatus: p.account_status,
+                emailVerified: p.email_verified,
+                createdAt: p.created_at,
+            }));
+
+        return NextResponse.json({ users: allUsers, patientCandidates });
     } catch (error) {
         console.error('[Admin/Roles] Error:', error);
         return NextResponse.json({ error: 'Server error' }, { status: 500 });

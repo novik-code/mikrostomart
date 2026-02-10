@@ -71,6 +71,8 @@ export default function AdminPage() {
     const [rolesUsers, setRolesUsers] = useState<any[]>([]);
     const [rolesLoading, setRolesLoading] = useState(false);
     const [rolesError, setRolesError] = useState<string | null>(null);
+    const [patientCandidates, setPatientCandidates] = useState<any[]>([]);
+    const [promotingEmail, setPromotingEmail] = useState<string | null>(null);
 
     // SMS Reminders state
     const [smsReminders, setSmsReminders] = useState<any[]>([]);
@@ -587,6 +589,7 @@ export default function AdminPage() {
             if (res.ok) {
                 const data = await res.json();
                 setRolesUsers(data.users || []);
+                setPatientCandidates(data.patientCandidates || []);
             } else {
                 const errData = await res.json();
                 setRolesError(errData.error || 'Blad pobierania danych');
@@ -630,6 +633,36 @@ export default function AdminPage() {
         } catch (err) {
             console.error('Failed to toggle role:', err);
             alert('Blad polaczenia z serwerem');
+        }
+    };
+
+    const promotePatient = async (email: string, rolesToGrant: string[]) => {
+        if (!confirm(`Czy na pewno chcesz awansować ${email} i nadać role: ${rolesToGrant.join(', ')}?\n\nZostanie utworzone konto Supabase Auth z linkiem do ustawienia hasła.`)) {
+            return;
+        }
+        setPromotingEmail(email);
+        try {
+            const res = await fetch('/api/admin/roles/promote', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    patientEmail: email,
+                    roles: rolesToGrant,
+                    sendPasswordReset: true,
+                }),
+            });
+            const data = await res.json();
+            if (res.ok) {
+                alert(`✅ ${data.message}`);
+                fetchRoles();
+            } else {
+                alert(`❌ Błąd: ${data.error}`);
+            }
+        } catch (err) {
+            console.error('Promote error:', err);
+            alert('Błąd połączenia z serwerem');
+        } finally {
+            setPromotingEmail(null);
         }
     };
 
@@ -1472,6 +1505,119 @@ export default function AdminPage() {
                         </div>
                     ))}
                 </div>
+
+                {/* Patient Candidates for Promotion */}
+                {patientCandidates.length > 0 && (
+                    <div style={{
+                        marginTop: '2rem',
+                        borderTop: '2px solid var(--color-primary)',
+                        paddingTop: '1.5rem',
+                    }}>
+                        <div style={{
+                            display: 'flex', alignItems: 'center', gap: '0.75rem',
+                            marginBottom: '1rem'
+                        }}>
+                            <span style={{ fontSize: '1.3rem' }}>🔔</span>
+                            <div>
+                                <h3 style={{ margin: 0, color: 'var(--color-primary)' }}>Pacjenci do awansowania</h3>
+                                <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
+                                    Pacjenci zarejestrowani w Strefie Pacjenta, którzy nie mają jeszcze konta admin/pracownik
+                                </p>
+                            </div>
+                            <span style={{
+                                background: 'var(--color-primary)',
+                                color: '#000',
+                                padding: '0.2rem 0.6rem',
+                                borderRadius: '12px',
+                                fontSize: '0.8rem',
+                                fontWeight: 'bold',
+                                marginLeft: 'auto',
+                            }}>{patientCandidates.length}</span>
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                            {patientCandidates.map((patient: any) => (
+                                <div key={patient.id} style={{
+                                    background: 'var(--color-surface)',
+                                    borderRadius: '12px',
+                                    padding: '1.25rem',
+                                    border: '1px solid rgba(220, 177, 74, 0.3)',
+                                    borderLeft: '4px solid var(--color-primary)',
+                                }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}>
+                                        <div>
+                                            <div style={{ fontWeight: 'bold', fontSize: '1rem', color: 'var(--color-text-main)' }}>
+                                                {patient.email}
+                                            </div>
+                                            <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: '0.3rem', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                                                <span>📞 {patient.phone || 'brak'}</span>
+                                                <span>📅 {new Date(patient.createdAt).toLocaleDateString('pl-PL')}</span>
+                                                <span style={{
+                                                    color: patient.accountStatus === 'approved' ? '#22c55e' :
+                                                        patient.accountStatus === 'pending' ? '#eab308' : '#ef4444',
+                                                }}>● {patient.accountStatus || 'nieznany'}</span>
+                                                {patient.emailVerified && <span style={{ color: '#22c55e' }}>✓ email zweryfikowany</span>}
+                                            </div>
+                                        </div>
+                                        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                                            <button
+                                                onClick={() => promotePatient(patient.email, ['employee'])}
+                                                disabled={promotingEmail === patient.email}
+                                                style={{
+                                                    padding: '0.5rem 1rem',
+                                                    background: '#3b82f6',
+                                                    color: '#fff',
+                                                    border: 'none',
+                                                    borderRadius: '6px',
+                                                    cursor: promotingEmail === patient.email ? 'wait' : 'pointer',
+                                                    fontSize: '0.8rem',
+                                                    fontWeight: 'bold',
+                                                    opacity: promotingEmail === patient.email ? 0.5 : 1,
+                                                }}
+                                            >
+                                                {promotingEmail === patient.email ? '⏳...' : '🔵 Pracownik'}
+                                            </button>
+                                            <button
+                                                onClick={() => promotePatient(patient.email, ['admin'])}
+                                                disabled={promotingEmail === patient.email}
+                                                style={{
+                                                    padding: '0.5rem 1rem',
+                                                    background: '#22c55e',
+                                                    color: '#fff',
+                                                    border: 'none',
+                                                    borderRadius: '6px',
+                                                    cursor: promotingEmail === patient.email ? 'wait' : 'pointer',
+                                                    fontSize: '0.8rem',
+                                                    fontWeight: 'bold',
+                                                    opacity: promotingEmail === patient.email ? 0.5 : 1,
+                                                }}
+                                            >
+                                                {promotingEmail === patient.email ? '⏳...' : '🟢 Admin'}
+                                            </button>
+                                            <button
+                                                onClick={() => promotePatient(patient.email, ['employee', 'admin'])}
+                                                disabled={promotingEmail === patient.email}
+                                                style={{
+                                                    padding: '0.5rem 1rem',
+                                                    background: 'linear-gradient(135deg, #3b82f6, #22c55e)',
+                                                    color: '#fff',
+                                                    border: 'none',
+                                                    borderRadius: '6px',
+                                                    cursor: promotingEmail === patient.email ? 'wait' : 'pointer',
+                                                    fontSize: '0.8rem',
+                                                    fontWeight: 'bold',
+                                                    opacity: promotingEmail === patient.email ? 0.5 : 1,
+                                                }}
+                                            >
+                                                {promotingEmail === patient.email ? '⏳...' : '🔵🟢 Oba'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
             </div>
         );
     };
