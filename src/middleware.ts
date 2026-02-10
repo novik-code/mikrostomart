@@ -59,8 +59,11 @@ export async function middleware(request: NextRequest) {
 
     // If accessing employee routes (/pracownik)
     if (request.nextUrl.pathname.startsWith("/pracownik")) {
-        // Allow access to login page
-        if (request.nextUrl.pathname === "/pracownik/login") {
+        // Allow access to login and reset password pages
+        if (
+            request.nextUrl.pathname === "/pracownik/login" ||
+            request.nextUrl.pathname === "/pracownik/reset-haslo"
+        ) {
             // If already logged in, redirect to employee dashboard
             if (user) {
                 return NextResponse.redirect(new URL("/pracownik", request.url));
