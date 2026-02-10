@@ -42,7 +42,16 @@ export default function EmployeeLoginPage() {
 
             router.push("/pracownik");
         } catch (err: any) {
-            setError(err.message);
+            const msg = err.message || '';
+            if (msg.includes('Invalid login credentials')) {
+                setError('Nieprawidłowy email lub hasło.');
+            } else if (msg.includes('Email not confirmed')) {
+                setError('Email nie został potwierdzony. Sprawdź skrzynkę.');
+            } else if (msg.includes('rate limit') || msg.includes('too many')) {
+                setError('Zbyt wiele prób logowania. Spróbuj za chwilę.');
+            } else {
+                setError(msg || 'Wystąpił błąd logowania.');
+            }
         } finally {
             setLoading(false);
         }
@@ -54,14 +63,21 @@ export default function EmployeeLoginPage() {
             return;
         }
         setLoading(true);
+        setError(null);
         try {
-            const { error } = await supabase.auth.resetPasswordForEmail(email, {
-                redirectTo: `${window.location.origin}/admin/update-password`,
+            const res = await fetch('/api/auth/reset-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email }),
             });
-            if (error) throw error;
-            alert("Sprawdź email. Wysłano link do resetowania hasła.");
+            const data = await res.json();
+            if (!res.ok) {
+                setError(data.error || 'Wystąpił błąd. Spróbuj ponownie.');
+            } else {
+                alert(data.message || "Sprawdź email. Wysłano link do resetowania hasła.");
+            }
         } catch (err: any) {
-            setError(err.message);
+            setError('Nie udało się połączyć z serwerem. Spróbuj ponownie.');
         } finally {
             setLoading(false);
         }
