@@ -10,23 +10,8 @@ const supabase = createClient(
 );
 
 /**
- * Hardcoded clinic staff list.
- * Prodentis API has no /operators or /doctors endpoint —
- * staff data only comes from appointment/slot data.
- * This list matches REMINDER_DOCTORS and AppointmentScheduler mappings.
- */
-const CLINIC_STAFF = [
-    { id: 'marcin', prodentisId: '0100000001', name: 'Marcin Nowosielski', title: 'lek. dent.', specialties: 'Chirurgia, zaawansowana endodoncja, protetyka na implantach' },
-    { id: 'ilona', prodentisId: '0100000024', name: 'Ilona Piechaczek', title: 'lek. dent.', specialties: 'Endodoncja, protetyka' },
-    { id: 'katarzyna', prodentisId: '0100000031', name: 'Katarzyna Halupczok', title: 'lek. dent.', specialties: 'Stomatologia zachowawcza, stomatologia dziecięca' },
-    { id: 'malgorzata', prodentisId: '0100000030', name: 'Małgorzata Maćków Huras', title: 'lek. dent.', specialties: 'Stomatologia ogólna' },
-    { id: 'dominika', prodentisId: '', name: 'Dominika Milicz', title: 'lek. dent.', specialties: 'Stomatologia zachowawcza, stomatologia dziecięca' },
-    { id: 'elzbieta', prodentisId: '', name: 'Elżbieta Nowosielska', title: '', specialties: 'Zarządzanie gabinetem' },
-];
-
-/**
  * GET /api/admin/employees
- * Returns the clinic staff list with their Supabase Auth account status.
+ * Returns current employees — users who have the 'employee' role in user_roles.
  */
 export async function GET() {
     const user = await verifyAdmin();
@@ -35,71 +20,51 @@ export async function GET() {
     }
 
     try {
-        // Fetch all Supabase Auth users to check which staff members already have accounts
-        const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
-
-        if (authError) {
-            console.error('[Employees] Error listing auth users:', authError);
-        }
-
-        // Fetch all user_roles to check who has the 'employee' role
-        const { data: roles, error: rolesError } = await supabase
+        // Fetch all users with 'employee' role
+        const { data: employeeRoles, error: rolesError } = await supabase
             .from('user_roles')
-            .select('email, role')
-            .eq('role', 'employee');
+            .select('user_id, email, granted_at, granted_by')
+            .eq('role', 'employee')
+            .order('granted_at', { ascending: false });
 
         if (rolesError) {
-            console.error('[Employees] Error fetching roles:', rolesError);
+            console.error('[Employees] Error fetching employee roles:', rolesError);
+            return NextResponse.json({ error: 'Błąd pobierania danych' }, { status: 500 });
         }
 
-        const employeeEmails = new Set(
-            (roles || []).map(r => r.email?.toLowerCase()).filter(Boolean)
-        );
-
-        // Build a map of auth users by email for quick lookup
-        const authUsersByEmail = new Map<string, { id: string; email: string }>();
+        // Fetch auth users to get additional info
+        const { data: authUsers } = await supabase.auth.admin.listUsers();
+        const authMap = new Map<string, { created_at: string; last_sign_in_at: string | null }>();
         if (authUsers?.users) {
             for (const au of authUsers.users) {
-                if (au.email) {
-                    authUsersByEmail.set(au.email.toLowerCase(), { id: au.id, email: au.email });
-                }
+                authMap.set(au.id, {
+                    created_at: au.created_at,
+                    last_sign_in_at: au.last_sign_in_at || null,
+                });
             }
         }
 
-        // Enrich staff list with account status
-        const staffWithStatus = CLINIC_STAFF.map(staff => {
-            // Try to find a matching auth user (by name parts in email, or exact email match)
-            let authUser: { id: string; email: string } | undefined;
-            let hasEmployeeRole = false;
+        // Also check which employees have 'admin' role
+        const { data: adminRoles } = await supabase
+            .from('user_roles')
+            .select('user_id')
+            .eq('role', 'admin');
+        const adminUserIds = new Set((adminRoles || []).map(r => r.user_id));
 
-            // Check all auth users for a matching email
-            for (const [email, au] of authUsersByEmail) {
-                if (employeeEmails.has(email)) {
-                    // Check if this employee email might belong to this staff member
-                    const nameParts = staff.name.toLowerCase().split(' ');
-                    const emailLower = email.toLowerCase();
-                    const matchesName = nameParts.some(part =>
-                        emailLower.includes(part.replace(/ł/g, 'l').replace(/ą/g, 'a').replace(/ę/g, 'e').replace(/ó/g, 'o').replace(/ś/g, 's').replace(/ć/g, 'c').replace(/ż/g, 'z').replace(/ź/g, 'z').replace(/ń/g, 'n'))
-                    );
-
-                    if (matchesName) {
-                        authUser = au;
-                        hasEmployeeRole = true;
-                        break;
-                    }
-                }
-            }
-
+        const employees = (employeeRoles || []).map(er => {
+            const authInfo = authMap.get(er.user_id);
             return {
-                ...staff,
-                hasAccount: !!authUser,
-                hasEmployeeRole,
-                accountEmail: authUser?.email || null,
-                authUserId: authUser?.id || null,
+                userId: er.user_id,
+                email: er.email,
+                grantedAt: er.granted_at,
+                grantedBy: er.granted_by,
+                isAlsoAdmin: adminUserIds.has(er.user_id),
+                lastSignIn: authInfo?.last_sign_in_at || null,
+                createdAt: authInfo?.created_at || null,
             };
         });
 
-        return NextResponse.json({ staff: staffWithStatus });
+        return NextResponse.json({ employees });
     } catch (error) {
         console.error('[Employees] Error:', error);
         return NextResponse.json({ error: 'Server error' }, { status: 500 });
