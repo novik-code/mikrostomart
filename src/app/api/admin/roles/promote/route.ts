@@ -70,7 +70,7 @@ export async function POST(request: Request) {
                     const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
                         type: 'recovery',
                         email: patientEmail,
-                        options: { redirectTo: `${siteUrl}/admin/update-password` },
+                        options: { redirectTo: `${siteUrl}/auth/callback?next=/admin/update-password` },
                     });
                     if (!linkError && linkData?.properties?.action_link) {
                         const resend = new Resend(process.env.RESEND_API_KEY!);
@@ -133,7 +133,7 @@ export async function POST(request: Request) {
                         type: 'recovery',
                         email: patientEmail,
                         options: {
-                            redirectTo: `${siteUrl}/admin/update-password`,
+                            redirectTo: `${siteUrl}/auth/callback?next=/admin/update-password`,
                         },
                     });
 

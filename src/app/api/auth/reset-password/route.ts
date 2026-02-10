@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
             type: 'recovery',
             email: normalizedEmail,
             options: {
-                redirectTo: `${siteUrl}/admin/update-password`,
+                redirectTo: `${siteUrl}/auth/callback?next=/admin/update-password`,
             },
         });
 
