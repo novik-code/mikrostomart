@@ -525,18 +525,21 @@ Features:
 **Features:**
 1. **Login** (`/pracownik/login`) — Supabase email/password login + "Zapomniałem hasła" link
 2. **Password Reset** (`/pracownik/reset-haslo`) — sends reset email via `/api/auth/reset-password`
-3. **Weekly Schedule Grid** (`/pracownik/page.tsx` — 46KB, 867 lines)
+3. **Weekly Schedule Grid** (`/pracownik/page.tsx` — ~58KB, 1075 lines)
    - **Time slots**: 15-minute intervals, 7:00–20:00
    - **Multi-doctor columns**: one column per operator/doctor
    - **Operator toggle buttons**: show/hide individual doctors, "Pokaż wszystkich" / "Ukryj wszystkich"
    - **Prodentis color mapping**: appointment type → color (matching Prodentis desktop app)
      - 15+ type colors: Zachowawcza (yellow), Chirurgia (magenta), Protetyka (cyan), Endodoncja (purple), etc.
    - **Week navigation**: ◀ / ▶ buttons, "Dziś" button to jump to current week
-   - **Duration inference**: calculated from gap between consecutive appointments per doctor
+   - **Duration**: real value from Prodentis API (fallback: inferred from gap between appointments)
    - **Appointment tooltips**: hover to see patient name, phone, appointment type, time
+   - **Notes icon (ℹ️)**: top-right corner of cell — visible only when notes exist; hover → dark tooltip with multi-line note text
+   - **Badge icons**: bottom-left corner of cell — colored rounded-square icons with letter abbreviations; hover → tooltip listing all badges by name
+     - 11 badge types: VIP (V), WAŻNE (!), AWARIA (A), Pacjent potwierdzony (;)), Pacjent z bólem (B), Pierwszorazowy (P), Plan leczenia (PL), CBCT (TK), KASA, NIE potwierdzony (?), MGR
    - **Skip weekends**: hides Sat/Sun if no appointments
    - **Horizontal scroll**: enabled for narrow screens
-4. **API**: `/api/employee/schedule?weekStart=YYYY-MM-DD` — fetches 7 days of appointments from Prodentis
+4. **API**: `/api/employee/schedule?weekStart=YYYY-MM-DD` — fetches 7 days of appointments from Prodentis (with notes, badges, duration)
 5. **Role check**: `hasRole(userId, 'employee') || hasRole(userId, 'admin')`
 6. **Middleware protection**: unauthenticated → redirect to `/pracownik/login`
 
@@ -1130,6 +1133,19 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### February 11, 2026 (Afternoon)
+**Schedule Grid Enhancements — Notes Icon & Appointment Badges**
+
+#### Changes:
+1. **Notes Icon (ℹ️)** — Top-right corner of appointment cells shows "i" icon when doctor notes exist. Hover reveals glassmorphic tooltip with multi-line note text (`white-space: pre-wrap`).
+2. **Appointment Badges** — Bottom-left corner of cells shows colored rounded-square icons with letter abbreviations (V=VIP, !=WAŻNE, A=AWARIA, ;)=Potwierdzony, etc.). Hover reveals tooltip listing all badges. Supports 11 badge types from Prodentis API 5.1.
+3. **Real Duration** — Schedule API now uses real `duration` from Prodentis API (with gap-inference fallback).
+4. **Three Independent Tooltips** — Appointment hover tooltip, notes tooltip, and badge tooltip all work independently via `e.stopPropagation()`.
+
+#### Files Modified:
+- `src/app/api/employee/schedule/route.ts` — Added `ProdentisBadge` interface, `badges` + `notes` fields, real duration from API
+- `src/app/pracownik/page.tsx` — Notes icon, badge icons, `BADGE_LETTERS` map, badge tooltip, notes tooltip
 
 ### February 11, 2026
 **Employee Management, Role System & Documentation Overhaul**
