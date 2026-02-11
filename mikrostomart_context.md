@@ -954,13 +954,19 @@ Centralized via `src/lib/telegram.ts` with `sendTelegramNotification(message, ch
 
 ### 1. Generate SMS Reminders (appointment-reminders)
 **Path:** `/api/cron/appointment-reminders`  
-**Schedule:** Daily at 7:00 AM UTC (8-9 AM Warsaw time)  
+**Schedule:** Daily at 7:00 AM UTC (8:00 AM Warsaw)  
 **Trigger:** Vercel Cron (configured in `vercel.json`)
 
+**Query Params:**
+- `?manual=true` — bypass cron auth (admin panel trigger)
+- `?targetDate=monday` — generate drafts for next Monday instead of tomorrow (Friday-only cron)
+
 **Workflow:**
-1. Fetch tomorrow's appointments from Prodentis API
+1. Fetch target date appointments from Prodentis API (tomorrow by default, Monday if `targetDate=monday`)
 2. Fetch free slots to confirm which doctors are working (informational logging only)
-3. Clean up ALL old drafts (`draft`, `cancelled`, `failed` statuses)
+3. Clean up old drafts:
+   - **Normal mode**: delete ALL old drafts (`draft`, `cancelled`, `failed` statuses)
+   - **Monday mode**: only delete drafts for Monday's date (preserves Saturday drafts)
 4. For each appointment, apply filters (see below)
 5. Generate personalized SMS from Supabase `sms_templates`
 6. Create short link for confirm/cancel landing page
@@ -982,7 +988,7 @@ Centralized via `src/lib/telegram.ts` with `sendTelegramNotification(message, ch
 - `REMINDER_DOCTORS` (comma-separated doctor names)
 
 **Configuration:**
-- Cleanup: Deletes ALL old drafts/cancelled/failed on each run
+- Cleanup: Deletes ALL old drafts/cancelled/failed (normal) or only Monday drafts (Monday mode)
 - Always regenerates drafts (no sent-status blocking)
 - Working hours: 8:00-20:00 (standard) or 8:30-16:00 (Nowosielska)
 - Uses Prodentis `isWorkingHour` flag for white-field validation
@@ -991,8 +997,9 @@ Centralized via `src/lib/telegram.ts` with `sendTelegramNotification(message, ch
 
 ### 2. Auto-Send SMS (sms-auto-send)
 **Path:** `/api/cron/sms-auto-send`  
-**Schedule:** Daily at 9:00 AM UTC (10-11 AM Warsaw time)  
-**Purpose:** Automatically send approved SMS drafts
+**Schedule:** Daily at 8:00 AM UTC (9:00 AM Warsaw)  
+**Query Params:** `?targetDate=monday` — only send drafts for Monday appointments (Friday-only cron)  
+**Purpose:** Automatically send approved SMS drafts. In Monday mode: filters by `appointment_date` to only send Monday drafts.
 
 ---
 
@@ -1003,13 +1010,29 @@ Centralized via `src/lib/telegram.ts` with `sendTelegramNotification(message, ch
 
 ---
 
+### Friday→Monday Workflow
+On Fridays, the system runs a **second pass** for Monday appointments:
+
+| Time (Warsaw) | What |
+|---|---|
+| 8:00 | Generate Saturday drafts (normal daily run) |
+| 9:00 | Send Saturday SMS (normal daily auto-send) |
+| **9:15** | **Generate Monday drafts** (`?targetDate=monday`) |
+| **10:00** | **Send Monday SMS** (`?targetDate=monday`) |
+
+This ensures Saturday and Monday templates don't mix in the admin panel.
+
+---
+
 ### Vercel Cron Configuration (`vercel.json`)
 ```json
 {
   "crons": [
     { "path": "/api/cron/daily-article", "schedule": "0 7 * * *" },
     { "path": "/api/cron/appointment-reminders", "schedule": "0 7 * * *" },
-    { "path": "/api/cron/sms-auto-send", "schedule": "0 9 * * *" }
+    { "path": "/api/cron/sms-auto-send", "schedule": "0 8 * * *" },
+    { "path": "/api/cron/appointment-reminders?targetDate=monday", "schedule": "15 8 * * 5" },
+    { "path": "/api/cron/sms-auto-send?targetDate=monday", "schedule": "0 9 * * 5" }
   ]
 }
 ```
@@ -1133,6 +1156,19 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### February 11, 2026 (Late afternoon)
+**Friday→Monday SMS Confirmations**
+
+#### Changes:
+1. **Monday draft generation** — `appointment-reminders` accepts `?targetDate=monday`, calculates next Monday date, and only cleans Monday-dated drafts (preserving Saturday drafts generated earlier).
+2. **Monday draft sending** — `sms-auto-send` accepts `?targetDate=monday`, filters drafts by `appointment_date` falling on Monday.
+3. **Cron schedule updated** — Daily auto-send moved from 10 AM to 9 AM Warsaw. Two Friday-only crons added: Monday drafts at 9:15 AM, Monday sends at 10:00 AM.
+
+#### Files Modified:
+- `src/app/api/cron/appointment-reminders/route.ts` — `targetDate=monday` param, conditional draft cleanup
+- `src/app/api/cron/sms-auto-send/route.ts` — `targetDate=monday` param, Monday appointment_date filter
+- `vercel.json` — 5 crons (3 daily + 2 Friday-only)
 
 ### February 11, 2026 (Afternoon)
 **Schedule Grid Enhancements — Notes Icon & Appointment Badges**
