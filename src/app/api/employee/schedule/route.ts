@@ -6,6 +6,12 @@ export const dynamic = 'force-dynamic';
 
 const PRODENTIS_API_URL = process.env.PRODENTIS_API_URL || 'http://localhost:3000';
 
+interface ProdentisBadge {
+    id: string;
+    name: string;
+    color: string | null;
+}
+
 interface ProdentisAppointment {
     id: string;
     date: string;
@@ -22,6 +28,7 @@ interface ProdentisAppointment {
     isWorkingHour: boolean;
     duration?: number | null;
     notes: string | null;
+    badges?: ProdentisBadge[];
 }
 
 interface ScheduleAppointment {
@@ -37,6 +44,7 @@ interface ScheduleAppointment {
     isWorkingHour: boolean;
     patientPhone: string;
     notes: string | null;
+    badges: ProdentisBadge[];
 }
 
 interface ScheduleDay {
@@ -186,6 +194,7 @@ export async function GET(req: Request) {
                         isWorkingHour: p.raw.isWorkingHour ?? true,
                         patientPhone: p.raw.patientPhone || '',
                         notes: p.raw.notes || null,
+                        badges: p.raw.badges || [],
                     });
                 }
             }

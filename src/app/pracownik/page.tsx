@@ -6,6 +6,12 @@ import { useRouter } from "next/navigation";
 import { LogOut, ChevronLeft, ChevronRight, Calendar, RefreshCw } from "lucide-react";
 
 // ─── Types ───────────────────────────────────────────────────────
+interface Badge {
+    id: string;
+    name: string;
+    color: string | null;
+}
+
 interface ScheduleAppointment {
     id: string;
     patientName: string;
@@ -19,6 +25,7 @@ interface ScheduleAppointment {
     isWorkingHour: boolean;
     patientPhone: string;
     notes: string | null;
+    badges: Badge[];
 }
 
 interface ScheduleDay {
@@ -54,6 +61,25 @@ const PRODENTIS_COLORS: Record<string, { bg: string; border: string; text: strin
 };
 
 const DEFAULT_COLOR = { bg: '#14b8a6', border: '#0d9488', text: '#fff', label: 'Inne' };
+
+// ─── Badge letter map (from Prodentis API /api/badge-types) ──────
+const BADGE_LETTERS: Record<string, string> = {
+    '0000000001': 'V',     // VIP
+    '0000000002': '!',     // WAŻNE
+    '0000000003': '?',     // Pacjent NIE potwierdzony
+    '0000000004': 'B',     // Pacjent z bólem
+    '0000000005': 'A',     // AWARIA
+    '0000000006': 'MGR',   // Dane do magisterki MN
+    '0000000007': 'PL',    // Plan leczenia do oddania
+    '0000000008': 'TK',    // CBCT kontr.do wykonania
+    '0000000009': 'P',     // Pierwszorazowy
+    '0000000010': ';)',    // Pacjent potwierdzony
+    '0000000011': 'KASA',  // spr.czy przyszedł przelew
+};
+
+function getBadgeLetter(badgeId: string): string {
+    return BADGE_LETTERS[badgeId] || '•';
+}
 
 function getAppointmentColor(typeId: string): { bg: string; border: string; text: string } {
     return PRODENTIS_COLORS[typeId] || DEFAULT_COLOR;
@@ -100,6 +126,7 @@ export default function EmployeePage() {
     const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
     const [notesAppointment, setNotesAppointment] = useState<ScheduleAppointment | null>(null);
     const [notesTooltipPos, setNotesTooltipPos] = useState({ x: 0, y: 0 });
+    const [badgeTooltip, setBadgeTooltip] = useState<{ badges: Badge[], x: number, y: number } | null>(null);
     const [userEmail, setUserEmail] = useState<string>('');
     const [hiddenDoctors, setHiddenDoctors] = useState<Set<string>>(new Set());
     const router = useRouter();
@@ -817,6 +844,57 @@ export default function EmployeePage() {
                                                                             {apt.appointmentType}
                                                                         </div>
                                                                     )}
+                                                                    {/* Badge icons — bottom-left corner */}
+                                                                    {apt.badges && apt.badges.length > 0 && (
+                                                                        <div
+                                                                            style={{
+                                                                                position: 'absolute',
+                                                                                bottom: '1px',
+                                                                                left: '2px',
+                                                                                display: 'flex',
+                                                                                gap: '1px',
+                                                                                zIndex: 2,
+                                                                            }}
+                                                                            onMouseEnter={(e) => {
+                                                                                e.stopPropagation();
+                                                                                setHoveredAppointment(null);
+                                                                                const rect = e.currentTarget.getBoundingClientRect();
+                                                                                setBadgeTooltip({
+                                                                                    badges: apt.badges,
+                                                                                    x: rect.left + rect.width / 2,
+                                                                                    y: rect.top - 5,
+                                                                                });
+                                                                            }}
+                                                                            onMouseLeave={(e) => {
+                                                                                e.stopPropagation();
+                                                                                setBadgeTooltip(null);
+                                                                            }}
+                                                                        >
+                                                                            {apt.badges.map((badge) => (
+                                                                                <div
+                                                                                    key={badge.id}
+                                                                                    style={{
+                                                                                        minWidth: '13px',
+                                                                                        height: '13px',
+                                                                                        borderRadius: '3px',
+                                                                                        background: badge.color || '#888',
+                                                                                        display: 'flex',
+                                                                                        alignItems: 'center',
+                                                                                        justifyContent: 'center',
+                                                                                        fontSize: '0.4rem',
+                                                                                        fontWeight: 'bold',
+                                                                                        color: '#fff',
+                                                                                        cursor: 'help',
+                                                                                        lineHeight: 1,
+                                                                                        padding: '0 1px',
+                                                                                        textShadow: '0 0 2px rgba(0,0,0,0.5)',
+                                                                                    }}
+                                                                                >
+                                                                                    {getBadgeLetter(badge.id)}
+                                                                                </div>
+                                                                            ))}
+                                                                        </div>
+                                                                    )}
                                                                 </div>
                                                             )}
                                                         </td>
@@ -939,6 +1017,49 @@ export default function EmployeePage() {
                     }}>
                         {notesAppointment.notes}
                     </div>
+                </div>
+            )}
+
+            {/* Badge Tooltip */}
+            {badgeTooltip && (
+                <div style={{
+                    position: 'fixed',
+                    left: `${Math.min(badgeTooltip.x, typeof window !== 'undefined' ? window.innerWidth - 250 : 500)}px`,
+                    top: `${Math.max(badgeTooltip.y - 10, 10)}px`,
+                    background: 'rgba(10, 10, 10, 0.95)',
+                    backdropFilter: 'blur(20px)',
+                    border: '1px solid rgba(56, 189, 248, 0.3)',
+                    borderRadius: '0.6rem',
+                    padding: '0.5rem 0.75rem',
+                    zIndex: 1001,
+                    minWidth: '140px',
+                    boxShadow: '0 10px 40px rgba(0,0,0,0.6)',
+                    pointerEvents: 'none',
+                    transform: 'translateX(-50%) translateY(-100%)',
+                }}>
+                    <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem' }}>
+                        Odznaczenia
+                    </div>
+                    {badgeTooltip.badges.map((badge) => (
+                        <div key={badge.id} style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.4rem',
+                            padding: '0.15rem 0',
+                            fontSize: '0.75rem',
+                        }}>
+                            <div style={{
+                                width: '10px',
+                                height: '10px',
+                                borderRadius: '3px',
+                                background: badge.color || '#888',
+                                flexShrink: 0,
+                            }} />
+                            <span style={{ color: 'rgba(255,255,255,0.9)' }}>
+                                {badge.name}
+                            </span>
+                        </div>
+                    ))}
                 </div>
             )}
 
