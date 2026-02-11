@@ -164,7 +164,7 @@ mikrostomart/
 ├── supabase_migrations/        # Database migrations (14 files: 003-016)
 ├── public/                     # Static assets
 ├── scripts/                    # Utility scripts (13 files)
-└── vercel.json                 # Deployment configuration (3 cron jobs)
+└── vercel.json                 # Deployment configuration (5 cron jobs: 3 daily + 2 Friday-only)
 ```
 
 ### Request Flow
@@ -742,7 +742,9 @@ Features:
 | Endpoint | Purpose | Schedule |
 |----------|---------|----------|
 | `/cron/appointment-reminders` | Generate SMS drafts for tomorrow | Daily 7:00 AM UTC |
-| `/cron/sms-auto-send` | Auto-send approved drafts | Daily 9:00 AM UTC |
+| `/cron/appointment-reminders?targetDate=monday` | Generate SMS drafts for Monday (Fri only) | Friday 8:15 AM UTC |
+| `/cron/sms-auto-send` | Auto-send approved drafts | Daily 8:00 AM UTC |
+| `/cron/sms-auto-send?targetDate=monday` | Auto-send Monday drafts (Fri only) | Friday 9:00 AM UTC |
 | `/cron/daily-article` | Daily article publishing | Daily 7:00 AM UTC |
 
 
@@ -1158,17 +1160,19 @@ NODE_ENV=production
 ## 📝 Recent Changes
 
 ### February 11, 2026 (Late afternoon)
-**Friday→Monday SMS Confirmations**
+**Friday→Monday SMS Confirmations + Mobile Touch Fix**
 
 #### Changes:
 1. **Monday draft generation** — `appointment-reminders` accepts `?targetDate=monday`, calculates next Monday date, and only cleans Monday-dated drafts (preserving Saturday drafts generated earlier).
 2. **Monday draft sending** — `sms-auto-send` accepts `?targetDate=monday`, filters drafts by `appointment_date` falling on Monday.
 3. **Cron schedule updated** — Daily auto-send moved from 10 AM to 9 AM Warsaw. Two Friday-only crons added: Monday drafts at 9:15 AM, Monday sends at 10:00 AM.
+4. **Mobile touch fix** — Notes (ℹ️) and badge icons now respond to tap on mobile: `onClick` toggle handlers added alongside existing `onMouseEnter`/`onMouseLeave`. Global click-to-dismiss on container. Tooltip `pointerEvents` changed from `none` to `auto` with `stopPropagation`.
 
 #### Files Modified:
 - `src/app/api/cron/appointment-reminders/route.ts` — `targetDate=monday` param, conditional draft cleanup
 - `src/app/api/cron/sms-auto-send/route.ts` — `targetDate=monday` param, Monday appointment_date filter
 - `vercel.json` — 5 crons (3 daily + 2 Friday-only)
+- `src/app/pracownik/page.tsx` — `onClick` toggle on notes icon + badge container, global dismiss, `pointerEvents: auto`
 
 ### February 11, 2026 (Afternoon)
 **Schedule Grid Enhancements — Notes Icon & Appointment Badges**
