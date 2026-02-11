@@ -47,15 +47,16 @@ function isDoctorInList(apiDoctorName: string, doctorList: string[]): boolean {
 /**
  * SMS Draft Generation Cron Job (Stage 1 of 2) - API 4.0
  * 
- * Runs daily at 7:00 AM UTC (8-9 AM Warsaw time)
+ * Runs daily at 7:00 AM UTC (8 AM Warsaw) — generates drafts for TOMORROW
+ * On Fridays, also called at 8:15 AM UTC (9:15 AM Warsaw) with ?targetDate=monday
  * 
- * Flow (NEW - API 4.0):
- * 1. Fetch ALL appointments for tomorrow from Prodentis /api/appointments/by-date
+ * Flow:
+ * 1. Fetch ALL appointments for target date from Prodentis /api/appointments/by-date
  * 2. Filter: working hours + doctor in reminder list + has phone number
  * 3. Generate personalized SMS based on appointment type
  * 4. Save as DRAFT in sms_reminders table (admin review before sending)
  * 
- * Stage 2: Admin reviews drafts in /admin panel OR auto-send at 10 AM
+ * Stage 2: Admin reviews drafts in /admin panel OR auto-send cron
  */
 export async function GET(req: Request) {
     console.log('🚀 [SMS Reminders] Starting cron job (API 4.0)...');
@@ -97,15 +98,26 @@ export async function GET(req: Request) {
     }> = [];
 
     try {
-        // 3. Calculate tomorrow's date
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        const tomorrowStr = tomorrow.toISOString().split('T')[0]; // YYYY-MM-DD
+        // 3. Calculate target date
+        const targetDateParam = url.searchParams.get('targetDate');
+        const isMondayMode = targetDateParam === 'monday';
 
-        console.log(`📅 [SMS Reminders] Fetching appointments for: ${tomorrowStr}`);
+        const targetDate = new Date();
+        if (isMondayMode) {
+            // Calculate next Monday: add days until dayOfWeek=1
+            const dayOfWeek = targetDate.getUTCDay(); // 0=Sun, 5=Fri
+            const daysUntilMonday = (8 - dayOfWeek) % 7 || 7;
+            targetDate.setUTCDate(targetDate.getUTCDate() + daysUntilMonday);
+            console.log(`📅 [SMS Reminders] MONDAY MODE — targeting next Monday`);
+        } else {
+            targetDate.setUTCDate(targetDate.getUTCDate() + 1); // tomorrow (default)
+        }
+        const targetDateStr = targetDate.toISOString().split('T')[0]; // YYYY-MM-DD
 
-        // 4. Fetch ALL appointments for tomorrow from Prodentis API 4.0
-        const apiUrl = `${PRODENTIS_API_URL}/api/appointments/by-date?date=${tomorrowStr}`;
+        console.log(`📅 [SMS Reminders] Fetching appointments for: ${targetDateStr}${isMondayMode ? ' (Monday mode)' : ' (tomorrow)'}`);
+
+        // 4. Fetch ALL appointments for target date from Prodentis API 4.0
+        const apiUrl = `${PRODENTIS_API_URL}/api/appointments/by-date?date=${targetDateStr}`;
         console.log(`🔍 [SMS Reminders] Calling: ${apiUrl}`);
 
         const apiResponse = await fetch(apiUrl, {
@@ -137,7 +149,7 @@ export async function GET(req: Request) {
         // We use it ONLY to confirm which doctors are working today (for logging).
         // We do NOT use it for filtering because earliest free slot ≠ earliest working hour
         // (a doctor with fully booked mornings would show free slots starting at e.g. 10:00).
-        const slotsUrl = `${PRODENTIS_API_URL}/api/slots/free?date=${tomorrowStr}&duration=30`;
+        const slotsUrl = `${PRODENTIS_API_URL}/api/slots/free?date=${targetDateStr}&duration=30`;
         console.log(`📋 [SMS Reminders] Fetching working doctors from: ${slotsUrl}`);
 
         let workingDoctorIds = new Set<string>();
@@ -168,18 +180,39 @@ export async function GET(req: Request) {
         const MIN_BUSINESS_HOUR = 8;
         const MAX_BUSINESS_HOUR = 20;
 
-        // 5. Clean up ALL old drafts (ensures fresh generation with correct time/links)
-        console.log(`🧹 [SMS Reminders] Cleaning up ALL old drafts...`);
-        const { data: deletedDrafts, error: deleteError } = await supabase
-            .from('sms_reminders')
-            .delete()
-            .in('status', ['draft', 'cancelled', 'failed'])
-            .select();
+        // 5. Clean up old drafts
+        if (isMondayMode) {
+            // Monday mode: only delete drafts for Monday (don't touch Saturday drafts)
+            console.log(`🧹 [SMS Reminders] Cleaning up old MONDAY drafts only...`);
+            const mondayStart = `${targetDateStr}T00:00:00.000Z`;
+            const mondayEnd = `${targetDateStr}T23:59:59.999Z`;
+            const { data: deletedDrafts, error: deleteError } = await supabase
+                .from('sms_reminders')
+                .delete()
+                .in('status', ['draft', 'cancelled', 'failed'])
+                .gte('appointment_date', mondayStart)
+                .lte('appointment_date', mondayEnd)
+                .select();
 
-        if (deleteError) {
-            console.error(`   ⚠️  Failed to delete old drafts:`, deleteError);
+            if (deleteError) {
+                console.error(`   ⚠️  Failed to delete Monday drafts:`, deleteError);
+            } else {
+                console.log(`   ✅ Deleted ${deletedDrafts?.length || 0} old Monday drafts`);
+            }
         } else {
-            console.log(`   ✅ Deleted ${deletedDrafts?.length || 0} old drafts`);
+            // Normal daily mode: clean ALL old drafts (existing behavior)
+            console.log(`🧹 [SMS Reminders] Cleaning up ALL old drafts...`);
+            const { data: deletedDrafts, error: deleteError } = await supabase
+                .from('sms_reminders')
+                .delete()
+                .in('status', ['draft', 'cancelled', 'failed'])
+                .select();
+
+            if (deleteError) {
+                console.error(`   ⚠️  Failed to delete old drafts:`, deleteError);
+            } else {
+                console.log(`   ✅ Deleted ${deletedDrafts?.length || 0} old drafts`);
+            }
         }
 
         // 6. Process each appointment
@@ -388,7 +421,7 @@ export async function GET(req: Request) {
 
                         // 10. Generate short link for landing page
                         const appointmentSlug = mapAppointmentTypeToSlug(appointmentType);
-                        const fullUrl = `https://mikrostomart.pl/wizyta/${appointmentSlug}?appointmentId=${finalActionId}&date=${tomorrowStr}&time=${appointmentTime}&doctor=${encodeURIComponent(doctorName)}`;
+                        const fullUrl = `https://mikrostomart.pl/wizyta/${appointmentSlug}?appointmentId=${finalActionId}&date=${targetDateStr}&time=${appointmentTime}&doctor=${encodeURIComponent(doctorName)}`;
 
                         const shortCode = nanoid(6);
 

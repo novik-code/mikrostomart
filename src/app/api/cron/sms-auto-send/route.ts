@@ -7,15 +7,14 @@ export const maxDuration = 60; // Vercel function timeout
 /**
  * Auto-Send SMS Cron Job (Stage 2 of 2)
  * 
- * Runs daily at 9:00 AM UTC (10-11 AM Warsaw time)
- * 
- * Purpose: Automatically send SMS drafts that weren't sent manually by admin
+ * Runs daily at 8:00 AM UTC (9:00 AM Warsaw) — sends drafts for tomorrow
+ * On Fridays, also called at 9:00 AM UTC (10:00 AM Warsaw) with ?targetDate=monday
  * 
  * Flow:
  * 1. Fetch all 'draft' status SMS from sms_reminders table created today
- * 2. For each draft: send SMS via SMS provider
- * 3. Update status to 'sent' or 'failed'
- * 4. Return summary
+ * 2. When targetDate=monday: only send drafts for Monday appointments
+ * 3. For each draft: send SMS via SMS provider
+ * 4. Update status to 'sent' or 'failed'
  * 
  * Note: If admin already sent drafts manually, this cron will find no drafts to send
  */
@@ -44,16 +43,42 @@ export async function GET(req: Request) {
     const errors: Array<{ id: string; phone: string; error: string }> = [];
 
     try {
-        // 3. Get today's date range (for filtering drafts created today)
+        // 3. Check for Monday mode (Friday second pass)
+        const url = new URL(req.url);
+        const targetDateParam = url.searchParams.get('targetDate');
+        const isMondayMode = targetDateParam === 'monday';
+
+        if (isMondayMode) {
+            console.log('📅 [SMS Auto-Send] MONDAY MODE — sending only Monday appointment drafts');
+        }
+
+        // 4. Get today's date range (for filtering drafts created today)
         const today = getTodayDateRange();
 
-        // 4. Fetch all draft SMS created today
-        const { data: drafts, error: draftsError } = await supabase
+        // 5. Fetch draft SMS created today
+        let query = supabase
             .from('sms_reminders')
             .select('*')
             .eq('status', 'draft')
             .gte('created_at', today.start.toISOString())
-            .lte('created_at', today.end.toISOString())
+            .lte('created_at', today.end.toISOString());
+
+        // In Monday mode: only pick drafts for Monday appointments
+        if (isMondayMode) {
+            const mondayDate = new Date();
+            const dayOfWeek = mondayDate.getUTCDay();
+            const daysUntilMonday = (8 - dayOfWeek) % 7 || 7;
+            mondayDate.setUTCDate(mondayDate.getUTCDate() + daysUntilMonday);
+            const mondayStr = mondayDate.toISOString().split('T')[0];
+
+            query = query
+                .gte('appointment_date', `${mondayStr}T00:00:00.000Z`)
+                .lte('appointment_date', `${mondayStr}T23:59:59.999Z`);
+
+            console.log(`   📅 Filtering for Monday: ${mondayStr}`);
+        }
+
+        const { data: drafts, error: draftsError } = await query
             .order('created_at', { ascending: true });
 
         if (draftsError) {
@@ -61,13 +86,13 @@ export async function GET(req: Request) {
         }
 
         if (!drafts || drafts.length === 0) {
-            console.log('ℹ️  [SMS Auto-Send] No draft SMS found (likely already sent manually)');
+            console.log(`ℹ️  [SMS Auto-Send] No draft SMS found${isMondayMode ? ' for Monday' : ''} (likely already sent manually)`);
             return NextResponse.json({
                 success: true,
                 processed: 0,
                 sent: 0,
                 failed: 0,
-                message: 'No draft SMS to send'
+                message: `No draft SMS to send${isMondayMode ? ' (Monday)' : ''}`
             });
         }
 

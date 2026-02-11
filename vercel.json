@@ -10,7 +10,15 @@
         },
         {
             "path": "/api/cron/sms-auto-send",
-            "schedule": "0 9 * * *"
+            "schedule": "0 8 * * *"
+        },
+        {
+            "path": "/api/cron/appointment-reminders?targetDate=monday",
+            "schedule": "15 8 * * 5"
+        },
+        {
+            "path": "/api/cron/sms-auto-send?targetDate=monday",
+            "schedule": "0 9 * * 5"
         }
     ]
 }
