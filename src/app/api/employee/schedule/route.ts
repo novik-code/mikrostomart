@@ -20,7 +20,8 @@ interface ProdentisAppointment {
         name: string;
     };
     isWorkingHour: boolean;
-    duration?: number;
+    duration?: number | null;
+    notes: string | null;
 }
 
 interface ScheduleAppointment {
@@ -35,6 +36,7 @@ interface ScheduleAppointment {
     appointmentTypeId: string;
     isWorkingHour: boolean;
     patientPhone: string;
+    notes: string | null;
 }
 
 interface ScheduleDay {
@@ -152,9 +154,11 @@ export async function GET(req: Request) {
                     const startMinute = p.startMinutes % 60;
                     const startTime = `${startHour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')}`;
 
-                    // Infer duration from gap to next appointment for same doctor
+                    // Use real duration from API if available, otherwise infer from gap
                     let duration: number;
-                    if (j + 1 < docApts.length) {
+                    if (p.raw.duration && p.raw.duration > 0) {
+                        duration = p.raw.duration;
+                    } else if (j + 1 < docApts.length) {
                         duration = docApts[j + 1].startMinutes - p.startMinutes;
                         // Sanity: cap at 4 hours, minimum 15 min
                         if (duration <= 0) duration = 15;
@@ -181,6 +185,7 @@ export async function GET(req: Request) {
                         appointmentTypeId: p.raw.appointmentType?.id || '',
                         isWorkingHour: p.raw.isWorkingHour ?? true,
                         patientPhone: p.raw.patientPhone || '',
+                        notes: p.raw.notes || null,
                     });
                 }
             }

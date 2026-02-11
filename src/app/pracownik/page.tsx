@@ -18,6 +18,7 @@ interface ScheduleAppointment {
     appointmentTypeId: string;
     isWorkingHour: boolean;
     patientPhone: string;
+    notes: string | null;
 }
 
 interface ScheduleDay {
@@ -97,6 +98,8 @@ export default function EmployeePage() {
     const [currentWeekStart, setCurrentWeekStart] = useState<Date>(getMonday(new Date()));
     const [hoveredAppointment, setHoveredAppointment] = useState<ScheduleAppointment | null>(null);
     const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+    const [notesAppointment, setNotesAppointment] = useState<ScheduleAppointment | null>(null);
+    const [notesTooltipPos, setNotesTooltipPos] = useState({ x: 0, y: 0 });
     const [userEmail, setUserEmail] = useState<string>('');
     const [hiddenDoctors, setHiddenDoctors] = useState<Set<string>>(new Set());
     const router = useRouter();
@@ -750,6 +753,45 @@ export default function EmployeePage() {
                                                                         setHoveredAppointment(null);
                                                                     }}
                                                                 >
+                                                                    {/* Notes icon — top-right corner */}
+                                                                    {apt.notes && (
+                                                                        <div
+                                                                            style={{
+                                                                                position: 'absolute',
+                                                                                top: '1px',
+                                                                                right: '2px',
+                                                                                width: '14px',
+                                                                                height: '14px',
+                                                                                borderRadius: '50%',
+                                                                                background: 'rgba(0,0,0,0.35)',
+                                                                                display: 'flex',
+                                                                                alignItems: 'center',
+                                                                                justifyContent: 'center',
+                                                                                fontSize: '0.5rem',
+                                                                                fontWeight: 'bold',
+                                                                                color: '#fff',
+                                                                                cursor: 'help',
+                                                                                zIndex: 2,
+                                                                                lineHeight: 1,
+                                                                            }}
+                                                                            onMouseEnter={(e) => {
+                                                                                e.stopPropagation();
+                                                                                setNotesAppointment(apt);
+                                                                                setHoveredAppointment(null);
+                                                                                const rect = e.currentTarget.getBoundingClientRect();
+                                                                                setNotesTooltipPos({
+                                                                                    x: rect.left + rect.width / 2,
+                                                                                    y: rect.bottom + 5,
+                                                                                });
+                                                                            }}
+                                                                            onMouseLeave={(e) => {
+                                                                                e.stopPropagation();
+                                                                                setNotesAppointment(null);
+                                                                            }}
+                                                                        >
+                                                                            i
+                                                                        </div>
+                                                                    )}
                                                                     <div style={{
                                                                         fontSize: '0.6rem',
                                                                         fontWeight: 'bold',
@@ -758,6 +800,7 @@ export default function EmployeePage() {
                                                                         whiteSpace: 'nowrap',
                                                                         overflow: 'hidden',
                                                                         textOverflow: 'ellipsis',
+                                                                        paddingRight: apt.notes ? '14px' : '0',
                                                                     }}>
                                                                         {apt.patientName}
                                                                     </div>
@@ -850,6 +893,51 @@ export default function EmployeePage() {
                                 📞 {hoveredAppointment.patientPhone}
                             </div>
                         )}
+                    </div>
+                </div>
+            )}
+
+            {/* Notes Tooltip */}
+            {notesAppointment && notesAppointment.notes && (
+                <div style={{
+                    position: 'fixed',
+                    left: `${Math.min(notesTooltipPos.x, typeof window !== 'undefined' ? window.innerWidth - 320 : 600)}px`,
+                    top: `${Math.min(notesTooltipPos.y, typeof window !== 'undefined' ? window.innerHeight - 250 : 400)}px`,
+                    background: 'rgba(10, 10, 10, 0.95)',
+                    backdropFilter: 'blur(20px)',
+                    border: '1px solid rgba(56, 189, 248, 0.3)',
+                    borderRadius: '0.75rem',
+                    padding: '0.75rem 1rem',
+                    zIndex: 1001,
+                    minWidth: '200px',
+                    maxWidth: '320px',
+                    maxHeight: '250px',
+                    overflowY: 'auto',
+                    boxShadow: '0 10px 40px rgba(0,0,0,0.6)',
+                    pointerEvents: 'none',
+                    transform: 'translateX(-50%)',
+                }}>
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.4rem',
+                        marginBottom: '0.5rem',
+                        borderBottom: '1px solid rgba(56, 189, 248, 0.15)',
+                        paddingBottom: '0.4rem',
+                    }}>
+                        <span style={{ fontSize: '0.8rem' }}>ℹ️</span>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#38bdf8' }}>
+                            Notatka — {notesAppointment.patientName}
+                        </span>
+                    </div>
+                    <div style={{
+                        fontSize: '0.75rem',
+                        color: 'rgba(255,255,255,0.85)',
+                        whiteSpace: 'pre-wrap',
+                        lineHeight: '1.5',
+                        wordBreak: 'break-word',
+                    }}>
+                        {notesAppointment.notes}
                     </div>
                 </div>
             )}
