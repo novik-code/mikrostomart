@@ -255,11 +255,17 @@ export default function EmployeePage() {
     const hideAllDoctors = () => setHiddenDoctors(new Set(doctors));
 
     return (
-        <div style={{
-            minHeight: '100vh',
-            background: 'linear-gradient(135deg, #0a0a0a 0%, #0d1b2a 50%, #1b2838 100%)',
-            color: '#fff',
-        }}>
+        <div
+            onClick={() => {
+                // Dismiss tooltips when tapping outside (mobile support)
+                setNotesAppointment(null);
+                setBadgeTooltip(null);
+            }}
+            style={{
+                minHeight: '100vh',
+                background: 'linear-gradient(135deg, #0a0a0a 0%, #0d1b2a 50%, #1b2838 100%)',
+                color: '#fff',
+            }}>
             {/* Header */}
             <header style={{
                 background: 'rgba(0, 0, 0, 0.4)',
@@ -815,6 +821,22 @@ export default function EmployeePage() {
                                                                                 e.stopPropagation();
                                                                                 setNotesAppointment(null);
                                                                             }}
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                e.preventDefault();
+                                                                                if (notesAppointment?.id === apt.id) {
+                                                                                    setNotesAppointment(null);
+                                                                                } else {
+                                                                                    setNotesAppointment(apt);
+                                                                                    setHoveredAppointment(null);
+                                                                                    setBadgeTooltip(null);
+                                                                                    const rect = e.currentTarget.getBoundingClientRect();
+                                                                                    setNotesTooltipPos({
+                                                                                        x: rect.left + rect.width / 2,
+                                                                                        y: rect.bottom + 5,
+                                                                                    });
+                                                                                }
+                                                                            }}
                                                                         >
                                                                             i
                                                                         </div>
@@ -868,6 +890,22 @@ export default function EmployeePage() {
                                                                             onMouseLeave={(e) => {
                                                                                 e.stopPropagation();
                                                                                 setBadgeTooltip(null);
+                                                                            }}
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                e.preventDefault();
+                                                                                if (badgeTooltip) {
+                                                                                    setBadgeTooltip(null);
+                                                                                } else {
+                                                                                    setHoveredAppointment(null);
+                                                                                    setNotesAppointment(null);
+                                                                                    const rect = e.currentTarget.getBoundingClientRect();
+                                                                                    setBadgeTooltip({
+                                                                                        badges: apt.badges,
+                                                                                        x: rect.left + rect.width / 2,
+                                                                                        y: rect.top - 5,
+                                                                                    });
+                                                                                }
                                                                             }}
                                                                         >
                                                                             {apt.badges.map((badge) => (
@@ -992,9 +1030,11 @@ export default function EmployeePage() {
                     maxHeight: '250px',
                     overflowY: 'auto',
                     boxShadow: '0 10px 40px rgba(0,0,0,0.6)',
-                    pointerEvents: 'none',
+                    pointerEvents: 'auto',
                     transform: 'translateX(-50%)',
-                }}>
+                }}
+                    onClick={(e) => e.stopPropagation()}
+                >
                     <div style={{
                         display: 'flex',
                         alignItems: 'center',
@@ -1034,9 +1074,11 @@ export default function EmployeePage() {
                     zIndex: 1001,
                     minWidth: '140px',
                     boxShadow: '0 10px 40px rgba(0,0,0,0.6)',
-                    pointerEvents: 'none',
+                    pointerEvents: 'auto',
                     transform: 'translateX(-50%) translateY(-100%)',
-                }}>
+                }}
+                    onClick={(e) => e.stopPropagation()}
+                >
                     <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem' }}>
                         Odznaczenia
                     </div>
