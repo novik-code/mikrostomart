@@ -17,6 +17,7 @@ interface ProdentisAppointment {
     date: string;
     patientName: string;
     patientPhone: string;
+    patientId?: string;
     doctor: {
         id: string;
         name: string;
@@ -34,6 +35,7 @@ interface ProdentisAppointment {
 interface ScheduleAppointment {
     id: string;
     patientName: string;
+    patientId: string;
     doctorName: string;
     doctorId: string;
     startTime: string;
@@ -184,6 +186,7 @@ export async function GET(req: Request) {
                     appointments.push({
                         id: p.raw.id,
                         patientName: p.raw.patientName || 'Brak danych',
+                        patientId: p.raw.patientId || '',
                         doctorName,
                         doctorId: p.raw.doctor?.id || '',
                         startTime,

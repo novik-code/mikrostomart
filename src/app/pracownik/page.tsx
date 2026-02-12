@@ -15,6 +15,7 @@ interface Badge {
 interface ScheduleAppointment {
     id: string;
     patientName: string;
+    patientId: string;
     doctorName: string;
     doctorId: string;
     startTime: string;
@@ -26,6 +27,36 @@ interface ScheduleAppointment {
     patientPhone: string;
     notes: string | null;
     badges: Badge[];
+}
+
+interface Visit {
+    date: string;
+    endDate: string;
+    doctor: {
+        id: string;
+        name: string;
+        title?: string;
+    };
+    cost: number;
+    paid: number;
+    balance: number;
+    paymentStatus: string;
+    medicalDetails?: {
+        diagnosis?: string;
+        visitDescription?: string;
+        recommendations?: string;
+        procedures?: Array<{
+            tooth?: string;
+            procedureName: string;
+            diagnosis?: string;
+            price: number;
+        }>;
+        medications?: Array<{
+            name: string;
+            dosage?: string;
+            duration?: string;
+        }>;
+    };
 }
 
 interface ScheduleDay {
@@ -129,6 +160,10 @@ export default function EmployeePage() {
     const [badgeTooltip, setBadgeTooltip] = useState<{ badges: Badge[], x: number, y: number } | null>(null);
     const [userEmail, setUserEmail] = useState<string>('');
     const [hiddenDoctors, setHiddenDoctors] = useState<Set<string>>(new Set());
+    const [selectedAppointment, setSelectedAppointment] = useState<ScheduleAppointment | null>(null);
+    const [patientHistory, setPatientHistory] = useState<Visit[] | null>(null);
+    const [historyLoading, setHistoryLoading] = useState(false);
+    const [historyError, setHistoryError] = useState<string | null>(null);
     const router = useRouter();
 
     const supabase = createBrowserClient(
@@ -253,6 +288,41 @@ export default function EmployeePage() {
 
     const showAllDoctors = () => setHiddenDoctors(new Set());
     const hideAllDoctors = () => setHiddenDoctors(new Set(doctors));
+
+    // Open patient history modal
+    const openPatientHistory = useCallback(async (apt: ScheduleAppointment) => {
+        if (!apt.patientId) return;
+        setSelectedAppointment(apt);
+        setPatientHistory(null);
+        setHistoryError(null);
+        setHistoryLoading(true);
+        // Dismiss tooltips
+        setHoveredAppointment(null);
+        setNotesAppointment(null);
+        setBadgeTooltip(null);
+        try {
+            const res = await fetch(`/api/employee/patient-history?patientId=${apt.patientId}&limit=50`);
+            if (!res.ok) throw new Error('Nie udało się pobrać historii wizyt');
+            const data = await res.json();
+            setPatientHistory(data.appointments || []);
+        } catch (err: any) {
+            console.error('[PatientHistory] Error:', err);
+            setHistoryError(err.message || 'Błąd serwera');
+        } finally {
+            setHistoryLoading(false);
+        }
+    }, []);
+
+    // Close modal on Escape key
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape' && selectedAppointment) {
+                setSelectedAppointment(null);
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [selectedAppointment]);
 
     return (
         <div
@@ -785,6 +855,12 @@ export default function EmployeePage() {
                                                                         e.currentTarget.style.opacity = '1';
                                                                         setHoveredAppointment(null);
                                                                     }}
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        if (apt.patientId) {
+                                                                            openPatientHistory(apt);
+                                                                        }
+                                                                    }}
                                                                 >
                                                                     {/* Notes icon — top-right corner */}
                                                                     {apt.notes && (
@@ -1102,6 +1178,283 @@ export default function EmployeePage() {
                             </span>
                         </div>
                     ))}
+                </div>
+            )}
+
+            {/* Patient History Modal */}
+            {selectedAppointment && (
+                <div
+                    onClick={() => setSelectedAppointment(null)}
+                    style={{
+                        position: 'fixed',
+                        inset: 0,
+                        background: 'rgba(0, 0, 0, 0.7)',
+                        backdropFilter: 'blur(8px)',
+                        zIndex: 2000,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '1rem',
+                    }}
+                >
+                    <div
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                            background: 'linear-gradient(135deg, #0d1b2a 0%, #1b2838 100%)',
+                            border: '1px solid rgba(56, 189, 248, 0.2)',
+                            borderRadius: '1rem',
+                            width: '100%',
+                            maxWidth: '700px',
+                            maxHeight: '85vh',
+                            overflowY: 'auto',
+                            boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
+                        }}
+                    >
+                        {/* Modal Header */}
+                        <div style={{
+                            position: 'sticky',
+                            top: 0,
+                            background: 'linear-gradient(135deg, #0d1b2a, #1b2838)',
+                            borderBottom: '1px solid rgba(56, 189, 248, 0.15)',
+                            padding: '1.25rem 1.5rem',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'flex-start',
+                            zIndex: 1,
+                            borderRadius: '1rem 1rem 0 0',
+                        }}>
+                            <div>
+                                <div style={{ fontSize: '1.15rem', fontWeight: 'bold', color: '#fff', marginBottom: '0.3rem' }}>
+                                    {selectedAppointment.patientName}
+                                </div>
+                                <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)' }}>
+                                    {selectedAppointment.appointmentType} • {selectedAppointment.doctorName}
+                                </div>
+                                <div style={{ fontSize: '0.75rem', color: '#38bdf8', marginTop: '0.15rem' }}>
+                                    {selectedAppointment.startTime} – {selectedAppointment.endTime} ({selectedAppointment.duration} min)
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setSelectedAppointment(null)}
+                                style={{
+                                    background: 'rgba(255,255,255,0.08)',
+                                    border: '1px solid rgba(255,255,255,0.15)',
+                                    borderRadius: '0.5rem',
+                                    width: '32px',
+                                    height: '32px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: '#fff',
+                                    fontSize: '1.1rem',
+                                    cursor: 'pointer',
+                                    flexShrink: 0,
+                                }}
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        {/* Modal Body */}
+                        <div style={{ padding: '1.25rem 1.5rem' }}>
+                            {historyLoading && (
+                                <div style={{ textAlign: 'center', padding: '3rem 0' }}>
+                                    <div style={{
+                                        width: '36px',
+                                        height: '36px',
+                                        border: '3px solid rgba(56, 189, 248, 0.2)',
+                                        borderTop: '3px solid #38bdf8',
+                                        borderRadius: '50%',
+                                        animation: 'spin 0.8s linear infinite',
+                                        margin: '0 auto 1rem',
+                                    }} />
+                                    <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.85rem' }}>
+                                        Ładowanie historii wizyt...
+                                    </p>
+                                </div>
+                            )}
+
+                            {historyError && (
+                                <div style={{
+                                    background: 'rgba(239, 68, 68, 0.1)',
+                                    border: '1px solid rgba(239, 68, 68, 0.3)',
+                                    borderRadius: '0.75rem',
+                                    padding: '1rem',
+                                    color: '#ef4444',
+                                    fontSize: '0.85rem',
+                                    textAlign: 'center',
+                                }}>
+                                    ❌ {historyError}
+                                </div>
+                            )}
+
+                            {patientHistory && patientHistory.length === 0 && (
+                                <div style={{ textAlign: 'center', padding: '2rem 0' }}>
+                                    <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>📋</div>
+                                    <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.9rem' }}>
+                                        Brak historii wizyt dla tego pacjenta
+                                    </p>
+                                </div>
+                            )}
+
+                            {patientHistory && patientHistory.length > 0 && (
+                                <div>
+                                    <div style={{
+                                        fontSize: '0.75rem',
+                                        color: 'rgba(255,255,255,0.5)',
+                                        marginBottom: '1rem',
+                                    }}>
+                                        Historia wizyt ({patientHistory.length})
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                        {patientHistory.map((visit, idx) => (
+                                            <div key={idx} style={{
+                                                background: 'rgba(255,255,255,0.03)',
+                                                border: '1px solid rgba(255,255,255,0.08)',
+                                                borderRadius: '0.75rem',
+                                                padding: '1rem',
+                                            }}>
+                                                {/* Visit header */}
+                                                <div style={{
+                                                    display: 'flex',
+                                                    justifyContent: 'space-between',
+                                                    alignItems: 'flex-start',
+                                                    marginBottom: visit.medicalDetails ? '0.75rem' : '0',
+                                                    flexWrap: 'wrap',
+                                                    gap: '0.5rem',
+                                                }}>
+                                                    <div>
+                                                        <div style={{ color: '#38bdf8', fontSize: '0.8rem', marginBottom: '0.25rem' }}>
+                                                            {new Date(visit.date).toLocaleDateString('pl-PL', {
+                                                                weekday: 'short',
+                                                                year: 'numeric',
+                                                                month: 'short',
+                                                                day: 'numeric'
+                                                            })}
+                                                        </div>
+                                                        <div style={{ color: '#fff', fontSize: '0.9rem', fontWeight: 'bold' }}>
+                                                            {visit.doctor?.name || 'Nieznany lekarz'}
+                                                        </div>
+                                                        <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.75rem' }}>
+                                                            {new Date(visit.date).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}
+                                                            {visit.endDate && ` – ${new Date(visit.endDate).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}`}
+                                                        </div>
+                                                    </div>
+                                                    <div style={{ textAlign: 'right' }}>
+                                                        <div style={{ color: '#fff', fontSize: '1rem', fontWeight: 'bold' }}>
+                                                            {visit.cost ? visit.cost.toFixed(2) : '0.00'} PLN
+                                                        </div>
+                                                        <div style={{
+                                                            display: 'inline-block',
+                                                            padding: '0.2rem 0.6rem',
+                                                            background: visit.balance === 0 ? 'rgba(34, 197, 94, 0.15)' : 'rgba(249, 115, 22, 0.15)',
+                                                            border: `1px solid ${visit.balance === 0 ? 'rgba(34, 197, 94, 0.3)' : 'rgba(249, 115, 22, 0.3)'}`,
+                                                            borderRadius: '99px',
+                                                            color: visit.balance === 0 ? '#22c55e' : '#f97316',
+                                                            fontSize: '0.65rem',
+                                                            fontWeight: 'bold',
+                                                            marginTop: '0.25rem',
+                                                        }}>
+                                                            {visit.balance === 0 ? '✓ Opłacono' : `Do zapłaty: ${(visit.balance || 0).toFixed(2)} PLN`}
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Medical Details */}
+                                                {visit.medicalDetails && (
+                                                    <div style={{
+                                                        background: 'rgba(0, 0, 0, 0.2)',
+                                                        borderRadius: '0.5rem',
+                                                        padding: '0.85rem',
+                                                    }}>
+                                                        {visit.medicalDetails.visitDescription && (
+                                                            <div style={{ marginBottom: '0.75rem' }}>
+                                                                <div style={{ color: '#38bdf8', fontSize: '0.7rem', fontWeight: 'bold', marginBottom: '0.3rem' }}>
+                                                                    📝 Opis wizyty
+                                                                </div>
+                                                                <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.8rem', whiteSpace: 'pre-wrap' }}>
+                                                                    {visit.medicalDetails.visitDescription}
+                                                                </div>
+                                                            </div>
+                                                        )}
+
+                                                        {visit.medicalDetails.diagnosis && (
+                                                            <div style={{ marginBottom: '0.75rem' }}>
+                                                                <div style={{ color: '#38bdf8', fontSize: '0.7rem', fontWeight: 'bold', marginBottom: '0.3rem' }}>
+                                                                    🔬 Rozpoznanie
+                                                                </div>
+                                                                <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.8rem' }}>
+                                                                    {visit.medicalDetails.diagnosis}
+                                                                </div>
+                                                            </div>
+                                                        )}
+
+                                                        {visit.medicalDetails.procedures && visit.medicalDetails.procedures.length > 0 && (
+                                                            <div style={{ marginBottom: '0.75rem' }}>
+                                                                <div style={{ color: '#38bdf8', fontSize: '0.7rem', fontWeight: 'bold', marginBottom: '0.4rem' }}>
+                                                                    🦷 Procedury
+                                                                </div>
+                                                                {visit.medicalDetails.procedures.map((proc, pidx) => (
+                                                                    <div key={pidx} style={{
+                                                                        background: 'rgba(255,255,255,0.03)',
+                                                                        padding: '0.5rem 0.6rem',
+                                                                        borderRadius: '0.35rem',
+                                                                        marginBottom: '0.35rem',
+                                                                        display: 'flex',
+                                                                        justifyContent: 'space-between',
+                                                                        alignItems: 'flex-start',
+                                                                        gap: '0.5rem',
+                                                                    }}>
+                                                                        <div>
+                                                                            <div style={{ color: '#fff', fontWeight: 'bold', fontSize: '0.8rem' }}>
+                                                                                {proc.procedureName} {proc.tooth && `(ząb ${proc.tooth})`}
+                                                                            </div>
+                                                                            {proc.diagnosis && (
+                                                                                <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.7rem', marginTop: '0.15rem' }}>
+                                                                                    {proc.diagnosis}
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                        <div style={{ color: '#38bdf8', fontWeight: 'bold', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+                                                                            {(proc.price || 0).toFixed(2)} PLN
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
+
+                                                        {visit.medicalDetails.recommendations && (
+                                                            <div style={{ marginBottom: '0.75rem' }}>
+                                                                <div style={{ color: '#38bdf8', fontSize: '0.7rem', fontWeight: 'bold', marginBottom: '0.3rem' }}>
+                                                                    💊 Zalecenia
+                                                                </div>
+                                                                <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.8rem', whiteSpace: 'pre-wrap' }}>
+                                                                    {visit.medicalDetails.recommendations}
+                                                                </div>
+                                                            </div>
+                                                        )}
+
+                                                        {visit.medicalDetails.medications && visit.medicalDetails.medications.length > 0 && (
+                                                            <div>
+                                                                <div style={{ color: '#38bdf8', fontSize: '0.7rem', fontWeight: 'bold', marginBottom: '0.3rem' }}>
+                                                                    💉 Leki
+                                                                </div>
+                                                                {visit.medicalDetails.medications.map((med, midx) => (
+                                                                    <div key={midx} style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.8rem', marginBottom: '0.2rem' }}>
+                                                                        • {med.name}{med.dosage ? ` — ${med.dosage}` : ''}{med.duration ? ` (${med.duration})` : ''}
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
                 </div>
             )}
 
