@@ -539,9 +539,10 @@ Features:
      - 11 badge types: VIP (V), WAŻNE (!), AWARIA (A), Pacjent potwierdzony (;)), Pacjent z bólem (B), Pierwszorazowy (P), Plan leczenia (PL), CBCT (TK), KASA, NIE potwierdzony (?), MGR
    - **Skip weekends**: hides Sat/Sun if no appointments
    - **Horizontal scroll**: enabled for narrow screens
-4. **API**: `/api/employee/schedule?weekStart=YYYY-MM-DD` — fetches 7 days of appointments from Prodentis (with notes, badges, duration)
-5. **Role check**: `hasRole(userId, 'employee') || hasRole(userId, 'admin')`
-6. **Middleware protection**: unauthenticated → redirect to `/pracownik/login`
+4. **API**: `/api/employee/schedule?weekStart=YYYY-MM-DD` — fetches 7 days of appointments from Prodentis (with notes, badges, duration, patientId)
+5. **Patient History Popup**: click any appointment cell → full-screen modal with patient's visit history (diagnosis, opis wizyty, procedury with tooth + price, zalecenia, leki). Data from `/api/employee/patient-history?patientId={prodentisId}`
+6. **Role check**: `hasRole(userId, 'employee') || hasRole(userId, 'admin')`
+7. **Middleware protection**: unauthenticated → redirect to `/pracownik/login`
 
 ### 🛡 Admin Panel (`/admin`)
 
@@ -710,6 +711,7 @@ Features:
 | Endpoint | Method | Purpose |
 |----------|--------|---------|
 | `/employee/schedule` | GET | Weekly schedule from Prodentis (`?weekStart=`) |
+| `/employee/patient-history` | GET | Patient visit history from Prodentis (`?patientId=&limit=`) |
 
 ### Appointment APIs (`/api/appointments/*`)
 
@@ -1158,6 +1160,21 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### February 12, 2026
+**Patient Visit History Popup in Employee Schedule Grid**
+
+#### Changes:
+1. **Click appointment → modal** — clicking any appointment cell in the schedule grid opens a full-screen modal with the patient's complete visit history.
+2. **Visit details** — each visit shows: date, doctor, time range, cost, payment status (opłacono / do zapłaty), diagnosis, visit description, procedures (tooth + price), recommendations, medications.
+3. **New API** — `/api/employee/patient-history?patientId={prodentisId}` proxies to Prodentis `/api/patient/{id}/appointments` with employee/admin role auth.
+4. **patientId passthrough** — schedule API now includes `patientId` from Prodentis in the appointment data.
+5. **Modal UX** — close via ✕ button, overlay click, or Escape key. Loading spinner, error state, empty state.
+
+#### Files Modified:
+- `src/app/api/employee/schedule/route.ts` — added `patientId` to interfaces and mapping
+- `src/app/api/employee/patient-history/route.ts` — **[NEW]** patient visit history proxy endpoint
+- `src/app/pracownik/page.tsx` — `Visit` interface, `openPatientHistory` function, modal overlay with full medical details
 
 ### February 11, 2026 (Late afternoon)
 **Friday→Monday SMS Confirmations + Mobile Touch Fix**
