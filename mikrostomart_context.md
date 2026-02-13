@@ -525,7 +525,8 @@ Features:
 **Features:**
 1. **Login** (`/pracownik/login`) — Supabase email/password login + "Zapomniałem hasła" link
 2. **Password Reset** (`/pracownik/reset-haslo`) — sends reset email via `/api/auth/reset-password`
-3. **Weekly Schedule Grid** (`/pracownik/page.tsx` — ~58KB, 1075 lines)
+3. **Tab Navigation** — tab bar below header: 📅 **Grafik** | ✅ **Zadania** (`activeTab` state)
+4. **Weekly Schedule Grid** (Grafik tab, `/pracownik/page.tsx` — ~98KB, 1600+ lines)
    - **Time slots**: 15-minute intervals, 7:00–20:00
    - **Multi-doctor columns**: one column per operator/doctor
    - **Operator toggle buttons**: show/hide individual doctors, "Pokaż wszystkich" / "Ukryj wszystkich"
@@ -541,8 +542,9 @@ Features:
    - **Horizontal scroll**: enabled for narrow screens
 4. **API**: `/api/employee/schedule?weekStart=YYYY-MM-DD` — fetches 7 days of appointments from Prodentis (with notes, badges, duration, patientId)
 5. **Patient History Popup**: click any appointment cell → full-screen modal with patient's visit history (diagnosis, opis wizyty, procedury with tooth + price, zalecenia, leki). Data from `/api/employee/patient-history?patientId={prodentisId}`
-6. **Role check**: `hasRole(userId, 'employee') || hasRole(userId, 'admin')`
-7. **Middleware protection**: unauthenticated → redirect to `/pracownik/login`
+6. **Task List (Zadania tab)**: placeholder UI with roadmap preview (coming soon: task CRUD, assignment, statuses, schedule integration)
+7. **Role check**: `hasRole(userId, 'employee') || hasRole(userId, 'admin')`
+8. **Middleware protection**: unauthenticated → redirect to `/pracownik/login`
 
 ### 🛡 Admin Panel (`/admin`)
 
@@ -1160,6 +1162,18 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### February 13, 2026
+**Tab Navigation + Task List Placeholder in Employee Zone**
+
+#### Changes:
+1. **Tab bar** — added below header: 📅 Grafik | ✅ Zadania, styled with `#38bdf8` accent, hover effects, active indicator (bottom border)
+2. **Schedule conditional** — existing schedule grid wrapped in `activeTab === 'grafik'` fragment
+3. **Task list placeholder** — `activeTab === 'zadania'` shows empty state with roadmap preview cards (Tworzenie zadań, Przypisywanie, Statusy, Integracja)
+4. **New import** — `CheckSquare` from lucide-react for Zadania tab icon
+
+#### Files Modified:
+- `src/app/pracownik/page.tsx` — `activeTab` state, tab bar UI, conditional schedule rendering, task list placeholder
 
 ### February 12, 2026
 **Patient Visit History Popup in Employee Schedule Grid**
