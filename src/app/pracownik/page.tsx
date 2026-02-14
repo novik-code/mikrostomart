@@ -281,6 +281,9 @@ export default function EmployeePage() {
     const [editSaving, setEditSaving] = useState(false);
     const [zoomedImage, setZoomedImage] = useState<string | null>(null);
     const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
+    const [taskHistory, setTaskHistory] = useState<any[]>([]);
+    const [taskHistoryLoading, setTaskHistoryLoading] = useState(false);
+    const [taskHistoryExpanded, setTaskHistoryExpanded] = useState(false);
     const [showLoginPopup, setShowLoginPopup] = useState(false);
     const [loginPopupTasks, setLoginPopupTasks] = useState<EmployeeTask[]>([]);
     const router = useRouter();
@@ -2095,7 +2098,21 @@ export default function EmployeePage() {
                                                 gap: '0.75rem',
                                                 cursor: 'pointer',
                                             }}
-                                            onClick={() => setExpandedTaskId(expandedTaskId === task.id ? null : task.id)}
+                                            onClick={() => {
+                                                const newId = expandedTaskId === task.id ? null : task.id;
+                                                setExpandedTaskId(newId);
+                                                setTaskHistoryExpanded(false);
+                                                if (newId) {
+                                                    // Fetch history
+                                                    setTaskHistoryLoading(true);
+                                                    setTaskHistory([]);
+                                                    fetch(`/api/employee/tasks/${newId}?history=true`)
+                                                        .then(r => r.json())
+                                                        .then(d => setTaskHistory(d.history || []))
+                                                        .catch(() => setTaskHistory([]))
+                                                        .finally(() => setTaskHistoryLoading(false));
+                                                }
+                                            }}
                                         >
                                             {/* Status button */}
                                             <button
@@ -2348,6 +2365,102 @@ export default function EmployeePage() {
                                                         const match = staffList.find(s => s.email === task.created_by_email);
                                                         return match ? match.name : task.created_by_email;
                                                     })()} • {new Date(task.created_at).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                                </div>
+
+                                                {/* 📜 Edit history */}
+                                                <div style={{ marginTop: '0.5rem' }}>
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); setTaskHistoryExpanded(!taskHistoryExpanded); }}
+                                                        style={{
+                                                            background: 'none',
+                                                            border: 'none',
+                                                            color: 'rgba(255,255,255,0.35)',
+                                                            fontSize: '0.7rem',
+                                                            cursor: 'pointer',
+                                                            padding: '0.2rem 0',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: '0.3rem',
+                                                        }}
+                                                    >
+                                                        📜 Historia zmian {taskHistory.length > 0 ? `(${taskHistory.length})` : ''}
+                                                        <span style={{ fontSize: '0.6rem' }}>{taskHistoryExpanded ? '▲' : '▼'}</span>
+                                                    </button>
+                                                    {taskHistoryExpanded && (
+                                                        <div style={{
+                                                            marginTop: '0.35rem',
+                                                            background: 'rgba(255,255,255,0.02)',
+                                                            border: '1px solid rgba(255,255,255,0.06)',
+                                                            borderRadius: '0.5rem',
+                                                            padding: '0.5rem',
+                                                            maxHeight: '250px',
+                                                            overflowY: 'auto',
+                                                        }}>
+                                                            {taskHistoryLoading ? (
+                                                                <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', textAlign: 'center', padding: '0.5rem' }}>Ładowanie...</div>
+                                                            ) : taskHistory.length === 0 ? (
+                                                                <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', textAlign: 'center', padding: '0.5rem' }}>Brak historii zmian</div>
+                                                            ) : (
+                                                                taskHistory.map((h: any, idx: number) => {
+                                                                    const changedByName = staffList.find(s => s.email === h.changed_by)?.name || h.changed_by;
+                                                                    const dateStr = new Date(h.changed_at).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+                                                                    const fieldLabels: Record<string, string> = {
+                                                                        title: 'Tytuł', description: 'Opis', status: 'Status', priority: 'Priorytet',
+                                                                        task_type: 'Typ', due_date: 'Termin', assigned_to_doctor_name: 'Przypisano do',
+                                                                        image_url: 'Zdjęcie', assigned_to_doctor_id: 'Przypisano do (ID)',
+                                                                    };
+                                                                    const statusLabels: Record<string, string> = { todo: 'Do zrobienia', in_progress: 'W trakcie', done: 'Wykonane' };
+                                                                    const priorityLabels: Record<string, string> = { low: 'Niski', normal: 'Normalny', urgent: 'Pilny' };
+
+                                                                    return (
+                                                                        <div key={idx} style={{
+                                                                            padding: '0.35rem 0',
+                                                                            borderBottom: idx < taskHistory.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none',
+                                                                        }}>
+                                                                            <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.15rem' }}>
+                                                                                {h.change_type === 'status' ? '🔄' : h.change_type === 'checklist' ? '☑️' : '✏️'}{' '}
+                                                                                <strong>{changedByName}</strong> • {dateStr}
+                                                                            </div>
+                                                                            <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.55)' }}>
+                                                                                {Object.entries(h.changes || {}).map(([key, val]: [string, any]) => {
+                                                                                    if (h.change_type === 'checklist') {
+                                                                                        return (
+                                                                                            <div key={key}>
+                                                                                                {val.done ? '✅' : '⬜'} {val.item}
+                                                                                            </div>
+                                                                                        );
+                                                                                    }
+                                                                                    const label = fieldLabels[key] || key;
+                                                                                    let oldDisplay = val.old || '—';
+                                                                                    let newDisplay = val.new || '—';
+                                                                                    if (key === 'status') {
+                                                                                        oldDisplay = statusLabels[val.old] || val.old || '—';
+                                                                                        newDisplay = statusLabels[val.new] || val.new || '—';
+                                                                                    } else if (key === 'priority') {
+                                                                                        oldDisplay = priorityLabels[val.old] || val.old || '—';
+                                                                                        newDisplay = priorityLabels[val.new] || val.new || '—';
+                                                                                    } else if (key === 'image_url') {
+                                                                                        oldDisplay = val.old ? '📷' : '—';
+                                                                                        newDisplay = val.new ? '📷' : '—';
+                                                                                    } else if (key === 'due_date') {
+                                                                                        oldDisplay = val.old ? new Date(val.old).toLocaleDateString('pl-PL') : '—';
+                                                                                        newDisplay = val.new ? new Date(val.new).toLocaleDateString('pl-PL') : '—';
+                                                                                    }
+                                                                                    // Skip internal IDs
+                                                                                    if (key === 'assigned_to_doctor_id') return null;
+                                                                                    return (
+                                                                                        <div key={key}>
+                                                                                            {label}: {oldDisplay} → {newDisplay}
+                                                                                        </div>
+                                                                                    );
+                                                                                })}
+                                                                            </div>
+                                                                        </div>
+                                                                    );
+                                                                })
+                                                            )}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
                                         )}
@@ -2689,7 +2802,7 @@ export default function EmployeePage() {
                                             <input
                                                 type="file"
                                                 accept="image/*"
-                                                capture="environment"
+
                                                 style={{ display: 'none' }}
                                                 disabled={imageUploading}
                                                 onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageUpload(f, 'create'); }}
@@ -2849,7 +2962,6 @@ export default function EmployeePage() {
                                         <input
                                             type="file"
                                             accept="image/*"
-                                            capture="environment"
                                             style={{ display: 'none' }}
                                             disabled={imageUploading}
                                             onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageUpload(f, 'edit'); }}

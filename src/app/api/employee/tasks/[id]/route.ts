@@ -10,10 +10,58 @@ const supabase = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+// Human-readable field labels for history
+const FIELD_LABELS: Record<string, string> = {
+    title: 'Tytuł',
+    description: 'Opis',
+    status: 'Status',
+    priority: 'Priorytet',
+    task_type: 'Typ zadania',
+    due_date: 'Termin',
+    assigned_to_doctor_name: 'Przypisano do',
+    image_url: 'Zdjęcie',
+};
+
+/**
+ * GET /api/employee/tasks/:id?history=true
+ * 
+ * Returns the task's edit history.
+ */
+export async function GET(
+    req: Request,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    const user = await verifyAdmin();
+    if (!user) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const isEmployee = await hasRole(user.id, 'employee');
+    const isAdmin = await hasRole(user.id, 'admin');
+    if (!isEmployee && !isAdmin) {
+        return NextResponse.json({ error: 'Brak uprawnień pracownika' }, { status: 403 });
+    }
+
+    const { id } = await params;
+
+    const { data, error } = await supabase
+        .from('task_history')
+        .select('*')
+        .eq('task_id', id)
+        .order('changed_at', { ascending: false });
+
+    if (error) {
+        console.error('[TaskHistory] Error:', error);
+        return NextResponse.json({ error: 'Failed to fetch history' }, { status: 500 });
+    }
+
+    return NextResponse.json({ history: data || [] });
+}
+
 /**
  * PATCH /api/employee/tasks/:id
  * 
- * Updates a task. Any field can be updated.
+ * Updates a task and records changes in task_history.
  * Body: partial task object
  */
 export async function PATCH(
@@ -52,6 +100,14 @@ export async function PATCH(
             }
         }
 
+        // Fetch current task before updating (for diff)
+        const { data: oldTask } = await supabase
+            .from('employee_tasks')
+            .select('*')
+            .eq('id', id)
+            .single();
+
+        // Perform the update
         const { data, error } = await supabase
             .from('employee_tasks')
             .update(updates)
@@ -66,6 +122,64 @@ export async function PATCH(
 
         if (!data) {
             return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+        }
+
+        // Record history if we have the old task
+        if (oldTask) {
+            try {
+                // Determine change type
+                let changeType = 'edit';
+                if ('status' in body && Object.keys(body).length === 1) {
+                    changeType = 'status';
+                } else if ('checklist_items' in body && Object.keys(body).length === 1) {
+                    changeType = 'checklist';
+                }
+
+                // Build changes object
+                const changes: Record<string, any> = {};
+
+                if (changeType === 'checklist') {
+                    // Find which checklist items changed
+                    const oldItems = oldTask.checklist_items || [];
+                    const newItems = body.checklist_items || [];
+                    for (let i = 0; i < newItems.length; i++) {
+                        if (oldItems[i] && oldItems[i].done !== newItems[i].done) {
+                            changes[`checklist_${i}`] = {
+                                item: newItems[i].label,
+                                done: newItems[i].done,
+                            };
+                        }
+                    }
+                } else {
+                    // Compare field-by-field
+                    for (const field of allowedFields) {
+                        if (field in body && field !== 'checklist_items') {
+                            const oldVal = oldTask[field];
+                            const newVal = body[field];
+                            // Only record if actually changed
+                            if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
+                                changes[field] = {
+                                    old: oldVal ?? null,
+                                    new: newVal ?? null,
+                                };
+                            }
+                        }
+                    }
+                }
+
+                // Only insert if there are actual changes
+                if (Object.keys(changes).length > 0) {
+                    await supabase.from('task_history').insert({
+                        task_id: id,
+                        changed_by: user.email,
+                        change_type: changeType,
+                        changes,
+                    });
+                }
+            } catch (histErr) {
+                // Don't fail the update if history insert fails
+                console.error('[TaskHistory] Error recording history:', histErr);
+            }
         }
 
         console.log(`[Tasks] Updated task ${id} by ${user.email}:`, Object.keys(updates));
