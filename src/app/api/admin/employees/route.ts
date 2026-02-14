@@ -90,11 +90,43 @@ export async function GET() {
 
         const employeeMap = new Map((employeeRoles || []).map(r => [r.email, r]));
 
+        // Get employees from the dedicated employees table
+        const { data: employeesFromDb } = await supabase
+            .from('employees')
+            .select('*')
+            .eq('is_active', true);
+
+        const employeesDbList = employeesFromDb || [];
+
         // Build staff list from Prodentis
         const staff = Array.from(doctors.values())
             .sort((a, b) => a.name.localeCompare(b.name, 'pl'))
             .map(doc => {
-                // Try to find matching Supabase user by name similarity in email
+                // 1. Try exact match from employees table (by prodentis_id or name)
+                const matchingEmployee = employeesDbList.find(e =>
+                    e.prodentis_id === doc.id || e.name === doc.name
+                );
+
+                if (matchingEmployee) {
+                    // Auto-update prodentis_id if not set
+                    if (!matchingEmployee.prodentis_id && matchingEmployee.email) {
+                        supabase.from('employees')
+                            .update({ prodentis_id: doc.id, updated_at: new Date().toISOString() })
+                            .eq('email', matchingEmployee.email)
+                            .then();
+                    }
+
+                    return {
+                        id: doc.id,
+                        name: doc.name,
+                        hasAccount: true,
+                        accountEmail: matchingEmployee.email,
+                        grantedAt: matchingEmployee.created_at,
+                        employeeId: matchingEmployee.id,
+                    };
+                }
+
+                // 2. Fallback: fuzzy match name in email (backward compatibility)
                 const matchingRole = Array.from(employeeMap.entries()).find(([email]) => {
                     const emailLower = email.toLowerCase();
                     const nameParts = doc.name.toLowerCase().split(' ').filter(p => p.length > 2);
@@ -133,3 +165,4 @@ export async function GET() {
         return NextResponse.json({ error: 'Server error' }, { status: 500 });
     }
 }
+

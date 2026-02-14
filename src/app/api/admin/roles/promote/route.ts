@@ -197,6 +197,21 @@ export async function POST(request: Request) {
             }
         }
 
+        // Auto-insert into employees table when employee role is granted
+        if (grantedRoles.includes('employee')) {
+            try {
+                await supabase.from('employees').upsert({
+                    user_id: userId,
+                    email: patientEmail,
+                    name: employeeName || patientEmail,
+                }, { onConflict: 'email' });
+                console.log(`[Promote] Upserted employee record for ${patientEmail}`);
+            } catch (empError) {
+                console.error('[Promote] Failed to upsert employee record:', empError);
+                // Don't fail — role was granted, just log the error
+            }
+        }
+
         return NextResponse.json({
             success: true,
             userId,
