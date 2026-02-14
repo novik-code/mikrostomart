@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 import { useRouter } from "next/navigation";
-import { LogOut, ChevronLeft, ChevronRight, Calendar, RefreshCw, CheckSquare } from "lucide-react";
+import { LogOut, ChevronLeft, ChevronRight, Calendar, RefreshCw, CheckSquare, Plus, User, AlertTriangle, Trash2, Clock, X } from "lucide-react";
 
 // ─── Types ───────────────────────────────────────────────────────
 interface Badge {
@@ -57,6 +57,39 @@ interface Visit {
             duration?: string;
         }>;
     };
+}
+
+interface EmployeeTask {
+    id: string;
+    title: string;
+    description: string | null;
+    status: 'todo' | 'in_progress' | 'done';
+    priority: 'low' | 'normal' | 'urgent';
+    patient_id: string | null;
+    patient_name: string | null;
+    appointment_type: string | null;
+    due_date: string | null;
+    linked_appointment_date: string | null;
+    linked_appointment_info: string | null;
+    assigned_to_doctor_id: string | null;
+    assigned_to_doctor_name: string | null;
+    created_by_email: string | null;
+    created_at: string;
+    updated_at: string;
+}
+
+interface FutureAppointment {
+    id: string;
+    date: string;
+    endDate: string | null;
+    doctor: { id: string; name: string };
+    appointmentType: string;
+    duration: number | null;
+}
+
+interface StaffMember {
+    id: string;
+    name: string;
 }
 
 interface ScheduleDay {
@@ -165,6 +198,32 @@ export default function EmployeePage() {
     const [historyLoading, setHistoryLoading] = useState(false);
     const [historyError, setHistoryError] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<'grafik' | 'zadania'>('grafik');
+
+    // ─── Task Management State ───────────────────────────────
+    const [tasks, setTasks] = useState<EmployeeTask[]>([]);
+    const [tasksLoading, setTasksLoading] = useState(false);
+    const [taskFilter, setTaskFilter] = useState<'all' | 'todo' | 'in_progress' | 'done'>('all');
+    const [showTaskModal, setShowTaskModal] = useState(false);
+    const [taskModalPrefill, setTaskModalPrefill] = useState<{
+        patientId?: string;
+        patientName?: string;
+        appointmentType?: string;
+    } | null>(null);
+    const [taskForm, setTaskForm] = useState({
+        title: '',
+        description: '',
+        priority: 'normal' as 'low' | 'normal' | 'urgent',
+        assigned_to_doctor_id: '',
+        assigned_to_doctor_name: '',
+        due_date: '',
+        linked_appointment_date: '',
+        linked_appointment_info: '',
+    });
+    const [staffList, setStaffList] = useState<StaffMember[]>([]);
+    const [futureAppointments, setFutureAppointments] = useState<FutureAppointment[]>([]);
+    const [futureAptsLoading, setFutureAptsLoading] = useState(false);
+    const [taskSaving, setTaskSaving] = useState(false);
+    const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
     const router = useRouter();
 
     const supabase = createBrowserClient(
@@ -324,6 +383,172 @@ export default function EmployeePage() {
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [selectedAppointment]);
+
+    // ─── Task Management Functions ──────────────────────────────
+    const fetchTasks = useCallback(async () => {
+        setTasksLoading(true);
+        try {
+            const res = await fetch('/api/employee/tasks');
+            if (!res.ok) throw new Error('Failed to fetch tasks');
+            const data = await res.json();
+            setTasks(data.tasks || []);
+        } catch (err) {
+            console.error('[Tasks] Error:', err);
+        } finally {
+            setTasksLoading(false);
+        }
+    }, []);
+
+    const fetchEmployees = useCallback(async () => {
+        try {
+            const res = await fetch('/api/admin/employees');
+            if (!res.ok) return;
+            const data = await res.json();
+            const allStaff: StaffMember[] = (data.staff || []).map((s: any) => ({
+                id: s.id,
+                name: s.name,
+            }));
+            setStaffList(allStaff);
+        } catch (err) {
+            console.error('[Employees] Error:', err);
+        }
+    }, []);
+
+    const fetchFutureAppointments = useCallback(async (patientId: string) => {
+        setFutureAptsLoading(true);
+        setFutureAppointments([]);
+        try {
+            const res = await fetch(`/api/employee/patient-appointments?patientId=${patientId}`);
+            if (!res.ok) throw new Error('Failed');
+            const data = await res.json();
+            setFutureAppointments(data.appointments || []);
+        } catch (err) {
+            console.error('[FutureApts] Error:', err);
+        } finally {
+            setFutureAptsLoading(false);
+        }
+    }, []);
+
+    // Load tasks when switching to Zadania tab
+    useEffect(() => {
+        if (activeTab === 'zadania') {
+            fetchTasks();
+        }
+    }, [activeTab, fetchTasks]);
+
+    // Load employee list on mount
+    useEffect(() => {
+        fetchEmployees();
+    }, [fetchEmployees]);
+
+    const resetTaskForm = () => {
+        setTaskForm({
+            title: '',
+            description: '',
+            priority: 'normal',
+            assigned_to_doctor_id: '',
+            assigned_to_doctor_name: '',
+            due_date: '',
+            linked_appointment_date: '',
+            linked_appointment_info: '',
+        });
+        setTaskModalPrefill(null);
+        setFutureAppointments([]);
+    };
+
+    const openTaskModal = (prefill?: { patientId?: string; patientName?: string; appointmentType?: string }) => {
+        resetTaskForm();
+        if (prefill) {
+            setTaskModalPrefill(prefill);
+            setTaskForm(prev => ({
+                ...prev,
+                title: prefill.appointmentType ? `${prefill.appointmentType} — ${prefill.patientName || ''}` : '',
+            }));
+            if (prefill.patientId) {
+                fetchFutureAppointments(prefill.patientId);
+            }
+        }
+        setShowTaskModal(true);
+    };
+
+    const handleCreateTask = async () => {
+        if (!taskForm.title.trim()) return;
+        setTaskSaving(true);
+        try {
+            const body: any = {
+                title: taskForm.title,
+                description: taskForm.description || null,
+                priority: taskForm.priority,
+                patient_id: taskModalPrefill?.patientId || null,
+                patient_name: taskModalPrefill?.patientName || null,
+                appointment_type: taskModalPrefill?.appointmentType || null,
+                assigned_to_doctor_id: taskForm.assigned_to_doctor_id || null,
+                assigned_to_doctor_name: taskForm.assigned_to_doctor_name || null,
+                due_date: taskForm.due_date || null,
+                linked_appointment_date: taskForm.linked_appointment_date || null,
+                linked_appointment_info: taskForm.linked_appointment_info || null,
+            };
+            const res = await fetch('/api/employee/tasks', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+            });
+            if (!res.ok) throw new Error('Failed to create task');
+            setShowTaskModal(false);
+            resetTaskForm();
+            fetchTasks();
+        } catch (err) {
+            console.error('[Tasks] Create error:', err);
+        } finally {
+            setTaskSaving(false);
+        }
+    };
+
+    const handleUpdateStatus = async (taskId: string, newStatus: 'todo' | 'in_progress' | 'done') => {
+        try {
+            const res = await fetch(`/api/employee/tasks/${taskId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: newStatus }),
+            });
+            if (!res.ok) throw new Error('Failed');
+            setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
+        } catch (err) {
+            console.error('[Tasks] Update error:', err);
+        }
+    };
+
+    const handleDeleteTask = async (taskId: string) => {
+        if (!confirm('Czy na pewno chcesz usunąć to zadanie?')) return;
+        try {
+            const res = await fetch(`/api/employee/tasks/${taskId}`, { method: 'DELETE' });
+            if (!res.ok) throw new Error('Failed');
+            setTasks(prev => prev.filter(t => t.id !== taskId));
+        } catch (err) {
+            console.error('[Tasks] Delete error:', err);
+        }
+    };
+
+    const selectFutureAppointment = (apt: FutureAppointment) => {
+        const d = new Date(apt.date);
+        const dateStr = d.toISOString().split('T')[0];
+        const timeStr = d.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
+        const info = `${d.toLocaleDateString('pl-PL', { weekday: 'short', day: 'numeric', month: 'short' })} ${timeStr} — ${apt.appointmentType}, ${apt.doctor?.name || ''}`;
+        setTaskForm(prev => ({
+            ...prev,
+            due_date: dateStr,
+            linked_appointment_date: d.toISOString(),
+            linked_appointment_info: info,
+        }));
+    };
+
+    const getStatusLabel = (s: string) => s === 'todo' ? 'Do zrobienia' : s === 'in_progress' ? 'W trakcie' : 'Gotowe';
+    const getStatusColor = (s: string) => s === 'todo' ? '#94a3b8' : s === 'in_progress' ? '#f59e0b' : '#22c55e';
+    const getPriorityLabel = (p: string) => p === 'low' ? 'Niski' : p === 'normal' ? 'Normalny' : 'Pilne';
+    const getPriorityColor = (p: string) => p === 'low' ? '#64748b' : p === 'normal' ? '#38bdf8' : '#ef4444';
+    const getNextStatus = (s: string): 'todo' | 'in_progress' | 'done' => s === 'todo' ? 'in_progress' : s === 'in_progress' ? 'done' : 'todo';
+
+    const filteredTasks = taskFilter === 'all' ? tasks : tasks.filter(t => t.status === taskFilter);
 
     return (
         <div
@@ -1287,25 +1512,52 @@ export default function EmployeePage() {
                                         {selectedAppointment.startTime} – {selectedAppointment.endTime} ({selectedAppointment.duration} min)
                                     </div>
                                 </div>
-                                <button
-                                    onClick={() => setSelectedAppointment(null)}
-                                    style={{
-                                        background: 'rgba(255,255,255,0.08)',
-                                        border: '1px solid rgba(255,255,255,0.15)',
-                                        borderRadius: '0.5rem',
-                                        width: '32px',
-                                        height: '32px',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        color: '#fff',
-                                        fontSize: '1.1rem',
-                                        cursor: 'pointer',
-                                        flexShrink: 0,
-                                    }}
-                                >
-                                    ✕
-                                </button>
+                                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start', flexShrink: 0 }}>
+                                    <button
+                                        onClick={() => {
+                                            openTaskModal({
+                                                patientId: selectedAppointment.patientId,
+                                                patientName: selectedAppointment.patientName,
+                                                appointmentType: selectedAppointment.appointmentType,
+                                            });
+                                        }}
+                                        style={{
+                                            background: 'linear-gradient(135deg, #38bdf8, #0ea5e9)',
+                                            border: 'none',
+                                            borderRadius: '0.5rem',
+                                            padding: '0.4rem 0.75rem',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.35rem',
+                                            color: '#fff',
+                                            fontSize: '0.75rem',
+                                            fontWeight: '600',
+                                            cursor: 'pointer',
+                                            whiteSpace: 'nowrap',
+                                        }}
+                                    >
+                                        <Plus size={14} /> Zadanie
+                                    </button>
+                                    <button
+                                        onClick={() => setSelectedAppointment(null)}
+                                        style={{
+                                            background: 'rgba(255,255,255,0.08)',
+                                            border: '1px solid rgba(255,255,255,0.15)',
+                                            borderRadius: '0.5rem',
+                                            width: '32px',
+                                            height: '32px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            color: '#fff',
+                                            fontSize: '1.1rem',
+                                            cursor: 'pointer',
+                                            flexShrink: 0,
+                                        }}
+                                    >
+                                        ✕
+                                    </button>
+                                </div>
                             </div>
 
                             {/* Modal Body */}
@@ -1524,73 +1776,525 @@ export default function EmployeePage() {
                     <div style={{
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '0.75rem',
-                        marginBottom: '2rem',
+                        justifyContent: 'space-between',
+                        marginBottom: '1.25rem',
                     }}>
-                        <CheckSquare size={24} style={{ color: '#38bdf8' }} />
-                        <h2 style={{ fontSize: '1.25rem', fontWeight: '600', margin: 0 }}>
-                            Lista zadań
-                        </h2>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                            <CheckSquare size={24} style={{ color: '#38bdf8' }} />
+                            <h2 style={{ fontSize: '1.25rem', fontWeight: '600', margin: 0 }}>
+                                Lista zadań
+                            </h2>
+                            <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)' }}>({tasks.length})</span>
+                        </div>
+                        <button
+                            onClick={() => openTaskModal()}
+                            style={{
+                                background: 'linear-gradient(135deg, #38bdf8, #0ea5e9)',
+                                border: 'none',
+                                borderRadius: '0.5rem',
+                                padding: '0.5rem 1rem',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.4rem',
+                                color: '#fff',
+                                fontSize: '0.85rem',
+                                fontWeight: '600',
+                                cursor: 'pointer',
+                            }}
+                        >
+                            <Plus size={16} /> Dodaj zadanie
+                        </button>
                     </div>
 
-                    {/* Empty State */}
+                    {/* Filter bar */}
                     <div style={{
-                        background: 'rgba(255,255,255,0.03)',
-                        backdropFilter: 'blur(10px)',
-                        border: '1px solid rgba(56, 189, 248, 0.12)',
-                        borderRadius: '1rem',
-                        padding: '3rem 2rem',
-                        textAlign: 'center',
+                        display: 'flex',
+                        gap: '0.4rem',
+                        marginBottom: '1.25rem',
+                        flexWrap: 'wrap',
                     }}>
-                        <div style={{ fontSize: '3.5rem', marginBottom: '1rem' }}>📋</div>
-                        <h3 style={{
-                            fontSize: '1.2rem',
-                            fontWeight: '600',
-                            color: '#fff',
-                            marginBottom: '0.75rem',
-                        }}>
-                            Tablica zadań
-                        </h3>
-                        <p style={{
-                            color: 'rgba(255,255,255,0.5)',
-                            fontSize: '0.9rem',
-                            lineHeight: 1.6,
-                            maxWidth: '400px',
-                            margin: '0 auto 2rem',
-                        }}>
-                            Wkrótce tutaj pojawi się lista zadań do wykonania — zarządzanie zadaniami,
-                            przypisywanie do pracowników i śledzenie postępów.
-                        </p>
+                        {(['all', 'todo', 'in_progress', 'done'] as const).map(f => (
+                            <button
+                                key={f}
+                                onClick={() => setTaskFilter(f)}
+                                style={{
+                                    background: taskFilter === f ? 'rgba(56, 189, 248, 0.15)' : 'rgba(255,255,255,0.05)',
+                                    border: `1px solid ${taskFilter === f ? 'rgba(56, 189, 248, 0.4)' : 'rgba(255,255,255,0.1)'}`,
+                                    borderRadius: '0.5rem',
+                                    padding: '0.4rem 0.85rem',
+                                    color: taskFilter === f ? '#38bdf8' : 'rgba(255,255,255,0.6)',
+                                    fontSize: '0.8rem',
+                                    cursor: 'pointer',
+                                    fontWeight: taskFilter === f ? '600' : '400',
+                                }}
+                            >
+                                {f === 'all' ? `Wszystkie (${tasks.length})` : `${getStatusLabel(f)} (${tasks.filter(t => t.status === f).length})`}
+                            </button>
+                        ))}
+                    </div>
 
-                        {/* Roadmap preview */}
+                    {/* Task list */}
+                    {tasksLoading ? (
+                        <div style={{ textAlign: 'center', padding: '3rem 0' }}>
+                            <div style={{
+                                width: '36px',
+                                height: '36px',
+                                border: '3px solid rgba(56, 189, 248, 0.2)',
+                                borderTop: '3px solid #38bdf8',
+                                borderRadius: '50%',
+                                animation: 'spin 0.8s linear infinite',
+                                margin: '0 auto 1rem',
+                            }} />
+                            <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.85rem' }}>Ładowanie zadań...</p>
+                        </div>
+                    ) : filteredTasks.length === 0 ? (
                         <div style={{
-                            display: 'grid',
-                            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-                            gap: '0.75rem',
-                            maxWidth: '500px',
-                            margin: '0 auto',
+                            background: 'rgba(255,255,255,0.03)',
+                            border: '1px solid rgba(56, 189, 248, 0.12)',
+                            borderRadius: '1rem',
+                            padding: '3rem 2rem',
+                            textAlign: 'center',
                         }}>
-                            {[
-                                { icon: '✅', title: 'Tworzenie zadań', desc: 'Dodawanie i edycja' },
-                                { icon: '👥', title: 'Przypisywanie', desc: 'Do pracowników' },
-                                { icon: '📊', title: 'Statusy', desc: 'Todo → W trakcie → Gotowe' },
-                                { icon: '🔗', title: 'Integracja', desc: 'Z grafikiem i pacjentami' },
-                            ].map((item, idx) => (
-                                <div key={idx} style={{
-                                    background: 'rgba(56, 189, 248, 0.05)',
-                                    border: '1px solid rgba(56, 189, 248, 0.1)',
+                            <div style={{ fontSize: '3rem', marginBottom: '0.75rem' }}>📋</div>
+                            <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.9rem', marginBottom: '1rem' }}>
+                                {taskFilter === 'all' ? 'Brak zadań. Dodaj pierwsze zadanie!' : `Brak zadań w kategorii "${getStatusLabel(taskFilter)}"`}
+                            </p>
+                            {taskFilter === 'all' && <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.8rem' }}>Możesz też utworzyć zadanie z poziomu grafiku — kliknij w wizytę pacjenta</p>}
+                        </div>
+                    ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                            {filteredTasks.map(task => (
+                                <div key={task.id} style={{
+                                    background: 'rgba(255,255,255,0.03)',
+                                    border: `1px solid ${task.status === 'done' ? 'rgba(34, 197, 94, 0.15)' : 'rgba(255,255,255,0.08)'}`,
                                     borderRadius: '0.75rem',
-                                    padding: '1rem 0.75rem',
+                                    overflow: 'hidden',
+                                    opacity: task.status === 'done' ? 0.7 : 1,
                                 }}>
-                                    <div style={{ fontSize: '1.5rem', marginBottom: '0.4rem' }}>{item.icon}</div>
-                                    <div style={{ color: '#38bdf8', fontSize: '0.8rem', fontWeight: '600', marginBottom: '0.2rem' }}>
-                                        {item.title}
+                                    {/* Task card main row */}
+                                    <div
+                                        style={{
+                                            padding: '0.85rem 1rem',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.75rem',
+                                            cursor: 'pointer',
+                                        }}
+                                        onClick={() => setExpandedTaskId(expandedTaskId === task.id ? null : task.id)}
+                                    >
+                                        {/* Status button */}
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleUpdateStatus(task.id, getNextStatus(task.status));
+                                            }}
+                                            title={`Zmień na: ${getStatusLabel(getNextStatus(task.status))}`}
+                                            style={{
+                                                width: '24px',
+                                                height: '24px',
+                                                borderRadius: '50%',
+                                                border: `2px solid ${getStatusColor(task.status)}`,
+                                                background: task.status === 'done' ? getStatusColor(task.status) : 'transparent',
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                flexShrink: 0,
+                                                color: '#fff',
+                                                fontSize: '0.7rem',
+                                            }}
+                                        >
+                                            {task.status === 'done' && '✓'}
+                                            {task.status === 'in_progress' && <div style={{ width: 8, height: 8, borderRadius: '50%', background: getStatusColor(task.status) }} />}
+                                        </button>
+
+                                        {/* Title + meta */}
+                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                            <div style={{
+                                                color: '#fff',
+                                                fontSize: '0.9rem',
+                                                fontWeight: '500',
+                                                textDecoration: task.status === 'done' ? 'line-through' : 'none',
+                                                whiteSpace: 'nowrap',
+                                                overflow: 'hidden',
+                                                textOverflow: 'ellipsis',
+                                            }}>
+                                                {task.title}
+                                            </div>
+                                            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.2rem' }}>
+                                                {task.patient_name && (
+                                                    <span style={{ fontSize: '0.7rem', color: '#38bdf8' }}>👤 {task.patient_name}</span>
+                                                )}
+                                                {task.assigned_to_doctor_name && (
+                                                    <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.5)' }}>→ {task.assigned_to_doctor_name}</span>
+                                                )}
+                                                {task.due_date && (
+                                                    <span style={{
+                                                        fontSize: '0.7rem',
+                                                        color: new Date(task.due_date) < new Date() && task.status !== 'done' ? '#ef4444' : 'rgba(255,255,255,0.4)',
+                                                    }}>
+                                                        📅 {new Date(task.due_date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' })}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Priority badge */}
+                                        {task.priority !== 'normal' && (
+                                            <span style={{
+                                                fontSize: '0.65rem',
+                                                fontWeight: '600',
+                                                padding: '0.15rem 0.45rem',
+                                                borderRadius: '0.3rem',
+                                                background: `${getPriorityColor(task.priority)}22`,
+                                                color: getPriorityColor(task.priority),
+                                                border: `1px solid ${getPriorityColor(task.priority)}44`,
+                                                flexShrink: 0,
+                                            }}>
+                                                {task.priority === 'urgent' && '⚡ '}{getPriorityLabel(task.priority)}
+                                            </span>
+                                        )}
                                     </div>
-                                    <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.7rem' }}>
-                                        {item.desc}
-                                    </div>
+
+                                    {/* Expanded details */}
+                                    {expandedTaskId === task.id && (
+                                        <div style={{
+                                            padding: '0 1rem 0.85rem',
+                                            borderTop: '1px solid rgba(255,255,255,0.06)',
+                                            paddingTop: '0.75rem',
+                                        }}>
+                                            {task.description && (
+                                                <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.8rem', marginBottom: '0.5rem', lineHeight: 1.5 }}>
+                                                    {task.description}
+                                                </p>
+                                            )}
+                                            {task.linked_appointment_info && (
+                                                <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.5rem' }}>
+                                                    🔗 Powiązana wizyta: {task.linked_appointment_info}
+                                                </div>
+                                            )}
+                                            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+                                                {/* Status change buttons */}
+                                                {(['todo', 'in_progress', 'done'] as const).map(s => (
+                                                    <button
+                                                        key={s}
+                                                        onClick={() => handleUpdateStatus(task.id, s)}
+                                                        style={{
+                                                            padding: '0.25rem 0.6rem',
+                                                            fontSize: '0.7rem',
+                                                            borderRadius: '0.35rem',
+                                                            border: `1px solid ${getStatusColor(s)}44`,
+                                                            background: task.status === s ? `${getStatusColor(s)}22` : 'transparent',
+                                                            color: task.status === s ? getStatusColor(s) : 'rgba(255,255,255,0.4)',
+                                                            cursor: 'pointer',
+                                                            fontWeight: task.status === s ? '600' : '400',
+                                                        }}
+                                                    >
+                                                        {getStatusLabel(s)}
+                                                    </button>
+                                                ))}
+                                                <button
+                                                    onClick={() => handleDeleteTask(task.id)}
+                                                    style={{
+                                                        padding: '0.25rem 0.6rem',
+                                                        fontSize: '0.7rem',
+                                                        borderRadius: '0.35rem',
+                                                        border: '1px solid rgba(239,68,68,0.3)',
+                                                        background: 'transparent',
+                                                        color: '#ef4444',
+                                                        cursor: 'pointer',
+                                                        marginLeft: 'auto',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '0.25rem',
+                                                    }}
+                                                >
+                                                    <Trash2 size={12} /> Usuń
+                                                </button>
+                                            </div>
+                                            <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.25)', marginTop: '0.5rem' }}>
+                                                Utworzone przez {task.created_by_email} • {new Date(task.created_at).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             ))}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* ═══ NEW TASK MODAL ═══ */}
+            {showTaskModal && (
+                <div
+                    onClick={() => { setShowTaskModal(false); resetTaskForm(); }}
+                    style={{
+                        position: 'fixed',
+                        inset: 0,
+                        background: 'rgba(0,0,0,0.7)',
+                        backdropFilter: 'blur(8px)',
+                        zIndex: 3000,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '1rem',
+                    }}
+                >
+                    <div
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                            background: 'linear-gradient(135deg, #0d1b2a 0%, #1b2838 100%)',
+                            border: '1px solid rgba(56, 189, 248, 0.2)',
+                            borderRadius: '1rem',
+                            width: '100%',
+                            maxWidth: '550px',
+                            maxHeight: '90vh',
+                            overflowY: 'auto',
+                            boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
+                        }}
+                    >
+                        {/* Modal Header */}
+                        <div style={{
+                            padding: '1.25rem 1.5rem',
+                            borderBottom: '1px solid rgba(56,189,248,0.15)',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                        }}>
+                            <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '600', color: '#fff' }}>
+                                ✅ Nowe zadanie
+                            </h3>
+                            <button
+                                onClick={() => { setShowTaskModal(false); resetTaskForm(); }}
+                                style={{
+                                    background: 'rgba(255,255,255,0.08)',
+                                    border: '1px solid rgba(255,255,255,0.15)',
+                                    borderRadius: '0.5rem',
+                                    width: '32px',
+                                    height: '32px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: '#fff',
+                                    fontSize: '1.1rem',
+                                    cursor: 'pointer',
+                                }}
+                            >✕</button>
+                        </div>
+
+                        {/* Modal Body */}
+                        <div style={{ padding: '1.25rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                            {/* Patient info banner */}
+                            {taskModalPrefill?.patientName && (
+                                <div style={{
+                                    background: 'rgba(56, 189, 248, 0.08)',
+                                    border: '1px solid rgba(56, 189, 248, 0.2)',
+                                    borderRadius: '0.5rem',
+                                    padding: '0.6rem 0.85rem',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.5rem',
+                                    fontSize: '0.8rem',
+                                    color: '#38bdf8',
+                                }}>
+                                    <User size={14} />
+                                    <span style={{ fontWeight: '600' }}>{taskModalPrefill.patientName}</span>
+                                    {taskModalPrefill.appointmentType && (
+                                        <span style={{ color: 'rgba(255,255,255,0.4)' }}>• {taskModalPrefill.appointmentType}</span>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Title */}
+                            <div>
+                                <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>Tytuł *</label>
+                                <input
+                                    value={taskForm.title}
+                                    onChange={e => setTaskForm(p => ({ ...p, title: e.target.value }))}
+                                    placeholder="np. Korona porcelanowa — Jan Kowalski"
+                                    style={{
+                                        width: '100%',
+                                        background: 'rgba(255,255,255,0.06)',
+                                        border: '1px solid rgba(255,255,255,0.12)',
+                                        borderRadius: '0.5rem',
+                                        padding: '0.6rem 0.85rem',
+                                        color: '#fff',
+                                        fontSize: '0.85rem',
+                                        outline: 'none',
+                                        boxSizing: 'border-box',
+                                    }}
+                                />
+                            </div>
+
+                            {/* Description */}
+                            <div>
+                                <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>Opis</label>
+                                <textarea
+                                    value={taskForm.description}
+                                    onChange={e => setTaskForm(p => ({ ...p, description: e.target.value }))}
+                                    placeholder="Szczegóły zadania..."
+                                    rows={3}
+                                    style={{
+                                        width: '100%',
+                                        background: 'rgba(255,255,255,0.06)',
+                                        border: '1px solid rgba(255,255,255,0.12)',
+                                        borderRadius: '0.5rem',
+                                        padding: '0.6rem 0.85rem',
+                                        color: '#fff',
+                                        fontSize: '0.85rem',
+                                        outline: 'none',
+                                        resize: 'vertical',
+                                        boxSizing: 'border-box',
+                                    }}
+                                />
+                            </div>
+
+                            {/* Priority + Assignee row */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                                <div>
+                                    <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>Priorytet</label>
+                                    <select
+                                        value={taskForm.priority}
+                                        onChange={e => setTaskForm(p => ({ ...p, priority: e.target.value as any }))}
+                                        style={{
+                                            width: '100%',
+                                            background: 'rgba(255,255,255,0.06)',
+                                            border: '1px solid rgba(255,255,255,0.12)',
+                                            borderRadius: '0.5rem',
+                                            padding: '0.6rem 0.85rem',
+                                            color: '#fff',
+                                            fontSize: '0.85rem',
+                                            outline: 'none',
+                                        }}
+                                    >
+                                        <option value="low" style={{ background: '#1b2838' }}>🔵 Niski</option>
+                                        <option value="normal" style={{ background: '#1b2838' }}>⚪ Normalny</option>
+                                        <option value="urgent" style={{ background: '#1b2838' }}>🔴 Pilne</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>Przypisz do</label>
+                                    <select
+                                        value={taskForm.assigned_to_doctor_id}
+                                        onChange={e => {
+                                            const doc = staffList.find(s => s.id === e.target.value);
+                                            setTaskForm(p => ({
+                                                ...p,
+                                                assigned_to_doctor_id: e.target.value,
+                                                assigned_to_doctor_name: doc?.name || '',
+                                            }));
+                                        }}
+                                        style={{
+                                            width: '100%',
+                                            background: 'rgba(255,255,255,0.06)',
+                                            border: '1px solid rgba(255,255,255,0.12)',
+                                            borderRadius: '0.5rem',
+                                            padding: '0.6rem 0.85rem',
+                                            color: '#fff',
+                                            fontSize: '0.85rem',
+                                            outline: 'none',
+                                        }}
+                                    >
+                                        <option value="" style={{ background: '#1b2838' }}>— Nie przypisano —</option>
+                                        {staffList.map(s => (
+                                            <option key={s.id} value={s.id} style={{ background: '#1b2838' }}>{s.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+
+                            {/* Future appointments for due date */}
+                            {taskModalPrefill?.patientId && (
+                                <div>
+                                    <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.4rem', display: 'block' }}>
+                                        📅 Przyszłe wizyty pacjenta — termin realizacji
+                                    </label>
+                                    {futureAptsLoading ? (
+                                        <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', padding: '0.5rem 0' }}>Szukam wizyt...</div>
+                                    ) : futureAppointments.length === 0 ? (
+                                        <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.35)', padding: '0.5rem 0' }}>Brak zaplanowanych wizyt</div>
+                                    ) : (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                                            {futureAppointments.map(apt => {
+                                                const d = new Date(apt.date);
+                                                const isSelected = taskForm.linked_appointment_date === d.toISOString();
+                                                return (
+                                                    <button
+                                                        key={apt.id}
+                                                        onClick={() => selectFutureAppointment(apt)}
+                                                        style={{
+                                                            background: isSelected ? 'rgba(56,189,248,0.15)' : 'rgba(255,255,255,0.04)',
+                                                            border: `1px solid ${isSelected ? 'rgba(56,189,248,0.4)' : 'rgba(255,255,255,0.08)'}`,
+                                                            borderRadius: '0.5rem',
+                                                            padding: '0.5rem 0.75rem',
+                                                            textAlign: 'left',
+                                                            cursor: 'pointer',
+                                                            color: isSelected ? '#38bdf8' : 'rgba(255,255,255,0.7)',
+                                                            fontSize: '0.8rem',
+                                                            display: 'flex',
+                                                            justifyContent: 'space-between',
+                                                            alignItems: 'center',
+                                                        }}
+                                                    >
+                                                        <span>
+                                                            {d.toLocaleDateString('pl-PL', { weekday: 'short', day: 'numeric', month: 'short' })}{' '}
+                                                            {d.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}
+                                                            <span style={{ color: 'rgba(255,255,255,0.4)', marginLeft: '0.5rem' }}>
+                                                                {apt.appointmentType}{apt.doctor?.name ? ` • ${apt.doctor.name}` : ''}
+                                                            </span>
+                                                        </span>
+                                                        {isSelected && <span style={{ fontWeight: '600' }}>✓</span>}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Manual due date */}
+                            <div>
+                                <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>
+                                    {taskModalPrefill?.patientId ? 'Lub wybierz datę ręcznie' : 'Termin realizacji'}
+                                </label>
+                                <input
+                                    type="date"
+                                    value={taskForm.due_date}
+                                    onChange={e => setTaskForm(p => ({ ...p, due_date: e.target.value, linked_appointment_date: '', linked_appointment_info: '' }))}
+                                    style={{
+                                        width: '100%',
+                                        background: 'rgba(255,255,255,0.06)',
+                                        border: '1px solid rgba(255,255,255,0.12)',
+                                        borderRadius: '0.5rem',
+                                        padding: '0.6rem 0.85rem',
+                                        color: '#fff',
+                                        fontSize: '0.85rem',
+                                        outline: 'none',
+                                        boxSizing: 'border-box',
+                                    }}
+                                />
+                            </div>
+
+                            {/* Submit */}
+                            <button
+                                onClick={handleCreateTask}
+                                disabled={!taskForm.title.trim() || taskSaving}
+                                style={{
+                                    width: '100%',
+                                    padding: '0.75rem',
+                                    background: taskForm.title.trim() ? 'linear-gradient(135deg, #38bdf8, #0ea5e9)' : 'rgba(255,255,255,0.1)',
+                                    border: 'none',
+                                    borderRadius: '0.5rem',
+                                    color: '#fff',
+                                    fontSize: '0.9rem',
+                                    fontWeight: '600',
+                                    cursor: taskForm.title.trim() ? 'pointer' : 'not-allowed',
+                                    opacity: taskSaving ? 0.7 : 1,
+                                    marginTop: '0.25rem',
+                                }}
+                            >
+                                {taskSaving ? 'Zapisywanie...' : 'Utwórz zadanie'}
+                            </button>
                         </div>
                     </div>
                 </div>
