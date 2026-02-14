@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 import { useRouter } from "next/navigation";
-import { LogOut, ChevronLeft, ChevronRight, Calendar, RefreshCw, CheckSquare, Plus, User, AlertTriangle, Trash2, Clock, X } from "lucide-react";
+import { LogOut, ChevronLeft, ChevronRight, Calendar, RefreshCw, CheckSquare, Plus, User, AlertTriangle, Trash2, Clock, X, Bell } from "lucide-react";
+import { useUserRoles } from "@/hooks/useUserRoles";
 
 // ─── Types ───────────────────────────────────────────────────────
 interface Badge {
@@ -224,7 +225,10 @@ export default function EmployeePage() {
     const [futureAptsLoading, setFutureAptsLoading] = useState(false);
     const [taskSaving, setTaskSaving] = useState(false);
     const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
+    const [showLoginPopup, setShowLoginPopup] = useState(false);
+    const [loginPopupTasks, setLoginPopupTasks] = useState<EmployeeTask[]>([]);
     const router = useRouter();
+    const { userId: currentUserId, email: currentUserEmail } = useUserRoles();
 
     const supabase = createBrowserClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -401,16 +405,16 @@ export default function EmployeePage() {
 
     const fetchEmployees = useCallback(async () => {
         try {
-            const res = await fetch('/api/admin/employees');
+            const res = await fetch('/api/employee/staff');
             if (!res.ok) return;
             const data = await res.json();
             const allStaff: StaffMember[] = (data.staff || []).map((s: any) => ({
                 id: s.id,
-                name: s.name,
+                name: s.name || s.email,
             }));
             setStaffList(allStaff);
         } catch (err) {
-            console.error('[Employees] Error:', err);
+            console.error('[Staff] Error:', err);
         }
     }, []);
 
@@ -440,6 +444,50 @@ export default function EmployeePage() {
     useEffect(() => {
         fetchEmployees();
     }, [fetchEmployees]);
+
+    // Login popup — show pending tasks once per session
+    useEffect(() => {
+        if (!currentUserId || !currentUserEmail) return;
+        const popupKey = `taskPopupShown_${currentUserId}`;
+        if (typeof window !== 'undefined' && sessionStorage.getItem(popupKey)) return;
+
+        const fetchMyPending = async () => {
+            try {
+                const res = await fetch('/api/employee/tasks?status=todo&status=in_progress');
+                if (!res.ok) return;
+                const data = await res.json();
+                const allTasks: EmployeeTask[] = data.tasks || [];
+                // Filter to tasks assigned to me
+                const myTasks = allTasks.filter(t =>
+                    t.assigned_to_doctor_id === currentUserId ||
+                    t.created_by_email === currentUserEmail
+                );
+                if (myTasks.length > 0) {
+                    // Sort: overdue first, then by priority (urgent > normal > low), then by due date
+                    const priorityOrder: Record<string, number> = { urgent: 0, normal: 1, low: 2 };
+                    myTasks.sort((a, b) => {
+                        const now = new Date();
+                        const aOverdue = a.due_date && new Date(a.due_date) < now ? 0 : 1;
+                        const bOverdue = b.due_date && new Date(b.due_date) < now ? 0 : 1;
+                        if (aOverdue !== bOverdue) return aOverdue - bOverdue;
+                        const aPri = priorityOrder[a.priority] ?? 1;
+                        const bPri = priorityOrder[b.priority] ?? 1;
+                        if (aPri !== bPri) return aPri - bPri;
+                        if (a.due_date && b.due_date) return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+                        if (a.due_date) return -1;
+                        if (b.due_date) return 1;
+                        return 0;
+                    });
+                    setLoginPopupTasks(myTasks.slice(0, 5));
+                    setShowLoginPopup(true);
+                    if (typeof window !== 'undefined') sessionStorage.setItem(popupKey, '1');
+                }
+            } catch (err) {
+                console.error('[LoginPopup] Error:', err);
+            }
+        };
+        fetchMyPending();
+    }, [currentUserId, currentUserEmail]);
 
     const resetTaskForm = () => {
         setTaskForm({
@@ -548,7 +596,29 @@ export default function EmployeePage() {
     const getPriorityColor = (p: string) => p === 'low' ? '#64748b' : p === 'normal' ? '#38bdf8' : '#ef4444';
     const getNextStatus = (s: string): 'todo' | 'in_progress' | 'done' => s === 'todo' ? 'in_progress' : s === 'in_progress' ? 'done' : 'todo';
 
-    const filteredTasks = taskFilter === 'all' ? tasks : tasks.filter(t => t.status === taskFilter);
+    const isMyTask = useCallback((task: EmployeeTask) => {
+        return task.assigned_to_doctor_id === currentUserId || task.created_by_email === currentUserEmail;
+    }, [currentUserId, currentUserEmail]);
+
+    const filteredTasks = useMemo(() => {
+        const base = taskFilter === 'all' ? tasks : tasks.filter(t => t.status === taskFilter);
+        const priorityOrder: Record<string, number> = { urgent: 0, normal: 1, low: 2 };
+        return [...base].sort((a, b) => {
+            // My tasks first
+            const aMine = isMyTask(a) ? 0 : 1;
+            const bMine = isMyTask(b) ? 0 : 1;
+            if (aMine !== bMine) return aMine - bMine;
+            // Then by priority
+            const aPri = priorityOrder[a.priority] ?? 1;
+            const bPri = priorityOrder[b.priority] ?? 1;
+            if (aPri !== bPri) return aPri - bPri;
+            // Then by due date (earliest first)
+            if (a.due_date && b.due_date) return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+            if (a.due_date) return -1;
+            if (b.due_date) return 1;
+            return 0;
+        });
+    }, [tasks, taskFilter, isMyTask]);
 
     return (
         <div
@@ -1863,162 +1933,167 @@ export default function EmployeePage() {
                         </div>
                     ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                            {filteredTasks.map(task => (
-                                <div key={task.id} style={{
-                                    background: 'rgba(255,255,255,0.03)',
-                                    border: `1px solid ${task.status === 'done' ? 'rgba(34, 197, 94, 0.15)' : 'rgba(255,255,255,0.08)'}`,
-                                    borderRadius: '0.75rem',
-                                    overflow: 'hidden',
-                                    opacity: task.status === 'done' ? 0.7 : 1,
-                                }}>
-                                    {/* Task card main row */}
-                                    <div
-                                        style={{
-                                            padding: '0.85rem 1rem',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '0.75rem',
-                                            cursor: 'pointer',
-                                        }}
-                                        onClick={() => setExpandedTaskId(expandedTaskId === task.id ? null : task.id)}
-                                    >
-                                        {/* Status button */}
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleUpdateStatus(task.id, getNextStatus(task.status));
-                                            }}
-                                            title={`Zmień na: ${getStatusLabel(getNextStatus(task.status))}`}
+                            {filteredTasks.map(task => {
+                                const mine = isMyTask(task);
+                                return (
+                                    <div key={task.id} style={{
+                                        background: mine ? 'rgba(56, 189, 248, 0.04)' : 'rgba(255,255,255,0.03)',
+                                        border: `1px solid ${task.status === 'done' ? 'rgba(34, 197, 94, 0.15)' : mine ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255,255,255,0.08)'}`,
+                                        borderLeft: mine ? '3px solid #38bdf8' : undefined,
+                                        borderRadius: '0.75rem',
+                                        overflow: 'hidden',
+                                        opacity: task.status === 'done' ? 0.7 : 1,
+                                    }}>
+                                        {/* Task card main row */}
+                                        <div
                                             style={{
-                                                width: '24px',
-                                                height: '24px',
-                                                borderRadius: '50%',
-                                                border: `2px solid ${getStatusColor(task.status)}`,
-                                                background: task.status === 'done' ? getStatusColor(task.status) : 'transparent',
-                                                cursor: 'pointer',
+                                                padding: '0.85rem 1rem',
                                                 display: 'flex',
                                                 alignItems: 'center',
-                                                justifyContent: 'center',
-                                                flexShrink: 0,
-                                                color: '#fff',
-                                                fontSize: '0.7rem',
+                                                gap: '0.75rem',
+                                                cursor: 'pointer',
                                             }}
+                                            onClick={() => setExpandedTaskId(expandedTaskId === task.id ? null : task.id)}
                                         >
-                                            {task.status === 'done' && '✓'}
-                                            {task.status === 'in_progress' && <div style={{ width: 8, height: 8, borderRadius: '50%', background: getStatusColor(task.status) }} />}
-                                        </button>
+                                            {/* Status button */}
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleUpdateStatus(task.id, getNextStatus(task.status));
+                                                }}
+                                                title={`Zmień na: ${getStatusLabel(getNextStatus(task.status))}`}
+                                                style={{
+                                                    width: '24px',
+                                                    height: '24px',
+                                                    borderRadius: '50%',
+                                                    border: `2px solid ${getStatusColor(task.status)}`,
+                                                    background: task.status === 'done' ? getStatusColor(task.status) : 'transparent',
+                                                    cursor: 'pointer',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    flexShrink: 0,
+                                                    color: '#fff',
+                                                    fontSize: '0.7rem',
+                                                }}
+                                            >
+                                                {task.status === 'done' && '✓'}
+                                                {task.status === 'in_progress' && <div style={{ width: 8, height: 8, borderRadius: '50%', background: getStatusColor(task.status) }} />}
+                                            </button>
 
-                                        {/* Title + meta */}
-                                        <div style={{ flex: 1, minWidth: 0 }}>
-                                            <div style={{
-                                                color: '#fff',
-                                                fontSize: '0.9rem',
-                                                fontWeight: '500',
-                                                textDecoration: task.status === 'done' ? 'line-through' : 'none',
-                                                whiteSpace: 'nowrap',
-                                                overflow: 'hidden',
-                                                textOverflow: 'ellipsis',
-                                            }}>
-                                                {task.title}
+                                            {/* Title + meta */}
+                                            <div style={{ flex: 1, minWidth: 0 }}>
+                                                <div style={{
+                                                    color: '#fff',
+                                                    fontSize: '0.9rem',
+                                                    fontWeight: '500',
+                                                    textDecoration: task.status === 'done' ? 'line-through' : 'none',
+                                                    whiteSpace: 'nowrap',
+                                                    overflow: 'hidden',
+                                                    textOverflow: 'ellipsis',
+                                                }}>
+                                                    {task.title}
+                                                    {mine && <span style={{ marginLeft: '0.4rem', fontSize: '0.6rem', background: 'rgba(56,189,248,0.2)', color: '#38bdf8', padding: '0.1rem 0.35rem', borderRadius: '0.25rem', fontWeight: '600', verticalAlign: 'middle' }}>Twoje</span>}
+                                                </div>
+                                                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.2rem' }}>
+                                                    {task.patient_name && (
+                                                        <span style={{ fontSize: '0.7rem', color: '#38bdf8' }}>👤 {task.patient_name}</span>
+                                                    )}
+                                                    {task.assigned_to_doctor_name && (
+                                                        <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.5)' }}>→ {task.assigned_to_doctor_name}</span>
+                                                    )}
+                                                    {task.due_date && (
+                                                        <span style={{
+                                                            fontSize: '0.7rem',
+                                                            color: new Date(task.due_date) < new Date() && task.status !== 'done' ? '#ef4444' : 'rgba(255,255,255,0.4)',
+                                                        }}>
+                                                            📅 {new Date(task.due_date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' })}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
-                                            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.2rem' }}>
-                                                {task.patient_name && (
-                                                    <span style={{ fontSize: '0.7rem', color: '#38bdf8' }}>👤 {task.patient_name}</span>
-                                                )}
-                                                {task.assigned_to_doctor_name && (
-                                                    <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.5)' }}>→ {task.assigned_to_doctor_name}</span>
-                                                )}
-                                                {task.due_date && (
-                                                    <span style={{
-                                                        fontSize: '0.7rem',
-                                                        color: new Date(task.due_date) < new Date() && task.status !== 'done' ? '#ef4444' : 'rgba(255,255,255,0.4)',
-                                                    }}>
-                                                        📅 {new Date(task.due_date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' })}
-                                                    </span>
-                                                )}
-                                            </div>
+
+                                            {/* Priority badge */}
+                                            {task.priority !== 'normal' && (
+                                                <span style={{
+                                                    fontSize: '0.65rem',
+                                                    fontWeight: '600',
+                                                    padding: '0.15rem 0.45rem',
+                                                    borderRadius: '0.3rem',
+                                                    background: `${getPriorityColor(task.priority)}22`,
+                                                    color: getPriorityColor(task.priority),
+                                                    border: `1px solid ${getPriorityColor(task.priority)}44`,
+                                                    flexShrink: 0,
+                                                }}>
+                                                    {task.priority === 'urgent' && '⚡ '}{getPriorityLabel(task.priority)}
+                                                </span>
+                                            )}
                                         </div>
 
-                                        {/* Priority badge */}
-                                        {task.priority !== 'normal' && (
-                                            <span style={{
-                                                fontSize: '0.65rem',
-                                                fontWeight: '600',
-                                                padding: '0.15rem 0.45rem',
-                                                borderRadius: '0.3rem',
-                                                background: `${getPriorityColor(task.priority)}22`,
-                                                color: getPriorityColor(task.priority),
-                                                border: `1px solid ${getPriorityColor(task.priority)}44`,
-                                                flexShrink: 0,
+                                        {/* Expanded details */}
+                                        {expandedTaskId === task.id && (
+                                            <div style={{
+                                                padding: '0 1rem 0.85rem',
+                                                borderTop: '1px solid rgba(255,255,255,0.06)',
+                                                paddingTop: '0.75rem',
                                             }}>
-                                                {task.priority === 'urgent' && '⚡ '}{getPriorityLabel(task.priority)}
-                                            </span>
-                                        )}
-                                    </div>
-
-                                    {/* Expanded details */}
-                                    {expandedTaskId === task.id && (
-                                        <div style={{
-                                            padding: '0 1rem 0.85rem',
-                                            borderTop: '1px solid rgba(255,255,255,0.06)',
-                                            paddingTop: '0.75rem',
-                                        }}>
-                                            {task.description && (
-                                                <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.8rem', marginBottom: '0.5rem', lineHeight: 1.5 }}>
-                                                    {task.description}
-                                                </p>
-                                            )}
-                                            {task.linked_appointment_info && (
-                                                <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.5rem' }}>
-                                                    🔗 Powiązana wizyta: {task.linked_appointment_info}
-                                                </div>
-                                            )}
-                                            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
-                                                {/* Status change buttons */}
-                                                {(['todo', 'in_progress', 'done'] as const).map(s => (
+                                                {task.description && (
+                                                    <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.8rem', marginBottom: '0.5rem', lineHeight: 1.5 }}>
+                                                        {task.description}
+                                                    </p>
+                                                )}
+                                                {task.linked_appointment_info && (
+                                                    <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.5rem' }}>
+                                                        🔗 Powiązana wizyta: {task.linked_appointment_info}
+                                                    </div>
+                                                )}
+                                                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+                                                    {/* Status change buttons */}
+                                                    {(['todo', 'in_progress', 'done'] as const).map(s => (
+                                                        <button
+                                                            key={s}
+                                                            onClick={() => handleUpdateStatus(task.id, s)}
+                                                            style={{
+                                                                padding: '0.25rem 0.6rem',
+                                                                fontSize: '0.7rem',
+                                                                borderRadius: '0.35rem',
+                                                                border: `1px solid ${getStatusColor(s)}44`,
+                                                                background: task.status === s ? `${getStatusColor(s)}22` : 'transparent',
+                                                                color: task.status === s ? getStatusColor(s) : 'rgba(255,255,255,0.4)',
+                                                                cursor: 'pointer',
+                                                                fontWeight: task.status === s ? '600' : '400',
+                                                            }}
+                                                        >
+                                                            {getStatusLabel(s)}
+                                                        </button>
+                                                    ))}
                                                     <button
-                                                        key={s}
-                                                        onClick={() => handleUpdateStatus(task.id, s)}
+                                                        onClick={() => handleDeleteTask(task.id)}
                                                         style={{
                                                             padding: '0.25rem 0.6rem',
                                                             fontSize: '0.7rem',
                                                             borderRadius: '0.35rem',
-                                                            border: `1px solid ${getStatusColor(s)}44`,
-                                                            background: task.status === s ? `${getStatusColor(s)}22` : 'transparent',
-                                                            color: task.status === s ? getStatusColor(s) : 'rgba(255,255,255,0.4)',
+                                                            border: '1px solid rgba(239,68,68,0.3)',
+                                                            background: 'transparent',
+                                                            color: '#ef4444',
                                                             cursor: 'pointer',
-                                                            fontWeight: task.status === s ? '600' : '400',
+                                                            marginLeft: 'auto',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: '0.25rem',
                                                         }}
                                                     >
-                                                        {getStatusLabel(s)}
+                                                        <Trash2 size={12} /> Usuń
                                                     </button>
-                                                ))}
-                                                <button
-                                                    onClick={() => handleDeleteTask(task.id)}
-                                                    style={{
-                                                        padding: '0.25rem 0.6rem',
-                                                        fontSize: '0.7rem',
-                                                        borderRadius: '0.35rem',
-                                                        border: '1px solid rgba(239,68,68,0.3)',
-                                                        background: 'transparent',
-                                                        color: '#ef4444',
-                                                        cursor: 'pointer',
-                                                        marginLeft: 'auto',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        gap: '0.25rem',
-                                                    }}
-                                                >
-                                                    <Trash2 size={12} /> Usuń
-                                                </button>
+                                                </div>
+                                                <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.25)', marginTop: '0.5rem' }}>
+                                                    Utworzone przez {task.created_by_email} • {new Date(task.created_at).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                                </div>
                                             </div>
-                                            <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.25)', marginTop: '0.5rem' }}>
-                                                Utworzone przez {task.created_by_email} • {new Date(task.created_at).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
+                                        )}
+                                    </div>
+                                );
+                            })}
                         </div>
                     )}
                 </div>
@@ -2294,6 +2369,175 @@ export default function EmployeePage() {
                                 }}
                             >
                                 {taskSaving ? 'Zapisywanie...' : 'Utwórz zadanie'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ═══ LOGIN TASK POPUP ═══ */}
+            {showLoginPopup && loginPopupTasks.length > 0 && (
+                <div
+                    onClick={() => setShowLoginPopup(false)}
+                    style={{
+                        position: 'fixed',
+                        inset: 0,
+                        background: 'rgba(0,0,0,0.6)',
+                        backdropFilter: 'blur(6px)',
+                        zIndex: 4000,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '1rem',
+                    }}
+                >
+                    <div
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                            background: 'linear-gradient(135deg, #0d1b2a 0%, #1b2838 100%)',
+                            border: '1px solid rgba(56, 189, 248, 0.25)',
+                            borderRadius: '1rem',
+                            width: '100%',
+                            maxWidth: '480px',
+                            boxShadow: '0 20px 60px rgba(0,0,0,0.7)',
+                            overflow: 'hidden',
+                        }}
+                    >
+                        {/* Popup Header */}
+                        <div style={{
+                            padding: '1.25rem 1.5rem',
+                            background: 'linear-gradient(135deg, rgba(56,189,248,0.12), rgba(56,189,248,0.04))',
+                            borderBottom: '1px solid rgba(56,189,248,0.15)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.75rem',
+                        }}>
+                            <div style={{
+                                width: '40px',
+                                height: '40px',
+                                borderRadius: '50%',
+                                background: 'linear-gradient(135deg, #38bdf8, #0ea5e9)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                flexShrink: 0,
+                            }}>
+                                <Bell size={20} color="#fff" />
+                            </div>
+                            <div style={{ flex: 1 }}>
+                                <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: '600', color: '#fff' }}>
+                                    Twoje zadania do realizacji
+                                </h3>
+                                <p style={{ margin: 0, fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', marginTop: '0.15rem' }}>
+                                    Masz {loginPopupTasks.length}{loginPopupTasks.length >= 5 ? '+' : ''} {loginPopupTasks.length === 1 ? 'zadanie' : loginPopupTasks.length < 5 ? 'zadania' : 'zadań'} do wykonania
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => setShowLoginPopup(false)}
+                                style={{
+                                    background: 'rgba(255,255,255,0.08)',
+                                    border: '1px solid rgba(255,255,255,0.15)',
+                                    borderRadius: '0.5rem',
+                                    width: '28px',
+                                    height: '28px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: '#fff',
+                                    fontSize: '0.9rem',
+                                    cursor: 'pointer',
+                                }}
+                            >✕</button>
+                        </div>
+
+                        {/* Task list */}
+                        <div style={{ padding: '0.75rem 1.25rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            {loginPopupTasks.map(task => {
+                                const overdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== 'done';
+                                return (
+                                    <div key={task.id} style={{
+                                        padding: '0.65rem 0.85rem',
+                                        background: overdue ? 'rgba(239, 68, 68, 0.08)' : 'rgba(255,255,255,0.04)',
+                                        border: `1px solid ${overdue ? 'rgba(239, 68, 68, 0.25)' : 'rgba(255,255,255,0.08)'}`,
+                                        borderRadius: '0.6rem',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.6rem',
+                                    }}>
+                                        {/* Priority indicator */}
+                                        <div style={{
+                                            width: '8px',
+                                            height: '8px',
+                                            borderRadius: '50%',
+                                            background: getPriorityColor(task.priority),
+                                            flexShrink: 0,
+                                        }} />
+                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                            <div style={{
+                                                color: '#fff',
+                                                fontSize: '0.85rem',
+                                                fontWeight: '500',
+                                                whiteSpace: 'nowrap',
+                                                overflow: 'hidden',
+                                                textOverflow: 'ellipsis',
+                                            }}>
+                                                {task.title}
+                                            </div>
+                                            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.15rem' }}>
+                                                {task.due_date && (
+                                                    <span style={{
+                                                        fontSize: '0.7rem',
+                                                        color: overdue ? '#ef4444' : 'rgba(255,255,255,0.4)',
+                                                        fontWeight: overdue ? '600' : '400',
+                                                    }}>
+                                                        {overdue ? '⚠ Termin minął: ' : '📅 '}
+                                                        {new Date(task.due_date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' })}
+                                                    </span>
+                                                )}
+                                                {task.priority === 'urgent' && (
+                                                    <span style={{ fontSize: '0.7rem', color: '#ef4444', fontWeight: '600' }}>⚡ Pilne</span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {/* Action buttons */}
+                        <div style={{ padding: '0.75rem 1.25rem 1.25rem', display: 'flex', gap: '0.5rem' }}>
+                            <button
+                                onClick={() => {
+                                    setShowLoginPopup(false);
+                                    setActiveTab('zadania');
+                                }}
+                                style={{
+                                    flex: 1,
+                                    padding: '0.65rem',
+                                    background: 'linear-gradient(135deg, #38bdf8, #0ea5e9)',
+                                    border: 'none',
+                                    borderRadius: '0.5rem',
+                                    color: '#fff',
+                                    fontSize: '0.85rem',
+                                    fontWeight: '600',
+                                    cursor: 'pointer',
+                                }}
+                            >
+                                Przejdź do zadań
+                            </button>
+                            <button
+                                onClick={() => setShowLoginPopup(false)}
+                                style={{
+                                    padding: '0.65rem 1rem',
+                                    background: 'rgba(255,255,255,0.06)',
+                                    border: '1px solid rgba(255,255,255,0.12)',
+                                    borderRadius: '0.5rem',
+                                    color: 'rgba(255,255,255,0.6)',
+                                    fontSize: '0.85rem',
+                                    cursor: 'pointer',
+                                }}
+                            >
+                                Zamknij
                             </button>
                         </div>
                     </div>
