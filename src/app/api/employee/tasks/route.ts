@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
 import { createClient } from '@supabase/supabase-js';
+import { sendTelegramNotification } from '@/lib/telegram';
 
 export const dynamic = 'force-dynamic';
 
@@ -90,6 +91,7 @@ export async function POST(req: Request) {
             priority: body.priority || 'normal',
             task_type: body.task_type || null,
             checklist_items: body.checklist_items || [],
+            image_url: body.image_url || null,
             patient_id: body.patient_id || null,
             patient_name: body.patient_name || null,
             appointment_type: body.appointment_type || null,
@@ -114,6 +116,26 @@ export async function POST(req: Request) {
         }
 
         console.log(`[Tasks] Created task "${task.title}" by ${user.email}`);
+
+        // Send Telegram notification
+        try {
+            const dueDateStr = task.due_date
+                ? new Date(task.due_date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'long', year: 'numeric' })
+                : '⚠️ BRAK DATY';
+
+            let tgMessage = `✅ <b>NOWE ZADANIE</b>\n\n`;
+            tgMessage += `📋 <b>${task.title}</b>\n`;
+            if (task.task_type) tgMessage += `🦷 Typ: ${task.task_type}\n`;
+            if (task.patient_name) tgMessage += `👤 Pacjent: ${task.patient_name}\n`;
+            if (task.assigned_to_doctor_name) tgMessage += `→ Przypisano do: ${task.assigned_to_doctor_name}\n`;
+            tgMessage += `📅 Termin: ${dueDateStr}\n`;
+            tgMessage += `✍️ Utworzył: ${user.email}`;
+
+            await sendTelegramNotification(tgMessage, 'default');
+        } catch (tgErr) {
+            console.error('[Tasks] Telegram notification error:', tgErr);
+        }
+
         return NextResponse.json({ task: data }, { status: 201 });
 
     } catch (error: any) {

@@ -73,6 +73,7 @@ interface EmployeeTask {
     priority: 'low' | 'normal' | 'urgent';
     task_type: string | null;
     checklist_items: ChecklistItem[];
+    image_url: string | null;
     patient_id: string | null;
     patient_name: string | null;
     appointment_type: string | null;
@@ -263,6 +264,7 @@ export default function EmployeePage() {
         priority: 'normal' as 'low' | 'normal' | 'urgent',
         task_type: '' as string,
         checklist_items: [] as ChecklistItem[],
+        image_url: '' as string,
         assigned_to_doctor_id: '',
         assigned_to_doctor_name: '',
         due_date: '',
@@ -273,6 +275,11 @@ export default function EmployeePage() {
     const [futureAppointments, setFutureAppointments] = useState<FutureAppointment[]>([]);
     const [futureAptsLoading, setFutureAptsLoading] = useState(false);
     const [taskSaving, setTaskSaving] = useState(false);
+    const [imageUploading, setImageUploading] = useState(false);
+    const [editingTask, setEditingTask] = useState<EmployeeTask | null>(null);
+    const [editForm, setEditForm] = useState<Record<string, any>>({});
+    const [editSaving, setEditSaving] = useState(false);
+    const [zoomedImage, setZoomedImage] = useState<string | null>(null);
     const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
     const [showLoginPopup, setShowLoginPopup] = useState(false);
     const [loginPopupTasks, setLoginPopupTasks] = useState<EmployeeTask[]>([]);
@@ -546,6 +553,7 @@ export default function EmployeePage() {
             priority: 'normal',
             task_type: '',
             checklist_items: [],
+            image_url: '',
             assigned_to_doctor_id: '',
             assigned_to_doctor_name: '',
             due_date: '',
@@ -554,6 +562,66 @@ export default function EmployeePage() {
         });
         setTaskModalPrefill(null);
         setFutureAppointments([]);
+    };
+
+    // Image upload handler (for both create and edit)
+    const handleImageUpload = async (file: File, mode: 'create' | 'edit' = 'create') => {
+        setImageUploading(true);
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            const res = await fetch('/api/employee/tasks/upload-image', {
+                method: 'POST',
+                body: formData,
+            });
+            if (!res.ok) throw new Error('Upload failed');
+            const data = await res.json();
+            if (mode === 'create') {
+                setTaskForm(p => ({ ...p, image_url: data.url }));
+            } else {
+                setEditForm(p => ({ ...p, image_url: data.url }));
+            }
+        } catch (err) {
+            console.error('[Tasks] Image upload error:', err);
+            alert('Nie udało się przesłać zdjęcia');
+        } finally {
+            setImageUploading(false);
+        }
+    };
+
+    // Edit task
+    const openEditModal = (task: EmployeeTask) => {
+        setEditingTask(task);
+        setEditForm({
+            title: task.title || '',
+            description: task.description || '',
+            priority: task.priority || 'normal',
+            task_type: task.task_type || '',
+            due_date: task.due_date || '',
+            assigned_to_doctor_id: task.assigned_to_doctor_id || '',
+            assigned_to_doctor_name: task.assigned_to_doctor_name || '',
+            image_url: task.image_url || '',
+        });
+    };
+
+    const handleSaveEdit = async () => {
+        if (!editingTask) return;
+        setEditSaving(true);
+        try {
+            const res = await fetch(`/api/employee/tasks/${editingTask.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(editForm),
+            });
+            if (!res.ok) throw new Error('Failed to update task');
+            setEditingTask(null);
+            setEditForm({});
+            fetchTasks();
+        } catch (err) {
+            console.error('[Tasks] Edit error:', err);
+        } finally {
+            setEditSaving(false);
+        }
     };
 
     const openTaskModal = (prefill?: { patientId?: string; patientName?: string; appointmentType?: string }) => {
@@ -581,6 +649,7 @@ export default function EmployeePage() {
                 priority: taskForm.priority,
                 task_type: taskForm.task_type || null,
                 checklist_items: taskForm.checklist_items.length > 0 ? taskForm.checklist_items : null,
+                image_url: taskForm.image_url || null,
                 patient_id: taskModalPrefill?.patientId || null,
                 patient_name: taskModalPrefill?.patientName || null,
                 appointment_type: taskModalPrefill?.appointmentType || null,
@@ -2194,6 +2263,25 @@ export default function EmployeePage() {
                                                     </div>
                                                 )}
 
+                                                {/* Task image */}
+                                                {task.image_url && (
+                                                    <div style={{ marginBottom: '0.5rem' }}>
+                                                        <img
+                                                            src={task.image_url}
+                                                            alt="Zdjęcie zadania"
+                                                            onClick={(e) => { e.stopPropagation(); setZoomedImage(task.image_url); }}
+                                                            style={{
+                                                                maxWidth: '100%',
+                                                                maxHeight: '200px',
+                                                                borderRadius: '0.5rem',
+                                                                border: '1px solid rgba(255,255,255,0.1)',
+                                                                cursor: 'zoom-in',
+                                                                objectFit: 'cover',
+                                                            }}
+                                                        />
+                                                    </div>
+                                                )}
+
                                                 {task.linked_appointment_info && (
                                                     <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.5rem' }}>
                                                         🔗 Powiązana wizyta: {task.linked_appointment_info}
@@ -2220,6 +2308,23 @@ export default function EmployeePage() {
                                                         </button>
                                                     ))}
                                                     <button
+                                                        onClick={(e) => { e.stopPropagation(); openEditModal(task); }}
+                                                        style={{
+                                                            padding: '0.25rem 0.6rem',
+                                                            fontSize: '0.7rem',
+                                                            borderRadius: '0.35rem',
+                                                            border: '1px solid rgba(56,189,248,0.3)',
+                                                            background: 'transparent',
+                                                            color: '#38bdf8',
+                                                            cursor: 'pointer',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: '0.25rem',
+                                                        }}
+                                                    >
+                                                        ✏️ Edytuj
+                                                    </button>
+                                                    <button
                                                         onClick={() => handleDeleteTask(task.id)}
                                                         style={{
                                                             padding: '0.25rem 0.6rem',
@@ -2240,7 +2345,6 @@ export default function EmployeePage() {
                                                 </div>
                                                 <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.25)', marginTop: '0.5rem' }}>
                                                     Utworzone przez {(() => {
-                                                        const creator = staffList.find(s => s.name !== task.created_by_email && staffList.some(st => st.id && st.name));
                                                         const match = staffList.find(s => s.email === task.created_by_email);
                                                         return match ? match.name : task.created_by_email;
                                                     })()} • {new Date(task.created_at).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
@@ -2556,6 +2660,45 @@ export default function EmployeePage() {
                                 />
                             </div>
 
+                            {/* Photo upload */}
+                            <div>
+                                <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>📸 Zdjęcie (opcjonalnie)</label>
+                                {taskForm.image_url ? (
+                                    <div style={{ position: 'relative', display: 'inline-block' }}>
+                                        <img src={taskForm.image_url} alt="" style={{ maxWidth: '100%', maxHeight: '120px', borderRadius: '0.5rem', border: '1px solid rgba(255,255,255,0.1)' }} />
+                                        <button
+                                            onClick={() => setTaskForm(p => ({ ...p, image_url: '' }))}
+                                            style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.7)', border: 'none', color: '#fff', borderRadius: '50%', width: 22, height: 22, cursor: 'pointer', fontSize: '0.7rem' }}
+                                        >✕</button>
+                                    </div>
+                                ) : (
+                                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                        <label style={{
+                                            flex: 1,
+                                            padding: '0.6rem',
+                                            background: 'rgba(255,255,255,0.06)',
+                                            border: '1px solid rgba(255,255,255,0.12)',
+                                            borderRadius: '0.5rem',
+                                            color: 'rgba(255,255,255,0.6)',
+                                            fontSize: '0.8rem',
+                                            textAlign: 'center',
+                                            cursor: imageUploading ? 'wait' : 'pointer',
+                                            opacity: imageUploading ? 0.5 : 1,
+                                        }}>
+                                            {imageUploading ? '⏳ Przesyłanie...' : '📷 Aparat / Galeria'}
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                capture="environment"
+                                                style={{ display: 'none' }}
+                                                disabled={imageUploading}
+                                                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageUpload(f, 'create'); }}
+                                            />
+                                        </label>
+                                    </div>
+                                )}
+                            </div>
+
                             {/* Submit */}
                             <button
                                 onClick={handleCreateTask}
@@ -2578,6 +2721,188 @@ export default function EmployeePage() {
                             </button>
                         </div>
                     </div>
+                </div>
+            )}
+
+            {/* ═══ EDIT TASK MODAL ═══ */}
+            {editingTask && (
+                <div
+                    onClick={() => setEditingTask(null)}
+                    style={{
+                        position: 'fixed',
+                        inset: 0,
+                        background: 'rgba(0,0,0,0.6)',
+                        backdropFilter: 'blur(6px)',
+                        zIndex: 3100,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '1rem',
+                    }}
+                >
+                    <div
+                        onClick={e => e.stopPropagation()}
+                        style={{
+                            background: 'linear-gradient(165deg, #1a1a2e, #16213e)',
+                            border: '1px solid rgba(56, 189, 248, 0.15)',
+                            borderRadius: '1rem',
+                            width: '100%',
+                            maxWidth: '480px',
+                            maxHeight: '85vh',
+                            overflowY: 'auto',
+                            padding: '1.5rem',
+                        }}
+                    >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                            <h3 style={{ color: '#fff', fontSize: '1.05rem', margin: 0 }}>✏️ Edytuj zadanie</h3>
+                            <button onClick={() => setEditingTask(null)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: '1.2rem', cursor: 'pointer' }}>✕</button>
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                            {/* Title */}
+                            <div>
+                                <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>Tytuł</label>
+                                <input
+                                    value={editForm.title || ''}
+                                    onChange={e => setEditForm(p => ({ ...p, title: e.target.value }))}
+                                    style={{ width: '100%', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '0.5rem', padding: '0.6rem 0.85rem', color: '#fff', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }}
+                                />
+                            </div>
+
+                            {/* Description */}
+                            <div>
+                                <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>Opis</label>
+                                <textarea
+                                    value={editForm.description || ''}
+                                    onChange={e => setEditForm(p => ({ ...p, description: e.target.value }))}
+                                    rows={2}
+                                    style={{ width: '100%', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '0.5rem', padding: '0.6rem 0.85rem', color: '#fff', fontSize: '0.85rem', outline: 'none', resize: 'vertical', boxSizing: 'border-box' }}
+                                />
+                            </div>
+
+                            {/* Priority + Assignee row */}
+                            <div style={{ display: 'flex', gap: '0.75rem' }}>
+                                <div style={{ flex: 1 }}>
+                                    <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>Priorytet</label>
+                                    <select
+                                        value={editForm.priority || 'normal'}
+                                        onChange={e => setEditForm(p => ({ ...p, priority: e.target.value }))}
+                                        style={{ width: '100%', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '0.5rem', padding: '0.6rem 0.85rem', color: '#fff', fontSize: '0.85rem', outline: 'none' }}
+                                    >
+                                        <option value="low">Niski</option>
+                                        <option value="normal">Normalny</option>
+                                        <option value="urgent">Pilny</option>
+                                    </select>
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                    <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>Przypisz do</label>
+                                    <select
+                                        value={editForm.assigned_to_doctor_id || ''}
+                                        onChange={e => {
+                                            const selectedStaff = staffList.find(s => s.id === e.target.value);
+                                            setEditForm(p => ({ ...p, assigned_to_doctor_id: e.target.value, assigned_to_doctor_name: selectedStaff?.name || '' }));
+                                        }}
+                                        style={{ width: '100%', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '0.5rem', padding: '0.6rem 0.85rem', color: '#fff', fontSize: '0.85rem', outline: 'none' }}
+                                    >
+                                        <option value="">— Brak —</option>
+                                        {staffList.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                    </select>
+                                </div>
+                            </div>
+
+                            {/* Due date */}
+                            <div>
+                                <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>📅 Termin realizacji</label>
+                                <input
+                                    type="date"
+                                    value={editForm.due_date || ''}
+                                    onChange={e => setEditForm(p => ({ ...p, due_date: e.target.value }))}
+                                    style={{ width: '100%', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '0.5rem', padding: '0.6rem 0.85rem', color: '#fff', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }}
+                                />
+                            </div>
+
+                            {/* Photo */}
+                            <div>
+                                <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>📸 Zdjęcie</label>
+                                {editForm.image_url ? (
+                                    <div style={{ position: 'relative', display: 'inline-block' }}>
+                                        <img src={editForm.image_url} alt="" style={{ maxWidth: '100%', maxHeight: '120px', borderRadius: '0.5rem', border: '1px solid rgba(255,255,255,0.1)' }} />
+                                        <button
+                                            onClick={() => setEditForm(p => ({ ...p, image_url: '' }))}
+                                            style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.7)', border: 'none', color: '#fff', borderRadius: '50%', width: 22, height: 22, cursor: 'pointer', fontSize: '0.7rem' }}
+                                        >✕</button>
+                                    </div>
+                                ) : (
+                                    <label style={{
+                                        display: 'block',
+                                        padding: '0.6rem',
+                                        background: 'rgba(255,255,255,0.06)',
+                                        border: '1px solid rgba(255,255,255,0.12)',
+                                        borderRadius: '0.5rem',
+                                        color: 'rgba(255,255,255,0.6)',
+                                        fontSize: '0.8rem',
+                                        textAlign: 'center',
+                                        cursor: imageUploading ? 'wait' : 'pointer',
+                                        opacity: imageUploading ? 0.5 : 1,
+                                    }}>
+                                        {imageUploading ? '⏳ Przesyłanie...' : '📷 Dodaj zdjęcie'}
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            capture="environment"
+                                            style={{ display: 'none' }}
+                                            disabled={imageUploading}
+                                            onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageUpload(f, 'edit'); }}
+                                        />
+                                    </label>
+                                )}
+                            </div>
+
+                            {/* Save */}
+                            <button
+                                onClick={handleSaveEdit}
+                                disabled={editSaving}
+                                style={{
+                                    width: '100%',
+                                    padding: '0.75rem',
+                                    background: 'linear-gradient(135deg, #38bdf8, #0ea5e9)',
+                                    border: 'none',
+                                    borderRadius: '0.5rem',
+                                    color: '#fff',
+                                    fontSize: '0.9rem',
+                                    fontWeight: '600',
+                                    cursor: 'pointer',
+                                    opacity: editSaving ? 0.7 : 1,
+                                }}
+                            >
+                                {editSaving ? 'Zapisywanie...' : '💾 Zapisz zmiany'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ═══ ZOOMED IMAGE OVERLAY ═══ */}
+            {zoomedImage && (
+                <div
+                    onClick={() => setZoomedImage(null)}
+                    style={{
+                        position: 'fixed',
+                        inset: 0,
+                        background: 'rgba(0,0,0,0.85)',
+                        zIndex: 5000,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'zoom-out',
+                        padding: '1rem',
+                    }}
+                >
+                    <img
+                        src={zoomedImage}
+                        alt="Powiększone zdjęcie"
+                        style={{ maxWidth: '95vw', maxHeight: '90vh', borderRadius: '0.5rem', objectFit: 'contain' }}
+                    />
                 </div>
             )}
 
