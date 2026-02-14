@@ -11,6 +11,8 @@ import AssistantTeaser from "@/components/AssistantTeaser";
 import BackgroundVideo from "@/components/BackgroundVideo";
 import CookieConsent from "@/components/CookieConsent";
 import SplashScreen from "@/components/SplashScreen";
+import OpinionSurvey from "@/components/OpinionSurvey";
+import { OpinionProvider } from "@/context/OpinionContext";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
@@ -93,18 +95,21 @@ export default function RootLayout({
                 <CartProvider>
                     <AssistantProvider>
                         <SimulatorProvider>
-                            <SplashScreen>
-                                <BackgroundVideo videoId="vGAu6rdJ8WQ" />
-                                <CookieConsent />
-                                <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-                                    <Navbar />
-                                    {children}
-                                    <AssistantTeaser />
-                                    <PWAInstallPrompt />
-                                    <Footer />
-                                    <SimulatorModal />
-                                </div>
-                            </SplashScreen>
+                            <OpinionProvider>
+                                <SplashScreen>
+                                    <BackgroundVideo videoId="vGAu6rdJ8WQ" />
+                                    <CookieConsent />
+                                    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+                                        <Navbar />
+                                        {children}
+                                        <AssistantTeaser />
+                                        <PWAInstallPrompt />
+                                        <Footer />
+                                        <SimulatorModal />
+                                        <OpinionSurvey />
+                                    </div>
+                                </SplashScreen>
+                            </OpinionProvider>
                         </SimulatorProvider>
                     </AssistantProvider>
                 </CartProvider>

@@ -8,6 +8,7 @@ import styles from './Navbar.module.css';
 
 import { useAssistant } from "@/context/AssistantContext";
 import { useSimulator } from "@/context/SimulatorContext";
+import { useOpinion } from "@/context/OpinionContext";
 
 /* ═══════════════════════════════════════════
    FRAMER MOTION ANIMATION VARIANTS
@@ -119,6 +120,7 @@ export default function Navbar() {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const { openChat } = useAssistant();
     const { openSimulator } = useSimulator();
+    const { openSurvey } = useOpinion();
 
     const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
     const closeMenu = () => setIsMenuOpen(false);
@@ -295,9 +297,16 @@ export default function Navbar() {
                                                         <Link href="/zadatek" className={styles.dropdownLink} style={{ color: 'var(--color-primary)', fontWeight: 'bold' }}>
                                                             💳 Wpłać Zadatek
                                                         </Link>
-                                                        <Link href="/selfie" className={styles.dropdownLink} style={{ color: '#ec4899', fontWeight: 'bold' }}>
+                                                        <Link href="/selfie" className={styles.dropdownLink} style={{ color: '#ec4899', fontWeight: 'bold', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                                                             🤳 Selfie z Doktorem
                                                         </Link>
+                                                        <button
+                                                            onClick={() => { openSurvey(); setIsDropdownOpen(false); }}
+                                                            className={styles.dropdownLink}
+                                                            style={{ color: '#f59e0b', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'center', fontWeight: 'bold' }}
+                                                        >
+                                                            ⭐ Podziel się opinią
+                                                        </button>
                                                     </div>
                                                 </motion.div>
                                             )}
@@ -367,6 +376,13 @@ export default function Navbar() {
                             style={{ display: 'block', width: '100%', padding: '0.75rem 1.5rem', textAlign: 'center', color: '#60a5fa', background: 'transparent', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}
                         >
                             🤖 Wirtualny Asystent
+                        </button>
+                        <button
+                            onClick={() => { openSurvey(); closeMenu(); }}
+                            className={styles.mobileLink}
+                            style={{ display: 'block', width: '100%', padding: '0.75rem 1.5rem', textAlign: 'center', color: '#f59e0b', background: 'transparent', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}
+                        >
+                            ⭐ Podziel się opinią
                         </button>
                         <Link href="/strefa-pacjenta/" className={styles.mobileLink} onClick={closeMenu}>Strefa Pacjenta</Link>
                         <Link href="/kontakt" className={styles.mobileLink} onClick={closeMenu}>Kontakt</Link>
