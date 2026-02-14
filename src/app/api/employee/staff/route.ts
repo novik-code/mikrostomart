@@ -31,7 +31,7 @@ export async function GET() {
         // Get all users with 'employee' or 'admin' role
         const { data: roles, error } = await supabase
             .from('user_roles')
-            .select('user_id, email, role, granted_at, display_name')
+            .select('user_id, email, role, granted_at')
             .in('role', ['employee', 'admin'])
             .order('email', { ascending: true });
 
@@ -40,21 +40,27 @@ export async function GET() {
             return NextResponse.json({ error: 'Database error' }, { status: 500 });
         }
 
+        // Get names from employees table
+        const { data: employeesData } = await supabase
+            .from('employees')
+            .select('email, name')
+            .eq('is_active', true);
+
+        const nameMap = new Map((employeesData || []).map(e => [e.email, e.name]));
+
         // Deduplicate by user_id (a user can have both 'employee' and 'admin' roles)
-        const userMap = new Map<string, { id: string; email: string; displayName: string | null; roles: string[] }>();
+        const userMap = new Map<string, { id: string; email: string; name: string; roles: string[] }>();
         for (const r of (roles || [])) {
             const existing = userMap.get(r.user_id);
             if (existing) {
                 existing.roles.push(r.role);
-                // Keep the display_name if we find one
-                if (r.display_name && !existing.displayName) {
-                    existing.displayName = r.display_name;
-                }
             } else {
+                // Look up real name from employees table
+                const realName = nameMap.get(r.email);
                 userMap.set(r.user_id, {
                     id: r.user_id,
                     email: r.email,
-                    displayName: r.display_name || null,
+                    name: realName && realName !== r.email ? realName : r.email,
                     roles: [r.role],
                 });
             }
@@ -62,7 +68,7 @@ export async function GET() {
 
         const staff = Array.from(userMap.values()).map(u => ({
             id: u.id,
-            name: u.displayName || u.email,
+            name: u.name,
             email: u.email,
             roles: u.roles,
         }));
@@ -73,3 +79,4 @@ export async function GET() {
         return NextResponse.json({ error: 'Server error' }, { status: 500 });
     }
 }
+

@@ -1063,8 +1063,13 @@ export default function AdminPage() {
                                 }}>
                                     <div>
                                         <div style={{ fontWeight: 'bold', color: 'var(--color-text-main)', fontSize: '0.9rem' }}>
-                                            {emp.accountEmail}
+                                            {emp.name}
                                         </div>
+                                        {emp.name !== emp.accountEmail && (
+                                            <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', marginTop: '0.1rem' }}>
+                                                📧 {emp.accountEmail}
+                                            </div>
+                                        )}
                                         {emp.grantedAt && (
                                             <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', marginTop: '0.15rem' }}>
                                                 Dodano: {new Date(emp.grantedAt).toLocaleDateString('pl-PL')}

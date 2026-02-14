@@ -145,14 +145,19 @@ export async function GET() {
         // Also get currently registered employees that may not appear in Prodentis
         const registeredEmployees = (employeeRoles || [])
             .filter(r => !staff.some(s => s.accountEmail === r.email))
-            .map(r => ({
-                id: `supabase-${r.user_id}`,
-                name: r.email,
-                hasAccount: true,
-                accountEmail: r.email,
-                grantedAt: r.granted_at,
-                userId: r.user_id,
-            }));
+            .map(r => {
+                // Look up real name from employees table
+                const empRecord = employeesDbList.find(e => e.email === r.email);
+                const displayName = empRecord && empRecord.name !== r.email ? empRecord.name : r.email;
+                return {
+                    id: `supabase-${r.user_id}`,
+                    name: displayName,
+                    hasAccount: true,
+                    accountEmail: r.email,
+                    grantedAt: r.granted_at,
+                    userId: r.user_id,
+                };
+            });
 
         return NextResponse.json({
             staff,
