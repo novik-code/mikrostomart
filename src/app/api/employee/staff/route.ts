@@ -31,7 +31,7 @@ export async function GET() {
         // Get all users with 'employee' or 'admin' role
         const { data: roles, error } = await supabase
             .from('user_roles')
-            .select('user_id, email, role, granted_at')
+            .select('user_id, email, role, granted_at, display_name')
             .in('role', ['employee', 'admin'])
             .order('email', { ascending: true });
 
@@ -41,15 +41,20 @@ export async function GET() {
         }
 
         // Deduplicate by user_id (a user can have both 'employee' and 'admin' roles)
-        const userMap = new Map<string, { id: string; email: string; roles: string[] }>();
+        const userMap = new Map<string, { id: string; email: string; displayName: string | null; roles: string[] }>();
         for (const r of (roles || [])) {
             const existing = userMap.get(r.user_id);
             if (existing) {
                 existing.roles.push(r.role);
+                // Keep the display_name if we find one
+                if (r.display_name && !existing.displayName) {
+                    existing.displayName = r.display_name;
+                }
             } else {
                 userMap.set(r.user_id, {
                     id: r.user_id,
                     email: r.email,
+                    displayName: r.display_name || null,
                     roles: [r.role],
                 });
             }
@@ -57,7 +62,7 @@ export async function GET() {
 
         const staff = Array.from(userMap.values()).map(u => ({
             id: u.id,
-            name: u.email, // email as display name — can be enriched later
+            name: u.displayName || u.email,
             email: u.email,
             roles: u.roles,
         }));
