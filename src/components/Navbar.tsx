@@ -363,6 +363,8 @@ export default function Navbar() {
                         <Link href="/baza-wiedzy" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem' }}>📚 Baza Wiedzy</Link>
                         <Link href="/nowosielski" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem', color: '#d4af37', fontWeight: 'bold' }}>👨‍⚕️ Blog Dr. Marcin</Link>
                         <Link href="/sklep" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem' }}>🛍️ Sklep</Link>
+                        <Link href="/zadatek" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--color-primary)', fontWeight: 'bold' }}>💳 Wpłać Zadatek</Link>
+                        <Link href="/selfie" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem', color: '#ec4899', fontWeight: 'bold' }}>🤳 Selfie z Doktorem</Link>
                         <button
                             onClick={() => { openSimulator(); closeMenu(); }}
                             className={styles.mobileLink}

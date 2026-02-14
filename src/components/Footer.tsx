@@ -1,4 +1,5 @@
 import Image from 'next/image';
+import Link from 'next/link';
 import AnimatedPhone from "@/components/AnimatedPhone";
 import AnimatedAt from "@/components/AnimatedAt";
 import NovikCodeCredit from "@/components/NovikCodeCredit";
@@ -141,6 +142,36 @@ export default function Footer() {
                         Polityka Cookies
                     </a>
                 </div>
+            </div>
+
+            {/* Hidden staff access — deliberately inconspicuous */}
+            <div style={{
+                textAlign: 'center',
+                marginTop: '0.5rem',
+                position: 'relative',
+                zIndex: 2,
+            }}>
+                <details style={{ display: 'inline-block' }}>
+                    <summary style={{
+                        color: 'var(--color-surface-hover)',
+                        fontSize: '0.6rem',
+                        cursor: 'pointer',
+                        opacity: 0.3,
+                        listStyle: 'none',
+                        userSelect: 'none',
+                    }}>
+                        ·
+                    </summary>
+                    <div style={{
+                        display: 'flex',
+                        gap: '1rem',
+                        justifyContent: 'center',
+                        marginTop: '0.3rem',
+                    }}>
+                        <Link href="/pracownik" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.65rem', opacity: 0.35 }}>Pracownik</Link>
+                        <Link href="/admin" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.65rem', opacity: 0.35 }}>Admin</Link>
+                    </div>
+                </details>
             </div>
 
             {/* Novik Code Credit — very bottom of footer */}
