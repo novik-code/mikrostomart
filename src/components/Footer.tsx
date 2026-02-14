@@ -147,29 +147,33 @@ export default function Footer() {
             {/* Hidden staff access — deliberately inconspicuous */}
             <div style={{
                 textAlign: 'center',
-                marginTop: '0.5rem',
+                marginTop: '0.75rem',
+                paddingBottom: '0.25rem',
                 position: 'relative',
                 zIndex: 2,
             }}>
                 <details style={{ display: 'inline-block' }}>
                     <summary style={{
-                        color: 'var(--color-surface-hover)',
+                        color: 'var(--color-text-muted)',
                         fontSize: '0.6rem',
                         cursor: 'pointer',
-                        opacity: 0.3,
+                        opacity: 0.25,
                         listStyle: 'none',
                         userSelect: 'none',
+                        padding: '0.5rem 1rem',
+                        WebkitTapHighlightColor: 'transparent',
                     }}>
-                        ·
+                        Zaplecze
                     </summary>
                     <div style={{
                         display: 'flex',
-                        gap: '1rem',
+                        gap: '1.5rem',
                         justifyContent: 'center',
-                        marginTop: '0.3rem',
+                        marginTop: '0.4rem',
+                        padding: '0.3rem 0',
                     }}>
-                        <Link href="/pracownik" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.65rem', opacity: 0.35 }}>Pracownik</Link>
-                        <Link href="/admin" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.65rem', opacity: 0.35 }}>Admin</Link>
+                        <Link href="/pracownik" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.7rem', opacity: 0.5, padding: '0.3rem 0.5rem' }}>Pracownik</Link>
+                        <Link href="/admin" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.7rem', opacity: 0.5, padding: '0.3rem 0.5rem' }}>Admin</Link>
                     </div>
                 </details>
             </div>
