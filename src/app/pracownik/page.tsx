@@ -71,7 +71,7 @@ interface EmployeeTask {
     id: string;
     title: string;
     description: string | null;
-    status: 'todo' | 'in_progress' | 'done';
+    status: 'todo' | 'in_progress' | 'done' | 'archived';
     priority: 'low' | 'normal' | 'urgent';
     task_type: string | null;
     checklist_items: ChecklistItem[];
@@ -254,7 +254,7 @@ export default function EmployeePage() {
     // ─── Task Management State ───────────────────────────────
     const [tasks, setTasks] = useState<EmployeeTask[]>([]);
     const [tasksLoading, setTasksLoading] = useState(false);
-    const [taskFilter, setTaskFilter] = useState<'all' | 'todo' | 'in_progress' | 'done'>('all');
+    const [taskFilter, setTaskFilter] = useState<'all' | 'todo' | 'in_progress' | 'done' | 'archived'>('all');
     const [showTaskModal, setShowTaskModal] = useState(false);
     const [taskModalPrefill, setTaskModalPrefill] = useState<{
         patientId?: string;
@@ -289,7 +289,7 @@ export default function EmployeePage() {
     const [showLoginPopup, setShowLoginPopup] = useState(false);
     const [loginPopupTasks, setLoginPopupTasks] = useState<EmployeeTask[]>([]);
     const router = useRouter();
-    const { userId: currentUserId, email: currentUserEmail } = useUserRoles();
+    const { userId: currentUserId, email: currentUserEmail, isAdmin } = useUserRoles();
 
     const supabase = createBrowserClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -681,7 +681,7 @@ export default function EmployeePage() {
         }
     };
 
-    const handleUpdateStatus = async (taskId: string, newStatus: 'todo' | 'in_progress' | 'done') => {
+    const handleUpdateStatus = async (taskId: string, newStatus: 'todo' | 'in_progress' | 'done' | 'archived') => {
         try {
             const res = await fetch(`/api/employee/tasks/${taskId}`, {
                 method: 'PATCH',
@@ -719,8 +719,8 @@ export default function EmployeePage() {
         }));
     };
 
-    const getStatusLabel = (s: string) => s === 'todo' ? 'Do zrobienia' : s === 'in_progress' ? 'W trakcie' : 'Gotowe';
-    const getStatusColor = (s: string) => s === 'todo' ? '#94a3b8' : s === 'in_progress' ? '#f59e0b' : '#22c55e';
+    const getStatusLabel = (s: string) => s === 'todo' ? 'Do zrobienia' : s === 'in_progress' ? 'W trakcie' : s === 'archived' ? 'Archiwum' : 'Gotowe';
+    const getStatusColor = (s: string) => s === 'todo' ? '#94a3b8' : s === 'in_progress' ? '#f59e0b' : s === 'archived' ? '#6b7280' : '#22c55e';
     const getPriorityLabel = (p: string) => p === 'low' ? 'Niski' : p === 'normal' ? 'Normalny' : 'Pilne';
     const getPriorityColor = (p: string) => p === 'low' ? '#64748b' : p === 'normal' ? '#38bdf8' : '#ef4444';
     const getNextStatus = (s: string): 'todo' | 'in_progress' | 'done' => s === 'todo' ? 'in_progress' : s === 'in_progress' ? 'done' : 'todo';
@@ -756,7 +756,7 @@ export default function EmployeePage() {
     }, [currentUserId, currentUserEmail]);
 
     const filteredTasks = useMemo(() => {
-        const base = taskFilter === 'all' ? tasks : tasks.filter(t => t.status === taskFilter);
+        const base = taskFilter === 'all' ? tasks.filter(t => t.status !== 'archived') : taskFilter === 'archived' ? tasks.filter(t => t.status === 'archived') : tasks.filter(t => t.status === taskFilter);
         const priorityOrder: Record<string, number> = { urgent: 0, normal: 1, low: 2 };
         return [...base].sort((a, b) => {
             // My tasks first
@@ -2053,9 +2053,26 @@ export default function EmployeePage() {
                                     fontWeight: taskFilter === f ? '600' : '400',
                                 }}
                             >
-                                {f === 'all' ? `Wszystkie (${tasks.length})` : `${getStatusLabel(f)} (${tasks.filter(t => t.status === f).length})`}
+                                {f === 'all' ? `Wszystkie (${tasks.filter(t => t.status !== 'archived').length})` : `${getStatusLabel(f)} (${tasks.filter(t => t.status === f).length})`}
                             </button>
                         ))}
+                        {/* Archive tab */}
+                        <button
+                            onClick={() => setTaskFilter('archived')}
+                            style={{
+                                background: taskFilter === 'archived' ? 'rgba(107,114,128,0.2)' : 'rgba(255,255,255,0.05)',
+                                border: `1px solid ${taskFilter === 'archived' ? 'rgba(107,114,128,0.4)' : 'rgba(255,255,255,0.1)'}`,
+                                borderRadius: '0.5rem',
+                                padding: '0.4rem 0.85rem',
+                                color: taskFilter === 'archived' ? '#9ca3af' : 'rgba(255,255,255,0.4)',
+                                fontSize: '0.8rem',
+                                cursor: 'pointer',
+                                fontWeight: taskFilter === 'archived' ? '600' : '400',
+                                marginLeft: 'auto',
+                            }}
+                        >
+                            📁 Archiwum ({tasks.filter(t => t.status === 'archived').length})
+                        </button>
                     </div>
 
                     {/* Task list */}
@@ -2368,24 +2385,64 @@ export default function EmployeePage() {
                                                     >
                                                         ✏️ Edytuj
                                                     </button>
-                                                    <button
-                                                        onClick={() => handleDeleteTask(task.id)}
-                                                        style={{
-                                                            padding: '0.25rem 0.6rem',
-                                                            fontSize: '0.7rem',
-                                                            borderRadius: '0.35rem',
-                                                            border: '1px solid rgba(239,68,68,0.3)',
-                                                            background: 'transparent',
-                                                            color: '#ef4444',
-                                                            cursor: 'pointer',
-                                                            marginLeft: 'auto',
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            gap: '0.25rem',
-                                                        }}
-                                                    >
-                                                        <Trash2 size={12} /> Usuń
-                                                    </button>
+                                                    {task.status === 'done' && (
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); handleUpdateStatus(task.id, 'archived'); }}
+                                                            style={{
+                                                                padding: '0.25rem 0.6rem',
+                                                                fontSize: '0.7rem',
+                                                                borderRadius: '0.35rem',
+                                                                border: '1px solid rgba(107,114,128,0.3)',
+                                                                background: 'transparent',
+                                                                color: '#9ca3af',
+                                                                cursor: 'pointer',
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                gap: '0.25rem',
+                                                            }}
+                                                        >
+                                                            📁 Archiwizuj
+                                                        </button>
+                                                    )}
+                                                    {task.status === 'archived' && (
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); handleUpdateStatus(task.id, 'done'); }}
+                                                            style={{
+                                                                padding: '0.25rem 0.6rem',
+                                                                fontSize: '0.7rem',
+                                                                borderRadius: '0.35rem',
+                                                                border: '1px solid rgba(34,197,94,0.3)',
+                                                                background: 'transparent',
+                                                                color: '#22c55e',
+                                                                cursor: 'pointer',
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                gap: '0.25rem',
+                                                            }}
+                                                        >
+                                                            ↩️ Przywróć
+                                                        </button>
+                                                    )}
+                                                    {isAdmin && (
+                                                        <button
+                                                            onClick={() => handleDeleteTask(task.id)}
+                                                            style={{
+                                                                padding: '0.25rem 0.6rem',
+                                                                fontSize: '0.7rem',
+                                                                borderRadius: '0.35rem',
+                                                                border: '1px solid rgba(239,68,68,0.3)',
+                                                                background: 'transparent',
+                                                                color: '#ef4444',
+                                                                cursor: 'pointer',
+                                                                marginLeft: 'auto',
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                gap: '0.25rem',
+                                                            }}
+                                                        >
+                                                            <Trash2 size={12} /> Usuń
+                                                        </button>
+                                                    )}
                                                 </div>
                                                 <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.25)', marginTop: '0.5rem' }}>
                                                     Utworzone przez {(() => {
