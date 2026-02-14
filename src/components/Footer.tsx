@@ -154,10 +154,9 @@ export default function Footer() {
             }}>
                 <details style={{ display: 'inline-block' }}>
                     <summary style={{
-                        color: 'var(--color-text-muted)',
-                        fontSize: '0.6rem',
+                        color: 'rgba(255,255,255,0.06)',
+                        fontSize: '0.55rem',
                         cursor: 'pointer',
-                        opacity: 0.25,
                         listStyle: 'none',
                         userSelect: 'none',
                         padding: '0.5rem 1rem',
