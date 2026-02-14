@@ -90,7 +90,7 @@ export async function PATCH(
             'task_type', 'checklist_items', 'image_url',
             'patient_id', 'patient_name', 'appointment_type',
             'due_date', 'linked_appointment_date', 'linked_appointment_info',
-            'assigned_to_doctor_id', 'assigned_to_doctor_name',
+            'assigned_to_doctor_id', 'assigned_to_doctor_name', 'assigned_to',
         ];
 
         const updates: Record<string, any> = { updated_at: new Date().toISOString() };

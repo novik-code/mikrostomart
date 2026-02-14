@@ -63,6 +63,8 @@ interface Visit {
 interface ChecklistItem {
     label: string;
     done: boolean;
+    checked_by?: string;
+    checked_by_name?: string;
 }
 
 interface EmployeeTask {
@@ -82,6 +84,7 @@ interface EmployeeTask {
     linked_appointment_info: string | null;
     assigned_to_doctor_id: string | null;
     assigned_to_doctor_name: string | null;
+    assigned_to: { id: string; name: string }[];
     created_by_email: string | null;
     created_at: string;
     updated_at: string;
@@ -265,8 +268,7 @@ export default function EmployeePage() {
         task_type: '' as string,
         checklist_items: [] as ChecklistItem[],
         image_url: '' as string,
-        assigned_to_doctor_id: '',
-        assigned_to_doctor_name: '',
+        assigned_to: [] as { id: string; name: string }[],
         due_date: '',
         linked_appointment_date: '',
         linked_appointment_info: '',
@@ -519,6 +521,7 @@ export default function EmployeePage() {
                 const allTasks: EmployeeTask[] = data.tasks || [];
                 // Filter to tasks assigned to me
                 const myTasks = allTasks.filter(t =>
+                    (t.assigned_to || []).some(a => a.id === currentUserId) ||
                     t.assigned_to_doctor_id === currentUserId ||
                     t.created_by_email === currentUserEmail
                 );
@@ -557,8 +560,7 @@ export default function EmployeePage() {
             task_type: '',
             checklist_items: [],
             image_url: '',
-            assigned_to_doctor_id: '',
-            assigned_to_doctor_name: '',
+            assigned_to: [],
             due_date: '',
             linked_appointment_date: '',
             linked_appointment_info: '',
@@ -601,8 +603,7 @@ export default function EmployeePage() {
             priority: task.priority || 'normal',
             task_type: task.task_type || '',
             due_date: task.due_date || '',
-            assigned_to_doctor_id: task.assigned_to_doctor_id || '',
-            assigned_to_doctor_name: task.assigned_to_doctor_name || '',
+            assigned_to: task.assigned_to || [],
             image_url: task.image_url || '',
         });
     };
@@ -656,8 +657,10 @@ export default function EmployeePage() {
                 patient_id: taskModalPrefill?.patientId || null,
                 patient_name: taskModalPrefill?.patientName || null,
                 appointment_type: taskModalPrefill?.appointmentType || null,
-                assigned_to_doctor_id: taskForm.assigned_to_doctor_id || null,
-                assigned_to_doctor_name: taskForm.assigned_to_doctor_name || null,
+                assigned_to: taskForm.assigned_to.length > 0 ? taskForm.assigned_to : [],
+                // Keep legacy fields for backward compat
+                assigned_to_doctor_id: taskForm.assigned_to[0]?.id || null,
+                assigned_to_doctor_name: taskForm.assigned_to[0]?.name || null,
                 due_date: taskForm.due_date || null,
                 linked_appointment_date: taskForm.linked_appointment_date || null,
                 linked_appointment_info: taskForm.linked_appointment_info || null,
@@ -727,7 +730,13 @@ export default function EmployeePage() {
         const task = tasks.find(t => t.id === taskId);
         if (!task) return;
         const items = [...(task.checklist_items || [])];
-        items[itemIndex] = { ...items[itemIndex], done: !items[itemIndex].done };
+        const newDone = !items[itemIndex].done;
+        items[itemIndex] = {
+            ...items[itemIndex],
+            done: newDone,
+            checked_by: newDone ? (currentUserId || undefined) : undefined,
+            checked_by_name: newDone ? (staffList.find(s => s.id === currentUserId)?.name || currentUserEmail || undefined) : undefined,
+        };
         // Optimistic update
         setTasks(prev => prev.map(t => t.id === taskId ? { ...t, checklist_items: items } : t));
         try {
@@ -742,7 +751,8 @@ export default function EmployeePage() {
     };
 
     const isMyTask = useCallback((task: EmployeeTask) => {
-        return task.assigned_to_doctor_id === currentUserId || task.created_by_email === currentUserEmail;
+        const assignedToMe = (task.assigned_to || []).some(a => a.id === currentUserId);
+        return assignedToMe || task.assigned_to_doctor_id === currentUserId || task.created_by_email === currentUserEmail;
     }, [currentUserId, currentUserEmail]);
 
     const filteredTasks = useMemo(() => {
@@ -2158,7 +2168,14 @@ export default function EmployeePage() {
                                                     {task.patient_name && (
                                                         <span style={{ fontSize: '0.7rem', color: '#38bdf8' }}>👤 {task.patient_name}</span>
                                                     )}
-                                                    {task.assigned_to_doctor_name && (
+                                                    {(task.assigned_to || []).length > 0 && (
+                                                        <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap', marginTop: '0.15rem' }}>
+                                                            {task.assigned_to.map((a, i) => (
+                                                                <span key={i} style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.5)', background: 'rgba(255,255,255,0.06)', padding: '0.1rem 0.4rem', borderRadius: '0.25rem' }}>→ {a.name}</span>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                    {!(task.assigned_to || []).length && task.assigned_to_doctor_name && (
                                                         <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.5)' }}>→ {task.assigned_to_doctor_name}</span>
                                                     )}
                                                     {task.checklist_items && task.checklist_items.length > 0 && (
@@ -2275,6 +2292,16 @@ export default function EmployeePage() {
                                                                 }}>
                                                                     {ci.label}
                                                                 </span>
+                                                                {ci.done && ci.checked_by_name && (
+                                                                    <span style={{
+                                                                        fontSize: '0.6rem',
+                                                                        color: 'rgba(34,197,94,0.6)',
+                                                                        marginLeft: '0.3rem',
+                                                                        fontStyle: 'italic',
+                                                                    }}>
+                                                                        ({ci.checked_by_name})
+                                                                    </span>
+                                                                )}
                                                             </button>
                                                         ))}
                                                     </div>
@@ -2671,16 +2698,34 @@ export default function EmployeePage() {
                                     </select>
                                 </div>
                                 <div>
-                                    <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>Przypisz do</label>
+                                    <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>Przypisz do (wielu)</label>
+                                    {/* Selected chips */}
+                                    {taskForm.assigned_to.length > 0 && (
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', marginBottom: '0.4rem' }}>
+                                            {taskForm.assigned_to.map((a, i) => (
+                                                <span key={i} style={{
+                                                    display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+                                                    background: 'rgba(56,189,248,0.15)', border: '1px solid rgba(56,189,248,0.3)',
+                                                    borderRadius: '1rem', padding: '0.2rem 0.5rem', fontSize: '0.75rem', color: '#38bdf8',
+                                                }}>
+                                                    {a.name}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setTaskForm(p => ({ ...p, assigned_to: p.assigned_to.filter((_, idx) => idx !== i) }))}
+                                                        style={{ background: 'none', border: 'none', color: '#38bdf8', cursor: 'pointer', fontSize: '0.7rem', padding: 0, lineHeight: 1 }}
+                                                    >✕</button>
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
+                                    {/* Dropdown to add */}
                                     <select
-                                        value={taskForm.assigned_to_doctor_id}
+                                        value=""
                                         onChange={e => {
-                                            const doc = staffList.find(s => s.id === e.target.value);
-                                            setTaskForm(p => ({
-                                                ...p,
-                                                assigned_to_doctor_id: e.target.value,
-                                                assigned_to_doctor_name: doc?.name || '',
-                                            }));
+                                            const s = staffList.find(s => s.id === e.target.value);
+                                            if (s && !taskForm.assigned_to.some(a => a.id === s.id)) {
+                                                setTaskForm(p => ({ ...p, assigned_to: [...p.assigned_to, { id: s.id, name: s.name }] }));
+                                            }
                                         }}
                                         style={{
                                             width: '100%',
@@ -2693,261 +2738,102 @@ export default function EmployeePage() {
                                             outline: 'none',
                                         }}
                                     >
-                                        <option value="" style={{ background: '#1b2838' }}>— Nie przypisano —</option>
-                                        {staffList.map(s => (
+                                        <option value="" style={{ background: '#1b2838' }}>+ Dodaj pracownika...</option>
+                                        {staffList.filter(s => !taskForm.assigned_to.some(a => a.id === s.id)).map(s => (
                                             <option key={s.id} value={s.id} style={{ background: '#1b2838' }}>{s.name}</option>
                                         ))}
                                     </select>
                                 </div>
                             </div>
+                        </div>
 
-                            {/* Future appointments for due date */}
-                            {taskModalPrefill?.patientId && (
-                                <div>
-                                    <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.4rem', display: 'block' }}>
-                                        📅 Przyszłe wizyty pacjenta — termin realizacji
-                                    </label>
-                                    {futureAptsLoading ? (
-                                        <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', padding: '0.5rem 0' }}>Szukam wizyt...</div>
-                                    ) : futureAppointments.length === 0 ? (
-                                        <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.35)', padding: '0.5rem 0' }}>Brak zaplanowanych wizyt</div>
-                                    ) : (
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                                            {futureAppointments.map(apt => {
-                                                const d = new Date(apt.date);
-                                                const isSelected = taskForm.linked_appointment_date === d.toISOString();
-                                                return (
-                                                    <button
-                                                        key={apt.id}
-                                                        onClick={() => selectFutureAppointment(apt)}
-                                                        style={{
-                                                            background: isSelected ? 'rgba(56,189,248,0.15)' : 'rgba(255,255,255,0.04)',
-                                                            border: `1px solid ${isSelected ? 'rgba(56,189,248,0.4)' : 'rgba(255,255,255,0.08)'}`,
-                                                            borderRadius: '0.5rem',
-                                                            padding: '0.5rem 0.75rem',
-                                                            textAlign: 'left',
-                                                            cursor: 'pointer',
-                                                            color: isSelected ? '#38bdf8' : 'rgba(255,255,255,0.7)',
-                                                            fontSize: '0.8rem',
-                                                            display: 'flex',
-                                                            justifyContent: 'space-between',
-                                                            alignItems: 'center',
-                                                        }}
-                                                    >
-                                                        <span>
-                                                            {d.toLocaleDateString('pl-PL', { weekday: 'short', day: 'numeric', month: 'short' })}{' '}
-                                                            {d.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}
-                                                            <span style={{ color: 'rgba(255,255,255,0.4)', marginLeft: '0.5rem' }}>
-                                                                {apt.appointmentType}{apt.doctor?.name ? ` • ${apt.doctor.name}` : ''}
-                                                            </span>
-                                                        </span>
-                                                        {isSelected && <span style={{ fontWeight: '600' }}>✓</span>}
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-
-                            {/* Manual due date */}
+                        {/* Future appointments for due date */}
+                        {taskModalPrefill?.patientId && (
                             <div>
-                                <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>
-                                    {taskModalPrefill?.patientId ? 'Lub wybierz datę ręcznie' : 'Termin realizacji'}
+                                <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.4rem', display: 'block' }}>
+                                    📅 Przyszłe wizyty pacjenta — termin realizacji
                                 </label>
-                                <input
-                                    type="date"
-                                    value={taskForm.due_date}
-                                    onChange={e => setTaskForm(p => ({ ...p, due_date: e.target.value, linked_appointment_date: '', linked_appointment_info: '' }))}
-                                    style={{
-                                        width: '100%',
-                                        background: 'rgba(255,255,255,0.06)',
-                                        border: '1px solid rgba(255,255,255,0.12)',
-                                        borderRadius: '0.5rem',
-                                        padding: '0.6rem 0.85rem',
-                                        color: '#fff',
-                                        fontSize: '0.85rem',
-                                        outline: 'none',
-                                        boxSizing: 'border-box',
-                                    }}
-                                />
-                            </div>
-
-                            {/* Photo upload */}
-                            <div>
-                                <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>📸 Zdjęcie (opcjonalnie)</label>
-                                {taskForm.image_url ? (
-                                    <div style={{ position: 'relative', display: 'inline-block' }}>
-                                        <img src={taskForm.image_url} alt="" style={{ maxWidth: '100%', maxHeight: '120px', borderRadius: '0.5rem', border: '1px solid rgba(255,255,255,0.1)' }} />
-                                        <button
-                                            onClick={() => setTaskForm(p => ({ ...p, image_url: '' }))}
-                                            style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.7)', border: 'none', color: '#fff', borderRadius: '50%', width: 22, height: 22, cursor: 'pointer', fontSize: '0.7rem' }}
-                                        >✕</button>
-                                    </div>
+                                {futureAptsLoading ? (
+                                    <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', padding: '0.5rem 0' }}>Szukam wizyt...</div>
+                                ) : futureAppointments.length === 0 ? (
+                                    <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.35)', padding: '0.5rem 0' }}>Brak zaplanowanych wizyt</div>
                                 ) : (
-                                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                        <label style={{
-                                            flex: 1,
-                                            padding: '0.6rem',
-                                            background: 'rgba(255,255,255,0.06)',
-                                            border: '1px solid rgba(255,255,255,0.12)',
-                                            borderRadius: '0.5rem',
-                                            color: 'rgba(255,255,255,0.6)',
-                                            fontSize: '0.8rem',
-                                            textAlign: 'center',
-                                            cursor: imageUploading ? 'wait' : 'pointer',
-                                            opacity: imageUploading ? 0.5 : 1,
-                                        }}>
-                                            {imageUploading ? '⏳ Przesyłanie...' : '📷 Aparat / Galeria'}
-                                            <input
-                                                type="file"
-                                                accept="image/*"
-
-                                                style={{ display: 'none' }}
-                                                disabled={imageUploading}
-                                                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageUpload(f, 'create'); }}
-                                            />
-                                        </label>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                                        {futureAppointments.map(apt => {
+                                            const d = new Date(apt.date);
+                                            const isSelected = taskForm.linked_appointment_date === d.toISOString();
+                                            return (
+                                                <button
+                                                    key={apt.id}
+                                                    onClick={() => selectFutureAppointment(apt)}
+                                                    style={{
+                                                        background: isSelected ? 'rgba(56,189,248,0.15)' : 'rgba(255,255,255,0.04)',
+                                                        border: `1px solid ${isSelected ? 'rgba(56,189,248,0.4)' : 'rgba(255,255,255,0.08)'}`,
+                                                        borderRadius: '0.5rem',
+                                                        padding: '0.5rem 0.75rem',
+                                                        textAlign: 'left',
+                                                        cursor: 'pointer',
+                                                        color: isSelected ? '#38bdf8' : 'rgba(255,255,255,0.7)',
+                                                        fontSize: '0.8rem',
+                                                        display: 'flex',
+                                                        justifyContent: 'space-between',
+                                                        alignItems: 'center',
+                                                    }}
+                                                >
+                                                    <span>
+                                                        {d.toLocaleDateString('pl-PL', { weekday: 'short', day: 'numeric', month: 'short' })}{' '}
+                                                        {d.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}
+                                                        <span style={{ color: 'rgba(255,255,255,0.4)', marginLeft: '0.5rem' }}>
+                                                            {apt.appointmentType}{apt.doctor?.name ? ` • ${apt.doctor.name}` : ''}
+                                                        </span>
+                                                    </span>
+                                                    {isSelected && <span style={{ fontWeight: '600' }}>✓</span>}
+                                                </button>
+                                            );
+                                        })}
                                     </div>
                                 )}
                             </div>
+                        )}
 
-                            {/* Submit */}
-                            <button
-                                onClick={handleCreateTask}
-                                disabled={!taskForm.title.trim() || taskSaving}
+                        {/* Manual due date */}
+                        <div>
+                            <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>
+                                {taskModalPrefill?.patientId ? 'Lub wybierz datę ręcznie' : 'Termin realizacji'}
+                            </label>
+                            <input
+                                type="date"
+                                value={taskForm.due_date}
+                                onChange={e => setTaskForm(p => ({ ...p, due_date: e.target.value, linked_appointment_date: '', linked_appointment_info: '' }))}
                                 style={{
                                     width: '100%',
-                                    padding: '0.75rem',
-                                    background: taskForm.title.trim() ? 'linear-gradient(135deg, #38bdf8, #0ea5e9)' : 'rgba(255,255,255,0.1)',
-                                    border: 'none',
+                                    background: 'rgba(255,255,255,0.06)',
+                                    border: '1px solid rgba(255,255,255,0.12)',
                                     borderRadius: '0.5rem',
+                                    padding: '0.6rem 0.85rem',
                                     color: '#fff',
-                                    fontSize: '0.9rem',
-                                    fontWeight: '600',
-                                    cursor: taskForm.title.trim() ? 'pointer' : 'not-allowed',
-                                    opacity: taskSaving ? 0.7 : 1,
-                                    marginTop: '0.25rem',
+                                    fontSize: '0.85rem',
+                                    outline: 'none',
+                                    boxSizing: 'border-box',
                                 }}
-                            >
-                                {taskSaving ? 'Zapisywanie...' : 'Utwórz zadanie'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* ═══ EDIT TASK MODAL ═══ */}
-            {editingTask && (
-                <div
-                    onClick={() => setEditingTask(null)}
-                    style={{
-                        position: 'fixed',
-                        inset: 0,
-                        background: 'rgba(0,0,0,0.6)',
-                        backdropFilter: 'blur(6px)',
-                        zIndex: 3100,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        padding: '1rem',
-                    }}
-                >
-                    <div
-                        onClick={e => e.stopPropagation()}
-                        style={{
-                            background: 'linear-gradient(165deg, #1a1a2e, #16213e)',
-                            border: '1px solid rgba(56, 189, 248, 0.15)',
-                            borderRadius: '1rem',
-                            width: '100%',
-                            maxWidth: '480px',
-                            maxHeight: '85vh',
-                            overflowY: 'auto',
-                            padding: '1.5rem',
-                        }}
-                    >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                            <h3 style={{ color: '#fff', fontSize: '1.05rem', margin: 0 }}>✏️ Edytuj zadanie</h3>
-                            <button onClick={() => setEditingTask(null)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: '1.2rem', cursor: 'pointer' }}>✕</button>
+                            />
                         </div>
 
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                            {/* Title */}
-                            <div>
-                                <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>Tytuł</label>
-                                <input
-                                    value={editForm.title || ''}
-                                    onChange={e => setEditForm(p => ({ ...p, title: e.target.value }))}
-                                    style={{ width: '100%', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '0.5rem', padding: '0.6rem 0.85rem', color: '#fff', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }}
-                                />
-                            </div>
-
-                            {/* Description */}
-                            <div>
-                                <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>Opis</label>
-                                <textarea
-                                    value={editForm.description || ''}
-                                    onChange={e => setEditForm(p => ({ ...p, description: e.target.value }))}
-                                    rows={2}
-                                    style={{ width: '100%', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '0.5rem', padding: '0.6rem 0.85rem', color: '#fff', fontSize: '0.85rem', outline: 'none', resize: 'vertical', boxSizing: 'border-box' }}
-                                />
-                            </div>
-
-                            {/* Priority + Assignee row */}
-                            <div style={{ display: 'flex', gap: '0.75rem' }}>
-                                <div style={{ flex: 1 }}>
-                                    <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>Priorytet</label>
-                                    <select
-                                        value={editForm.priority || 'normal'}
-                                        onChange={e => setEditForm(p => ({ ...p, priority: e.target.value }))}
-                                        style={{ width: '100%', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '0.5rem', padding: '0.6rem 0.85rem', color: '#fff', fontSize: '0.85rem', outline: 'none' }}
-                                    >
-                                        <option value="low">Niski</option>
-                                        <option value="normal">Normalny</option>
-                                        <option value="urgent">Pilny</option>
-                                    </select>
+                        {/* Photo upload */}
+                        <div>
+                            <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>📸 Zdjęcie (opcjonalnie)</label>
+                            {taskForm.image_url ? (
+                                <div style={{ position: 'relative', display: 'inline-block' }}>
+                                    <img src={taskForm.image_url} alt="" style={{ maxWidth: '100%', maxHeight: '120px', borderRadius: '0.5rem', border: '1px solid rgba(255,255,255,0.1)' }} />
+                                    <button
+                                        onClick={() => setTaskForm(p => ({ ...p, image_url: '' }))}
+                                        style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.7)', border: 'none', color: '#fff', borderRadius: '50%', width: 22, height: 22, cursor: 'pointer', fontSize: '0.7rem' }}
+                                    >✕</button>
                                 </div>
-                                <div style={{ flex: 1 }}>
-                                    <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>Przypisz do</label>
-                                    <select
-                                        value={editForm.assigned_to_doctor_id || ''}
-                                        onChange={e => {
-                                            const selectedStaff = staffList.find(s => s.id === e.target.value);
-                                            setEditForm(p => ({ ...p, assigned_to_doctor_id: e.target.value, assigned_to_doctor_name: selectedStaff?.name || '' }));
-                                        }}
-                                        style={{ width: '100%', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '0.5rem', padding: '0.6rem 0.85rem', color: '#fff', fontSize: '0.85rem', outline: 'none' }}
-                                    >
-                                        <option value="">— Brak —</option>
-                                        {staffList.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                                    </select>
-                                </div>
-                            </div>
-
-                            {/* Due date */}
-                            <div>
-                                <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>📅 Termin realizacji</label>
-                                <input
-                                    type="date"
-                                    value={editForm.due_date || ''}
-                                    onChange={e => setEditForm(p => ({ ...p, due_date: e.target.value }))}
-                                    style={{ width: '100%', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '0.5rem', padding: '0.6rem 0.85rem', color: '#fff', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }}
-                                />
-                            </div>
-
-                            {/* Photo */}
-                            <div>
-                                <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>📸 Zdjęcie</label>
-                                {editForm.image_url ? (
-                                    <div style={{ position: 'relative', display: 'inline-block' }}>
-                                        <img src={editForm.image_url} alt="" style={{ maxWidth: '100%', maxHeight: '120px', borderRadius: '0.5rem', border: '1px solid rgba(255,255,255,0.1)' }} />
-                                        <button
-                                            onClick={() => setEditForm(p => ({ ...p, image_url: '' }))}
-                                            style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.7)', border: 'none', color: '#fff', borderRadius: '50%', width: 22, height: 22, cursor: 'pointer', fontSize: '0.7rem' }}
-                                        >✕</button>
-                                    </div>
-                                ) : (
+                            ) : (
+                                <div style={{ display: 'flex', gap: '0.5rem' }}>
                                     <label style={{
-                                        display: 'block',
+                                        flex: 1,
                                         padding: '0.6rem',
                                         background: 'rgba(255,255,255,0.06)',
                                         border: '1px solid rgba(255,255,255,0.12)',
@@ -2958,234 +2844,421 @@ export default function EmployeePage() {
                                         cursor: imageUploading ? 'wait' : 'pointer',
                                         opacity: imageUploading ? 0.5 : 1,
                                     }}>
-                                        {imageUploading ? '⏳ Przesyłanie...' : '📷 Dodaj zdjęcie'}
+                                        {imageUploading ? '⏳ Przesyłanie...' : '📷 Aparat / Galeria'}
                                         <input
                                             type="file"
                                             accept="image/*"
+
                                             style={{ display: 'none' }}
                                             disabled={imageUploading}
-                                            onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageUpload(f, 'edit'); }}
+                                            onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageUpload(f, 'create'); }}
                                         />
                                     </label>
-                                )}
-                            </div>
-
-                            {/* Save */}
-                            <button
-                                onClick={handleSaveEdit}
-                                disabled={editSaving}
-                                style={{
-                                    width: '100%',
-                                    padding: '0.75rem',
-                                    background: 'linear-gradient(135deg, #38bdf8, #0ea5e9)',
-                                    border: 'none',
-                                    borderRadius: '0.5rem',
-                                    color: '#fff',
-                                    fontSize: '0.9rem',
-                                    fontWeight: '600',
-                                    cursor: 'pointer',
-                                    opacity: editSaving ? 0.7 : 1,
-                                }}
-                            >
-                                {editSaving ? 'Zapisywanie...' : '💾 Zapisz zmiany'}
-                            </button>
+                                </div>
+                            )}
                         </div>
+
+                        {/* Submit */}
+                        <button
+                            onClick={handleCreateTask}
+                            disabled={!taskForm.title.trim() || taskSaving}
+                            style={{
+                                width: '100%',
+                                padding: '0.75rem',
+                                background: taskForm.title.trim() ? 'linear-gradient(135deg, #38bdf8, #0ea5e9)' : 'rgba(255,255,255,0.1)',
+                                border: 'none',
+                                borderRadius: '0.5rem',
+                                color: '#fff',
+                                fontSize: '0.9rem',
+                                fontWeight: '600',
+                                cursor: taskForm.title.trim() ? 'pointer' : 'not-allowed',
+                                opacity: taskSaving ? 0.7 : 1,
+                                marginTop: '0.25rem',
+                            }}
+                        >
+                            {taskSaving ? 'Zapisywanie...' : 'Utwórz zadanie'}
+                        </button>
                     </div>
                 </div>
-            )}
+            )
+            }
 
-            {/* ═══ ZOOMED IMAGE OVERLAY ═══ */}
-            {zoomedImage && (
-                <div
-                    onClick={() => setZoomedImage(null)}
-                    style={{
-                        position: 'fixed',
-                        inset: 0,
-                        background: 'rgba(0,0,0,0.85)',
-                        zIndex: 5000,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'zoom-out',
-                        padding: '1rem',
-                    }}
-                >
-                    <img
-                        src={zoomedImage}
-                        alt="Powiększone zdjęcie"
-                        style={{ maxWidth: '95vw', maxHeight: '90vh', borderRadius: '0.5rem', objectFit: 'contain' }}
-                    />
-                </div>
-            )}
-
-            {/* ═══ LOGIN TASK POPUP ═══ */}
-            {showLoginPopup && loginPopupTasks.length > 0 && (
-                <div
-                    onClick={() => setShowLoginPopup(false)}
-                    style={{
-                        position: 'fixed',
-                        inset: 0,
-                        background: 'rgba(0,0,0,0.6)',
-                        backdropFilter: 'blur(6px)',
-                        zIndex: 4000,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        padding: '1rem',
-                    }}
-                >
+            {/* ═══ EDIT TASK MODAL ═══ */}
+            {
+                editingTask && (
                     <div
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={() => setEditingTask(null)}
                         style={{
-                            background: 'linear-gradient(135deg, #0d1b2a 0%, #1b2838 100%)',
-                            border: '1px solid rgba(56, 189, 248, 0.25)',
-                            borderRadius: '1rem',
-                            width: '100%',
-                            maxWidth: '480px',
-                            boxShadow: '0 20px 60px rgba(0,0,0,0.7)',
-                            overflow: 'hidden',
-                        }}
-                    >
-                        {/* Popup Header */}
-                        <div style={{
-                            padding: '1.25rem 1.5rem',
-                            background: 'linear-gradient(135deg, rgba(56,189,248,0.12), rgba(56,189,248,0.04))',
-                            borderBottom: '1px solid rgba(56,189,248,0.15)',
+                            position: 'fixed',
+                            inset: 0,
+                            background: 'rgba(0,0,0,0.6)',
+                            backdropFilter: 'blur(6px)',
+                            zIndex: 3100,
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '0.75rem',
-                        }}>
+                            justifyContent: 'center',
+                            padding: '1rem',
+                        }}
+                    >
+                        <div
+                            onClick={e => e.stopPropagation()}
+                            style={{
+                                background: 'linear-gradient(165deg, #1a1a2e, #16213e)',
+                                border: '1px solid rgba(56, 189, 248, 0.15)',
+                                borderRadius: '1rem',
+                                width: '100%',
+                                maxWidth: '480px',
+                                maxHeight: '85vh',
+                                overflowY: 'auto',
+                                padding: '1.5rem',
+                            }}
+                        >
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                                <h3 style={{ color: '#fff', fontSize: '1.05rem', margin: 0 }}>✏️ Edytuj zadanie</h3>
+                                <button onClick={() => setEditingTask(null)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: '1.2rem', cursor: 'pointer' }}>✕</button>
+                            </div>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                {/* Title */}
+                                <div>
+                                    <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>Tytuł</label>
+                                    <input
+                                        value={editForm.title || ''}
+                                        onChange={e => setEditForm(p => ({ ...p, title: e.target.value }))}
+                                        style={{ width: '100%', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '0.5rem', padding: '0.6rem 0.85rem', color: '#fff', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }}
+                                    />
+                                </div>
+
+                                {/* Description */}
+                                <div>
+                                    <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>Opis</label>
+                                    <textarea
+                                        value={editForm.description || ''}
+                                        onChange={e => setEditForm(p => ({ ...p, description: e.target.value }))}
+                                        rows={2}
+                                        style={{ width: '100%', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '0.5rem', padding: '0.6rem 0.85rem', color: '#fff', fontSize: '0.85rem', outline: 'none', resize: 'vertical', boxSizing: 'border-box' }}
+                                    />
+                                </div>
+
+                                {/* Priority + Assignee row */}
+                                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                                    <div style={{ flex: 1 }}>
+                                        <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>Priorytet</label>
+                                        <select
+                                            value={editForm.priority || 'normal'}
+                                            onChange={e => setEditForm(p => ({ ...p, priority: e.target.value }))}
+                                            style={{ width: '100%', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '0.5rem', padding: '0.6rem 0.85rem', color: '#fff', fontSize: '0.85rem', outline: 'none' }}
+                                        >
+                                            <option value="low">Niski</option>
+                                            <option value="normal">Normalny</option>
+                                            <option value="urgent">Pilny</option>
+                                        </select>
+                                    </div>
+                                    <div style={{ flex: 1 }}>
+                                        <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>Przypisz do (wielu)</label>
+                                        {/* Selected chips */}
+                                        {(editForm.assigned_to || []).length > 0 && (
+                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', marginBottom: '0.4rem' }}>
+                                                {(editForm.assigned_to || []).map((a: any, i: number) => (
+                                                    <span key={i} style={{
+                                                        display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+                                                        background: 'rgba(56,189,248,0.15)', border: '1px solid rgba(56,189,248,0.3)',
+                                                        borderRadius: '1rem', padding: '0.2rem 0.5rem', fontSize: '0.75rem', color: '#38bdf8',
+                                                    }}>
+                                                        {a.name}
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setEditForm((p: any) => ({ ...p, assigned_to: (p.assigned_to || []).filter((_: any, idx: number) => idx !== i) }))}
+                                                            style={{ background: 'none', border: 'none', color: '#38bdf8', cursor: 'pointer', fontSize: '0.7rem', padding: 0, lineHeight: 1 }}
+                                                        >✕</button>
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        )}
+                                        <select
+                                            value=""
+                                            onChange={e => {
+                                                const selectedStaff = staffList.find(s => s.id === e.target.value);
+                                                if (selectedStaff && !(editForm.assigned_to || []).some((a: any) => a.id === selectedStaff.id)) {
+                                                    setEditForm((p: any) => ({ ...p, assigned_to: [...(p.assigned_to || []), { id: selectedStaff.id, name: selectedStaff.name }] }));
+                                                }
+                                            }}
+                                            style={{ width: '100%', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '0.5rem', padding: '0.6rem 0.85rem', color: '#fff', fontSize: '0.85rem', outline: 'none' }}
+                                        >
+                                            <option value="">+ Dodaj pracownika...</option>
+                                            {staffList.filter(s => !(editForm.assigned_to || []).some((a: any) => a.id === s.id)).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                        </select>
+                                    </div>
+                                </div>
+
+                                {/* Due date */}
+                                <div>
+                                    <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>📅 Termin realizacji</label>
+                                    <input
+                                        type="date"
+                                        value={editForm.due_date || ''}
+                                        onChange={e => setEditForm(p => ({ ...p, due_date: e.target.value }))}
+                                        style={{ width: '100%', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '0.5rem', padding: '0.6rem 0.85rem', color: '#fff', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }}
+                                    />
+                                </div>
+
+                                {/* Photo */}
+                                <div>
+                                    <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>📸 Zdjęcie</label>
+                                    {editForm.image_url ? (
+                                        <div style={{ position: 'relative', display: 'inline-block' }}>
+                                            <img src={editForm.image_url} alt="" style={{ maxWidth: '100%', maxHeight: '120px', borderRadius: '0.5rem', border: '1px solid rgba(255,255,255,0.1)' }} />
+                                            <button
+                                                onClick={() => setEditForm(p => ({ ...p, image_url: '' }))}
+                                                style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.7)', border: 'none', color: '#fff', borderRadius: '50%', width: 22, height: 22, cursor: 'pointer', fontSize: '0.7rem' }}
+                                            >✕</button>
+                                        </div>
+                                    ) : (
+                                        <label style={{
+                                            display: 'block',
+                                            padding: '0.6rem',
+                                            background: 'rgba(255,255,255,0.06)',
+                                            border: '1px solid rgba(255,255,255,0.12)',
+                                            borderRadius: '0.5rem',
+                                            color: 'rgba(255,255,255,0.6)',
+                                            fontSize: '0.8rem',
+                                            textAlign: 'center',
+                                            cursor: imageUploading ? 'wait' : 'pointer',
+                                            opacity: imageUploading ? 0.5 : 1,
+                                        }}>
+                                            {imageUploading ? '⏳ Przesyłanie...' : '📷 Dodaj zdjęcie'}
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                style={{ display: 'none' }}
+                                                disabled={imageUploading}
+                                                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageUpload(f, 'edit'); }}
+                                            />
+                                        </label>
+                                    )}
+                                </div>
+
+                                {/* Save */}
+                                <button
+                                    onClick={handleSaveEdit}
+                                    disabled={editSaving}
+                                    style={{
+                                        width: '100%',
+                                        padding: '0.75rem',
+                                        background: 'linear-gradient(135deg, #38bdf8, #0ea5e9)',
+                                        border: 'none',
+                                        borderRadius: '0.5rem',
+                                        color: '#fff',
+                                        fontSize: '0.9rem',
+                                        fontWeight: '600',
+                                        cursor: 'pointer',
+                                        opacity: editSaving ? 0.7 : 1,
+                                    }}
+                                >
+                                    {editSaving ? 'Zapisywanie...' : '💾 Zapisz zmiany'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
+
+            {/* ═══ ZOOMED IMAGE OVERLAY ═══ */}
+            {
+                zoomedImage && (
+                    <div
+                        onClick={() => setZoomedImage(null)}
+                        style={{
+                            position: 'fixed',
+                            inset: 0,
+                            background: 'rgba(0,0,0,0.85)',
+                            zIndex: 5000,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'zoom-out',
+                            padding: '1rem',
+                        }}
+                    >
+                        <img
+                            src={zoomedImage}
+                            alt="Powiększone zdjęcie"
+                            style={{ maxWidth: '95vw', maxHeight: '90vh', borderRadius: '0.5rem', objectFit: 'contain' }}
+                        />
+                    </div>
+                )
+            }
+
+            {/* ═══ LOGIN TASK POPUP ═══ */}
+            {
+                showLoginPopup && loginPopupTasks.length > 0 && (
+                    <div
+                        onClick={() => setShowLoginPopup(false)}
+                        style={{
+                            position: 'fixed',
+                            inset: 0,
+                            background: 'rgba(0,0,0,0.6)',
+                            backdropFilter: 'blur(6px)',
+                            zIndex: 4000,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            padding: '1rem',
+                        }}
+                    >
+                        <div
+                            onClick={(e) => e.stopPropagation()}
+                            style={{
+                                background: 'linear-gradient(135deg, #0d1b2a 0%, #1b2838 100%)',
+                                border: '1px solid rgba(56, 189, 248, 0.25)',
+                                borderRadius: '1rem',
+                                width: '100%',
+                                maxWidth: '480px',
+                                boxShadow: '0 20px 60px rgba(0,0,0,0.7)',
+                                overflow: 'hidden',
+                            }}
+                        >
+                            {/* Popup Header */}
                             <div style={{
-                                width: '40px',
-                                height: '40px',
-                                borderRadius: '50%',
-                                background: 'linear-gradient(135deg, #38bdf8, #0ea5e9)',
+                                padding: '1.25rem 1.5rem',
+                                background: 'linear-gradient(135deg, rgba(56,189,248,0.12), rgba(56,189,248,0.04))',
+                                borderBottom: '1px solid rgba(56,189,248,0.15)',
                                 display: 'flex',
                                 alignItems: 'center',
-                                justifyContent: 'center',
-                                flexShrink: 0,
+                                gap: '0.75rem',
                             }}>
-                                <Bell size={20} color="#fff" />
-                            </div>
-                            <div style={{ flex: 1 }}>
-                                <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: '600', color: '#fff' }}>
-                                    Twoje zadania do realizacji
-                                </h3>
-                                <p style={{ margin: 0, fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', marginTop: '0.15rem' }}>
-                                    Masz {loginPopupTasks.length}{loginPopupTasks.length >= 5 ? '+' : ''} {loginPopupTasks.length === 1 ? 'zadanie' : loginPopupTasks.length < 5 ? 'zadania' : 'zadań'} do wykonania
-                                </p>
-                            </div>
-                            <button
-                                onClick={() => setShowLoginPopup(false)}
-                                style={{
-                                    background: 'rgba(255,255,255,0.08)',
-                                    border: '1px solid rgba(255,255,255,0.15)',
-                                    borderRadius: '0.5rem',
-                                    width: '28px',
-                                    height: '28px',
+                                <div style={{
+                                    width: '40px',
+                                    height: '40px',
+                                    borderRadius: '50%',
+                                    background: 'linear-gradient(135deg, #38bdf8, #0ea5e9)',
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    color: '#fff',
-                                    fontSize: '0.9rem',
-                                    cursor: 'pointer',
-                                }}
-                            >✕</button>
-                        </div>
-
-                        {/* Task list */}
-                        <div style={{ padding: '0.75rem 1.25rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                            {loginPopupTasks.map(task => {
-                                const overdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== 'done';
-                                return (
-                                    <div key={task.id} style={{
-                                        padding: '0.65rem 0.85rem',
-                                        background: overdue ? 'rgba(239, 68, 68, 0.08)' : 'rgba(255,255,255,0.04)',
-                                        border: `1px solid ${overdue ? 'rgba(239, 68, 68, 0.25)' : 'rgba(255,255,255,0.08)'}`,
-                                        borderRadius: '0.6rem',
+                                    flexShrink: 0,
+                                }}>
+                                    <Bell size={20} color="#fff" />
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                    <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: '600', color: '#fff' }}>
+                                        Twoje zadania do realizacji
+                                    </h3>
+                                    <p style={{ margin: 0, fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', marginTop: '0.15rem' }}>
+                                        Masz {loginPopupTasks.length}{loginPopupTasks.length >= 5 ? '+' : ''} {loginPopupTasks.length === 1 ? 'zadanie' : loginPopupTasks.length < 5 ? 'zadania' : 'zadań'} do wykonania
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => setShowLoginPopup(false)}
+                                    style={{
+                                        background: 'rgba(255,255,255,0.08)',
+                                        border: '1px solid rgba(255,255,255,0.15)',
+                                        borderRadius: '0.5rem',
+                                        width: '28px',
+                                        height: '28px',
                                         display: 'flex',
                                         alignItems: 'center',
-                                        gap: '0.6rem',
-                                    }}>
-                                        {/* Priority indicator */}
-                                        <div style={{
-                                            width: '8px',
-                                            height: '8px',
-                                            borderRadius: '50%',
-                                            background: getPriorityColor(task.priority),
-                                            flexShrink: 0,
-                                        }} />
-                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                        justifyContent: 'center',
+                                        color: '#fff',
+                                        fontSize: '0.9rem',
+                                        cursor: 'pointer',
+                                    }}
+                                >✕</button>
+                            </div>
+
+                            {/* Task list */}
+                            <div style={{ padding: '0.75rem 1.25rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                {loginPopupTasks.map(task => {
+                                    const overdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== 'done';
+                                    return (
+                                        <div key={task.id} style={{
+                                            padding: '0.65rem 0.85rem',
+                                            background: overdue ? 'rgba(239, 68, 68, 0.08)' : 'rgba(255,255,255,0.04)',
+                                            border: `1px solid ${overdue ? 'rgba(239, 68, 68, 0.25)' : 'rgba(255,255,255,0.08)'}`,
+                                            borderRadius: '0.6rem',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.6rem',
+                                        }}>
+                                            {/* Priority indicator */}
                                             <div style={{
-                                                color: '#fff',
-                                                fontSize: '0.85rem',
-                                                fontWeight: '500',
-                                                whiteSpace: 'nowrap',
-                                                overflow: 'hidden',
-                                                textOverflow: 'ellipsis',
-                                            }}>
-                                                {task.title}
-                                            </div>
-                                            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.15rem' }}>
-                                                {task.due_date && (
-                                                    <span style={{
-                                                        fontSize: '0.7rem',
-                                                        color: overdue ? '#ef4444' : 'rgba(255,255,255,0.4)',
-                                                        fontWeight: overdue ? '600' : '400',
-                                                    }}>
-                                                        {overdue ? '⚠ Termin minął: ' : '📅 '}
-                                                        {new Date(task.due_date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' })}
-                                                    </span>
-                                                )}
-                                                {task.priority === 'urgent' && (
-                                                    <span style={{ fontSize: '0.7rem', color: '#ef4444', fontWeight: '600' }}>⚡ Pilne</span>
-                                                )}
+                                                width: '8px',
+                                                height: '8px',
+                                                borderRadius: '50%',
+                                                background: getPriorityColor(task.priority),
+                                                flexShrink: 0,
+                                            }} />
+                                            <div style={{ flex: 1, minWidth: 0 }}>
+                                                <div style={{
+                                                    color: '#fff',
+                                                    fontSize: '0.85rem',
+                                                    fontWeight: '500',
+                                                    whiteSpace: 'nowrap',
+                                                    overflow: 'hidden',
+                                                    textOverflow: 'ellipsis',
+                                                }}>
+                                                    {task.title}
+                                                </div>
+                                                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.15rem' }}>
+                                                    {task.due_date && (
+                                                        <span style={{
+                                                            fontSize: '0.7rem',
+                                                            color: overdue ? '#ef4444' : 'rgba(255,255,255,0.4)',
+                                                            fontWeight: overdue ? '600' : '400',
+                                                        }}>
+                                                            {overdue ? '⚠ Termin minął: ' : '📅 '}
+                                                            {new Date(task.due_date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' })}
+                                                        </span>
+                                                    )}
+                                                    {task.priority === 'urgent' && (
+                                                        <span style={{ fontSize: '0.7rem', color: '#ef4444', fontWeight: '600' }}>⚡ Pilne</span>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
+                                    );
+                                })}
+                            </div>
 
-                        {/* Action buttons */}
-                        <div style={{ padding: '0.75rem 1.25rem 1.25rem', display: 'flex', gap: '0.5rem' }}>
-                            <button
-                                onClick={() => {
-                                    setShowLoginPopup(false);
-                                    setActiveTab('zadania');
-                                }}
-                                style={{
-                                    flex: 1,
-                                    padding: '0.65rem',
-                                    background: 'linear-gradient(135deg, #38bdf8, #0ea5e9)',
-                                    border: 'none',
-                                    borderRadius: '0.5rem',
-                                    color: '#fff',
-                                    fontSize: '0.85rem',
-                                    fontWeight: '600',
-                                    cursor: 'pointer',
-                                }}
-                            >
-                                Przejdź do zadań
-                            </button>
-                            <button
-                                onClick={() => setShowLoginPopup(false)}
-                                style={{
-                                    padding: '0.65rem 1rem',
-                                    background: 'rgba(255,255,255,0.06)',
-                                    border: '1px solid rgba(255,255,255,0.12)',
-                                    borderRadius: '0.5rem',
-                                    color: 'rgba(255,255,255,0.6)',
-                                    fontSize: '0.85rem',
-                                    cursor: 'pointer',
-                                }}
-                            >
-                                Zamknij
-                            </button>
+                            {/* Action buttons */}
+                            <div style={{ padding: '0.75rem 1.25rem 1.25rem', display: 'flex', gap: '0.5rem' }}>
+                                <button
+                                    onClick={() => {
+                                        setShowLoginPopup(false);
+                                        setActiveTab('zadania');
+                                    }}
+                                    style={{
+                                        flex: 1,
+                                        padding: '0.65rem',
+                                        background: 'linear-gradient(135deg, #38bdf8, #0ea5e9)',
+                                        border: 'none',
+                                        borderRadius: '0.5rem',
+                                        color: '#fff',
+                                        fontSize: '0.85rem',
+                                        fontWeight: '600',
+                                        cursor: 'pointer',
+                                    }}
+                                >
+                                    Przejdź do zadań
+                                </button>
+                                <button
+                                    onClick={() => setShowLoginPopup(false)}
+                                    style={{
+                                        padding: '0.65rem 1rem',
+                                        background: 'rgba(255,255,255,0.06)',
+                                        border: '1px solid rgba(255,255,255,0.12)',
+                                        borderRadius: '0.5rem',
+                                        color: 'rgba(255,255,255,0.6)',
+                                        fontSize: '0.85rem',
+                                        cursor: 'pointer',
+                                    }}
+                                >
+                                    Zamknij
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* CSS animations */}
             <style jsx global>{`
@@ -3194,6 +3267,6 @@ export default function EmployeePage() {
                     to { transform: rotate(360deg); }
                 }
             `}</style>
-        </div>
+        </div >
     );
 }

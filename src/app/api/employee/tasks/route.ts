@@ -100,6 +100,7 @@ export async function POST(req: Request) {
             linked_appointment_info: body.linked_appointment_info || null,
             assigned_to_doctor_id: body.assigned_to_doctor_id || null,
             assigned_to_doctor_name: body.assigned_to_doctor_name || null,
+            assigned_to: body.assigned_to || [],
             created_by: user.id,
             created_by_email: user.email,
         };
@@ -127,7 +128,8 @@ export async function POST(req: Request) {
             tgMessage += `📋 <b>${task.title}</b>\n`;
             if (task.task_type) tgMessage += `🦷 Typ: ${task.task_type}\n`;
             if (task.patient_name) tgMessage += `👤 Pacjent: ${task.patient_name}\n`;
-            if (task.assigned_to_doctor_name) tgMessage += `→ Przypisano do: ${task.assigned_to_doctor_name}\n`;
+            const assignedNames = (task.assigned_to || []).map((a: any) => a.name).filter(Boolean);
+            if (assignedNames.length > 0) tgMessage += `→ Przypisano do: ${assignedNames.join(', ')}\n`;
             tgMessage += `📅 Termin: ${dueDateStr}\n`;
             tgMessage += `✍️ Utworzył: ${user.email}`;
 
