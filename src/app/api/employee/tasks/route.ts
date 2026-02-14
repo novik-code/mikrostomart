@@ -88,6 +88,8 @@ export async function POST(req: Request) {
             description: body.description?.trim() || null,
             status: body.status || 'todo',
             priority: body.priority || 'normal',
+            task_type: body.task_type || null,
+            checklist_items: body.checklist_items || [],
             patient_id: body.patient_id || null,
             patient_name: body.patient_name || null,
             appointment_type: body.appointment_type || null,

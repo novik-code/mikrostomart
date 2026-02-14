@@ -60,12 +60,19 @@ interface Visit {
     };
 }
 
+interface ChecklistItem {
+    label: string;
+    done: boolean;
+}
+
 interface EmployeeTask {
     id: string;
     title: string;
     description: string | null;
     status: 'todo' | 'in_progress' | 'done';
     priority: 'low' | 'normal' | 'urgent';
+    task_type: string | null;
+    checklist_items: ChecklistItem[];
     patient_id: string | null;
     patient_name: string | null;
     appointment_type: string | null;
@@ -91,6 +98,7 @@ interface FutureAppointment {
 interface StaffMember {
     id: string;
     name: string;
+    email?: string;
 }
 
 interface ScheduleDay {
@@ -126,6 +134,45 @@ const PRODENTIS_COLORS: Record<string, { bg: string; border: string; text: strin
 };
 
 const DEFAULT_COLOR = { bg: '#14b8a6', border: '#0d9488', text: '#fff', label: 'Inne' };
+
+// ─── Task Type Checklists (from Ściąga Tiny PDF) ─────────────────────
+const TASK_TYPE_CHECKLISTS: Record<string, { label: string; icon: string; items: string[] }> = {
+    'modele_archiwalne': {
+        label: 'Modele Archiwalne',
+        icon: '📦',
+        items: ['Zgrać skany'],
+    },
+    'modele_analityczne': {
+        label: 'Modele Analityczne / Wax Up',
+        icon: '🔬',
+        items: ['Zgrać skany'],
+    },
+    'korona_zab': {
+        label: 'Korona na Zębie',
+        icon: '🦷',
+        items: ['Zgrać dane', 'Projekt', 'Frez', 'Piec', 'Charakteryzacja', 'Wycienienie', 'Spr'],
+    },
+    'korona_implant': {
+        label: 'Korona na Implancie',
+        icon: '🔩',
+        items: ['Zgrać dane', 'Stworzyć model', 'Projekt', 'Frez', 'Piec', 'Charakteryzacja', 'Skleić z ti base', 'Spr'],
+    },
+    'chirurgia': {
+        label: 'Chirurgia / Implantologia',
+        icon: '🏥',
+        items: ['Zgrać CBCT', 'Zgrać skany', 'Projekt szablonu', 'Podać rozmiar implantów', 'Zamówić implant', 'Zamówić multiunit', 'Druk', 'Sprawdzić dziurki', 'Sterylizacja', 'Wpłacony zadatek'],
+    },
+    'ortodoncja': {
+        label: 'Ortodoncja',
+        icon: '😁',
+        items: ['Wgrać dane do CC', 'Pokazać wizualizacje', 'Akceptacja', 'Wpłata 50%', 'Zamówienie nakładek'],
+    },
+    'inne': {
+        label: 'Inne',
+        icon: '📋',
+        items: [],
+    },
+};
 
 // ─── Badge letter map (from Prodentis API /api/badge-types) ──────
 const BADGE_LETTERS: Record<string, string> = {
@@ -214,6 +261,8 @@ export default function EmployeePage() {
         title: '',
         description: '',
         priority: 'normal' as 'low' | 'normal' | 'urgent',
+        task_type: '' as string,
+        checklist_items: [] as ChecklistItem[],
         assigned_to_doctor_id: '',
         assigned_to_doctor_name: '',
         due_date: '',
@@ -411,6 +460,7 @@ export default function EmployeePage() {
             const allStaff: StaffMember[] = (data.staff || []).map((s: any) => ({
                 id: s.id,
                 name: s.name || s.email,
+                email: s.email,
             }));
             setStaffList(allStaff);
         } catch (err) {
@@ -494,6 +544,8 @@ export default function EmployeePage() {
             title: '',
             description: '',
             priority: 'normal',
+            task_type: '',
+            checklist_items: [],
             assigned_to_doctor_id: '',
             assigned_to_doctor_name: '',
             due_date: '',
@@ -527,6 +579,8 @@ export default function EmployeePage() {
                 title: taskForm.title,
                 description: taskForm.description || null,
                 priority: taskForm.priority,
+                task_type: taskForm.task_type || null,
+                checklist_items: taskForm.checklist_items.length > 0 ? taskForm.checklist_items : null,
                 patient_id: taskModalPrefill?.patientId || null,
                 patient_name: taskModalPrefill?.patientName || null,
                 appointment_type: taskModalPrefill?.appointmentType || null,
@@ -595,6 +649,25 @@ export default function EmployeePage() {
     const getPriorityLabel = (p: string) => p === 'low' ? 'Niski' : p === 'normal' ? 'Normalny' : 'Pilne';
     const getPriorityColor = (p: string) => p === 'low' ? '#64748b' : p === 'normal' ? '#38bdf8' : '#ef4444';
     const getNextStatus = (s: string): 'todo' | 'in_progress' | 'done' => s === 'todo' ? 'in_progress' : s === 'in_progress' ? 'done' : 'todo';
+
+    // Toggle a checklist item and persist to DB
+    const handleToggleChecklist = async (taskId: string, itemIndex: number) => {
+        const task = tasks.find(t => t.id === taskId);
+        if (!task) return;
+        const items = [...(task.checklist_items || [])];
+        items[itemIndex] = { ...items[itemIndex], done: !items[itemIndex].done };
+        // Optimistic update
+        setTasks(prev => prev.map(t => t.id === taskId ? { ...t, checklist_items: items } : t));
+        try {
+            await fetch(`/api/employee/tasks/${taskId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ checklist_items: items }),
+            });
+        } catch (err) {
+            console.error('[Tasks] Checklist update error:', err);
+        }
+    };
 
     const isMyTask = useCallback((task: EmployeeTask) => {
         return task.assigned_to_doctor_id === currentUserId || task.created_by_email === currentUserEmail;
@@ -2002,6 +2075,17 @@ export default function EmployeePage() {
                                                     {task.assigned_to_doctor_name && (
                                                         <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.5)' }}>→ {task.assigned_to_doctor_name}</span>
                                                     )}
+                                                    {task.checklist_items && task.checklist_items.length > 0 && (
+                                                        <span style={{
+                                                            fontSize: '0.65rem',
+                                                            color: task.checklist_items.every(ci => ci.done) ? '#22c55e' : 'rgba(255,255,255,0.4)',
+                                                            background: task.checklist_items.every(ci => ci.done) ? 'rgba(34,197,94,0.1)' : 'rgba(255,255,255,0.05)',
+                                                            padding: '0.1rem 0.35rem',
+                                                            borderRadius: '0.25rem',
+                                                        }}>
+                                                            ☑ {task.checklist_items.filter(ci => ci.done).length}/{task.checklist_items.length}
+                                                        </span>
+                                                    )}
                                                     {task.due_date && (
                                                         <span style={{
                                                             fontSize: '0.7rem',
@@ -2042,6 +2126,74 @@ export default function EmployeePage() {
                                                         {task.description}
                                                     </p>
                                                 )}
+
+                                                {/* Checklist */}
+                                                {task.checklist_items && task.checklist_items.length > 0 && (
+                                                    <div style={{
+                                                        background: 'rgba(255,255,255,0.03)',
+                                                        border: '1px solid rgba(255,255,255,0.08)',
+                                                        borderRadius: '0.5rem',
+                                                        padding: '0.6rem 0.75rem',
+                                                        marginBottom: '0.5rem',
+                                                    }}>
+                                                        <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.35rem', display: 'flex', justifyContent: 'space-between' }}>
+                                                            <span>Checklist {task.task_type && TASK_TYPE_CHECKLISTS[task.task_type] ? `— ${TASK_TYPE_CHECKLISTS[task.task_type].icon} ${TASK_TYPE_CHECKLISTS[task.task_type].label}` : ''}</span>
+                                                            <span>{task.checklist_items.filter(ci => ci.done).length}/{task.checklist_items.length} ✓</span>
+                                                        </div>
+                                                        {/* Progress bar */}
+                                                        <div style={{ height: '3px', background: 'rgba(255,255,255,0.08)', borderRadius: '2px', marginBottom: '0.4rem', overflow: 'hidden' }}>
+                                                            <div style={{
+                                                                width: `${(task.checklist_items.filter(ci => ci.done).length / task.checklist_items.length) * 100}%`,
+                                                                height: '100%',
+                                                                background: task.checklist_items.every(ci => ci.done) ? '#22c55e' : '#38bdf8',
+                                                                borderRadius: '2px',
+                                                                transition: 'width 0.3s',
+                                                            }} />
+                                                        </div>
+                                                        {task.checklist_items.map((ci, idx) => (
+                                                            <button
+                                                                key={idx}
+                                                                onClick={(e) => { e.stopPropagation(); handleToggleChecklist(task.id, idx); }}
+                                                                style={{
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    gap: '0.5rem',
+                                                                    width: '100%',
+                                                                    padding: '0.3rem 0.15rem',
+                                                                    border: 'none',
+                                                                    background: 'transparent',
+                                                                    cursor: 'pointer',
+                                                                    textAlign: 'left',
+                                                                    transition: 'all 0.15s',
+                                                                }}
+                                                            >
+                                                                <span style={{
+                                                                    width: '18px',
+                                                                    height: '18px',
+                                                                    borderRadius: '4px',
+                                                                    border: ci.done ? '2px solid #22c55e' : '2px solid rgba(255,255,255,0.2)',
+                                                                    background: ci.done ? 'rgba(34,197,94,0.15)' : 'transparent',
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    justifyContent: 'center',
+                                                                    flexShrink: 0,
+                                                                    fontSize: '0.65rem',
+                                                                    color: '#22c55e',
+                                                                }}>
+                                                                    {ci.done && '✓'}
+                                                                </span>
+                                                                <span style={{
+                                                                    fontSize: '0.8rem',
+                                                                    color: ci.done ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.7)',
+                                                                    textDecoration: ci.done ? 'line-through' : 'none',
+                                                                }}>
+                                                                    {ci.label}
+                                                                </span>
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                )}
+
                                                 {task.linked_appointment_info && (
                                                     <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.5rem' }}>
                                                         🔗 Powiązana wizyta: {task.linked_appointment_info}
@@ -2087,7 +2239,11 @@ export default function EmployeePage() {
                                                     </button>
                                                 </div>
                                                 <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.25)', marginTop: '0.5rem' }}>
-                                                    Utworzone przez {task.created_by_email} • {new Date(task.created_at).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                                    Utworzone przez {(() => {
+                                                        const creator = staffList.find(s => s.name !== task.created_by_email && staffList.some(st => st.id && st.name));
+                                                        const match = staffList.find(s => s.email === task.created_by_email);
+                                                        return match ? match.name : task.created_by_email;
+                                                    })()} • {new Date(task.created_at).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                                                 </div>
                                             </div>
                                         )}
@@ -2179,6 +2335,56 @@ export default function EmployeePage() {
                                     )}
                                 </div>
                             )}
+                            {/* Task Type Selector */}
+                            <div>
+                                <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>Typ zadania</label>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                                    {Object.entries(TASK_TYPE_CHECKLISTS).map(([key, val]) => (
+                                        <button
+                                            key={key}
+                                            type="button"
+                                            onClick={() => {
+                                                const items = val.items.map(label => ({ label, done: false }));
+                                                setTaskForm(p => ({ ...p, task_type: key, checklist_items: items }));
+                                            }}
+                                            style={{
+                                                padding: '0.4rem 0.75rem',
+                                                fontSize: '0.78rem',
+                                                borderRadius: '0.5rem',
+                                                border: taskForm.task_type === key
+                                                    ? '1px solid rgba(56,189,248,0.5)'
+                                                    : '1px solid rgba(255,255,255,0.1)',
+                                                background: taskForm.task_type === key
+                                                    ? 'rgba(56,189,248,0.15)'
+                                                    : 'rgba(255,255,255,0.04)',
+                                                color: taskForm.task_type === key ? '#38bdf8' : 'rgba(255,255,255,0.6)',
+                                                cursor: 'pointer',
+                                                fontWeight: taskForm.task_type === key ? '600' : '400',
+                                                transition: 'all 0.15s',
+                                            }}
+                                        >
+                                            {val.icon} {val.label}
+                                        </button>
+                                    ))}
+                                </div>
+                                {/* Checklist preview */}
+                                {taskForm.checklist_items.length > 0 && (
+                                    <div style={{
+                                        marginTop: '0.6rem',
+                                        background: 'rgba(255,255,255,0.03)',
+                                        border: '1px solid rgba(255,255,255,0.08)',
+                                        borderRadius: '0.5rem',
+                                        padding: '0.6rem 0.85rem',
+                                    }}>
+                                        <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.4rem' }}>Checklist ({taskForm.checklist_items.length} kroków)</div>
+                                        {taskForm.checklist_items.map((item, i) => (
+                                            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.15rem 0', fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)' }}>
+                                                <span style={{ color: 'rgba(255,255,255,0.25)' }}>☐</span> {item.label}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
 
                             {/* Title */}
                             <div>
