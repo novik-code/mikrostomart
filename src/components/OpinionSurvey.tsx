@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useOpinion } from '@/context/OpinionContext';
-import { X, Star, ChevronRight, ChevronLeft, Loader2, Copy, ExternalLink, MessageSquareHeart } from 'lucide-react';
+import { X, Star, ChevronRight, ChevronLeft, Loader2, Copy, ExternalLink, MessageSquareHeart, Check } from 'lucide-react';
 
 /* ══════════════════════════════════════════════════════
    TYPES
@@ -32,7 +32,7 @@ const PROCEDURES_OPTIONS = [
     'Inne',
 ];
 
-const GOOGLE_REVIEW_URL = 'https://www.google.com/maps/place/Mikrostomart+-+Mikroskopowa+Stomatologia+Artystyczna/@50.677682,17.866163,17z/';
+const GOOGLE_REVIEW_URL = 'https://g.page/r/CSYarbrDoYcDEAE/review';
 
 /* ══════════════════════════════════════════════════════
    COMPONENT
@@ -445,7 +445,7 @@ export default function OpinionSurvey() {
                                         Twoja opinia jest gotowa!
                                     </h2>
                                     <p style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', marginTop: '0.3rem' }}>
-                                        Możesz ją skopiować i udostępnić w Google
+                                        Kliknij poniżej — tekst zostanie skopiowany automatycznie
                                     </p>
                                 </div>
 
@@ -467,33 +467,17 @@ export default function OpinionSurvey() {
                                     }}>
                                         &ldquo;{generatedReview}&rdquo;
                                     </p>
-                                    <button
-                                        onClick={handleCopy}
-                                        style={{
-                                            position: 'absolute',
-                                            top: '0.5rem',
-                                            right: '0.5rem',
-                                            background: 'rgba(255,255,255,0.06)',
-                                            border: '1px solid rgba(255,255,255,0.1)',
-                                            borderRadius: '0.35rem',
-                                            padding: '0.3rem 0.5rem',
-                                            color: copied ? '#22c55e' : 'rgba(255,255,255,0.4)',
-                                            cursor: 'pointer',
-                                            fontSize: '0.7rem',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '0.2rem',
-                                        }}
-                                    >
-                                        <Copy size={12} /> {copied ? 'Skopiowano!' : 'Kopiuj'}
-                                    </button>
                                 </div>
 
-                                {/* CTA: Google */}
-                                <a
-                                    href={GOOGLE_REVIEW_URL}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
+                                {/* CTA: Copy + Open Google */}
+                                <button
+                                    onClick={() => {
+                                        navigator.clipboard.writeText(generatedReview);
+                                        setCopied(true);
+                                        setTimeout(() => {
+                                            window.open(GOOGLE_REVIEW_URL, '_blank', 'noopener,noreferrer');
+                                        }, 300);
+                                    }}
                                     style={{
                                         display: 'flex',
                                         alignItems: 'center',
@@ -501,28 +485,61 @@ export default function OpinionSurvey() {
                                         gap: '0.5rem',
                                         width: '100%',
                                         padding: '0.75rem',
-                                        background: 'linear-gradient(135deg, #4285F4, #34A853)',
+                                        background: copied ? 'linear-gradient(135deg, #22c55e, #16a34a)' : 'linear-gradient(135deg, #4285F4, #34A853)',
                                         border: 'none',
                                         borderRadius: '0.5rem',
                                         color: '#fff',
                                         fontSize: '0.9rem',
                                         fontWeight: '600',
-                                        textDecoration: 'none',
                                         cursor: 'pointer',
                                         marginBottom: '0.5rem',
+                                        transition: 'all 0.3s',
                                     }}
                                 >
-                                    <ExternalLink size={16} /> Zostaw opinię w Google ⭐⭐⭐⭐⭐
-                                </a>
+                                    {copied ? (
+                                        <><Check size={16} /> Skopiowano! Otwieramy Google...</>
+                                    ) : (
+                                        <><ExternalLink size={16} /> Wystaw opinię w Google ⭐⭐⭐⭐⭐</>
+                                    )}
+                                </button>
 
-                                <p style={{
+                                <div style={{
                                     textAlign: 'center',
-                                    color: 'rgba(255,255,255,0.3)',
-                                    fontSize: '0.7rem',
-                                    margin: '0.5rem 0 0',
+                                    marginTop: '0.75rem',
+                                    padding: '0.6rem',
+                                    background: 'rgba(255,255,255,0.03)',
+                                    borderRadius: '0.5rem',
+                                    border: '1px solid rgba(255,255,255,0.06)',
                                 }}>
-                                    Skopiuj tekst powyżej i wklej go w formularz Google Reviews
-                                </p>
+                                    <p style={{
+                                        color: 'rgba(255,255,255,0.45)',
+                                        fontSize: '0.75rem',
+                                        margin: 0,
+                                        lineHeight: 1.5,
+                                    }}>
+                                        📋 Po kliknięciu tekst zostanie skopiowany.<br />
+                                        W oknie Google wklej go (Ctrl+V / ⌘V) i wystaw ⭐⭐⭐⭐⭐
+                                    </p>
+                                </div>
+
+                                {/* Manual copy fallback */}
+                                <button
+                                    onClick={handleCopy}
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: '0.3rem',
+                                        margin: '0.75rem auto 0',
+                                        background: 'none',
+                                        border: 'none',
+                                        color: 'rgba(255,255,255,0.3)',
+                                        cursor: 'pointer',
+                                        fontSize: '0.75rem',
+                                    }}
+                                >
+                                    <Copy size={12} /> {copied ? 'Skopiowano!' : 'Kopiuj tekst ręcznie'}
+                                </button>
                             </>
                         ) : (
                             /* Negative sentiment */
