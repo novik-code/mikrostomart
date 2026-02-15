@@ -288,6 +288,21 @@ export default function EmployeePage() {
     const [taskHistoryExpanded, setTaskHistoryExpanded] = useState(false);
     const [showLoginPopup, setShowLoginPopup] = useState(false);
     const [loginPopupTasks, setLoginPopupTasks] = useState<EmployeeTask[]>([]);
+    // ─── Enhanced Task Management State ──────────────────
+    const [taskViewMode, setTaskViewMode] = useState<'list' | 'kanban' | 'calendar'>('list');
+    const [taskSearchQuery, setTaskSearchQuery] = useState('');
+    const [filterAssignee, setFilterAssignee] = useState('');
+    const [filterType, setFilterType] = useState('');
+    const [filterPriority, setFilterPriority] = useState('');
+    const [taskComments, setTaskComments] = useState<Record<string, any[]>>({});
+    const [commentInput, setCommentInput] = useState('');
+    const [commentLoading, setCommentLoading] = useState(false);
+    const [allLabels, setAllLabels] = useState<{ id: string; name: string; color: string }[]>([]);
+    const [taskLabelMap, setTaskLabelMap] = useState<Record<string, string[]>>({});
+    const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
+    const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+    const [calendarMonth, setCalendarMonth] = useState(new Date());
+    const [notifPermission, setNotifPermission] = useState<NotificationPermission>('default');
     const router = useRouter();
     const { userId: currentUserId, email: currentUserEmail, isAdmin } = useUserRoles();
 
@@ -755,25 +770,148 @@ export default function EmployeePage() {
         return assignedToMe || task.assigned_to_doctor_id === currentUserId || task.created_by_email === currentUserEmail;
     }, [currentUserId, currentUserEmail]);
 
+    // ─── Enhanced: Comments ────────────────────────────────
+    const fetchComments = useCallback(async (taskId: string) => {
+        try {
+            const res = await fetch(`/api/employee/tasks/${taskId}/comments`);
+            if (!res.ok) return;
+            const data = await res.json();
+            setTaskComments(prev => ({ ...prev, [taskId]: data.comments || [] }));
+        } catch { } // silent
+    }, []);
+
+    const handlePostComment = async (taskId: string) => {
+        if (!commentInput.trim()) return;
+        setCommentLoading(true);
+        try {
+            const authorName = staffList.find(s => s.id === currentUserId)?.name || currentUserEmail || '';
+            const res = await fetch(`/api/employee/tasks/${taskId}/comments`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content: commentInput, authorName }),
+            });
+            if (!res.ok) throw new Error('Failed');
+            setCommentInput('');
+            fetchComments(taskId);
+            // Browser notification for others
+            if (notifPermission === 'granted') {
+                const task = tasks.find(t => t.id === taskId);
+                if (task) {
+                    new Notification('Nowy komentarz', { body: `${authorName}: ${commentInput.substring(0, 80)}`, icon: '/favicon.ico' });
+                }
+            }
+        } catch (err) {
+            console.error('[Comments] Post error:', err);
+        } finally {
+            setCommentLoading(false);
+        }
+    };
+
+    // ─── Enhanced: Labels ──────────────────────────────────
+    const fetchLabels = useCallback(async () => {
+        try {
+            const res = await fetch('/api/employee/tasks/labels');
+            if (!res.ok) return;
+            const data = await res.json();
+            setAllLabels(data.labels || []);
+        } catch { } // silent
+    }, []);
+
+    useEffect(() => { fetchLabels(); }, [fetchLabels]);
+
+    // ─── Enhanced: Browser Notifications ───────────────────
+    useEffect(() => {
+        if (typeof window !== 'undefined' && 'Notification' in window) {
+            setNotifPermission(Notification.permission);
+            if (Notification.permission === 'default') {
+                Notification.requestPermission().then(p => setNotifPermission(p));
+            }
+        }
+    }, []);
+
+    // ─── Enhanced: Kanban Drag & Drop ──────────────────────
+    const handleDragStart = (taskId: string) => setDraggedTaskId(taskId);
+    const handleDragEnd = () => { setDraggedTaskId(null); setDragOverColumn(null); };
+    const handleDragOver = (e: React.DragEvent, col: string) => {
+        e.preventDefault();
+        setDragOverColumn(col);
+    };
+    const handleDrop = async (col: string) => {
+        if (!draggedTaskId) return;
+        const newStatus = col as 'todo' | 'in_progress' | 'done';
+        handleUpdateStatus(draggedTaskId, newStatus);
+        setDraggedTaskId(null);
+        setDragOverColumn(null);
+    };
+
+    // ─── Enhanced: Calendar helpers ────────────────────────
+    const getCalendarDays = useMemo(() => {
+        const year = calendarMonth.getFullYear();
+        const month = calendarMonth.getMonth();
+        const firstDay = new Date(year, month, 1).getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const startOffset = firstDay === 0 ? 6 : firstDay - 1; // Mon=0
+        const days: (number | null)[] = [];
+        for (let i = 0; i < startOffset; i++) days.push(null);
+        for (let d = 1; d <= daysInMonth; d++) days.push(d);
+        return days;
+    }, [calendarMonth]);
+
+    const tasksForDate = useCallback((day: number) => {
+        const year = calendarMonth.getFullYear();
+        const month = calendarMonth.getMonth();
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        return tasks.filter(t => t.due_date === dateStr && t.status !== 'archived');
+    }, [tasks, calendarMonth]);
+
+    // ─── Enhanced: Filtered Tasks with search/filters ──────
     const filteredTasks = useMemo(() => {
-        const base = taskFilter === 'all' ? tasks.filter(t => t.status !== 'archived') : taskFilter === 'archived' ? tasks.filter(t => t.status === 'archived') : tasks.filter(t => t.status === taskFilter);
+        let base = taskFilter === 'all'
+            ? tasks.filter(t => t.status !== 'archived')
+            : taskFilter === 'archived'
+                ? tasks.filter(t => t.status === 'archived')
+                : tasks.filter(t => t.status === taskFilter);
+
+        // Text search
+        if (taskSearchQuery.trim()) {
+            const q = taskSearchQuery.toLowerCase();
+            base = base.filter(t =>
+                t.title.toLowerCase().includes(q) ||
+                (t.patient_name || '').toLowerCase().includes(q) ||
+                (t.description || '').toLowerCase().includes(q) ||
+                (t.assigned_to || []).some(a => a.name.toLowerCase().includes(q))
+            );
+        }
+        // Assignee filter
+        if (filterAssignee) {
+            base = base.filter(t =>
+                (t.assigned_to || []).some(a => a.id === filterAssignee) ||
+                t.assigned_to_doctor_id === filterAssignee
+            );
+        }
+        // Type filter
+        if (filterType) {
+            base = base.filter(t => t.task_type === filterType);
+        }
+        // Priority filter
+        if (filterPriority) {
+            base = base.filter(t => t.priority === filterPriority);
+        }
+
         const priorityOrder: Record<string, number> = { urgent: 0, normal: 1, low: 2 };
         return [...base].sort((a, b) => {
-            // My tasks first
             const aMine = isMyTask(a) ? 0 : 1;
             const bMine = isMyTask(b) ? 0 : 1;
             if (aMine !== bMine) return aMine - bMine;
-            // Then by priority
             const aPri = priorityOrder[a.priority] ?? 1;
             const bPri = priorityOrder[b.priority] ?? 1;
             if (aPri !== bPri) return aPri - bPri;
-            // Then by due date (earliest first)
             if (a.due_date && b.due_date) return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
             if (a.due_date) return -1;
             if (b.due_date) return 1;
             return 0;
         });
-    }, [tasks, taskFilter, isMyTask]);
+    }, [tasks, taskFilter, taskSearchQuery, filterAssignee, filterType, filterPriority, isMyTask]);
 
     return (
         <div
@@ -1994,15 +2132,16 @@ export default function EmployeePage() {
             {activeTab === 'zadania' && (
                 <div style={{
                     padding: '2rem',
-                    maxWidth: '900px',
+                    maxWidth: taskViewMode === 'kanban' ? '1200px' : '900px',
                     margin: '0 auto',
+                    transition: 'max-width 0.3s',
                 }}>
                     {/* Header */}
                     <div style={{
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
-                        marginBottom: '1.25rem',
+                        marginBottom: '1rem',
                     }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                             <CheckSquare size={24} style={{ color: '#38bdf8' }} />
@@ -2011,27 +2150,109 @@ export default function EmployeePage() {
                             </h2>
                             <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)' }}>({tasks.length})</span>
                         </div>
-                        <button
-                            onClick={() => openTaskModal()}
-                            style={{
-                                background: 'linear-gradient(135deg, #38bdf8, #0ea5e9)',
-                                border: 'none',
-                                borderRadius: '0.5rem',
-                                padding: '0.5rem 1rem',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.4rem',
-                                color: '#fff',
-                                fontSize: '0.85rem',
-                                fontWeight: '600',
-                                cursor: 'pointer',
-                            }}
-                        >
-                            <Plus size={16} /> Dodaj zadanie
-                        </button>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            {/* View toggle */}
+                            <div style={{ display: 'flex', background: 'rgba(255,255,255,0.05)', borderRadius: '0.5rem', border: '1px solid rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+                                {([
+                                    { id: 'list' as const, icon: '☰', label: 'Lista' },
+                                    { id: 'kanban' as const, icon: '▦', label: 'Kanban' },
+                                    { id: 'calendar' as const, icon: '📅', label: 'Kalendarz' },
+                                ]).map(v => (
+                                    <button
+                                        key={v.id}
+                                        onClick={() => setTaskViewMode(v.id)}
+                                        title={v.label}
+                                        style={{
+                                            padding: '0.35rem 0.6rem',
+                                            background: taskViewMode === v.id ? 'rgba(56,189,248,0.15)' : 'transparent',
+                                            border: 'none',
+                                            color: taskViewMode === v.id ? '#38bdf8' : 'rgba(255,255,255,0.4)',
+                                            cursor: 'pointer',
+                                            fontSize: '0.8rem',
+                                            fontWeight: taskViewMode === v.id ? '600' : '400',
+                                        }}
+                                    >
+                                        {v.icon}
+                                    </button>
+                                ))}
+                            </div>
+                            <button
+                                onClick={() => openTaskModal()}
+                                style={{
+                                    background: 'linear-gradient(135deg, #38bdf8, #0ea5e9)',
+                                    border: 'none',
+                                    borderRadius: '0.5rem',
+                                    padding: '0.5rem 1rem',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.4rem',
+                                    color: '#fff',
+                                    fontSize: '0.85rem',
+                                    fontWeight: '600',
+                                    cursor: 'pointer',
+                                }}
+                            >
+                                <Plus size={16} /> Dodaj
+                            </button>
+                        </div>
                     </div>
 
-                    {/* Filter bar */}
+                    {/* Search + Filters */}
+                    <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '0.6rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                        <input
+                            type="text"
+                            placeholder="🔍 Szukaj zadania..."
+                            value={taskSearchQuery}
+                            onChange={e => setTaskSearchQuery(e.target.value)}
+                            style={{
+                                flex: '1 1 200px',
+                                minWidth: '150px',
+                                padding: '0.4rem 0.75rem',
+                                background: 'rgba(255,255,255,0.05)',
+                                border: '1px solid rgba(255,255,255,0.1)',
+                                borderRadius: '0.5rem',
+                                color: '#fff',
+                                fontSize: '0.8rem',
+                                outline: 'none',
+                            }}
+                        />
+                        <select
+                            value={filterAssignee}
+                            onChange={e => setFilterAssignee(e.target.value)}
+                            style={{ padding: '0.4rem 0.5rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.5rem', color: filterAssignee ? '#38bdf8' : 'rgba(255,255,255,0.5)', fontSize: '0.75rem', cursor: 'pointer' }}
+                        >
+                            <option value="">Wszyscy</option>
+                            {staffList.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                        </select>
+                        <select
+                            value={filterType}
+                            onChange={e => setFilterType(e.target.value)}
+                            style={{ padding: '0.4rem 0.5rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.5rem', color: filterType ? '#a855f7' : 'rgba(255,255,255,0.5)', fontSize: '0.75rem', cursor: 'pointer' }}
+                        >
+                            <option value="">Typ: Wszystkie</option>
+                            {Object.entries(TASK_TYPE_CHECKLISTS).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
+                        </select>
+                        <select
+                            value={filterPriority}
+                            onChange={e => setFilterPriority(e.target.value)}
+                            style={{ padding: '0.4rem 0.5rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.5rem', color: filterPriority ? getPriorityColor(filterPriority) : 'rgba(255,255,255,0.5)', fontSize: '0.75rem', cursor: 'pointer' }}
+                        >
+                            <option value="">Priorytet: Wszystkie</option>
+                            <option value="urgent">⚡ Pilne</option>
+                            <option value="normal">Normalny</option>
+                            <option value="low">Niski</option>
+                        </select>
+                        {(taskSearchQuery || filterAssignee || filterType || filterPriority) && (
+                            <button
+                                onClick={() => { setTaskSearchQuery(''); setFilterAssignee(''); setFilterType(''); setFilterPriority(''); }}
+                                style={{ padding: '0.35rem 0.6rem', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '0.5rem', color: '#ef4444', fontSize: '0.7rem', cursor: 'pointer' }}
+                            >
+                                ✕ Wyczyść
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Status filter bar */}
                     <div style={{
                         display: 'flex',
                         gap: '0.4rem',
@@ -2056,7 +2277,6 @@ export default function EmployeePage() {
                                 {f === 'all' ? `Wszystkie (${tasks.filter(t => t.status !== 'archived').length})` : `${getStatusLabel(f)} (${tasks.filter(t => t.status === f).length})`}
                             </button>
                         ))}
-                        {/* Archive tab */}
                         <button
                             onClick={() => setTaskFilter('archived')}
                             style={{
@@ -2075,482 +2295,661 @@ export default function EmployeePage() {
                         </button>
                     </div>
 
-                    {/* Task list */}
-                    {tasksLoading ? (
-                        <div style={{ textAlign: 'center', padding: '3rem 0' }}>
+                    {/* ═══ LIST VIEW ═══ */}
+                    {taskViewMode === 'list' && (<>
+                        {tasksLoading ? (
+                            <div style={{ textAlign: 'center', padding: '3rem 0' }}>
+                                <div style={{
+                                    width: '36px',
+                                    height: '36px',
+                                    border: '3px solid rgba(56, 189, 248, 0.2)',
+                                    borderTop: '3px solid #38bdf8',
+                                    borderRadius: '50%',
+                                    animation: 'spin 0.8s linear infinite',
+                                    margin: '0 auto 1rem',
+                                }} />
+                                <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.85rem' }}>Ładowanie zadań...</p>
+                            </div>
+                        ) : filteredTasks.length === 0 ? (
                             <div style={{
-                                width: '36px',
-                                height: '36px',
-                                border: '3px solid rgba(56, 189, 248, 0.2)',
-                                borderTop: '3px solid #38bdf8',
-                                borderRadius: '50%',
-                                animation: 'spin 0.8s linear infinite',
-                                margin: '0 auto 1rem',
-                            }} />
-                            <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.85rem' }}>Ładowanie zadań...</p>
-                        </div>
-                    ) : filteredTasks.length === 0 ? (
-                        <div style={{
-                            background: 'rgba(255,255,255,0.03)',
-                            border: '1px solid rgba(56, 189, 248, 0.12)',
-                            borderRadius: '1rem',
-                            padding: '3rem 2rem',
-                            textAlign: 'center',
-                        }}>
-                            <div style={{ fontSize: '3rem', marginBottom: '0.75rem' }}>📋</div>
-                            <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.9rem', marginBottom: '1rem' }}>
-                                {taskFilter === 'all' ? 'Brak zadań. Dodaj pierwsze zadanie!' : `Brak zadań w kategorii "${getStatusLabel(taskFilter)}"`}
-                            </p>
-                            {taskFilter === 'all' && <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.8rem' }}>Możesz też utworzyć zadanie z poziomu grafiku — kliknij w wizytę pacjenta</p>}
-                        </div>
-                    ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                            {filteredTasks.map(task => {
-                                const mine = isMyTask(task);
-                                return (
-                                    <div key={task.id} style={{
-                                        background: mine ? 'rgba(56, 189, 248, 0.04)' : 'rgba(255,255,255,0.03)',
-                                        border: `1px solid ${task.status === 'done' ? 'rgba(34, 197, 94, 0.15)' : mine ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255,255,255,0.08)'}`,
-                                        borderLeft: mine ? '3px solid #38bdf8' : undefined,
-                                        borderRadius: '0.75rem',
-                                        overflow: 'hidden',
-                                        opacity: task.status === 'done' ? 0.7 : 1,
-                                    }}>
-                                        {/* Task card main row */}
-                                        <div
-                                            style={{
-                                                padding: '0.85rem 1rem',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '0.75rem',
-                                                cursor: 'pointer',
-                                            }}
-                                            onClick={() => {
-                                                const newId = expandedTaskId === task.id ? null : task.id;
-                                                setExpandedTaskId(newId);
-                                                setTaskHistoryExpanded(false);
-                                                if (newId) {
-                                                    // Fetch history
-                                                    setTaskHistoryLoading(true);
-                                                    setTaskHistory([]);
-                                                    fetch(`/api/employee/tasks/${newId}?history=true`)
-                                                        .then(r => r.json())
-                                                        .then(d => setTaskHistory(d.history || []))
-                                                        .catch(() => setTaskHistory([]))
-                                                        .finally(() => setTaskHistoryLoading(false));
-                                                }
-                                            }}
-                                        >
-                                            {/* Status button */}
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleUpdateStatus(task.id, getNextStatus(task.status));
-                                                }}
-                                                title={`Zmień na: ${getStatusLabel(getNextStatus(task.status))}`}
+                                background: 'rgba(255,255,255,0.03)',
+                                border: '1px solid rgba(56, 189, 248, 0.12)',
+                                borderRadius: '1rem',
+                                padding: '3rem 2rem',
+                                textAlign: 'center',
+                            }}>
+                                <div style={{ fontSize: '3rem', marginBottom: '0.75rem' }}>📋</div>
+                                <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.9rem', marginBottom: '1rem' }}>
+                                    {taskFilter === 'all' ? 'Brak zadań. Dodaj pierwsze zadanie!' : `Brak zadań w kategorii "${getStatusLabel(taskFilter)}"`}
+                                </p>
+                                {taskFilter === 'all' && <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.8rem' }}>Możesz też utworzyć zadanie z poziomu grafiku — kliknij w wizytę pacjenta</p>}
+                            </div>
+                        ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                                {filteredTasks.map(task => {
+                                    const mine = isMyTask(task);
+                                    return (
+                                        <div key={task.id} style={{
+                                            background: mine ? 'rgba(56, 189, 248, 0.04)' : 'rgba(255,255,255,0.03)',
+                                            border: `1px solid ${task.status === 'done' ? 'rgba(34, 197, 94, 0.15)' : mine ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255,255,255,0.08)'}`,
+                                            borderLeft: mine ? '3px solid #38bdf8' : undefined,
+                                            borderRadius: '0.75rem',
+                                            overflow: 'hidden',
+                                            opacity: task.status === 'done' ? 0.7 : 1,
+                                        }}>
+                                            {/* Task card main row */}
+                                            <div
                                                 style={{
-                                                    width: '24px',
-                                                    height: '24px',
-                                                    borderRadius: '50%',
-                                                    border: `2px solid ${getStatusColor(task.status)}`,
-                                                    background: task.status === 'done' ? getStatusColor(task.status) : 'transparent',
-                                                    cursor: 'pointer',
+                                                    padding: '0.85rem 1rem',
                                                     display: 'flex',
                                                     alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    flexShrink: 0,
-                                                    color: '#fff',
-                                                    fontSize: '0.7rem',
+                                                    gap: '0.75rem',
+                                                    cursor: 'pointer',
+                                                }}
+                                                onClick={() => {
+                                                    const newId = expandedTaskId === task.id ? null : task.id;
+                                                    setExpandedTaskId(newId);
+                                                    setTaskHistoryExpanded(false);
+                                                    if (newId) {
+                                                        // Fetch history
+                                                        setTaskHistoryLoading(true);
+                                                        setTaskHistory([]);
+                                                        fetch(`/api/employee/tasks/${newId}?history=true`)
+                                                            .then(r => r.json())
+                                                            .then(d => setTaskHistory(d.history || []))
+                                                            .catch(() => setTaskHistory([]))
+                                                            .finally(() => setTaskHistoryLoading(false));
+                                                        // Fetch comments
+                                                        fetchComments(newId);
+                                                    }
                                                 }}
                                             >
-                                                {task.status === 'done' && '✓'}
-                                                {task.status === 'in_progress' && <div style={{ width: 8, height: 8, borderRadius: '50%', background: getStatusColor(task.status) }} />}
-                                            </button>
+                                                {/* Status button */}
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleUpdateStatus(task.id, getNextStatus(task.status));
+                                                    }}
+                                                    title={`Zmień na: ${getStatusLabel(getNextStatus(task.status))}`}
+                                                    style={{
+                                                        width: '24px',
+                                                        height: '24px',
+                                                        borderRadius: '50%',
+                                                        border: `2px solid ${getStatusColor(task.status)}`,
+                                                        background: task.status === 'done' ? getStatusColor(task.status) : 'transparent',
+                                                        cursor: 'pointer',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        flexShrink: 0,
+                                                        color: '#fff',
+                                                        fontSize: '0.7rem',
+                                                    }}
+                                                >
+                                                    {task.status === 'done' && '✓'}
+                                                    {task.status === 'in_progress' && <div style={{ width: 8, height: 8, borderRadius: '50%', background: getStatusColor(task.status) }} />}
+                                                </button>
 
-                                            {/* Title + meta */}
-                                            <div style={{ flex: 1, minWidth: 0 }}>
-                                                <div style={{
-                                                    color: '#fff',
-                                                    fontSize: '0.9rem',
-                                                    fontWeight: '500',
-                                                    textDecoration: task.status === 'done' ? 'line-through' : 'none',
-                                                    whiteSpace: 'nowrap',
-                                                    overflow: 'hidden',
-                                                    textOverflow: 'ellipsis',
-                                                }}>
-                                                    {task.title}
-                                                    {mine && <span style={{ marginLeft: '0.4rem', fontSize: '0.6rem', background: 'rgba(56,189,248,0.2)', color: '#38bdf8', padding: '0.1rem 0.35rem', borderRadius: '0.25rem', fontWeight: '600', verticalAlign: 'middle' }}>Twoje</span>}
+                                                {/* Title + meta */}
+                                                <div style={{ flex: 1, minWidth: 0 }}>
+                                                    <div style={{
+                                                        color: '#fff',
+                                                        fontSize: '0.9rem',
+                                                        fontWeight: '500',
+                                                        textDecoration: task.status === 'done' ? 'line-through' : 'none',
+                                                        whiteSpace: 'nowrap',
+                                                        overflow: 'hidden',
+                                                        textOverflow: 'ellipsis',
+                                                    }}>
+                                                        {task.title}
+                                                        {mine && <span style={{ marginLeft: '0.4rem', fontSize: '0.6rem', background: 'rgba(56,189,248,0.2)', color: '#38bdf8', padding: '0.1rem 0.35rem', borderRadius: '0.25rem', fontWeight: '600', verticalAlign: 'middle' }}>Twoje</span>}
+                                                    </div>
+                                                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.2rem' }}>
+                                                        {task.patient_name && (
+                                                            <span style={{ fontSize: '0.7rem', color: '#38bdf8' }}>👤 {task.patient_name}</span>
+                                                        )}
+                                                        {(task.assigned_to || []).length > 0 && (
+                                                            <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap', marginTop: '0.15rem' }}>
+                                                                {task.assigned_to.map((a, i) => (
+                                                                    <span key={i} style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.5)', background: 'rgba(255,255,255,0.06)', padding: '0.1rem 0.4rem', borderRadius: '0.25rem' }}>→ {a.name}</span>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                        {!(task.assigned_to || []).length && task.assigned_to_doctor_name && (
+                                                            <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.5)' }}>→ {task.assigned_to_doctor_name}</span>
+                                                        )}
+                                                        {task.checklist_items && task.checklist_items.length > 0 && (
+                                                            <span style={{
+                                                                fontSize: '0.65rem',
+                                                                color: task.checklist_items.every(ci => ci.done) ? '#22c55e' : 'rgba(255,255,255,0.4)',
+                                                                background: task.checklist_items.every(ci => ci.done) ? 'rgba(34,197,94,0.1)' : 'rgba(255,255,255,0.05)',
+                                                                padding: '0.1rem 0.35rem',
+                                                                borderRadius: '0.25rem',
+                                                            }}>
+                                                                ☑ {task.checklist_items.filter(ci => ci.done).length}/{task.checklist_items.length}
+                                                            </span>
+                                                        )}
+                                                        {task.due_date && (
+                                                            <span style={{
+                                                                fontSize: '0.7rem',
+                                                                color: new Date(task.due_date) < new Date() && task.status !== 'done' ? '#ef4444' : 'rgba(255,255,255,0.4)',
+                                                            }}>
+                                                                📅 {new Date(task.due_date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' })}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.2rem' }}>
-                                                    {task.patient_name && (
-                                                        <span style={{ fontSize: '0.7rem', color: '#38bdf8' }}>👤 {task.patient_name}</span>
+
+                                                {/* Priority badge */}
+                                                {task.priority !== 'normal' && (
+                                                    <span style={{
+                                                        fontSize: '0.65rem',
+                                                        fontWeight: '600',
+                                                        padding: '0.15rem 0.45rem',
+                                                        borderRadius: '0.3rem',
+                                                        background: `${getPriorityColor(task.priority)}22`,
+                                                        color: getPriorityColor(task.priority),
+                                                        border: `1px solid ${getPriorityColor(task.priority)}44`,
+                                                        flexShrink: 0,
+                                                    }}>
+                                                        {task.priority === 'urgent' && '⚡ '}{getPriorityLabel(task.priority)}
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            {/* Expanded details */}
+                                            {expandedTaskId === task.id && (
+                                                <div style={{
+                                                    padding: '0 1rem 0.85rem',
+                                                    borderTop: '1px solid rgba(255,255,255,0.06)',
+                                                    paddingTop: '0.75rem',
+                                                }}>
+                                                    {task.description && (
+                                                        <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.8rem', marginBottom: '0.5rem', lineHeight: 1.5 }}>
+                                                            {task.description}
+                                                        </p>
                                                     )}
-                                                    {(task.assigned_to || []).length > 0 && (
-                                                        <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap', marginTop: '0.15rem' }}>
-                                                            {task.assigned_to.map((a, i) => (
-                                                                <span key={i} style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.5)', background: 'rgba(255,255,255,0.06)', padding: '0.1rem 0.4rem', borderRadius: '0.25rem' }}>→ {a.name}</span>
+
+                                                    {/* Checklist */}
+                                                    {task.checklist_items && task.checklist_items.length > 0 && (
+                                                        <div style={{
+                                                            background: 'rgba(255,255,255,0.03)',
+                                                            border: '1px solid rgba(255,255,255,0.08)',
+                                                            borderRadius: '0.5rem',
+                                                            padding: '0.6rem 0.75rem',
+                                                            marginBottom: '0.5rem',
+                                                        }}>
+                                                            <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.35rem', display: 'flex', justifyContent: 'space-between' }}>
+                                                                <span>Checklist {task.task_type && TASK_TYPE_CHECKLISTS[task.task_type] ? `— ${TASK_TYPE_CHECKLISTS[task.task_type].icon} ${TASK_TYPE_CHECKLISTS[task.task_type].label}` : ''}</span>
+                                                                <span>{task.checklist_items.filter(ci => ci.done).length}/{task.checklist_items.length} ✓</span>
+                                                            </div>
+                                                            {/* Progress bar */}
+                                                            <div style={{ height: '3px', background: 'rgba(255,255,255,0.08)', borderRadius: '2px', marginBottom: '0.4rem', overflow: 'hidden' }}>
+                                                                <div style={{
+                                                                    width: `${(task.checklist_items.filter(ci => ci.done).length / task.checklist_items.length) * 100}%`,
+                                                                    height: '100%',
+                                                                    background: task.checklist_items.every(ci => ci.done) ? '#22c55e' : '#38bdf8',
+                                                                    borderRadius: '2px',
+                                                                    transition: 'width 0.3s',
+                                                                }} />
+                                                            </div>
+                                                            {task.checklist_items.map((ci, idx) => (
+                                                                <button
+                                                                    key={idx}
+                                                                    onClick={(e) => { e.stopPropagation(); handleToggleChecklist(task.id, idx); }}
+                                                                    style={{
+                                                                        display: 'flex',
+                                                                        alignItems: 'center',
+                                                                        gap: '0.5rem',
+                                                                        width: '100%',
+                                                                        padding: '0.3rem 0.15rem',
+                                                                        border: 'none',
+                                                                        background: 'transparent',
+                                                                        cursor: 'pointer',
+                                                                        textAlign: 'left',
+                                                                        transition: 'all 0.15s',
+                                                                    }}
+                                                                >
+                                                                    <span style={{
+                                                                        width: '18px',
+                                                                        height: '18px',
+                                                                        borderRadius: '4px',
+                                                                        border: ci.done ? '2px solid #22c55e' : '2px solid rgba(255,255,255,0.2)',
+                                                                        background: ci.done ? 'rgba(34,197,94,0.15)' : 'transparent',
+                                                                        display: 'flex',
+                                                                        alignItems: 'center',
+                                                                        justifyContent: 'center',
+                                                                        flexShrink: 0,
+                                                                        fontSize: '0.65rem',
+                                                                        color: '#22c55e',
+                                                                    }}>
+                                                                        {ci.done && '✓'}
+                                                                    </span>
+                                                                    <span style={{
+                                                                        fontSize: '0.8rem',
+                                                                        color: ci.done ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.7)',
+                                                                        textDecoration: ci.done ? 'line-through' : 'none',
+                                                                    }}>
+                                                                        {ci.label}
+                                                                    </span>
+                                                                    {ci.done && ci.checked_by_name && (
+                                                                        <span style={{
+                                                                            fontSize: '0.6rem',
+                                                                            color: 'rgba(34,197,94,0.6)',
+                                                                            marginLeft: '0.3rem',
+                                                                            fontStyle: 'italic',
+                                                                        }}>
+                                                                            ({ci.checked_by_name})
+                                                                        </span>
+                                                                    )}
+                                                                </button>
                                                             ))}
                                                         </div>
                                                     )}
-                                                    {!(task.assigned_to || []).length && task.assigned_to_doctor_name && (
-                                                        <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.5)' }}>→ {task.assigned_to_doctor_name}</span>
-                                                    )}
-                                                    {task.checklist_items && task.checklist_items.length > 0 && (
-                                                        <span style={{
-                                                            fontSize: '0.65rem',
-                                                            color: task.checklist_items.every(ci => ci.done) ? '#22c55e' : 'rgba(255,255,255,0.4)',
-                                                            background: task.checklist_items.every(ci => ci.done) ? 'rgba(34,197,94,0.1)' : 'rgba(255,255,255,0.05)',
-                                                            padding: '0.1rem 0.35rem',
-                                                            borderRadius: '0.25rem',
-                                                        }}>
-                                                            ☑ {task.checklist_items.filter(ci => ci.done).length}/{task.checklist_items.length}
-                                                        </span>
-                                                    )}
-                                                    {task.due_date && (
-                                                        <span style={{
-                                                            fontSize: '0.7rem',
-                                                            color: new Date(task.due_date) < new Date() && task.status !== 'done' ? '#ef4444' : 'rgba(255,255,255,0.4)',
-                                                        }}>
-                                                            📅 {new Date(task.due_date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' })}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </div>
 
-                                            {/* Priority badge */}
-                                            {task.priority !== 'normal' && (
-                                                <span style={{
-                                                    fontSize: '0.65rem',
-                                                    fontWeight: '600',
-                                                    padding: '0.15rem 0.45rem',
-                                                    borderRadius: '0.3rem',
-                                                    background: `${getPriorityColor(task.priority)}22`,
-                                                    color: getPriorityColor(task.priority),
-                                                    border: `1px solid ${getPriorityColor(task.priority)}44`,
-                                                    flexShrink: 0,
-                                                }}>
-                                                    {task.priority === 'urgent' && '⚡ '}{getPriorityLabel(task.priority)}
-                                                </span>
+                                                    {/* Task image */}
+                                                    {task.image_url && (
+                                                        <div style={{ marginBottom: '0.5rem' }}>
+                                                            <img
+                                                                src={task.image_url}
+                                                                alt="Zdjęcie zadania"
+                                                                onClick={(e) => { e.stopPropagation(); setZoomedImage(task.image_url); }}
+                                                                style={{
+                                                                    maxWidth: '100%',
+                                                                    maxHeight: '200px',
+                                                                    borderRadius: '0.5rem',
+                                                                    border: '1px solid rgba(255,255,255,0.1)',
+                                                                    cursor: 'zoom-in',
+                                                                    objectFit: 'cover',
+                                                                }}
+                                                            />
+                                                        </div>
+                                                    )}
+
+                                                    {task.linked_appointment_info && (
+                                                        <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.5rem' }}>
+                                                            🔗 Powiązana wizyta: {task.linked_appointment_info}
+                                                        </div>
+                                                    )}
+                                                    <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+                                                        {/* Status change buttons */}
+                                                        {(['todo', 'in_progress', 'done'] as const).map(s => (
+                                                            <button
+                                                                key={s}
+                                                                onClick={() => handleUpdateStatus(task.id, s)}
+                                                                style={{
+                                                                    padding: '0.25rem 0.6rem',
+                                                                    fontSize: '0.7rem',
+                                                                    borderRadius: '0.35rem',
+                                                                    border: `1px solid ${getStatusColor(s)}44`,
+                                                                    background: task.status === s ? `${getStatusColor(s)}22` : 'transparent',
+                                                                    color: task.status === s ? getStatusColor(s) : 'rgba(255,255,255,0.4)',
+                                                                    cursor: 'pointer',
+                                                                    fontWeight: task.status === s ? '600' : '400',
+                                                                }}
+                                                            >
+                                                                {getStatusLabel(s)}
+                                                            </button>
+                                                        ))}
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); openEditModal(task); }}
+                                                            style={{
+                                                                padding: '0.25rem 0.6rem',
+                                                                fontSize: '0.7rem',
+                                                                borderRadius: '0.35rem',
+                                                                border: '1px solid rgba(56,189,248,0.3)',
+                                                                background: 'transparent',
+                                                                color: '#38bdf8',
+                                                                cursor: 'pointer',
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                gap: '0.25rem',
+                                                            }}
+                                                        >
+                                                            ✏️ Edytuj
+                                                        </button>
+                                                        {task.status === 'done' && (
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); handleUpdateStatus(task.id, 'archived'); }}
+                                                                style={{
+                                                                    padding: '0.25rem 0.6rem',
+                                                                    fontSize: '0.7rem',
+                                                                    borderRadius: '0.35rem',
+                                                                    border: '1px solid rgba(107,114,128,0.3)',
+                                                                    background: 'transparent',
+                                                                    color: '#9ca3af',
+                                                                    cursor: 'pointer',
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    gap: '0.25rem',
+                                                                }}
+                                                            >
+                                                                📁 Archiwizuj
+                                                            </button>
+                                                        )}
+                                                        {task.status === 'archived' && (
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); handleUpdateStatus(task.id, 'done'); }}
+                                                                style={{
+                                                                    padding: '0.25rem 0.6rem',
+                                                                    fontSize: '0.7rem',
+                                                                    borderRadius: '0.35rem',
+                                                                    border: '1px solid rgba(34,197,94,0.3)',
+                                                                    background: 'transparent',
+                                                                    color: '#22c55e',
+                                                                    cursor: 'pointer',
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    gap: '0.25rem',
+                                                                }}
+                                                            >
+                                                                ↩️ Przywróć
+                                                            </button>
+                                                        )}
+                                                        {isAdmin && (
+                                                            <button
+                                                                onClick={() => handleDeleteTask(task.id)}
+                                                                style={{
+                                                                    padding: '0.25rem 0.6rem',
+                                                                    fontSize: '0.7rem',
+                                                                    borderRadius: '0.35rem',
+                                                                    border: '1px solid rgba(239,68,68,0.3)',
+                                                                    background: 'transparent',
+                                                                    color: '#ef4444',
+                                                                    cursor: 'pointer',
+                                                                    marginLeft: 'auto',
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    gap: '0.25rem',
+                                                                }}
+                                                            >
+                                                                <Trash2 size={12} /> Usuń
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                    <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.25)', marginTop: '0.5rem' }}>
+                                                        Utworzone przez {(() => {
+                                                            const match = staffList.find(s => s.email === task.created_by_email);
+                                                            return match ? match.name : task.created_by_email;
+                                                        })()} • {new Date(task.created_at).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                                    </div>
+
+                                                    {/* 💬 Comments */}
+                                                    <div style={{ marginTop: '0.5rem' }}>
+                                                        <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.3rem' }}>💬 Komentarze ({(taskComments[task.id] || []).length})</div>
+                                                        {(taskComments[task.id] || []).map((c: any, ci: number) => (
+                                                            <div key={ci} style={{ padding: '0.3rem 0', borderBottom: ci < (taskComments[task.id] || []).length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
+                                                                <span style={{ fontSize: '0.65rem', color: '#38bdf8', fontWeight: '600' }}>{c.author_name || c.author_email}</span>
+                                                                <span style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.25)', marginLeft: '0.4rem' }}>{new Date(c.created_at).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                                                                <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.6)', marginTop: '0.1rem' }}>{c.content}</div>
+                                                            </div>
+                                                        ))}
+                                                        <div style={{ display: 'flex', gap: '0.3rem', marginTop: '0.3rem' }}>
+                                                            <input
+                                                                type="text"
+                                                                placeholder="Napisz komentarz..."
+                                                                value={commentInput}
+                                                                onChange={e => setCommentInput(e.target.value)}
+                                                                onKeyDown={e => { if (e.key === 'Enter') handlePostComment(task.id); }}
+                                                                onClick={e => e.stopPropagation()}
+                                                                style={{ flex: 1, padding: '0.3rem 0.5rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.35rem', color: '#fff', fontSize: '0.75rem', outline: 'none' }}
+                                                            />
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); handlePostComment(task.id); }}
+                                                                disabled={commentLoading || !commentInput.trim()}
+                                                                style={{ padding: '0.3rem 0.6rem', background: 'rgba(56,189,248,0.15)', border: '1px solid rgba(56,189,248,0.3)', borderRadius: '0.35rem', color: '#38bdf8', fontSize: '0.7rem', cursor: 'pointer' }}
+                                                            >
+                                                                {commentLoading ? '...' : '→'}
+                                                            </button>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* 📜 Edit history */}
+                                                    <div style={{ marginTop: '0.5rem' }}>
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); setTaskHistoryExpanded(!taskHistoryExpanded); }}
+                                                            style={{
+                                                                background: 'none',
+                                                                border: 'none',
+                                                                color: 'rgba(255,255,255,0.35)',
+                                                                fontSize: '0.7rem',
+                                                                cursor: 'pointer',
+                                                                padding: '0.2rem 0',
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                gap: '0.3rem',
+                                                            }}
+                                                        >
+                                                            📜 Historia zmian {taskHistory.length > 0 ? `(${taskHistory.length})` : ''}
+                                                            <span style={{ fontSize: '0.6rem' }}>{taskHistoryExpanded ? '▲' : '▼'}</span>
+                                                        </button>
+                                                        {taskHistoryExpanded && (
+                                                            <div style={{
+                                                                marginTop: '0.35rem',
+                                                                background: 'rgba(255,255,255,0.02)',
+                                                                border: '1px solid rgba(255,255,255,0.06)',
+                                                                borderRadius: '0.5rem',
+                                                                padding: '0.5rem',
+                                                                maxHeight: '250px',
+                                                                overflowY: 'auto',
+                                                            }}>
+                                                                {taskHistoryLoading ? (
+                                                                    <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', textAlign: 'center', padding: '0.5rem' }}>Ładowanie...</div>
+                                                                ) : taskHistory.length === 0 ? (
+                                                                    <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', textAlign: 'center', padding: '0.5rem' }}>Brak historii zmian</div>
+                                                                ) : (
+                                                                    taskHistory.map((h: any, idx: number) => {
+                                                                        const changedByName = staffList.find(s => s.email === h.changed_by)?.name || h.changed_by;
+                                                                        const dateStr = new Date(h.changed_at).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+                                                                        const fieldLabels: Record<string, string> = {
+                                                                            title: 'Tytuł', description: 'Opis', status: 'Status', priority: 'Priorytet',
+                                                                            task_type: 'Typ', due_date: 'Termin', assigned_to_doctor_name: 'Przypisano do',
+                                                                            image_url: 'Zdjęcie', assigned_to_doctor_id: 'Przypisano do (ID)',
+                                                                        };
+                                                                        const statusLabels: Record<string, string> = { todo: 'Do zrobienia', in_progress: 'W trakcie', done: 'Wykonane' };
+                                                                        const priorityLabels: Record<string, string> = { low: 'Niski', normal: 'Normalny', urgent: 'Pilny' };
+
+                                                                        return (
+                                                                            <div key={idx} style={{
+                                                                                padding: '0.35rem 0',
+                                                                                borderBottom: idx < taskHistory.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none',
+                                                                            }}>
+                                                                                <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.15rem' }}>
+                                                                                    {h.change_type === 'status' ? '🔄' : h.change_type === 'checklist' ? '☑️' : '✏️'}{' '}
+                                                                                    <strong>{changedByName}</strong> • {dateStr}
+                                                                                </div>
+                                                                                <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.55)' }}>
+                                                                                    {Object.entries(h.changes || {}).map(([key, val]: [string, any]) => {
+                                                                                        if (h.change_type === 'checklist') {
+                                                                                            return (
+                                                                                                <div key={key}>
+                                                                                                    {val.done ? '✅' : '⬜'} {val.item}
+                                                                                                </div>
+                                                                                            );
+                                                                                        }
+                                                                                        const label = fieldLabels[key] || key;
+                                                                                        let oldDisplay = val.old || '—';
+                                                                                        let newDisplay = val.new || '—';
+                                                                                        if (key === 'status') {
+                                                                                            oldDisplay = statusLabels[val.old] || val.old || '—';
+                                                                                            newDisplay = statusLabels[val.new] || val.new || '—';
+                                                                                        } else if (key === 'priority') {
+                                                                                            oldDisplay = priorityLabels[val.old] || val.old || '—';
+                                                                                            newDisplay = priorityLabels[val.new] || val.new || '—';
+                                                                                        } else if (key === 'image_url') {
+                                                                                            oldDisplay = val.old ? '📷' : '—';
+                                                                                            newDisplay = val.new ? '📷' : '—';
+                                                                                        } else if (key === 'due_date') {
+                                                                                            oldDisplay = val.old ? new Date(val.old).toLocaleDateString('pl-PL') : '—';
+                                                                                            newDisplay = val.new ? new Date(val.new).toLocaleDateString('pl-PL') : '—';
+                                                                                        }
+                                                                                        // Skip internal IDs
+                                                                                        if (key === 'assigned_to_doctor_id') return null;
+                                                                                        return (
+                                                                                            <div key={key}>
+                                                                                                {label}: {oldDisplay} → {newDisplay}
+                                                                                            </div>
+                                                                                        );
+                                                                                    })}
+                                                                                </div>
+                                                                            </div>
+                                                                        );
+                                                                    })
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
                                             )}
                                         </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </>)}
 
-                                        {/* Expanded details */}
-                                        {expandedTaskId === task.id && (
-                                            <div style={{
-                                                padding: '0 1rem 0.85rem',
-                                                borderTop: '1px solid rgba(255,255,255,0.06)',
-                                                paddingTop: '0.75rem',
-                                            }}>
-                                                {task.description && (
-                                                    <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.8rem', marginBottom: '0.5rem', lineHeight: 1.5 }}>
-                                                        {task.description}
-                                                    </p>
-                                                )}
-
-                                                {/* Checklist */}
-                                                {task.checklist_items && task.checklist_items.length > 0 && (
-                                                    <div style={{
-                                                        background: 'rgba(255,255,255,0.03)',
+                    {/* ═══ KANBAN VIEW ═══ */}
+                    {taskViewMode === 'kanban' && (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', minHeight: '400px' }}>
+                            {(['todo', 'in_progress', 'done'] as const).map(col => {
+                                const colTasks = filteredTasks.filter(t => t.status === col);
+                                return (
+                                    <div
+                                        key={col}
+                                        onDragOver={(e) => handleDragOver(e, col)}
+                                        onDragLeave={() => setDragOverColumn(null)}
+                                        onDrop={() => handleDrop(col)}
+                                        style={{
+                                            background: dragOverColumn === col ? 'rgba(56,189,248,0.08)' : 'rgba(255,255,255,0.02)',
+                                            border: `1px solid ${dragOverColumn === col ? 'rgba(56,189,248,0.3)' : 'rgba(255,255,255,0.06)'}`,
+                                            borderRadius: '0.75rem',
+                                            padding: '0.75rem',
+                                            transition: 'all 0.2s',
+                                        }}
+                                    >
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem', padding: '0 0.25rem' }}>
+                                            <div style={{ width: 10, height: 10, borderRadius: '50%', background: getStatusColor(col) }} />
+                                            <span style={{ fontSize: '0.8rem', fontWeight: '600', color: getStatusColor(col) }}>{getStatusLabel(col)}</span>
+                                            <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)' }}>({colTasks.length})</span>
+                                        </div>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', minHeight: '60px' }}>
+                                            {colTasks.map(task => (
+                                                <div
+                                                    key={task.id}
+                                                    draggable
+                                                    onDragStart={() => handleDragStart(task.id)}
+                                                    onDragEnd={handleDragEnd}
+                                                    style={{
+                                                        background: draggedTaskId === task.id ? 'rgba(56,189,248,0.1)' : 'rgba(255,255,255,0.04)',
                                                         border: '1px solid rgba(255,255,255,0.08)',
                                                         borderRadius: '0.5rem',
                                                         padding: '0.6rem 0.75rem',
-                                                        marginBottom: '0.5rem',
-                                                    }}>
-                                                        <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.35rem', display: 'flex', justifyContent: 'space-between' }}>
-                                                            <span>Checklist {task.task_type && TASK_TYPE_CHECKLISTS[task.task_type] ? `— ${TASK_TYPE_CHECKLISTS[task.task_type].icon} ${TASK_TYPE_CHECKLISTS[task.task_type].label}` : ''}</span>
-                                                            <span>{task.checklist_items.filter(ci => ci.done).length}/{task.checklist_items.length} ✓</span>
-                                                        </div>
-                                                        {/* Progress bar */}
-                                                        <div style={{ height: '3px', background: 'rgba(255,255,255,0.08)', borderRadius: '2px', marginBottom: '0.4rem', overflow: 'hidden' }}>
-                                                            <div style={{
-                                                                width: `${(task.checklist_items.filter(ci => ci.done).length / task.checklist_items.length) * 100}%`,
-                                                                height: '100%',
-                                                                background: task.checklist_items.every(ci => ci.done) ? '#22c55e' : '#38bdf8',
-                                                                borderRadius: '2px',
-                                                                transition: 'width 0.3s',
-                                                            }} />
-                                                        </div>
-                                                        {task.checklist_items.map((ci, idx) => (
-                                                            <button
-                                                                key={idx}
-                                                                onClick={(e) => { e.stopPropagation(); handleToggleChecklist(task.id, idx); }}
-                                                                style={{
-                                                                    display: 'flex',
-                                                                    alignItems: 'center',
-                                                                    gap: '0.5rem',
-                                                                    width: '100%',
-                                                                    padding: '0.3rem 0.15rem',
-                                                                    border: 'none',
-                                                                    background: 'transparent',
-                                                                    cursor: 'pointer',
-                                                                    textAlign: 'left',
-                                                                    transition: 'all 0.15s',
-                                                                }}
-                                                            >
-                                                                <span style={{
-                                                                    width: '18px',
-                                                                    height: '18px',
-                                                                    borderRadius: '4px',
-                                                                    border: ci.done ? '2px solid #22c55e' : '2px solid rgba(255,255,255,0.2)',
-                                                                    background: ci.done ? 'rgba(34,197,94,0.15)' : 'transparent',
-                                                                    display: 'flex',
-                                                                    alignItems: 'center',
-                                                                    justifyContent: 'center',
-                                                                    flexShrink: 0,
-                                                                    fontSize: '0.65rem',
-                                                                    color: '#22c55e',
-                                                                }}>
-                                                                    {ci.done && '✓'}
-                                                                </span>
-                                                                <span style={{
-                                                                    fontSize: '0.8rem',
-                                                                    color: ci.done ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.7)',
-                                                                    textDecoration: ci.done ? 'line-through' : 'none',
-                                                                }}>
-                                                                    {ci.label}
-                                                                </span>
-                                                                {ci.done && ci.checked_by_name && (
-                                                                    <span style={{
-                                                                        fontSize: '0.6rem',
-                                                                        color: 'rgba(34,197,94,0.6)',
-                                                                        marginLeft: '0.3rem',
-                                                                        fontStyle: 'italic',
-                                                                    }}>
-                                                                        ({ci.checked_by_name})
-                                                                    </span>
-                                                                )}
-                                                            </button>
-                                                        ))}
+                                                        cursor: 'grab',
+                                                        opacity: draggedTaskId === task.id ? 0.5 : 1,
+                                                        transition: 'all 0.15s',
+                                                    }}
+                                                >
+                                                    <div style={{ fontSize: '0.8rem', fontWeight: '500', color: '#fff', marginBottom: '0.2rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                        {task.priority === 'urgent' && <span style={{ color: '#ef4444', marginRight: '0.3rem' }}>⚡</span>}
+                                                        {task.title}
                                                     </div>
-                                                )}
-
-                                                {/* Task image */}
-                                                {task.image_url && (
-                                                    <div style={{ marginBottom: '0.5rem' }}>
-                                                        <img
-                                                            src={task.image_url}
-                                                            alt="Zdjęcie zadania"
-                                                            onClick={(e) => { e.stopPropagation(); setZoomedImage(task.image_url); }}
-                                                            style={{
-                                                                maxWidth: '100%',
-                                                                maxHeight: '200px',
-                                                                borderRadius: '0.5rem',
-                                                                border: '1px solid rgba(255,255,255,0.1)',
-                                                                cursor: 'zoom-in',
-                                                                objectFit: 'cover',
-                                                            }}
-                                                        />
+                                                    <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
+                                                        {task.patient_name && <span style={{ fontSize: '0.6rem', color: '#38bdf8' }}>👤 {task.patient_name}</span>}
+                                                        {task.due_date && (
+                                                            <span style={{ fontSize: '0.6rem', color: new Date(task.due_date) < new Date() ? '#ef4444' : 'rgba(255,255,255,0.4)' }}>
+                                                                📅 {new Date(task.due_date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' })}
+                                                            </span>
+                                                        )}
+                                                        {(task.assigned_to || []).length > 0 && (
+                                                            <span style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)' }}>→ {task.assigned_to.map(a => a.name).join(', ')}</span>
+                                                        )}
                                                     </div>
-                                                )}
-
-                                                {task.linked_appointment_info && (
-                                                    <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.5rem' }}>
-                                                        🔗 Powiązana wizyta: {task.linked_appointment_info}
-                                                    </div>
-                                                )}
-                                                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
-                                                    {/* Status change buttons */}
-                                                    {(['todo', 'in_progress', 'done'] as const).map(s => (
-                                                        <button
-                                                            key={s}
-                                                            onClick={() => handleUpdateStatus(task.id, s)}
-                                                            style={{
-                                                                padding: '0.25rem 0.6rem',
-                                                                fontSize: '0.7rem',
-                                                                borderRadius: '0.35rem',
-                                                                border: `1px solid ${getStatusColor(s)}44`,
-                                                                background: task.status === s ? `${getStatusColor(s)}22` : 'transparent',
-                                                                color: task.status === s ? getStatusColor(s) : 'rgba(255,255,255,0.4)',
-                                                                cursor: 'pointer',
-                                                                fontWeight: task.status === s ? '600' : '400',
-                                                            }}
-                                                        >
-                                                            {getStatusLabel(s)}
-                                                        </button>
-                                                    ))}
-                                                    <button
-                                                        onClick={(e) => { e.stopPropagation(); openEditModal(task); }}
-                                                        style={{
-                                                            padding: '0.25rem 0.6rem',
-                                                            fontSize: '0.7rem',
-                                                            borderRadius: '0.35rem',
-                                                            border: '1px solid rgba(56,189,248,0.3)',
-                                                            background: 'transparent',
-                                                            color: '#38bdf8',
-                                                            cursor: 'pointer',
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            gap: '0.25rem',
-                                                        }}
-                                                    >
-                                                        ✏️ Edytuj
-                                                    </button>
-                                                    {task.status === 'done' && (
-                                                        <button
-                                                            onClick={(e) => { e.stopPropagation(); handleUpdateStatus(task.id, 'archived'); }}
-                                                            style={{
-                                                                padding: '0.25rem 0.6rem',
-                                                                fontSize: '0.7rem',
-                                                                borderRadius: '0.35rem',
-                                                                border: '1px solid rgba(107,114,128,0.3)',
-                                                                background: 'transparent',
-                                                                color: '#9ca3af',
-                                                                cursor: 'pointer',
-                                                                display: 'flex',
-                                                                alignItems: 'center',
-                                                                gap: '0.25rem',
-                                                            }}
-                                                        >
-                                                            📁 Archiwizuj
-                                                        </button>
-                                                    )}
-                                                    {task.status === 'archived' && (
-                                                        <button
-                                                            onClick={(e) => { e.stopPropagation(); handleUpdateStatus(task.id, 'done'); }}
-                                                            style={{
-                                                                padding: '0.25rem 0.6rem',
-                                                                fontSize: '0.7rem',
-                                                                borderRadius: '0.35rem',
-                                                                border: '1px solid rgba(34,197,94,0.3)',
-                                                                background: 'transparent',
-                                                                color: '#22c55e',
-                                                                cursor: 'pointer',
-                                                                display: 'flex',
-                                                                alignItems: 'center',
-                                                                gap: '0.25rem',
-                                                            }}
-                                                        >
-                                                            ↩️ Przywróć
-                                                        </button>
-                                                    )}
-                                                    {isAdmin && (
-                                                        <button
-                                                            onClick={() => handleDeleteTask(task.id)}
-                                                            style={{
-                                                                padding: '0.25rem 0.6rem',
-                                                                fontSize: '0.7rem',
-                                                                borderRadius: '0.35rem',
-                                                                border: '1px solid rgba(239,68,68,0.3)',
-                                                                background: 'transparent',
-                                                                color: '#ef4444',
-                                                                cursor: 'pointer',
-                                                                marginLeft: 'auto',
-                                                                display: 'flex',
-                                                                alignItems: 'center',
-                                                                gap: '0.25rem',
-                                                            }}
-                                                        >
-                                                            <Trash2 size={12} /> Usuń
-                                                        </button>
-                                                    )}
-                                                </div>
-                                                <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.25)', marginTop: '0.5rem' }}>
-                                                    Utworzone przez {(() => {
-                                                        const match = staffList.find(s => s.email === task.created_by_email);
-                                                        return match ? match.name : task.created_by_email;
-                                                    })()} • {new Date(task.created_at).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                                                </div>
-
-                                                {/* 📜 Edit history */}
-                                                <div style={{ marginTop: '0.5rem' }}>
-                                                    <button
-                                                        onClick={(e) => { e.stopPropagation(); setTaskHistoryExpanded(!taskHistoryExpanded); }}
-                                                        style={{
-                                                            background: 'none',
-                                                            border: 'none',
-                                                            color: 'rgba(255,255,255,0.35)',
-                                                            fontSize: '0.7rem',
-                                                            cursor: 'pointer',
-                                                            padding: '0.2rem 0',
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            gap: '0.3rem',
-                                                        }}
-                                                    >
-                                                        📜 Historia zmian {taskHistory.length > 0 ? `(${taskHistory.length})` : ''}
-                                                        <span style={{ fontSize: '0.6rem' }}>{taskHistoryExpanded ? '▲' : '▼'}</span>
-                                                    </button>
-                                                    {taskHistoryExpanded && (
-                                                        <div style={{
-                                                            marginTop: '0.35rem',
-                                                            background: 'rgba(255,255,255,0.02)',
-                                                            border: '1px solid rgba(255,255,255,0.06)',
-                                                            borderRadius: '0.5rem',
-                                                            padding: '0.5rem',
-                                                            maxHeight: '250px',
-                                                            overflowY: 'auto',
-                                                        }}>
-                                                            {taskHistoryLoading ? (
-                                                                <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', textAlign: 'center', padding: '0.5rem' }}>Ładowanie...</div>
-                                                            ) : taskHistory.length === 0 ? (
-                                                                <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', textAlign: 'center', padding: '0.5rem' }}>Brak historii zmian</div>
-                                                            ) : (
-                                                                taskHistory.map((h: any, idx: number) => {
-                                                                    const changedByName = staffList.find(s => s.email === h.changed_by)?.name || h.changed_by;
-                                                                    const dateStr = new Date(h.changed_at).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-                                                                    const fieldLabels: Record<string, string> = {
-                                                                        title: 'Tytuł', description: 'Opis', status: 'Status', priority: 'Priorytet',
-                                                                        task_type: 'Typ', due_date: 'Termin', assigned_to_doctor_name: 'Przypisano do',
-                                                                        image_url: 'Zdjęcie', assigned_to_doctor_id: 'Przypisano do (ID)',
-                                                                    };
-                                                                    const statusLabels: Record<string, string> = { todo: 'Do zrobienia', in_progress: 'W trakcie', done: 'Wykonane' };
-                                                                    const priorityLabels: Record<string, string> = { low: 'Niski', normal: 'Normalny', urgent: 'Pilny' };
-
-                                                                    return (
-                                                                        <div key={idx} style={{
-                                                                            padding: '0.35rem 0',
-                                                                            borderBottom: idx < taskHistory.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none',
-                                                                        }}>
-                                                                            <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.15rem' }}>
-                                                                                {h.change_type === 'status' ? '🔄' : h.change_type === 'checklist' ? '☑️' : '✏️'}{' '}
-                                                                                <strong>{changedByName}</strong> • {dateStr}
-                                                                            </div>
-                                                                            <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.55)' }}>
-                                                                                {Object.entries(h.changes || {}).map(([key, val]: [string, any]) => {
-                                                                                    if (h.change_type === 'checklist') {
-                                                                                        return (
-                                                                                            <div key={key}>
-                                                                                                {val.done ? '✅' : '⬜'} {val.item}
-                                                                                            </div>
-                                                                                        );
-                                                                                    }
-                                                                                    const label = fieldLabels[key] || key;
-                                                                                    let oldDisplay = val.old || '—';
-                                                                                    let newDisplay = val.new || '—';
-                                                                                    if (key === 'status') {
-                                                                                        oldDisplay = statusLabels[val.old] || val.old || '—';
-                                                                                        newDisplay = statusLabels[val.new] || val.new || '—';
-                                                                                    } else if (key === 'priority') {
-                                                                                        oldDisplay = priorityLabels[val.old] || val.old || '—';
-                                                                                        newDisplay = priorityLabels[val.new] || val.new || '—';
-                                                                                    } else if (key === 'image_url') {
-                                                                                        oldDisplay = val.old ? '📷' : '—';
-                                                                                        newDisplay = val.new ? '📷' : '—';
-                                                                                    } else if (key === 'due_date') {
-                                                                                        oldDisplay = val.old ? new Date(val.old).toLocaleDateString('pl-PL') : '—';
-                                                                                        newDisplay = val.new ? new Date(val.new).toLocaleDateString('pl-PL') : '—';
-                                                                                    }
-                                                                                    // Skip internal IDs
-                                                                                    if (key === 'assigned_to_doctor_id') return null;
-                                                                                    return (
-                                                                                        <div key={key}>
-                                                                                            {label}: {oldDisplay} → {newDisplay}
-                                                                                        </div>
-                                                                                    );
-                                                                                })}
-                                                                            </div>
-                                                                        </div>
-                                                                    );
-                                                                })
-                                                            )}
+                                                    {task.checklist_items && task.checklist_items.length > 0 && (
+                                                        <div style={{ marginTop: '0.3rem' }}>
+                                                            <div style={{ height: '2px', background: 'rgba(255,255,255,0.08)', borderRadius: '1px', overflow: 'hidden' }}>
+                                                                <div style={{ width: `${(task.checklist_items.filter(ci => ci.done).length / task.checklist_items.length) * 100}%`, height: '100%', background: task.checklist_items.every(ci => ci.done) ? '#22c55e' : '#38bdf8' }} />
+                                                            </div>
                                                         </div>
                                                     )}
                                                 </div>
-                                            </div>
-                                        )}
+                                            ))}
+                                            {colTasks.length === 0 && (
+                                                <div style={{ textAlign: 'center', padding: '1.5rem 0.5rem', color: 'rgba(255,255,255,0.2)', fontSize: '0.7rem', fontStyle: 'italic' }}>
+                                                    Przeciągnij zadanie tutaj
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 );
                             })}
+                        </div>
+                    )}
+
+                    {/* ═══ CALENDAR VIEW ═══ */}
+                    {taskViewMode === 'calendar' && (
+                        <div>
+                            {/* Month navigation */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem', marginBottom: '1rem' }}>
+                                <button
+                                    onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1))}
+                                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.5rem', padding: '0.4rem 0.6rem', color: '#fff', cursor: 'pointer' }}
+                                >
+                                    ←
+                                </button>
+                                <span style={{ fontSize: '1rem', fontWeight: '600', minWidth: '180px', textAlign: 'center' }}>
+                                    {calendarMonth.toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' })}
+                                </span>
+                                <button
+                                    onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1))}
+                                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.5rem', padding: '0.4rem 0.6rem', color: '#fff', cursor: 'pointer' }}
+                                >
+                                    →
+                                </button>
+                            </div>
+                            {/* Day headers */}
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '2px', marginBottom: '4px' }}>
+                                {['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'Sb', 'Nd'].map(d => (
+                                    <div key={d} style={{ textAlign: 'center', fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', padding: '0.3rem' }}>{d}</div>
+                                ))}
+                            </div>
+                            {/* Calendar grid */}
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '2px' }}>
+                                {getCalendarDays.map((day, idx) => {
+                                    if (day === null) return <div key={`empty-${idx}`} />;
+                                    const dayTasks = tasksForDate(day);
+                                    const isToday = new Date().getDate() === day && new Date().getMonth() === calendarMonth.getMonth() && new Date().getFullYear() === calendarMonth.getFullYear();
+                                    return (
+                                        <div key={day} style={{
+                                            minHeight: '70px',
+                                            background: isToday ? 'rgba(56,189,248,0.08)' : 'rgba(255,255,255,0.02)',
+                                            border: `1px solid ${isToday ? 'rgba(56,189,248,0.25)' : 'rgba(255,255,255,0.05)'}`,
+                                            borderRadius: '0.35rem',
+                                            padding: '0.25rem',
+                                        }}>
+                                            <div style={{ fontSize: '0.7rem', color: isToday ? '#38bdf8' : 'rgba(255,255,255,0.5)', fontWeight: isToday ? '700' : '400', marginBottom: '0.15rem' }}>{day}</div>
+                                            {dayTasks.slice(0, 3).map(t => (
+                                                <div key={t.id} style={{
+                                                    fontSize: '0.55rem',
+                                                    padding: '0.1rem 0.2rem',
+                                                    background: `${getPriorityColor(t.priority)}15`,
+                                                    color: getPriorityColor(t.priority),
+                                                    borderRadius: '0.15rem',
+                                                    marginBottom: '1px',
+                                                    whiteSpace: 'nowrap',
+                                                    overflow: 'hidden',
+                                                    textOverflow: 'ellipsis',
+                                                    borderLeft: `2px solid ${getStatusColor(t.status)}`,
+                                                }}>
+                                                    {t.title}
+                                                </div>
+                                            ))}
+                                            {dayTasks.length > 3 && (
+                                                <div style={{ fontSize: '0.5rem', color: 'rgba(255,255,255,0.3)', textAlign: 'center' }}>+{dayTasks.length - 3}</div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         </div>
                     )}
                 </div>

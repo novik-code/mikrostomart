@@ -186,6 +186,7 @@ export default function PatientProfile() {
                     { href: '/strefa-pacjenta/dashboard', label: 'Panel główny', active: false },
                     { href: '/strefa-pacjenta/historia', label: 'Historia wizyt', active: false },
                     { href: '/strefa-pacjenta/profil', label: 'Mój profil', active: true },
+                    { href: '/strefa-pacjenta/ocen-nas', label: '⭐ Oceń nas', active: false },
                 ].map(link => (
                     <Link
                         key={link.href}
