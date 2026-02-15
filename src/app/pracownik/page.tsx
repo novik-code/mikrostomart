@@ -139,48 +139,27 @@ const PRODENTIS_COLORS: Record<string, { bg: string; border: string; text: strin
 
 const DEFAULT_COLOR = { bg: '#14b8a6', border: '#0d9488', text: '#fff', label: 'Inne' };
 
-// ─── Task Type Checklists (from Ściąga Tiny PDF) ─────────────────────
-const TASK_TYPE_CHECKLISTS: Record<string, { label: string; icon: string; items: string[] }> = {
-    'modele_archiwalne': {
-        label: 'Modele Archiwalne',
-        icon: '📦',
-        items: ['Zgrać skany'],
-    },
-    'modele_analityczne': {
-        label: 'Modele Analityczne / Wax Up',
-        icon: '🔬',
-        items: ['Zgrać skany'],
-    },
-    'korona_zab': {
-        label: 'Korona na Zębie',
-        icon: '🦷',
-        items: ['Zgrać dane', 'Projekt', 'Frez', 'Piec', 'Charakteryzacja', 'Wycienienie', 'Spr'],
-    },
-    'korona_implant': {
-        label: 'Korona na Implancie',
-        icon: '🔩',
-        items: ['Zgrać dane', 'Stworzyć model', 'Projekt', 'Frez', 'Piec', 'Charakteryzacja', 'Skleić z ti base', 'Spr'],
-    },
-    'chirurgia': {
-        label: 'Chirurgia / Implantologia',
-        icon: '🏥',
-        items: ['Zgrać CBCT', 'Zgrać skany', 'Projekt szablonu', 'Podać rozmiar implantów', 'Zamówić implant', 'Zamówić multiunit', 'Druk', 'Sprawdzić dziurki', 'Sterylizacja', 'Wpłacony zadatek'],
-    },
-    'ortodoncja': {
-        label: 'Ortodoncja',
-        icon: '😁',
-        items: ['Wgrać dane do CC', 'Pokazać wizualizacje', 'Akceptacja', 'Wpłata 50%', 'Zamówienie nakładek'],
-    },
-    'plan_leczenia': {
-        label: 'Plan Leczenia',
-        icon: '📝',
-        items: ['Plan', 'Prezentacja', 'Sprawdzić', 'Druk', 'Oddanie'],
-    },
-    'inne': {
-        label: 'Inne',
-        icon: '📋',
-        items: [],
-    },
+// ─── Task Type Templates (dynamic from DB, fallback hardcoded) ───────
+interface TaskTypeTemplate {
+    id: string;
+    key: string;
+    label: string;
+    icon: string;
+    items: string[];
+    sort_order: number;
+    is_active: boolean;
+}
+
+// Fallback used before DB templates are loaded
+const FALLBACK_TASK_TYPE_CHECKLISTS: Record<string, { label: string; icon: string; items: string[] }> = {
+    'modele_archiwalne': { label: 'Modele Archiwalne', icon: '📦', items: ['Zgrać skany'] },
+    'modele_analityczne': { label: 'Modele Analityczne / Wax Up', icon: '🔬', items: ['Zgrać skany'] },
+    'korona_zab': { label: 'Korona na Zębie', icon: '🦷', items: ['Zgrać dane', 'Projekt', 'Frez', 'Piec', 'Charakteryzacja', 'Wycienienie', 'Spr'] },
+    'korona_implant': { label: 'Korona na Implancie', icon: '🔩', items: ['Zgrać dane', 'Stworzyć model', 'Projekt', 'Frez', 'Piec', 'Charakteryzacja', 'Skleić z ti base', 'Spr'] },
+    'chirurgia': { label: 'Chirurgia / Implantologia', icon: '🏥', items: ['Zgrać CBCT', 'Zgrać skany', 'Projekt szablonu', 'Podać rozmiar implantów', 'Zamówić implant', 'Zamówić multiunit', 'Druk', 'Sprawdzić dziurki', 'Sterylizacja', 'Wpłacony zadatek'] },
+    'ortodoncja': { label: 'Ortodoncja', icon: '😁', items: ['Wgrać dane do CC', 'Pokazać wizualizacje', 'Akceptacja', 'Wpłata 50%', 'Zamówienie nakładek'] },
+    'plan_leczenia': { label: 'Plan Leczenia', icon: '📝', items: ['Plan', 'Prezentacja', 'Sprawdzić', 'Druk', 'Oddanie'] },
+    'inne': { label: 'Inne', icon: '📋', items: [] },
 };
 
 // ─── Badge letter map (from Prodentis API /api/badge-types) ──────
@@ -308,6 +287,12 @@ export default function EmployeePage() {
     const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
     const [calendarMonth, setCalendarMonth] = useState(new Date());
     const [notifPermission, setNotifPermission] = useState<NotificationPermission>('default');
+    // ─── Dynamic Task Type Templates ──────────────────────
+    const [taskTypeTemplates, setTaskTypeTemplates] = useState<TaskTypeTemplate[]>([]);
+    const [showTypeManager, setShowTypeManager] = useState(false);
+    const [typeManagerForm, setTypeManagerForm] = useState({ label: '', icon: '📋', items: [''] });
+    const [typeManagerSaving, setTypeManagerSaving] = useState(false);
+    const [editingTypeId, setEditingTypeId] = useState<string | null>(null);
     const router = useRouter();
     const { userId: currentUserId, email: currentUserEmail, isAdmin } = useUserRoles();
 
@@ -823,6 +808,28 @@ export default function EmployeePage() {
     }, []);
 
     useEffect(() => { fetchLabels(); }, [fetchLabels]);
+
+    // ─── Fetch Task Type Templates ────────────────────────
+    const fetchTaskTypes = useCallback(async () => {
+        try {
+            const res = await fetch('/api/employee/task-types');
+            if (!res.ok) return;
+            const data = await res.json();
+            setTaskTypeTemplates(data.templates || []);
+        } catch { } // silent — fallback to hardcoded
+    }, []);
+
+    useEffect(() => { fetchTaskTypes(); }, [fetchTaskTypes]);
+
+    // Build dynamic TASK_TYPE_CHECKLISTS from templates (or fallback)
+    const TASK_TYPE_CHECKLISTS: Record<string, { label: string; icon: string; items: string[] }> = useMemo(() => {
+        if (taskTypeTemplates.length === 0) return FALLBACK_TASK_TYPE_CHECKLISTS;
+        const result: Record<string, { label: string; icon: string; items: string[] }> = {};
+        for (const t of taskTypeTemplates) {
+            result[t.key] = { label: t.label, icon: t.icon, items: t.items };
+        }
+        return result;
+    }, [taskTypeTemplates]);
 
     // ─── Enhanced: Browser Notifications ───────────────────
     useEffect(() => {
@@ -2198,6 +2205,27 @@ export default function EmployeePage() {
                                 }}
                             >
                                 <Plus size={16} /> Dodaj
+                            </button>
+                            <button
+                                onClick={() => setShowTypeManager(true)}
+                                title="Zarządzaj typami zadań"
+                                style={{
+                                    background: 'rgba(255,255,255,0.06)',
+                                    border: '1px solid rgba(255,255,255,0.12)',
+                                    borderRadius: '0.5rem',
+                                    padding: '0.5rem 0.75rem',
+                                    color: 'rgba(255,255,255,0.6)',
+                                    fontSize: '0.85rem',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.3rem',
+                                    transition: 'all 0.15s',
+                                }}
+                                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = '#a855f7'; }}
+                                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = 'rgba(255,255,255,0.6)'; }}
+                            >
+                                ⚙️ Typy
                             </button>
                         </div>
                     </div>
@@ -3720,6 +3748,263 @@ export default function EmployeePage() {
                     </div>
                 )
             }
+
+            {/* ─── Task Type Manager Modal ───────────────────────────── */}
+            {showTypeManager && (
+                <div style={{
+                    position: 'fixed', inset: 0, zIndex: 9999,
+                    background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)',
+                    display: 'flex', justifyContent: 'center', alignItems: 'center',
+                    padding: '1rem',
+                }} onClick={() => setShowTypeManager(false)}>
+                    <div
+                        onClick={e => e.stopPropagation()}
+                        style={{
+                            background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+                            border: '1px solid rgba(255,255,255,0.1)',
+                            borderRadius: '1rem',
+                            width: '100%', maxWidth: '600px', maxHeight: '85vh',
+                            display: 'flex', flexDirection: 'column',
+                            overflow: 'hidden',
+                        }}
+                    >
+                        {/* Header */}
+                        <div style={{ padding: '1.25rem', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#fff' }}>⚙️ Zarządzaj typami zadań</h3>
+                            <button onClick={() => setShowTypeManager(false)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: '1.5rem', cursor: 'pointer', lineHeight: 1 }}>×</button>
+                        </div>
+
+                        {/* Scrollable body */}
+                        <div style={{ flex: 1, overflowY: 'auto', padding: '1rem 1.25rem' }}>
+                            {/* Existing types */}
+                            <div style={{ marginBottom: '1.5rem' }}>
+                                <h4 style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>Istniejące typy</h4>
+                                {taskTypeTemplates.length === 0 && (
+                                    <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.85rem', fontStyle: 'italic' }}>
+                                        Brak szablonów w bazie — używane są domyślne typy. Dodaj pierwszy typ poniżej, a system przełączy się na dynamiczne szablony.
+                                    </p>
+                                )}
+                                {taskTypeTemplates.map(tmpl => (
+                                    <div key={tmpl.id} style={{
+                                        background: editingTypeId === tmpl.id ? 'rgba(168,85,247,0.08)' : 'rgba(255,255,255,0.03)',
+                                        border: editingTypeId === tmpl.id ? '1px solid rgba(168,85,247,0.3)' : '1px solid rgba(255,255,255,0.06)',
+                                        borderRadius: '0.6rem',
+                                        padding: '0.75rem',
+                                        marginBottom: '0.5rem',
+                                        transition: 'all 0.15s',
+                                    }}>
+                                        {editingTypeId === tmpl.id ? (
+                                            /* Edit mode */
+                                            <div>
+                                                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                                                    <input
+                                                        value={typeManagerForm.icon}
+                                                        onChange={e => setTypeManagerForm(p => ({ ...p, icon: e.target.value }))}
+                                                        style={{ width: '3rem', padding: '0.4rem', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '0.4rem', color: '#fff', fontSize: '1.1rem', textAlign: 'center' }}
+                                                        placeholder="📋"
+                                                    />
+                                                    <input
+                                                        value={typeManagerForm.label}
+                                                        onChange={e => setTypeManagerForm(p => ({ ...p, label: e.target.value }))}
+                                                        style={{ flex: 1, padding: '0.4rem 0.6rem', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '0.4rem', color: '#fff', fontSize: '0.85rem' }}
+                                                        placeholder="Nazwa typu"
+                                                    />
+                                                </div>
+                                                <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.3rem' }}>Checklist items:</div>
+                                                {typeManagerForm.items.map((item, idx) => (
+                                                    <div key={idx} style={{ display: 'flex', gap: '0.3rem', marginBottom: '0.3rem' }}>
+                                                        <input
+                                                            value={item}
+                                                            onChange={e => {
+                                                                const newItems = [...typeManagerForm.items];
+                                                                newItems[idx] = e.target.value;
+                                                                setTypeManagerForm(p => ({ ...p, items: newItems }));
+                                                            }}
+                                                            style={{ flex: 1, padding: '0.35rem 0.5rem', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.3rem', color: '#fff', fontSize: '0.8rem' }}
+                                                            placeholder={`Krok ${idx + 1}`}
+                                                        />
+                                                        <button
+                                                            onClick={() => setTypeManagerForm(p => ({ ...p, items: p.items.filter((_, i) => i !== idx) }))}
+                                                            style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '1rem', padding: '0 0.3rem' }}
+                                                        >×</button>
+                                                    </div>
+                                                ))}
+                                                <button
+                                                    onClick={() => setTypeManagerForm(p => ({ ...p, items: [...p.items, ''] }))}
+                                                    style={{ background: 'none', border: '1px dashed rgba(255,255,255,0.15)', borderRadius: '0.3rem', color: 'rgba(255,255,255,0.5)', fontSize: '0.75rem', padding: '0.25rem 0.5rem', cursor: 'pointer', marginBottom: '0.5rem', width: '100%' }}
+                                                >+ Dodaj krok</button>
+                                                <div style={{ display: 'flex', gap: '0.4rem' }}>
+                                                    <button
+                                                        disabled={typeManagerSaving}
+                                                        onClick={async () => {
+                                                            setTypeManagerSaving(true);
+                                                            try {
+                                                                const cleanItems = typeManagerForm.items.filter(i => i.trim());
+                                                                await fetch('/api/employee/task-types', {
+                                                                    method: 'PUT',
+                                                                    headers: { 'Content-Type': 'application/json' },
+                                                                    body: JSON.stringify({ id: tmpl.id, label: typeManagerForm.label, icon: typeManagerForm.icon, items: cleanItems }),
+                                                                });
+                                                                await fetchTaskTypes();
+                                                                setEditingTypeId(null);
+                                                            } finally { setTypeManagerSaving(false); }
+                                                        }}
+                                                        style={{ padding: '0.4rem 0.75rem', background: '#22c55e', border: 'none', borderRadius: '0.4rem', color: '#fff', fontSize: '0.78rem', fontWeight: '600', cursor: 'pointer' }}
+                                                    >{typeManagerSaving ? 'Zapisuję...' : '✓ Zapisz'}</button>
+                                                    <button
+                                                        onClick={() => setEditingTypeId(null)}
+                                                        style={{ padding: '0.4rem 0.75rem', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.4rem', color: 'rgba(255,255,255,0.6)', fontSize: '0.78rem', cursor: 'pointer' }}
+                                                    >Anuluj</button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            /* View mode */
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                                <div style={{ flex: 1 }}>
+                                                    <div style={{ fontSize: '0.9rem', fontWeight: '600', color: '#fff', marginBottom: '0.2rem' }}>
+                                                        {tmpl.icon} {tmpl.label}
+                                                    </div>
+                                                    {tmpl.items.length > 0 && (
+                                                        <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>
+                                                            {tmpl.items.join(' → ')}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div style={{ display: 'flex', gap: '0.3rem', flexShrink: 0 }}>
+                                                    <button
+                                                        onClick={() => {
+                                                            setEditingTypeId(tmpl.id);
+                                                            setTypeManagerForm({ label: tmpl.label, icon: tmpl.icon, items: tmpl.items.length > 0 ? [...tmpl.items] : [''] });
+                                                        }}
+                                                        style={{ background: 'none', border: 'none', color: '#38bdf8', cursor: 'pointer', fontSize: '0.8rem', padding: '0.2rem 0.4rem' }}
+                                                    >✏️</button>
+                                                    <button
+                                                        onClick={async () => {
+                                                            if (!confirm(`Usunąć typ "${tmpl.label}"? Istniejące zadania tego typu nie zostaną zmienione.`)) return;
+                                                            await fetch('/api/employee/task-types', {
+                                                                method: 'DELETE',
+                                                                headers: { 'Content-Type': 'application/json' },
+                                                                body: JSON.stringify({ id: tmpl.id }),
+                                                            });
+                                                            await fetchTaskTypes();
+                                                        }}
+                                                        style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '0.8rem', padding: '0.2rem 0.4rem' }}
+                                                    >🗑️</button>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Add new type */}
+                            {editingTypeId !== 'new' ? (
+                                <button
+                                    onClick={() => {
+                                        setEditingTypeId('new');
+                                        setTypeManagerForm({ label: '', icon: '📋', items: [''] });
+                                    }}
+                                    style={{
+                                        width: '100%', padding: '0.7rem',
+                                        background: 'rgba(56,189,248,0.08)',
+                                        border: '1px dashed rgba(56,189,248,0.3)',
+                                        borderRadius: '0.6rem',
+                                        color: '#38bdf8',
+                                        fontSize: '0.85rem',
+                                        fontWeight: '600',
+                                        cursor: 'pointer',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
+                                    }}
+                                >
+                                    + Dodaj nowy typ zadania
+                                </button>
+                            ) : (
+                                <div style={{
+                                    background: 'rgba(56,189,248,0.06)',
+                                    border: '1px solid rgba(56,189,248,0.2)',
+                                    borderRadius: '0.6rem',
+                                    padding: '0.75rem',
+                                }}>
+                                    <div style={{ fontSize: '0.85rem', fontWeight: '600', color: '#38bdf8', marginBottom: '0.5rem' }}>Nowy typ zadania</div>
+                                    <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                                        <input
+                                            value={typeManagerForm.icon}
+                                            onChange={e => setTypeManagerForm(p => ({ ...p, icon: e.target.value }))}
+                                            style={{ width: '3rem', padding: '0.4rem', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '0.4rem', color: '#fff', fontSize: '1.1rem', textAlign: 'center' }}
+                                            placeholder="📋"
+                                        />
+                                        <input
+                                            value={typeManagerForm.label}
+                                            onChange={e => setTypeManagerForm(p => ({ ...p, label: e.target.value }))}
+                                            style={{ flex: 1, padding: '0.4rem 0.6rem', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '0.4rem', color: '#fff', fontSize: '0.85rem' }}
+                                            placeholder="Nazwa nowego typu (np. Proteza)"
+                                            autoFocus
+                                        />
+                                    </div>
+                                    <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.3rem' }}>Checklist items:</div>
+                                    {typeManagerForm.items.map((item, idx) => (
+                                        <div key={idx} style={{ display: 'flex', gap: '0.3rem', marginBottom: '0.3rem' }}>
+                                            <input
+                                                value={item}
+                                                onChange={e => {
+                                                    const newItems = [...typeManagerForm.items];
+                                                    newItems[idx] = e.target.value;
+                                                    setTypeManagerForm(p => ({ ...p, items: newItems }));
+                                                }}
+                                                style={{ flex: 1, padding: '0.35rem 0.5rem', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.3rem', color: '#fff', fontSize: '0.8rem' }}
+                                                placeholder={`Krok ${idx + 1}`}
+                                            />
+                                            <button
+                                                onClick={() => setTypeManagerForm(p => ({ ...p, items: p.items.filter((_, i) => i !== idx) }))}
+                                                style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '1rem', padding: '0 0.3rem' }}
+                                            >×</button>
+                                        </div>
+                                    ))}
+                                    <button
+                                        onClick={() => setTypeManagerForm(p => ({ ...p, items: [...p.items, ''] }))}
+                                        style={{ background: 'none', border: '1px dashed rgba(255,255,255,0.15)', borderRadius: '0.3rem', color: 'rgba(255,255,255,0.5)', fontSize: '0.75rem', padding: '0.25rem 0.5rem', cursor: 'pointer', marginBottom: '0.5rem', width: '100%' }}
+                                    >+ Dodaj krok</button>
+                                    <div style={{ display: 'flex', gap: '0.4rem' }}>
+                                        <button
+                                            disabled={typeManagerSaving || !typeManagerForm.label.trim()}
+                                            onClick={async () => {
+                                                setTypeManagerSaving(true);
+                                                try {
+                                                    const cleanItems = typeManagerForm.items.filter(i => i.trim());
+                                                    const res = await fetch('/api/employee/task-types', {
+                                                        method: 'POST',
+                                                        headers: { 'Content-Type': 'application/json' },
+                                                        body: JSON.stringify({ label: typeManagerForm.label, icon: typeManagerForm.icon, items: cleanItems }),
+                                                    });
+                                                    if (res.ok) {
+                                                        await fetchTaskTypes();
+                                                        setEditingTypeId(null);
+                                                        setTypeManagerForm({ label: '', icon: '📋', items: [''] });
+                                                    } else {
+                                                        const err = await res.json();
+                                                        alert(err.error || 'Błąd');
+                                                    }
+                                                } finally { setTypeManagerSaving(false); }
+                                            }}
+                                            style={{
+                                                padding: '0.4rem 0.75rem',
+                                                background: typeManagerForm.label.trim() ? '#22c55e' : 'rgba(255,255,255,0.1)',
+                                                border: 'none', borderRadius: '0.4rem',
+                                                color: '#fff', fontSize: '0.78rem', fontWeight: '600',
+                                                cursor: typeManagerForm.label.trim() ? 'pointer' : 'not-allowed',
+                                            }}
+                                        >{typeManagerSaving ? 'Tworzę...' : '+ Utwórz typ'}</button>
+                                        <button
+                                            onClick={() => setEditingTypeId(null)}
+                                            style={{ padding: '0.4rem 0.75rem', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.4rem', color: 'rgba(255,255,255,0.6)', fontSize: '0.78rem', cursor: 'pointer' }}
+                                        >Anuluj</button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* CSS animations */}
             <style jsx global>{`
