@@ -1,6 +1,6 @@
 # Mikrostomart - Complete Project Context
 
-> **Last Updated:** 2026-02-11  
+> **Last Updated:** 2026-02-15  
 > **Version:** Production (Vercel Deployment)  
 > **Status:** Active Development
 
@@ -52,7 +52,7 @@
 
 ### Backend & Database
 - **Supabase** (PostgreSQL database, authentication, storage)
-  - Database: 14 migrations (003-016: email verification, appointment actions, SMS reminders, user_roles, etc.)
+  - Database: 24 migrations (003-024: email verification, appointment actions, SMS reminders, user_roles, employee tasks, task history, comments, labels, etc.)
   - Auth: Email/password, magic links, JWT tokens
   - Storage: Product images, patient documents
 
@@ -92,18 +92,19 @@ mikrostomart/
 │   │   │   ├── login/          # Admin login page
 │   │   │   ├── update-password/ # Password reset landing page (verifyOtp flow)
 │   │   │   └── page.tsx        # Main admin panel (186KB, 3311 lines, 14 tabs)
-│   │   ├── pracownik/          # Employee Zone (schedule grid)
+│   │   ├── pracownik/          # Employee Zone (schedule grid + task management)
 │   │   │   ├── login/          # Employee login page
 │   │   │   ├── reset-haslo/    # Employee password reset page
-│   │   │   └── page.tsx        # Weekly schedule grid (46KB)
+│   │   │   └── page.tsx        # Weekly schedule grid + task management (~220KB)
 │   │   ├── strefa-pacjenta/    # Patient portal
 │   │   │   ├── login/          # Patient login (phone or email)
 │   │   │   ├── register/       # Registration flow (confirm, password, verify, verify-email)
 │   │   │   ├── reset-password/  # Password reset flow
 │   │   │   ├── dashboard/      # Main patient dashboard (next appointment widget)
 │   │   │   ├── historia/       # Visit history
-│   │   │   └── profil/         # Patient profile
-│   │   ├── api/                # API routes (25 directories)
+│   │   │   ├── profil/         # Patient profile
+│   │   │   └── ocen-nas/       # Rate Us page (QR code → Google Reviews)
+│   │   ├── api/                # API routes (30+ directories)
 │   │   ├── auth/               # Auth routes (callback for PKCE code exchange)
 │   │   ├── cennik/             # Pricing page (AI chat assistant)
 │   │   ├── aktualnosci/        # News/articles
@@ -142,7 +143,8 @@ mikrostomart/
 │   ├── context/                # React Context providers
 │   │   ├── CartContext.tsx      # Shopping cart state
 │   │   ├── AssistantContext.tsx # AI assistant open/close state
-│   │   └── SimulatorContext.tsx # Smile simulator open/close state
+│   │   ├── SimulatorContext.tsx # Smile simulator open/close state
+│   │   └── OpinionContext.tsx  # Review survey popup state + timed trigger
 │   ├── lib/                    # Utilities & services
 │   │   ├── smsService.ts       # SMS integration
 │   │   ├── productService.ts   # Product management
@@ -161,10 +163,10 @@ mikrostomart/
 │   │   └── useUserRoles.ts     # Fetch user roles from API
 │   ├── helpers/                # Helper utilities
 │   └── middleware.ts           # Request middleware (admin + employee route protection)
-├── supabase_migrations/        # Database migrations (14 files: 003-016)
-├── public/                     # Static assets
+├── supabase_migrations/        # Database migrations (24 files: 003-024)
+├── public/                     # Static assets (incl. qr-ocen-nas.png)
 ├── scripts/                    # Utility scripts (13 files)
-└── vercel.json                 # Deployment configuration (5 cron jobs: 3 daily + 2 Friday-only)
+└── vercel.json                 # Deployment configuration (6 cron jobs: 3 daily + 2 Friday-only + 1 task reminders)
 ```
 
 ### Request Flow
@@ -302,6 +304,69 @@ Customer orders.
 
 #### 11. **news**
 Clinic news/articles.
+
+#### 12. **employee_tasks**
+Task management system for clinic staff.
+```sql
+- id (uuid, PK)
+- title (text, NOT NULL)
+- description (text)
+- status ('todo', 'in_progress', 'done', 'archived')
+- priority ('low', 'medium', 'high')
+- task_type (varchar(100)) -- e.g. 'Laboratorium', 'Zamówienia', 'Recepcja'
+- due_date (date)
+- patient_name (text)
+- patient_id (text) -- Prodentis patient ID
+- assigned_to_doctor_id (text) -- legacy single assignment
+- assigned_to_doctor_name (text) -- legacy single assignment
+- assigned_to (jsonb, DEFAULT '[]') -- [{id, name}] multi-employee assignment
+- checklist_items (jsonb, DEFAULT '[]') -- [{label, done, checked_by?, checked_at?}]
+- image_url (text) -- uploaded image from Supabase Storage
+- created_by (uuid)
+- created_by_email (text)
+- created_at, updated_at
+```
+
+#### 13. **task_history**
+Audit log for task edits, status changes, and checklist toggles.
+```sql
+- id (uuid, PK)
+- task_id (uuid, FK → employee_tasks, CASCADE)
+- changed_by (text)
+- changed_at (timestamptz)
+- change_type (text) -- 'edit' | 'status' | 'checklist'
+- changes (jsonb) -- { field: { old, new } }
+```
+
+#### 14. **task_comments**
+Comments/discussion on employee tasks.
+```sql
+- id (uuid, PK)
+- task_id (uuid, FK → employee_tasks, CASCADE)
+- author_id (text)
+- author_email (text)
+- author_name (text)
+- content (text)
+- created_at (timestamptz)
+```
+
+#### 15. **task_labels**
+Custom colored labels/tags for tasks.
+```sql
+- id (uuid, PK)
+- name (text)
+- color (text, DEFAULT '#38bdf8')
+- created_at (timestamptz)
+```
+Default labels: Pilne (red), Laboratorium (purple), Oczekuje (amber), Zamówienie (blue), Gotowe do odbioru (green)
+
+#### 16. **task_label_assignments**
+Many-to-many junction between tasks and labels.
+```sql
+- task_id (uuid, FK → employee_tasks, CASCADE)
+- label_id (uuid, FK → task_labels, CASCADE)
+- PRIMARY KEY (task_id, label_id)
+```
 
 ---
 
@@ -469,6 +534,20 @@ Cinematic intro animation on first page load.
 - **No flicker** — children render hidden during animation, revealed after
 - **Framer Motion** — AnimatePresence, motion.div with spring physics
 
+#### Opinion Survey & Review Generator (`OpinionSurvey.tsx`)
+AI-powered patient satisfaction survey that generates Google Reviews.
+- **9-step survey**: isPatient → duration → procedures → staffRating → comfortRating → whatYouLike → improvements → recommend → result
+- **Procedure selection**: 10 dental procedure types (chip-based multi-select)
+- **Star ratings**: custom `StarRating` component for staff and comfort (1-5)
+- **AI review generation**: positive sentiment → OpenAI generates 3-5 sentence Polish Google review
+- **Negative sentiment handling**: if avg rating < 4 or negative recommendation → shows thank you message without review (no negative reviews posted)
+- **Copy & redirect**: copy generated review to clipboard → redirect to `https://g.page/r/CSYarbrDoYcDEAE/review`
+- **Timed popup**: `OpinionContext.tsx` manages auto-popup after 2-5 min delay on public pages
+  - 50% probability gate
+  - 30-day cooldown (localStorage)
+  - Skipped on `/pracownik`, `/admin`, `/rezerwacja` paths
+- **Backend**: `/api/generate-review` (OpenAI `gpt-4o-mini`, temperature 0.8)
+
 #### Other Pages
 - About Us (`/o-nas`)
 - Contact (`/kontakt`) — Google Maps integration, `ContactForm.tsx`
@@ -480,6 +559,8 @@ Cinematic intro animation on first page load.
 ### 👤 Patient Portal (`/strefa-pacjenta`)
 
 **Authentication Required** (Custom JWT auth, separate from Supabase Auth)
+
+**Navigation Tabs:** Panel główny | Historia wizyt | Mój profil | ⭐ Oceń nas
 
 Features:
 1. **Registration** (`/register`)
@@ -511,7 +592,15 @@ Features:
      - `CancelAppointmentModal.tsx` — cancel with optional reason
      - `RescheduleAppointmentModal.tsx` — request reschedule
 
-6. **Novik Code Credit** (`NovikCodeCredit.tsx`)
+6. **Oceń nas / Rate Us** (`/ocen-nas`)
+   - QR code linking to Google Reviews (`https://g.page/r/CSYarbrDoYcDEAE/review`)
+   - Personalized greeting with patient's first name
+   - CTA button to leave Google review
+   - "Dlaczego Twoja opinia jest ważna?" section (3 reasons)
+   - Thank you note
+   - QR code image: `public/qr-ocen-nas.png`
+
+7. **Novik Code Credit** (`NovikCodeCredit.tsx`)
    - "Designed and developed by Novik Code" at footer bottom
    - Epic full-page takeover animation on click (fullscreen logo background, Framer Motion)
    - Click or ESC to dismiss
@@ -520,13 +609,13 @@ Features:
 
 **Authentication Required** (Supabase Auth + `employee` or `admin` role)
 
-**Purpose:** Weekly schedule view for clinic staff — shows all doctors' appointments in a grid format similar to Prodentis desktop app.
+**Purpose:** Weekly schedule view + full task management system for clinic staff.
 
 **Features:**
 1. **Login** (`/pracownik/login`) — Supabase email/password login + "Zapomniałem hasła" link
 2. **Password Reset** (`/pracownik/reset-haslo`) — sends reset email via `/api/auth/reset-password`
 3. **Tab Navigation** — tab bar below header: 📅 **Grafik** | ✅ **Zadania** (`activeTab` state)
-4. **Weekly Schedule Grid** (Grafik tab, `/pracownik/page.tsx` — ~98KB, 1600+ lines)
+4. **Weekly Schedule Grid** (Grafik tab, `/pracownik/page.tsx` — ~220KB, 3500+ lines)
    - **Time slots**: 15-minute intervals, 7:00–20:00
    - **Multi-doctor columns**: one column per operator/doctor
    - **Operator toggle buttons**: show/hide individual doctors, "Pokaż wszystkich" / "Ukryj wszystkich"
@@ -540,11 +629,29 @@ Features:
      - 11 badge types: VIP (V), WAŻNE (!), AWARIA (A), Pacjent potwierdzony (;)), Pacjent z bólem (B), Pierwszorazowy (P), Plan leczenia (PL), CBCT (TK), KASA, NIE potwierdzony (?), MGR
    - **Skip weekends**: hides Sat/Sun if no appointments
    - **Horizontal scroll**: enabled for narrow screens
-4. **API**: `/api/employee/schedule?weekStart=YYYY-MM-DD` — fetches 7 days of appointments from Prodentis (with notes, badges, duration, patientId)
-5. **Patient History Popup**: click any appointment cell → full-screen modal with patient's visit history (diagnosis, opis wizyty, procedury with tooth + price, zalecenia, leki). Data from `/api/employee/patient-history?patientId={prodentisId}`
-6. **Task List (Zadania tab)**: placeholder UI with roadmap preview (coming soon: task CRUD, assignment, statuses, schedule integration)
-7. **Role check**: `hasRole(userId, 'employee') || hasRole(userId, 'admin')`
-8. **Middleware protection**: unauthenticated → redirect to `/pracownik/login`
+5. **API**: `/api/employee/schedule?weekStart=YYYY-MM-DD` — fetches 7 days of appointments from Prodentis (with notes, badges, duration, patientId)
+6. **Patient History Popup**: click any appointment cell → full-screen modal with patient's visit history (diagnosis, opis wizyty, procedury with tooth + price, zalecenia, leki). Data from `/api/employee/patient-history?patientId={prodentisId}`
+7. **Task Management System** (Zadania tab) — full Trello-style task management:
+   - **Task CRUD**: create, edit, delete, archive tasks with title, description, priority, due date, task type, patient name
+   - **Task Types**: custom types (Laboratorium, Zamówienia, Recepcja, etc.)
+   - **Checklists**: add/remove checklist items per task, toggle done state with checked_by tracking
+   - **Multi-employee assignment**: assign tasks to one or more employees (`assigned_to` JSONB array)
+   - **Patient linking**: link task to Prodentis patient, fetch future appointments to suggest due dates
+   - **Image attachments**: upload images to Supabase Storage (`task-images` bucket)
+   - **Status workflow**: Todo → In Progress → Done → Archived, with filter tabs
+   - **Priority levels**: Low, Medium, High — color-coded badges
+   - **Search & filters**: text search + filter by assignee, task type, priority
+   - **View modes**: Lista (list) | Kanban (3-column drag-and-drop board) | Kalendarz (monthly calendar)
+   - **Kanban board**: drag tasks between Todo/In Progress/Done columns via `onDragStart`/`onDragOver`/`onDrop`
+   - **Calendar view**: monthly grid showing task counts per day, due date dots
+   - **Task comments**: threaded comments per task (author name, timestamps, post new comment)
+   - **Task history**: audit log of all edits, status changes, checklist toggles with timestamps
+   - **Labels/tags**: custom colored labels (5 defaults seeded), assignable per task
+   - **Browser notifications**: push notification permission request on load
+   - **Task reminders cron**: daily Telegram reminder for tasks without due dates (`/api/cron/task-reminders`)
+   - **DB Migrations**: 019 (task_type + checklists), 020 (image_url), 021 (task_history), 022 (multi_assign), 023 (task_comments), 024 (task_labels)
+8. **Role check**: `hasRole(userId, 'employee') || hasRole(userId, 'admin')`
+9. **Middleware protection**: unauthenticated → redirect to `/pracownik/login`
 
 ### 🛡 Admin Panel (`/admin`)
 
@@ -669,6 +776,7 @@ Features:
 | `/api/prodentis` | GET | Prodentis API proxy |
 | `/api/reservations` | POST | Reservation form submission (→ Telegram default) |
 | `/api/treatment-lead` | POST | Treatment calculator lead form (→ Telegram + Email) |
+| `/api/generate-review` | POST | AI-generated Google review from survey (OpenAI gpt-4o-mini) |
 
 ### Auth APIs (`/api/auth/*`)
 
@@ -714,6 +822,13 @@ Features:
 |----------|--------|---------|
 | `/employee/schedule` | GET | Weekly schedule from Prodentis (`?weekStart=`) |
 | `/employee/patient-history` | GET | Patient visit history from Prodentis (`?patientId=&limit=`) |
+| `/employee/patient-appointments` | GET | Future appointments for patient from Prodentis (`?patientId=`) — used for task due date suggestions |
+| `/employee/staff` | GET | Registered employees list from `user_roles` table (fast, no Prodentis scan) |
+| `/employee/tasks` | GET, POST, PUT, DELETE | Task CRUD (list with filters, create, update status/fields, delete) |
+| `/employee/tasks/[id]` | GET, PUT, DELETE | Individual task operations (get details, update, archive) |
+| `/employee/tasks/[id]/comments` | GET, POST | Task comments (list comments, add new comment) |
+| `/employee/tasks/labels` | GET, POST | Task labels CRUD (list all labels, create new label) |
+| `/employee/tasks/upload-image` | POST | Upload task image to Supabase Storage (`task-images` bucket) |
 
 ### Appointment APIs (`/api/appointments/*`)
 
@@ -740,6 +855,8 @@ Features:
 | `/patients/appointments/[id]/cancel` | POST | Cancel appointment |
 | `/patients/appointments/[id]/reschedule` | POST | Request reschedule |
 | `/patients/appointments/[id]/status` | GET | Get appointment action status |
+| `/patients/appointments/create` | POST | Create appointment action record |
+| `/patients/appointments/by-date` | GET | Fetch appointment action by date |
 
 ### Cron Job APIs (`/api/cron/*`)
 
@@ -750,6 +867,7 @@ Features:
 | `/cron/sms-auto-send` | Auto-send approved drafts | Daily 8:00 AM UTC |
 | `/cron/sms-auto-send?targetDate=monday` | Auto-send Monday drafts (Fri only) | Friday 9:00 AM UTC |
 | `/cron/daily-article` | Daily article publishing | Daily 7:00 AM UTC |
+| `/cron/task-reminders` | Telegram reminder for tasks without due dates | Daily 8:30 AM UTC |
 
 
 ---
@@ -1016,6 +1134,21 @@ Centralized via `src/lib/telegram.ts` with `sendTelegramNotification(message, ch
 
 ---
 
+### 4. Task Reminders
+**Path:** `/api/cron/task-reminders`  
+**Schedule:** Daily at 8:30 AM UTC (9:30–10:30 AM Warsaw)  
+**Purpose:** Send Telegram reminder for tasks without due dates (`due_date IS NULL`)
+
+**Workflow:**
+1. Query `employee_tasks` for tasks where `due_date IS NULL` and `status != 'done'`
+2. Build a single Telegram message listing all undated tasks with title, patient name, assigned person, and age in days
+3. Send via `sendTelegramNotification(message, 'default')`
+4. Repeats daily until someone adds a due date to each task
+
+**Auth:** Vercel `CRON_SECRET` or `?manual=true` bypass
+
+---
+
 ### Friday→Monday Workflow
 On Fridays, the system runs a **second pass** for Monday appointments:
 
@@ -1038,7 +1171,8 @@ This ensures Saturday and Monday templates don't mix in the admin panel.
     { "path": "/api/cron/appointment-reminders", "schedule": "0 7 * * *" },
     { "path": "/api/cron/sms-auto-send", "schedule": "0 8 * * *" },
     { "path": "/api/cron/appointment-reminders?targetDate=monday", "schedule": "15 8 * * 5" },
-    { "path": "/api/cron/sms-auto-send?targetDate=monday", "schedule": "0 9 * * 5" }
+    { "path": "/api/cron/sms-auto-send?targetDate=monday", "schedule": "0 9 * * 5" },
+    { "path": "/api/cron/task-reminders", "schedule": "30 8 * * *" }
   ]
 }
 ```
@@ -1162,6 +1296,82 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### February 15, 2026
+**Oceń nas (Rate Us) Tab in Patient Portal**
+
+#### Changes:
+1. **New page** `/strefa-pacjenta/ocen-nas` — Encourages patients to leave a Google Review
+   - Personalized greeting with patient's first name
+   - QR code (`public/qr-ocen-nas.png`) linking to `https://g.page/r/CSYarbrDoYcDEAE/review`
+   - CTA button "⭐ Zostaw opinię w Google" with hover animations
+   - "Dlaczego Twoja opinia jest ważna?" section (3 reasons)
+   - Thank you note
+2. **Navigation updated** — "⭐ Oceń nas" tab added to all 4 patient portal pages (dashboard, historia, profil, ocen-nas)
+
+#### Files Added:
+- `src/app/strefa-pacjenta/ocen-nas/page.tsx` — **[NEW]** Rate Us page
+- `public/qr-ocen-nas.png` — **[NEW]** QR code image for Google Reviews
+
+#### Files Modified:
+- `src/app/strefa-pacjenta/dashboard/page.tsx` — Added Oceń nas nav link
+- `src/app/strefa-pacjenta/historia/page.tsx` — Added Oceń nas nav link
+- `src/app/strefa-pacjenta/profil/page.tsx` — Added Oceń nas nav link
+
+---
+
+### February 14, 2026
+**Full Task Management System (Trello-style) + Opinion Survey System**
+
+#### Major Changes:
+1. **Task Management (Zadania tab)** — Complete Trello-style task system in Employee Zone:
+   - Task CRUD with title, description, priority (Low/Medium/High), due date, task type, patient linking
+   - Multi-employee assignment (JSONB `assigned_to` array)
+   - Checklists with checked_by tracking per item
+   - Image attachments (Supabase Storage `task-images` bucket)
+   - Status workflow: Todo → In Progress → Done → Archived
+   - Search bar + filter dropdowns (assignee, type, priority)
+   - 3 view modes: Lista / Kanban / Kalendarz
+   - Kanban board with drag-and-drop between columns
+   - Calendar month view with task due date dots
+   - Task comments with author/timestamp
+   - Task history audit log
+   - Custom colored labels/tags
+   - Browser push notification permission request
+   - Task reminders cron for tasks without due dates (Telegram)
+2. **Opinion Survey System** — AI-powered review generation:
+   - `OpinionSurvey.tsx` — 9-step patient satisfaction survey (666 lines)
+   - `OpinionContext.tsx` — timed popup (2-5 min delay, 50% probability, 30-day cooldown)
+   - `/api/generate-review` — OpenAI `gpt-4o-mini` generates Polish Google review from survey
+   - Positive sentiment → copy review + redirect to Google Reviews
+   - Negative sentiment → thank you without review
+
+#### Database Migrations:
+- `019_task_types_checklists.sql` — Add `task_type` + `checklist_items` JSONB columns
+- `020_task_images.sql` — Add `image_url` column
+- `021_task_history.sql` — Create `task_history` audit log table
+- `022_multi_assign.sql` — Add `assigned_to` JSONB column + migrate old assignments
+- `023_task_comments.sql` — Create `task_comments` table
+- `024_task_labels.sql` — Create `task_labels` + `task_label_assignments` tables (5 default labels seeded)
+
+#### Files Added:
+- `src/app/api/employee/tasks/route.ts` — **[NEW]** Task CRUD API (GET/POST/PUT/DELETE)
+- `src/app/api/employee/tasks/[id]/route.ts` — **[NEW]** Individual task operations
+- `src/app/api/employee/tasks/[id]/comments/route.ts` — **[NEW]** Task comments API
+- `src/app/api/employee/tasks/labels/route.ts` — **[NEW]** Task labels API
+- `src/app/api/employee/tasks/upload-image/route.ts` — **[NEW]** Task image upload
+- `src/app/api/employee/staff/route.ts` — **[NEW]** Registered employees list
+- `src/app/api/employee/patient-appointments/route.ts` — **[NEW]** Future patient appointments (for task due date suggestions)
+- `src/app/api/cron/task-reminders/route.ts` — **[NEW]** Daily Telegram reminder for undated tasks
+- `src/app/api/generate-review/route.ts` — **[NEW]** AI review generation from survey
+- `src/components/OpinionSurvey.tsx` — **[NEW]** 9-step satisfaction survey component
+- `src/context/OpinionContext.tsx` — **[NEW]** Survey popup state + timing logic
+
+#### Files Modified:
+- `src/app/pracownik/page.tsx` — Complete task management UI (Kanban, Calendar, Comments, search/filters, view toggle)
+- `vercel.json` — Added `task-reminders` cron (6 total)
+
+---
 
 ### February 13, 2026
 **Tab Navigation + Task List Placeholder in Employee Zone**
@@ -1653,15 +1863,15 @@ OpenAI gpt-image-1 regenerates the entire masked area from scratch (+ forces 102
 - [x] Public website (all pages)
 - [x] E-commerce (products, cart, payments)
 - [x] Admin panel (all sections)
-- [x] Patient portal (registration, login, dashboard)
+- [x] Patient portal (registration, login, dashboard, historia, profil, oceń nas)
 - [x] Email notifications (all types)
-- [x] Telegram notifications
+- [x] Telegram notifications (3-bot architecture)
 - [x] SMS reminder system (generation, editing, sending)
 - [x] SMS history management (Wysłane tab)
 - [x] Appointment confirmation/cancellation workflow
 - [x] Short link system
 - [x] Appointment instructions
-- [x] Cron jobs (SMS generation)
+- [x] Cron jobs (SMS generation, article publishing, task reminders)
 - [x] Prodentis API integration
 - [x] YouTube feed
 - [x] AI assistant
@@ -1679,8 +1889,15 @@ OpenAI gpt-image-1 regenerates the entire masked area from scratch (+ forces 102
 - [x] SMS delete for sent records — permanent deletion from database
 - [x] SMS draft regeneration — no longer blocked by previous sent status
 - [x] SMS templates shortened — under 160-char GSM-7 limit
+- [x] Task Management System — full Trello-style CRUD with Kanban, Calendar, Comments, Labels, History
+- [x] Task reminders cron — daily Telegram reminder for tasks without due dates
+- [x] Opinion Survey — AI-powered review generation (OpinionSurvey + OpinionContext + generate-review API)
+- [x] Oceń nas patient portal tab — QR code + CTA linking to Google Reviews
+- [x] Employee staff API — registered employees list from user_roles
+- [x] Patient future appointments API — for task due date suggestions
 
 ### ⚠️ Partial/Pending
+- [ ] Task comments + labels require running migrations 023 + 024 in Supabase
 - [ ] Comprehensive testing of all workflows
 - [ ] Performance optimization
 - [ ] SEO optimization
@@ -1690,7 +1907,6 @@ OpenAI gpt-image-1 regenerates the entire masked area from scratch (+ forces 102
 - [ ] Advanced analytics dashboard
 - [ ] Multi-language support
 - [ ] Payment plan management
-- [ ] Patient feedback system
 - [ ] SMS date filters (last 7 days, 30 days, etc.)
 
 ---
