@@ -171,6 +171,11 @@ const TASK_TYPE_CHECKLISTS: Record<string, { label: string; icon: string; items:
         icon: '😁',
         items: ['Wgrać dane do CC', 'Pokazać wizualizacje', 'Akceptacja', 'Wpłata 50%', 'Zamówienie nakładek'],
     },
+    'plan_leczenia': {
+        label: 'Plan Leczenia',
+        icon: '📝',
+        items: ['Plan', 'Prezentacja', 'Sprawdzić', 'Druk', 'Oddanie'],
+    },
     'inne': {
         label: 'Inne',
         icon: '📋',
