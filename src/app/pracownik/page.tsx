@@ -693,10 +693,14 @@ export default function EmployeePage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ status: newStatus }),
             });
-            if (!res.ok) throw new Error('Failed');
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.error || 'Failed');
+            }
             setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
-        } catch (err) {
+        } catch (err: any) {
             console.error('[Tasks] Update error:', err);
+            alert(`Błąd zmiany statusu: ${err.message || 'Spróbuj ponownie'}`);
         }
     };
 
