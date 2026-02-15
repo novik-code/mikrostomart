@@ -2641,7 +2641,7 @@ export default function EmployeePage() {
                                                         >
                                                             ✏️ Edytuj
                                                         </button>
-                                                        {task.status === 'done' && (
+                                                        {task.status !== 'archived' && (
                                                             <button
                                                                 onClick={(e) => { e.stopPropagation(); handleUpdateStatus(task.id, 'archived'); }}
                                                                 style={{
