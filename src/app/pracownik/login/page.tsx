@@ -40,7 +40,8 @@ export default function EmployeeLoginPage() {
                 }
             }
 
-            router.push("/pracownik");
+            // Full page navigation to ensure cookies are sent fresh (PWA-safe)
+            window.location.href = "/pracownik";
         } catch (err: any) {
             const msg = err.message || '';
             if (msg.includes('Invalid login credentials')) {

@@ -28,7 +28,7 @@ export default function LoginPage() {
             });
 
             if (error) throw error;
-            router.push("/admin");
+            window.location.href = "/admin";
         } catch (err: any) {
             setError(err.message);
         } finally {

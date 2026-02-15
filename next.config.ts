@@ -8,6 +8,39 @@ const withPWA = withPWAInit({
     disableDevLogs: true,
     skipWaiting: true,
     clientsClaim: true,
+    // Don't use navigation fallback for auth-sensitive pages
+    navigateFallbackDenylist: [
+      /^\/pracownik/,
+      /^\/admin/,
+      /^\/api\//,
+      /^\/auth\//,
+      /^\/strefa-pacjenta\/login/,
+    ],
+    runtimeCaching: [
+      // Auth API routes: always go to network, never cache
+      {
+        urlPattern: /^https?:\/\/.*\/api\/auth\/.*/i,
+        handler: 'NetworkOnly',
+      },
+      // Supabase auth endpoints: never cache
+      {
+        urlPattern: /^https?:\/\/.*supabase.*\/auth\/.*/i,
+        handler: 'NetworkOnly',
+      },
+      // Login/pracownik/admin page navigations: network first, no cache
+      {
+        urlPattern: /^https?:\/\/.*\/(pracownik|admin)(\/.*)?$/i,
+        handler: 'NetworkFirst',
+        options: {
+          cacheName: 'staff-pages',
+          expiration: {
+            maxEntries: 16,
+            maxAgeSeconds: 60, // 1 minute max cache
+          },
+          networkTimeoutSeconds: 5,
+        },
+      },
+    ],
   },
 });
 
