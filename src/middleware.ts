@@ -1,60 +1,22 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import createMiddleware from "next-intl/middleware";
-import { routing } from "./i18n/routing";
-
-// Create the next-intl middleware for locale detection via cookie
-const intlMiddleware = createMiddleware(routing);
 
 export async function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl;
 
-    // ─── Skip i18n for internal routes ───────────────────────────────────
-    // Admin, employee, patient portal, and API routes stay Polish-only
-    const skipI18nPaths = [
-        "/admin",
-        "/pracownik",
-        "/strefa-pacjenta",
-        "/api/",
-        "/auth/",
-        "/_next/",
-        "/manifest.json",
-        "/sw.js",
-        "/workbox-",
-        "/swe-worker-",
-    ];
-
-    const shouldSkipI18n = skipI18nPaths.some((p) => pathname.startsWith(p));
-
-    // ─── For non-i18n routes: run Supabase auth only ─────────────────────
-    if (shouldSkipI18n) {
-        return handleSupabaseAuth(request);
-    }
-
-    // ─── For public routes: run i18n first, then Supabase auth ──────────
-    // With localePrefix: 'never', next-intl reads NEXT_LOCALE cookie
-    // and does NOT rewrite URLs. It only sets the locale for the request.
-    const intlResponse = intlMiddleware(request);
-
-    // Then apply Supabase auth on top of the i18n response
-    return handleSupabaseAuth(request, intlResponse);
+    // ─── Supabase auth for protected routes ──────────────────────────────
+    return handleSupabaseAuth(request);
 }
 
 /**
  * Handles Supabase auth: refreshes session cookies and protects admin/employee routes.
- * Optionally takes a pre-built response from i18n middleware.
  */
-async function handleSupabaseAuth(
-    request: NextRequest,
-    existingResponse?: NextResponse
-) {
-    let response =
-        existingResponse ||
-        NextResponse.next({
-            request: {
-                headers: request.headers,
-            },
-        });
+async function handleSupabaseAuth(request: NextRequest) {
+    let response = NextResponse.next({
+        request: {
+            headers: request.headers,
+        },
+    });
 
     const supabase = createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -68,7 +30,6 @@ async function handleSupabaseAuth(
                     cookiesToSet.forEach(({ name, value }) =>
                         request.cookies.set(name, value)
                     );
-                    // If we have an existing response from intl, set cookies on it
                     cookiesToSet.forEach(({ name, value, options }) =>
                         response.cookies.set(name, value, options)
                     );
