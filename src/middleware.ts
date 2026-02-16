@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import createMiddleware from "next-intl/middleware";
 import { routing } from "./i18n/routing";
 
-// Create the next-intl middleware for locale detection & routing
+// Create the next-intl middleware for locale detection via cookie
 const intlMiddleware = createMiddleware(routing);
 
 export async function middleware(request: NextRequest) {
@@ -32,10 +32,11 @@ export async function middleware(request: NextRequest) {
     }
 
     // ─── For public routes: run i18n first, then Supabase auth ──────────
+    // With localePrefix: 'never', next-intl reads NEXT_LOCALE cookie
+    // and does NOT rewrite URLs. It only sets the locale for the request.
     const intlResponse = intlMiddleware(request);
 
     // Then apply Supabase auth on top of the i18n response
-    // (primarily for cookie refresh, not route protection on public pages)
     return handleSupabaseAuth(request, intlResponse);
 }
 

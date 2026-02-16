@@ -1,10 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Playfair_Display } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
-import plCommon from "../../messages/pl/common.json";
-import plPages from "../../messages/pl/pages.json";
+import { getLocale, getMessages } from "next-intl/server";
 
-const plMessages = { ...plCommon, ...plPages };
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
@@ -48,13 +46,17 @@ export const viewport: Viewport = {
     themeColor: "#0f1115",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
     children,
 }: Readonly<{
     children: React.ReactNode;
 }>) {
+    // Read locale from NEXT_LOCALE cookie (set by LanguageSwitcher)
+    const locale = await getLocale();
+    const messages = await getMessages();
+
     return (
-        <html lang="pl">
+        <html lang={locale}>
             <body className={`${inter.variable} ${playfair.variable}`}>
                 <script
                     type="application/ld+json"
@@ -97,7 +99,7 @@ export default function RootLayout({
                         })
                     }}
                 />
-                <NextIntlClientProvider locale="pl" messages={plMessages}>
+                <NextIntlClientProvider locale={locale} messages={messages}>
                     <CartProvider>
                         <AssistantProvider>
                             <SimulatorProvider>

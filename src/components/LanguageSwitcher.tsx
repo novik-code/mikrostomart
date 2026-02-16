@@ -1,9 +1,9 @@
 "use client";
 
 import { useLocale } from "next-intl";
-import { useRouter, usePathname } from "@/i18n/navigation";
 import { routing } from "@/i18n/routing";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useTransition } from "react";
+import { useRouter } from "next/navigation";
 
 const FLAGS: Record<string, string> = {
     pl: "🇵🇱",
@@ -19,7 +19,7 @@ const FLAGS: Record<string, string> = {
 function LanguageSwitcherInner() {
     const locale = useLocale();
     const router = useRouter();
-    const pathname = usePathname();
+    const [isPending, startTransition] = useTransition();
     const [isOpen, setIsOpen] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
 
@@ -36,7 +36,14 @@ function LanguageSwitcherInner() {
 
     function switchLocale(newLocale: string) {
         setIsOpen(false);
-        router.replace(pathname, { locale: newLocale as any });
+
+        // Set the NEXT_LOCALE cookie (read by next-intl middleware)
+        document.cookie = `NEXT_LOCALE=${newLocale};path=/;max-age=31536000;SameSite=Lax`;
+
+        // Refresh the page to pick up the new locale
+        startTransition(() => {
+            router.refresh();
+        });
     }
 
     return (
@@ -56,6 +63,7 @@ function LanguageSwitcherInner() {
                     fontSize: "0.85rem",
                     color: "var(--color-text-main, #fff)",
                     transition: "border-color 0.2s, background 0.2s",
+                    opacity: isPending ? 0.6 : 1,
                 }}
                 onMouseEnter={(e) => {
                     (e.target as HTMLElement).style.borderColor = "rgba(212, 175, 55, 0.6)";
