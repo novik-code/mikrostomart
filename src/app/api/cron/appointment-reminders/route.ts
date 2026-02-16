@@ -5,7 +5,7 @@ import { mapAppointmentTypeToSlug } from '@/lib/appointmentTypeMapper';
 import { randomUUID } from 'crypto';
 import { nanoid } from 'nanoid';
 
-export const maxDuration = 60; // Vercel function timeout
+export const maxDuration = 120; // Vercel function timeout (increased: many appointments + multiple DB queries per appointment)
 
 // Prodentis API base URL
 const PRODENTIS_API_URL = process.env.PRODENTIS_API_URL || 'http://192.168.1.5:3000';
@@ -142,7 +142,36 @@ export async function GET(req: Request) {
             });
         }
 
-        console.log(`📊 [SMS Reminders] Found ${appointments.length} appointments for tomorrow`);
+        console.log(`📊 [SMS Reminders] Found ${appointments.length} appointments for ${isMondayMode ? 'Monday' : 'tomorrow'}`);
+
+        // 4a-cache. Pre-fetch SMS templates (cache outside loop to avoid N+1 Supabase queries)
+        let cachedTemplates: Map<string, string> | null = null;
+        try {
+            const { data: templates } = await supabase
+                .from('sms_templates')
+                .select('key, template');
+            if (templates && templates.length > 0) {
+                cachedTemplates = new Map();
+                for (const t of templates) {
+                    cachedTemplates.set(t.key.toLowerCase(), t.template);
+                }
+                console.log(`   📋 Cached ${cachedTemplates.size} SMS templates`);
+            }
+        } catch (err) {
+            console.error('   ⚠️  Failed to cache templates, will use fallback per-appointment');
+        }
+
+        // For Monday mode: pre-compute the formatted date string for replacement
+        let mondayDateFormatted = '';
+        if (isMondayMode) {
+            mondayDateFormatted = targetDate.toLocaleDateString('pl-PL', {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long',
+                timeZone: 'Europe/Warsaw'
+            });
+            console.log(`   📅 Monday date formatted: "${mondayDateFormatted}"`);
+        }
 
         // 4b. Fetch working doctor info from Prodentis slots/free API
         // NOTE: This endpoint returns only FREE (unfilled) slots — not all working-hour slots.
@@ -321,22 +350,43 @@ export async function GET(req: Request) {
                 const appointmentType = appointment.appointmentType.name;
                 // appointmentDate already declared in white-field validation above
 
-                // Get template and format message
-                const template = await getSMSTemplate(doctorName, appointmentType);
-                const message = formatSMSMessage(template, {
+                // Get template (use cached templates if available, otherwise fetch per-appointment)
+                let template: string;
+                if (cachedTemplates) {
+                    const normalizedType = appointmentType.toLowerCase();
+                    const typeKey = `bytype:${normalizedType}`;
+                    template = cachedTemplates.get(typeKey)
+                        || cachedTemplates.get('default')
+                        || 'Gabinet Mikrostomart przypomina o wizycie {date} o {time}. Prosimy o potwierdzenie:';
+                } else {
+                    template = await getSMSTemplate(doctorName, appointmentType);
+                }
+
+                const formattedDate = appointmentDate.toLocaleDateString('pl-PL', {
+                    weekday: 'long',
+                    day: 'numeric',
+                    month: 'long',
+                    timeZone: 'Europe/Warsaw'
+                });
+
+                let message = formatSMSMessage(template, {
                     patientName: appointment.patientName.split(' ')[0], // First name only
                     doctor: doctorName,
-                    date: appointmentDate.toLocaleDateString('pl-PL', {
-                        weekday: 'long',
-                        day: 'numeric',
-                        month: 'long',
-                        timeZone: 'Europe/Warsaw'
-                    }),
+                    date: formattedDate,
                     time: appointmentTime,
                     appointmentType: appointmentType
                 });
 
-                console.log(`   📝 Generated SMS (${message.length} chars): "${message.substring(0, 50)}..."`);
+                // In Monday mode (Friday→Monday): replace 'jutro'/'jutrzejszej' with actual date
+                // Templates hardcode 'jutro' but for Friday pass, appointment is on Monday
+                if (isMondayMode) {
+                    message = message
+                        .replace(/jutrzejszej wizycie/gi, `wizycie w ${formattedDate}`)
+                        .replace(/jutrzejszej/gi, formattedDate)
+                        .replace(/jutro/gi, `w ${formattedDate}`);
+                }
+
+                console.log(`   📝 Generated SMS (${message.length} chars): "${message.substring(0, 80)}..."`);
 
                 // 7. Find or create patient_id (for FK relationship)
                 let patientId = null;

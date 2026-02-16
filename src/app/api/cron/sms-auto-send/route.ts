@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sendSMS } from '@/lib/smsService';
 
-export const maxDuration = 60; // Vercel function timeout
+export const maxDuration = 120; // Vercel function timeout
 
 /**
  * Auto-Send SMS Cron Job (Stage 2 of 2)
