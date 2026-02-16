@@ -1,9 +1,19 @@
 "use client";
 
-import { reviews } from "@/data/reviews";
+import { useEffect, useState } from "react";
+import { reviews as staticReviews } from "@/data/reviews";
 import RevealOnScroll from "./RevealOnScroll";
 import { Star, Quote } from "lucide-react";
-import Image from "next/image";
+
+interface GoogleReview {
+    author: string;
+    authorPhoto: string | null;
+    rating: number;
+    text: string;
+    date: string;
+    publishTime: string;
+    googleMapsUri: string;
+}
 
 // Simple "G" logo for Google (Google Colors)
 const GoogleLogo = () => (
@@ -16,6 +26,50 @@ const GoogleLogo = () => (
 );
 
 export default function GoogleReviews() {
+    const [liveReviews, setLiveReviews] = useState<GoogleReview[] | null>(null);
+    const [overallRating, setOverallRating] = useState(5.0);
+    const [totalReviews, setTotalReviews] = useState(0);
+
+    useEffect(() => {
+        const fetchReviews = async () => {
+            try {
+                const res = await fetch('/api/google-reviews');
+                if (!res.ok) throw new Error('API error');
+                const data = await res.json();
+                if (data.success && data.reviews?.length > 0) {
+                    setLiveReviews(data.reviews);
+                    setOverallRating(data.rating || 5.0);
+                    setTotalReviews(data.totalReviews || data.reviews.length);
+                }
+            } catch {
+                // Silently fall back to static reviews
+                console.log('[GoogleReviews] Using static fallback');
+            }
+        };
+        fetchReviews();
+    }, []);
+
+    // Use live reviews if available, otherwise static
+    const displayReviews = liveReviews
+        ? liveReviews.map((r, i) => ({
+            id: i + 1,
+            author: r.author,
+            authorInitial: r.author.charAt(0).toUpperCase(),
+            authorPhoto: r.authorPhoto,
+            rating: r.rating,
+            text: r.text,
+            date: r.date,
+        }))
+        : staticReviews.map(r => ({
+            id: r.id,
+            author: r.author,
+            authorInitial: r.author.charAt(0).toUpperCase(),
+            authorPhoto: null as string | null,
+            rating: r.rating,
+            text: r.text,
+            date: r.date,
+        }));
+
     return (
         <section className="section" style={{ background: "var(--color-surface)", paddingBottom: "6rem" }}>
             <div className="container">
@@ -28,13 +82,25 @@ export default function GoogleReviews() {
                             </h2>
                         </div>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem" }}>
-                            <span style={{ fontSize: "1.5rem", fontWeight: "bold", color: "var(--color-text)" }}>5.0</span>
+                            <span style={{ fontSize: "1.5rem", fontWeight: "bold", color: "var(--color-text)" }}>
+                                {overallRating.toFixed(1)}
+                            </span>
                             <div style={{ display: "flex", gap: "2px" }}>
                                 {[...Array(5)].map((_, i) => (
-                                    <Star key={i} size={20} fill="#FBBC05" color="#FBBC05" />
+                                    <Star
+                                        key={i}
+                                        size={20}
+                                        fill={i < Math.round(overallRating) ? "#FBBC05" : "transparent"}
+                                        color="#FBBC05"
+                                    />
                                 ))}
                             </div>
-                            <span style={{ color: "var(--color-text-muted)", fontSize: "0.9rem" }}>(na podstawie opinii Google)</span>
+                            <span style={{ color: "var(--color-text-muted)", fontSize: "0.9rem" }}>
+                                {totalReviews > 0
+                                    ? `(${totalReviews} opinii w Google)`
+                                    : "(na podstawie opinii Google)"
+                                }
+                            </span>
                         </div>
                     </div>
                 </RevealOnScroll>
@@ -90,11 +156,9 @@ export default function GoogleReviews() {
                             display: "flex",
                             gap: "2rem",
                             overflowX: "auto",
-                            padding: "1rem", // space for shadow
+                            padding: "1rem",
                             paddingBottom: "2rem",
                             scrollSnapType: "x mandatory",
-                            // Margin/Padding handled by wrapper now to avoid cutting off arrows
-                            // margin: "0 -2rem", 
                             paddingLeft: "0.5rem",
                             paddingRight: "0.5rem",
                             WebkitOverflowScrolling: "touch",
@@ -102,7 +166,7 @@ export default function GoogleReviews() {
                             msOverflowStyle: "none"
                         }}
                     >
-                        {reviews.map((review, index) => (
+                        {displayReviews.map((review, index) => (
                             <RevealOnScroll key={review.id} delay={index * 100 as 0 | 100 | 200} className="review-card-wrapper">
                                 <div
                                     style={{
@@ -133,7 +197,12 @@ export default function GoogleReviews() {
 
                                     <div style={{ display: "flex", gap: "2px", marginBottom: "1rem" }}>
                                         {[...Array(5)].map((_, i) => (
-                                            <Star key={i} size={16} fill="#FBBC05" color="#FBBC05" />
+                                            <Star
+                                                key={i}
+                                                size={16}
+                                                fill={i < review.rating ? "#FBBC05" : "transparent"}
+                                                color="#FBBC05"
+                                            />
                                         ))}
                                     </div>
 
@@ -145,24 +214,37 @@ export default function GoogleReviews() {
                                         flex: 1,
                                         fontStyle: "italic"
                                     }}>
-                                        "{review.text}"
+                                        &quot;{review.text}&quot;
                                     </p>
 
                                     <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginTop: "auto" }}>
-                                        <div style={{
-                                            width: "40px",
-                                            height: "40px",
-                                            borderRadius: "50%",
-                                            background: "var(--color-primary-light)",
-                                            color: "var(--color-primary)",
-                                            display: "flex",
-                                            alignItems: "center",
-                                            justifyContent: "center",
-                                            fontWeight: "bold",
-                                            fontSize: "1.2rem"
-                                        }}>
-                                            {review.author.charAt(0)}
-                                        </div>
+                                        {review.authorPhoto ? (
+                                            <img
+                                                src={review.authorPhoto}
+                                                alt={review.author}
+                                                style={{
+                                                    width: "40px",
+                                                    height: "40px",
+                                                    borderRadius: "50%",
+                                                    objectFit: "cover",
+                                                }}
+                                            />
+                                        ) : (
+                                            <div style={{
+                                                width: "40px",
+                                                height: "40px",
+                                                borderRadius: "50%",
+                                                background: "var(--color-primary-light)",
+                                                color: "var(--color-primary)",
+                                                display: "flex",
+                                                alignItems: "center",
+                                                justifyContent: "center",
+                                                fontWeight: "bold",
+                                                fontSize: "1.2rem"
+                                            }}>
+                                                {review.authorInitial}
+                                            </div>
+                                        )}
                                         <div>
                                             <p style={{ fontWeight: "bold", fontSize: "0.9rem", color: "var(--color-text)" }}>
                                                 {review.author}
