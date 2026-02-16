@@ -69,7 +69,7 @@ export async function GET() {
             date: review.relativePublishTimeDescription || '',
             publishTime: review.publishTime || '',
             googleMapsUri: review.googleMapsUri || '',
-        }));
+        })).filter((r: any) => r.rating >= 4); // Only show positive reviews (4★+)
 
         const result = {
             reviews,
@@ -130,7 +130,7 @@ async function fetchLegacyAPI(apiKey: string) {
             date: review.relative_time_description || '',
             publishTime: review.time ? new Date(review.time * 1000).toISOString() : '',
             googleMapsUri: review.author_url || '',
-        }));
+        })).filter((r: any) => r.rating >= 4); // Only show positive reviews (4★+)
 
         const cacheResult = {
             reviews,
