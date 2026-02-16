@@ -1,6 +1,6 @@
 # Mikrostomart - Complete Project Context
 
-> **Last Updated:** 2026-02-15  
+> **Last Updated:** 2026-02-16  
 > **Version:** Production (Vercel Deployment)  
 > **Status:** Active Development
 
@@ -52,7 +52,7 @@
 
 ### Backend & Database
 - **Supabase** (PostgreSQL database, authentication, storage)
-  - Database: 24 migrations (003-024: email verification, appointment actions, SMS reminders, user_roles, employee tasks, task history, comments, labels, etc.)
+  - Database: 27 migrations (003-027: email verification, appointment actions, SMS reminders, user_roles, employee tasks, task history, comments, labels, status fix, google reviews cache, etc.)
   - Auth: Email/password, magic links, JWT tokens
   - Storage: Product images, patient documents
 
@@ -66,6 +66,7 @@
 | **OpenAI** | AI assistant (chat support) | ✅ Active |
 | **Replicate** | AI image generation | ✅ Active |
 | **YouTube Data API** | Video feed | ✅ Active |
+| **Google Places API** | Real Google Reviews (New + Legacy) | ✅ Active |
 
 ### UI/UX Libraries
 - **Framer Motion** - Animations
@@ -158,12 +159,12 @@ mikrostomart/
 │   │   └── supabaseClient.ts   # Browser Supabase client
 │   ├── data/                   # Static data
 │   │   ├── articles.ts         # Knowledge base articles
-│   │   └── reviews.ts          # Google reviews data
+│   │   └── reviews.ts          # Google reviews fallback data
 │   ├── hooks/                  # Custom React hooks
 │   │   └── useUserRoles.ts     # Fetch user roles from API
 │   ├── helpers/                # Helper utilities
 │   └── middleware.ts           # Request middleware (admin + employee route protection)
-├── supabase_migrations/        # Database migrations (24 files: 003-024)
+├── supabase_migrations/        # Database migrations (27 files: 003-027)
 ├── public/                     # Static assets (incl. qr-ocen-nas.png)
 ├── scripts/                    # Utility scripts (13 files)
 └── vercel.json                 # Deployment configuration (6 cron jobs: 3 daily + 2 Friday-only + 1 task reminders)
@@ -368,6 +369,22 @@ Many-to-many junction between tasks and labels.
 - PRIMARY KEY (task_id, label_id)
 ```
 
+#### 17. **google_reviews**
+Persistent cache for Google Reviews (accumulates over time from API fetches).
+```sql
+- id (uuid, PK)
+- google_author_name (text, NOT NULL)
+- author_photo_url (text)
+- rating (integer, CHECK 1-5)
+- review_text (text, NOT NULL)
+- relative_date (text)
+- publish_time (timestamptz)
+- google_maps_uri (text)
+- fetched_at (timestamptz)
+- created_at (timestamptz)
+- UNIQUE (google_author_name, review_text)
+```
+
 ---
 
 ## ✨ Feature Catalog
@@ -378,7 +395,7 @@ Many-to-many junction between tasks and labels.
 - Hero section with video background
 - Services showcase (Precision, Aesthetics, Experience)
 - YouTube video feed (latest clinic videos)
-- Google Reviews carousel (`GoogleReviews.tsx` with data from `data/reviews.ts`)
+- Google Reviews carousel (`GoogleReviews.tsx`) — **real reviews** from Google Places API via `/api/google-reviews`, accumulated in Supabase `google_reviews` table, shuffled randomly on each load, only 4★+ reviews shown, with static fallback
 - Metamorphoses preview
 - Products carousel
 - Contact CTA
@@ -777,6 +794,7 @@ Features:
 | `/api/reservations` | POST | Reservation form submission (→ Telegram default) |
 | `/api/treatment-lead` | POST | Treatment calculator lead form (→ Telegram + Email) |
 | `/api/generate-review` | POST | AI-generated Google review from survey (OpenAI gpt-4o-mini) |
+| `/api/google-reviews` | GET | Real Google reviews from Places API (cached in Supabase, shuffled, 4★+ only) |
 
 ### Auth APIs (`/api/auth/*`)
 
@@ -1074,6 +1092,33 @@ Centralized via `src/lib/telegram.ts` with `sendTelegramNotification(message, ch
 
 ---
 
+### 9. Google Places API
+**Purpose:** Real Google Reviews on homepage
+
+**Configuration:**
+- API Key: `GOOGLE_PLACES_API_KEY`
+- Place ID: `ChIJ-5k3xu5SEEcRJhqtusOhhwM` (Mikrostomart)
+
+**Architecture:**
+- **3 API endpoints queried** per fetch cycle (hourly):
+  1. Places API (New) — `places.googleapis.com/v1/places/{id}` with `X-Goog-FieldMask`
+  2. Legacy API (newest sort) — `maps.googleapis.com/maps/api/place/details/json?reviews_sort=newest`
+  3. Legacy API (most relevant sort) — `reviews_sort=most_relevant`
+- **Supabase `google_reviews` table** — reviews upserted on each fetch (collection grows over time)
+- **Deduplication** — UNIQUE constraint on `(google_author_name, review_text)`
+- **Filtering** — only 4★+ reviews stored and displayed
+- **Randomization** — Fisher-Yates shuffle on each request
+- **Fallback** — static reviews from `src/data/reviews.ts` if API/DB unavailable
+- **Rate limiting** — background fetch runs max once per hour (in-memory timestamp)
+
+**Integration Files:**
+- `src/app/api/google-reviews/route.ts` — API route (fetch from Google, upsert to Supabase, return shuffled)
+- `src/components/GoogleReviews.tsx` — Frontend carousel component
+- `src/data/reviews.ts` — Static fallback reviews
+- `supabase_migrations/027_google_reviews_cache.sql` — Database table
+
+---
+
 ## ⏰ Cron Jobs & Automation
 
 ### 1. Generate SMS Reminders (appointment-reminders)
@@ -1284,6 +1329,9 @@ REPLICATE_API_TOKEN=...
 YOUTUBE_API_KEY=...
 YOUTUBE_CHANNEL_ID=...
 
+# Google Reviews
+GOOGLE_PLACES_API_KEY=...
+
 # App
 NEXT_PUBLIC_BASE_URL=https://mikrostomart.pl
 NODE_ENV=production
@@ -1296,6 +1344,52 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### February 16, 2026
+**Google Reviews Integration + PWA Login Fix + SMS Enhancements**
+
+#### Major Changes:
+1. **Real Google Reviews on Homepage** — Replaced static reviews with live data from Google Places API:
+   - New API route `/api/google-reviews` fetches from 3 Google endpoints (Places API New + Legacy newest + Legacy relevant)
+   - Reviews accumulated in Supabase `google_reviews` table (grows over time, deduplicated by author+text)
+   - Only positive reviews shown (4★+), shuffled randomly on each page load
+   - Falls back to static reviews if API/DB unavailable
+   - Background fetch runs hourly (doesn't block response)
+2. **PWA Login Fix** — Users couldn't log in via installed PWA:
+   - Excluded auth routes from service worker precaching (`navigateFallbackDenylist`)
+   - Configured `NetworkOnly` for auth APIs, `NetworkFirst` for staff pages
+   - Replaced `router.push` with `window.location.href` in login pages for proper cookie handling in standalone mode
+3. **Task Archiving Fix** — Archive button was inactive due to missing `'archived'` in DB CHECK constraint:
+   - Migration `026_fix_status_archived.sql` adds `'archived'` to `employee_tasks.status` constraint
+   - Archive button now visible for all non-archived tasks
+4. **SMS Reminder Enhancements:**
+   - Friday→Monday SMS drafts now show actual date (e.g., "w poniedziałek 17 lutego") instead of hardcoded "jutro"
+   - `maxDuration` increased to 120s for both cron routes to prevent timeouts
+   - SMS templates pre-fetched and cached outside the processing loop
+
+#### Database Migrations:
+- `026_fix_status_archived.sql` — Fix CHECK constraint on `employee_tasks.status` to include `'archived'`
+- `027_google_reviews_cache.sql` — Create `google_reviews` table for persistent review storage
+
+#### Files Added:
+- `src/app/api/google-reviews/route.ts` — **[NEW]** Google Reviews API (Places API + Supabase cache)
+- `supabase_migrations/026_fix_status_archived.sql` — **[NEW]** Status constraint fix
+- `supabase_migrations/027_google_reviews_cache.sql` — **[NEW]** Google reviews cache table
+
+#### Files Modified:
+- `src/components/GoogleReviews.tsx` — Fetches real reviews from API, displays author photos, live ratings, random order, static fallback
+- `src/data/reviews.ts` — Added `authorInitial` field for fallback display
+- `src/app/api/cron/appointment-reminders/route.ts` — maxDuration 120s, cached templates, Monday date formatting
+- `src/app/api/cron/sms-auto-send/route.ts` — maxDuration 120s
+- `next.config.ts` — PWA caching exclusions for auth routes
+- `src/app/pracownik/login/page.tsx` — `window.location.href` redirect for PWA
+- `src/app/admin/login/page.tsx` — `window.location.href` redirect for PWA
+- `src/app/pracownik/page.tsx` — Archive button visible for all non-archived tasks, error alerts
+
+#### Environment Variables:
+- **NEW:** `GOOGLE_PLACES_API_KEY` — required for Google Reviews integration
+
+---
 
 ### February 15, 2026
 **Oceń nas (Rate Us) Tab in Patient Portal**
@@ -1895,9 +1989,15 @@ OpenAI gpt-image-1 regenerates the entire masked area from scratch (+ forces 102
 - [x] Oceń nas patient portal tab — QR code + CTA linking to Google Reviews
 - [x] Employee staff API — registered employees list from user_roles
 - [x] Patient future appointments API — for task due date suggestions
+- [x] Real Google Reviews integration — Places API + Supabase accumulation + random shuffle + 4★+ filter
+- [x] PWA login fix — service worker exclusions + full page navigation
+- [x] Task archiving fix — DB CHECK constraint updated
+- [x] SMS Friday→Monday date fix — actual date instead of "jutro"
 
 ### ⚠️ Partial/Pending
 - [ ] Task comments + labels require running migrations 023 + 024 in Supabase
+- [ ] Google reviews require running migration 027 in Supabase + adding `GOOGLE_PLACES_API_KEY` env var in Vercel
+- [ ] Task archiving requires running migration 026 in Supabase
 - [ ] Comprehensive testing of all workflows
 - [ ] Performance optimization
 - [ ] SEO optimization
