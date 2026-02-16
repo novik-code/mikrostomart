@@ -1,12 +1,59 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import createMiddleware from "next-intl/middleware";
+import { routing } from "./i18n/routing";
+
+// Create the next-intl middleware for locale detection & routing
+const intlMiddleware = createMiddleware(routing);
 
 export async function middleware(request: NextRequest) {
-    let response = NextResponse.next({
-        request: {
-            headers: request.headers,
-        },
-    });
+    const { pathname } = request.nextUrl;
+
+    // ─── Skip i18n for internal routes ───────────────────────────────────
+    // Admin, employee, patient portal, and API routes stay Polish-only
+    const skipI18nPaths = [
+        "/admin",
+        "/pracownik",
+        "/strefa-pacjenta",
+        "/api/",
+        "/auth/",
+        "/_next/",
+        "/manifest.json",
+        "/sw.js",
+        "/workbox-",
+        "/swe-worker-",
+    ];
+
+    const shouldSkipI18n = skipI18nPaths.some((p) => pathname.startsWith(p));
+
+    // ─── For non-i18n routes: run Supabase auth only ─────────────────────
+    if (shouldSkipI18n) {
+        return handleSupabaseAuth(request);
+    }
+
+    // ─── For public routes: run i18n first, then Supabase auth ──────────
+    const intlResponse = intlMiddleware(request);
+
+    // Then apply Supabase auth on top of the i18n response
+    // (primarily for cookie refresh, not route protection on public pages)
+    return handleSupabaseAuth(request, intlResponse);
+}
+
+/**
+ * Handles Supabase auth: refreshes session cookies and protects admin/employee routes.
+ * Optionally takes a pre-built response from i18n middleware.
+ */
+async function handleSupabaseAuth(
+    request: NextRequest,
+    existingResponse?: NextResponse
+) {
+    let response =
+        existingResponse ||
+        NextResponse.next({
+            request: {
+                headers: request.headers,
+            },
+        });
 
     const supabase = createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -17,14 +64,10 @@ export async function middleware(request: NextRequest) {
                     return request.cookies.getAll();
                 },
                 setAll(cookiesToSet) {
-                    cookiesToSet.forEach(({ name, value, options }) =>
+                    cookiesToSet.forEach(({ name, value }) =>
                         request.cookies.set(name, value)
                     );
-                    response = NextResponse.next({
-                        request: {
-                            headers: request.headers,
-                        },
-                    });
+                    // If we have an existing response from intl, set cookies on it
                     cookiesToSet.forEach(({ name, value, options }) =>
                         response.cookies.set(name, value, options)
                     );
@@ -37,45 +80,46 @@ export async function middleware(request: NextRequest) {
         data: { user },
     } = await supabase.auth.getUser();
 
+    const pathname = request.nextUrl.pathname;
+
     // If accessing admin routes
-    if (request.nextUrl.pathname.startsWith("/admin")) {
-        // Allow access to login and update-password without auth
-        if (request.nextUrl.pathname === "/admin/login") {
-            // If already logged in on login page, redirect to admin panel
+    if (pathname.startsWith("/admin")) {
+        if (pathname === "/admin/login") {
             if (user) {
                 return NextResponse.redirect(new URL("/admin", request.url));
             }
             return response;
         }
 
-        // Always allow access to update-password (user arrives here after recovery)
-        if (request.nextUrl.pathname === "/admin/update-password") {
+        if (pathname === "/admin/update-password") {
             return response;
         }
 
-        // Checking authentication for main /admin page
         if (!user) {
-            return NextResponse.redirect(new URL("/admin/login", request.url));
+            return NextResponse.redirect(
+                new URL("/admin/login", request.url)
+            );
         }
     }
 
     // If accessing employee routes (/pracownik)
-    if (request.nextUrl.pathname.startsWith("/pracownik")) {
-        // Allow access to login and reset password pages
+    if (pathname.startsWith("/pracownik")) {
         if (
-            request.nextUrl.pathname === "/pracownik/login" ||
-            request.nextUrl.pathname === "/pracownik/reset-haslo"
+            pathname === "/pracownik/login" ||
+            pathname === "/pracownik/reset-haslo"
         ) {
-            // If already logged in, redirect to employee dashboard
             if (user) {
-                return NextResponse.redirect(new URL("/pracownik", request.url));
+                return NextResponse.redirect(
+                    new URL("/pracownik", request.url)
+                );
             }
             return response;
         }
 
-        // Checking authentication for employee pages
         if (!user) {
-            return NextResponse.redirect(new URL("/pracownik/login", request.url));
+            return NextResponse.redirect(
+                new URL("/pracownik/login", request.url)
+            );
         }
     }
 
@@ -89,8 +133,7 @@ export const config = {
          * - _next/static (static files)
          * - _next/image (image optimization files)
          * - favicon.ico (favicon file)
-         * Feel free to modify this pattern to include more paths.
          */
-        "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+        "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
     ],
 };

@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Send, Mic, MicOff, Volume2, VolumeX } from "lucide-react";
+import { useTranslations } from "next-intl";
 import styles from "./cennik.module.css";
 
 interface Message {
@@ -9,29 +10,26 @@ interface Message {
     content: string;
 }
 
-const QUICK_QUESTIONS = [
-    "Ile kosztuje plomba?",
-    "Cennik implantów",
-    "Ile za higienizację?",
-    "Wyrwanie zęba — cena",
-    "Licówki porcelanowe",
-    "Leczenie kanałowe pod mikroskopem",
-];
-
-const CATEGORIES = [
-    { label: "🦷 Chirurgia", query: "Podaj cennik chirurgii i implantologii" },
-    { label: "👑 Protetyka", query: "Podaj cennik protetyki i estetyki" },
-    { label: "🧹 Higienizacja", query: "Ile kosztuje higienizacja?" },
-    { label: "👶 Dzieci", query: "Cennik stomatologii dziecięcej" },
-    { label: "✨ Ortodoncja", query: "Ile kosztuje ortodoncja nakładkowa?" },
-];
-
 export default function CennikPage() {
+    const t = useTranslations('cennik');
+
+    const QUICK_QUESTIONS = [
+        t('quickQ1'), t('quickQ2'), t('quickQ3'),
+        t('quickQ4'), t('quickQ5'), t('quickQ6'),
+    ];
+
+    const CATEGORIES = [
+        { label: t('cat1'), query: t('cat1q') },
+        { label: t('cat2'), query: t('cat2q') },
+        { label: t('cat3'), query: t('cat3q') },
+        { label: t('cat4'), query: t('cat4q') },
+        { label: t('cat5'), query: t('cat5q') },
+    ];
+
     const [messages, setMessages] = useState<Message[]>([
         {
             role: "assistant",
-            content:
-                "Cześć! 👋 Jestem inteligentnym asystentem cennikowym Mikrostomart.\n\nZapytaj mnie o cenę dowolnego zabiegu — np. \"Ile kosztuje implant + korona?\" — a podam Ci orientacyjną wycenę.\n\nMożesz też wpisać pytanie lub podyktować je głosowo 🎤",
+            content: t('welcomeMessage'),
         },
     ]);
     const [input, setInput] = useState("");
@@ -58,7 +56,7 @@ export default function CennikPage() {
                 : null;
 
         if (!SpeechRecognitionAPI) {
-            alert("Twoja przeglądarka nie obsługuje rozpoznawania mowy. Spróbuj Chrome lub Edge.");
+            alert(t('speechNotSupported'));
             return;
         }
 
@@ -87,7 +85,7 @@ export default function CennikPage() {
         recognitionRef.current = recognition;
         recognition.start();
         setIsListening(true);
-    }, []);
+    }, [t]);
 
     const stopListening = useCallback(() => {
         if (recognitionRef.current) {
@@ -108,7 +106,6 @@ export default function CennikPage() {
     const speak = (text: string, msgIndex: number) => {
         if (typeof window === "undefined" || !window.speechSynthesis) return;
 
-        // If already speaking this message, stop it
         if (isSpeaking && speakingMsgIdx === msgIndex) {
             window.speechSynthesis.cancel();
             setIsSpeaking(false);
@@ -116,10 +113,8 @@ export default function CennikPage() {
             return;
         }
 
-        // Cancel any currently speaking
         window.speechSynthesis.cancel();
 
-        // Clean text from markdown/emojis for natural reading
         const cleanText = text
             .replace(/[*_~`#]/g, "")
             .replace(/\[.*?\]/g, "")
@@ -131,7 +126,6 @@ export default function CennikPage() {
         utterance.rate = 0.95;
         utterance.pitch = 1;
 
-        // Try to find a Polish voice
         const voices = window.speechSynthesis.getVoices();
         const polishVoice = voices.find((v) => v.lang.startsWith("pl"));
         if (polishVoice) {
@@ -154,10 +148,9 @@ export default function CennikPage() {
         window.speechSynthesis.speak(utterance);
     };
 
-    // Load voices (needed for some browsers)
     useEffect(() => {
         if (typeof window !== "undefined" && window.speechSynthesis) {
-            window.speechSynthesis.getVoices(); // trigger voice loading
+            window.speechSynthesis.getVoices();
             window.speechSynthesis.onvoiceschanged = () => {
                 window.speechSynthesis.getVoices();
             };
@@ -174,7 +167,6 @@ export default function CennikPage() {
         setInput("");
         setIsLoading(true);
 
-        // Focus back on input
         setTimeout(() => inputRef.current?.focus(), 50);
 
         try {
@@ -197,13 +189,13 @@ export default function CennikPage() {
             } else {
                 setMessages((prev) => [
                     ...prev,
-                    { role: "assistant", content: "Przepraszam, wystąpił błąd techniczny. Spróbuj ponownie lub zadzwoń: 570-270-470." },
+                    { role: "assistant", content: t('errorTechnical') },
                 ]);
             }
         } catch {
             setMessages((prev) => [
                 ...prev,
-                { role: "assistant", content: "Błąd połączenia. Sprawdź internet lub zadzwoń: 570-270-470." },
+                { role: "assistant", content: t('errorConnection') },
             ]);
         } finally {
             setIsLoading(false);
@@ -223,10 +215,10 @@ export default function CennikPage() {
                 {/* Hero */}
                 <div className={styles.hero}>
                     <h1 className={styles.heroTitle}>
-                        Cennik <span className={styles.heroAccent}>Inteligentny</span>
+                        {t('heroTitle')} <span className={styles.heroAccent}>{t('heroAccent')}</span>
                     </h1>
                     <p className={styles.heroSubtitle}>
-                        Zapytaj o cenę zabiegu — nasz asystent AI poda Ci orientacyjną wycenę i policzy łączny koszt.
+                        {t('heroSubtitle')}
                     </p>
                 </div>
 
@@ -249,8 +241,8 @@ export default function CennikPage() {
                     <div className={styles.chatHeader}>
                         <span className={styles.chatHeaderIcon}>💰</span>
                         <div>
-                            <h2 className={styles.chatHeaderTitle}>Asystent Cennikowy</h2>
-                            <p className={styles.chatHeaderSubtitle}>Mikrostomart · Orientacyjne ceny</p>
+                            <h2 className={styles.chatHeaderTitle}>{t('chatTitle')}</h2>
+                            <p className={styles.chatHeaderSubtitle}>{t('chatSubtitle')}</p>
                         </div>
                         <div className={styles.onlineBadge} />
                     </div>
@@ -269,8 +261,8 @@ export default function CennikPage() {
                                 <div>
                                     <div
                                         className={`${styles.messageBubble} ${msg.role === "user"
-                                                ? styles.messageBubbleUser
-                                                : styles.messageBubbleAssistant
+                                            ? styles.messageBubbleUser
+                                            : styles.messageBubbleAssistant
                                             }`}
                                     >
                                         {msg.content}
@@ -279,23 +271,23 @@ export default function CennikPage() {
                                     {msg.role === "assistant" && index > 0 && (
                                         <button
                                             className={`${styles.ttsButton} ${isSpeaking && speakingMsgIdx === index
-                                                    ? styles.ttsButtonActive
-                                                    : ""
+                                                ? styles.ttsButtonActive
+                                                : ""
                                                 }`}
                                             onClick={() => speak(msg.content, index)}
                                             title={
                                                 isSpeaking && speakingMsgIdx === index
-                                                    ? "Zatrzymaj odczytywanie"
-                                                    : "Odczytaj na głos"
+                                                    ? t('stopSpeech')
+                                                    : t('readAloud')
                                             }
                                         >
                                             {isSpeaking && speakingMsgIdx === index ? (
                                                 <>
-                                                    <VolumeX size={12} /> Stop
+                                                    <VolumeX size={12} /> {t('stopLabel')}
                                                 </>
                                             ) : (
                                                 <>
-                                                    <Volume2 size={12} /> Odczytaj
+                                                    <Volume2 size={12} /> {t('readLabel')}
                                                 </>
                                             )}
                                         </button>
@@ -342,7 +334,7 @@ export default function CennikPage() {
                             className={`${styles.iconButton} ${styles.micButton} ${isListening ? styles.micButtonActive : ""
                                 }`}
                             onClick={toggleListening}
-                            title={isListening ? "Zatrzymaj nagrywanie" : "Dyktuj pytanie"}
+                            title={isListening ? t('stopRecording') : t('dictateQuestion')}
                         >
                             {isListening ? <MicOff size={20} /> : <Mic size={20} />}
                         </button>
@@ -352,7 +344,7 @@ export default function CennikPage() {
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
                             onKeyDown={handleKeyDown}
-                            placeholder={isListening ? "Słucham... mów teraz" : "Zapytaj o cenę zabiegu..."}
+                            placeholder={isListening ? t('placeholderListening') : t('placeholderDefault')}
                         />
                         <button
                             className={`${styles.iconButton} ${styles.sendButton}`}
@@ -367,7 +359,7 @@ export default function CennikPage() {
                 {/* Disclaimer */}
                 <div className={styles.disclaimer}>
                     <p className={styles.disclaimerText}>
-                        ⚠️ Podane ceny są orientacyjne. Ostateczny koszt ustala lekarz po konsultacji. Aby umówić wizytę zadzwoń: 570-270-470
+                        {t('disclaimer')}
                     </p>
                 </div>
             </div>

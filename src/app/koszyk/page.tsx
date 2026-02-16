@@ -1,6 +1,7 @@
 "use client";
 
 import { useCart } from "@/context/CartContext";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useState } from "react";
 import CheckoutForm from "@/components/CheckoutForm";
@@ -8,13 +9,14 @@ import CheckoutForm from "@/components/CheckoutForm";
 export default function CartPage() {
     const { items, removeItem, updateQuantity, total, clearCart } = useCart();
     const [showCheckout, setShowCheckout] = useState(false);
+    const t = useTranslations('koszyk');
 
     if (items.length === 0 && !showCheckout) {
         return (
             <main className="section container" style={{ textAlign: "center", minHeight: "60vh", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                <h1 style={{ marginBottom: "var(--spacing-md)", color: "var(--color-text-muted)" }}>Twój koszyk jest pusty</h1>
+                <h1 style={{ marginBottom: "var(--spacing-md)", color: "var(--color-text-muted)" }}>{t('empty')}</h1>
                 <Link href="/sklep" className="btn-primary" style={{ display: "inline-block", maxWidth: "200px", margin: "0 auto" }}>
-                    Wróć do sklepu
+                    {t('backToShop')}
                 </Link>
             </main>
         );
@@ -24,7 +26,7 @@ export default function CartPage() {
         <main className="section">
             <div className="container" style={{ maxWidth: "800px" }}>
                 <h1 style={{ marginBottom: "var(--spacing-xl)", color: "var(--color-primary)" }}>
-                    {showCheckout ? "Finalizacja Zamówienia" : "Twój Koszyk"}
+                    {showCheckout ? t('checkout') : t('title')}
                 </h1>
 
                 {!showCheckout ? (
@@ -42,7 +44,7 @@ export default function CartPage() {
                                 }}>
                                     <div>
                                         <h3 style={{ fontSize: "1.1rem" }}>{item.name}</h3>
-                                        <p style={{ color: "var(--color-text-muted)" }}>{item.price} PLN / szt.</p>
+                                        <p style={{ color: "var(--color-text-muted)" }}>{item.price} PLN / {t('perUnit')}</p>
                                     </div>
                                     <div style={{ display: "flex", alignItems: "center", gap: "var(--spacing-md)" }}>
 
@@ -69,7 +71,7 @@ export default function CartPage() {
                                         <button
                                             onClick={() => removeItem(item.id)}
                                             style={{ color: "var(--color-error)", background: "none", padding: "0.5rem", cursor: "pointer" }}
-                                            title="Usuń z koszyka"
+                                            title={t('removeTitle')}
                                         >
                                             ✕
                                         </button>
@@ -80,7 +82,7 @@ export default function CartPage() {
 
                         <div style={{ marginTop: "var(--spacing-xl)", display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
                             <div style={{ fontSize: "1.5rem", marginBottom: "var(--spacing-md)" }}>
-                                Suma: <span style={{ color: "var(--color-primary)", fontWeight: "bold" }}>{total} PLN</span>
+                                {t('total')} <span style={{ color: "var(--color-primary)", fontWeight: "bold" }}>{total} PLN</span>
                             </div>
 
                             <div style={{ display: "flex", gap: "var(--spacing-md)" }}>
@@ -88,13 +90,13 @@ export default function CartPage() {
                                     onClick={clearCart}
                                     style={{ padding: "0.75rem 1.5rem", background: "none", color: "var(--color-text-muted)", border: "1px solid var(--color-text-muted)", borderRadius: "var(--radius-md)", cursor: "pointer" }}
                                 >
-                                    Opróżnij koszyk
+                                    {t('clearCart')}
                                 </button>
                                 <button
                                     onClick={() => setShowCheckout(true)}
                                     className="btn-primary"
                                 >
-                                    Przejdź do kasy
+                                    {t('goToCheckout')}
                                 </button>
                             </div>
                         </div>
@@ -105,13 +107,10 @@ export default function CartPage() {
                             onClick={() => setShowCheckout(false)}
                             style={{ marginBottom: "1rem", background: "none", border: "none", color: "var(--color-text-muted)", cursor: "pointer" }}
                         >
-                            ← Wróć do koszyka
+                            {t('backToCart')}
                         </button>
                         <CheckoutForm onSuccess={() => {
-                            // Simple alert for now as page rebuild would be better, OR set a success state here.
-                            // But since the form doesn't handle UI anymore, we need to show something.
-                            // Let's reuse the logic from CheckoutForm previously by creating a simple wrapper or just setting state locally.
-                            alert("Zamówienie przyjęte! Dziękujemy.");
+                            alert(t('orderSuccess'));
                             setShowCheckout(false);
                         }} />
                     </div>

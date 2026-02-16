@@ -1,6 +1,7 @@
 "use client";
 
 import { useCart } from "@/context/CartContext";
+import { useTranslations } from "next-intl";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import RevealOnScroll from "@/components/RevealOnScroll";
@@ -25,6 +26,7 @@ export default function ShopPage() {
     const [addedId, setAddedId] = useState<string | null>(null);
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
     const [isCartOpen, setIsCartOpen] = useState(false);
+    const t = useTranslations('sklep');
 
     useEffect(() => {
         const fetchProducts = async () => {
@@ -62,7 +64,7 @@ export default function ShopPage() {
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "var(--spacing-xl)" }}>
                         <RevealOnScroll>
                             <h1 style={{ fontSize: "clamp(2rem, 4vw, 3rem)", color: "var(--color-primary)" }}>
-                                Sklep
+                                {t('title')}
                             </h1>
                         </RevealOnScroll>
                         <RevealOnScroll animation="blur-in">
@@ -71,7 +73,7 @@ export default function ShopPage() {
                                 className="btn-primary"
                                 style={{ background: "var(--color-surface)", border: "1px solid var(--color-primary)", color: "var(--color-text-main)", cursor: "pointer" }}
                             >
-                                Twój Koszyk
+                                {t('cart')}
                             </button>
                         </RevealOnScroll>
                     </div>
@@ -79,7 +81,7 @@ export default function ShopPage() {
                     {loading ? (
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '4rem 2rem', gap: '1.5rem' }}>
                             <div style={{ width: '48px', height: '48px', border: '3px solid rgba(212,175,55,0.15)', borderTop: '3px solid var(--color-primary)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-                            <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>Ładowanie produktów...</p>
+                            <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>{t('loading')}</p>
                             <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
                         </div>
                     ) : (
@@ -117,7 +119,7 @@ export default function ShopPage() {
                                             {product.image && (product.image.startsWith("http") || product.image.startsWith("data:") || product.image.startsWith("/")) ? (
                                                 <img src={product.image} alt={product.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                                             ) : (
-                                                <span>{product.image || "Brak zdjęcia"}</span>
+                                                <span>{product.image || t('noImage')}</span>
                                             )}
                                         </div>
 
@@ -140,7 +142,7 @@ export default function ShopPage() {
                                                     background: addedId === product.id ? "var(--color-success)" : "var(--color-primary)"
                                                 }}
                                             >
-                                                {addedId === product.id ? "Dodano!" : "Do koszyka"}
+                                                {addedId === product.id ? t('added') : t('addToCart')}
                                             </button>
                                         </div>
                                     </div>

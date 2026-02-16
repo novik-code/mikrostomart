@@ -1,17 +1,14 @@
 "use client";
 
 import Image from "next/image";
+import { useTranslations } from "next-intl";
 import RevealOnScroll from "@/components/RevealOnScroll";
 import InteriorCollage from "@/components/InteriorCollage";
 import { useState } from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
 
 export default function AboutPage() {
     const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-
-    const toggleExpand = (id: string) => {
-        setExpanded(prev => ({ ...prev, [id]: !prev[id] }));
-    };
+    const t = useTranslations('oNas');
 
     return (
         <main>
@@ -27,7 +24,7 @@ export default function AboutPage() {
                             fontSize: "0.9rem",
                             marginBottom: "var(--spacing-md)"
                         }}>
-                            Dziedzictwo i Pasja
+                            {t('tagline')}
                         </p>
                         <h1 style={{
                             fontSize: "clamp(3rem, 6vw, 5rem)",
@@ -37,8 +34,8 @@ export default function AboutPage() {
                             fontWeight: 400,
                             lineHeight: 1.1
                         }}>
-                            Rodzinna Klinika <br />
-                            <span style={{ fontStyle: "italic", color: "var(--color-text-muted)" }}>z tradycjami.</span>
+                            {t('title')} <br />
+                            <span style={{ fontStyle: "italic", color: "var(--color-text-muted)" }}>{t('titleItalic')}</span>
                         </h1>
                     </RevealOnScroll>
 
@@ -62,15 +59,13 @@ export default function AboutPage() {
                         <div style={{ display: "flex", flexDirection: "column", justifyContent: "center" }}>
                             <RevealOnScroll delay={200}>
                                 <h3 style={{ fontSize: "2rem", marginBottom: "var(--spacing-md)", color: "var(--color-primary)" }}>
-                                    Misja
+                                    {t('mission')}
                                 </h3>
                                 <p style={{ marginBottom: "var(--spacing-md)", color: "var(--color-text-muted)", fontSize: "1.1rem", lineHeight: 1.8 }}>
-                                    Jesteśmy zespołem profesjonalistów, prowadzących rodzinną klinikę stomatologiczną w Opolu.
-                                    Naszą misją jest dbanie o to, by Twój uśmiech był nie tylko piękny, ale przede wszystkim zdrowy.
+                                    {t('missionText1')}
                                 </p>
                                 <p style={{ color: "var(--color-text-muted)", fontSize: "1.1rem", lineHeight: 1.8 }}>
-                                    W Mikrostomart łączymy wieloletnie doświadczenie z najnowszymi osiągnięciami technologii medycznej.
-                                    Specjalizujemy się w stomatologii mikroskopowej, co pozwala nam na osiągnięcie niespotykanej precyzji leczenia.
+                                    {t('missionText2')}
                                 </p>
                             </RevealOnScroll>
                         </div>
@@ -138,7 +133,7 @@ export default function AboutPage() {
                                     textTransform: "uppercase",
                                     letterSpacing: "0.1em"
                                 }}>
-                                    Właścicielka & Opiekun Pacjenta
+                                    {t('elaRole')}
                                 </p>
                                 <h2 style={{ fontSize: "3rem", marginBottom: "var(--spacing-md)", lineHeight: 1.1 }}>
                                     Elżbieta Nowosielska
@@ -151,12 +146,11 @@ export default function AboutPage() {
                                     borderLeft: "2px solid var(--color-primary)",
                                     paddingLeft: "var(--spacing-md)"
                                 }}>
-                                    "Zawsze uśmiechnięta i wesoła. Najweselsza i najbardziej pogodna osoba w naszym zespole."
+                                    &quot;{t('elaQuote')}&quot;
                                 </blockquote>
                                 <div style={{ marginBottom: "var(--spacing-sm)", color: "var(--color-text-muted)", fontSize: "1.1rem", lineHeight: 1.6, textAlign: 'justify' }}>
                                     <p style={{ marginBottom: "1rem" }}>
-                                        Higienistka stomatologiczna z pasją, a zarazem menadżer gabinetu. Dzięki jej zaangażowaniu organizacja pracy gabinetu nie ma sobie równych.
-                                        Pacjenci, zarówno Ci najmłodsi, jak i mniej młodsi kochają jej pogodne podejście do życia i pracy.
+                                        {t('elaText1')}
                                     </p>
 
                                     <div className={`reveal ${expanded['ela'] ? 'active' : ''}`} style={{
@@ -166,10 +160,10 @@ export default function AboutPage() {
                                         opacity: expanded['ela'] ? 1 : 0
                                     }}>
                                         <p style={{ marginBottom: "1rem" }}>
-                                            Swoją empatią potrafi uspokoić i przekonać do leczenia nawet najbardziej zestresowanych Pacjentów. Dba o dobre samopoczucie pacjenta stwarzając przyjazną atmosferę w gabinecie oraz poczucie bezpieczeństwa.
+                                            {t('elaText2')}
                                         </p>
                                         <p>
-                                            Swoją wiedzę i umiejętności zdobyła na kierunku higienistka stomatologiczna w Szkole Policealnej TEB Edukacja, a stale poszerza na kierunkowych kursach i szkoleniach specjalizacyjnych.
+                                            {t('elaText3')}
                                         </p>
                                     </div>
 
@@ -183,7 +177,7 @@ export default function AboutPage() {
                                             letterSpacing: '0.1em',
                                             cursor: 'pointer'
                                         }}>
-                                            Najedź, aby rozwinąć
+                                            {t('hoverExpand')}
                                         </span>
                                     )}
                                 </div>
@@ -215,7 +209,7 @@ export default function AboutPage() {
                                     textTransform: "uppercase",
                                     letterSpacing: "0.1em"
                                 }}>
-                                    Właściciel & Główny Lekarz
+                                    {t('marcinRole')}
                                 </p>
                                 <h2 style={{ fontSize: "3rem", marginBottom: "var(--spacing-md)", lineHeight: 1.1 }}>
                                     lek. dent. M. Sc.<br /> Marcin Nowosielski
@@ -228,12 +222,11 @@ export default function AboutPage() {
                                     borderLeft: "2px solid var(--color-primary)",
                                     paddingLeft: "var(--spacing-md)"
                                 }}>
-                                    "Wierzę, że precyzja to klucz do trwałości. Dlatego w mojej pracy mikroskop nie jest dodatkiem, a standardem."
+                                    &quot;{t('marcinQuote')}&quot;
                                 </blockquote>
                                 <div style={{ marginBottom: "var(--spacing-sm)", color: "var(--color-text-muted)", fontSize: "1.1rem", lineHeight: 1.6, textAlign: 'justify' }}>
                                     <p style={{ marginBottom: "1rem" }}>
-                                        Absolwent Akademii Medycznej we Wrocławiu. Człowiek z pasją i powołaniem do stomatologii, dla którego każdy dzień jest nowym wyzwaniem.
-                                        Master of Science in Lasers in Dentistry (RWTH Aachen University).
+                                        {t('marcinText1')}
                                     </p>
 
                                     <div className={`reveal ${expanded['marcin'] ? 'active' : ''}`} style={{
@@ -243,13 +236,13 @@ export default function AboutPage() {
                                         opacity: expanded['marcin'] ? 1 : 0
                                     }}>
                                         <p style={{ marginBottom: "1rem" }}>
-                                            Lekarz stomatolog, entuzjasta endodoncji mikroskopowej, leczenia protetycznego prowadzonego w powiększeniu, implantologii stomatologicznej oraz stomatologii laserowej.
+                                            {t('marcinText2')}
                                         </p>
                                         <p style={{ marginBottom: "1rem" }}>
-                                            Praktykę zawodową zdobywał w najlepszych gabinetach regionu. W 2021 roku uzyskał z wyróżnieniem jako drugi w Polsce, a zarazem najmłodszy w kraju dentysta tytuł "Master of Science in Lasers in Dentistry".
+                                            {t('marcinText3')}
                                         </p>
                                         <p>
-                                            Prywatnie mąż Elżbiety oraz ojciec małego Michaela i Lily. Miłośnik off-road’owej jazdy na desce snowboard’owej oraz dobrego brzmienia gitary basowej.
+                                            {t('marcinText4')}
                                         </p>
                                     </div>
 
@@ -263,7 +256,7 @@ export default function AboutPage() {
                                             letterSpacing: '0.1em',
                                             cursor: 'pointer'
                                         }}>
-                                            Najedź, aby rozwinąć
+                                            {t('hoverExpand')}
                                         </span>
                                     )}
                                 </div>

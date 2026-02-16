@@ -1,9 +1,12 @@
 "use client";
 
 import { Download, Shield } from "lucide-react";
+import { useTranslations } from "next-intl";
 import RevealOnScroll from "@/components/RevealOnScroll";
 
 export default function RodoPage() {
+    const t = useTranslations('rodo');
+
     return (
         <main style={{ background: "var(--color-background)", minHeight: "100vh" }}>
 
@@ -35,14 +38,14 @@ export default function RodoPage() {
                             color: "var(--color-primary)", textTransform: "uppercase",
                             letterSpacing: "0.2em", fontSize: "0.8rem", marginBottom: "1rem"
                         }}>
-                            Ochrona Danych Osobowych
+                            {t('tagline')}
                         </p>
                         <h1 style={{
                             fontFamily: "var(--font-heading)",
                             fontSize: "clamp(2rem, 5vw, 3.2rem)", color: "var(--color-text-main)",
                             marginBottom: "1.5rem", lineHeight: 1.2
                         }}>
-                            Klauzula Informacyjna RODO
+                            {t('title')}
                         </h1>
                         <a
                             href="/rodo.pdf" target="_blank" rel="noopener noreferrer"
@@ -56,7 +59,7 @@ export default function RodoPage() {
                             className="btn-primary"
                         >
                             <Download size={18} />
-                            Pobierz PDF
+                            {t('downloadPdf')}
                         </a>
                     </RevealOnScroll>
                 </div>

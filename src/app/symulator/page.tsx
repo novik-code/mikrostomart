@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import Image from "next/image";
-import { Camera, Upload, RefreshCw, Loader2, AlertTriangle, ArrowRight } from "lucide-react";
+import { useState, useRef } from "react";
+import { Camera, Upload, RefreshCw, AlertTriangle } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { analysisFaceAlignment } from "@/helpers/faceDetection";
 import BeforeAfterSlider from "@/components/BeforeAfterSlider";
 
@@ -19,11 +19,12 @@ const cardStyle: React.CSSProperties = {
 };
 
 export default function SimulatorPage() {
+    const t = useTranslations('symulator');
     const [step, setStep] = useState<'upload' | 'processing' | 'result'>('upload');
     const [error, setError] = useState<string | null>(null);
     const [originalImage, setOriginalImage] = useState<string | null>(null);
     const [resultImage, setResultImage] = useState<string | null>(null);
-    const [statusMessage, setStatusMessage] = useState("Szukam uśmiechu...");
+    const [statusMessage, setStatusMessage] = useState(t('statusSmile'));
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -34,22 +35,19 @@ export default function SimulatorPage() {
 
         setError(null);
         setStep('processing');
-        setStatusMessage("Analizuję twarz...");
+        setStatusMessage(t('statusFace'));
 
         try {
-            // 1. Read File
             const reader = new FileReader();
             reader.readAsDataURL(file);
             reader.onload = async (ev) => {
                 const imgData = ev.target?.result as string;
                 setOriginalImage(imgData);
-
-                // 2. Auto-Generate Mask
                 await processImage(imgData);
             };
         } catch (err: any) {
             console.error(err);
-            setError(err.message || "Błąd wczytywania zdjęcia.");
+            setError(err.message || t('errorLoad'));
             setStep('upload');
         }
     };
@@ -59,22 +57,18 @@ export default function SimulatorPage() {
         img.src = imgSrc;
         img.onload = async () => {
             try {
-                // A. Face Detection
                 const analysis = await analysisFaceAlignment(img);
 
-                // B. Create Canvas for Mask
                 const canvas = document.createElement('canvas');
                 canvas.width = img.naturalWidth;
                 canvas.height = img.naturalHeight;
                 const ctx = canvas.getContext('2d');
                 if (!ctx) throw new Error("Canvas Error");
 
-                // Fill Black (Background)
                 ctx.fillStyle = 'black';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
 
                 if (analysis && analysis.mouthPath) {
-                    // Draw Mouth Path (White)
                     ctx.fillStyle = 'white';
                     ctx.beginPath();
                     const mp = analysis.mouthPath;
@@ -85,12 +79,9 @@ export default function SimulatorPage() {
                     ctx.closePath();
                     ctx.fill();
                 } else {
-                    // Fallback: If no face/mouth found, warn user but try generic center mask?
-                    // Or error out? Better to error out than produce garbage.
-                    throw new Error("Nie wykryto twarzy. Upewnij się, że twarz jest wyraźna.");
+                    throw new Error(t('errorNoFace'));
                 }
 
-                // C. Send to API
                 const maskData = canvas.toDataURL('image/png');
                 await sendToApi(imgSrc, maskData);
 
@@ -102,7 +93,7 @@ export default function SimulatorPage() {
     };
 
     const sendToApi = async (image: string, mask: string) => {
-        setStatusMessage("Projektuję nowy uśmiech...");
+        setStatusMessage(t('statusDesign'));
         try {
             const formData = new FormData();
             const fetchBlob = async (url: string) => await (await fetch(url)).blob();
@@ -111,11 +102,10 @@ export default function SimulatorPage() {
             formData.append("style", "hollywood");
 
             const res = await fetch("/api/simulate", { method: "POST", body: formData });
-            if (!res.ok) throw new Error("Błąd połączenia z serwerem.");
+            if (!res.ok) throw new Error(t('errorServer'));
 
             const { id } = await res.json();
 
-            // Polling for Flux Fill Dev
             const checkStatus = async () => {
                 const statusRes = await fetch(`/api/simulate?id=${id}`);
                 const statusData = await statusRes.json();
@@ -124,7 +114,7 @@ export default function SimulatorPage() {
                     setResultImage(statusData.url);
                     setStep('result');
                 } else if (statusData.status === "failed") {
-                    throw new Error("Generowanie nie powiodło się. Spróbuj innego zdjęcia.");
+                    throw new Error(t('errorGenerate'));
                 } else {
                     setTimeout(checkStatus, 1000);
                 }
@@ -165,10 +155,10 @@ export default function SimulatorPage() {
                 {step === 'upload' && (
                     <>
                         <h1 style={{ fontSize: '2rem', textAlign: 'center', fontWeight: 300 }}>
-                            Twój Nowy <span style={{ color: '#dcb14a', fontWeight: 600 }}>Uśmiech</span>
+                            {t('title')} <span style={{ color: '#dcb14a', fontWeight: 600 }}>{t('titleAccent')}</span>
                         </h1>
                         <p style={{ color: '#aaa', textAlign: 'center', marginBottom: '20px' }}>
-                            Zrób zdjęcie twarzy, a sztuczna inteligencja zaprojektuje Twój idealny uśmiech w 10 sekund.
+                            {t('subtitle')}
                         </p>
 
                         {error && (
@@ -190,7 +180,7 @@ export default function SimulatorPage() {
                                 boxShadow: '0 5px 20px rgba(255,255,255,0.2)'
                             }}>
                                 <Camera size={24} />
-                                Zrób Zdjęcie
+                                {t('takePhoto')}
                                 <input
                                     ref={fileInputRef}
                                     type="file"
@@ -203,7 +193,7 @@ export default function SimulatorPage() {
 
                             {/* SEPARATOR */}
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#555', fontSize: '0.8rem' }}>
-                                <div style={{ flex: 1, height: '1px', background: '#333' }} /> LUB <div style={{ flex: 1, height: '1px', background: '#333' }} />
+                                <div style={{ flex: 1, height: '1px', background: '#333' }} /> {t('or')} <div style={{ flex: 1, height: '1px', background: '#333' }} />
                             </div>
 
                             {/* UPLOAD INPUT */}
@@ -214,7 +204,7 @@ export default function SimulatorPage() {
                                 fontSize: '1.1rem', fontWeight: 500, cursor: 'pointer'
                             }}>
                                 <Upload size={24} />
-                                Wgraj z Galerii
+                                {t('uploadGallery')}
                                 <input
                                     type="file"
                                     accept="image/*"
@@ -232,7 +222,7 @@ export default function SimulatorPage() {
                             <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-[#dcb14a]"></div>
                         </div>
                         <h2 style={{ fontSize: '1.2rem', color: '#eee' }}>{statusMessage}</h2>
-                        <p style={{ color: '#666', fontSize: '0.9rem' }}>To może potrwać kilka sekund...</p>
+                        <p style={{ color: '#666', fontSize: '0.9rem' }}>{t('statusWait')}</p>
                     </div>
                 )}
 
@@ -261,7 +251,7 @@ export default function SimulatorPage() {
                                 boxShadow: '0 5px 20px rgba(255,255,255,0.1)'
                             }}
                         >
-                            <RefreshCw size={20} /> Spróbuj ponownie
+                            <RefreshCw size={20} /> {t('tryAgain')}
                         </button>
                     </div>
                 )}

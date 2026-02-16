@@ -1,5 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Playfair_Display } from "next/font/google";
+import { NextIntlClientProvider } from "next-intl";
+import plCommon from "../../messages/pl/common.json";
+import plPages from "../../messages/pl/pages.json";
+
+const plMessages = { ...plCommon, ...plPages };
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
@@ -92,27 +97,29 @@ export default function RootLayout({
                         })
                     }}
                 />
-                <CartProvider>
-                    <AssistantProvider>
-                        <SimulatorProvider>
-                            <OpinionProvider>
-                                <SplashScreen>
-                                    <BackgroundVideo videoId="vGAu6rdJ8WQ" />
-                                    <CookieConsent />
-                                    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-                                        <Navbar />
-                                        {children}
-                                        <AssistantTeaser />
-                                        <PWAInstallPrompt />
-                                        <Footer />
-                                        <SimulatorModal />
-                                        <OpinionSurvey />
-                                    </div>
-                                </SplashScreen>
-                            </OpinionProvider>
-                        </SimulatorProvider>
-                    </AssistantProvider>
-                </CartProvider>
+                <NextIntlClientProvider locale="pl" messages={plMessages}>
+                    <CartProvider>
+                        <AssistantProvider>
+                            <SimulatorProvider>
+                                <OpinionProvider>
+                                    <SplashScreen>
+                                        <BackgroundVideo videoId="vGAu6rdJ8WQ" />
+                                        <CookieConsent />
+                                        <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+                                            <Navbar />
+                                            {children}
+                                            <AssistantTeaser />
+                                            <PWAInstallPrompt />
+                                            <Footer />
+                                            <SimulatorModal />
+                                            <OpinionSurvey />
+                                        </div>
+                                    </SplashScreen>
+                                </OpinionProvider>
+                            </SimulatorProvider>
+                        </AssistantProvider>
+                    </CartProvider>
+                </NextIntlClientProvider>
             </body>
         </html>
     );

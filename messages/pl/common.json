@@ -1,0 +1,77 @@
+{
+    "nav": {
+        "about": "O nas",
+        "transformations": "Metamorfozy",
+        "services": "Oferta",
+        "news": "Aktualności",
+        "extras": "Dodatki",
+        "painMap": "Mapa Bólu",
+        "treatmentCalculator": "Kalkulator Leczenia",
+        "comparator": "Porównywarka",
+        "pricing": "Cennik",
+        "knowledgeBase": "Baza Wiedzy",
+        "blog": "Blog Dr. Marcin",
+        "shop": "Sklep",
+        "smileSimulator": "Symulator Uśmiechu",
+        "assistant": "Wirtualny Asystent",
+        "deposit": "Wpłać Zadatek",
+        "selfie": "Selfie z Doktorem",
+        "shareOpinion": "Podziel się opinią",
+        "contact": "Kontakt",
+        "booking": "Umów wizytę",
+        "bookConsultation": "Umów Konsultację",
+        "patientZone": "Strefa Pacjenta"
+    },
+    "hero": {
+        "tagline": "Mikroskopowa Stomatologia Artystyczna",
+        "title1": "Tworzymy uśmiechy,",
+        "title2": "które zmieniają życie.",
+        "description": "W Mikrostomart łączymy precyzję technologii z wrażliwością sztuki. Odkryj stomatologię, która przywraca pewność siebie."
+    },
+    "values": {
+        "precision": "Precyzja",
+        "precisionDesc": "Leczenie pod mikroskopem to nasz standard. Widzimy więcej, by leczyć skuteczniej i oszczędzać Twoje zęby.",
+        "aesthetics": "Estetyka",
+        "aestheticsDesc": "Projektujemy uśmiechy w harmonii z Twoją twarzą. Naturalność jest dla nas najwyższą formą piękna.",
+        "comfort": "Komfort",
+        "comfortDesc": "Bezbolesne znieczulenia komputerowe i atmosfera, która pozwala zapomnieć, że jesteś u dentysty."
+    },
+    "narrative": {
+        "title1": "Twoja droga do",
+        "title2": "nowego uśmiechu",
+        "description1": "Nie musisz wiedzieć, jakiego zabiegu potrzebujesz. To my jesteśmy od tego, by wskazać Ci najlepszą drogę.",
+        "description2": "Od drobnych korekt estetycznych po kompleksowe rekonstrukcje zgryzu. Zobacz, jak zmieniliśmy życie naszych pacjentów."
+    },
+    "notification": {
+        "likeEffect": "Podoba Ci się efekt?",
+        "seeMore": "Zobacz więcej metamorfoz →"
+    },
+    "footer": {
+        "slogan": "Mikroskopowa Stomatologia Artystyczna.",
+        "sloganSub": "Precyzja którą zobaczysz w uśmiechu.",
+        "contact": "Kontakt",
+        "hours": "Godziny otwarcia",
+        "monThu": "Pon - Czw: 9.00 - 20.00",
+        "fri": "Pią: 9.00 - 16.00",
+        "sat": "Sob: Wybrane terminy",
+        "copyright": "© {year} Mikrostomart. Wszelkie prawa zastrzeżone.",
+        "terms": "Regulamin",
+        "cookiePolicy": "Polityka Cookies",
+        "backstage": "Zaplecze",
+        "employee": "Pracownik",
+        "admin": "Admin"
+    },
+    "cookies": {
+        "title": "🍪 Ciasteczka i Prywatność",
+        "message": "Strona korzysta z plików cookies w celu realizacji usług i zgodnie z",
+        "policyLink": "Polityką Plików Cookies",
+        "details": "Możesz określić warunki przechowywania lub dostępu do mechanizmu cookie w Twojej przeglądarce.",
+        "accept": "Akceptuję"
+    },
+    "language": {
+        "pl": "Polski",
+        "en": "English",
+        "de": "Deutsch",
+        "ua": "Українська"
+    }
+}

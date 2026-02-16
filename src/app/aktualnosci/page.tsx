@@ -2,12 +2,14 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
+import { useTranslations } from "next-intl";
 import { useState, useEffect } from 'react';
 import RevealOnScroll from '@/components/RevealOnScroll';
 
 export default function NewsPage() {
     const [articles, setArticles] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const t = useTranslations('aktualnosci');
 
     useEffect(() => {
         const fetchNews = async () => {
@@ -27,39 +29,6 @@ export default function NewsPage() {
         fetchNews();
     }, []);
 
-    // ... CSS styles remain the same ...
-    /* Custom Scrollbar and Responsive Carousel Item Styles */
-    <style jsx global>{`
-                    .news-carousel::-webkit-scrollbar {
-                        display: none;
-                    }
-                    .news-carousel {
-                        -ms-overflow-style: none;
-                        scrollbar-width: none;
-                    }
-                    
-                    /* Responsive Carousel Items */
-                    .news-carousel-item {
-                        flex: 0 0 auto;
-                        width: clamp(280px, 85vw, 400px);
-                        scroll-snap-align: start;
-                        scroll-snap-stop: always;
-                    }
-                    
-                    @media (min-width: 768px) {
-                        .news-carousel-item {
-                            width: calc(50% - 1rem);
-                        }
-                    }
-                    
-                    @media (min-width: 1024px) {
-                        .news-carousel-item {
-                            width: calc(33.333% - 1.34rem); 
-                        }
-                    }
-                `}</style>
-    // ...
-
     return (
         <main style={{ background: "var(--color-background)" }}>
             <div className="container" style={{ padding: "4rem 2rem 4rem" }}>
@@ -72,7 +41,7 @@ export default function NewsPage() {
                         WebkitTextFillColor: "transparent",
                         textAlign: "center"
                     }}>
-                        Aktualności
+                        {t('title')}
                     </h1>
                 </RevealOnScroll>
 
@@ -114,7 +83,7 @@ export default function NewsPage() {
                                 container.scrollBy({ left: -320, behavior: 'smooth' });
                             }
                         }}
-                        title="Poprzednia"
+                        title={t('prev')}
                         style={{
                             left: '0',
                             top: '50%',
@@ -135,7 +104,7 @@ export default function NewsPage() {
                                 container.scrollBy({ left: 320, behavior: 'smooth' });
                             }
                         }}
-                        title="Następna"
+                        title={t('next')}
                         style={{
                             right: '0',
                             top: '50%',
@@ -162,11 +131,11 @@ export default function NewsPage() {
                         {loading ? (
                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', padding: '4rem 2rem', gap: '1.5rem' }}>
                                 <div style={{ width: '48px', height: '48px', border: '3px solid rgba(212,175,55,0.15)', borderTop: '3px solid var(--color-primary)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-                                <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>Ładowanie aktualności...</p>
+                                <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>{t('loading')}</p>
                                 <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
                             </div>
                         ) : articles.length === 0 ? (
-                            <p style={{ textAlign: "center", width: "100%", padding: "2rem" }}>Brak aktualności.</p>
+                            <p style={{ textAlign: "center", width: "100%", padding: "2rem" }}>{t('empty')}</p>
                         ) : articles.map((article) => (
                             <div
                                 key={article.id}
@@ -238,7 +207,7 @@ export default function NewsPage() {
                                                             alignItems: "center",
                                                             gap: "0.5rem"
                                                         }}>
-                                                            Czytaj więcej &rarr;
+                                                            {t('readMore')} &rarr;
                                                         </span>
                                                     </div>
                                                 </div>

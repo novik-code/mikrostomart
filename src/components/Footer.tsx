@@ -1,10 +1,15 @@
+"use client";
+
 import Image from 'next/image';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import AnimatedPhone from "@/components/AnimatedPhone";
 import AnimatedAt from "@/components/AnimatedAt";
 import NovikCodeCredit from "@/components/NovikCodeCredit";
 
 export default function Footer() {
+    const t = useTranslations('footer');
+
     return (
         <footer className="section" style={{
             background: 'var(--color-surface)',
@@ -49,13 +54,13 @@ export default function Footer() {
                 <div>
                     <h3 style={{ color: 'var(--color-primary)', marginBottom: 'var(--spacing-sm)' }}>Mikrostomart</h3>
                     <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>
-                        Mikroskopowa Stomatologia Artystyczna.<br />
-                        Precyzja którą zobaczysz w uśmiechu.
+                        {t('slogan')}<br />
+                        {t('sloganSub')}
                     </p>
                 </div>
 
                 <div>
-                    <h4 style={{ color: 'var(--color-text-main)', marginBottom: 'var(--spacing-sm)' }}>Kontakt</h4>
+                    <h4 style={{ color: 'var(--color-text-main)', marginBottom: 'var(--spacing-sm)' }}>{t('contact')}</h4>
                     <div style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>
                         <a
                             href="https://www.google.com/maps/search/?api=1&query=Mikrostomart+Opole+ul.+Centralna+33a"
@@ -87,11 +92,11 @@ export default function Footer() {
                 </div>
 
                 <div>
-                    <h4 style={{ color: 'var(--color-text-main)', marginBottom: 'var(--spacing-sm)' }}>Godziny otwarcia</h4>
+                    <h4 style={{ color: 'var(--color-text-main)', marginBottom: 'var(--spacing-sm)' }}>{t('hours')}</h4>
                     <ul style={{ listStyle: 'none', color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>
-                        <li>Pon - Czw: 9.00 - 20.00</li>
-                        <li>Pią: 9.00 - 16.00</li>
-                        <li>Sob: Wybrane terminy</li>
+                        <li>{t('monThu')}</li>
+                        <li>{t('fri')}</li>
+                        <li>{t('sat')}</li>
                     </ul>
                 </div>
 
@@ -111,7 +116,7 @@ export default function Footer() {
                 gap: '2rem',
                 flexWrap: 'wrap'
             }}>
-                <span>© {new Date().getFullYear()} Mikrostomart. Wszelkie prawa zastrzeżone.</span>
+                <span>{t('copyright', { year: new Date().getFullYear() })}</span>
                 <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', justifyContent: 'center' }}>
                     <a
                         href="/faq"
@@ -125,7 +130,7 @@ export default function Footer() {
                         style={{ color: 'var(--color-text-muted)', textDecoration: 'none', opacity: 0.7 }}
                         className="hover-underline"
                     >
-                        Regulamin
+                        {t('terms')}
                     </a>
                     <a
                         href="/rodo"
@@ -139,7 +144,7 @@ export default function Footer() {
                         style={{ color: 'var(--color-text-muted)', textDecoration: 'none', opacity: 0.7 }}
                         className="hover-underline"
                     >
-                        Polityka Cookies
+                        {t('cookiePolicy')}
                     </a>
                 </div>
             </div>
@@ -162,7 +167,7 @@ export default function Footer() {
                         padding: '0.5rem 1rem',
                         WebkitTapHighlightColor: 'transparent',
                     }}>
-                        Zaplecze
+                        {t('backstage')}
                     </summary>
                     <div style={{
                         display: 'flex',
@@ -171,8 +176,8 @@ export default function Footer() {
                         marginTop: '0.4rem',
                         padding: '0.3rem 0',
                     }}>
-                        <Link href="/pracownik" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.7rem', opacity: 0.5, padding: '0.3rem 0.5rem' }}>Pracownik</Link>
-                        <Link href="/admin" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.7rem', opacity: 0.5, padding: '0.3rem 0.5rem' }}>Admin</Link>
+                        <Link href="/pracownik" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.7rem', opacity: 0.5, padding: '0.3rem 0.5rem' }}>{t('employee')}</Link>
+                        <Link href="/admin" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.7rem', opacity: 0.5, padding: '0.3rem 0.5rem' }}>{t('admin')}</Link>
                     </div>
                 </details>
             </div>

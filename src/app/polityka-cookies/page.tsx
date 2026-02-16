@@ -1,12 +1,12 @@
+"use client";
+
 import { Cookie, Settings, BarChart3, ShieldCheck } from "lucide-react";
+import { useTranslations } from "next-intl";
 import RevealOnScroll from "@/components/RevealOnScroll";
 
-export const metadata = {
-    title: "Polityka Cookies | Mikrostomart Opole",
-    description: "Informacje o plikach cookies używanych na stronie gabinetu stomatologicznego Mikrostomart w Opolu.",
-};
-
 export default function CookiesPage() {
+    const t = useTranslations('politykaCookies');
+
     return (
         <main style={{ background: "var(--color-background)", minHeight: "100vh" }}>
 
@@ -37,17 +37,17 @@ export default function CookiesPage() {
                             color: "var(--color-primary)", textTransform: "uppercase",
                             letterSpacing: "0.2em", fontSize: "0.8rem", marginBottom: "1rem"
                         }}>
-                            Pliki Cookies
+                            {t('tagline')}
                         </p>
                         <h1 style={{
                             fontFamily: "var(--font-heading)",
                             fontSize: "clamp(2rem, 5vw, 3.2rem)", color: "var(--color-text-main)",
                             marginBottom: "0.75rem", lineHeight: 1.2
                         }}>
-                            Polityka Plików Cookies
+                            {t('title')}
                         </h1>
                         <p style={{ color: "var(--color-text-muted)", fontSize: "1rem", maxWidth: "500px", margin: "0 auto" }}>
-                            Transparentność w wykorzystaniu technologii
+                            {t('subtitle')}
                         </p>
                     </RevealOnScroll>
                 </div>
@@ -58,33 +58,33 @@ export default function CookiesPage() {
                 <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
 
                     <RevealOnScroll animation="fade-up">
-                        <CookieCard icon={<Cookie size={22} color="var(--color-primary)" />} title="Czym są pliki cookies?">
-                            <p>Są to niewielkie pliki tekstowe wysyłane przez serwer www i przechowywane przez oprogramowanie komputera przeglądarki. Kiedy przeglądarka ponownie połączy się ze stroną, witryna rozpoznaje rodzaj urządzenia, z którego łączy się użytkownik.</p>
+                        <CookieCard icon={<Cookie size={22} color="var(--color-primary)" />} title={t('card1Title')}>
+                            <p>{t('card1Text')}</p>
                         </CookieCard>
                     </RevealOnScroll>
 
                     <RevealOnScroll animation="fade-up" delay={100}>
-                        <CookieCard icon={<BarChart3 size={22} color="var(--color-primary)" />} title="Do czego ich używamy?">
+                        <CookieCard icon={<BarChart3 size={22} color="var(--color-primary)" />} title={t('card2Title')}>
                             <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-                                <CookieLi>Zapamiętywanie preferencji użytkownika (np. zgoda na cookies).</CookieLi>
-                                <CookieLi>Tworzenie anonimowych statystyk, które pomagają zrozumieć, w jaki sposób użytkownicy korzystają ze strony.</CookieLi>
-                                <CookieLi>Zapewnienie bezpieczeństwa i niezawodności serwisu.</CookieLi>
+                                <CookieLi>{t('card2Li1')}</CookieLi>
+                                <CookieLi>{t('card2Li2')}</CookieLi>
+                                <CookieLi>{t('card2Li3')}</CookieLi>
                             </ul>
                         </CookieCard>
                     </RevealOnScroll>
 
                     <RevealOnScroll animation="fade-up" delay={200}>
-                        <CookieCard icon={<Settings size={22} color="var(--color-primary)" />} title="Zarządzanie plikami cookies">
-                            <p>Użytkownik może w każdej chwili zmienić ustawienia dotyczące plików cookies. Ograniczenie stosowania plików cookies może wpłynąć na niektóre funkcjonalności dostępne na stronie internetowej.</p>
+                        <CookieCard icon={<Settings size={22} color="var(--color-primary)" />} title={t('card3Title')}>
+                            <p>{t('card3Text')}</p>
                         </CookieCard>
                     </RevealOnScroll>
 
                     <RevealOnScroll animation="fade-up" delay={300}>
-                        <CookieCard icon={<ShieldCheck size={22} color="var(--color-primary)" />} title="Rodzaje cookies">
+                        <CookieCard icon={<ShieldCheck size={22} color="var(--color-primary)" />} title={t('card4Title')}>
                             <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-                                <CookieLi><strong style={{ color: "var(--color-text-main)" }}>Niezbędne</strong> — wymagane do prawidłowego działania strony (np. sesja, zgoda cookies).</CookieLi>
-                                <CookieLi><strong style={{ color: "var(--color-text-main)" }}>Analityczne</strong> — anonimowe statystyki pomagające ulepszać stronę.</CookieLi>
-                                <CookieLi><strong style={{ color: "var(--color-text-main)" }}>Funkcjonalne</strong> — zapamiętywanie Twoich preferencji i ustawień.</CookieLi>
+                                <CookieLi><strong style={{ color: "var(--color-text-main)" }}>{t('card4Essential')}</strong> — {t('card4EssentialDesc')}</CookieLi>
+                                <CookieLi><strong style={{ color: "var(--color-text-main)" }}>{t('card4Analytics')}</strong> — {t('card4AnalyticsDesc')}</CookieLi>
+                                <CookieLi><strong style={{ color: "var(--color-text-main)" }}>{t('card4Functional')}</strong> — {t('card4FunctionalDesc')}</CookieLi>
                             </ul>
                         </CookieCard>
                     </RevealOnScroll>

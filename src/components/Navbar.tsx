@@ -4,11 +4,13 @@ import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useTranslations } from 'next-intl';
 import styles from './Navbar.module.css';
 
 import { useAssistant } from "@/context/AssistantContext";
 import { useSimulator } from "@/context/SimulatorContext";
 import { useOpinion } from "@/context/OpinionContext";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 /* ═══════════════════════════════════════════
    FRAMER MOTION ANIMATION VARIANTS
@@ -121,6 +123,7 @@ export default function Navbar() {
     const { openChat } = useAssistant();
     const { openSimulator } = useSimulator();
     const { openSurvey } = useOpinion();
+    const t = useTranslations('nav');
 
     const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
     const closeMenu = () => setIsMenuOpen(false);
@@ -170,16 +173,16 @@ export default function Navbar() {
                                 key="left-links"
                             >
                                 <motion.div variants={leftLinkVariants} className={styles.linkWrapper}>
-                                    <Link href="/o-nas" className={styles.link}>O nas</Link>
+                                    <Link href="/o-nas" className={styles.link}>{t('about')}</Link>
                                 </motion.div>
                                 <motion.div variants={leftLinkVariants} className={styles.linkWrapper}>
-                                    <Link href="/metamorfozy" className={styles.link}>Metamorfozy</Link>
+                                    <Link href="/metamorfozy" className={styles.link}>{t('transformations')}</Link>
                                 </motion.div>
                                 <motion.div variants={leftLinkVariants} className={styles.linkWrapper}>
-                                    <Link href="/oferta" className={styles.link}>Oferta</Link>
+                                    <Link href="/oferta" className={styles.link}>{t('services')}</Link>
                                 </motion.div>
                                 <motion.div variants={leftLinkVariants} className={styles.linkWrapper}>
-                                    <Link href="/aktualnosci" className={styles.link}>Aktualności</Link>
+                                    <Link href="/aktualnosci" className={styles.link}>{t('news')}</Link>
                                 </motion.div>
                             </motion.div>
                         )}
@@ -228,7 +231,7 @@ export default function Navbar() {
                                         onMouseLeave={() => setIsDropdownOpen(false)}
                                     >
                                         <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                            Dodatki <span style={{ fontSize: '0.7em', opacity: 0.7 }}>▼</span>
+                                            {t('extras')} <span style={{ fontSize: '0.7em', opacity: 0.7 }}>▼</span>
                                         </span>
 
                                         <AnimatePresence>
@@ -260,52 +263,52 @@ export default function Navbar() {
                                                         backdropFilter: 'blur(16px)',
                                                     }}>
                                                         <Link href="/mapa-bolu" className={styles.dropdownLink} style={{ color: '#dcb14a', fontWeight: 'bold', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                                                            🗺️ Mapa Bólu
+                                                            🗺️ {t('painMap')}
                                                         </Link>
                                                         <Link href="/kalkulator-leczenia" className={styles.dropdownLink} style={{ color: '#38bdf8', fontWeight: 'bold', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                                                            🧮 Kalkulator Leczenia
+                                                            🧮 {t('treatmentCalculator')}
                                                         </Link>
                                                         <Link href="/porownywarka" className={styles.dropdownLink} style={{ color: '#a855f7', fontWeight: 'bold', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                                                            ⚖️ Porównywarka
+                                                            ⚖️ {t('comparator')}
                                                         </Link>
                                                         <Link href="/cennik" className={styles.dropdownLink} style={{ color: '#10b981', fontWeight: 'bold' }}>
-                                                            💰 Cennik
+                                                            💰 {t('pricing')}
                                                         </Link>
                                                         <Link href="/baza-wiedzy" className={styles.dropdownLink}>
-                                                            📚 Baza Wiedzy
+                                                            📚 {t('knowledgeBase')}
                                                         </Link>
                                                         <Link href="/nowosielski" className={styles.dropdownLink} style={{ color: '#d4af37', fontWeight: 'bold' }}>
-                                                            👨‍⚕️ Blog Dr. Marcin
+                                                            👨‍⚕️ {t('blog')}
                                                         </Link>
                                                         <Link href="/sklep" className={styles.dropdownLink}>
-                                                            🛍️ Sklep
+                                                            🛍️ {t('shop')}
                                                         </Link>
                                                         <button
                                                             onClick={() => { openSimulator(); setIsDropdownOpen(false); }}
                                                             className={styles.dropdownLink}
                                                             style={{ color: 'var(--color-primary)', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'center' }}
                                                         >
-                                                            ✨ Symulator Uśmiechu
+                                                            ✨ {t('smileSimulator')}
                                                         </button>
                                                         <button
                                                             onClick={() => { openChat(); setIsDropdownOpen(false); }}
                                                             className={styles.dropdownLink}
                                                             style={{ color: '#60a5fa', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'center' }}
                                                         >
-                                                            🤖 Wirtualny Asystent
+                                                            🤖 {t('assistant')}
                                                         </button>
                                                         <Link href="/zadatek" className={styles.dropdownLink} style={{ color: 'var(--color-primary)', fontWeight: 'bold' }}>
-                                                            💳 Wpłać Zadatek
+                                                            💳 {t('deposit')}
                                                         </Link>
                                                         <Link href="/selfie" className={styles.dropdownLink} style={{ color: '#ec4899', fontWeight: 'bold', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                                                            🤳 Selfie z Doktorem
+                                                            🤳 {t('selfie')}
                                                         </Link>
                                                         <button
                                                             onClick={() => { openSurvey(); setIsDropdownOpen(false); }}
                                                             className={styles.dropdownLink}
                                                             style={{ color: '#f59e0b', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'center', fontWeight: 'bold' }}
                                                         >
-                                                            ⭐ Podziel się opinią
+                                                            ⭐ {t('shareOpinion')}
                                                         </button>
                                                     </div>
                                                 </motion.div>
@@ -315,20 +318,21 @@ export default function Navbar() {
                                 </motion.div>
 
                                 <motion.div variants={rightLinkVariants} className={styles.linkWrapper}>
-                                    <Link href="/strefa-pacjenta/" className={styles.link}>Strefa Pacjenta</Link>
+                                    <Link href="/strefa-pacjenta/" className={styles.link}>{t('patientZone')}</Link>
                                 </motion.div>
                                 <motion.div variants={rightLinkVariants} className={styles.linkWrapper}>
-                                    <Link href="/kontakt" className={styles.link}>Kontakt</Link>
+                                    <Link href="/kontakt" className={styles.link}>{t('contact')}</Link>
                                 </motion.div>
                             </motion.div>
                         )}
                     </AnimatePresence>
                 </div>
 
-                {/* Appointment Button — Desktop only */}
-                <div className={styles.desktopCta}>
+                {/* Appointment Button + Language Switcher — Desktop only */}
+                <div className={styles.desktopCta} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <LanguageSwitcher />
                     <Link href="/rezerwacja" className="btn-primary" style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>
-                        Umów wizytę
+                        {t('booking')}
                     </Link>
                 </div>
 
@@ -350,44 +354,44 @@ export default function Navbar() {
                 {/* Mobile Menu Overlay */}
                 <div className={`${styles.mobileMenu} ${isMenuOpen ? styles.mobileMenuOpen : ''}`}>
                     <div className={styles.mobileLinks}>
-                        <Link href="/o-nas" className={styles.mobileLink} onClick={closeMenu}>O nas</Link>
-                        <Link href="/metamorfozy" className={styles.mobileLink} onClick={closeMenu}>Metamorfozy</Link>
-                        <Link href="/oferta" className={styles.mobileLink} onClick={closeMenu}>Oferta</Link>
-                        <Link href="/aktualnosci" className={styles.mobileLink} onClick={closeMenu}>Aktualności</Link>
+                        <Link href="/o-nas" className={styles.mobileLink} onClick={closeMenu}>{t('about')}</Link>
+                        <Link href="/metamorfozy" className={styles.mobileLink} onClick={closeMenu}>{t('transformations')}</Link>
+                        <Link href="/oferta" className={styles.mobileLink} onClick={closeMenu}>{t('services')}</Link>
+                        <Link href="/aktualnosci" className={styles.mobileLink} onClick={closeMenu}>{t('news')}</Link>
 
-                        <div style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Dodatki</div>
-                        <Link href="/mapa-bolu" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem', color: '#dcb14a', fontWeight: 'bold' }}>🗺️ Mapa Bólu</Link>
-                        <Link href="/kalkulator-leczenia" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem', color: '#38bdf8', fontWeight: 'bold' }}>🧮 Kalkulator Leczenia</Link>
-                        <Link href="/porownywarka" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem', color: '#a855f7', fontWeight: 'bold' }}>⚖️ Porównywarka</Link>
-                        <Link href="/cennik" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem', color: '#10b981', fontWeight: 'bold' }}>💰 Cennik</Link>
-                        <Link href="/baza-wiedzy" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem' }}>📚 Baza Wiedzy</Link>
-                        <Link href="/nowosielski" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem', color: '#d4af37', fontWeight: 'bold' }}>👨‍⚕️ Blog Dr. Marcin</Link>
-                        <Link href="/sklep" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem' }}>🛍️ Sklep</Link>
-                        <Link href="/zadatek" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--color-primary)', fontWeight: 'bold' }}>💳 Wpłać Zadatek</Link>
-                        <Link href="/selfie" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem', color: '#ec4899', fontWeight: 'bold' }}>🤳 Selfie z Doktorem</Link>
+                        <div style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '1px' }}>{t('extras')}</div>
+                        <Link href="/mapa-bolu" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem', color: '#dcb14a', fontWeight: 'bold' }}>🗺️ {t('painMap')}</Link>
+                        <Link href="/kalkulator-leczenia" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem', color: '#38bdf8', fontWeight: 'bold' }}>🧮 {t('treatmentCalculator')}</Link>
+                        <Link href="/porownywarka" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem', color: '#a855f7', fontWeight: 'bold' }}>⚖️ {t('comparator')}</Link>
+                        <Link href="/cennik" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem', color: '#10b981', fontWeight: 'bold' }}>💰 {t('pricing')}</Link>
+                        <Link href="/baza-wiedzy" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem' }}>📚 {t('knowledgeBase')}</Link>
+                        <Link href="/nowosielski" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem', color: '#d4af37', fontWeight: 'bold' }}>👨‍⚕️ {t('blog')}</Link>
+                        <Link href="/sklep" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem' }}>🛍️ {t('shop')}</Link>
+                        <Link href="/zadatek" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--color-primary)', fontWeight: 'bold' }}>💳 {t('deposit')}</Link>
+                        <Link href="/selfie" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem', color: '#ec4899', fontWeight: 'bold' }}>🤳 {t('selfie')}</Link>
                         <button
                             onClick={() => { openSimulator(); closeMenu(); }}
                             className={styles.mobileLink}
                             style={{ display: 'block', padding: '0.75rem 1.5rem', width: '100%', textAlign: 'center', color: '#dcb14a', fontWeight: 'bold', border: 'none', background: 'transparent', marginTop: '10px' }}
                         >
-                            ✨ Symulator Uśmiechu
+                            ✨ {t('smileSimulator')}
                         </button>
                         <button
                             onClick={() => { openChat(); closeMenu(); }}
                             className={styles.mobileLink}
                             style={{ display: 'block', width: '100%', padding: '0.75rem 1.5rem', textAlign: 'center', color: '#60a5fa', background: 'transparent', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}
                         >
-                            🤖 Wirtualny Asystent
+                            🤖 {t('assistant')}
                         </button>
                         <button
                             onClick={() => { openSurvey(); closeMenu(); }}
                             className={styles.mobileLink}
                             style={{ display: 'block', width: '100%', padding: '0.75rem 1.5rem', textAlign: 'center', color: '#f59e0b', background: 'transparent', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}
                         >
-                            ⭐ Podziel się opinią
+                            ⭐ {t('shareOpinion')}
                         </button>
-                        <Link href="/strefa-pacjenta/" className={styles.mobileLink} onClick={closeMenu}>Strefa Pacjenta</Link>
-                        <Link href="/kontakt" className={styles.mobileLink} onClick={closeMenu}>Kontakt</Link>
+                        <Link href="/strefa-pacjenta/" className={styles.mobileLink} onClick={closeMenu}>{t('patientZone')}</Link>
+                        <Link href="/kontakt" className={styles.mobileLink} onClick={closeMenu}>{t('contact')}</Link>
                     </div>
                 </div>
             </div>

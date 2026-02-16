@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
+import { useTranslations } from "next-intl";
 import { useState, useEffect } from 'react';
 import RevealOnScroll from '@/components/RevealOnScroll';
 import { createClient } from "@supabase/supabase-js";
@@ -17,15 +18,15 @@ export const dynamic = 'force-dynamic';
 export default function BlogPage() {
     const [posts, setPosts] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const t = useTranslations('nowosielski');
 
     useEffect(() => {
         const fetchPosts = async () => {
             try {
-                // Fetch directly from Supabase client-side for simplicity/speed matching News
                 const { data, error } = await supabase
                     .from('blog_posts')
                     .select('*')
-                    .eq('is_published', true) // Only published posts
+                    .eq('is_published', true)
                     .order('date', { ascending: false });
 
                 if (error) throw error;
@@ -40,7 +41,6 @@ export default function BlogPage() {
         fetchPosts();
     }, []);
 
-    /* Reuse Styles from News */
     return (
         <main style={{ background: "var(--color-background)", minHeight: '100vh' }}>
             <div className="container" style={{ padding: "4rem 2rem 4rem" }}>
@@ -53,7 +53,7 @@ export default function BlogPage() {
                         WebkitTextFillColor: "transparent",
                         textAlign: "center"
                     }}>
-                        Blog Dr. Marcina
+                        {t('title')}
                     </h1>
                 </RevealOnScroll>
 
@@ -95,7 +95,7 @@ export default function BlogPage() {
                                 container.scrollBy({ left: -320, behavior: 'smooth' });
                             }
                         }}
-                        title="Poprzednia"
+                        title={t('prev')}
                         style={{
                             left: '0',
                             top: '50%',
@@ -127,7 +127,7 @@ export default function BlogPage() {
                                 container.scrollBy({ left: 320, behavior: 'smooth' });
                             }
                         }}
-                        title="Następna"
+                        title={t('next')}
                         style={{
                             right: '0',
                             top: '50%',
@@ -163,9 +163,9 @@ export default function BlogPage() {
                             WebkitOverflowScrolling: "touch"
                         }}>
                         {loading ? (
-                            <p style={{ textAlign: "center", width: "100%", padding: "2rem" }}>Ładowanie postów...</p>
+                            <p style={{ textAlign: "center", width: "100%", padding: "2rem" }}>{t('loading')}</p>
                         ) : posts.length === 0 ? (
-                            <p style={{ textAlign: "center", width: "100%", padding: "2rem" }}>Brak wpisów.</p>
+                            <p style={{ textAlign: "center", width: "100%", padding: "2rem" }}>{t('empty')}</p>
                         ) : posts.map((post) => (
                             <div key={post.id} className="news-carousel-item">
                                 <div style={{ width: "100%", height: "100%" }}>
@@ -212,7 +212,6 @@ export default function BlogPage() {
                                                         WebkitBoxOrient: "vertical",
                                                         overflow: "hidden"
                                                     }}>
-                                                        {/* Strip HTML tags for excerpt */}
                                                         {post.excerpt || post.content.replace(/<[^>]*>?/gm, '').substring(0, 150) + '...'}
                                                     </p>
                                                     <div style={{
@@ -236,7 +235,7 @@ export default function BlogPage() {
                                                             alignItems: "center",
                                                             gap: "0.5rem"
                                                         }}>
-                                                            Czytaj więcej &rarr;
+                                                            {t('readMore')} &rarr;
                                                         </span>
                                                     </div>
                                                 </div>

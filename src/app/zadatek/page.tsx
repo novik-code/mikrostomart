@@ -2,6 +2,7 @@
 
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import ProductModal, { Product } from "@/components/ProductModal";
 
 function DepositPageContent() {
@@ -19,6 +20,7 @@ function DepositPageContent() {
     }>({});
     const router = useRouter();
     const searchParams = useSearchParams();
+    const t = useTranslations('zadatek');
 
     useEffect(() => {
         // Read URL params
@@ -62,10 +64,10 @@ function DepositPageContent() {
     if (error) {
         return (
             <div style={{ padding: "4rem", textAlign: "center", color: "var(--color-text-muted)" }}>
-                <h2>Nie znaleziono produktu wpłaty zadatku.</h2>
-                <p>Skontaktuj się z recepcją.</p>
+                <h2>{t('errorTitle')}</h2>
+                <p>{t('errorDescription')}</p>
                 <button onClick={() => router.push("/")} className="btn-primary" style={{ marginTop: "1rem" }}>
-                    Powrót
+                    {t('back')}
                 </button>
             </div>
         );
@@ -74,17 +76,13 @@ function DepositPageContent() {
     if (!product) {
         return (
             <div style={{ height: "100vh", background: "var(--color-background)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <div style={{ color: "var(--color-primary)" }}>Ładowanie formularza płatności...</div>
+                <div style={{ color: "var(--color-primary)" }}>{t('loading')}</div>
             </div>
         );
     }
 
     return (
         <div style={{ minHeight: "100vh", background: "#000" }}>
-            {/* We render the modal immediately. 
-                Using isVisible={true} effectively since it conditional on 'product' being set. 
-                The ProductModal layout handles the full screen overlay.
-            */}
             <ProductModal
                 product={product}
                 initialStep="PRODUCT"
@@ -96,10 +94,12 @@ function DepositPageContent() {
 }
 
 export default function DepositPage() {
+    const t = useTranslations('zadatek');
+
     return (
         <Suspense fallback={
             <div style={{ height: "100vh", background: "var(--color-background)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <div style={{ color: "var(--color-primary)" }}>Ładowanie formularza płatności...</div>
+                <div style={{ color: "var(--color-primary)" }}>{t('loading')}</div>
             </div>
         }>
             <DepositPageContent />

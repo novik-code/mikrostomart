@@ -1,9 +1,14 @@
+"use client";
+
+import { useTranslations } from "next-intl";
 import RevealOnScroll from "@/components/RevealOnScroll";
 import AnimatedPhone from "@/components/AnimatedPhone";
 import AnimatedAt from "@/components/AnimatedAt";
 import ContactForm from "@/components/ContactForm";
 
 export default function ContactPage() {
+    const t = useTranslations('kontakt');
+
     return (
         <main>
             <section className="section" style={{ paddingBottom: 0 }}>
@@ -16,7 +21,7 @@ export default function ContactPage() {
                             textAlign: "center",
                             fontWeight: 400
                         }}>
-                            Kontakt
+                            {t('title')}
                         </h1>
                     </RevealOnScroll>
 
@@ -25,7 +30,7 @@ export default function ContactPage() {
                         {/* Contact Info */}
                         <RevealOnScroll delay={100} className="h-full">
                             <div style={{ padding: "var(--spacing-lg)", background: "var(--color-surface)", borderRadius: "2px", height: "100%" }}>
-                                <h2 style={{ marginBottom: "var(--spacing-lg)", color: "var(--color-primary)" }}>Odwiedź Nas</h2>
+                                <h2 style={{ marginBottom: "var(--spacing-lg)", color: "var(--color-primary)" }}>{t('visitUs')}</h2>
 
                                 <div style={{ marginBottom: "var(--spacing-lg)" }}>
                                     <p style={{ color: "var(--color-text-main)", fontSize: "1.2rem", lineHeight: 1.6 }}>
@@ -47,7 +52,7 @@ export default function ContactPage() {
                                             <AnimatedPhone size={32} color="var(--color-primary)" />
                                             <span style={{ fontSize: "2rem", fontWeight: "bold" }}>570 270 470</span>
                                         </a>
-                                        <p style={{ paddingLeft: "3rem", color: "var(--color-text-muted)", fontSize: "0.9rem" }}>Główny numer recepcji</p>
+                                        <p style={{ paddingLeft: "3rem", color: "var(--color-text-muted)", fontSize: "0.9rem" }}>{t('mainPhone')}</p>
                                     </div>
 
                                     <div>
@@ -62,7 +67,7 @@ export default function ContactPage() {
                                             <AnimatedPhone size={32} color="var(--color-primary)" />
                                             <span style={{ fontSize: "2rem", fontWeight: "bold" }}>570 810 800</span>
                                         </a>
-                                        <p style={{ paddingLeft: "3rem", color: "var(--color-text-muted)", fontSize: "0.9rem" }}>W razie zajętej linii</p>
+                                        <p style={{ paddingLeft: "3rem", color: "var(--color-text-muted)", fontSize: "0.9rem" }}>{t('altPhone')}</p>
                                     </div>
 
                                     <div style={{ marginTop: "1.5rem" }}>
@@ -80,11 +85,11 @@ export default function ContactPage() {
                                 </div>
 
                                 <div style={{ borderTop: "1px solid var(--color-surface-hover)", paddingTop: "var(--spacing-lg)" }}>
-                                    <p style={{ marginBottom: "var(--spacing-xs)", color: "var(--color-text-muted)" }}>GODZINY OTWARCIA</p>
+                                    <p style={{ marginBottom: "var(--spacing-xs)", color: "var(--color-text-muted)" }}>{t('openingHours')}</p>
                                     <ul style={{ listStyle: "none", color: "var(--color-text-main)", fontSize: "1.1rem", lineHeight: 1.8 }}>
-                                        <li><strong>Pon - Czw:</strong> 9.00 - 20.00</li>
-                                        <li><strong>Piątek:</strong> 9.00 - 16.00</li>
-                                        <li><strong>Sobota:</strong> Wybrane terminy</li>
+                                        <li><strong>{t('monThu')}</strong> 9.00 - 20.00</li>
+                                        <li><strong>{t('fri')}</strong> 9.00 - 16.00</li>
+                                        <li><strong>{t('sat')}</strong> {t('satValue')}</li>
                                     </ul>
                                 </div>
                             </div>
@@ -119,7 +124,7 @@ export default function ContactPage() {
                 <div className="container" style={{ maxWidth: "700px" }}>
                     <RevealOnScroll animation="fade-up">
                         <h2 style={{ textAlign: "center", marginBottom: "var(--spacing-lg)", fontSize: "2rem", fontWeight: 400 }}>
-                            Masz pytania? <span style={{ color: "var(--color-primary)" }}>Napisz.</span>
+                            {t('formTitle')} <span style={{ color: "var(--color-primary)" }}>{t('formHighlight')}</span>
                         </h2>
                         <ContactForm />
                     </RevealOnScroll>

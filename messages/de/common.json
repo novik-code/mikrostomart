@@ -1,0 +1,77 @@
+{
+    "nav": {
+        "about": "Über uns",
+        "transformations": "Metamorphosen",
+        "services": "Leistungen",
+        "news": "Aktuelles",
+        "extras": "Weitere",
+        "painMap": "Schmerzlandkarte",
+        "treatmentCalculator": "Behandlungsrechner",
+        "comparator": "Vergleich",
+        "pricing": "Preise",
+        "knowledgeBase": "Wissensdatenbank",
+        "blog": "Blog Dr. Marcin",
+        "shop": "Shop",
+        "smileSimulator": "Lächel-Simulator",
+        "assistant": "Virtueller Assistent",
+        "deposit": "Anzahlung leisten",
+        "selfie": "Selfie mit dem Arzt",
+        "shareOpinion": "Meinung teilen",
+        "contact": "Kontakt",
+        "booking": "Termin buchen",
+        "bookConsultation": "Beratung buchen",
+        "patientZone": "Patientenbereich"
+    },
+    "hero": {
+        "tagline": "Mikroskopische Künstlerische Zahnmedizin",
+        "title1": "Wir schaffen Lächeln,",
+        "title2": "die Leben verändern.",
+        "description": "Bei Mikrostomart verbinden wir technologische Präzision mit künstlerischer Sensibilität. Entdecken Sie Zahnmedizin, die Selbstvertrauen zurückgibt."
+    },
+    "values": {
+        "precision": "Präzision",
+        "precisionDesc": "Die Behandlung unter dem Mikroskop ist unser Standard. Wir sehen mehr, um effektiver zu behandeln und Ihre Zähne zu erhalten.",
+        "aesthetics": "Ästhetik",
+        "aestheticsDesc": "Wir gestalten Ihr Lächeln in Harmonie mit Ihrem Gesicht. Natürlichkeit ist für uns die höchste Form der Schönheit.",
+        "comfort": "Komfort",
+        "comfortDesc": "Schmerzfreie computergesteuerte Anästhesie und eine Atmosphäre, die Sie vergessen lässt, beim Zahnarzt zu sein."
+    },
+    "narrative": {
+        "title1": "Ihr Weg zu einem",
+        "title2": "neuen Lächeln",
+        "description1": "Sie müssen nicht wissen, welche Behandlung Sie brauchen. Wir zeigen Ihnen den besten Weg.",
+        "description2": "Von kleinen ästhetischen Korrekturen bis hin zu umfassenden Bissrekonstruktionen. Sehen Sie, wie wir das Leben unserer Patienten verändert haben."
+    },
+    "notification": {
+        "likeEffect": "Gefällt Ihnen das Ergebnis?",
+        "seeMore": "Mehr Metamorphosen ansehen →"
+    },
+    "footer": {
+        "slogan": "Mikroskopische Künstlerische Zahnmedizin.",
+        "sloganSub": "Präzision, die Sie in Ihrem Lächeln sehen.",
+        "contact": "Kontakt",
+        "hours": "Öffnungszeiten",
+        "monThu": "Mo - Do: 9:00 - 20:00",
+        "fri": "Fr: 9:00 - 16:00",
+        "sat": "Sa: Ausgewählte Termine",
+        "copyright": "© {year} Mikrostomart. Alle Rechte vorbehalten.",
+        "terms": "AGB",
+        "cookiePolicy": "Cookie-Richtlinie",
+        "backstage": "Backstage",
+        "employee": "Mitarbeiter",
+        "admin": "Admin"
+    },
+    "cookies": {
+        "title": "🍪 Cookies & Datenschutz",
+        "message": "Diese Website verwendet Cookies zur Bereitstellung von Diensten gemäß der",
+        "policyLink": "Cookie-Richtlinie",
+        "details": "Sie können die Bedingungen für das Speichern oder Zugreifen auf Cookies in Ihrem Browser festlegen.",
+        "accept": "Akzeptieren"
+    },
+    "language": {
+        "pl": "Polski",
+        "en": "English",
+        "de": "Deutsch",
+        "ua": "Українська"
+    }
+}

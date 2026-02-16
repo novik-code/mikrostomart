@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 export default function CookieConsent() {
     const [isVisible, setIsVisible] = useState(false);
+    const t = useTranslations('cookies');
 
     useEffect(() => {
         const consent = localStorage.getItem("cookie_consent");
@@ -42,12 +44,12 @@ export default function CookieConsent() {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1rem" }}>
                 <div>
                     <h4 style={{ color: "var(--color-primary)", marginBottom: "0.5rem", fontSize: "1rem" }}>
-                        🍪 Ciasteczka i Prywatność
+                        {t('title')}
                     </h4>
                     <p style={{ color: "var(--color-text-muted)", fontSize: "0.85rem", lineHeight: 1.5 }}>
-                        Strona korzysta z plików cookies w celu realizacji usług i zgodnie z
-                        <Link href="/polityka-cookies" style={{ color: "var(--color-primary)", marginLeft: "4px", textDecoration: "underline" }}>Polityką Plików Cookies</Link>.
-                        Możesz określić warunki przechowywania lub dostępu do mechanizmu cookie w Twojej przeglądarce.
+                        {t('message')}{' '}
+                        <Link href="/polityka-cookies" style={{ color: "var(--color-primary)", marginLeft: "4px", textDecoration: "underline" }}>{t('policyLink')}</Link>.{' '}
+                        {t('details')}
                     </p>
                 </div>
             </div>
@@ -66,7 +68,7 @@ export default function CookieConsent() {
                         fontSize: "0.9rem"
                     }}
                 >
-                    Akceptuję
+                    {t('accept')}
                 </button>
             </div>
         </div>

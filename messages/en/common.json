@@ -1,0 +1,77 @@
+{
+    "nav": {
+        "about": "About Us",
+        "transformations": "Transformations",
+        "services": "Services",
+        "news": "News",
+        "extras": "More",
+        "painMap": "Pain Map",
+        "treatmentCalculator": "Treatment Calculator",
+        "comparator": "Comparator",
+        "pricing": "Pricing",
+        "knowledgeBase": "Knowledge Base",
+        "blog": "Dr. Marcin's Blog",
+        "shop": "Shop",
+        "smileSimulator": "Smile Simulator",
+        "assistant": "Virtual Assistant",
+        "deposit": "Pay Deposit",
+        "selfie": "Selfie with Doctor",
+        "shareOpinion": "Share Your Opinion",
+        "contact": "Contact",
+        "booking": "Book a Visit",
+        "bookConsultation": "Book a Consultation",
+        "patientZone": "Patient Zone"
+    },
+    "hero": {
+        "tagline": "Microscopic Artistic Dentistry",
+        "title1": "We create smiles",
+        "title2": "that change lives.",
+        "description": "At Mikrostomart, we combine the precision of technology with the sensitivity of art. Discover dentistry that restores confidence."
+    },
+    "values": {
+        "precision": "Precision",
+        "precisionDesc": "Microscope-assisted treatment is our standard. We see more to treat more effectively and preserve your teeth.",
+        "aesthetics": "Aesthetics",
+        "aestheticsDesc": "We design smiles in harmony with your face. Naturalness is our highest form of beauty.",
+        "comfort": "Comfort",
+        "comfortDesc": "Painless computer-guided anesthesia and an atmosphere that lets you forget you're at the dentist."
+    },
+    "narrative": {
+        "title1": "Your path to a",
+        "title2": "new smile",
+        "description1": "You don't need to know which treatment you need. We're here to guide you on the best path.",
+        "description2": "From small aesthetic corrections to comprehensive bite reconstructions. See how we've changed our patients' lives."
+    },
+    "notification": {
+        "likeEffect": "Like the result?",
+        "seeMore": "See more transformations →"
+    },
+    "footer": {
+        "slogan": "Microscopic Artistic Dentistry.",
+        "sloganSub": "Precision you'll see in your smile.",
+        "contact": "Contact",
+        "hours": "Opening Hours",
+        "monThu": "Mon - Thu: 9:00 AM - 8:00 PM",
+        "fri": "Fri: 9:00 AM - 4:00 PM",
+        "sat": "Sat: Selected dates",
+        "copyright": "© {year} Mikrostomart. All rights reserved.",
+        "terms": "Terms & Conditions",
+        "cookiePolicy": "Cookie Policy",
+        "backstage": "Backstage",
+        "employee": "Employee",
+        "admin": "Admin"
+    },
+    "cookies": {
+        "title": "🍪 Cookies & Privacy",
+        "message": "This website uses cookies to provide services in accordance with the",
+        "policyLink": "Cookie Policy",
+        "details": "You can specify the conditions for storing or accessing cookies in your browser.",
+        "accept": "Accept"
+    },
+    "language": {
+        "pl": "Polski",
+        "en": "English",
+        "de": "Deutsch",
+        "ua": "Українська"
+    }
+}

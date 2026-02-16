@@ -1,9 +1,12 @@
 "use client";
 
 import { Download, FileText } from "lucide-react";
+import { useTranslations } from "next-intl";
 import RevealOnScroll from "@/components/RevealOnScroll";
 
 export default function RegulaminPage() {
+    const t = useTranslations('regulamin');
+
     return (
         <main style={{ background: "var(--color-background)", minHeight: "100vh" }}>
 
@@ -34,14 +37,14 @@ export default function RegulaminPage() {
                             color: "var(--color-primary)", textTransform: "uppercase",
                             letterSpacing: "0.2em", fontSize: "0.8rem", marginBottom: "1rem"
                         }}>
-                            Zasady Funkcjonowania
+                            {t('tagline')}
                         </p>
                         <h1 style={{
                             fontFamily: "var(--font-heading)",
                             fontSize: "clamp(2rem, 5vw, 3.2rem)", color: "var(--color-text-main)",
                             marginBottom: "1.5rem", lineHeight: 1.2
                         }}>
-                            Regulamin Organizacyjny
+                            {t('title')}
                         </h1>
                         <a
                             href="/regulamin.pdf" target="_blank" rel="noopener noreferrer"
@@ -54,7 +57,7 @@ export default function RegulaminPage() {
                             }}
                         >
                             <Download size={18} />
-                            Pobierz PDF
+                            {t('downloadPdf')}
                         </a>
                     </RevealOnScroll>
                 </div>
