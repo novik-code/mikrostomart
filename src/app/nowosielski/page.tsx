@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { useState, useEffect } from 'react';
 import RevealOnScroll from '@/components/RevealOnScroll';
 import { createClient } from "@supabase/supabase-js";
@@ -15,19 +15,40 @@ const supabase = createClient(
 
 export const dynamic = 'force-dynamic';
 
+const LOCALE_DATE_MAP: Record<string, string> = {
+    pl: 'pl-PL',
+    en: 'en-GB',
+    de: 'de-DE',
+    ua: 'uk-UA',
+};
+
 export default function BlogPage() {
     const [posts, setPosts] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const t = useTranslations('nowosielski');
+    const locale = useLocale();
 
     useEffect(() => {
         const fetchPosts = async () => {
             try {
-                const { data, error } = await supabase
+                // Fetch posts for current locale
+                let { data, error } = await supabase
                     .from('blog_posts')
                     .select('*')
                     .eq('is_published', true)
+                    .eq('locale', locale)
                     .order('date', { ascending: false });
+
+                // Fallback to PL if no posts for this locale
+                if (!data || data.length === 0) {
+                    const fallback = await supabase
+                        .from('blog_posts')
+                        .select('*')
+                        .eq('is_published', true)
+                        .eq('locale', 'pl')
+                        .order('date', { ascending: false });
+                    data = fallback.data;
+                }
 
                 if (error) throw error;
                 setPosts(data || []);
@@ -39,7 +60,9 @@ export default function BlogPage() {
         };
 
         fetchPosts();
-    }, []);
+    }, [locale]);
+
+    const dateLocale = LOCALE_DATE_MAP[locale] || 'pl-PL';
 
     return (
         <main style={{ background: "var(--color-background)", minHeight: '100vh' }}>
@@ -225,7 +248,7 @@ export default function BlogPage() {
                                                             fontSize: "0.875rem",
                                                             fontWeight: 600,
                                                         }}>
-                                                            {new Date(post.date).toLocaleDateString('pl-PL')}
+                                                            {new Date(post.date).toLocaleDateString(dateLocale)}
                                                         </span>
                                                         <span style={{
                                                             color: "#d4af37",

@@ -97,6 +97,7 @@
         "loading": "Loading posts...",
         "empty": "No posts.",
         "readMore": "Read more",
+        "backToBlog": "Back to blog",
         "prev": "Previous",
         "next": "Next"
     },

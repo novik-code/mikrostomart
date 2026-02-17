@@ -465,6 +465,7 @@ Persistent cache for Google Reviews (accumulates over time from API fetches).
 - Custom blog CSS (`blog.v2.css`)
 - Client-side rendering with `force-dynamic`
 - Script to migrate blog posts (`scripts/migrate_nowosielski_blog.js`)
+- **Blog i18n**: `blog_posts` table has `locale` + `group_id` columns. List/detail pages filter by locale with PL fallback. Admin POST auto-translates to EN/DE/UA via GPT-4o. Admin DELETE cascades via `group_id`. One-time translation script: `scripts/translate-blog-posts.ts`
 
 #### E-commerce (`/sklep`, `/koszyk`)
 - Product browsing with `ProductModal.tsx`

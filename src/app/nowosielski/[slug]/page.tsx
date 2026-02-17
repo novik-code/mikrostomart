@@ -3,6 +3,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import RevealOnScroll from '@/components/RevealOnScroll';
+import { getTranslations, getLocale } from 'next-intl/server';
 
 // We import the CSS to handle legacy content inside the clean container
 import './../blog.v2.css';
@@ -12,26 +13,50 @@ const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-// FORCE DYNAMIC RENDERING - DISABLE CACHE
-export const revalidate = 0;
+// FORCE DYNAMIC RENDERING — depends on locale cookie
 export const dynamic = 'force-dynamic';
 
-async function getPost(slug: string) {
-    const { data } = await supabase
+const LOCALE_DATE_MAP: Record<string, string> = {
+    pl: 'pl-PL',
+    en: 'en-GB',
+    de: 'de-DE',
+    ua: 'uk-UA',
+};
+
+async function getPost(slug: string, locale: string) {
+    // Try locale-specific slug first
+    let { data } = await supabase
         .from('blog_posts')
         .select('*')
         .eq('slug', slug)
+        .eq('locale', locale)
         .single();
+
+    // Fallback: try PL locale for this slug
+    if (!data) {
+        const fallback = await supabase
+            .from('blog_posts')
+            .select('*')
+            .eq('slug', slug)
+            .eq('locale', 'pl')
+            .single();
+        data = fallback.data;
+    }
+
     return data;
 }
 
 export default async function BlogPost({ params }: { params: Promise<{ slug: string }> }) {
     const { slug } = await params;
-    const post = await getPost(slug);
+    const locale = await getLocale();
+    const t = await getTranslations('nowosielski');
+    const post = await getPost(slug, locale);
 
     if (!post) {
         notFound();
     }
+
+    const dateLocale = LOCALE_DATE_MAP[locale] || 'pl-PL';
 
     // Reuse the cleaning logic, but now it sits inside a constrained layout
     const cleanHtml = (html: string) => {
@@ -49,10 +74,10 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
         const entities: { [key: string]: string } = {
             '&#8211;': '–', '&amp;#8211;': '–',
             '&#8212;': '—', '&amp;#8212;': '—',
-            '&#8216;': '‘', '&amp;#8216;': '‘',
-            '&#8217;': '’', '&amp;#8217;': '’',
-            '&#8220;': '“', '&amp;#8220;': '“',
-            '&#8221;': '”', '&amp;#8221;': '”',
+            '&#8216;': '\u2018', '&amp;#8216;': '\u2018',
+            '&#8217;': '\u2019', '&amp;#8217;': '\u2019',
+            '&#8220;': '\u201c', '&amp;#8220;': '\u201c',
+            '&#8221;': '\u201d', '&amp;#8221;': '\u201d',
             '&nbsp;': ' ', '&amp;nbsp;': ' ',
             '&#038;': '&', '&amp;#038;': '&',
             '&#38;': '&', '&amp;#38;': '&'
@@ -87,7 +112,7 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
                     }}
                         className="hover:text-primary"
                     >
-                        &larr; Powrót do bloga
+                        &larr; {t('backToBlog')}
                     </Link>
                 </div>
 
@@ -123,7 +148,7 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
                                 fontWeight: 600,
                                 backdropFilter: "blur(4px)"
                             }}>
-                                {new Date(post.date).toLocaleDateString('pl-PL')}
+                                {new Date(post.date).toLocaleDateString(dateLocale)}
                             </div>
                         </div>
                     </header>
