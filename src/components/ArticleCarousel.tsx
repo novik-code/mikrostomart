@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import RevealOnScroll from '@/components/RevealOnScroll';
+import { useTranslations } from 'next-intl';
 
 interface Article {
     id: string;
@@ -14,6 +15,7 @@ interface Article {
 }
 
 export default function ArticleCarousel({ articles }: { articles: Article[] }) {
+    const t = useTranslations('bazaWiedzy');
     return (
         <>
             {/* Custom Scrollbar and Responsive Carousel Item Styles */}
@@ -59,7 +61,7 @@ export default function ArticleCarousel({ articles }: { articles: Article[] }) {
                             container.scrollBy({ left: -320, behavior: 'smooth' });
                         }
                     }}
-                    title="Poprzednia"
+                    title={t('backToList')}
                     style={{
                         left: '0',
                         top: '50%',
@@ -80,7 +82,7 @@ export default function ArticleCarousel({ articles }: { articles: Article[] }) {
                             container.scrollBy({ left: 320, behavior: 'smooth' });
                         }
                     }}
-                    title="Następna"
+                    title={t('readMore')}
                     style={{
                         right: '0',
                         top: '50%',
@@ -175,7 +177,7 @@ export default function ArticleCarousel({ articles }: { articles: Article[] }) {
                                                         alignItems: "center",
                                                         gap: "0.5rem"
                                                     }}>
-                                                        Czytaj więcej &rarr;
+                                                        {t('readMore')} &rarr;
                                                     </span>
                                                 </div>
                                             </div>

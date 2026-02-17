@@ -14,7 +14,11 @@
     "bazaWiedzy": {
         "title": "Baza Wiedzy",
         "description": "Rzetelna wiedza stomatologiczna w pigułce. Przygotowana przez naszych ekspertów.",
-        "noAnswer": "Nie znalazłeś odpowiedzi? Zadaj nam pytanie, a my napiszemy o tym artykuł!"
+        "noAnswer": "Nie znalazłeś odpowiedzi? Zadaj nam pytanie, a my napiszemy o tym artykuł!",
+        "readMore": "Czytaj więcej",
+        "backToList": "Powrót do Bazy Wiedzy",
+        "notFound": "Artykuł nie znaleziony",
+        "metaSuffix": "Baza Wiedzy Mikrostomart"
     },
     "rezerwacja": {
         "title": "Umów Wizytę",

@@ -14,7 +14,11 @@
     "bazaWiedzy": {
         "title": "Wissensdatenbank",
         "description": "Zuverlässiges Zahnwissen kompakt. Von unseren Experten vorbereitet.",
-        "noAnswer": "Keine Antwort gefunden? Stellen Sie uns eine Frage — wir schreiben einen Artikel darüber!"
+        "noAnswer": "Keine Antwort gefunden? Stellen Sie uns eine Frage — wir schreiben einen Artikel darüber!",
+        "readMore": "Weiterlesen",
+        "backToList": "Zurück zur Wissensdatenbank",
+        "notFound": "Artikel nicht gefunden",
+        "metaSuffix": "Wissensdatenbank Mikrostomart"
     },
     "rezerwacja": {
         "title": "Termin buchen",

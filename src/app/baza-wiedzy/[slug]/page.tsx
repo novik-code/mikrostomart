@@ -4,8 +4,9 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { Metadata } from 'next';
+import { getTranslations, getLocale } from 'next-intl/server';
 
-export const revalidate = 60; // Revalidate every minute (or longer)
+export const dynamic = 'force-dynamic'; // Must be dynamic — depends on locale cookie
 
 export async function generateStaticParams() {
     const { data: articles } = await supabase.from('articles').select('slug');
@@ -16,27 +17,46 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
     const { slug } = await params;
+    const locale = await getLocale();
+    const t = await getTranslations('bazaWiedzy');
+
     const { data: article } = await supabase
         .from('articles')
         .select('title, excerpt')
         .eq('slug', slug)
+        .eq('locale', locale)
         .single();
 
-    if (!article) return { title: 'Artykuł nie znaleziony' };
+    if (!article) return { title: t('notFound') };
     return {
-        title: `${article.title} | Baza Wiedzy Mikrostomart`,
+        title: `${article.title} | ${t('metaSuffix')}`,
         description: article.excerpt,
     };
 }
 
 export default async function ArticlePage({ params }: { params: Promise<{ slug: string }> }) {
     const { slug } = await params;
-    const { data: article } = await supabase
+    const locale = await getLocale();
+    const t = await getTranslations('bazaWiedzy');
+
+    // Try to find article in the current locale
+    let { data: article } = await supabase
         .from('articles')
         .select('*, image:image_url, date:published_date')
         .eq('slug', slug)
+        .eq('locale', locale)
         .single();
 
+    // Fallback: try Polish version if not found in current locale
+    if (!article) {
+        const { data: fallback } = await supabase
+            .from('articles')
+            .select('*, image:image_url, date:published_date')
+            .eq('slug', slug)
+            .eq('locale', 'pl')
+            .single();
+        article = fallback;
+    }
 
     if (!article) {
         notFound();
@@ -59,7 +79,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
                     }}
                         className="hover:text-primary"
                     >
-                        &larr; Powrót do Bazy Wiedzy
+                        &larr; {t('backToList')}
                     </Link>
                 </div>
 

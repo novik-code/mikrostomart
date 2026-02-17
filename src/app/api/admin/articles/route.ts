@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
     }
 }
 
-// DELETE: Remove an article
+// DELETE: Remove an article and all its translations (same group_id)
 export async function DELETE(req: NextRequest) {
     if (!(await verifyAdmin())) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -47,12 +47,28 @@ export async function DELETE(req: NextRequest) {
 
         const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-        const { error } = await supabase
+        // First get the group_id of the article being deleted
+        const { data: article } = await supabase
             .from('articles')
-            .delete()
-            .eq('id', id);
+            .select('group_id')
+            .eq('id', id)
+            .single();
 
-        if (error) throw error;
+        if (article?.group_id) {
+            // Delete all translations in the same group
+            const { error } = await supabase
+                .from('articles')
+                .delete()
+                .eq('group_id', article.group_id);
+            if (error) throw error;
+        } else {
+            // Fallback: just delete by id
+            const { error } = await supabase
+                .from('articles')
+                .delete()
+                .eq('id', id);
+            if (error) throw error;
+        }
 
         return NextResponse.json({ success: true });
     } catch (error: any) {

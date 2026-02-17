@@ -14,7 +14,11 @@
     "bazaWiedzy": {
         "title": "Knowledge Base",
         "description": "Reliable dental knowledge in a nutshell. Prepared by our experts.",
-        "noAnswer": "Didn't find your answer? Ask us a question and we'll write an article about it!"
+        "noAnswer": "Didn't find your answer? Ask us a question and we'll write an article about it!",
+        "readMore": "Read more",
+        "backToList": "Back to Knowledge Base",
+        "notFound": "Article not found",
+        "metaSuffix": "Knowledge Base Mikrostomart"
     },
     "rezerwacja": {
         "title": "Book an Appointment",

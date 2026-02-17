@@ -11,6 +11,13 @@ const send = async (writer: WritableStreamDefaultWriter, msg: string) => {
     await writer.write(new TextEncoder().encode(msg + "\n"));
 };
 
+// Supported locales for translation (excluding Polish which is the source)
+const TRANSLATE_LOCALES = [
+    { code: 'en', name: 'English' },
+    { code: 'de', name: 'German' },
+    { code: 'ua', name: 'Ukrainian' },
+] as const;
+
 export async function GET(req: Request) {
     // 1. Auth Check
     const authHeader = req.headers.get('authorization');
@@ -71,7 +78,7 @@ export async function GET(req: Request) {
                 await send(writer, `TOPIC: AI wymyśliło: ${topic}`);
             }
 
-            // 3. Generate Content
+            // 3. Generate Content (Polish)
             await send(writer, "STEP: Piszę artykuł (GPT-4o)...");
             const completion = await openai.chat.completions.create({
                 model: "gpt-4o",
@@ -98,7 +105,6 @@ export async function GET(req: Request) {
             await send(writer, "STEP: Generuję obrazek (Flux Pro)... To może potrwać 30s.");
 
             // 4. Generate Image (Flux via Replicate)
-            // Note: We use require here to avoid top-level await issues if any, though normally import is fine.
             const Replicate = require("replicate");
             const replicate = new Replicate({ auth: process.env.REPLICATE_API_TOKEN });
 
@@ -106,7 +112,7 @@ export async function GET(req: Request) {
                 prompt: articleData.imagePrompt + " photorealistic, natural lighting, luxury dental clinic, soft shadows, 8k, highly detailed, professional photography, depth of field. Canon R5, 50mm lens. High texture realism.",
                 go_fast: true,
                 output_format: "png",
-                aspect_ratio: "16:9", // Blog posts usually look better with landscape
+                aspect_ratio: "16:9",
                 output_quality: 100
             };
 
@@ -151,21 +157,85 @@ export async function GET(req: Request) {
 
             if (!uploadSuccess) throw new Error("Błąd uploadu na GitHub");
 
-            // 6. Insert into DB
-            await send(writer, "STEP: Zapisuję artykuł w bazie...");
+            // 6. Insert Polish article into DB
+            await send(writer, "STEP: Zapisuję artykuł PL w bazie...");
+
+            // Generate a shared group_id for all language versions
+            const groupId = crypto.randomUUID();
+
             const { error: insertError } = await adminDb.from('articles').insert({
                 title: articleData.title,
                 slug: articleData.slug,
                 excerpt: articleData.excerpt,
                 content: articleData.content,
                 image_url: publicUrl,
-                published_date: new Date().toISOString().split('T')[0]
+                published_date: new Date().toISOString().split('T')[0],
+                locale: 'pl',
+                group_id: groupId
             });
 
             if (insertError) throw new Error(`Błąd bazy danych: ${insertError.message}`);
 
             if (pendingIdeaId) {
                 await adminDb.from('article_ideas').update({ status: 'processed' }).eq('id', pendingIdeaId);
+            }
+
+            // 7. Translate to EN, DE, UA
+            await send(writer, "STEP: Tłumaczę na EN, DE, UA...");
+
+            for (const lang of TRANSLATE_LOCALES) {
+                try {
+                    await send(writer, `STEP: Tłumaczę na ${lang.name}...`);
+
+                    const translationResponse = await openai.chat.completions.create({
+                        model: "gpt-4o",
+                        messages: [
+                            {
+                                role: "system",
+                                content: `You are a professional medical translator. Translate the following dental article from Polish to ${lang.name}. 
+                                Keep the same Markdown formatting (###, *, **). 
+                                Keep medical terminology accurate.
+                                Return ONLY a JSON object:
+                                {
+                                    "title": "translated title",
+                                    "slug": "url-friendly-slug-in-${lang.code}",
+                                    "excerpt": "translated excerpt",
+                                    "content": "translated content with same Markdown formatting"
+                                }`
+                            },
+                            {
+                                role: "user",
+                                content: JSON.stringify({
+                                    title: articleData.title,
+                                    slug: articleData.slug,
+                                    excerpt: articleData.excerpt,
+                                    content: articleData.content
+                                })
+                            }
+                        ],
+                        response_format: { type: "json_object" }
+                    });
+
+                    const translated = JSON.parse(translationResponse.choices[0].message.content || "{}");
+
+                    if (translated.title) {
+                        await adminDb.from('articles').insert({
+                            title: translated.title,
+                            slug: translated.slug || `${articleData.slug}-${lang.code}`,
+                            excerpt: translated.excerpt || articleData.excerpt,
+                            content: translated.content || articleData.content,
+                            image_url: publicUrl, // Same image for all languages
+                            published_date: new Date().toISOString().split('T')[0],
+                            locale: lang.code,
+                            group_id: groupId
+                        });
+                        await send(writer, `STEP: ${lang.name} ✓`);
+                    }
+                } catch (translationErr: any) {
+                    console.error(`Translation error (${lang.code}):`, translationErr);
+                    await send(writer, `ERROR: Translation to ${lang.name} failed: ${translationErr.message}`);
+                    // Continue with other languages even if one fails
+                }
             }
 
             await send(writer, `SUCCESS: ${JSON.stringify({ title: articleData.title })}`);
