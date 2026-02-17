@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { Metadata } from 'next';
 import { supabase } from '@/lib/supabaseClient';
-import { getTranslations } from 'next-intl/server';
+import { getTranslations, getLocale } from 'next-intl/server';
 
 // Supported locale suffixes
 const LOCALE_SUFFIXES = ['en', 'de', 'ua'] as const;
@@ -65,9 +65,8 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
         notFound();
     }
 
-    // Get locale from the translations context — we read it indirectly
-    // Since this is a server component, we get locale from next-intl
-    const { locale } = await import('next-intl/server').then(m => m.getLocale()).then(locale => ({ locale }));
+    // Get locale from the cookie-based next-intl context
+    const locale = await getLocale();
     const localizedArticle = localizeArticle(article, locale);
 
     return (
