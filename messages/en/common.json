@@ -149,6 +149,16 @@
         "description": "Comprehensive dental care using the latest technologies and highest quality materials.",
         "contactCta": "Contact us"
     },
+    "aktualnosci": {
+        "title": "News",
+        "loading": "Loading articles...",
+        "empty": "No articles to display.",
+        "prev": "Previous",
+        "next": "Next",
+        "readMore": "Read more",
+        "backToNews": "← Back to news",
+        "articleNotFound": "Article not found"
+    },
     "offerItems": {
         "sectionLabel": "Specialist Services",
         "learnMore": "Learn more",

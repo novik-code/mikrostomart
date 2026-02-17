@@ -149,6 +149,16 @@
         "description": "Kompleksowa opieka stomatologiczna z wykorzystaniem najnowszych technologii i materiałów najwyższej jakości.",
         "contactCta": "Skontaktuj się z nami"
     },
+    "aktualnosci": {
+        "title": "Aktualności",
+        "loading": "Ładowanie artykułów...",
+        "empty": "Brak artykułów do wyświetlenia.",
+        "prev": "Poprzednia",
+        "next": "Następna",
+        "readMore": "Czytaj więcej",
+        "backToNews": "← Powrót do aktualności",
+        "articleNotFound": "Artykuł nie znaleziony"
+    },
     "offerItems": {
         "sectionLabel": "Oferta Specjalistyczna",
         "learnMore": "Dowiedz się więcej",

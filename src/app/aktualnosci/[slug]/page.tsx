@@ -5,6 +5,27 @@ import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { Metadata } from 'next';
 import { supabase } from '@/lib/supabaseClient';
+import { getTranslations } from 'next-intl/server';
+
+// Supported locale suffixes
+const LOCALE_SUFFIXES = ['en', 'de', 'ua'] as const;
+type LocaleSuffix = typeof LOCALE_SUFFIXES[number];
+
+function isLocaleSuffix(s: string): s is LocaleSuffix {
+    return (LOCALE_SUFFIXES as readonly string[]).includes(s);
+}
+
+function localizeArticle(article: any, locale: string) {
+    if (locale !== 'pl' && isLocaleSuffix(locale)) {
+        return {
+            ...article,
+            title: article[`title_${locale}`] || article.title,
+            excerpt: article[`excerpt_${locale}`] || article.excerpt,
+            content: article[`content_${locale}`] || article.content,
+        };
+    }
+    return article;
+}
 
 async function getArticle(slug: string) {
     const { data: article } = await supabase
@@ -27,7 +48,8 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
     const { slug } = await params;
     const article = await getArticle(slug);
-    if (!article) return { title: 'Artykuł nie znaleziony' };
+    const t = await getTranslations('aktualnosci');
+    if (!article) return { title: t('articleNotFound') };
     return {
         title: `${article.title} | Mikrostomart`,
         description: article.excerpt,
@@ -37,10 +59,16 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 export default async function ArticlePage({ params }: { params: Promise<{ slug: string }> }) {
     const { slug } = await params;
     const article = await getArticle(slug);
+    const t = await getTranslations('aktualnosci');
 
     if (!article) {
         notFound();
     }
+
+    // Get locale from the translations context — we read it indirectly
+    // Since this is a server component, we get locale from next-intl
+    const { locale } = await import('next-intl/server').then(m => m.getLocale()).then(locale => ({ locale }));
+    const localizedArticle = localizeArticle(article, locale);
 
     return (
         <main style={{ background: "var(--color-background)" }}>
@@ -59,7 +87,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
                     }}
                         className="hover:text-primary"
                     >
-                        &larr; Powrót do aktualności
+                        {t('backToNews')}
                     </Link>
                 </div>
 
@@ -70,12 +98,12 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
                             lineHeight: "1.2",
                             marginBottom: "2rem"
                         }}>
-                            {article.title}
+                            {localizedArticle.title}
                         </h1>
                         <div style={{ position: "relative", width: "100%", height: "400px", borderRadius: "var(--radius-md)", overflow: "hidden" }}>
                             <Image
-                                src={article.image || '/images/placeholder.jpg'}
-                                alt={article.title}
+                                src={localizedArticle.image || '/images/placeholder.jpg'}
+                                alt={localizedArticle.title}
                                 fill
                                 style={{ objectFit: "cover" }}
                                 priority
@@ -91,7 +119,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
                                 fontWeight: 600,
                                 backdropFilter: "blur(4px)"
                             }}>
-                                {article.date}
+                                {localizedArticle.date}
                             </div>
                         </div>
                     </header>
@@ -104,7 +132,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
                         fontSize: "1.05rem"
                     }}>
                         {/* Improved manual markdown parser */}
-                        {(article.content || '').split('\n').map((line: string, index: number) => {
+                        {(localizedArticle.content || '').split('\n').map((line: string, index: number) => {
                             // Headers
                             if (line.startsWith('### ')) {
                                 return <h3 key={index} style={{ color: "var(--color-text)", fontSize: "1.5rem", marginTop: "2rem", marginBottom: "1rem" }}>{line.replace('### ', '')}</h3>;

@@ -74,6 +74,28 @@
 - **React Hook Form + Zod** - Form validation
 - **MediaPipe** - Face detection (selfie feature)
 
+### Internationalization (i18n)
+- **next-intl** — Client-side translations via `useTranslations()` hook
+- **4 supported locales:** `pl` (default), `en`, `de`, `ua`
+- **Locale files:** `messages/{pl,en,de,ua}/common.json` — flat namespace structure
+- **Middleware:** `createMiddleware` from `next-intl/middleware` handles locale detection (cookie → Accept-Language → default `pl`) and URL prefixing (`/en/oferta`, `/de/kontakt`, etc.)
+- **LanguageSwitcher component:** Compact flag + locale code in Navbar, hidden when mobile menu is open
+- **Translated namespaces:**
+  | Namespace | Component(s) | Keys |
+  |-----------|-------------|------|
+  | `nav` | Navbar | Navigation links, CTA |
+  | `hero` | Homepage hero | Title, subtitle, CTA |
+  | `oferta` | Oferta page | Page chrome (tagline, title, description, contactCta) |
+  | `offerItems` | OfferCarousel | 8 offers × (title, short, full) + section label, bookVisit, expand/collapse |
+  | `contact` | ContactForm | Form fields, validation, submit |
+  | `reservation` | ReservationForm | Booking form labels |
+  | `porownywarka` | Comparator tool | ~22 UI strings |
+  | `kalkulatorUI` | Treatment calculator | ~28 UI strings |
+  | `mapaBoluUI` | Pain Map interactive | ~20 UI strings |
+  | `metamorphosisUI` | MetamorphosisGallery | Before/after labels, CTA |
+  | `reviews` | GoogleReviews | Section heading |
+  | `youtube` | YouTubeFeed | Section heading |
+
 ### Development Tools
 - **ESLint** - Code linting
 - **Autoprefixer** - CSS compatibility
@@ -163,7 +185,12 @@ mikrostomart/
 │   ├── hooks/                  # Custom React hooks
 │   │   └── useUserRoles.ts     # Fetch user roles from API
 │   ├── helpers/                # Helper utilities
-│   └── middleware.ts           # Request middleware (admin + employee route protection)
+│   └── middleware.ts           # Request middleware (i18n locale routing + admin/employee route protection)
+├── messages/                   # i18n translation files (next-intl)
+│   ├── pl/common.json          # Polish (default locale)
+│   ├── en/common.json          # English
+│   ├── de/common.json          # German
+│   └── ua/common.json          # Ukrainian
 ├── supabase_migrations/        # Database migrations (27 files: 003-027)
 ├── public/                     # Static assets (incl. qr-ocen-nas.png)
 ├── scripts/                    # Utility scripts (13 files)

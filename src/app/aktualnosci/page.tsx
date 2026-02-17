@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useTranslations } from "next-intl";
+import { useLocale } from "next-intl";
 import { useState, useEffect } from 'react';
 import RevealOnScroll from '@/components/RevealOnScroll';
 
@@ -10,11 +11,12 @@ export default function NewsPage() {
     const [articles, setArticles] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const t = useTranslations('aktualnosci');
+    const locale = useLocale();
 
     useEffect(() => {
         const fetchNews = async () => {
             try {
-                const res = await fetch('/api/news');
+                const res = await fetch(`/api/news?locale=${locale}`);
                 if (res.ok) {
                     const data = await res.json();
                     setArticles(data);
@@ -27,7 +29,7 @@ export default function NewsPage() {
         };
 
         fetchNews();
-    }, []);
+    }, [locale]);
 
     return (
         <main style={{ background: "var(--color-background)" }}>

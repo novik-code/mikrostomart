@@ -149,6 +149,16 @@
         "description": "Umfassende Zahnpflege mit modernsten Technologien und Materialien höchster Qualität.",
         "contactCta": "Kontaktieren Sie uns"
     },
+    "aktualnosci": {
+        "title": "Aktuelles",
+        "loading": "Artikel werden geladen...",
+        "empty": "Keine Artikel verfügbar.",
+        "prev": "Zurück",
+        "next": "Weiter",
+        "readMore": "Weiterlesen",
+        "backToNews": "← Zurück zu Aktuelles",
+        "articleNotFound": "Artikel nicht gefunden"
+    },
     "offerItems": {
         "sectionLabel": "Spezialistenleistungen",
         "learnMore": "Mehr erfahren",
