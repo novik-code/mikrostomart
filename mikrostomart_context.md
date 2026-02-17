@@ -89,8 +89,8 @@
   | `offerItems` | OfferCarousel | 8 offers × (title, short, full) + section label, bookVisit, expand/collapse |
   | `contact` | ContactForm | Form fields, validation, submit |
   | `reservation` | ReservationForm | Booking form labels |
-  | `porownywarka` | Comparator tool | ~22 UI strings |
-  | `kalkulatorUI` | Treatment calculator | ~28 UI strings |
+  | `porownywarka` | Comparator tool | ~29 UI strings |
+  | `kalkulatorUI` | Treatment calculator | ~29 UI strings |
   | `mapaBoluUI` | Pain Map interactive | ~22 UI strings + metaTitle/metaDescription |
   | `contactForm` | ContactForm | Form fields, validation, RODO consent, submit |
   | `metamorphosisUI` | MetamorphosisGallery | Before/after labels, CTA |
@@ -98,6 +98,10 @@
   | `youtube` | YouTubeFeed | Section heading |
 
   **Pain Map SymptomData i18n**: Medical content (symptoms, causes, advice for 35 zones × 3 severity levels) is translated via per-locale files: `SymptomData.ts` (PL, default), `SymptomData.en.ts`, `SymptomData.de.ts`, `SymptomData.ua.ts`. The helper `getSymptomData.ts` returns locale-aware data using `useLocale()`.
+
+  **Comparator data i18n**: Treatment method data (73 methods across 7 categories), comparator scenarios, priorities, gating rules, and table row labels are translated via per-locale files (`methodsEstetyka.en.ts`, `comparatorScenarios.en.ts`, etc.). The helper `getComparatorData.ts` returns locale-aware data with fallback to Polish.
+
+  **Treatment Calculator data i18n**: Treatment paths (5 paths with questions, options, stages, and extending factors) are translated via per-locale files (`treatmentData.en.ts`, `treatmentData.de.ts`, `treatmentData.ua.ts`). The helper `getTreatmentData.ts` returns locale-aware data with fallback to Polish.
 
 ### Development Tools
 - **ESLint** - Code linting
