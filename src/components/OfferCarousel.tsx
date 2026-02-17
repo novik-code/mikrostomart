@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight, Microscope, Scan, Wand2, Syringe, Sparkles, Smile, ShieldCheck, Gem } from "lucide-react";
 import Link from "next/link";
@@ -17,80 +17,27 @@ interface OfferItem {
     image: string; // Background image
 }
 
-// Using abstract premium dental/medical backgrounds (generated assets)
-const OFFERS: OfferItem[] = [
-    {
-        id: 1,
-        title: "Endodoncja Mikroskopowa",
-        icon: <Microscope size={60} className="text-[#dcb14a]" />,
-        shortDesc: "Leczenie kanałowe z najwyższą precyzją. Ratujemy zęby, które inni spisali na straty.",
-        fullDesc: "Leczenie kanałowe (endodontyczne) to często jedyny sposób na uratowanie zęba przed usunięciem. W Mikrostomart standardem jest wykonywanie wszystkich zabiegów endodontycznych przy użyciu mikroskopu zabiegowego, który zapewnia powiększenie nawet do 25x. Dzięki temu nasi specjaliści są w stanie odnaleźć wszystkie, nawet najcieńsze i dodatkowe kanały, które są niewidoczne gołym okiem. Zajmujemy się również trudnymi przypadkami, takimi jak powtórne leczenie kanałowe (re-endo), usuwanie złamanych narzędzi z kanałów czy zamykanie perforacji. Każdy zabieg odbywa się w koferdamie, co gwarantuje pełną sterylność i bezpieczeństwo. Endodoncja mikroskopowa to precyzja, która pozwala cieszyć się własnym zębem przez długie lata.",
-        link: "/rezerwacja",
-        image: "/images/offers/microscope.png"
-    },
-    {
-        id: 2,
-        title: "Implantologia",
-        icon: <Scan size={60} className="text-[#dcb14a]" />,
-        shortDesc: "Odbuduj swój uśmiech na stałe. Implanty to najdoskonalsza alternatywa dla naturalnych zębów.",
-        fullDesc: "Implanty stomatologiczne to obecnie najbardziej fizjologiczna i trwała metoda uzupełniania braków zębowych. W naszej klinice stosujemy wyłącznie systemy implantologiczne renomowanych światowych marek, co gwarantuje bezpieczeństwo i długoletnią trwałość rozwiązań. Oferujemy implanty tytanowe oraz wysoce estetyczne implanty cyrkonowe. Każdy zabieg poprzedzony jest precyzyjną diagnostyką tomograficzną (CBCT) oraz planowaniem cyfrowym. Stosujemy zaawansowane techniki regeneracji kości oraz fibrynę bogatopłytkową (PRF), pozyskiwaną z krwi pacjenta, aby przyspieszyć proces gojenia. Od pojedynczych koron po pełne rekonstrukcje bezzębia – przywracamy nie tylko uśmiech, ale i pełną funkcjonalność zgryzu.",
-        link: "/rezerwacja",
-        image: "/images/offers/implant.png"
-    },
-    {
-        id: 3,
-        title: "Chirurgia Laserowa",
-        icon: <Wand2 size={60} className="text-[#dcb14a]" />,
-        shortDesc: "Nowoczesne zabiegi bez skalpela. Szybsze gojenie, mniejszy obrzęk i minimalny ból.",
-        fullDesc: "Nowoczesna chirurgia stomatologiczna to nie tylko ekstrakcje, ale przede wszystkim zabiegi wspierające leczenie implantologiczne, protetyczne i ortodontyczne. Jako jedni z nielicznych w regionie wykorzystujemy zaawansowane lasery stomatologiczne Fotona Lightwalker. Pozwalają one na przeprowadzanie wielu procedur – takich jak podcinanie wędzidełek, czy plastyka dziąseł – w sposób niemal bezkrwawy i bezbolesny. Światło lasera działa biostymulująco, co znacząco przyspiesza gojenie i zmniejsza pooperacyjny obrzęk. Wykonujemy również atraumatyczne usuwanie ósemek oraz zabiegi sterowanej regeneracji kości, zawsze dbając o maksymalny komfort pacjenta.",
-        link: "/rezerwacja",
-        image: "/images/offers/laser.png"
-    },
-    {
-        id: 4,
-        title: "Stomatologia Estetyczna",
-        icon: <Sparkles size={60} className="text-[#dcb14a]" />,
-        shortDesc: "Twój wymarzony uśmiech na wyciągnięcie ręki. Licówki, bonding i cyfrowe projektowanie uśmiechu.",
-        fullDesc: "Stomatologia estetyczna to sztuka łączenia wiedzy medycznej z poczuciem piękna. Oferujemy pełne spektrum zabiegów poprawiających wygląd uśmiechu, zaczynając od Cyfrowego Projektowania Uśmiechu (DSD), które pozwala zobaczyć efekt końcowy jeszcze przed rozpoczęciem leczenia. Wykonujemy ultracienkie licówki porcelanowe, które korygują kształt i kolor zębów, zachowując ich naturalną strukturę. Dla pacjentów oczekujących szybkich efektów proponujemy bonding – estetyczną odbudowę kompozytową w trakcie jednej wizyty. Dopełnieniem oferty jest skuteczne i bezpieczne wybielanie zębów metodą nakładkową lub gabinetową przy użyciu lasera, dające spektakularne rezultaty.",
-        link: "/rezerwacja",
-        image: "/images/offers/aesthetic.png"
-    },
-    {
-        id: 5,
-        title: "Protetyka Cyfrowa",
-        icon: <Gem size={60} className="text-[#dcb14a]" />,
-        shortDesc: "Korony i mosty bez nieprzyjemnych wycisków. Precyzja skanera wewnątrzustnego.",
-        fullDesc: "Wkraczamy w nową erę protetyki, rezygnując z tradycyjnych, nieprzyjemnych mas wyciskowych na rzecz cyfrowego skanowania wewnątrzustnego. Skaner 3D pozwala na uzyskanie wirtualnego modelu uzębienia z mikronową precyzją w zaledwie kilka minut. Prace protetyczne, takie jak korony, mosty le licówki wykonane z tlenku cyrkonu lub ceramiki E.max, są projektowane komputerowo (CAD/CAM) i frezowane z idealną dokładnością. Dzięki temu nasze uzupełnienia są nie tylko niezwykle estetyczne i nieodróżnialne od naturalnych zębów, ale także perfekcyjnie szczelne i trwałe. Przywracamy prawidłową funkcję żucia i estetykę uśmiechu w krótszym czasie.",
-        link: "/rezerwacja",
-        image: "/images/offers/prosthetics.png"
-    },
-    {
-        id: 6,
-        title: "Bezbolesne Znieczulenie",
-        icon: <Syringe size={60} className="text-[#dcb14a]" />,
-        shortDesc: "Zapomnij o strachu przed igłą. Komputerowe znieczulenie The Wand.",
-        fullDesc: "Komfort i spokój pacjenta są dla nas priorytetem, dlatego całkowicie wyeliminowaliśmy ból z procesu leczenia. Korzystamy z nowoczesnego systemu komputerowego znieczulenia The Wand. To rewolucyjne urządzenie, które podaje środek znieczulający pod kontrolą mikroprocesora, dostosowując ciśnienie do tkanki pacjenta. Eliminuje to nieprzyjemne uczucie rozpierania oraz ból towarzyszący tradycyjnym zastrzykom. Końcówka przypomina długopis, co redukuje stres wizualny. Dzięki temu znieczulenie obejmuje tylko leczony ząb, bez odrętwienia połowy twarzy, co pozwala na normalne funkcjonowanie zaraz po wizycie.",
-        link: "/rezerwacja",
-        image: "/images/offers/anesthesia.png"
-    },
-    {
-        id: 7,
-        title: "Profilaktyka Premium",
-        icon: <ShieldCheck size={60} className="text-[#dcb14a]" />,
-        shortDesc: "Zdrowe zęby na lata. Profesjonalna higienizacja, skaling i piaskowanie.",
-        fullDesc: "Regularna profilaktyka to fundament zdrowego uśmiechu i klucz do uniknięcia kosztownego leczenia w przyszłości. Nasz autorski program higienizacji PREMIUM obejmuje dokładny skaling ultradźwiękowy, piaskowanie osadów (z kawy, herbaty, tytoniu) przy użyciu delikatnych piaskarek, polerowanie oraz profesjonalną fluoryzację. Każdemu pacjentowi poświęcamy czas na indywidualny instruktaż higieny jamy ustnej, dobierając odpowiednie szczoteczki, nici i pasty. Regularne wizyty higienizacyjne pozwalają nie tylko zachować biały uśmiech, ale także wcześnie wykryć ewentualne problemy, takie jak próchnica czy choroby przyzębia.",
-        link: "/rezerwacja",
-        image: "/images/offers/prophylaxis.png"
-    },
-    {
-        id: 8,
-        title: "Ortodoncja Nakładkowa",
-        icon: <Smile size={60} className="text-[#dcb14a]" />,
-        shortDesc: "Proste zęby bez metalowego aparatu. Niewidoczne nakładki Clear Correct.",
-        fullDesc: "Marzysz o prostych zębach, ale nie chcesz nosić stałego, metalowego aparatu? Oferujemy nowoczesne leczenie ortodontyczne za pomocą przezroczystych nakładek (alignerów) Clear Correct. To dyskretna, wygodna i wyjmowana alternatywa dla tradycyjnych aparatów. Dzięki zaawansowanej technologii cyfrowej, już na pierwszej wizycie możemy przygotować wizualizację efektów leczenia. Nakładki są praktycznie niewidoczne, łatwe w utrzymaniu higieny i nie powodują otarć. Leczenie jest precyzyjnie zaplanowane, często krótsze niż metodami tradycyjnymi, i wymaga mniejszej liczby wizyt kontrolnych.",
-        link: "/rezerwacja",
-        image: "/images/offers/ortho.png"
-    }
+// Icon mapping (stays outside component — no translation needed)
+const OFFER_ICONS: React.ReactNode[] = [
+    <Microscope key="mic" size={60} className="text-[#dcb14a]" />,
+    <Scan key="scan" size={60} className="text-[#dcb14a]" />,
+    <Wand2 key="wand" size={60} className="text-[#dcb14a]" />,
+    <Sparkles key="spark" size={60} className="text-[#dcb14a]" />,
+    <Gem key="gem" size={60} className="text-[#dcb14a]" />,
+    <Syringe key="syr" size={60} className="text-[#dcb14a]" />,
+    <ShieldCheck key="shield" size={60} className="text-[#dcb14a]" />,
+    <Smile key="smile" size={60} className="text-[#dcb14a]" />,
+];
+
+const OFFER_IMAGES = [
+    "/images/offers/microscope.png",
+    "/images/offers/implant.png",
+    "/images/offers/laser.png",
+    "/images/offers/aesthetic.png",
+    "/images/offers/prosthetics.png",
+    "/images/offers/anesthesia.png",
+    "/images/offers/prophylaxis.png",
+    "/images/offers/ortho.png",
 ];
 
 const variants = {
@@ -118,6 +65,23 @@ export default function OfferCarousel() {
     const [isExpanded, setIsExpanded] = useState(false);
     const [isPaused, setIsPaused] = useState(false); // Pause auto-play on hover
     const t = useTranslations('offerItems');
+
+    // Build translated offer items
+    const OFFERS: OfferItem[] = useMemo(() =>
+        Array.from({ length: 8 }, (_, i) => {
+            const n = i + 1;
+            return {
+                id: n,
+                title: t(`offer${n}title`),
+                icon: OFFER_ICONS[i],
+                shortDesc: t(`offer${n}short`),
+                fullDesc: t(`offer${n}full`),
+                link: '/rezerwacja',
+                image: OFFER_IMAGES[i],
+            };
+        }),
+        [t]
+    );
 
     const activeIndex = Math.abs(page % OFFERS.length);
     const offer = OFFERS[activeIndex];

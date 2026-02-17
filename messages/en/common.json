@@ -143,6 +143,12 @@
         "captchaLabel": "Verification",
         "captchaPlaceholder": "Result"
     },
+    "oferta": {
+        "tagline": "Our Services",
+        "title": "Services",
+        "description": "Comprehensive dental care using the latest technologies and highest quality materials.",
+        "contactCta": "Contact us"
+    },
     "offerItems": {
         "sectionLabel": "Specialist Services",
         "learnMore": "Learn more",

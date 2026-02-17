@@ -143,6 +143,12 @@
         "captchaLabel": "Verifizierung",
         "captchaPlaceholder": "Ergebnis"
     },
+    "oferta": {
+        "tagline": "Unsere Leistungen",
+        "title": "Angebot",
+        "description": "Umfassende Zahnpflege mit modernsten Technologien und Materialien höchster Qualität.",
+        "contactCta": "Kontaktieren Sie uns"
+    },
     "offerItems": {
         "sectionLabel": "Spezialistenleistungen",
         "learnMore": "Mehr erfahren",

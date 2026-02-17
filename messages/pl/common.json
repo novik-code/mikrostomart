@@ -143,6 +143,12 @@
         "captchaLabel": "Weryfikacja",
         "captchaPlaceholder": "Wynik"
     },
+    "oferta": {
+        "tagline": "Nasze Usługi",
+        "title": "Oferta",
+        "description": "Kompleksowa opieka stomatologiczna z wykorzystaniem najnowszych technologii i materiałów najwyższej jakości.",
+        "contactCta": "Skontaktuj się z nami"
+    },
     "offerItems": {
         "sectionLabel": "Oferta Specjalistyczna",
         "learnMore": "Dowiedz się więcej",
