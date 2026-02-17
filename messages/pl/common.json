@@ -237,7 +237,14 @@
         "phonePlaceholder": "Nr telefonu",
         "sendToReceptionBtn": "Wyślij do recepcji",
         "sentSuccess": "Wysłano! Recepcja oddzwoni z planem leczenia.",
-        "finalDisclaimer": "To nie jest diagnoza. Porównanie opiera się na typowych scenariuszach klinicznych. Ostateczna kwalifikacja wymaga badania lekarskiego, diagnostyki obrazowej i analizy indywidualnych warunków."
+        "finalDisclaimer": "To nie jest diagnoza. Porównanie opiera się na typowych scenariuszach klinicznych. Ostateczna kwalifikacja wymaga badania lekarskiego, diagnostyki obrazowej i analizy indywidualnych warunków.",
+        "bestMatch": "Najlepsze dopasowanie do Twojego priorytetu",
+        "recommendation": "Rekomendacja",
+        "whenNotIdeal": "Kiedy nie jest idealne",
+        "clinicalNote": "Ostateczna kwalifikacja wymaga badania klinicznego i diagnostyki",
+        "qualificationConsultation": "Konsultacja kwalifikacyjna",
+        "callbackNote": "Oddzwonimy z proponowanym planem leczenia",
+        "seeCalculator": "Zobacz etapy i czas leczenia"
     },
     "kalkulatorUI": {
         "heroTitle": "Kalkulator czasu leczenia",

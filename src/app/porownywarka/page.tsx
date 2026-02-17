@@ -896,7 +896,7 @@ export default function PorownywarkaPage() {
                                 {comparator.icon} {comparator.title} · {PRIORITIES.find(p => p.id === priority)?.label}
                             </div>
                             <h2 style={{ fontFamily: "var(--font-heading)", fontSize: "1.4rem", color: "#fff" }}>
-                                Najlepsze dopasowanie do Twojego priorytetu
+                                {t('bestMatch')}
                             </h2>
                         </div>
 
@@ -904,7 +904,7 @@ export default function PorownywarkaPage() {
                         <RevealOnScroll animation="fade-up">
                             <div style={S.recommendationCard}>
                                 <h3 style={S.recTitle}>
-                                    <Award size={20} /> Rekomendacja
+                                    <Award size={20} /> {t('recommendation')}
                                 </h3>
                                 <p style={S.recText}>
                                     {ranking[0] && (() => {
@@ -936,6 +936,7 @@ export default function PorownywarkaPage() {
                                                 <th style={{ ...S.thLabel, background: "rgba(255,255,255,0.02)", borderBottom: "2px solid rgba(255,255,255,0.08)" }}></th>
                                                 {ranking.map((r, rank) => {
                                                     const m = METHODS[r.methodId];
+                                                    if (!m) return null;
                                                     return (
                                                         <th key={r.methodId} style={S.th(m.color)}>
                                                             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
@@ -964,7 +965,9 @@ export default function PorownywarkaPage() {
                                                     </td>
                                                     {ranking.map(r => {
                                                         const m = METHODS[r.methodId];
+                                                        if (!m) return null;
                                                         const cell = (m.table as unknown as Record<string, TableCell>)[row.key];
+                                                        if (!cell) return null;
                                                         return (
                                                             <td key={r.methodId} style={S.td} title={cell.tooltip}>
                                                                 <CellContent cell={cell} />
@@ -981,6 +984,7 @@ export default function PorownywarkaPage() {
                                 <div>
                                     {ranking.map((r, rank) => {
                                         const m = METHODS[r.methodId];
+                                        if (!m) return null;
                                         return (
                                             <div key={r.methodId} style={S.methodCard(m.color)}>
                                                 <div style={S.cardHeader}>
@@ -993,6 +997,7 @@ export default function PorownywarkaPage() {
                                                 </div>
                                                 {TABLE_ROW_LABELS.map(row => {
                                                     const cell = (m.table as unknown as Record<string, TableCell>)[row.key];
+                                                    if (!cell) return null;
                                                     return (
                                                         <div key={row.key} style={S.cardRow}>
                                                             <span style={{ color: "var(--color-text-muted)" }}>{row.label}</span>
@@ -1026,6 +1031,7 @@ export default function PorownywarkaPage() {
                                     {ranking.slice(1).map(r => {
                                         if (r.badges.length === 0) return null;
                                         const m = METHODS[r.methodId];
+                                        if (!m) return null;
                                         return (
                                             <div key={r.methodId} style={{ marginBottom: "0.5rem" }}>
                                                 <div style={{ fontSize: "0.82rem", color: "var(--color-text-muted)", marginBottom: "0.3rem", fontWeight: 600 }}>
@@ -1048,6 +1054,7 @@ export default function PorownywarkaPage() {
                             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "1rem", marginTop: "2rem" }}>
                                 {ranking.slice(0, 3).map(r => {
                                     const m = METHODS[r.methodId];
+                                    if (!m) return null;
                                     return (
                                         <div key={r.methodId} style={S.bulletSection}>
                                             <h4 style={{ ...S.bulletTitle, color: m.color }}>
@@ -1068,7 +1075,7 @@ export default function PorownywarkaPage() {
 
                                             <div>
                                                 <div style={{ ...S.bulletTitle, fontSize: "0.85rem", color: "#f59e0b" }}>
-                                                    <XCircle size={14} /> Kiedy nie jest idealne
+                                                    <XCircle size={14} /> {t('whenNotIdeal')}
                                                 </div>
                                                 {m.table.notIdealWhen.map((item, i) => (
                                                     <div key={i} style={S.bulletItem}>
@@ -1087,15 +1094,15 @@ export default function PorownywarkaPage() {
                         <RevealOnScroll animation="fade-up" delay={300}>
                             <div style={S.ctaSection}>
                                 <p style={{ fontSize: "0.92rem", color: "var(--color-text-muted)", textAlign: "center", marginBottom: "0.5rem" }}>
-                                    Ostateczna kwalifikacja wymaga badania klinicznego i diagnostyki
+                                    {t('clinicalNote')}
                                 </p>
 
                                 {topMethod && (
                                     <Link
-                                        href={`/rezerwacja?specialist=${topMethod.recommendedSpecialist}&reason=${encodeURIComponent(`Porównywarka: ${topMethod.label} (${PRIORITIES.find(p => p.id === priority)?.label})`)}`}
+                                        href={`/rezerwacja?specialist=${topMethod.recommendedSpecialist}&reason=${encodeURIComponent(`Comparator: ${topMethod.label} (${PRIORITIES.find(p => p.id === priority)?.label})`)}`}
                                         style={S.ctaPrimary}
                                     >
-                                        <CalendarDays size={18} /> Konsultacja kwalifikacyjna
+                                        <CalendarDays size={18} /> {t('qualificationConsultation')}
                                     </Link>
                                 )}
 
@@ -1130,7 +1137,7 @@ export default function PorownywarkaPage() {
                                             {leadSending ? t('sending') : t('sendToReceptionBtn')}
                                         </button>
                                         <p style={{ ...S.microCopy, textAlign: "center" }}>
-                                            Oddzwonimy z proponowanym planem leczenia
+                                            {t('callbackNote')}
                                         </p>
                                     </div>
                                 )}
@@ -1150,7 +1157,7 @@ export default function PorownywarkaPage() {
                                 )}
 
                                 <Link href="/kalkulator-leczenia" style={S.ctaTertiary}>
-                                    <ExternalLink size={14} /> Zobacz etapy i czas leczenia
+                                    <ExternalLink size={14} /> {t('seeCalculator')}
                                 </Link>
                             </div>
 

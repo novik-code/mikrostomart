@@ -237,7 +237,14 @@
         "phonePlaceholder": "Phone number",
         "sendToReceptionBtn": "Send to reception",
         "sentSuccess": "Sent! Reception will call you back with a treatment plan.",
-        "finalDisclaimer": "This is not a diagnosis. The comparison is based on typical clinical scenarios. Final qualification requires a medical examination, imaging diagnostics and analysis of individual conditions."
+        "finalDisclaimer": "This is not a diagnosis. The comparison is based on typical clinical scenarios. Final qualification requires a medical examination, imaging diagnostics and analysis of individual conditions.",
+        "bestMatch": "Best match for your priority",
+        "recommendation": "Recommendation",
+        "whenNotIdeal": "When it's not ideal",
+        "clinicalNote": "Final qualification requires a clinical examination and diagnostics",
+        "qualificationConsultation": "Qualification consultation",
+        "callbackNote": "We'll call you back with a suggested treatment plan",
+        "seeCalculator": "See treatment stages and duration"
     },
     "kalkulatorUI": {
         "heroTitle": "Treatment Duration Calculator",

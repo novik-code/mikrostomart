@@ -237,7 +237,14 @@
         "phonePlaceholder": "Telefonnummer",
         "sendToReceptionBtn": "An Rezeption senden",
         "sentSuccess": "Gesendet! Die Rezeption wird Sie mit einem Behandlungsplan zurückrufen.",
-        "finalDisclaimer": "Dies ist keine Diagnose. Der Vergleich basiert auf typischen klinischen Szenarien. Die endgültige Qualifikation erfordert eine ärztliche Untersuchung, Bildgebung und Analyse der individuellen Bedingungen."
+        "finalDisclaimer": "Dies ist keine Diagnose. Der Vergleich basiert auf typischen klinischen Szenarien. Die endgültige Qualifikation erfordert eine ärztliche Untersuchung, Bildgebung und Analyse der individuellen Bedingungen.",
+        "bestMatch": "Beste Übereinstimmung für Ihre Priorität",
+        "recommendation": "Empfehlung",
+        "whenNotIdeal": "Wann es nicht ideal ist",
+        "clinicalNote": "Die endgültige Qualifikation erfordert eine klinische Untersuchung und Diagnostik",
+        "qualificationConsultation": "Qualifikationsberatung",
+        "callbackNote": "Wir rufen Sie mit einem vorgeschlagenen Behandlungsplan zurück",
+        "seeCalculator": "Behandlungsetappen und Dauer ansehen"
     },
     "kalkulatorUI": {
         "heroTitle": "Behandlungsdauer-Rechner",
