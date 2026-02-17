@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useMemo, useEffect } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import {
     CATEGORIES, COMPARATORS, PRIORITIES, METHODS, TABLE_ROW_LABELS,
     rankMethods, getRecommendationText,
@@ -547,6 +548,7 @@ function renderBold(text: string) {
 type Step = "category" | "scenario" | "priority" | "questions" | "results";
 
 export default function PorownywarkaPage() {
+    const t = useTranslations('porownywarka');
     const [step, setStep] = useState<Step>("category");
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
     const [comparator, setComparator] = useState<Comparator | null>(null);
@@ -675,7 +677,7 @@ export default function PorownywarkaPage() {
             });
             setLeadSent(true);
         } catch {
-            alert("Wystąpił błąd. Spróbuj ponownie lub zadzwoń: 77 454 14 14.");
+            alert(t('error'));
         } finally {
             setLeadSending(false);
         }
@@ -690,9 +692,9 @@ export default function PorownywarkaPage() {
             <section style={S.hero}>
                 <div style={S.heroGradient} />
                 <span style={S.heroIcon}>⚖️</span>
-                <h1 style={S.heroTitle}>Porównywarka rozwiązań</h1>
+                <h1 style={S.heroTitle}>{t('heroTitle')}</h1>
                 <p style={S.heroSub}>
-                    Poznaj różnice między metodami leczenia. Bez cen — tylko fakty, trade-offy i rekomendacja dopasowana do Twojego priorytetu.
+                    {t('heroSub')}
                 </p>
             </section>
 
@@ -702,10 +704,10 @@ export default function PorownywarkaPage() {
                 {step === "category" && (
                     <div>
                         <h2 style={{ fontFamily: "var(--font-heading)", fontSize: "1.2rem", color: "#fff", textAlign: "center" }}>
-                            Wybierz kategorię
+                            {t('selectCategory')}
                         </h2>
                         <p style={{ textAlign: "center", color: "var(--color-text-muted)", fontSize: "0.9rem", marginTop: "0.5rem", marginBottom: "0.5rem" }}>
-                            Jaki temat Cię interesuje?
+                            {t('whichTopic')}
                         </p>
                         <div style={{
                             display: "grid",
@@ -728,13 +730,13 @@ export default function PorownywarkaPage() {
                                     <div style={S.tileTitle}>{cat.title}</div>
                                     <div style={S.tileSub}>{cat.subtitle}</div>
                                     <div style={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.3)", marginTop: "0.5rem" }}>
-                                        {COMPARATORS.filter(c => c.categoryId === cat.id).length} porównań
+                                        {COMPARATORS.filter(c => c.categoryId === cat.id).length} {t('comparisons')}
                                     </div>
                                 </div>
                             ))}
                         </div>
                         <p style={{ ...S.microCopy, textAlign: "center", marginTop: "2rem" }}>
-                            To narzędzie ma charakter informacyjny i nie zastępuje badania lekarskiego.
+                            {t('disclaimer')}
                         </p>
                     </div>
                 )}
@@ -743,7 +745,7 @@ export default function PorownywarkaPage() {
                 {step === "scenario" && (
                     <div>
                         <button style={{ ...S.backBtn, marginBottom: "1rem" }} onClick={() => setStep("category")}>
-                            <ArrowLeft size={14} /> Zmień kategorię
+                            <ArrowLeft size={14} /> {t('changeCategory')}
                         </button>
                         {currentCat && (
                             <div style={{ textAlign: "center", marginBottom: "1rem" }}>
@@ -758,7 +760,7 @@ export default function PorownywarkaPage() {
                             </div>
                         )}
                         <h2 style={{ fontFamily: "var(--font-heading)", fontSize: "1.2rem", color: "#fff", textAlign: "center" }}>
-                            Co chcesz porównać?
+                            {t('whatToCompare')}
                         </h2>
                         <div style={S.tilesGrid}>
                             {filteredComparators.map(c => (
@@ -785,7 +787,7 @@ export default function PorownywarkaPage() {
                 {step === "priority" && comparator && (
                     <div>
                         <button style={{ ...S.backBtn, marginBottom: "1rem" }} onClick={() => setStep("scenario")}>
-                            <ArrowLeft size={14} /> Zmień scenariusz
+                            <ArrowLeft size={14} /> {t('changeScenario')}
                         </button>
 
                         <div style={{ textAlign: "center" }}>
@@ -798,7 +800,7 @@ export default function PorownywarkaPage() {
                                 {comparator.icon} {comparator.title}
                             </div>
                             <h2 style={{ fontFamily: "var(--font-heading)", fontSize: "1.2rem", color: "#fff" }}>
-                                Co jest dla Ciebie najważniejsze?
+                                {t('whatMatters')}
                             </h2>
                         </div>
 
@@ -858,20 +860,20 @@ export default function PorownywarkaPage() {
 
                         <div style={S.navRow}>
                             <button style={S.backBtn} onClick={prevQuestion}>
-                                <ArrowLeft size={14} /> Wróć
+                                <ArrowLeft size={14} /> {t('back')}
                             </button>
                             <button
                                 style={S.nextBtn(!!currentAnswer)}
                                 onClick={nextQuestion}
                                 disabled={!currentAnswer}
                             >
-                                {questionIndex < comparator.questions.length - 1 ? "Dalej" : "Pokaż porównanie"}
+                                {questionIndex < comparator.questions.length - 1 ? t('next') : t('showComparison')}
                                 <ArrowRight size={14} />
                             </button>
                         </div>
 
                         <p style={{ ...S.microCopy, marginTop: "1rem" }}>
-                            Pytanie {questionIndex + 1} z {comparator.questions.length}
+                            {t('questionOf', { current: questionIndex + 1, total: comparator.questions.length })}
                         </p>
                     </div>
                 )}
@@ -880,7 +882,7 @@ export default function PorownywarkaPage() {
                 {step === "results" && comparator && ranking.length > 0 && (
                     <div>
                         <button style={{ ...S.backBtn, marginBottom: "1.5rem" }} onClick={resetAll}>
-                            <ArrowLeft size={14} /> Nowe porównanie
+                            <ArrowLeft size={14} /> {t('newComparison')}
                         </button>
 
                         <div style={{ textAlign: "center", marginBottom: "1.5rem" }}>
@@ -1049,7 +1051,7 @@ export default function PorownywarkaPage() {
 
                                             <div style={{ marginBottom: "0.75rem" }}>
                                                 <div style={{ ...S.bulletTitle, fontSize: "0.85rem", color: "#10b981" }}>
-                                                    <CheckCircle size={14} /> Kiedy się sprawdza
+                                                    <CheckCircle size={14} /> {t('whenWorks')}
                                                 </div>
                                                 {m.table.worksWhen.map((item, i) => (
                                                     <div key={i} style={S.bulletItem}>
@@ -1094,7 +1096,7 @@ export default function PorownywarkaPage() {
 
                                 {!showLeadForm && !leadSent && (
                                     <button style={S.ctaSecondary} onClick={() => setShowLeadForm(true)}>
-                                        <Send size={16} /> Wyślij wynik do recepcji
+                                        <Send size={16} /> {t('sendToReception')}
                                     </button>
                                 )}
 
@@ -1102,14 +1104,14 @@ export default function PorownywarkaPage() {
                                     <div style={S.leadForm}>
                                         <input
                                             type="text"
-                                            placeholder="Imię i nazwisko"
+                                            placeholder={t('namePlaceholder')}
                                             value={leadName}
                                             onChange={e => setLeadName(e.target.value)}
                                             style={S.leadInput}
                                         />
                                         <input
                                             type="tel"
-                                            placeholder="Numer telefonu"
+                                            placeholder={t('phonePlaceholder')}
                                             value={leadPhone}
                                             onChange={e => setLeadPhone(e.target.value)}
                                             style={S.leadInput}
@@ -1120,7 +1122,7 @@ export default function PorownywarkaPage() {
                                             disabled={!leadName.trim() || !leadPhone.trim() || leadSending}
                                         >
                                             <Send size={14} />
-                                            {leadSending ? "Wysyłanie..." : "Wyślij do recepcji"}
+                                            {leadSending ? t('sending') : t('sendToReceptionBtn')}
                                         </button>
                                         <p style={{ ...S.microCopy, textAlign: "center" }}>
                                             Oddzwonimy z proponowanym planem leczenia
@@ -1138,7 +1140,7 @@ export default function PorownywarkaPage() {
                                         textAlign: "center",
                                         fontSize: "0.9rem",
                                     }}>
-                                        ✅ Wysłano! Recepcja oddzwoni z planem leczenia.
+                                        ✅ {t('sentSuccess')}
                                     </div>
                                 )}
 
@@ -1148,7 +1150,7 @@ export default function PorownywarkaPage() {
                             </div>
 
                             <p style={S.disclaimer}>
-                                ⚠️ To nie jest diagnoza. Porównanie opiera się na typowych scenariuszach klinicznych. Ostateczna kwalifikacja wymaga badania lekarskiego, diagnostyki obrazowej i analizy indywidualnych warunków.
+                                ⚠️ {t('finalDisclaimer')}
                             </p>
                         </RevealOnScroll>
                     </div>

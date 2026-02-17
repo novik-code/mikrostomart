@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { TREATMENT_PATHS, type TreatmentPath, type Variant, type Stage } from "./treatmentData";
 import RevealOnScroll from "@/components/RevealOnScroll";
 import {
@@ -447,6 +448,7 @@ type Step = "select" | "questions" | "results";
 
 export default function KalkulatorLeczeniaPage() {
     // State
+    const t = useTranslations('kalkulatorUI');
     const [step, setStep] = useState<Step>("select");
     const [selectedPath, setSelectedPath] = useState<TreatmentPath | null>(null);
     const [questionIndex, setQuestionIndex] = useState(0);
@@ -530,7 +532,7 @@ export default function KalkulatorLeczeniaPage() {
             });
             setLeadSent(true);
         } catch {
-            alert("Wystąpił błąd. Spróbuj ponownie lub zadzwoń: 77 454 14 14.");
+            alert(t('error'));
         } finally {
             setLeadSending(false);
         }
@@ -545,12 +547,12 @@ export default function KalkulatorLeczeniaPage() {
             <section style={S.hero}>
                 <div style={S.heroGradient} />
                 <span style={S.heroIcon}>🧮</span>
-                <h1 style={S.heroTitle}>Kalkulator czasu leczenia</h1>
+                <h1 style={S.heroTitle}>{t('heroTitle')}</h1>
                 <p style={S.heroSub}>
-                    Sprawdź orientacyjnie: ile wizyt i ile czasu zajmuje najczęściej dana ścieżka leczenia.
+                    {t('heroSub')}
                 </p>
                 <p style={S.microCopy}>
-                    Wybierz temat i odpowiedz na kilka pytań · zajmie Ci to ok. 20–40 sekund
+                    {t('heroMicro')}
                 </p>
             </section>
 
@@ -588,13 +590,13 @@ export default function KalkulatorLeczeniaPage() {
                                 onMouseLeave={() => setHoveredTile(null)}
                             >
                                 <span style={S.tileIcon}>🤷</span>
-                                <div style={S.tileTitle}>Nie wiem, czego potrzebuję</div>
-                                <div style={S.tileSub}>Przejdź do interaktywnej Mapy Bólu</div>
+                                <div style={S.tileTitle}>{t('dontKnow')}</div>
+                                <div style={S.tileSub}>{t('goToPainMap')}</div>
                             </Link>
                         </div>
 
                         <p style={{ ...S.microCopy, textAlign: "center", marginTop: "2rem" }}>
-                            To narzędzie ma charakter informacyjny i nie zastępuje badania lekarskiego.
+                            {t('disclaimer')}
                         </p>
                     </div>
                 )}
@@ -637,20 +639,20 @@ export default function KalkulatorLeczeniaPage() {
 
                         <div style={S.navRow}>
                             <button style={S.backBtn} onClick={prevQuestion}>
-                                <ArrowLeft size={14} /> Wróć
+                                <ArrowLeft size={14} /> {t('back')}
                             </button>
                             <button
                                 style={S.nextBtn(!!currentAnswer)}
                                 onClick={nextQuestion}
                                 disabled={!currentAnswer}
                             >
-                                {questionIndex < selectedPath.questions.length - 1 ? "Dalej" : "Pokaż wynik"}
+                                {questionIndex < selectedPath.questions.length - 1 ? t('next') : t('showResult')}
                                 <ArrowRight size={14} />
                             </button>
                         </div>
 
                         <p style={{ ...S.microCopy, marginTop: "1rem" }}>
-                            Pytanie {questionIndex + 1} z {selectedPath.questions.length}
+                            {t('questionOf', { current: questionIndex + 1, total: selectedPath.questions.length })}
                         </p>
                     </div>
                 )}
@@ -660,7 +662,7 @@ export default function KalkulatorLeczeniaPage() {
                     <div>
                         {/* Back button */}
                         <button style={{ ...S.backBtn, marginBottom: "1.5rem" }} onClick={resetAll}>
-                            <ArrowLeft size={14} /> Nowy kalkulator
+                            <ArrowLeft size={14} /> {t('newCalculation')}
                         </button>
 
                         {/* Variant label */}
@@ -681,7 +683,7 @@ export default function KalkulatorLeczeniaPage() {
                                 color: "#fff",
                                 marginTop: "0.5rem",
                             }}>
-                                Twoja orientacyjna ścieżka leczenia
+                                {t('yourPath')}
                             </h2>
                         </div>
 
@@ -690,11 +692,11 @@ export default function KalkulatorLeczeniaPage() {
                             <div style={S.summaryRow}>
                                 <div style={S.summaryPill("var(--color-primary)")}>
                                     <CalendarDays size={20} />
-                                    Wizyty: {result.visitsMin}–{result.visitsMax}
+                                    {t('visits', { min: result.visitsMin, max: result.visitsMax })}
                                 </div>
                                 <div style={S.summaryPill("#38bdf8")}>
                                     <Clock size={20} />
-                                    Czas: {result.durationLabel}
+                                    {t('duration', { label: result.durationLabel })}
                                 </div>
                             </div>
                         </RevealOnScroll>
@@ -707,7 +709,7 @@ export default function KalkulatorLeczeniaPage() {
                                 color: "var(--color-primary)",
                                 marginBottom: "1.5rem",
                             }}>
-                                Etapy leczenia
+                                {t('treatmentStages')}
                             </h3>
 
                             <div style={S.timelineContainer}>
@@ -730,13 +732,13 @@ export default function KalkulatorLeczeniaPage() {
 
                                                 {stage.anesthesia && (
                                                     <span style={S.metaBadge("rgba(168,85,247,0.1)", "#a855f7")}>
-                                                        <Syringe size={12} /> Znieczulenie
+                                                        <Syringe size={12} /> {t('anesthesia')}
                                                     </span>
                                                 )}
 
                                                 {stage.discomfortAfter && (
                                                     <span style={S.metaBadge("rgba(251,191,36,0.1)", "#fbbf24")}>
-                                                        <AlertCircle size={12} /> Możliwy dyskomfort
+                                                        <AlertCircle size={12} /> {t('possibleDiscomfort')}
                                                     </span>
                                                 )}
                                             </div>
@@ -746,7 +748,7 @@ export default function KalkulatorLeczeniaPage() {
                                         {stage.gapLabel && stage.gapLabel !== "gotowe ✓" && i < result.stages.length - 1 && (
                                             <div style={S.stageGap}>
                                                 <ChevronRight size={12} />
-                                                Przerwa: {stage.gapLabel}
+                                                {t('breakLabel', { label: stage.gapLabel })}
                                             </div>
                                         )}
 
@@ -757,7 +759,7 @@ export default function KalkulatorLeczeniaPage() {
                                                 fontWeight: 600,
                                                 borderLeftColor: "var(--color-primary)",
                                             }}>
-                                                ✓ Koniec leczenia
+                                                ✓ {t('endOfTreatment')}
                                             </div>
                                         )}
                                     </div>
@@ -770,7 +772,7 @@ export default function KalkulatorLeczeniaPage() {
                             <RevealOnScroll animation="fade-up" delay={200}>
                                 <div style={S.factorsSection}>
                                     <h3 style={S.factorTitle}>
-                                        <Info size={18} /> Co może wydłużyć leczenie?
+                                        <Info size={18} /> {t('whatExtends')}
                                     </h3>
                                     {result.extendingFactors.map((factor, i) => (
                                         <div key={i} style={S.factorItem}>
@@ -779,7 +781,7 @@ export default function KalkulatorLeczeniaPage() {
                                         </div>
                                     ))}
                                     <p style={{ ...S.microCopy, marginTop: "1rem", textAlign: "left" }}>
-                                        To nie jest lista problemów — to transparentna informacja o tym, co wpływa na czas leczenia.
+                                        {t('extendNote')}
                                     </p>
                                 </div>
                             </RevealOnScroll>
@@ -794,16 +796,16 @@ export default function KalkulatorLeczeniaPage() {
                                     textAlign: "center",
                                     marginBottom: "0.5rem",
                                 }}>
-                                    Potwierdzimy dokładny plan po badaniu i diagnostyce
+                                    {t('confirmPlan')}
                                 </p>
 
                                 <Link href={`/rezerwacja?specialist=${result.recommendedSpecialist}&reason=${encodeURIComponent(`Kalkulator: ${result.label}`)}`} style={S.ctaPrimary}>
-                                    <CalendarDays size={18} /> Umów konsultację
+                                    <CalendarDays size={18} /> {t('bookConsultation')}
                                 </Link>
 
                                 {!showLeadForm && !leadSent && (
                                     <button style={S.ctaSecondary} onClick={() => setShowLeadForm(true)}>
-                                        <Send size={16} /> Wyślij wynik do recepcji
+                                        <Send size={16} /> {t('sendToReception')}
                                     </button>
                                 )}
 
@@ -811,14 +813,14 @@ export default function KalkulatorLeczeniaPage() {
                                     <div style={S.leadForm}>
                                         <input
                                             type="text"
-                                            placeholder="Imię i nazwisko"
+                                            placeholder={t('namePlaceholder')}
                                             value={leadName}
                                             onChange={e => setLeadName(e.target.value)}
                                             style={S.leadInput}
                                         />
                                         <input
                                             type="tel"
-                                            placeholder="Numer telefonu"
+                                            placeholder={t('phonePlaceholder')}
                                             value={leadPhone}
                                             onChange={e => setLeadPhone(e.target.value)}
                                             style={S.leadInput}
@@ -829,7 +831,7 @@ export default function KalkulatorLeczeniaPage() {
                                             disabled={!leadName.trim() || !leadPhone.trim() || leadSending}
                                         >
                                             <Send size={14} />
-                                            {leadSending ? "Wysyłanie..." : "Wyślij do recepcji"}
+                                            {leadSending ? t('sending') : t('sendToReceptionBtn')}
                                         </button>
                                         <p style={{ ...S.microCopy, textAlign: "center" }}>
                                             Oddzwonimy z proponowanym planem leczenia
@@ -847,14 +849,13 @@ export default function KalkulatorLeczeniaPage() {
                                         textAlign: "center",
                                         fontSize: "0.9rem",
                                     }}>
-                                        ✅ Wysłano! Recepcja oddzwoni z planem leczenia.
+                                        ✅ {t('sentSuccess')}
                                     </div>
                                 )}
                             </div>
 
                             <p style={S.disclaimer}>
-                                ⚠️ Uwaga: To nie jest diagnoza ani wycena. Czas leczenia zależy od badania klinicznego,
-                                diagnostyki obrazowej i indywidualnego procesu gojenia tkanek.
+                                ⚠️ {t('finalDisclaimer')}
                             </p>
                         </RevealOnScroll>
                     </div>

@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { SYMPTOM_DATA, DOCTORS, type ZoneInfo, type SeverityLevel, type TipItem } from './SymptomData';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 
 // ─────────────────────────────────────────────────────────────
 // PREMIUM DENTAL MAP — Multi-severity system
@@ -82,6 +83,7 @@ const STYLE_TAG = `
 `;
 
 export default function PainMapInteractive() {
+    const t = useTranslations('mapaBoluUI');
     const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null);
     const [hoveredZoneId, setHoveredZoneId] = useState<string | null>(null);
     const [viewMode, setViewMode] = useState<'map' | 'list'>('map');
@@ -138,18 +140,18 @@ export default function PainMapInteractive() {
     // ─── URGENCY STYLE HELPER ───
     const getUrgencyStyle = (urgency: string) => {
         switch (urgency) {
-            case 'high': return { bg: 'rgba(239,68,68,0.15)', text: '#f87171', border: 'rgba(239,68,68,0.3)', icon: '🔴', label: 'Pilne — umów wizytę' };
-            case 'medium': return { bg: 'rgba(245,158,11,0.15)', text: '#fbbf24', border: 'rgba(245,158,11,0.3)', icon: '🟡', label: 'Umiarkowane' };
-            default: return { bg: 'rgba(34,197,94,0.15)', text: '#4ade80', border: 'rgba(34,197,94,0.3)', icon: '🟢', label: 'Łagodne' };
+            case 'high': return { bg: 'rgba(239,68,68,0.15)', text: '#f87171', border: 'rgba(239,68,68,0.3)', icon: '🔴', label: t('urgentHigh') };
+            case 'medium': return { bg: 'rgba(245,158,11,0.15)', text: '#fbbf24', border: 'rgba(245,158,11,0.3)', icon: '🟡', label: t('urgentMedium') };
+            default: return { bg: 'rgba(34,197,94,0.15)', text: '#4ade80', border: 'rgba(34,197,94,0.3)', icon: '🟢', label: t('urgentLow') };
         }
     };
 
     // ─── SEVERITY TOGGLE COMPONENT ───
     const renderSeverityToggle = () => {
         const levels: { key: SeverityKey; label: string; color: string; activeColor: string; bg: string }[] = [
-            { key: 'low', label: '🟢 Łagodne', color: 'rgba(255,255,255,0.45)', activeColor: '#4ade80', bg: 'rgba(34,197,94,0.15)' },
-            { key: 'medium', label: '🟡 Umiarkowane', color: 'rgba(255,255,255,0.45)', activeColor: '#fbbf24', bg: 'rgba(245,158,11,0.15)' },
-            { key: 'high', label: '🔴 Zaawansowane', color: 'rgba(255,255,255,0.45)', activeColor: '#f87171', bg: 'rgba(239,68,68,0.15)' },
+            { key: 'low', label: t('severityLow'), color: 'rgba(255,255,255,0.45)', activeColor: '#4ade80', bg: 'rgba(34,197,94,0.15)' },
+            { key: 'medium', label: t('severityMedium'), color: 'rgba(255,255,255,0.45)', activeColor: '#fbbf24', bg: 'rgba(245,158,11,0.15)' },
+            { key: 'high', label: t('severityHigh'), color: 'rgba(255,255,255,0.45)', activeColor: '#f87171', bg: 'rgba(239,68,68,0.15)' },
         ];
 
         return (
@@ -221,7 +223,7 @@ export default function PainMapInteractive() {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
                 src="/dental-map-premium.jpg"
-                alt="Mapa bólu zębów"
+                alt={t('mapAlt')}
                 style={{ width: '100%', height: 'auto', display: 'block', pointerEvents: 'none' }}
                 draggable={false}
             />
@@ -246,11 +248,11 @@ export default function PainMapInteractive() {
     // ─── RENDER: LIST VIEW ───
     const renderList = () => {
         const quadrants = [
-            { title: 'Górny Łuk Prawy', subtitle: 'Q1 · Zęby 11–18', keys: ['11', '12', '13', '14', '15', '16', '17', '18'] },
-            { title: 'Górny Łuk Lewy', subtitle: 'Q2 · Zęby 21–28', keys: ['21', '22', '23', '24', '25', '26', '27', '28'] },
-            { title: 'Dolny Łuk Lewy', subtitle: 'Q3 · Zęby 31–38', keys: ['31', '32', '33', '34', '35', '36', '37', '38'] },
-            { title: 'Dolny Łuk Prawy', subtitle: 'Q4 · Zęby 41–48', keys: ['41', '42', '43', '44', '45', '46', '47', '48'] },
-            { title: 'Tkanki Miękkie', subtitle: 'Język · Podniebienie · Gardło', keys: ['tongue', 'palate', 'throat'] },
+            { title: t('upperRightArc'), subtitle: 'Q1 · Zęby 11–18', keys: ['11', '12', '13', '14', '15', '16', '17', '18'] },
+            { title: t('upperLeftArc'), subtitle: 'Q2 · Zęby 21–28', keys: ['21', '22', '23', '24', '25', '26', '27', '28'] },
+            { title: t('lowerLeftArc'), subtitle: 'Q3 · Zęby 31–38', keys: ['31', '32', '33', '34', '35', '36', '37', '38'] },
+            { title: t('lowerRightArc'), subtitle: 'Q4 · Zęby 41–48', keys: ['41', '42', '43', '44', '45', '46', '47', '48'] },
+            { title: t('softTissues'), subtitle: t('softTissuesSub'), keys: ['tongue', 'palate', 'throat'] },
         ];
 
         return (
@@ -338,14 +340,13 @@ export default function PainMapInteractive() {
                             color: '#dcb14a', fontSize: '24px', fontWeight: 700,
                             marginBottom: '12px', letterSpacing: '-0.01em',
                         }}>
-                            Mapa Bólu
+                            {t('heroTitle')}
                         </h2>
                         <p style={{
                             color: 'rgba(255,255,255,0.6)', fontSize: '14px', lineHeight: 1.7,
                             marginBottom: '20px',
                         }}>
-                            Dotknij ząb lub obszar, który Cię boli — podpowiemy, co może być przyczyną
-                            i kiedy warto umówić wizytę.
+                            {t('heroSub')}
                         </p>
                         <div style={{
                             background: 'rgba(255,255,255,0.04)', borderRadius: '12px',
@@ -353,7 +354,7 @@ export default function PainMapInteractive() {
                             border: '1px solid rgba(255,255,255,0.06)',
                         }}>
                             <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '11px', margin: 0, lineHeight: 1.5 }}>
-                                ⓘ Narzędzie ma charakter informacyjny i nie zastępuje wizyty u specjalisty.
+                                ⓘ {t('disclaimer')}
                             </p>
                         </div>
                         <button
@@ -368,7 +369,7 @@ export default function PainMapInteractive() {
                             onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 24px rgba(220,177,74,0.4)'; }}
                             onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(220,177,74,0.3)'; }}
                         >
-                            Rozpocznij diagnostykę
+                            {t('startDiagnostics')}
                         </button>
                     </div>
                 </div>
@@ -396,7 +397,7 @@ export default function PainMapInteractive() {
                                 boxShadow: viewMode === mode ? '0 2px 12px rgba(220,177,74,0.25)' : 'none',
                             }}
                         >
-                            {mode === 'map' ? '🗺️ Mapa' : '📋 Lista'}
+                            {mode === 'map' ? t('viewMap') : t('viewList')}
                         </button>
                     ))}
                 </div>
@@ -514,7 +515,7 @@ export default function PainMapInteractive() {
                                 textTransform: 'uppercase', letterSpacing: '0.08em',
                                 display: 'block', marginBottom: '10px',
                             }}>
-                                Możliwe objawy
+                                {t('possibleSymptoms')}
                             </span>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                 {activeLevel.symptoms.map((s, i) => (
@@ -547,7 +548,7 @@ export default function PainMapInteractive() {
                                 textTransform: 'uppercase', letterSpacing: '0.08em',
                                 display: 'block', marginBottom: '10px',
                             }}>
-                                🔍 Możliwe przyczyny
+                                🔍 {t('possibleCauses')}
                             </span>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                                 {activeLevel.causes.map((c, i) => (
@@ -577,7 +578,7 @@ export default function PainMapInteractive() {
                                             {c.text}
                                             {c.tip && <span style={{ color: 'rgba(220,177,74,0.4)', fontSize: '11px', marginLeft: '4px' }}>ⓘ</span>}
                                         </span>
-                                        <span style={{ color: 'rgba(220,177,74,0.5)', fontSize: '11px', flexShrink: 0, marginTop: '3px' }}>umów →</span>
+                                        <span style={{ color: 'rgba(220,177,74,0.5)', fontSize: '11px', flexShrink: 0, marginTop: '3px' }}>{t('bookArrow')}</span>
                                     </Link>
                                 ))}
                             </div>
@@ -595,7 +596,7 @@ export default function PainMapInteractive() {
                                     textTransform: 'uppercase', letterSpacing: '0.08em',
                                     display: 'block', marginBottom: '10px',
                                 }}>
-                                    👨‍⚕️ Rekomendowani specjaliści
+                                    {t('recommendedSpecialists')}
                                 </span>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                     {activeLevel.doctors.map(docId => {
@@ -619,7 +620,7 @@ export default function PainMapInteractive() {
                                                     <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '13px', fontWeight: 600 }}>{doc.name}</div>
                                                     <div style={{ color: 'rgba(255,255,255,0.35)', fontSize: '11px', marginTop: '2px' }}>{doc.specialties}</div>
                                                 </div>
-                                                <span style={{ color: '#dcb14a', fontSize: '12px', fontWeight: 600, flexShrink: 0, marginLeft: '12px' }}>Umów →</span>
+                                                <span style={{ color: '#dcb14a', fontSize: '12px', fontWeight: 600, flexShrink: 0, marginLeft: '12px' }}>{t('bookSpecialist')}</span>
                                             </Link>
                                         );
                                     })}
@@ -638,7 +639,7 @@ export default function PainMapInteractive() {
                                 textTransform: 'uppercase', letterSpacing: '0.08em',
                                 display: 'block', marginBottom: '8px',
                             }}>
-                                💡 Rada specjalisty
+                                {t('specialistAdvice')}
                             </span>
                             <p style={{
                                 color: 'rgba(255,255,255,0.6)', fontSize: '13px',
@@ -661,7 +662,7 @@ export default function PainMapInteractive() {
                                 letterSpacing: '0.02em',
                             }}
                         >
-                            Rezerwuj wizytę
+                            {t('bookVisit')}
                         </Link>
 
                         {/* Floating tooltip */}
