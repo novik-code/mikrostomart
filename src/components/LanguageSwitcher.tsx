@@ -13,10 +13,11 @@ const FLAGS: Record<string, string> = {
 };
 
 /**
- * Inner component that uses next-intl hooks.
- * Only rendered when inside NextIntlClientProvider.
+ * Compact language switcher — always visible as a small flag button.
+ * Hidden when `hidden` prop is true (e.g. mobile menu is open).
+ * Dropdown opens on click, closes on outside click.
  */
-function LanguageSwitcherInner() {
+function LanguageSwitcherInner({ hidden }: { hidden?: boolean }) {
     const locale = useLocale();
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
@@ -34,64 +35,83 @@ function LanguageSwitcherInner() {
         return () => document.removeEventListener("mousedown", handleClick);
     }, []);
 
+    // Close dropdown when hidden changes
+    useEffect(() => {
+        if (hidden) setIsOpen(false);
+    }, [hidden]);
+
     function switchLocale(newLocale: string) {
         setIsOpen(false);
-
-        // Set the NEXT_LOCALE cookie (read by next-intl middleware)
         document.cookie = `NEXT_LOCALE=${newLocale};path=/;max-age=31536000;SameSite=Lax`;
-
-        // Refresh the page to pick up the new locale
         startTransition(() => {
             router.refresh();
         });
     }
 
     return (
-        <div ref={ref} style={{ position: "relative", zIndex: 300 }}>
+        <div
+            ref={ref}
+            style={{
+                position: "relative",
+                zIndex: 300,
+                transition: "opacity 0.2s ease, transform 0.2s ease",
+                opacity: hidden ? 0 : 1,
+                transform: hidden ? "scale(0.8)" : "scale(1)",
+                pointerEvents: hidden ? "none" : "auto",
+            }}
+        >
+            {/* Compact flag-only trigger */}
             <button
                 onClick={() => setIsOpen(!isOpen)}
                 aria-label="Change language"
                 style={{
-                    background: "transparent",
-                    border: "1px solid rgba(212, 175, 55, 0.3)",
-                    borderRadius: "var(--radius-sm, 6px)",
-                    padding: "0.35rem 0.6rem",
+                    background: "rgba(255,255,255,0.04)",
+                    border: "1px solid rgba(212, 175, 55, 0.2)",
+                    borderRadius: "8px",
+                    padding: "4px 8px",
                     cursor: "pointer",
                     display: "flex",
                     alignItems: "center",
-                    gap: "0.35rem",
-                    fontSize: "0.85rem",
+                    gap: "3px",
+                    fontSize: "0.78rem",
                     color: "var(--color-text-main, #fff)",
                     transition: "border-color 0.2s, background 0.2s",
                     opacity: isPending ? 0.6 : 1,
+                    lineHeight: 1,
                 }}
                 onMouseEnter={(e) => {
-                    (e.target as HTMLElement).style.borderColor = "rgba(212, 175, 55, 0.6)";
-                    (e.target as HTMLElement).style.background = "rgba(212, 175, 55, 0.08)";
+                    (e.currentTarget as HTMLElement).style.borderColor = "rgba(212, 175, 55, 0.5)";
+                    (e.currentTarget as HTMLElement).style.background = "rgba(212, 175, 55, 0.08)";
                 }}
                 onMouseLeave={(e) => {
-                    (e.target as HTMLElement).style.borderColor = "rgba(212, 175, 55, 0.3)";
-                    (e.target as HTMLElement).style.background = "transparent";
+                    (e.currentTarget as HTMLElement).style.borderColor = "rgba(212, 175, 55, 0.2)";
+                    (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.04)";
                 }}
             >
-                <span style={{ fontSize: "1.1rem" }}>{FLAGS[locale]}</span>
-                <span style={{ textTransform: "uppercase", fontWeight: 500, letterSpacing: "0.05em" }}>
+                <span style={{ fontSize: "0.95rem", lineHeight: 1 }}>{FLAGS[locale]}</span>
+                <span style={{
+                    textTransform: "uppercase",
+                    fontWeight: 600,
+                    letterSpacing: "0.04em",
+                    fontSize: "0.65rem",
+                    opacity: 0.8,
+                }}>
                     {locale}
                 </span>
-                <span style={{ fontSize: "0.6rem", opacity: 0.6 }}>▼</span>
             </button>
 
+            {/* Dropdown */}
             {isOpen && (
                 <div
                     style={{
                         position: "absolute",
-                        top: "calc(100% + 6px)",
+                        top: "calc(100% + 4px)",
                         right: 0,
                         background: "rgba(18, 20, 24, 0.97)",
                         border: "1px solid rgba(212, 175, 55, 0.15)",
-                        borderRadius: "var(--radius-md, 10px)",
-                        padding: "0.4rem 0",
-                        minWidth: "140px",
+                        borderRadius: "10px",
+                        padding: "0.3rem 0",
+                        minWidth: "110px",
                         boxShadow: "0 12px 30px rgba(0,0,0,0.5), 0 0 15px rgba(212,175,55,0.05)",
                         backdropFilter: "blur(16px)",
                         animation: "langFadeIn 0.15s ease-out",
@@ -104,14 +124,14 @@ function LanguageSwitcherInner() {
                             style={{
                                 display: "flex",
                                 alignItems: "center",
-                                gap: "0.5rem",
+                                gap: "0.4rem",
                                 width: "100%",
-                                padding: "0.5rem 1rem",
+                                padding: "0.4rem 0.75rem",
                                 background: loc === locale ? "rgba(212, 175, 55, 0.1)" : "transparent",
                                 border: "none",
                                 cursor: "pointer",
                                 color: loc === locale ? "var(--color-primary, #d4af37)" : "var(--color-text-main, #fff)",
-                                fontSize: "0.85rem",
+                                fontSize: "0.78rem",
                                 fontWeight: loc === locale ? 600 : 400,
                                 textAlign: "left",
                                 transition: "background 0.15s",
@@ -125,10 +145,10 @@ function LanguageSwitcherInner() {
                                 (e.currentTarget as HTMLElement).style.background = loc === locale ? "rgba(212, 175, 55, 0.1)" : "transparent";
                             }}
                         >
-                            <span style={{ fontSize: "1.1rem" }}>{FLAGS[loc]}</span>
-                            <span style={{ textTransform: "uppercase", letterSpacing: "0.05em" }}>{loc}</span>
+                            <span style={{ fontSize: "0.95rem" }}>{FLAGS[loc]}</span>
+                            <span style={{ textTransform: "uppercase", letterSpacing: "0.04em", fontSize: "0.7rem" }}>{loc}</span>
                             {loc === locale && (
-                                <span style={{ marginLeft: "auto", opacity: 0.5, fontSize: "0.75rem" }}>✓</span>
+                                <span style={{ marginLeft: "auto", opacity: 0.5, fontSize: "0.65rem" }}>✓</span>
                             )}
                         </button>
                     ))}
@@ -147,7 +167,6 @@ function LanguageSwitcherInner() {
 
 /**
  * Wrapper with error boundary — gracefully hides on non-i18n pages
- * (admin, employee, patient portal).
  */
 import { Component, type ReactNode, type ErrorInfo } from "react";
 
@@ -165,7 +184,7 @@ class IntlErrorBoundary extends Component<
     }
 
     componentDidCatch(error: Error, info: ErrorInfo) {
-        // Silently swallow — we're just not inside NextIntlClientProvider
+        // Silently swallow — not inside NextIntlClientProvider
     }
 
     render() {
@@ -176,10 +195,10 @@ class IntlErrorBoundary extends Component<
     }
 }
 
-export default function LanguageSwitcher() {
+export default function LanguageSwitcher({ hidden }: { hidden?: boolean }) {
     return (
         <IntlErrorBoundary>
-            <LanguageSwitcherInner />
+            <LanguageSwitcherInner hidden={hidden} />
         </IntlErrorBoundary>
     );
 }

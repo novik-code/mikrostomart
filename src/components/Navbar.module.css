@@ -392,6 +392,17 @@
 }
 
 /* ═══════════════════════════════════════
+   LANGUAGE SWITCHER — Always visible
+   ═══════════════════════════════════════ */
+.langSwitcherWrapper {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    margin-right: 0.5rem;
+    z-index: 102;
+}
+
+/* ═══════════════════════════════════════
    RESPONSIVE — Switch to mobile layout
    ═══════════════════════════════════════ */
 @media (max-width: 900px) {
@@ -403,5 +414,9 @@
 
     .hamburger {
         display: flex;
+    }
+
+    .langSwitcherWrapper {
+        margin-right: 0.75rem;
     }
 }

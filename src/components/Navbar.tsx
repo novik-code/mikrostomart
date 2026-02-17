@@ -328,12 +328,16 @@ export default function Navbar() {
                     </AnimatePresence>
                 </div>
 
-                {/* Appointment Button + Language Switcher — Desktop only */}
-                <div className={styles.desktopCta} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <LanguageSwitcher />
+                {/* Appointment Button — Desktop only */}
+                <div className={styles.desktopCta}>
                     <Link href="/rezerwacja" className="btn-primary" style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>
                         {t('booking')}
                     </Link>
+                </div>
+
+                {/* Language Switcher — always visible, hides when mobile menu open */}
+                <div className={styles.langSwitcherWrapper}>
+                    <LanguageSwitcher hidden={isMenuOpen} />
                 </div>
 
                 {/* ═══════════════════════════════════════════════════
