@@ -274,7 +274,8 @@
         "phonePlaceholder": "Telefonnummer",
         "sendToReceptionBtn": "An Rezeption senden",
         "sentSuccess": "Gesendet! Die Rezeption wird Sie mit einem Behandlungsplan zurückrufen.",
-        "finalDisclaimer": "Hinweis: Dies ist keine Diagnose oder Kostenvoranschlag. Die Behandlungsdauer hängt von der klinischen Untersuchung, Bildgebung und individuellen Bedingungen ab."
+        "finalDisclaimer": "Hinweis: Dies ist keine Diagnose oder Kostenvoranschlag. Die Behandlungsdauer hängt von der klinischen Untersuchung, Bildgebung und individuellen Bedingungen ab.",
+        "callbackNote": "Wir rufen Sie mit einem vorgeschlagenen Behandlungsplan zurück"
     },
     "mapaBoluUI": {
         "heroTitle": "Schmerzlandkarte",

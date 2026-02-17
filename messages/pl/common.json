@@ -274,7 +274,8 @@
         "phonePlaceholder": "Nr telefonu",
         "sendToReceptionBtn": "Wyślij do recepcji",
         "sentSuccess": "Wysłano! Recepcja oddzwoni z planem leczenia.",
-        "finalDisclaimer": "Uwaga: To nie jest diagnoza ani wycena. Czas leczenia zależy od badania klinicznego, diagnostyki obrazowej i indywidualnych warunków."
+        "finalDisclaimer": "Uwaga: To nie jest diagnoza ani wycena. Czas leczenia zależy od badania klinicznego, diagnostyki obrazowej i indywidualnych warunków.",
+        "callbackNote": "Oddzwonimy z proponowanym planem leczenia"
     },
     "mapaBoluUI": {
         "heroTitle": "Mapa Bólu",

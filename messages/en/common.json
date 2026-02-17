@@ -274,7 +274,8 @@
         "phonePlaceholder": "Phone number",
         "sendToReceptionBtn": "Send to reception",
         "sentSuccess": "Sent! Reception will call you back with a treatment plan.",
-        "finalDisclaimer": "Note: This is not a diagnosis or quote. Treatment time depends on clinical examination, imaging diagnostics and individual conditions."
+        "finalDisclaimer": "Note: This is not a diagnosis or quote. Treatment time depends on clinical examination, imaging diagnostics and individual conditions.",
+        "callbackNote": "We'll call you back with a suggested treatment plan"
     },
     "mapaBoluUI": {
         "heroTitle": "Pain Map",

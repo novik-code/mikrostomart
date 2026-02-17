@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import Link from "next/link";
-import { useTranslations } from "next-intl";
-import { TREATMENT_PATHS, type TreatmentPath, type Variant, type Stage } from "./treatmentData";
+import { useTranslations, useLocale } from "next-intl";
+import { type TreatmentPath, type Variant, type Stage } from "./treatmentData";
+import { getTreatmentData } from "./getTreatmentData";
 import RevealOnScroll from "@/components/RevealOnScroll";
 import {
     Clock, CalendarDays, ArrowLeft, ArrowRight, Send, MapPin,
@@ -449,6 +450,9 @@ type Step = "select" | "questions" | "results";
 export default function KalkulatorLeczeniaPage() {
     // State
     const t = useTranslations('kalkulatorUI');
+    const locale = useLocale();
+    const { treatmentPaths, formatDuration: fmtDuration } = useMemo(() => getTreatmentData(locale), [locale]);
+
     const [step, setStep] = useState<Step>("select");
     const [selectedPath, setSelectedPath] = useState<TreatmentPath | null>(null);
     const [questionIndex, setQuestionIndex] = useState(0);
@@ -562,7 +566,7 @@ export default function KalkulatorLeczeniaPage() {
                 {step === "select" && (
                     <div>
                         <div style={S.tilesGrid}>
-                            {TREATMENT_PATHS.map(path => (
+                            {treatmentPaths.map(path => (
                                 <div
                                     key={path.id}
                                     style={S.tile(path.color, hoveredTile === path.id)}
@@ -745,14 +749,14 @@ export default function KalkulatorLeczeniaPage() {
                                         </div>
 
                                         {/* Gap indicator between stages */}
-                                        {stage.gapLabel && stage.gapLabel !== "gotowe ✓" && i < result.stages.length - 1 && (
+                                        {stage.gapLabel && !(stage.gapToNextMin === 0 && stage.gapToNextMax === 0) && i < result.stages.length - 1 && (
                                             <div style={S.stageGap}>
                                                 <ChevronRight size={12} />
                                                 {t('breakLabel', { label: stage.gapLabel })}
                                             </div>
                                         )}
 
-                                        {stage.gapLabel === "gotowe ✓" && (
+                                        {stage.gapToNextMin === 0 && stage.gapToNextMax === 0 && (
                                             <div style={{
                                                 ...S.stageGap,
                                                 color: "var(--color-primary)",
@@ -834,7 +838,7 @@ export default function KalkulatorLeczeniaPage() {
                                             {leadSending ? t('sending') : t('sendToReceptionBtn')}
                                         </button>
                                         <p style={{ ...S.microCopy, textAlign: "center" }}>
-                                            Oddzwonimy z proponowanym planem leczenia
+                                            {t('callbackNote')}
                                         </p>
                                     </div>
                                 )}
