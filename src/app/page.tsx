@@ -7,9 +7,15 @@ import Link from "next/link";
 import RevealOnScroll from "@/components/RevealOnScroll";
 import BeforeAfterSlider from "@/components/BeforeAfterSlider";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 
 export default function Home() {
     const [showNotification, setShowNotification] = useState(false);
+    const tHero = useTranslations('hero');
+    const tValues = useTranslations('values');
+    const tNarrative = useTranslations('narrative');
+    const tNotification = useTranslations('notification');
+    const tCta = useTranslations();
 
     return (
         <main>
@@ -36,7 +42,7 @@ export default function Home() {
                             fontSize: "0.9rem",
                             marginBottom: "var(--spacing-sm)"
                         }}>
-                            Mikroskopowa Stomatologia Artystyczna
+                            {tHero('tagline')}
                         </p>
                     </RevealOnScroll>
 
@@ -47,8 +53,8 @@ export default function Home() {
                             lineHeight: 1.1,
                             fontWeight: 400
                         }}>
-                            Tworzymy uśmiechy, <br />
-                            <span style={{ fontStyle: "italic", color: "var(--color-primary-light)" }}>które zmieniają życie.</span>
+                            {tHero('title1')} <br />
+                            <span style={{ fontStyle: "italic", color: "var(--color-primary-light)" }}>{tHero('title2')}</span>
                         </h1>
                     </RevealOnScroll>
 
@@ -60,12 +66,11 @@ export default function Home() {
                             margin: "0 auto var(--spacing-lg)",
                             lineHeight: 1.8
                         }}>
-                            W Mikrostomart łączymy precyzję technologii z wrażliwością sztuki.
-                            Odkryj stomatologię, która przywraca pewność siebie.
+                            {tHero('description')}
                         </p>
                         <div style={{ display: "flex", gap: "var(--spacing-md)", justifyContent: "center" }}>
                             <Link href="/rezerwacja" className="btn-primary" style={{ padding: "1rem 2.5rem", fontSize: "1rem" }}>
-                                Umów Konsultację
+                                {tCta('bookConsultationCta')}
                             </Link>
                         </div>
                     </RevealOnScroll>
@@ -83,25 +88,25 @@ export default function Home() {
                 }}>
                     <RevealOnScroll delay={0}>
                         <div>
-                            <h3 style={{ fontSize: "1.5rem", marginBottom: "var(--spacing-sm)", color: "var(--color-primary)" }}>Precyzja</h3>
+                            <h3 style={{ fontSize: "1.5rem", marginBottom: "var(--spacing-sm)", color: "var(--color-primary)" }}>{tValues('precision')}</h3>
                             <p style={{ color: "var(--color-text-muted)" }}>
-                                Leczenie pod mikroskopem to nasz standard. Widzimy więcej, by leczyć skuteczniej i oszczędzać Twoje zęby.
+                                {tValues('precisionDesc')}
                             </p>
                         </div>
                     </RevealOnScroll>
                     <RevealOnScroll delay={100}>
                         <div>
-                            <h3 style={{ fontSize: "1.5rem", marginBottom: "var(--spacing-sm)", color: "var(--color-primary)" }}>Estetyka</h3>
+                            <h3 style={{ fontSize: "1.5rem", marginBottom: "var(--spacing-sm)", color: "var(--color-primary)" }}>{tValues('aesthetics')}</h3>
                             <p style={{ color: "var(--color-text-muted)" }}>
-                                Projektujemy uśmiechy w harmonii z Twoją twarzą. Naturalność jest dla nas najwyższą formą piękna.
+                                {tValues('aestheticsDesc')}
                             </p>
                         </div>
                     </RevealOnScroll>
                     <RevealOnScroll delay={200}>
                         <div>
-                            <h3 style={{ fontSize: "1.5rem", marginBottom: "var(--spacing-sm)", color: "var(--color-primary)" }}>Komfort</h3>
+                            <h3 style={{ fontSize: "1.5rem", marginBottom: "var(--spacing-sm)", color: "var(--color-primary)" }}>{tValues('comfort')}</h3>
                             <p style={{ color: "var(--color-text-muted)" }}>
-                                Bezbolesne znieczulenia komputerowe i atmosfera, która pozwala zapomnieć, że jesteś u dentysty.
+                                {tValues('comfortDesc')}
                             </p>
                         </div>
                     </RevealOnScroll>
@@ -141,14 +146,14 @@ export default function Home() {
                         <div style={{ order: 1 }}>
                             <RevealOnScroll>
                                 <h2 style={{ fontSize: "3rem", marginBottom: "var(--spacing-md)" }}>
-                                    Twoja droga do <br />
-                                    <span style={{ color: "var(--color-primary)" }}>nowego uśmiechu</span>
+                                    {tNarrative('title1')} <br />
+                                    <span style={{ color: "var(--color-primary)" }}>{tNarrative('title2')}</span>
                                 </h2>
                                 <p style={{ marginBottom: "var(--spacing-sm)", color: "var(--color-text-muted)" }}>
-                                    Nie musisz wiedzieć, jakiego zabiegu potrzebujesz. To my jesteśmy od tego, by wskazać Ci najlepszą drogę.
+                                    {tNarrative('description1')}
                                 </p>
                                 <p style={{ marginBottom: "var(--spacing-md)", color: "var(--color-text-muted)" }}>
-                                    Od drobnych korekt estetycznych po kompleksowe rekonstrukcje zgryzu. Zobacz, jak zmieniliśmy życie naszych pacjentów.
+                                    {tNarrative('description2')}
                                 </p>
                                 {/* Static link removed */}
                             </RevealOnScroll>
@@ -193,10 +198,10 @@ export default function Home() {
                         &times;
                     </button>
                     <p style={{ marginBottom: "0.5rem", fontWeight: "bold", color: "var(--color-primary)" }}>
-                        Podoba Ci się efekt?
+                        {tNotification('likeEffect')}
                     </p>
                     <Link href="/metamorfozy?slide=1" className="btn-primary" style={{ display: "block", textAlign: "center", fontSize: "0.9rem" }}>
-                        Zobacz więcej metamorfoz →
+                        {tNotification('seeMore')}
                     </Link>
                 </div>
             )}

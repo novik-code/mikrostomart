@@ -6,6 +6,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CheckCircle } from "lucide-react";
 import AppointmentScheduler from "./scheduler/AppointmentScheduler";
+import { useTranslations } from "next-intl";
 
 // Specialists Data
 const SPECIALISTS = [
@@ -51,6 +52,7 @@ export default function ReservationForm() {
     const [isSuccess, setIsSuccess] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [rodoConsent, setRodoConsent] = useState(false);
+    const t = useTranslations('reservationForm');
 
     const {
         register,
@@ -150,7 +152,7 @@ export default function ReservationForm() {
 
             setIsSuccess(true);
         } catch (err) {
-            setError("Wystąpił błąd. Spróbuj ponownie lub zadzwoń.");
+            setError(t('errorGeneral'));
         } finally {
             setIsSubmitting(false);
         }
@@ -169,10 +171,9 @@ export default function ReservationForm() {
                 <div style={{ color: "var(--color-primary)", marginBottom: "1rem", display: 'flex', justifyContent: 'center' }}>
                     <CheckCircle className="w-16 h-16 text-[#dcb14a]" />
                 </div>
-                <h3 style={{ fontSize: "1.5rem", marginBottom: "1rem" }}>Dziękujemy za zgłoszenie!</h3>
+                <h3 style={{ fontSize: "1.5rem", marginBottom: "1rem" }}>{t('successTitle')}</h3>
                 <p style={{ color: "var(--color-text-muted)" }}>
-                    Twój termin został wstępnie zarezerwowany.<br />
-                    Otrzymasz potwierdzenie mailowe oraz telefoniczne.
+                    {t('successMessage')}
                 </p>
                 <button
                     onClick={() => setIsSuccess(false)}
@@ -201,7 +202,7 @@ export default function ReservationForm() {
                 <input
                     {...register("name")}
                     type="text"
-                    placeholder="np. Jan Kowalski"
+                    placeholder={t('namePlaceholder')}
                     style={{
                         width: "100%",
                         padding: "0.8rem",
@@ -218,11 +219,11 @@ export default function ReservationForm() {
             {/* PHONE & EMAIL GRID */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
                 <div className="form-group">
-                    <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", color: "var(--color-text-muted)" }}>Telefon *</label>
+                    <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", color: "var(--color-text-muted)" }}>{t('phoneLabel')} *</label>
                     <input
                         {...register("phone")}
                         type="tel"
-                        placeholder="np. 500 123 456"
+                        placeholder={t('phonePlaceholder')}
                         style={{
                             width: "100%",
                             padding: "0.8rem",
@@ -236,11 +237,11 @@ export default function ReservationForm() {
                     {errors.phone && <p style={{ color: "red", fontSize: "0.8rem", marginTop: "0.3rem" }}>{errors.phone.message}</p>}
                 </div>
                 <div className="form-group">
-                    <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", color: "var(--color-text-muted)" }}>Email (opcjonalnie)</label>
+                    <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", color: "var(--color-text-muted)" }}>{t('emailLabel')}</label>
                     <input
                         {...register("email")}
                         type="email"
-                        placeholder="kontakt@example.com"
+                        placeholder={t('emailPlaceholder')}
                         style={{
                             width: "100%",
                             padding: "0.8rem",
@@ -257,7 +258,7 @@ export default function ReservationForm() {
 
             {/* SPECIALIST */}
             <div className="form-group">
-                <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", color: "var(--color-text-muted)" }}>Specjalista *</label>
+                <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", color: "var(--color-text-muted)" }}>{t('specialistLabel')} *</label>
                 <select
                     {...register("specialist")}
                     style={{
@@ -271,7 +272,7 @@ export default function ReservationForm() {
                         appearance: "none",
                     }}
                 >
-                    <option value="">Wybierz lekarza lub higienistkę...</option>
+                    <option value="">{t('selectSpecialist')}</option>
                     {SPECIALISTS.map(spec => (
                         <option key={spec.id} value={spec.id}>{spec.name}</option>
                     ))}
@@ -281,7 +282,7 @@ export default function ReservationForm() {
 
             {/* SERVICE - CONDITIONAL */}
             <div className="form-group">
-                <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", color: "var(--color-text-muted)" }}>Usługa *</label>
+                <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", color: "var(--color-text-muted)" }}>{t('serviceLabel')} *</label>
                 <select
                     {...register("service")}
                     disabled={!selectedSpecialist}
@@ -298,7 +299,7 @@ export default function ReservationForm() {
                     }}
                 >
                     <option value="">
-                        {!selectedSpecialist ? "Najpierw wybierz specjalistę" : "Wybierz usługę..."}
+                        {!selectedSpecialist ? t('selectService') : t('chooseService')}
                     </option>
                     {availableServices.map(svc => (
                         <option key={svc.id} value={svc.label}>{svc.label}</option>
@@ -308,40 +309,42 @@ export default function ReservationForm() {
             </div>
 
             {/* NEW REAL-TIME SCHEDULER */}
-            {selectedSpecialist && (
-                <div className="form-group">
-                    <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", color: "var(--color-text-muted)" }}>
-                        Dostępne Terminy * <span className="text-xs text-[#dcb14a]">(Czas trwania: {selectedSpecialist.id === 'malgorzata' ? '60min' : '30min'})</span>
-                    </label>
-                    <AppointmentScheduler
-                        specialistId={selectedSpecialist.id}
-                        specialistName={selectedSpecialist.name}
-                        onSlotSelect={handleSlotSelect}
-                    />
-                    {/* Hidden inputs to hold values for react-hook-form validation */}
-                    <input type="hidden" {...register("date")} />
-                    <input type="hidden" {...register("time")} />
+            {
+                selectedSpecialist && (
+                    <div className="form-group">
+                        <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", color: "var(--color-text-muted)" }}>
+                            Dostępne Terminy * <span className="text-xs text-[#dcb14a]">(Czas trwania: {selectedSpecialist.id === 'malgorzata' ? '60min' : '30min'})</span>
+                        </label>
+                        <AppointmentScheduler
+                            specialistId={selectedSpecialist.id}
+                            specialistName={selectedSpecialist.name}
+                            onSlotSelect={handleSlotSelect}
+                        />
+                        {/* Hidden inputs to hold values for react-hook-form validation */}
+                        <input type="hidden" {...register("date")} />
+                        <input type="hidden" {...register("time")} />
 
-                    {(errors.date || errors.time) && (
-                        <p style={{ color: "red", fontSize: "0.8rem", marginTop: "0.3rem" }}>
-                            Proszę wybrać termin z powyższego kalendarza.
-                        </p>
-                    )}
+                        {(errors.date || errors.time) && (
+                            <p style={{ color: "red", fontSize: "0.8rem", marginTop: "0.3rem" }}>
+                                {t('dateError')}
+                            </p>
+                        )}
 
-                    {selectedDate && selectedTime && (
-                        <p style={{ marginTop: "0.5rem", fontSize: "0.9rem", color: "#dcb14a" }}>
-                            Wybrano: <strong>{selectedDate}, godz. {selectedTime}</strong>
-                        </p>
-                    )}
-                </div>
-            )}
+                        {selectedDate && selectedTime && (
+                            <p style={{ marginTop: "0.5rem", fontSize: "0.9rem", color: "#dcb14a" }}>
+                                Wybrano: <strong>{selectedDate}, godz. {selectedTime}</strong>
+                            </p>
+                        )}
+                    </div>
+                )
+            }
 
             {/* DESCRIPTION & PHOTO */}
             <div className="form-group">
-                <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", color: "var(--color-text-muted)" }}>Opis problemu (Opcjonalnie)</label>
+                <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", color: "var(--color-text-muted)" }}>{t('descriptionLabel')}</label>
                 <textarea
                     {...register("description")}
-                    placeholder="Opisz krótko z czym się zgłaszasz..."
+                    placeholder={t('descriptionPlaceholder')}
                     rows={3}
                     style={{
                         width: "100%",
@@ -359,7 +362,7 @@ export default function ReservationForm() {
 
             <div className="form-group">
                 <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", color: "var(--color-text-muted)" }}>
-                    Zdjęcie RVG / Pantomogram (Opcjonalnie) 📸
+                    {t('attachmentLabel')} 📸
                 </label>
                 <input
                     {...register("attachment")}
@@ -416,7 +419,7 @@ export default function ReservationForm() {
                     cursor: (isSubmitting || !rodoConsent) ? "not-allowed" : "pointer"
                 }}
             >
-                {isSubmitting ? "Wysyłanie..." : "Umów Wizytę"}
+                {isSubmitting ? t('submitting') : t('submit')}
             </button>
 
             <style jsx>{`
@@ -426,6 +429,6 @@ export default function ReservationForm() {
                     }
                 }
             `}</style>
-        </form>
+        </form >
     );
 }

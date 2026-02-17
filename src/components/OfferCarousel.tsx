@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight, Microscope, Scan, Wand2, Syringe, Sparkles, Smile, ShieldCheck, Gem } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+import { useTranslations } from "next-intl";
 
 interface OfferItem {
     id: number;
@@ -116,6 +117,7 @@ export default function OfferCarousel() {
     const [[page, direction], setPage] = useState([0, 0]);
     const [isExpanded, setIsExpanded] = useState(false);
     const [isPaused, setIsPaused] = useState(false); // Pause auto-play on hover
+    const t = useTranslations('offerItems');
 
     const activeIndex = Math.abs(page % OFFERS.length);
     const offer = OFFERS[activeIndex];
@@ -252,7 +254,7 @@ export default function OfferCarousel() {
                                     letterSpacing: "0.1em",
                                     fontSize: "0.875rem"
                                 }}>
-                                    Oferta Specjalistyczna
+                                    {t('sectionLabel')}
                                 </p>
                                 <h2 style={{
                                     fontSize: "clamp(2rem, 4vw, 3rem)",
@@ -307,7 +309,7 @@ export default function OfferCarousel() {
                                                         shadow-[0_0_20px_rgba(220,177,74,0.3)]
                                                     "
                                                 >
-                                                    Umów Wizytę <ChevronRight size={16} strokeWidth={3} />
+                                                    {t('bookVisit')} <ChevronRight size={16} strokeWidth={3} />
                                                 </Link>
                                             </div>
                                         </div>
@@ -331,7 +333,7 @@ export default function OfferCarousel() {
                                             outline: 'none'
                                         }}
                                     >
-                                        {isExpanded ? "Zwiń Opis" : "Najedź, aby rozwinąć"}
+                                        {isExpanded ? t('collapse') : t('expand')}
                                     </button>
                                 </div>
                             </div>

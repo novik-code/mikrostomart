@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import BeforeAfterSlider from '@/components/BeforeAfterSlider';
 import RevealOnScroll from '@/components/RevealOnScroll';
 import { useSimulator } from "@/context/SimulatorContext";
+import { useTranslations } from 'next-intl';
 
 interface MetamorphosisItem {
     id: number;
@@ -141,6 +142,7 @@ export default function MetamorphosisGallery({ initialIndex = 0 }: { initialInde
     const [currentIndex, setCurrentIndex] = useState(initialIndex);
     const [isTransitioning, setIsTransitioning] = useState(false);
     const { openSimulator } = useSimulator();
+    const t = useTranslations('metamorphosisUI');
 
     // Tooltip State
     const [activeTooltip, setActiveTooltip] = useState<'left' | 'right' | null>(null);
@@ -261,10 +263,10 @@ export default function MetamorphosisGallery({ initialIndex = 0 }: { initialInde
                     &times;
                 </button>
                 <p style={{ color: 'var(--color-primary)', fontWeight: 'bold', marginBottom: '0.5rem' }}>
-                    Zainspirowany?
+                    {t('inspired')}
                 </p>
                 <p style={{ marginBottom: '1rem', fontSize: '0.9rem' }}>
-                    Zobacz jak TY możesz wyglądać w nowym uśmiechu!
+                    {t('inspiredDesc')}
                 </p>
                 <button
                     onClick={() => {
@@ -274,7 +276,7 @@ export default function MetamorphosisGallery({ initialIndex = 0 }: { initialInde
                     className="btn-primary"
                     style={{ padding: '0.5rem 1.5rem', fontSize: '0.9rem', cursor: 'pointer' }}
                 >
-                    Otwórz Symulator AI ✨
+                    {t('openSimulator')} ✨
                 </button>
             </div>
         </div>

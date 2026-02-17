@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Paperclip, X } from "lucide-react"; // Assuming lucide-react is available, if not I'll use text or check imports.
+import { Paperclip, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 // Schema Validation
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -32,6 +33,7 @@ export default function ContactForm() {
     const [isSuccess, setIsSuccess] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [fileName, setFileName] = useState<string | null>(null);
+    const t = useTranslations('contactForm');
 
     // Captcha State
     const [num1, setNum1] = useState(0);
@@ -128,7 +130,7 @@ export default function ContactForm() {
             setNum2(Math.floor(Math.random() * 10) + 1);
 
         } catch (err) {
-            setError("Wystąpił błąd. Spróbuj ponownie.");
+            setError(t('errorGeneral'));
         } finally {
             setIsSubmitting(false);
         }
@@ -147,15 +149,15 @@ export default function ContactForm() {
                 <div style={{ color: "var(--color-primary)", marginBottom: "1rem", display: 'flex', justifyContent: 'center' }}>
                     <span style={{ fontSize: '3rem' }}>📬</span>
                 </div>
-                <h3 style={{ fontSize: "1.5rem", marginBottom: "1rem" }}>Wiadomość Wysłana!</h3>
+                <h3 style={{ fontSize: "1.5rem", marginBottom: "1rem" }}>{t('successTitle')}</h3>
                 <p style={{ color: "var(--color-text-muted)" }}>
-                    Odpowiemy najszybciej jak to możliwe (zazwyczaj do 24h).
+                    {t('successMessage')}
                 </p>
                 <button
                     onClick={() => setIsSuccess(false)}
                     style={{ marginTop: '2rem', padding: '0.8rem 1.5rem', background: 'transparent', border: '1px solid var(--color-primary)', color: 'var(--color-primary)', borderRadius: 'var(--radius-md)', cursor: 'pointer' }}
                 >
-                    Wyślij kolejną wiadomość
+                    {t('sendAnother')}
                 </button>
             </div>
         );
@@ -174,11 +176,11 @@ export default function ContactForm() {
         }}>
             {/* NAME */}
             <div className="form-group">
-                <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", color: "var(--color-text-muted)" }}>Imię *</label>
+                <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", color: "var(--color-text-muted)" }}>{t('nameLabel')} *</label>
                 <input
                     {...register("name")}
                     type="text"
-                    placeholder="Twoje imię"
+                    placeholder={t('namePlaceholder')}
                     style={{
                         width: "100%",
                         padding: "0.8rem",
@@ -194,11 +196,11 @@ export default function ContactForm() {
 
             {/* EMAIL */}
             <div className="form-group">
-                <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", color: "var(--color-text-muted)" }}>Email *</label>
+                <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", color: "var(--color-text-muted)" }}>{t('emailLabel')} *</label>
                 <input
                     {...register("email")}
                     type="email"
-                    placeholder="kontakt@example.com"
+                    placeholder={t('emailPlaceholder')}
                     style={{
                         width: "100%",
                         padding: "0.8rem",
@@ -214,11 +216,11 @@ export default function ContactForm() {
 
             {/* SUBJECT (NEW) */}
             <div className="form-group">
-                <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", color: "var(--color-text-muted)" }}>Temat *</label>
+                <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", color: "var(--color-text-muted)" }}>{t('subjectLabel')} *</label>
                 <input
                     {...register("subject")}
                     type="text"
-                    placeholder="Czego dotyczy wiadomość?"
+                    placeholder={t('subjectPlaceholder')}
                     style={{
                         width: "100%",
                         padding: "0.8rem",
@@ -234,10 +236,10 @@ export default function ContactForm() {
 
             {/* MESSAGE */}
             <div className="form-group">
-                <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", color: "var(--color-text-muted)" }}>Wiadomość *</label>
+                <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", color: "var(--color-text-muted)" }}>{t('messageLabel')} *</label>
                 <textarea
                     {...register("message")}
-                    placeholder="W czym możemy pomóc?"
+                    placeholder={t('messagePlaceholder')}
                     rows={5}
                     style={{
                         width: "100%",
@@ -255,7 +257,7 @@ export default function ContactForm() {
 
             {/* ATTACHMENT (NEW) */}
             <div className="form-group">
-                <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", color: "var(--color-text-muted)" }}>Załącznik (max 5MB)</label>
+                <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", color: "var(--color-text-muted)" }}>{t('attachmentLabel')}</label>
                 <div style={{ position: "relative" }}>
                     <input
                         {...register("attachment")}
@@ -291,7 +293,7 @@ export default function ContactForm() {
                         onMouseOut={(e) => e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)"}
                     >
                         <Paperclip size={18} />
-                        <span>{fileName || "Wybierz plik (JPG, PNG, PDF)"}</span>
+                        <span>{fileName || t('selectFile')}</span>
                     </label>
                 </div>
                 {errors.attachment && <p style={{ color: "red", fontSize: "0.8rem", marginTop: "0.3rem" }}>{errors.attachment.message as string}</p>}
@@ -308,7 +310,7 @@ export default function ContactForm() {
                 border: "1px solid var(--color-surface-hover)",
             }}>
                 <label style={{ display: "block", marginBottom: "0.8rem", fontSize: "0.9rem", color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "1px" }}>
-                    Weryfikacja
+                    {t('captchaLabel')}
                 </label>
                 <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
                     <div style={{
@@ -328,7 +330,7 @@ export default function ContactForm() {
                         pattern="[0-9]*"
                         value={userAnswer}
                         onChange={(e) => setUserAnswer(e.target.value)}
-                        placeholder="Wynik"
+                        placeholder={t('captchaPlaceholder')}
                         style={{
                             width: "80px",
                             padding: "0.6rem",
@@ -391,7 +393,7 @@ export default function ContactForm() {
                     marginTop: "0.5rem"
                 }}
             >
-                {isSubmitting ? "Wysyłanie..." : "Wyślij Wiadomość"}
+                {isSubmitting ? t('submitting') : t('submit')}
             </button>
 
         </form>

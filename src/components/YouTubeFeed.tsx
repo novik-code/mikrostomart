@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import RevealOnScroll from "./RevealOnScroll";
 import { Youtube, Instagram, Facebook, UserRound } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 // Fallback data if API key is not configured
 const FALLBACK_VIDEOS = [
@@ -17,6 +18,7 @@ export default function YouTubeFeed() {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [videosPerPage, setVideosPerPage] = useState(3);
     const [isApiWorking, setIsApiWorking] = useState(false);
+    const t = useTranslations('youtubeFeed');
 
     useEffect(() => {
         // Fetch from our internal API
@@ -74,7 +76,7 @@ export default function YouTubeFeed() {
             <div className="container">
                 <RevealOnScroll>
                     <h2 style={{ textAlign: "center", marginBottom: "var(--spacing-xl)", color: "var(--color-primary)" }}>
-                        Zobacz nas na YouTube
+                        {t('sectionTitle')}
                     </h2>
                 </RevealOnScroll>
 

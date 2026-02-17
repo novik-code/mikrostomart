@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { reviews as staticReviews } from "@/data/reviews";
 import RevealOnScroll from "./RevealOnScroll";
 import { Star, Quote } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 interface GoogleReview {
     author: string;
@@ -29,6 +30,7 @@ export default function GoogleReviews() {
     const [liveReviews, setLiveReviews] = useState<GoogleReview[] | null>(null);
     const [overallRating, setOverallRating] = useState(5.0);
     const [totalReviews, setTotalReviews] = useState(0);
+    const t = useTranslations('googleReviews');
 
     useEffect(() => {
         const fetchReviews = async () => {
@@ -78,7 +80,7 @@ export default function GoogleReviews() {
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "1rem", marginBottom: "0.5rem" }}>
                             <GoogleLogo />
                             <h2 style={{ fontSize: "2rem", color: "var(--color-text)", fontWeight: 400 }}>
-                                Opinie Pacjentów
+                                {t('sectionTitle')}
                             </h2>
                         </div>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem" }}>
@@ -97,8 +99,8 @@ export default function GoogleReviews() {
                             </div>
                             <span style={{ color: "var(--color-text-muted)", fontSize: "0.9rem" }}>
                                 {totalReviews > 0
-                                    ? `(${totalReviews} opinii w Google)`
-                                    : "(na podstawie opinii Google)"
+                                    ? t('subtitleWithCount', { count: totalReviews })
+                                    : t('subtitleGeneric')
                                 }
                             </span>
                         </div>
