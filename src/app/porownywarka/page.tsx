@@ -2,12 +2,9 @@
 
 import { useState, useCallback, useMemo, useEffect } from "react";
 import Link from "next/link";
-import { useTranslations } from "next-intl";
-import {
-    CATEGORIES, COMPARATORS, PRIORITIES, METHODS, TABLE_ROW_LABELS,
-    rankMethods, getRecommendationText,
-    type Comparator, type ScoredMethod, type TableCell,
-} from "./comparatorData";
+import { useTranslations, useLocale } from "next-intl";
+import type { Comparator, ScoredMethod, TableCell } from "./comparatorTypes";
+import { getComparatorData } from "./getComparatorData";
 import RevealOnScroll from "@/components/RevealOnScroll";
 import {
     ArrowLeft, ArrowRight, Send, CalendarDays, ExternalLink,
@@ -549,6 +546,10 @@ type Step = "category" | "scenario" | "priority" | "questions" | "results";
 
 export default function PorownywarkaPage() {
     const t = useTranslations('porownywarka');
+    const locale = useLocale();
+    const data = useMemo(() => getComparatorData(locale), [locale]);
+    const { categories: CATEGORIES, comparators: COMPARATORS, priorities: PRIORITIES, methods: METHODS, tableRowLabels: TABLE_ROW_LABELS, rankMethods, getRecommendationText } = data;
+
     const [step, setStep] = useState<Step>("category");
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
     const [comparator, setComparator] = useState<Comparator | null>(null);
@@ -568,7 +569,7 @@ export default function PorownywarkaPage() {
     const ranking = useMemo(() => {
         if (!comparator || !priority) return [];
         return rankMethods(comparator.id, priority, answers);
-    }, [comparator, priority, answers]);
+    }, [comparator, priority, answers, rankMethods]);
 
     const topMethod = ranking[0] ? METHODS[ranking[0].methodId] : null;
 
@@ -644,7 +645,7 @@ export default function PorownywarkaPage() {
     const filteredComparators = useMemo(() => {
         if (!selectedCategory) return COMPARATORS;
         return COMPARATORS.filter(c => c.categoryId === selectedCategory);
-    }, [selectedCategory]);
+    }, [selectedCategory, COMPARATORS]);
 
     const currentCat = CATEGORIES.find(c => c.id === selectedCategory);
 
@@ -906,7 +907,11 @@ export default function PorownywarkaPage() {
                                     <Award size={20} /> Rekomendacja
                                 </h3>
                                 <p style={S.recText}>
-                                    {ranking[0] && renderBold(getRecommendationText(priority, ranking[0]))}
+                                    {ranking[0] && (() => {
+                                        const m = METHODS[ranking[0].methodId];
+                                        const pri = PRIORITIES.find(p => p.id === priority);
+                                        return m ? renderBold(getRecommendationText(priority, pri?.label || priority, m.label, m.short, ranking[0].badges.length > 0)) : null;
+                                    })()}
                                 </p>
                                 {ranking[0]?.badges.length > 0 && (
                                     <div style={{ marginTop: "0.75rem", display: "flex", flexDirection: "column", gap: "0.35rem" }}>
