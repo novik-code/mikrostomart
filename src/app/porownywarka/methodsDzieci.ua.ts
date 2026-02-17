@@ -1,0 +1,68 @@
+import type { Method } from "./comparatorTypes";
+
+export const METHODS_DZIECI_UA: Record<string, Method> = {
+    sealant: {
+        id: "sealant", label: "Герметизація фісур", short: "Захисне покриття фісур — найкраща профілактика.",
+        icon: "🛡️", color: "#10b981", recommendedSpecialist: "malgorzata",
+        table: {
+            time: { value: "15–20 хв", scale: 5, tooltip: "Швидка, безболісна процедура." },
+            visits: { value: "1", scale: 5, tooltip: "Один короткий візит." },
+            durability: { value: "3–5 років", scale: 3, tooltip: "Може потребувати оновлення. Перевірка при кожному візиті." },
+            invasiveness: { value: "Нульова", scale: 5, tooltip: "Без обточування. Поверхня лише очищується." },
+            risk: { value: "Відсутній", scale: 5, tooltip: "Повністю безпечно, без побічних ефектів." },
+            hygiene: { value: "Без змін", scale: 5, tooltip: "Звичайне чищення зубів." },
+            worksWhen: ["Щойно прорізані моляри (6-ті, 7-мі зуби)", "Глибокі фісури з ризиком карієсу", "Дитина кооперує під час процедури"],
+            notIdealWhen: ["Карієс вже у фісурі", "Зуб не повністю прорізався", "Дитина не кооперує — можна зробити пізніше"],
+            maintenance: { value: "Перевірка при кожному візиті", tooltip: "Оцінка цілісності герметика, оновлення за потреби." },
+        },
+        metrics: { durabilityScore: 50, speedScore: 98, minInvasiveScore: 100, maintenanceScore: 70, riskScore: 100 },
+    },
+    fluoride_varnish: {
+        id: "fluoride_varnish", label: "Фторлак", short: "Місцеве фторування — зміцнює емаль.",
+        icon: "💧", color: "#38bdf8", recommendedSpecialist: "malgorzata",
+        table: {
+            time: { value: "5–10 хв", scale: 5, tooltip: "Швидке нанесення на поверхні зубів." },
+            visits: { value: "1", scale: 5, tooltip: "Під час звичайного огляду." },
+            durability: { value: "3–6 місяців", scale: 2, tooltip: "Повторювати 2–4×/рік." },
+            invasiveness: { value: "Нульова", scale: 5, tooltip: "Без втручання. Лак лише наноситься." },
+            risk: { value: "Відсутній", scale: 5, tooltip: "Безпечний навіть для маленьких дітей." },
+            hygiene: { value: "Без змін", scale: 5, tooltip: "Не їсти 30 хв після нанесення." },
+            worksWhen: ["Діти з високим ризиком карієсу", "Після прорізування постійних зубів", "Білі плями — рання демінералізація"],
+            notIdealWhen: ["Активна каверна — потрібна пломба", "Алергія на фтор (вкрай рідко)", "Дитина не може тримати рот відкритим"],
+            maintenance: { value: "Повторення 2–4×/рік", tooltip: "Регулярне нанесення під час контролів." },
+        },
+        metrics: { durabilityScore: 25, speedScore: 100, minInvasiveScore: 100, maintenanceScore: 50, riskScore: 100 },
+    },
+    filling_deciduous: {
+        id: "filling_deciduous", label: "Пломба (молочний зуб)", short: "Лікування карієсу молочного зуба — збереження до зміни.",
+        icon: "🪥", color: "#f59e0b", recommendedSpecialist: "malgorzata",
+        table: {
+            time: { value: "20–40 хв", scale: 5, tooltip: "Один короткий візит." },
+            visits: { value: "1", scale: 5, tooltip: "Видалення карієсу + постановка пломби." },
+            durability: { value: "До зміни зуба", scale: 4, tooltip: "Пломба тримається до природного випадіння зуба." },
+            invasiveness: { value: "Низька", scale: 4, tooltip: "Видалення карієсу під анестезією." },
+            risk: { value: "Низький", scale: 4, tooltip: "Стандартний ризик: кооперація дитини." },
+            hygiene: { value: "Стандартна", scale: 5, tooltip: "Чищення зубів під наглядом як зазвичай." },
+            worksWhen: ["Карієс молочного зуба", "До зміни зуба ще 1+ рік", "Дитина кооперує або можлива седація"],
+            notIdealWhen: ["Зуб зміниться за кілька місяців", "Обширний карієс — може знадобитись видалення", "Дитина не кооперує без седації"],
+            maintenance: { value: "Контроль кожні 6 місяців", tooltip: "Оцінка стану пломби та зуба." },
+        },
+        metrics: { durabilityScore: 60, speedScore: 90, minInvasiveScore: 75, maintenanceScore: 72, riskScore: 85 },
+    },
+    pulpotomy: {
+        id: "pulpotomy", label: "Пульпотомія", short: "Часткове видалення пульпи молочного зуба — збереження зуба.",
+        icon: "❤️‍🩹", color: "#ef4444", recommendedSpecialist: "malgorzata",
+        table: {
+            time: { value: "30–45 хв", scale: 4, tooltip: "Один візит, може потребувати коронки після." },
+            visits: { value: "1–2", scale: 4, tooltip: "Пульпотомія + можлива готова коронка." },
+            durability: { value: "До зміни зуба", scale: 4, tooltip: "Мета: зберегти зуб у дузі." },
+            invasiveness: { value: "Середня", scale: 3, tooltip: "Видалення коронкової пульпи." },
+            risk: { value: "Низький–середній", scale: 4, tooltip: "Ризик: неповне розсмоктування, потреба у видаленні." },
+            hygiene: { value: "Стандартна", scale: 5, tooltip: "Звичайна гігієна." },
+            worksWhen: ["Глибокий карієс із ураженням пульпи", "Молочний зуб потрібен для збереження місця", "Дитина кооперує або доступна седація"],
+            notIdealWhen: ["Зуб скоро зміниться", "Периапікальна інфекція — потрібне видалення", "Карієс занадто запущений для реставрації"],
+            maintenance: { value: "Рентген-контроль", tooltip: "Контрольні знімки кожні 6–12 місяців." },
+        },
+        metrics: { durabilityScore: 55, speedScore: 82, minInvasiveScore: 45, maintenanceScore: 65, riskScore: 72 },
+    },
+};

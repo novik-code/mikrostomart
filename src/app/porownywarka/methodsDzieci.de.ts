@@ -1,0 +1,68 @@
+import type { Method } from "./comparatorTypes";
+
+export const METHODS_DZIECI_DE: Record<string, Method> = {
+    sealant: {
+        id: "sealant", label: "Fissurenversiegelung", short: "Schutzlack auf Fissuren — die beste Vorbeugung.",
+        icon: "🛡️", color: "#10b981", recommendedSpecialist: "malgorzata",
+        table: {
+            time: { value: "15–20 Min.", scale: 5, tooltip: "Schnelle, schmerzlose Prozedur." },
+            visits: { value: "1", scale: 5, tooltip: "Ein kurzer Termin." },
+            durability: { value: "3–5 Jahre", scale: 3, tooltip: "Ggf. Erneuerung nötig. Kontrolle bei jeder Visite." },
+            invasiveness: { value: "Keine", scale: 5, tooltip: "Kein Beschleifen. Zahnoberfläche nur gereinigt." },
+            risk: { value: "Keins", scale: 5, tooltip: "Vollkommen sicher, keine Nebenwirkungen." },
+            hygiene: { value: "Keine Änderung", scale: 5, tooltip: "Standardmäßiges Zähneputzen." },
+            worksWhen: ["Frisch durchgebrochene Backenzähne (6er, 7er)", "Tiefe Fissuren mit Kariesrisiko", "Kind kooperiert bei der Behandlung"],
+            notIdealWhen: ["Karies bereits in der Fissur vorhanden", "Zahn nicht vollständig durchgebrochen", "Kind kooperiert nicht — kann später erfolgen"],
+            maintenance: { value: "Kontrolle bei jedem Besuch", tooltip: "Versiegelungsintegrität prüfen, ggf. erneuern." },
+        },
+        metrics: { durabilityScore: 50, speedScore: 98, minInvasiveScore: 100, maintenanceScore: 70, riskScore: 100 },
+    },
+    fluoride_varnish: {
+        id: "fluoride_varnish", label: "Fluoridlack", short: "Lokale Fluoridierung — stärkt den Schmelz.",
+        icon: "💧", color: "#38bdf8", recommendedSpecialist: "malgorzata",
+        table: {
+            time: { value: "5–10 Min.", scale: 5, tooltip: "Schnelles Auftragen auf Zahnoberflächen." },
+            visits: { value: "1", scale: 5, tooltip: "Während einer regulären Kontrolle." },
+            durability: { value: "3–6 Monate", scale: 2, tooltip: "2–4×/Jahr wiederholen." },
+            invasiveness: { value: "Keine", scale: 5, tooltip: "Kein Eingriff. Lack wird nur aufgepinselt." },
+            risk: { value: "Keins", scale: 5, tooltip: "Sicher auch für Kleinkinder." },
+            hygiene: { value: "Keine Änderung", scale: 5, tooltip: "30 Min. nach Auftragung nicht essen." },
+            worksWhen: ["Kinder mit hohem Kariesrisiko", "Nach Durchbruch der bleibenden Zähne", "White Spots — frühe Demineralisation"],
+            notIdealWhen: ["Aktive Kavität — Füllung nötig", "Fluoridallergie (extrem selten)", "Kind kann Mund nicht offen halten"],
+            maintenance: { value: "Wiederholung 2–4×/Jahr", tooltip: "Regelmäßiges Auftragen bei Kontrollen." },
+        },
+        metrics: { durabilityScore: 25, speedScore: 100, minInvasiveScore: 100, maintenanceScore: 50, riskScore: 100 },
+    },
+    filling_deciduous: {
+        id: "filling_deciduous", label: "Füllung (Milchzahn)", short: "Kariesbehandlung am Milchzahn — Erhalt bis zum natürlichen Ausfall.",
+        icon: "🪥", color: "#f59e0b", recommendedSpecialist: "malgorzata",
+        table: {
+            time: { value: "20–40 Min.", scale: 5, tooltip: "Ein kurzer Termin." },
+            visits: { value: "1", scale: 5, tooltip: "Kariesentfernung + Füllungslegung." },
+            durability: { value: "Bis zum Zahnwechsel", scale: 4, tooltip: "Füllung hält bis zum natürlichen Zahnverlust." },
+            invasiveness: { value: "Gering", scale: 4, tooltip: "Kariesentfernung unter Anästhesie." },
+            risk: { value: "Gering", scale: 4, tooltip: "Standardrisiko: Kooperation des Kindes." },
+            hygiene: { value: "Standard", scale: 5, tooltip: "Unter Aufsicht Zähneputzen wie gewohnt." },
+            worksWhen: ["Karies am Milchzahn", "Wechsel frühestens in 1+ Jahr", "Kind kooperiert oder Sedierung möglich"],
+            notIdealWhen: ["Zahnwechsel in wenigen Monaten", "Umfangreiche Karies — ggf. Extraktion nötig", "Nicht kooperierendes Kind ohne Sedierung"],
+            maintenance: { value: "Kontrollen alle 6 Monate", tooltip: "Füllung und Zahnzustand beurteilen." },
+        },
+        metrics: { durabilityScore: 60, speedScore: 90, minInvasiveScore: 75, maintenanceScore: 72, riskScore: 85 },
+    },
+    pulpotomy: {
+        id: "pulpotomy", label: "Pulpotomie", short: "Teilweise Pulpaentfernung am Milchzahn — Zahnerhalt.",
+        icon: "❤️‍🩹", color: "#ef4444", recommendedSpecialist: "malgorzata",
+        table: {
+            time: { value: "30–45 Min.", scale: 4, tooltip: "Ein Termin, danach ggf. Krone." },
+            visits: { value: "1–2", scale: 4, tooltip: "Pulpotomie + ggf. vorgefertigte Krone." },
+            durability: { value: "Bis zum Zahnwechsel", scale: 4, tooltip: "Ziel: Zahn im Bogen erhalten." },
+            invasiveness: { value: "Mittel", scale: 3, tooltip: "Koronale Pulpaentfernung." },
+            risk: { value: "Gering–mittel", scale: 4, tooltip: "Risiko: unvollständige Heilung, Extraktion nötig." },
+            hygiene: { value: "Standard", scale: 5, tooltip: "Normale Hygiene." },
+            worksWhen: ["Tiefe Karies mit Pulpabeteiligung", "Milchzahn für Platzerhalt nötig", "Kind kooperiert oder Sedierung möglich"],
+            notIdealWhen: ["Zahnwechsel steht kurz bevor", "Periapikale Infektion — Extraktion nötig", "Karies zu weit fortgeschritten"],
+            maintenance: { value: "Röntgenkontrollen", tooltip: "Kontroll-Röntgen alle 6–12 Monate." },
+        },
+        metrics: { durabilityScore: 55, speedScore: 82, minInvasiveScore: 45, maintenanceScore: 65, riskScore: 72 },
+    },
+};

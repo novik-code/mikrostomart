@@ -1,0 +1,68 @@
+import type { Method } from "./comparatorTypes";
+
+export const METHODS_DZIECI_EN: Record<string, Method> = {
+    sealant: {
+        id: "sealant", label: "Fissure sealant", short: "Protective coating on fissures — the best prevention.",
+        icon: "🛡️", color: "#10b981", recommendedSpecialist: "malgorzata",
+        table: {
+            time: { value: "15–20 min", scale: 5, tooltip: "Quick, painless procedure." },
+            visits: { value: "1", scale: 5, tooltip: "One short appointment." },
+            durability: { value: "3–5 years", scale: 3, tooltip: "May need renewal. Check at every visit." },
+            invasiveness: { value: "None", scale: 5, tooltip: "No grinding. Tooth surface only cleaned." },
+            risk: { value: "None", scale: 5, tooltip: "Fully safe, no side effects." },
+            hygiene: { value: "No change", scale: 5, tooltip: "Standard brushing." },
+            worksWhen: ["Newly erupted molars (6s, 7s)", "Deep fissures at risk of caries", "Child cooperates during the procedure"],
+            notIdealWhen: ["Caries already present in the fissure", "Tooth not fully erupted", "Child does not cooperate — can be done later"],
+            maintenance: { value: "Check at every visit", tooltip: "Assess sealant integrity, renew if needed." },
+        },
+        metrics: { durabilityScore: 50, speedScore: 98, minInvasiveScore: 100, maintenanceScore: 70, riskScore: 100 },
+    },
+    fluoride_varnish: {
+        id: "fluoride_varnish", label: "Fluoride varnish", short: "Topical fluoride application — strengthens enamel.",
+        icon: "💧", color: "#38bdf8", recommendedSpecialist: "malgorzata",
+        table: {
+            time: { value: "5–10 min", scale: 5, tooltip: "Quick application on tooth surfaces." },
+            visits: { value: "1", scale: 5, tooltip: "During a regular check-up." },
+            durability: { value: "3–6 months", scale: 2, tooltip: "Repeat 2–4×/year." },
+            invasiveness: { value: "None", scale: 5, tooltip: "No intervention. Varnish only painted on." },
+            risk: { value: "None", scale: 5, tooltip: "Safe even for small children." },
+            hygiene: { value: "No change", scale: 5, tooltip: "Don't eat for 30 min after application." },
+            worksWhen: ["Children at high caries risk", "After eruption of permanent teeth", "White spots — early demineralisation"],
+            notIdealWhen: ["Active cavity — filling needed", "Fluoride allergy (extremely rare)", "Child unable to keep mouth open"],
+            maintenance: { value: "Repeat 2–4×/year", tooltip: "Regular application during check-ups." },
+        },
+        metrics: { durabilityScore: 25, speedScore: 100, minInvasiveScore: 100, maintenanceScore: 50, riskScore: 100 },
+    },
+    filling_deciduous: {
+        id: "filling_deciduous", label: "Filling (deciduous tooth)", short: "Treating caries in a baby tooth — preserving it until exfoliation.",
+        icon: "🪥", color: "#f59e0b", recommendedSpecialist: "malgorzata",
+        table: {
+            time: { value: "20–40 min", scale: 5, tooltip: "One short appointment." },
+            visits: { value: "1", scale: 5, tooltip: "Caries removal + filling placement." },
+            durability: { value: "Until exfoliation", scale: 4, tooltip: "Filling lasts until the tooth naturally falls out." },
+            invasiveness: { value: "Low", scale: 4, tooltip: "Caries removal under anaesthesia." },
+            risk: { value: "Low", scale: 4, tooltip: "Standard risk: child's cooperation." },
+            hygiene: { value: "Standard", scale: 5, tooltip: "Supervised brushing as usual." },
+            worksWhen: ["Caries in a deciduous tooth", "Tooth won't exfoliate for 1+ year", "Child cooperates or sedation possible"],
+            notIdealWhen: ["Tooth exfoliating within months", "Extensive caries — extraction may be needed", "Non-cooperating child without sedation"],
+            maintenance: { value: "Check-ups every 6 months", tooltip: "Assess filling and tooth condition." },
+        },
+        metrics: { durabilityScore: 60, speedScore: 90, minInvasiveScore: 75, maintenanceScore: 72, riskScore: 85 },
+    },
+    pulpotomy: {
+        id: "pulpotomy", label: "Pulpotomy", short: "Partial pulp removal in a deciduous tooth — saving the tooth.",
+        icon: "❤️‍🩹", color: "#ef4444", recommendedSpecialist: "malgorzata",
+        table: {
+            time: { value: "30–45 min", scale: 4, tooltip: "One appointment, may need crown afterwards." },
+            visits: { value: "1–2", scale: 4, tooltip: "Pulpotomy + optional prefabricated crown." },
+            durability: { value: "Until exfoliation", scale: 4, tooltip: "Purpose: maintain the tooth in the arch." },
+            invasiveness: { value: "Medium", scale: 3, tooltip: "Coronal pulp removal." },
+            risk: { value: "Low–medium", scale: 4, tooltip: "Risk: incomplete resolution, need for extraction." },
+            hygiene: { value: "Standard", scale: 5, tooltip: "Normal hygiene." },
+            worksWhen: ["Deep caries with pulp involvement", "Deciduous tooth needed for space maintenance", "Child cooperates or sedation available"],
+            notIdealWhen: ["Tooth exfoliating soon", "Periapical infection — extraction needed", "Caries too advanced for restoration"],
+            maintenance: { value: "X-ray check-ups", tooltip: "Follow-up X-rays every 6–12 months." },
+        },
+        metrics: { durabilityScore: 55, speedScore: 82, minInvasiveScore: 45, maintenanceScore: 65, riskScore: 72 },
+    },
+};

@@ -1,0 +1,68 @@
+import type { Method } from "./comparatorTypes";
+
+export const METHODS_PROFILAKTYKA_DE: Record<string, Method> = {
+    hygiene_visit: {
+        id: "hygiene_visit", label: "Prophylaxe-Termin", short: "Zahnsteinentfernung + Politur + Hygieneberatung.",
+        icon: "🪥", color: "#10b981", recommendedSpecialist: "malgorzata",
+        table: {
+            time: { value: "45–60 Min.", scale: 5, tooltip: "Umfassender Prophylaxe-Termin." },
+            visits: { value: "1", scale: 5, tooltip: "Ein Termin." },
+            durability: { value: "6–12 Monate", scale: 3, tooltip: "Regelmäßige Besuche erhalten das Ergebnis." },
+            invasiveness: { value: "Keine", scale: 5, tooltip: "Nicht-invasiv. Kein Schleifen oder Bohren." },
+            risk: { value: "Keins", scale: 5, tooltip: "Vollkommen sichere Prozedur." },
+            hygiene: { value: "Hauptzweck", scale: 5, tooltip: "Professionelle Reinigung + individuelle Hygienetipps." },
+            worksWhen: ["Vorbeugende Wartung", "Vor jeder zahnärztlichen Behandlung", "Plaque- / Zahnsteinablagerungen"],
+            notIdealWhen: ["Aktive Parodontitis — tiefere Behandlung nötig", "Akuter Schmerz — erst Ursache behandeln", "Patient erwartet, dass ein Besuch alles löst"],
+            maintenance: { value: "Alle 6–12 Monate", tooltip: "Regelmäßige Besuche sind entscheidend." },
+        },
+        metrics: { durabilityScore: 35, speedScore: 92, minInvasiveScore: 100, maintenanceScore: 50, riskScore: 100 },
+    },
+    sealant_adult: {
+        id: "sealant_adult", label: "Fissurenversiegelung (Erwachsene)", short: "Versiegelung tiefer Fissuren — Vorbeugung auch für Erwachsene.",
+        icon: "🛡️", color: "#38bdf8", recommendedSpecialist: "malgorzata",
+        table: {
+            time: { value: "15–20 Min.", scale: 5, tooltip: "Schnelle Prozedur pro Zahn." },
+            visits: { value: "1", scale: 5, tooltip: "Ein kurzer Termin." },
+            durability: { value: "3–5 Jahre", scale: 3, tooltip: "Bei jedem Besuch prüfen. Ggf. erneuern." },
+            invasiveness: { value: "Keine", scale: 5, tooltip: "Kein Beschleifen." },
+            risk: { value: "Keins", scale: 5, tooltip: "Kein Risiko." },
+            hygiene: { value: "Keine Änderung", scale: 5, tooltip: "Standardmäßiges Zähneputzen." },
+            worksWhen: ["Tiefe Fissuren mit Kariesrisiko", "Hohes Kariesrisiko", "Kariesfreie Fissur — Vorbeugung besser als Behandlung"],
+            notIdealWhen: ["Karies bereits in der Fissur", "Flache, selbstreinigende Fissur", "Gute Hygiene und geringes Risiko"],
+            maintenance: { value: "Kontrolle bei jedem Besuch", tooltip: "Integritätsprüfung." },
+        },
+        metrics: { durabilityScore: 50, speedScore: 98, minInvasiveScore: 100, maintenanceScore: 70, riskScore: 100 },
+    },
+    fluoride_adult: {
+        id: "fluoride_adult", label: "Fluoridierung", short: "Professioneller Fluoridlack — Schmelzstärkung.",
+        icon: "💧", color: "#06b6d4", recommendedSpecialist: "malgorzata",
+        table: {
+            time: { value: "5–10 Min.", scale: 5, tooltip: "Schnelles Auftragen." },
+            visits: { value: "1", scale: 5, tooltip: "Während Kontrolle oder Prophylaxe-Termin." },
+            durability: { value: "3–6 Monate", scale: 2, tooltip: "2–4×/Jahr wiederholen." },
+            invasiveness: { value: "Keine", scale: 5, tooltip: "Lack aufgepinselt — kein Eingriff." },
+            risk: { value: "Keins", scale: 5, tooltip: "Vollkommen sicher." },
+            hygiene: { value: "Keine Änderung", scale: 5, tooltip: "30 Min. nicht essen." },
+            worksWhen: ["Hohes Kariesrisiko", "Frühe Demineralisation (White Spots)", "Zahnempfindlichkeit"],
+            notIdealWhen: ["Aktive Kavität — Füllung nötig", "Fluoridallergie (extrem selten)", "Patient nutzt bereits hochfluoridhaltige Produkte"],
+            maintenance: { value: "Alle 3–6 Monate", tooltip: "Regelmäßiges Auftragen." },
+        },
+        metrics: { durabilityScore: 25, speedScore: 100, minInvasiveScore: 100, maintenanceScore: 50, riskScore: 100 },
+    },
+    night_guard: {
+        id: "night_guard", label: "Nachtschiene (Bruxismus)", short: "Schutzschiene — verhindert Zahnabrasion und Schmerzen.",
+        icon: "🌙", color: "#f59e0b", recommendedSpecialist: "ilona",
+        table: {
+            time: { value: "5–10 Tage", scale: 4, tooltip: "Abdrücke/Scan + Laboranfertigung." },
+            visits: { value: "2", scale: 5, tooltip: "Abdrücke + Eingliederung." },
+            durability: { value: "2–5 Jahre", scale: 4, tooltip: "Abhängig von Bruxismus-Schweregrad." },
+            invasiveness: { value: "Keine", scale: 5, tooltip: "Kein Eingriff an Zähnen." },
+            risk: { value: "Keins", scale: 5, tooltip: "Vollkommen sicher. Eingewöhnung einige Nächte." },
+            hygiene: { value: "Einfach", scale: 4, tooltip: "Schiene täglich waschen." },
+            worksWhen: ["Bestätigter Bruxismus (Knirschen/Pressen)", "Vorbeugung von Zahnabrasion", "Schutz prothetischer Versorgungen"],
+            notIdealWhen: ["Kein diagnostizierter Bruxismus", "Aktive Kiefergelenksstörung — umfassende Behandlung nötig", "Patient trägt sie nicht regelmäßig"],
+            maintenance: { value: "Kontrolle + Austausch", tooltip: "Sitz prüfen; bei Durchbiss austauschen." },
+        },
+        metrics: { durabilityScore: 60, speedScore: 82, minInvasiveScore: 100, maintenanceScore: 60, riskScore: 100 },
+    },
+};

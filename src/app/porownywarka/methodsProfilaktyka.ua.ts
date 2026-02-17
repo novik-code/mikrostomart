@@ -1,0 +1,68 @@
+import type { Method } from "./comparatorTypes";
+
+export const METHODS_PROFILAKTYKA_UA: Record<string, Method> = {
+    hygiene_visit: {
+        id: "hygiene_visit", label: "Профілактичний візит", short: "Зняття каменю + полірування + гігієнічні рекомендації.",
+        icon: "🪥", color: "#10b981", recommendedSpecialist: "malgorzata",
+        table: {
+            time: { value: "45–60 хв", scale: 5, tooltip: "Комплексний профілактичний візит." },
+            visits: { value: "1", scale: 5, tooltip: "Один візит." },
+            durability: { value: "6–12 місяців", scale: 3, tooltip: "Регулярні візити підтримують результат." },
+            invasiveness: { value: "Нульова", scale: 5, tooltip: "Неінвазивно. Без обточування чи свердління." },
+            risk: { value: "Відсутній", scale: 5, tooltip: "Повністю безпечна процедура." },
+            hygiene: { value: "Основна мета", scale: 5, tooltip: "Професійна чистка + індивідуальні поради з гігієни." },
+            worksWhen: ["Профілактичне обслуговування", "Перед будь-яким стоматологічним лікуванням", "Нашарування нальоту / каменю"],
+            notIdealWhen: ["Активний пародонтит — потрібне глибше лікування", "Гострий біль — спершу лікувати причину", "Пацієнт очікує, що один візит вирішить усі проблеми"],
+            maintenance: { value: "Кожні 6–12 місяців", tooltip: "Регулярні візити — запорука успіху." },
+        },
+        metrics: { durabilityScore: 35, speedScore: 92, minInvasiveScore: 100, maintenanceScore: 50, riskScore: 100 },
+    },
+    sealant_adult: {
+        id: "sealant_adult", label: "Герметизація фісур (дорослі)", short: "Запечатування глибоких фісур — профілактика й для дорослих.",
+        icon: "🛡️", color: "#38bdf8", recommendedSpecialist: "malgorzata",
+        table: {
+            time: { value: "15–20 хв", scale: 5, tooltip: "Швидка процедура на зуб." },
+            visits: { value: "1", scale: 5, tooltip: "Один короткий візит." },
+            durability: { value: "3–5 років", scale: 3, tooltip: "Перевіряти при кожному візиті. Оновлювати за потреби." },
+            invasiveness: { value: "Нульова", scale: 5, tooltip: "Без обточування." },
+            risk: { value: "Відсутній", scale: 5, tooltip: "Жодного ризику." },
+            hygiene: { value: "Без змін", scale: 5, tooltip: "Звичайне чищення зубів." },
+            worksWhen: ["Глибокі фісури з ризиком карієсу", "Високий ризик карієсу", "Фісура без карієсу — профілактика краща за лікування"],
+            notIdealWhen: ["Карієс вже у фісурі", "Мілка, самоочисна фісура", "Пацієнт з хорошою гігієною та низьким ризиком"],
+            maintenance: { value: "Перевірка при кожному візиті", tooltip: "Оцінка цілісності." },
+        },
+        metrics: { durabilityScore: 50, speedScore: 98, minInvasiveScore: 100, maintenanceScore: 70, riskScore: 100 },
+    },
+    fluoride_adult: {
+        id: "fluoride_adult", label: "Фторування", short: "Професійний фторлак — зміцнення емалі.",
+        icon: "💧", color: "#06b6d4", recommendedSpecialist: "malgorzata",
+        table: {
+            time: { value: "5–10 хв", scale: 5, tooltip: "Швидке нанесення." },
+            visits: { value: "1", scale: 5, tooltip: "Під час контролю або профілактичного візиту." },
+            durability: { value: "3–6 місяців", scale: 2, tooltip: "Повторювати 2–4×/рік." },
+            invasiveness: { value: "Нульова", scale: 5, tooltip: "Лак наноситься — без втручання." },
+            risk: { value: "Відсутній", scale: 5, tooltip: "Повністю безпечно." },
+            hygiene: { value: "Без змін", scale: 5, tooltip: "Не їсти 30 хв." },
+            worksWhen: ["Високий ризик карієсу", "Рання демінералізація (білі плями)", "Чутливість зубів"],
+            notIdealWhen: ["Активна каверна — потрібна пломба", "Алергія на фтор (вкрай рідко)", "Пацієнт вже використовує високофторидні засоби"],
+            maintenance: { value: "Кожні 3–6 місяців", tooltip: "Регулярне нанесення." },
+        },
+        metrics: { durabilityScore: 25, speedScore: 100, minInvasiveScore: 100, maintenanceScore: 50, riskScore: 100 },
+    },
+    night_guard: {
+        id: "night_guard", label: "Нічна шина (бруксизм)", short: "Захисна шина — запобігає стиранню зубів і болю.",
+        icon: "🌙", color: "#f59e0b", recommendedSpecialist: "ilona",
+        table: {
+            time: { value: "5–10 днів", scale: 4, tooltip: "Відбитки/скан + лабораторне виготовлення." },
+            visits: { value: "2", scale: 5, tooltip: "Відбитки + здача." },
+            durability: { value: "2–5 років", scale: 4, tooltip: "Залежить від тяжкості бруксизму." },
+            invasiveness: { value: "Нульова", scale: 5, tooltip: "Без втручання на зубах." },
+            risk: { value: "Відсутній", scale: 5, tooltip: "Повністю безпечно. Адаптація кілька ночей." },
+            hygiene: { value: "Проста", scale: 4, tooltip: "Мити шину щодня." },
+            worksWhen: ["Підтверджений бруксизм (скрегіт/стискання)", "Профілактика стирання зубів", "Захист протезних реставрацій"],
+            notIdealWhen: ["Бруксизм не діагностований", "Активне захворювання СНЩС — потрібне комплексне лікування", "Пацієнт не носитиме регулярно"],
+            maintenance: { value: "Контроль + заміна", tooltip: "Перевірка посадки; заміна при протертості." },
+        },
+        metrics: { durabilityScore: 60, speedScore: 82, minInvasiveScore: 100, maintenanceScore: 60, riskScore: 100 },
+    },
+};

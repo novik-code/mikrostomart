@@ -1,0 +1,68 @@
+import type { Method } from "./comparatorTypes";
+
+export const METHODS_PROFILAKTYKA_EN: Record<string, Method> = {
+    hygiene_visit: {
+        id: "hygiene_visit", label: "Prophylaxis visit", short: "Scaling + polishing + hygiene instruction.",
+        icon: "🪥", color: "#10b981", recommendedSpecialist: "malgorzata",
+        table: {
+            time: { value: "45–60 min", scale: 5, tooltip: "Comprehensive prophylaxis visit." },
+            visits: { value: "1", scale: 5, tooltip: "One appointment." },
+            durability: { value: "6–12 months", scale: 3, tooltip: "Regular visits maintain results." },
+            invasiveness: { value: "None", scale: 5, tooltip: "Non-invasive. No grinding or drilling." },
+            risk: { value: "None", scale: 5, tooltip: "Fully safe procedure." },
+            hygiene: { value: "Main purpose", scale: 5, tooltip: "Professional cleaning + personalised hygiene tips." },
+            worksWhen: ["Preventive maintenance", "Before any dental treatment", "Plaque / tartar build-up"],
+            notIdealWhen: ["Active periodontal disease — needs deeper treatment", "Acute pain — treat the cause first", "Patient expects one visit to solve all problems"],
+            maintenance: { value: "Every 6–12 months", tooltip: "Regular visits are key." },
+        },
+        metrics: { durabilityScore: 35, speedScore: 92, minInvasiveScore: 100, maintenanceScore: 50, riskScore: 100 },
+    },
+    sealant_adult: {
+        id: "sealant_adult", label: "Fissure sealant (adult)", short: "Sealing deep fissures — prevention also for adults.",
+        icon: "🛡️", color: "#38bdf8", recommendedSpecialist: "malgorzata",
+        table: {
+            time: { value: "15–20 min", scale: 5, tooltip: "Quick procedure per tooth." },
+            visits: { value: "1", scale: 5, tooltip: "One short visit." },
+            durability: { value: "3–5 years", scale: 3, tooltip: "Check at each visit. Renew if needed." },
+            invasiveness: { value: "None", scale: 5, tooltip: "No grinding." },
+            risk: { value: "None", scale: 5, tooltip: "No risk." },
+            hygiene: { value: "No change", scale: 5, tooltip: "Standard brushing." },
+            worksWhen: ["Deep fissures at risk of caries", "High caries risk", "Caries-free fissure — prevention better than treatment"],
+            notIdealWhen: ["Caries already in the fissure", "Shallow, self-cleansing fissure", "Patient has good hygiene and low risk"],
+            maintenance: { value: "Check at each visit", tooltip: "Integrity assessment." },
+        },
+        metrics: { durabilityScore: 50, speedScore: 98, minInvasiveScore: 100, maintenanceScore: 70, riskScore: 100 },
+    },
+    fluoride_adult: {
+        id: "fluoride_adult", label: "Fluoride application", short: "Professional fluoride varnish — enamel strengthening.",
+        icon: "💧", color: "#06b6d4", recommendedSpecialist: "malgorzata",
+        table: {
+            time: { value: "5–10 min", scale: 5, tooltip: "Quick application." },
+            visits: { value: "1", scale: 5, tooltip: "During a check-up or hygiene visit." },
+            durability: { value: "3–6 months", scale: 2, tooltip: "Repeat 2–4×/year." },
+            invasiveness: { value: "None", scale: 5, tooltip: "Varnish painted on — no intervention." },
+            risk: { value: "None", scale: 5, tooltip: "Fully safe." },
+            hygiene: { value: "No change", scale: 5, tooltip: "Don't eat for 30 min." },
+            worksWhen: ["High caries risk", "Early demineralisation (white spots)", "Tooth sensitivity"],
+            notIdealWhen: ["Active cavity — filling needed", "Fluoride allergy (extremely rare)", "Patient already uses high-fluoride products"],
+            maintenance: { value: "Every 3–6 months", tooltip: "Regular application." },
+        },
+        metrics: { durabilityScore: 25, speedScore: 100, minInvasiveScore: 100, maintenanceScore: 50, riskScore: 100 },
+    },
+    night_guard: {
+        id: "night_guard", label: "Night guard (bruxism)", short: "Protective splint — prevents tooth wear and pain.",
+        icon: "🌙", color: "#f59e0b", recommendedSpecialist: "ilona",
+        table: {
+            time: { value: "5–10 days", scale: 4, tooltip: "Impressions/scan + lab fabrication." },
+            visits: { value: "2", scale: 5, tooltip: "Impressions + delivery." },
+            durability: { value: "2–5 years", scale: 4, tooltip: "Depends on bruxism severity." },
+            invasiveness: { value: "None", scale: 5, tooltip: "No intervention on teeth." },
+            risk: { value: "None", scale: 5, tooltip: "Fully safe. Adaptation takes a few nights." },
+            hygiene: { value: "Simple", scale: 4, tooltip: "Wash the guard daily." },
+            worksWhen: ["Confirmed bruxism (grinding/clenching)", "Preventing tooth wear", "Protecting prosthetic restorations"],
+            notIdealWhen: ["No bruxism diagnosed", "Active TMJ disorder — needs comprehensive treatment", "Patient won't wear it regularly"],
+            maintenance: { value: "Check + replacement", tooltip: "Check fit; replace when worn through." },
+        },
+        metrics: { durabilityScore: 60, speedScore: 82, minInvasiveScore: 100, maintenanceScore: 60, riskScore: 100 },
+    },
+};
