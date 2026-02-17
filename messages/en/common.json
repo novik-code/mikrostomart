@@ -141,7 +141,11 @@
         "sendAnother": "Send another message",
         "selectFile": "Choose file (JPG, PNG, PDF)",
         "captchaLabel": "Verification",
-        "captchaPlaceholder": "Result"
+        "captchaPlaceholder": "Result",
+        "rodoConsent": "I consent to the processing of my personal data to handle this inquiry, in accordance with the",
+        "rodoClause": "GDPR Clause",
+        "rodoAnd": "and the",
+        "privacyPolicy": "Privacy Policy"
     },
     "oferta": {
         "tagline": "Our Services",
@@ -298,7 +302,9 @@
         "lowerLeftArc": "Lower Left Arch",
         "lowerRightArc": "Lower Right Arch",
         "softTissues": "Soft Tissues",
-        "softTissuesSub": "Tongue · Palate · Throat"
+        "softTissuesSub": "Tongue · Palate · Throat",
+        "metaTitle": "Tooth Pain Map | Mikrostomart",
+        "metaDescription": "Interactive tooth pain map — point to the tooth that hurts and we'll suggest possible causes."
     },
     "language": {
         "pl": "Polski",

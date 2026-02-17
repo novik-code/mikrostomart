@@ -1,9 +1,14 @@
 import PainMapInteractive from './PainMapInteractive';
+import { getTranslations } from 'next-intl/server';
+import { Metadata } from 'next';
 
-export const metadata = {
-    title: 'Mapa Bólu Zębów | Mikrostomart',
-    description: 'Interaktywna mapa bólu zębów — wskaż ząb, który boli, a podpowiemy co może być przyczyną.',
-};
+export async function generateMetadata(): Promise<Metadata> {
+    const t = await getTranslations('mapaBoluUI');
+    return {
+        title: t('metaTitle'),
+        description: t('metaDescription'),
+    };
+}
 
 export default function PainMapPage() {
     return (

@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from 'react';
-import { SYMPTOM_DATA, DOCTORS, type ZoneInfo, type SeverityLevel, type TipItem } from './SymptomData';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { type ZoneInfo, type SeverityLevel, type TipItem } from './SymptomData';
+import { getSymptomData } from './getSymptomData';
 import Link from 'next/link';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 
 // ─────────────────────────────────────────────────────────────
 // PREMIUM DENTAL MAP — Multi-severity system
@@ -84,6 +85,8 @@ const STYLE_TAG = `
 
 export default function PainMapInteractive() {
     const t = useTranslations('mapaBoluUI');
+    const locale = useLocale();
+    const { symptomData, doctors } = useMemo(() => getSymptomData(locale), [locale]);
     const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null);
     const [hoveredZoneId, setHoveredZoneId] = useState<string | null>(null);
     const [viewMode, setViewMode] = useState<'map' | 'list'>('map');
@@ -94,7 +97,7 @@ export default function PainMapInteractive() {
     const [hoveredTip, setHoveredTip] = useState<{ text: string; x: number; y: number } | null>(null);
     const tipTimeout = useRef<NodeJS.Timeout | null>(null);
 
-    const selectedData: ZoneInfo | null = selectedZoneId ? SYMPTOM_DATA[selectedZoneId] ?? null : null;
+    const selectedData: ZoneInfo | null = selectedZoneId ? symptomData[selectedZoneId] ?? null : null;
     const activeLevel: SeverityLevel | null = selectedData ? selectedData.levels[activeSeverity] : null;
 
     // Tooltip handlers
@@ -119,8 +122,8 @@ export default function PainMapInteractive() {
     }, []);
 
     const getZoneName = useCallback((id: string) => {
-        return SYMPTOM_DATA[id]?.title || id;
-    }, []);
+        return symptomData[id]?.title || id;
+    }, [symptomData]);
 
     const closeIntro = useCallback(() => {
         setIntroClosing(true);
@@ -272,7 +275,7 @@ export default function PainMapInteractive() {
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '8px' }}>
                             {q.keys.map(key => {
-                                const info = SYMPTOM_DATA[key];
+                                const info = symptomData[key];
                                 if (!info) return null;
                                 const isSelected = selectedZoneId === key;
                                 return (
@@ -600,7 +603,7 @@ export default function PainMapInteractive() {
                                 </span>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                     {activeLevel.doctors.map(docId => {
-                                        const doc = DOCTORS[docId];
+                                        const doc = doctors[docId];
                                         if (!doc) return null;
                                         return (
                                             <Link

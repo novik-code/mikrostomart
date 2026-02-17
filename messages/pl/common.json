@@ -141,7 +141,11 @@
         "sendAnother": "Wyślij kolejną wiadomość",
         "selectFile": "Wybierz plik (JPG, PNG, PDF)",
         "captchaLabel": "Weryfikacja",
-        "captchaPlaceholder": "Wynik"
+        "captchaPlaceholder": "Wynik",
+        "rodoConsent": "Wyrażam zgodę na przetwarzanie moich danych osobowych w celu obsługi zapytania, zgodnie z",
+        "rodoClause": "Klauzulą RODO",
+        "rodoAnd": "oraz",
+        "privacyPolicy": "Polityką Prywatności"
     },
     "oferta": {
         "tagline": "Nasze Usługi",
@@ -298,7 +302,9 @@
         "lowerLeftArc": "Dolny Łuk Lewy",
         "lowerRightArc": "Dolny Łuk Prawy",
         "softTissues": "Tkanki Miękkie",
-        "softTissuesSub": "Język · Podniebienie · Gardło"
+        "softTissuesSub": "Język · Podniebienie · Gardło",
+        "metaTitle": "Mapa Bólu Zębów | Mikrostomart",
+        "metaDescription": "Interaktywna mapa bólu zębów — wskaż ząb, który boli, a podpowiemy co może być przyczyną."
     },
     "language": {
         "pl": "Polski",

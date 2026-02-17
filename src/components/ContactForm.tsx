@@ -370,10 +370,10 @@ export default function ContactForm() {
                     style={{ marginTop: '3px', accentColor: '#dcb14a', minWidth: '18px', minHeight: '18px', cursor: 'pointer' }}
                 />
                 <label htmlFor="rodo-consent-contact" style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', lineHeight: 1.5, cursor: 'pointer' }}>
-                    Wyrażam zgodę na przetwarzanie moich danych osobowych w celu obsługi zapytania, zgodnie z{' '}
-                    <a href="/rodo" target="_blank" style={{ color: '#dcb14a', textDecoration: 'underline' }}>Klauzulą RODO</a>{' '}
-                    oraz{' '}
-                    <a href="/polityka-prywatnosci" target="_blank" style={{ color: '#dcb14a', textDecoration: 'underline' }}>Polityką Prywatności</a>.
+                    {t('rodoConsent')}{' '}
+                    <a href="/rodo" target="_blank" style={{ color: '#dcb14a', textDecoration: 'underline' }}>{t('rodoClause')}</a>{' '}
+                    {t('rodoAnd')}{' '}
+                    <a href="/polityka-prywatnosci" target="_blank" style={{ color: '#dcb14a', textDecoration: 'underline' }}>{t('privacyPolicy')}</a>.
                 </label>
             </div>
 

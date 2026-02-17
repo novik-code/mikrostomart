@@ -141,7 +141,11 @@
         "sendAnother": "Надіслати ще повідомлення",
         "selectFile": "Обрати файл (JPG, PNG, PDF)",
         "captchaLabel": "Перевірка",
-        "captchaPlaceholder": "Результат"
+        "captchaPlaceholder": "Результат",
+        "rodoConsent": "Я даю згоду на обробку моїх персональних даних для обробки запиту відповідно до",
+        "rodoClause": "Положення GDPR",
+        "rodoAnd": "та",
+        "privacyPolicy": "Політики конфіденційності"
     },
     "oferta": {
         "tagline": "Наші послуги",
@@ -298,7 +302,9 @@
         "lowerLeftArc": "Нижня Ліва Дуга",
         "lowerRightArc": "Нижня Права Дуга",
         "softTissues": "М'які Тканини",
-        "softTissuesSub": "Язик · Піднебіння · Горло"
+        "softTissuesSub": "Язик · Піднебіння · Горло",
+        "metaTitle": "Карта зубного болю | Mikrostomart",
+        "metaDescription": "Інтерактивна карта зубного болю — вкажіть на зуб, який болить, і ми підкажемо можливі причини."
     },
     "language": {
         "pl": "Polski",

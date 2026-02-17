@@ -141,7 +141,11 @@
         "sendAnother": "Weitere Nachricht senden",
         "selectFile": "Datei auswählen (JPG, PNG, PDF)",
         "captchaLabel": "Verifizierung",
-        "captchaPlaceholder": "Ergebnis"
+        "captchaPlaceholder": "Ergebnis",
+        "rodoConsent": "Ich stimme der Verarbeitung meiner personenbezogenen Daten zur Bearbeitung dieser Anfrage zu, gemäß der",
+        "rodoClause": "DSGVO-Klausel",
+        "rodoAnd": "und der",
+        "privacyPolicy": "Datenschutzrichtlinie"
     },
     "oferta": {
         "tagline": "Unsere Leistungen",
@@ -298,7 +302,9 @@
         "lowerLeftArc": "Unterer Linker Bogen",
         "lowerRightArc": "Unterer Rechter Bogen",
         "softTissues": "Weichgewebe",
-        "softTissuesSub": "Zunge · Gaumen · Rachen"
+        "softTissuesSub": "Zunge · Gaumen · Rachen",
+        "metaTitle": "Zahnschmerz-Karte | Mikrostomart",
+        "metaDescription": "Interaktive Zahnschmerz-Karte — zeigen Sie auf den schmerzenden Zahn und wir nennen mögliche Ursachen."
     },
     "language": {
         "pl": "Polski",

@@ -91,10 +91,13 @@
   | `reservation` | ReservationForm | Booking form labels |
   | `porownywarka` | Comparator tool | ~22 UI strings |
   | `kalkulatorUI` | Treatment calculator | ~28 UI strings |
-  | `mapaBoluUI` | Pain Map interactive | ~20 UI strings |
+  | `mapaBoluUI` | Pain Map interactive | ~22 UI strings + metaTitle/metaDescription |
+  | `contactForm` | ContactForm | Form fields, validation, RODO consent, submit |
   | `metamorphosisUI` | MetamorphosisGallery | Before/after labels, CTA |
   | `reviews` | GoogleReviews | Section heading |
   | `youtube` | YouTubeFeed | Section heading |
+
+  **Pain Map SymptomData i18n**: Medical content (symptoms, causes, advice for 35 zones × 3 severity levels) is translated via per-locale files: `SymptomData.ts` (PL, default), `SymptomData.en.ts`, `SymptomData.de.ts`, `SymptomData.ua.ts`. The helper `getSymptomData.ts` returns locale-aware data using `useLocale()`.
 
 ### Development Tools
 - **ESLint** - Code linting
