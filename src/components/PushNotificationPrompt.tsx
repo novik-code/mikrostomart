@@ -10,68 +10,69 @@ interface PushNotificationPromptProps {
     compact?: boolean;
 }
 
+/**
+ * Detect if running as installed PWA (standalone or fullscreen)
+ */
+function isRunningAsPWA(): boolean {
+    if (typeof window === 'undefined') return false;
+    // Check display-mode media query
+    if (window.matchMedia('(display-mode: standalone)').matches) return true;
+    if (window.matchMedia('(display-mode: fullscreen)').matches) return true;
+    // iOS Safari standalone mode
+    if ((navigator as any).standalone === true) return true;
+    return false;
+}
+
 export default function PushNotificationPrompt({
     userType,
     userId,
     locale = 'pl',
     compact = false,
 }: PushNotificationPromptProps) {
-    const [permission, setPermission] = useState<NotificationPermission | 'unsupported'>('default');
-    const [isSubscribed, setIsSubscribed] = useState(false);
+    const [status, setStatus] = useState<'loading' | 'unsupported' | 'needs-pwa' | 'can-subscribe' | 'subscribed' | 'denied'>('loading');
     const [loading, setLoading] = useState(false);
     const [dismissed, setDismissed] = useState(false);
-    const [debugInfo, setDebugInfo] = useState('');
 
     const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
 
     useEffect(() => {
         if (typeof window === 'undefined') {
-            setPermission('unsupported');
+            setStatus('unsupported');
             return;
         }
 
-        // Check basic support
         const hasSW = 'serviceWorker' in navigator;
         const hasNotification = 'Notification' in window;
         const hasPushManager = 'PushManager' in window;
+        const isPWA = isRunningAsPWA();
 
-        console.log('[Push] Support check:', { hasSW, hasNotification, hasPushManager, vapidPublicKey: !!vapidPublicKey });
+        console.log('[Push] Check:', { hasSW, hasNotification, hasPushManager, isPWA, vapidKey: !!vapidPublicKey });
 
-        if (!hasSW || !hasNotification || !hasPushManager) {
-            setPermission('unsupported');
-            setDebugInfo(`Unsupported: SW=${hasSW} Notif=${hasNotification} Push=${hasPushManager}`);
+        if (!hasSW || !hasNotification) {
+            setStatus('unsupported');
             return;
         }
 
-        const currentPerm = Notification.permission;
-        setPermission(currentPerm);
-        console.log('[Push] Current permission:', currentPerm);
+        // On iOS Safari (not PWA), PushManager is not available
+        if (!hasPushManager) {
+            setStatus('needs-pwa');
+            return;
+        }
 
-        // Check if subscribed via the main service worker
-        // Use a timeout to avoid hanging if SW never becomes ready
-        const timeoutId = setTimeout(() => {
-            console.log('[Push] SW ready timeout — SW may not be registered yet');
-            setDebugInfo('SW not ready after 3s');
-        }, 3000);
+        if (Notification.permission === 'denied') {
+            setStatus('denied');
+            return;
+        }
 
-        navigator.serviceWorker.ready.then(reg => {
-            clearTimeout(timeoutId);
-            console.log('[Push] SW ready, scope:', reg.scope);
+        // Check existing subscription via localStorage (more reliable than browser API)
+        const subKey = `push_sub_${userType}_${userId}`;
+        const existingSub = localStorage.getItem(subKey);
 
-            reg.pushManager.getSubscription().then(sub => {
-                const subscribed = !!sub;
-                console.log('[Push] Subscription status:', subscribed, sub?.endpoint?.substring(0, 50));
-                setIsSubscribed(subscribed);
-                setDebugInfo(subscribed ? 'Subscribed' : 'Not subscribed');
-            }).catch(err => {
-                console.error('[Push] getSubscription error:', err);
-                setDebugInfo('Error checking subscription');
-            });
-        }).catch(err => {
-            clearTimeout(timeoutId);
-            console.error('[Push] SW ready error:', err);
-            setDebugInfo('SW ready failed');
-        });
+        if (existingSub) {
+            setStatus('subscribed');
+        } else {
+            setStatus('can-subscribe');
+        }
 
         // Check dismiss storage
         const dismissKey = `push_dismissed_${userType}_${userId}`;
@@ -94,7 +95,6 @@ export default function PushNotificationPrompt({
     const subscribe = useCallback(async () => {
         if (!vapidPublicKey) {
             console.error('[Push] VAPID public key not set');
-            alert('Push config error: VAPID key missing');
             return;
         }
 
@@ -104,19 +104,27 @@ export default function PushNotificationPrompt({
             console.log('[Push] Requesting permission...');
             const perm = await Notification.requestPermission();
             console.log('[Push] Permission result:', perm);
-            setPermission(perm);
+
             if (perm !== 'granted') {
-                alert(`Notification permission: ${perm}. Please enable in browser settings.`);
+                setStatus('denied');
                 setLoading(false);
                 return;
             }
 
-            // Use the main service worker registration
+            // Wait for SW
             console.log('[Push] Waiting for SW ready...');
             const registration = await navigator.serviceWorker.ready;
-            console.log('[Push] SW ready, subscribing to push...');
+            console.log('[Push] SW ready, scope:', registration.scope);
+
+            // Unsubscribe any existing subscription first (clean slate)
+            const existingSub = await registration.pushManager.getSubscription();
+            if (existingSub) {
+                console.log('[Push] Removing old subscription...');
+                await existingSub.unsubscribe();
+            }
 
             // Subscribe to push
+            console.log('[Push] Subscribing...');
             const subscription = await registration.pushManager.subscribe({
                 userVisibleOnly: true,
                 applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
@@ -140,29 +148,28 @@ export default function PushNotificationPrompt({
             console.log('[Push] Subscribe API response:', res.status, resData);
 
             if (!res.ok) {
-                throw new Error(`Subscription API failed: ${res.status} ${JSON.stringify(resData)}`);
+                throw new Error(`API error: ${JSON.stringify(resData)}`);
             }
 
-            setIsSubscribed(true);
-            setDebugInfo('Subscribed ✓');
+            // Track in localStorage
+            const subKey = `push_sub_${userType}_${userId}`;
+            localStorage.setItem(subKey, 'true');
 
-            // Send a test push to verify
+            setStatus('subscribed');
+
+            // Send a test push
             try {
-                const testRes = await fetch('/api/push/test', {
+                await fetch('/api/push/test', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ userId, userType }),
                 });
-                const testData = await testRes.json();
-                console.log('[Push] Test push result:', testData);
             } catch (e) {
                 console.log('[Push] Test push skipped:', e);
             }
 
         } catch (error) {
             console.error('[Push] Subscribe error:', error);
-            setDebugInfo(`Error: ${error}`);
-            alert(`Push subscription failed: ${error}`);
         } finally {
             setLoading(false);
         }
@@ -181,14 +188,15 @@ export default function PushNotificationPrompt({
                     body: JSON.stringify({ endpoint: sub.endpoint }),
                 });
             }
-            setIsSubscribed(false);
-            setDebugInfo('Unsubscribed');
+            const subKey = `push_sub_${userType}_${userId}`;
+            localStorage.removeItem(subKey);
+            setStatus('can-subscribe');
         } catch (error) {
             console.error('[Push] Unsubscribe error:', error);
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [userType, userId]);
 
     const dismiss = () => {
         setDismissed(true);
@@ -196,43 +204,122 @@ export default function PushNotificationPrompt({
         sessionStorage.setItem(dismissKey, '1');
     };
 
-    // Don't render if unsupported or permission denied
-    if (permission === 'unsupported') return null;
-    if (permission === 'denied' && !compact) return null;
+    // --- Render ---
 
-    // Compact toggle mode — always show when compact
+    if (status === 'loading' || status === 'unsupported') return null;
+
+    // Compact toggle mode
     if (compact) {
+        if (status === 'needs-pwa') return null; // hide compact in Safari
         return (
             <button
-                onClick={isSubscribed ? unsubscribe : subscribe}
-                disabled={loading || permission === 'denied'}
+                onClick={status === 'subscribed' ? unsubscribe : subscribe}
+                disabled={loading || status === 'denied'}
                 style={{
                     display: 'flex',
                     alignItems: 'center',
                     gap: '0.5rem',
                     padding: '0.5rem 1rem',
-                    background: isSubscribed
+                    background: status === 'subscribed'
                         ? 'rgba(34, 197, 94, 0.1)'
                         : 'rgba(255, 255, 255, 0.05)',
-                    border: `1px solid ${isSubscribed ? 'rgba(34, 197, 94, 0.3)' : 'rgba(255,255,255,0.1)'}`,
+                    border: `1px solid ${status === 'subscribed' ? 'rgba(34, 197, 94, 0.3)' : 'rgba(255,255,255,0.1)'}`,
                     borderRadius: '0.5rem',
-                    color: isSubscribed ? '#22c55e' : 'rgba(255,255,255,0.7)',
-                    cursor: loading || permission === 'denied' ? 'not-allowed' : 'pointer',
+                    color: status === 'subscribed' ? '#22c55e' : 'rgba(255,255,255,0.7)',
+                    cursor: loading || status === 'denied' ? 'not-allowed' : 'pointer',
                     fontSize: '0.85rem',
                     transition: 'all 0.2s',
                     opacity: loading ? 0.5 : 1,
                 }}
             >
-                {isSubscribed ? '🔔' : '🔕'}
-                {loading ? '...' : isSubscribed ? 'Powiadomienia ON' : 'Włącz powiadomienia'}
+                {status === 'subscribed' ? '🔔' : '🔕'}
+                {loading ? '...' : status === 'subscribed' ? 'Powiadomienia ON' : 'Włącz powiadomienia'}
             </button>
         );
     }
 
-    // Banner mode — show if not subscribed and not dismissed
-    if (isSubscribed) return null;
+    // Banner: already subscribed or denied — hide
+    if (status === 'subscribed' || status === 'denied') return null;
     if (dismissed) return null;
 
+    // "Add to home screen" prompt for iOS Safari
+    if (status === 'needs-pwa') {
+        const pwaLabels: Record<string, { title: string; body: string; dismiss: string }> = {
+            pl: {
+                title: '📱 Dodaj do ekranu głównego',
+                body: 'Aby otrzymywać powiadomienia push, dodaj tę stronę do ekranu głównego: Safari → Udostępnij ⬆️ → Dodaj do ekranu początkowego',
+                dismiss: 'Rozumiem',
+            },
+            en: {
+                title: '📱 Add to Home Screen',
+                body: 'To receive push notifications, add this page to your home screen: Safari → Share ⬆️ → Add to Home Screen',
+                dismiss: 'Got it',
+            },
+            de: {
+                title: '📱 Zum Startbildschirm hinzufügen',
+                body: 'Um Push-Benachrichtigungen zu erhalten, fügen Sie diese Seite zum Startbildschirm hinzu: Safari → Teilen ⬆️ → Zum Home-Bildschirm',
+                dismiss: 'Verstanden',
+            },
+            ua: {
+                title: '📱 Додати на головний екран',
+                body: 'Щоб отримувати push-сповіщення, додайте цю сторінку на головний екран: Safari → Поділитися ⬆️ → На Початковий екран',
+                dismiss: 'Зрозуміло',
+            },
+        };
+
+        const pl = pwaLabels[locale] || pwaLabels.pl;
+
+        return (
+            <div style={{
+                margin: '1rem',
+                padding: '1rem 1.25rem',
+                background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.08), rgba(245, 158, 11, 0.08))',
+                border: '1px solid rgba(251, 191, 36, 0.2)',
+                borderRadius: '1rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '1rem',
+                flexWrap: 'wrap',
+            }}>
+                <div style={{ flex: 1, minWidth: '200px' }}>
+                    <p style={{
+                        fontWeight: '600',
+                        fontSize: '0.95rem',
+                        color: '#fff',
+                        margin: '0 0 0.25rem 0',
+                    }}>
+                        {pl.title}
+                    </p>
+                    <p style={{
+                        fontSize: '0.8rem',
+                        color: 'rgba(255,255,255,0.6)',
+                        margin: 0,
+                        lineHeight: '1.4',
+                    }}>
+                        {pl.body}
+                    </p>
+                </div>
+                <button
+                    onClick={dismiss}
+                    style={{
+                        padding: '0.5rem 1rem',
+                        background: 'transparent',
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        borderRadius: '0.5rem',
+                        color: 'rgba(255,255,255,0.5)',
+                        cursor: 'pointer',
+                        fontSize: '0.8rem',
+                        flexShrink: 0,
+                    }}
+                >
+                    {pl.dismiss}
+                </button>
+            </div>
+        );
+    }
+
+    // Normal "Enable push" banner
     const labels: Record<string, { title: string; body: string; btn: string; dismiss: string }> = {
         pl: {
             title: '🔔 Włącz powiadomienia push',
@@ -291,11 +378,6 @@ export default function PushNotificationPrompt({
                 }}>
                     {l.body}
                 </p>
-                {debugInfo && (
-                    <p style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.3)', margin: '0.25rem 0 0 0' }}>
-                        Debug: {debugInfo}
-                    </p>
-                )}
             </div>
             <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
                 <button
