@@ -5,6 +5,7 @@ import { X, Send, User, Loader2, Paperclip, MessageCircle } from "lucide-react";
 import Image from "next/image";
 import { useRouter, usePathname } from "next/navigation";
 import { useAssistant } from "@/context/AssistantContext";
+import { useTranslations } from "next-intl";
 
 // Pages where the teaser should be hidden (interactive tools)
 const HIDDEN_PATHS = ["/mapa-bolu", "/symulator", "/cennik"];
@@ -15,23 +16,26 @@ interface Message {
     image?: string;
 }
 
-const SUGGESTIONS = [
-    "Jakie macie godziny otwarcia?",
-    "Czy leczycie pod mikroskopem?",
-    "Kto pracuje w klinice?",
-    "Chcę umówić wizytę."
-];
+// Suggestions are resolved via t() inside the component
 
 export default function AssistantTeaser() {
     const router = useRouter();
     const pathname = usePathname();
     const { isChatOpen, openChat, closeChat } = useAssistant();
+    const t = useTranslations('assistant');
+
+    const SUGGESTIONS = [
+        t('suggestion1'),
+        t('suggestion2'),
+        t('suggestion3'),
+        t('suggestion4'),
+    ];
     const [isVisible, setIsVisible] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
 
     // Chat State
     const [messages, setMessages] = useState<Message[]>([
-        { role: "assistant", content: "Dzień dobry! Jestem wirtualnym asystentem kliniki Mikrostomart. W czym mogę Ci pomóc?" }
+        { role: "assistant", content: t('greeting') }
     ]);
     const [input, setInput] = useState("");
     const [isLoading, setIsLoading] = useState(false);
@@ -94,7 +98,7 @@ export default function AssistantTeaser() {
                 role: "user",
                 content: userMessage.image
                     ? [
-                        { type: "text", text: userMessage.content || "Przesyłam zdjęcie." },
+                        { type: "text", text: userMessage.content || t('sendingPhoto') },
                         { type: "image_url", image_url: { url: userMessage.image } }
                     ]
                     : userMessage.content
@@ -117,10 +121,10 @@ export default function AssistantTeaser() {
             if (response.ok) {
                 setMessages(prev => [...prev, { role: "assistant", content: data.reply }]);
             } else {
-                setMessages(prev => [...prev, { role: "assistant", content: "Przepraszam, błąd techniczny." }]);
+                setMessages(prev => [...prev, { role: "assistant", content: t('errorTechnical') }]);
             }
         } catch (error) {
-            setMessages(prev => [...prev, { role: "assistant", content: "Błąd połączenia." }]);
+            setMessages(prev => [...prev, { role: "assistant", content: t('errorConnection') }]);
         } finally {
             setIsLoading(false);
         }
@@ -160,7 +164,7 @@ export default function AssistantTeaser() {
                     onClick={openChat}
                     onMouseEnter={() => setIsHovered(true)}
                     onMouseLeave={() => setIsHovered(false)}
-                    aria-label="Otwórz asystenta AI"
+                    aria-label={t('ariaOpenAssistant')}
                     style={{
                         position: 'fixed',
                         bottom: '24px',
@@ -211,7 +215,7 @@ export default function AssistantTeaser() {
                             boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
                             pointerEvents: 'none',
                         }}>
-                            Asystent AI 💬
+                            {t('tooltipAI')}
                         </span>
                     )}
 
@@ -304,8 +308,8 @@ export default function AssistantTeaser() {
                                     <Image src="/assistant-avatar.png" alt="AI" fill style={{ objectFit: 'cover', objectPosition: 'top' }} />
                                 </div>
                                 <div style={{ flex: 1 }}>
-                                    <h3 style={{ color: 'white', margin: 0, fontSize: '16px' }}>Wirtualny Asystent</h3>
-                                    <p style={{ color: '#9ca3af', margin: 0, fontSize: '11px' }}>Mikrostomart Opole</p>
+                                    <h3 style={{ color: 'white', margin: 0, fontSize: '16px' }}>{t('headerTitle')}</h3>
+                                    <p style={{ color: '#9ca3af', margin: 0, fontSize: '11px' }}>{t('headerSubtitle')}</p>
                                 </div>
                                 <button
                                     onClick={closeChat}
@@ -381,22 +385,22 @@ export default function AssistantTeaser() {
                                 {messages.length < 3 && (
                                     <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', marginBottom: '12px', paddingBottom: '4px' }}>
                                         <button
-                                            onClick={() => handleSuggestionClick({ label: "📅 Umów wizytę", action: "/rezerwacja" })}
+                                            onClick={() => handleSuggestionClick({ label: t('bookAppointment'), action: "/rezerwacja" })}
                                             style={{
                                                 padding: '6px 12px', borderRadius: '20px', border: '1px solid #dcb14a',
                                                 background: '#dcb14a', color: 'black', fontSize: '12px', cursor: 'pointer', whiteSpace: 'nowrap', fontWeight: 'bold'
                                             }}
                                         >
-                                            📅 Umów wizytę
+                                            {t('bookAppointment')}
                                         </button>
                                         <button
-                                            onClick={() => handleSuggestionClick({ label: "💰 Cennik", action: "/cennik" })}
+                                            onClick={() => handleSuggestionClick({ label: t('pricing'), action: "/cennik" })}
                                             style={{
                                                 padding: '6px 12px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.2)',
                                                 background: 'transparent', color: '#d1d5db', fontSize: '12px', cursor: 'pointer', whiteSpace: 'nowrap'
                                             }}
                                         >
-                                            💰 Cennik
+                                            {t('pricing')}
                                         </button>
                                         {SUGGESTIONS.map((s, i) => (
                                             <button key={i} onClick={() => handleSuggestionClick(s)} style={{
@@ -417,7 +421,7 @@ export default function AssistantTeaser() {
                                     }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                             <img src={selectedImage} alt="Preview" style={{ width: '40px', height: '40px', borderRadius: '4px', objectFit: 'cover' }} />
-                                            <span style={{ fontSize: '12px', color: '#d1d5db' }}>Zdjęcie dodane</span>
+                                            <span style={{ fontSize: '12px', color: '#d1d5db' }}>{t('imageAdded')}</span>
                                         </div>
                                         <button onClick={() => setSelectedImage(null)} style={{ background: 'none', border: 'none', color: '#9ca3af', cursor: 'pointer' }}>
                                             <X size={16} />
@@ -442,7 +446,7 @@ export default function AssistantTeaser() {
                                         value={input}
                                         onChange={(e) => setInput(e.target.value)}
                                         onKeyDown={(e) => e.key === 'Enter' && sendMessage(input)}
-                                        placeholder="Wpisz wiadomość..."
+                                        placeholder={t('inputPlaceholder')}
                                         style={{
                                             flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)',
                                             background: 'rgba(0,0,0,0.3)', color: 'white', outline: 'none'

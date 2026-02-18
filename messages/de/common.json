@@ -340,5 +340,23 @@
         "en": "English",
         "de": "Deutsch",
         "ua": "Українська"
+    },
+    "assistant": {
+        "greeting": "Guten Tag! Ich bin der virtuelle Assistent der Klinik Mikrostomart. Wie kann ich Ihnen helfen?",
+        "suggestion1": "Wie sind Ihre Öffnungszeiten?",
+        "suggestion2": "Behandeln Sie unter dem Mikroskop?",
+        "suggestion3": "Wer arbeitet in der Klinik?",
+        "suggestion4": "Ich möchte einen Termin vereinbaren.",
+        "bookAppointment": "📅 Termin buchen",
+        "pricing": "💰 Preisliste",
+        "sendingPhoto": "Foto wird gesendet.",
+        "errorTechnical": "Entschuldigung, ein technischer Fehler ist aufgetreten.",
+        "errorConnection": "Verbindungsfehler.",
+        "ariaOpenAssistant": "KI-Assistenten öffnen",
+        "tooltipAI": "KI-Assistent 💬",
+        "headerTitle": "Virtueller Assistent",
+        "headerSubtitle": "Mikrostomart Opole",
+        "imageAdded": "Foto hinzugefügt",
+        "inputPlaceholder": "Nachricht eingeben..."
     }
 }

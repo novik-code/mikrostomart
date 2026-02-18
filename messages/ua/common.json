@@ -340,5 +340,23 @@
         "en": "English",
         "de": "Deutsch",
         "ua": "Українська"
+    },
+    "assistant": {
+        "greeting": "Добрий день! Я віртуальний асистент клініки Mikrostomart. Чим можу допомогти?",
+        "suggestion1": "Які у вас години роботи?",
+        "suggestion2": "Чи лікуєте ви під мікроскопом?",
+        "suggestion3": "Хто працює в клініці?",
+        "suggestion4": "Хочу записатися на прийом.",
+        "bookAppointment": "📅 Записатися",
+        "pricing": "💰 Прайс",
+        "sendingPhoto": "Надсилаю фото.",
+        "errorTechnical": "Вибачте, сталася технічна помилка.",
+        "errorConnection": "Помилка з'єднання.",
+        "ariaOpenAssistant": "Відкрити ШІ-асистента",
+        "tooltipAI": "ШІ-Асистент 💬",
+        "headerTitle": "Віртуальний Асистент",
+        "headerSubtitle": "Mikrostomart Opole",
+        "imageAdded": "Фото додано",
+        "inputPlaceholder": "Введіть повідомлення..."
     }
 }

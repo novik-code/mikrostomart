@@ -340,5 +340,23 @@
         "en": "English",
         "de": "Deutsch",
         "ua": "Українська"
+    },
+    "assistant": {
+        "greeting": "Dzień dobry! Jestem wirtualnym asystentem kliniki Mikrostomart. W czym mogę Ci pomóc?",
+        "suggestion1": "Jakie macie godziny otwarcia?",
+        "suggestion2": "Czy leczycie pod mikroskopem?",
+        "suggestion3": "Kto pracuje w klinice?",
+        "suggestion4": "Chcę umówić wizytę.",
+        "bookAppointment": "📅 Umów wizytę",
+        "pricing": "💰 Cennik",
+        "sendingPhoto": "Przesyłam zdjęcie.",
+        "errorTechnical": "Przepraszam, błąd techniczny.",
+        "errorConnection": "Błąd połączenia.",
+        "ariaOpenAssistant": "Otwórz asystenta AI",
+        "tooltipAI": "Asystent AI 💬",
+        "headerTitle": "Wirtualny Asystent",
+        "headerSubtitle": "Mikrostomart Opole",
+        "imageAdded": "Zdjęcie dodane",
+        "inputPlaceholder": "Wpisz wiadomość..."
     }
 }

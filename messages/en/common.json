@@ -340,5 +340,23 @@
         "en": "English",
         "de": "Deutsch",
         "ua": "Українська"
+    },
+    "assistant": {
+        "greeting": "Hello! I'm the virtual assistant of the Mikrostomart clinic. How can I help you?",
+        "suggestion1": "What are your opening hours?",
+        "suggestion2": "Do you provide microscope treatment?",
+        "suggestion3": "Who works at the clinic?",
+        "suggestion4": "I'd like to book an appointment.",
+        "bookAppointment": "📅 Book an appointment",
+        "pricing": "💰 Pricing",
+        "sendingPhoto": "Sending a photo.",
+        "errorTechnical": "Sorry, a technical error occurred.",
+        "errorConnection": "Connection error.",
+        "ariaOpenAssistant": "Open AI assistant",
+        "tooltipAI": "AI Assistant 💬",
+        "headerTitle": "Virtual Assistant",
+        "headerSubtitle": "Mikrostomart Opole",
+        "imageAdded": "Photo added",
+        "inputPlaceholder": "Type a message..."
     }
 }
