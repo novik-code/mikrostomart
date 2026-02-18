@@ -10,6 +10,9 @@ export type PushNotificationType =
     | 'chat_admin_to_patient'
     | 'appointment_24h'
     | 'appointment_1h'
+    | 'appointment_confirmed'
+    | 'appointment_cancelled'
+    | 'appointment_rescheduled'
     | 'new_blog_post'
     | 'order_status_update'
     | 'task_new'
@@ -41,6 +44,18 @@ const translations: Record<string, Record<PushNotificationType, PushTemplate>> =
         appointment_1h: {
             title: '⏰ Wizyta za godzinę!',
             body: 'Już niedługo Twoja wizyta o {time} u {doctor}.',
+        },
+        appointment_confirmed: {
+            title: '✅ Pacjent potwierdził wizytę',
+            body: '{patient} — {date}, {time} u {doctor}',
+        },
+        appointment_cancelled: {
+            title: '❌ Pacjent odwołał wizytę',
+            body: '{patient} — {date}, {time} u {doctor}',
+        },
+        appointment_rescheduled: {
+            title: '📅 Prośba o przełożenie wizyty',
+            body: '{patient} — {date}, {time}. Powód: {reason}',
         },
         new_blog_post: {
             title: '📰 Nowy artykuł na blogu',
@@ -92,6 +107,18 @@ const translations: Record<string, Record<PushNotificationType, PushTemplate>> =
             title: '⏰ Appointment in 1 hour!',
             body: 'Your appointment at {time} with {doctor} is coming up.',
         },
+        appointment_confirmed: {
+            title: '✅ Patient confirmed appointment',
+            body: '{patient} — {date}, {time} with {doctor}',
+        },
+        appointment_cancelled: {
+            title: '❌ Patient cancelled appointment',
+            body: '{patient} — {date}, {time} with {doctor}',
+        },
+        appointment_rescheduled: {
+            title: '📅 Reschedule request',
+            body: '{patient} — {date}, {time}. Reason: {reason}',
+        },
         new_blog_post: {
             title: '📰 New blog article',
             body: '{title}',
@@ -142,6 +169,18 @@ const translations: Record<string, Record<PushNotificationType, PushTemplate>> =
             title: '⏰ Termin in 1 Stunde!',
             body: 'Ihr Termin um {time} bei {doctor} steht bevor.',
         },
+        appointment_confirmed: {
+            title: '✅ Patient hat den Termin bestätigt',
+            body: '{patient} — {date}, {time} bei {doctor}',
+        },
+        appointment_cancelled: {
+            title: '❌ Patient hat den Termin abgesagt',
+            body: '{patient} — {date}, {time} bei {doctor}',
+        },
+        appointment_rescheduled: {
+            title: '📅 Umbuchungsanfrage',
+            body: '{patient} — {date}, {time}. Grund: {reason}',
+        },
         new_blog_post: {
             title: '📰 Neuer Blog-Artikel',
             body: '{title}',
@@ -191,6 +230,18 @@ const translations: Record<string, Record<PushNotificationType, PushTemplate>> =
         appointment_1h: {
             title: '⏰ Візит через годину!',
             body: 'Ваш візит о {time} у {doctor} вже скоро.',
+        },
+        appointment_confirmed: {
+            title: '✅ Пацієнт підтвердив візит',
+            body: '{patient} — {date}, {time} у {doctor}',
+        },
+        appointment_cancelled: {
+            title: '❌ Пацієнт скасував візит',
+            body: '{patient} — {date}, {time} у {doctor}',
+        },
+        appointment_rescheduled: {
+            title: '📅 Запит на перенесення',
+            body: '{patient} — {date}, {time}. Причина: {reason}',
         },
         new_blog_post: {
             title: '📰 Нова стаття в блозі',

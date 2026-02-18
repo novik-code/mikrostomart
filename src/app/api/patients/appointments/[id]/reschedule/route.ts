@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 import { verifyToken } from '@/lib/jwt';
 import { sendTelegramNotification } from '@/lib/telegram';
+import { broadcastPush } from '@/lib/webpush';
 import type { RescheduleAppointmentRequest, AppointmentActionResponse, AppointmentAction } from '@/types/appointmentActions';
 
 const supabase = createClient(
@@ -167,6 +168,17 @@ export async function POST(
         } catch (telegramError) {
             console.error('[RESCHEDULE] Failed to send telegram:', telegramError);
         }
+
+        // Push notification to admins and employees
+        const pushParams = {
+            patient: patient.phone || 'Pacjent',
+            date: appointmentDateFormatted,
+            time: appointmentTime,
+            doctor: appointmentAction.doctor_name || '',
+            reason: body.reason || 'Nie podano',
+        };
+        broadcastPush('admin', 'appointment_rescheduled', pushParams, '/admin').catch(console.error);
+        broadcastPush('employee', 'appointment_rescheduled', pushParams, '/pracownik').catch(console.error);
 
         const response: AppointmentActionResponse = {
             success: true,

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sendTelegramNotification } from '@/lib/telegram';
+import { broadcastPush } from '@/lib/webpush';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -129,6 +130,16 @@ export async function POST(req: NextRequest) {
         } catch (telegramError) {
             console.error('[CONFIRM-PUBLIC] Failed to send telegram:', telegramError);
         }
+
+        // Push notification to admins and employees
+        const pushParams = {
+            patient: action.patient_name || 'Pacjent',
+            date: appointmentDateFormatted,
+            time: appointmentTime,
+            doctor: action.doctor_name || '',
+        };
+        broadcastPush('admin', 'appointment_confirmed', pushParams, '/admin').catch(console.error);
+        broadcastPush('employee', 'appointment_confirmed', pushParams, '/pracownik').catch(console.error);
 
         // Send Email notification
         let emailSent = false;
