@@ -74,7 +74,8 @@ export default function PatientChat() {
             try {
                 const data = JSON.parse(stored);
                 setPatientName(`${data.firstName || ''} ${data.lastName || ''}`.trim());
-                setPatientId(data.id || data.prodentisId || '');
+                // Use supabaseId (Supabase UUID) for push subscriptions — matches chat_conversations.patient_id
+                setPatientId(data.supabaseId || data.id || data.prodentisId || '');
             } catch { /* ignore */ }
         }
         loadMessages();

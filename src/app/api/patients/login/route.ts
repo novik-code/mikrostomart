@@ -130,6 +130,9 @@ export async function POST(request: Request) {
                 ...patientDetails,
                 // Override with Supabase data if exists
                 email: patient.email || patientDetails.email,
+                // Include Supabase UUID for push subscriptions (matches chat_conversations.patient_id)
+                supabaseId: patient.id,
+                prodentis_id: patient.prodentis_id,
             },
         });
 
