@@ -76,71 +76,70 @@ export default function RodoPage() {
                         boxShadow: "0 4px 30px rgba(0,0,0,0.3)"
                     }}>
                         <p style={{ color: "var(--color-text-muted)", lineHeight: 1.8, marginBottom: "1.5rem" }}>
-                            Szanowna Pani / Szanowny Panie,
+                            {t('greeting')}
                         </p>
                         <p style={{ color: "var(--color-text-muted)", lineHeight: 1.8, marginBottom: "2.5rem" }}>
-                            Poniżej znajdzie Pani / Pan podstawowe informacje odnośnie przetwarzania Pani / Pana danych osobowych podanych w związku z zawarciem i wykonaniem umowy o świadczenie usług stomatologicznych, wymagane przepisami Rozporządzenia Parlamentu Europejskiego i Rady (UE) 2016/679 z dnia 27 kwietnia 2016 r. w sprawie ochrony osób fizycznych w związku z przetwarzaniem danych osobowych i w sprawie swobodnego przepływu takich danych oraz uchylenia dyrektywy 95/46/WA (ogólne rozporządzenie o ochrony danych) (Dz. U. UE L. z 2016 r. Nr 119, str. 1), zwanego dalej RODO.
+                            {t('intro')}
                         </p>
 
                         {/* Section template — all sections follow this pattern */}
-                        <LegalSection number="1" title="Administrator danych">
-                            <p>Administratorem Pani / Pana danych osobowych jest: <br />
-                                <strong style={{ color: "var(--color-text-main)" }}>ELMAR SPÓŁKA Z O.O.</strong>, ul. Centralna nr 33A, 45-940 Opole, NIP: 7543251709</p>
+                        <LegalSection number="1" title={t('sec1Title')}>
+                            <p dangerouslySetInnerHTML={{ __html: t('sec1Text') }} />
                         </LegalSection>
 
-                        <LegalSection number="2" title="Kontakt z Administratorem">
-                            <p style={{ marginBottom: "0.75rem" }}>Kontakt z Administratorem danych jest możliwy:</p>
+                        <LegalSection number="2" title={t('sec2Title')}>
+                            <p style={{ marginBottom: "0.75rem" }}>{t('sec2Intro')}</p>
                             <ul>
-                                <li>pod adresem e-mail: <a href="mailto:gabinet@mikrostomart.pl" style={{ color: "var(--color-primary)", textDecoration: "underline" }}>gabinet@mikrostomart.pl</a>,</li>
-                                <li>pod numerem telefonu: +48 570 270 470,</li>
-                                <li>pisemnie na adres siedziby Administratora.</li>
+                                <li dangerouslySetInnerHTML={{ __html: t('sec2Li1') }} />
+                                <li>{t('sec2Li2')}</li>
+                                <li>{t('sec2Li3')}</li>
                             </ul>
                         </LegalSection>
 
-                        <LegalSection number="3" title="Cel i podstawa przetwarzania">
-                            <p>Dane podane przez Panią / Pana w związku z zawartą umową o świadczenie usług stomatologicznych będą przetwarzane w celu zawarcia i wykonania tej umowy (m. in. ustalenie stanu zdrowia jamy ustnej, diagnozowanie, planowanie leczenia, prowadzenie dokumentacji medycznej, realizację świadczeń stomatologicznych itd.) – podstawę prawną przetwarzania danych stanowi niezbędność przetwarzania danych do zawarcia i wykonania umowy, której jest Pani / Pan stroną (art. 6 ust. 1 lit. b RODO).</p>
+                        <LegalSection number="3" title={t('sec3Title')}>
+                            <p>{t('sec3Text')}</p>
                         </LegalSection>
 
-                        <LegalSection number="4" title="Inne cele przetwarzania">
-                            <p style={{ marginBottom: "0.75rem" }}>Ponadto Pani / Pana dane będą przetwarzane w celu realizacji przez Administratora obowiązków wynikających z:</p>
+                        <LegalSection number="4" title={t('sec4Title')}>
+                            <p style={{ marginBottom: "0.75rem" }}>{t('sec4Intro')}</p>
                             <ul>
-                                <li>a) ochrony stanu zdrowia, świadczenia usług medycznych, zarządzania udzielaniem tych usług oraz leczenia – Ustawa z dnia 6 listopada 2008r. o prawach pacjenta i Rzeczniku Praw Pacjenta;</li>
-                                <li>b) prowadzenia i przechowywania dokumentacji medycznej – Art. 9 ust. 2 lit. h RODO w zw. z art. 24 ust. 1 Ustawy o prawach pacjenta oraz Rozporządzenia MZ;</li>
-                                <li>c) odbioru i archiwizacji Pani/Pana oświadczeń upoważniających inne osoby do dostępu do Pani/Pana dokumentacji medycznej oraz udzielania im informacji o stanie Pani/Pana zdrowia – Art. 6 ust. 1 lit. c RODO w zw. z art. 9 ust. 3 oraz art. 26 ust. 1 Ustawy o prawach pacjenta oraz § 8 ust. 1 Rozporządzenia MZ;</li>
-                                <li>d) kontaktowania się z Panią/Panem pod podanym numerem telefonu czy adresem e-mail, aby np. potwierdzić rezerwację bądź odwołać termin konsultacji lekarskiej, przypomnieć o tej konsultacji – Art. 6 ust. 1 lit. b oraz f RODO, jako tzw. prawnie uzasadniony interes Administratora, jakim jest opieka okołoobsługowa nad pacjentem oraz sprawniejsze zarządzanie terminami;</li>
-                                <li>e) realizacji obowiązków podatkowych – w tym wystawianie rachunków za wykonane przez Administratora usługi, co może się wiązać z koniecznością przetwarzania Pani/Pana danych osobowych – Art. 6 ust. 1 lit. c RODO w zw. z art. 74 ust. 2 ustawy z dnia 29 września 1994 r. o rachunkowości.</li>
+                                <li>{t('sec4Li1')}</li>
+                                <li>{t('sec4Li2')}</li>
+                                <li>{t('sec4Li3')}</li>
+                                <li>{t('sec4Li4')}</li>
+                                <li>{t('sec4Li5')}</li>
                             </ul>
                         </LegalSection>
 
-                        <LegalSection number="5" title="Dochodzenie roszczeń">
-                            <p>Ewentualnie Pani / Pana dane mogą być przetwarzane w celu dochodzenia roszczeń związanych z zawartą z Panią / Panem umową lub obrony przed takimi roszczeniami – wówczas podstawę prawną przetwarzania danych stanowi niezbędność przetwarzania do realizacji prawnie uzasadnionego interesu Administratora, którym jest możliwość dochodzenia roszczeń i obrony przed roszczeniami (art. 6 ust. 1 lit. f RODO).</p>
+                        <LegalSection number="5" title={t('sec5Title')}>
+                            <p>{t('sec5Text')}</p>
                         </LegalSection>
 
-                        <LegalSection number="6" title="Odbiorcy danych">
-                            <p>Pani / Pana dane mogą być przekazywane podmiotom przetwarzającym dane osobowe na zlecenie Administratora, na podstawie umowy zawartej z Administratorem i wyłącznie zgodnie z poleceniami Administratora (np. biuro rachunkowe, firma hostingowa, dostawca oprogramowania itd.). Dane mogą być także przekazywane do sądów, organów administracji publicznej, mediatorów oraz innych podmiotów publicznych i prywatnych – jeżeli będzie to niezbędne dla prawidłowej realizacji świadczeń przez Administratora na rzecz Pani / Pana.</p>
+                        <LegalSection number="6" title={t('sec6Title')}>
+                            <p>{t('sec6Text')}</p>
                         </LegalSection>
 
-                        <LegalSection number="7" title="Przekazywanie danych poza EOG">
-                            <p>Pana / Pani dane nie będą przekazywane do odbiorców znajdujących się poza Europejskim Obszarem Gospodarczym.</p>
+                        <LegalSection number="7" title={t('sec7Title')}>
+                            <p>{t('sec7Text')}</p>
                         </LegalSection>
 
-                        <LegalSection number="8" title="Prawa osoby, której dane dotyczą">
-                            <p style={{ marginBottom: "0.75rem" }}>Przysługuje Pani / Panu prawo:</p>
+                        <LegalSection number="8" title={t('sec8Title')}>
+                            <p style={{ marginBottom: "0.75rem" }}>{t('sec8Intro')}</p>
                             <ul>
-                                <li>a. dostępu do swoich danych oraz prawo żądania ich sprostowania, usunięcia, ograniczenia przetwarzania.</li>
-                                <li>b. W zakresie, w jakim podstawą przetwarzania Pana / Pani danych osobowych jest przesłanka prawnie uzasadnionego interesu Administratora, przysługuje Pani / Panu prawo do wniesienia sprzeciwu wobec przetwarzania Pani / Panu danych osobowych (w szczególności wobec przetwarzania na potrzeby marketingu bezpośredniego, w tym profilowania, w takim przypadku wniesiony sprzeciw jest dla Administratora wiążący).</li>
-                                <li>c. W zakresie w jakim podstawą przetwarzania Pani / Pana danych osobowych jest zgoda, ma Pani / Pan prawo jej wycofania, przy czym wycofanie zgody nie ma wpływu na zgodność z prawem przetwarzania, którego dokonania na podstawie zgody przed jej wycofaniem.</li>
-                                <li>d. W zakresie, w jakim Pani / Pana dane są przetwarzane w celu zawarcia i wykonania umowy lub przetwarzane na podstawie zgody – przysługuje Pani / Panu także prawo do przenoszenia danych osobowych, tj. do otrzymania od Administratora Pani / Panu danych osobowych w ustrukturyzowanym, powszechnie używanym formacie nadającym się do odczytu maszynowego, które następnie może Pani / Panu przesłać innemu Administratorowi danych.</li>
-                                <li>e. Przysługuje Pani / Panu również prawo wniesienia skargi do organu nadzorczego zajmującego się ochroną danych osobowych (w Polsce: Prezes Urzędu Ochrony Danych Osobowych) jeżeli uzna Pani / Pan, że przetwarzanie odbywa się w sposób niezgodny z prawem. W celu skorzystania z powyższych uprawnień należy skontaktować się z Administratorem.</li>
+                                <li>{t('sec8Li1')}</li>
+                                <li>{t('sec8Li2')}</li>
+                                <li>{t('sec8Li3')}</li>
+                                <li>{t('sec8Li4')}</li>
+                                <li>{t('sec8Li5')}</li>
                             </ul>
                         </LegalSection>
 
-                        <LegalSection number="9" title="Zautomatyzowane podejmowanie decyzji">
-                            <p>W związku z przetwarzaniem Pani / Pana danych osobowych, decyzje dotyczące Pani / Pana nie będą podejmowane w sposób zautomatyzowany (bez udziału człowieka).</p>
+                        <LegalSection number="9" title={t('sec9Title')}>
+                            <p>{t('sec9Text')}</p>
                         </LegalSection>
 
-                        <LegalSection number="10" title="Dobrowolność podania danych" last>
-                            <p>Podanie danych osobowych w związku ze świadczeniem usług stomatologicznych jest dobrowolne, ale konieczne do zapewnienia prawidłowej opieki zdrowotnej przez Administratora.</p>
+                        <LegalSection number="10" title={t('sec10Title')} last>
+                            <p>{t('sec10Text')}</p>
                         </LegalSection>
 
                     </div>

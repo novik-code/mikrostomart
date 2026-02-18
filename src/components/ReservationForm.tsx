@@ -17,35 +17,20 @@ const SPECIALISTS = [
     { id: "malgorzata", name: "hig. stom. Małgorzata Maćków-Huras", role: "hygienist" },
 ] as const;
 
-// Services Data
-const SERVICES = {
+// Service IDs per role (labels resolved via t())
+const SERVICE_IDS = {
     doctor: [
-        { id: "konsultacja", label: "Konsultacja Wstępna" },
-        { id: "bol", label: "Pomoc doraźna (Ból)" },
-        { id: "implanty", label: "Implanty" },
-        { id: "licowki", label: "Licówki / Metamorfoza" },
-        { id: "ortodoncja", label: "Ortodoncja (Nakładki)" },
+        { id: "konsultacja" },
+        { id: "bol" },
+        { id: "implanty" },
+        { id: "licowki" },
+        { id: "ortodoncja" },
     ],
     hygienist: [
-        { id: "higienizacja", label: "Higienizacja (Profilaktyka)" },
-        { id: "wybielanie", label: "Wybielanie Zębów" },
+        { id: "higienizacja" },
+        { id: "wybielanie" },
     ]
-};
-
-// Schema Validation
-const reservationSchema = z.object({
-    name: z.string().min(3, "Imię i nazwisko jest wymagane (min. 3 znaki)"),
-    phone: z.string().min(9, "Numer telefonu jest wymagany (min. 9 znaków)"),
-    email: z.string().email("Podaj poprawny adres email").optional().or(z.literal("")),
-    specialist: z.string().min(1, "Wybierz specjalistę"),
-    service: z.string().min(1, "Wybierz rodzaj usługi"),
-    date: z.string().min(1, "Wybierz termin z kalendarza"), // Populated by Scheduler
-    time: z.string().min(1, "Wybierz termin z kalendarza"), // Populated by Scheduler
-    description: z.string().optional(),
-    attachment: z.any().optional(),
-});
-
-type ReservationFormData = z.infer<typeof reservationSchema>;
+} as const;
 
 export default function ReservationForm() {
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -53,6 +38,21 @@ export default function ReservationForm() {
     const [error, setError] = useState<string | null>(null);
     const [rodoConsent, setRodoConsent] = useState(false);
     const t = useTranslations('reservationForm');
+
+    // Build schema with translated validation messages
+    const reservationSchema = z.object({
+        name: z.string().min(3, t('validationName')),
+        phone: z.string().min(9, t('validationPhone')),
+        email: z.string().email(t('validationEmail')).optional().or(z.literal("")),
+        specialist: z.string().min(1, t('validationSpecialist')),
+        service: z.string().min(1, t('validationService')),
+        date: z.string().min(1, t('validationDate')),
+        time: z.string().min(1, t('validationDate')),
+        description: z.string().optional(),
+        attachment: z.any().optional(),
+    });
+
+    type ReservationFormData = z.infer<typeof reservationSchema>;
 
     const {
         register,
@@ -89,7 +89,7 @@ export default function ReservationForm() {
     // Derived values
     const selectedSpecialist = SPECIALISTS.find(s => s.id === selectedSpecialistId);
     const availableServices = selectedSpecialist
-        ? SERVICES[selectedSpecialist.role as keyof typeof SERVICES] || []
+        ? (SERVICE_IDS[selectedSpecialist.role as keyof typeof SERVICE_IDS] || []).map(svc => ({ id: svc.id, label: t(svc.id) }))
         : [];
 
     // Reset service & slots when specialist changes
@@ -148,7 +148,7 @@ export default function ReservationForm() {
                 }),
             });
 
-            if (!response.ok) throw new Error("Błąd wysyłania formularza");
+            if (!response.ok) throw new Error(t('submitError'));
 
             setIsSuccess(true);
         } catch (err) {
@@ -179,7 +179,7 @@ export default function ReservationForm() {
                     onClick={() => setIsSuccess(false)}
                     style={{ marginTop: '2rem', padding: '0.8rem 1.5rem', background: 'transparent', border: '1px solid var(--color-primary)', color: 'var(--color-primary)', borderRadius: 'var(--radius-md)', cursor: 'pointer' }}
                 >
-                    Umów kolejną wizytę
+                    {t('bookAnother')}
                 </button>
             </div>
         );
@@ -198,7 +198,7 @@ export default function ReservationForm() {
         }}>
             {/* NAME */}
             <div className="form-group">
-                <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", color: "var(--color-text-muted)" }}>Imię i Nazwisko *</label>
+                <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", color: "var(--color-text-muted)" }}>{t('nameFieldLabel')}</label>
                 <input
                     {...register("name")}
                     type="text"
@@ -313,7 +313,7 @@ export default function ReservationForm() {
                 selectedSpecialist && (
                     <div className="form-group">
                         <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", color: "var(--color-text-muted)" }}>
-                            Dostępne Terminy * <span className="text-xs text-[#dcb14a]">(Czas trwania: {selectedSpecialist.id === 'malgorzata' ? '60min' : '30min'})</span>
+                            {t('availableSlots')} * <span className="text-xs text-[#dcb14a]">({t('duration', { duration: selectedSpecialist.id === 'malgorzata' ? '60min' : '30min' })})</span>
                         </label>
                         <AppointmentScheduler
                             specialistId={selectedSpecialist.id}
@@ -332,7 +332,7 @@ export default function ReservationForm() {
 
                         {selectedDate && selectedTime && (
                             <p style={{ marginTop: "0.5rem", fontSize: "0.9rem", color: "#dcb14a" }}>
-                                Wybrano: <strong>{selectedDate}, godz. {selectedTime}</strong>
+                                {t('selectedSlot', { date: selectedDate, time: selectedTime })}
                             </p>
                         )}
                     </div>
@@ -382,7 +382,7 @@ export default function ReservationForm() {
 
             {/* INFO TEXT */}
             <p style={{ fontSize: "0.8rem", color: "var(--color-text-muted)", lineHeight: 1.5 }}>
-                Administratorem Twoich danych osobowych jest Mikrostomart. Dane będą przetwarzane w celu obsługi zgłoszenia.
+                {t('dataAdmin')}
             </p>
 
             {/* RODO CONSENT CHECKBOX */}
@@ -395,10 +395,10 @@ export default function ReservationForm() {
                     style={{ marginTop: '3px', accentColor: '#dcb14a', minWidth: '18px', minHeight: '18px', cursor: 'pointer' }}
                 />
                 <label htmlFor="rodo-consent-reservation" style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', lineHeight: 1.5, cursor: 'pointer' }}>
-                    Wyrażam zgodę na przetwarzanie moich danych osobowych w celu umówienia wizyty, zgodnie z{' '}
-                    <a href="/rodo" target="_blank" style={{ color: '#dcb14a', textDecoration: 'underline' }}>Klauzulą RODO</a>{' '}
-                    oraz{' '}
-                    <a href="/polityka-prywatnosci" target="_blank" style={{ color: '#dcb14a', textDecoration: 'underline' }}>Polityką Prywatności</a>.
+                    {t('rodoConsent')}{' '}
+                    <a href="/rodo" target="_blank" style={{ color: '#dcb14a', textDecoration: 'underline' }}>{t('rodoClause')}</a>{' '}
+                    {t('rodoAnd')}{' '}
+                    <a href="/polityka-prywatnosci" target="_blank" style={{ color: '#dcb14a', textDecoration: 'underline' }}>{t('privacyPolicy')}</a>.
                 </label>
             </div>
 
