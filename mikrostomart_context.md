@@ -52,9 +52,9 @@
 
 ### Backend & Database
 - **Supabase** (PostgreSQL database, authentication, storage)
-  - Database: 27 migrations (003-027: email verification, appointment actions, SMS reminders, user_roles, employee tasks, task history, comments, labels, status fix, google reviews cache, etc.)
+  - Database: 33 migrations (003-033: email verification, appointment actions, SMS reminders, user_roles, employee tasks, task history, comments, labels, status fix, google reviews cache, chat, push subscriptions, etc.)
   - Auth: Email/password, magic links, JWT tokens
-  - Storage: Product images, patient documents
+  - Storage: Product images, patient documents, task images
 
 ### External Integrations
 | Service | Purpose | Status |
@@ -67,6 +67,7 @@
 | **Replicate** | AI image generation | ✅ Active |
 | **YouTube Data API** | Video feed | ✅ Active |
 | **Google Places API** | Real Google Reviews (New + Legacy) | ✅ Active |
+| **Web Push (VAPID)** | Browser push notifications (patients + employees) | ✅ Active |
 
 ### UI/UX Libraries
 - **Framer Motion** - Animations
@@ -461,6 +462,46 @@ Persistent cache for Google Reviews (accumulates over time from API fetches).
 - UNIQUE (google_author_name, review_text)
 ```
 
+#### 18. **chat_conversations**
+Patient-reception chat conversations.
+```sql
+- id (uuid, PK)
+- patient_id (text, NOT NULL)
+- patient_name (text)
+- patient_phone (text)
+- status (text, DEFAULT 'open', CHECK IN ('open', 'closed'))
+- last_message_at (timestamptz)
+- unread_by_patient (boolean, DEFAULT false)
+- unread_by_admin (boolean, DEFAULT false)
+- created_at (timestamptz)
+```
+
+#### 19. **chat_messages**
+Individual messages in chat conversations.
+```sql
+- id (uuid, PK)
+- conversation_id (uuid, FK -> chat_conversations, CASCADE)
+- sender_role (text, NOT NULL, CHECK IN ('patient', 'reception'))
+- content (text, NOT NULL)
+- read (boolean, DEFAULT false)
+- created_at (timestamptz)
+```
+
+#### 20. **push_subscriptions**
+Web Push API subscription metadata for patients, employees, and admins.
+```sql
+- id (uuid, PK)
+- user_type (text, NOT NULL, CHECK IN ('patient', 'employee', 'admin'))
+- user_id (text, NOT NULL)
+- endpoint (text, NOT NULL)
+- p256dh (text, NOT NULL)
+- auth (text, NOT NULL)
+- locale (text, DEFAULT 'pl')
+- created_at (timestamptz)
+- UNIQUE(endpoint)
+- INDEX idx_push_subs_user (user_type, user_id)
+```
+
 ---
 
 ## ✨ Feature Catalog
@@ -742,8 +783,16 @@ Features:
    - **Task history**: audit log of all edits, status changes, checklist toggles with timestamps
    - **Labels/tags**: custom colored labels (5 defaults seeded), assignable per task
    - **Browser notifications**: push notification permission request on load
-   - **Task reminders cron**: daily Telegram reminder for tasks without due dates (`/api/cron/task-reminders`)
-   - **DB Migrations**: 019 (task_type + checklists), 020 (image_url), 021 (task_history), 022 (multi_assign), 023 (task_comments), 024 (task_labels)
+    - **Push notifications (Web Push)**: broadcasts to all subscribed employees via `sendPushToAllEmployees()`:
+      - New task created -> push to all employees (except creator)
+      - Task status changed -> push (except updater)
+      - Task assigned/reassigned -> push (except assigner)
+      - Checklist item toggled -> push (except toggler)
+      - New comment on task -> push (except commenter)
+      - Daily cron reminder for tasks without due dates -> push to all
+    - Compact `PushNotificationPrompt` toggle in header (subscribe/unsubscribe)
+    - **Task reminders cron**: daily Telegram + push notification for tasks without due dates (`/api/cron/task-reminders`)
+    - **DB Migrations**: 019 (task_type + checklists), 020 (image_url), 021 (task_history), 022 (multi_assign), 023 (task_comments), 024 (task_labels), 025 (push_subscriptions), 026 (chat_messages)
 8. **Role check**: `hasRole(userId, 'employee') || hasRole(userId, 'admin')`
 9. **Middleware protection**: unauthenticated → redirect to `/pracownik/login`
 
@@ -925,6 +974,14 @@ Features:
 | `/employee/tasks/labels` | GET, POST | Task labels CRUD (list all labels, create new label) |
 | `/employee/tasks/upload-image` | POST | Upload task image to Supabase Storage (`task-images` bucket) |
 
+### Push Notification APIs (`/api/push/*`)
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/push/subscribe` | POST | Subscribe to push notifications (upserts into `push_subscriptions`) |
+| `/push/subscribe` | DELETE | Unsubscribe from push notifications |
+| `/push/test` | POST | Send test push notification to verify delivery |
+
 ### Appointment APIs (`/api/appointments/*`)
 
 | Endpoint | Method | Purpose |
@@ -962,7 +1019,7 @@ Features:
 | `/cron/sms-auto-send` | Auto-send approved drafts | Daily 8:00 AM UTC |
 | `/cron/sms-auto-send?targetDate=monday` | Auto-send Monday drafts (Fri only) | Friday 9:00 AM UTC |
 | `/cron/daily-article` | Daily article publishing | Daily 7:00 AM UTC |
-| `/cron/task-reminders` | Telegram reminder for tasks without due dates | Daily 8:30 AM UTC |
+| `/cron/task-reminders` | Telegram + push reminder for tasks without due dates | Daily 8:30 AM UTC |
 
 
 ---
@@ -1193,6 +1250,53 @@ Centralized via `src/lib/telegram.ts` with `sendTelegramNotification(message, ch
 - `src/components/GoogleReviews.tsx` — Frontend carousel component
 - `src/data/reviews.ts` — Static fallback reviews
 - `supabase_migrations/027_google_reviews_cache.sql` — Database table
+
+---
+
+### 10. Web Push Notifications (VAPID)
+**Purpose:** Browser push notifications for patients and employees
+
+**Technology:** Web Push API with VAPID (Voluntary Application Server Identification)
+
+**Configuration:**
+- Public Key: `NEXT_PUBLIC_VAPID_PUBLIC_KEY`
+- Private Key: `VAPID_PRIVATE_KEY`
+- Email: `VAPID_EMAIL`
+
+**Architecture:**
+- **Service Worker**: Push logic merged into main Workbox SW via `@ducanh2912/next-pwa` `customWorkerSrc` (`worker/index.ts`)
+- **iOS Support**: Requires PWA (Add to Home Screen) — `PushNotificationPrompt` detects Safari vs PWA and shows appropriate UI
+- **Subscription Storage**: `push_subscriptions` table in Supabase (user_type, user_id, endpoint, keys, locale)
+- **Sending**: `web-push` npm library via `src/lib/webpush.ts`
+
+**Push Notification Types** (`src/lib/pushTranslations.ts` — 4 locales):
+| Type | Trigger | Target |
+|------|---------|--------|
+| `task_new` | New task created | All employees (except creator) |
+| `task_status` | Task status changed | All employees (except updater) |
+| `task_assigned` | Task assigned/reassigned | All employees (except assigner) |
+| `task_comment` | New comment on task | All employees (except commenter) |
+| `task_checklist` | Checklist item toggled | All employees (except toggler) |
+| `task_reminder` | Daily cron (tasks without due dates) | All employees |
+| `chat_patient_to_admin` | Patient sends chat message | Admin |
+| `chat_admin_to_patient` | Reception replies | Patient |
+
+**Key Functions** (`src/lib/webpush.ts`):
+- `sendPushToUser(userId, userType, payload)` — send to specific user
+- `sendPushToAllEmployees(payload, excludeUserId?)` — broadcast to all subscribed employees
+- `sendTranslatedPushToUser(userId, userType, notifType, params)` — localized push
+- `broadcastPush(payload)` — send to all subscribers
+
+**UI Component**: `PushNotificationPrompt` — compact mode (toggle button for employee header) and full banner mode (patient chat page)
+
+**Integration Files:**
+- `src/lib/webpush.ts` — Core push sending logic
+- `src/lib/pushTranslations.ts` — Localized push templates (12 types x 4 locales)
+- `src/components/PushNotificationPrompt.tsx` — Subscribe/unsubscribe UI
+- `worker/index.ts` — Service worker push + notificationclick handlers
+- `src/app/api/push/subscribe/route.ts` — Subscription management API
+- `src/app/api/push/test/route.ts` — Test push endpoint
+- `supabase_migrations/033_push_subscriptions.sql` — Database table
 
 ---
 
@@ -1469,9 +1573,20 @@ NODE_ENV=production
 ---
 
 ### February 18, 2026
-**Patient ↔ Reception Real-time Chat (Supabase Realtime)**
+**Employee Push Notifications + Patient Chat**
 
-#### Changes:
+#### Employee Push Notifications:
+1. **Push infrastructure** — `sendPushToAllEmployees()` in `webpush.ts` broadcasts to all `user_type='employee'` subscriptions
+2. **6 employee push types** added to `pushTranslations.ts` (all 4 locales): task_new, task_status, task_assigned, task_comment, task_checklist, task_reminder
+3. **Task API triggers**:
+   - `POST /api/employee/tasks` — push on new task creation (alongside Telegram)
+   - `PATCH /api/employee/tasks/[id]` — push on status change, assignment change, checklist toggle
+   - `POST /api/employee/tasks/[id]/comments` — push on new comment (with task title context)
+   - `GET /api/cron/task-reminders` — push alongside existing Telegram daily reminder
+4. **Employee Zone UI** — Compact `PushNotificationPrompt` toggle added to `/pracownik` header
+5. All pushes exclude the actor (person triggering the event) from receiving the notification
+
+#### Patient Chat:
 1. **Database** — Migration `032_chat.sql`:
    - `chat_conversations` — one per patient, status (open/closed), unread flags
    - `chat_messages` — sender_role (patient/reception), content, read flag
