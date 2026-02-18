@@ -1,7 +1,7 @@
 "use client";
 
 import { useCart } from "@/context/CartContext";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import RevealOnScroll from "@/components/RevealOnScroll";
@@ -17,7 +17,20 @@ type Product = {
     category: string;
     isVisible?: boolean;
     gallery?: string[];
+    nameTranslations?: Record<string, string>;
+    descriptionTranslations?: Record<string, string>;
+    categoryTranslations?: Record<string, string>;
 };
+
+function getTranslated(product: Product, field: 'name' | 'description' | 'category', locale: string): string {
+    if (locale === 'pl') return product[field];
+    const translationsMap: Record<string, Record<string, string> | undefined> = {
+        name: product.nameTranslations,
+        description: product.descriptionTranslations,
+        category: product.categoryTranslations,
+    };
+    return translationsMap[field]?.[locale] || product[field];
+}
 
 export default function ShopPage() {
     const { addItem } = useCart();
@@ -27,6 +40,7 @@ export default function ShopPage() {
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
     const [isCartOpen, setIsCartOpen] = useState(false);
     const t = useTranslations('sklep');
+    const locale = useLocale();
 
     useEffect(() => {
         const fetchProducts = async () => {
@@ -117,17 +131,17 @@ export default function ShopPage() {
                                         }}>
                                             {/* Logic for image: render <img> if URL/Base64/Local path, else placeholder */}
                                             {product.image && (product.image.startsWith("http") || product.image.startsWith("data:") || product.image.startsWith("/")) ? (
-                                                <img src={product.image} alt={product.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                                                <img src={product.image} alt={getTranslated(product, 'name', locale)} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                                             ) : (
                                                 <span>{product.image || t('noImage')}</span>
                                             )}
                                         </div>
 
                                         <div style={{ padding: "var(--spacing-md)", display: "flex", flexDirection: "column", flexGrow: 1 }}>
-                                            <h3 style={{ fontSize: "1.1rem", marginBottom: "var(--spacing-xs)" }}>{product.name}</h3>
+                                            <h3 style={{ fontSize: "1.1rem", marginBottom: "var(--spacing-xs)" }}>{getTranslated(product, 'name', locale)}</h3>
                                             {product.description && (
                                                 <p style={{ fontSize: "0.85rem", color: "var(--color-text-muted)", marginBottom: "1rem", lineHeight: "1.4" }}>
-                                                    {product.description.length > 60 ? product.description.substring(0, 60) + "..." : product.description}
+                                                    {(() => { const desc = getTranslated(product, 'description', locale); return desc.length > 60 ? desc.substring(0, 60) + "..." : desc; })()}
                                                 </p>
                                             )}
                                             <p style={{ color: "var(--color-primary)", fontWeight: "bold", fontSize: "1.2rem", marginBottom: "var(--spacing-md)", marginTop: "auto" }}>

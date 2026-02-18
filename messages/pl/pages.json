@@ -349,5 +349,51 @@
         "tagline": "Ochrona Danych Osobowych",
         "title": "Klauzula Informacyjna RODO",
         "downloadPdf": "Pobierz PDF"
+    },
+    "productModal": {
+        "depositPaid": "Zadatek został opłacony!",
+        "thankYou": "Dziękujemy za zamówienie!",
+        "depositConfirmation": "Twoja wizyta jest potwierdzona. Potwierdzenie wysłaliśmy na Twój adres email.",
+        "orderConfirmation": "Potwierdzenie wysłaliśmy na Twój adres email. Skontaktujemy się z Tobą wkrótce w sprawie realizacji.",
+        "backToHome": "Powrót na stronę główną",
+        "closeWindow": "Zamknij okno",
+        "backToProduct": "Wróć do produktu",
+        "yourCart": "Twój Koszyk",
+        "total": "Suma:",
+        "checkoutTitle": "Finalizacja Zamówienia",
+        "voucherAmount": "Wybierz kwotę vouchera (PLN):",
+        "minimum": "Minimum: {min} PLN",
+        "inCart": "W koszyku: {count} produkt(y)",
+        "cartTotal": "Suma: {total} PLN",
+        "goToCart": "Kliknij, aby przejść do koszyka →",
+        "quantity": "Ilość:",
+        "addToCart": "Do Koszyka",
+        "buyNow": "Kup Teraz",
+        "safePurchase": "Bezpieczna płatność i gwarancja satysfakcji Mikrostomart."
+    },
+    "checkoutForm": {
+        "shippingAddress": "Adres dostawy",
+        "editDetails": "Edytuj dane",
+        "noPaymentConfig": "Brak konfiguracji płatności",
+        "noPaymentDesc": "Aby włączyć płatności, dodaj klucz NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY w pliku .env.local.",
+        "deliveryData": "Dane dostawy",
+        "fullName": "Imię i Nazwisko",
+        "email": "Email",
+        "phone": "Telefon",
+        "city": "Miejscowość",
+        "zipCode": "Kod pocztowy",
+        "street": "Ulica",
+        "houseNumber": "Nr domu",
+        "apartment": "Nr lokalu (opcjonalnie)",
+        "total": "Suma:",
+        "proceedToPayment": "Dalej do płatności →"
+    },
+    "stripePayment": {
+        "payment": "Płatność",
+        "paymentError": "Wystąpił błąd płatności.",
+        "toPay": "Do zapłaty:",
+        "back": "Wróć",
+        "processing": "Przetwarzanie...",
+        "payNow": "Zapłać teraz"
     }
 }

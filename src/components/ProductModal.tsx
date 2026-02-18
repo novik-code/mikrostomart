@@ -3,6 +3,7 @@
 import { X, ShoppingCart, CreditCard, ChevronLeft, ChevronRight, CheckCircle, ArrowLeft } from "lucide-react";
 import { useState } from "react";
 import { useCart } from "@/context/CartContext";
+import { useTranslations, useLocale } from "next-intl";
 import CheckoutForm from "@/components/CheckoutForm";
 
 // Define Product type interface to match usage
@@ -17,6 +18,9 @@ export interface Product {
     isVisible?: boolean;
     isVariablePrice?: boolean;
     minPrice?: number;
+    nameTranslations?: Record<string, string>;
+    descriptionTranslations?: Record<string, string>;
+    categoryTranslations?: Record<string, string>;
 }
 
 interface ProductModalProps {
@@ -32,11 +36,24 @@ interface ProductModalProps {
 
 type Step = "PRODUCT" | "CHECKOUT" | "SUCCESS";
 
+// Helper to get translated product field
+function getTranslated(product: Product, field: 'name' | 'description' | 'category', locale: string): string {
+    if (locale === 'pl') return product[field];
+    const translationsMap: Record<string, Record<string, string> | undefined> = {
+        name: product.nameTranslations,
+        description: product.descriptionTranslations,
+        category: product.categoryTranslations,
+    };
+    return translationsMap[field]?.[locale] || product[field];
+}
+
 export default function ProductModal({ product, initialStep = "PRODUCT", onClose, initialValues }: ProductModalProps) {
     const { addItem, items, updateQuantity, removeItem, total } = useCart();
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [step, setStep] = useState<Step>(initialStep);
     const [quantity, setQuantity] = useState(1);
+    const t = useTranslations('productModal');
+    const locale = useLocale();
 
     // State for variable price products
     const [currentPrice, setCurrentPrice] = useState(product ? product.price : 0);
@@ -94,16 +111,13 @@ export default function ProductModal({ product, initialStep = "PRODUCT", onClose
                 <div style={{ padding: "4rem", textAlign: "center", color: "white", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%" }}>
                     <CheckCircle size={64} color="#dcb14a" style={{ marginBottom: "1.5rem" }} />
                     <h2 style={{ fontSize: "2rem", marginBottom: "1rem" }}>
-                        {isDeposit ? "Zadatek został opłacony!" : "Dziękujemy za zamówienie!"}
+                        {isDeposit ? t('depositPaid') : t('thankYou')}
                     </h2>
                     <p style={{ color: "#d1d5db", maxWidth: "400px", lineHeight: "1.6", marginBottom: "2rem" }}>
-                        {isDeposit
-                            ? "Twoja wizyta jest potwierdzona. Potwierdzenie wysłaliśmy na Twój adres email."
-                            : "Potwierdzenie wysłaliśmy na Twój adres email. Skontaktujemy się z Tobą wkrótce w sprawie realizacji."
-                        }
+                        {isDeposit ? t('depositConfirmation') : t('orderConfirmation')}
                     </p>
                     <button onClick={onClose} className="btn-primary" style={{ background: "#dcb14a", color: "black", border: "none" }}>
-                        {isDeposit ? "Powrót na stronę główną" : "Zamknij okno"}
+                        {isDeposit ? t('backToHome') : t('closeWindow')}
                     </button>
                 </div>
             );
@@ -116,10 +130,10 @@ export default function ProductModal({ product, initialStep = "PRODUCT", onClose
                     <div style={{ background: '#121212', padding: '2rem', overflowY: 'auto', borderRight: '1px solid rgba(255,255,255,0.1)' }}>
                         {product && (
                             <button onClick={() => setStep("PRODUCT")} style={{ background: 'none', border: 'none', color: '#9ca3af', display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '1.5rem', cursor: 'pointer' }}>
-                                <ArrowLeft size={16} /> Wróć do produktu
+                                <ArrowLeft size={16} /> {t('backToProduct')}
                             </button>
                         )}
-                        <h3 style={{ color: 'white', marginBottom: '1.5rem', fontFamily: 'serif' }}>Twój Koszyk</h3>
+                        <h3 style={{ color: 'white', marginBottom: '1.5rem', fontFamily: 'serif' }}>{t('yourCart')}</h3>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                             {items.map((item) => (
                                 <div key={item.id} style={{ display: 'flex', gap: '10px', background: 'rgba(255,255,255,0.05)', padding: '10px', borderRadius: '8px' }}>
@@ -136,14 +150,14 @@ export default function ProductModal({ product, initialStep = "PRODUCT", onClose
                             ))}
                         </div>
                         <div style={{ marginTop: '2rem', paddingTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.1)', color: 'white', display: 'flex', justifyContent: 'space-between', fontSize: '1.2rem', fontWeight: 'bold' }}>
-                            <span>Suma:</span>
+                            <span>{t('total')}</span>
                             <span style={{ color: '#dcb14a' }}>{total} PLN</span>
                         </div>
                     </div>
 
                     {/* RIGHT: Checkout Form */}
                     <div style={{ padding: '2rem', overflowY: 'auto', background: '#1c1c1c' }}>
-                        <h3 style={{ color: 'white', marginBottom: '1.5rem', fontFamily: 'serif' }}>Finalizacja Zamówienia</h3>
+                        <h3 style={{ color: 'white', marginBottom: '1.5rem', fontFamily: 'serif' }}>{t('checkoutTitle')}</h3>
                         <CheckoutForm onSuccess={handleCheckoutSuccess} initialValues={initialValues} />
                     </div>
                 </div>
@@ -161,7 +175,7 @@ export default function ProductModal({ product, initialStep = "PRODUCT", onClose
                         {/* Main Image */}
                         <img
                             src={images[currentImageIndex]}
-                            alt={product.name}
+                            alt={getTranslated(product, 'name', locale)}
                             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                         />
 
@@ -209,10 +223,10 @@ export default function ProductModal({ product, initialStep = "PRODUCT", onClose
                 <div style={{ padding: '40px', display: 'flex', flexDirection: 'column', gap: '20px', color: '#fff', overflowY: 'auto' }}>
                     <div>
                         <span style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '1px', color: '#9ca3af' }}>
-                            {product.category}
+                            {getTranslated(product, 'category', locale)}
                         </span>
                         <h2 style={{ fontSize: '28px', margin: '10px 0', fontFamily: 'serif', lineHeight: '1.2' }}>
-                            {product.name}
+                            {getTranslated(product, 'name', locale)}
                         </h2>
                         <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#dcb14a' }}>
                             {currentPrice} PLN
@@ -222,7 +236,7 @@ export default function ProductModal({ product, initialStep = "PRODUCT", onClose
                         {(product as any).isVariablePrice && (
                             <div style={{ marginTop: "1.5rem", marginBottom: "0.5rem" }}>
                                 <label style={{ display: "block", color: "#9ca3af", marginBottom: "0.5rem", fontSize: "0.9rem" }}>
-                                    Wybierz kwotę vouchera (PLN):
+                                    {t('voucherAmount')}
                                 </label>
                                 <input
                                     type="number"
@@ -243,7 +257,7 @@ export default function ProductModal({ product, initialStep = "PRODUCT", onClose
                                     }}
                                 />
                                 <p style={{ fontSize: "0.8rem", color: "#6b7280", marginTop: "0.5rem" }}>
-                                    Minimum: {(product as any).minPrice || 100} PLN
+                                    {t('minimum', { min: (product as any).minPrice || 100 })}
                                 </p>
                             </div>
                         )}
@@ -252,7 +266,7 @@ export default function ProductModal({ product, initialStep = "PRODUCT", onClose
                     <div style={{ height: '1px', background: 'rgba(255,255,255,0.1)' }} />
 
                     <p style={{ lineHeight: '1.6', color: '#d1d5db', fontSize: '16px', flex: 1 }}>
-                        {product.description}
+                        {getTranslated(product, 'description', locale)}
                     </p>
 
                     {/* Mini Cart Preview (if items exist) */}
@@ -265,11 +279,11 @@ export default function ProductModal({ product, initialStep = "PRODUCT", onClose
                             }}
                         >
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', color: '#9ca3af', marginBottom: '5px' }}>
-                                <span>W koszyku: {items.length} produkt(y)</span>
-                                <span>Suma: {total} PLN</span>
+                                <span>{t('inCart', { count: items.length })}</span>
+                                <span>{t('cartTotal', { total })}</span>
                             </div>
                             <div style={{ color: '#dcb14a', fontSize: '0.8rem', textAlign: 'right', fontWeight: 'bold' }}>
-                                Kliknij, aby przejść do koszyka →
+                                {t('goToCart')}
                             </div>
                         </div>
                     )}
@@ -281,7 +295,7 @@ export default function ProductModal({ product, initialStep = "PRODUCT", onClose
 
                         {/* Quantity Selector handled locally before adding */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.5rem' }}>
-                            <span style={{ color: '#9ca3af', fontSize: '0.9rem' }}>Ilość:</span>
+                            <span style={{ color: '#9ca3af', fontSize: '0.9rem' }}>{t('quantity')}</span>
                             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", background: "rgba(255,255,255,0.1)", padding: "0.25rem", borderRadius: "8px" }}>
                                 <button
                                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
@@ -310,7 +324,7 @@ export default function ProductModal({ product, initialStep = "PRODUCT", onClose
                                 }}
                             >
                                 <ShoppingCart size={20} />
-                                Do Koszyka
+                                {t('addToCart')}
                             </button>
                             <button
                                 onClick={handleBuyNow}
@@ -322,11 +336,11 @@ export default function ProductModal({ product, initialStep = "PRODUCT", onClose
                                 }}
                             >
                                 <CreditCard size={20} />
-                                Kup Teraz
+                                {t('buyNow')}
                             </button>
                         </div>
                         <p style={{ fontSize: '12px', color: '#6b7280', textAlign: 'center' }}>
-                            Bezpieczna płatność i gwarancja satysfakcji Mikrostomart.
+                            {t('safePurchase')}
                         </p>
                     </div>
                 </div>
@@ -384,7 +398,8 @@ export default function ProductModal({ product, initialStep = "PRODUCT", onClose
                         height: auto !important;
                     }
                 }
-            `}</style>
+            `}
+            </style>
         </div>
     );
 }

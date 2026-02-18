@@ -1,6 +1,6 @@
 # Mikrostomart - Complete Project Context
 
-> **Last Updated:** 2026-02-16  
+> **Last Updated:** 2026-02-18  
 > **Version:** Production (Vercel Deployment)  
 > **Status:** Active Development
 
@@ -97,6 +97,11 @@
   | `reviews` | GoogleReviews | Section heading |
   | `youtube` | YouTubeFeed | Section heading |
   | `bazaWiedzy` | Knowledge Base | ~7 UI strings (readMore, backToList, notFound, metaSuffix) |
+  | `sklep` | Shop page | title, cart, loading, noImage, added, addToCart |
+  | `koszyk` | Cart page | empty, backToShop, checkout, title, perUnit, removeTitle, total, clearCart, goToCheckout, backToCart, orderSuccess |
+  | `productModal` | ProductModal | depositPaid, thankYou, depositConfirmation, orderConfirmation, backToHome, closeWindow, backToProduct, yourCart, total, checkoutTitle, voucherAmount, minimum, inCart, cartTotal, goToCart, quantity, addToCart, buyNow, safePurchase |
+  | `checkoutForm` | CheckoutForm | shippingAddress, editDetails, noPaymentConfig, noPaymentDesc, deliveryData, fullName, email, phone, city, zipCode, street, houseNumber, apartment, total, proceedToPayment |
+  | `stripePayment` | StripePaymentForm | payment, paymentError, toPay, back, processing, payNow |
 
   **Pain Map SymptomData i18n**: Medical content (symptoms, causes, advice for 35 zones × 3 severity levels) is translated via per-locale files: `SymptomData.ts` (PL, default), `SymptomData.en.ts`, `SymptomData.de.ts`, `SymptomData.ua.ts`. The helper `getSymptomData.ts` returns locale-aware data using `useLocale()`.
 
@@ -105,6 +110,10 @@
   **Treatment Calculator data i18n**: Treatment paths (5 paths with questions, options, stages, and extending factors) are translated via per-locale files (`treatmentData.en.ts`, `treatmentData.de.ts`, `treatmentData.ua.ts`). The helper `getTreatmentData.ts` returns locale-aware data with fallback to Polish.
 
   **Knowledge Base article i18n**: Articles in the `articles` Supabase table have `locale` (TEXT, default 'pl') and `group_id` (UUID) columns. Each translated article is a separate row linked by `group_id`. AI generation (`/api/cron/daily-article`) produces PL content first, then translates to EN/DE/UA via GPT-4o. DELETE cascades via `group_id`. Public pages filter by user locale with PL fallback.
+
+  **Blog post i18n**: Blog posts in `blog_posts` table have `locale` (TEXT, default 'pl') and `group_id` (UUID) columns. Admin API auto-translates new posts to EN/DE/UA via GPT-4o on creation. DELETE cascades via `group_id`. Public pages (`/nowosielski`) filter by locale with PL fallback.
+
+  **Shop/Product i18n**: Products in `products` table have JSONB columns `name_translations`, `description_translations`, `category_translations` (format: `{"en": "...", "de": "...", "ua": "..."}`). Polish stays in original `name`/`description`/`category` columns. Admin API auto-translates product text when saving via GPT-4o. Shop page and ProductModal use `getTranslated()` helper with locale fallback to Polish.
 
 ### Development Tools
 - **ESLint** - Code linting
@@ -336,6 +345,23 @@ Patient Portal registered users.
 
 #### 9. **products**
 E-commerce products.
+```sql
+- id (uuid, PK)
+- name (text) — Polish product name
+- price (numeric)
+- description (text) — Polish description
+- category (text) — Polish category
+- image (text) — Main image URL
+- gallery (text[]) — Additional images
+- is_visible (boolean, DEFAULT true)
+- is_variable_price (boolean, DEFAULT false)
+- min_price (numeric, DEFAULT 0)
+- name_translations (JSONB, DEFAULT '{}') — {"en": "...", "de": "...", "ua": "..."}
+- description_translations (JSONB, DEFAULT '{}') — same format
+- category_translations (JSONB, DEFAULT '{}') — same format
+- created_at (timestamptz)
+```
+Admin API auto-translates Polish text to EN/DE/UA via GPT-4o on product save.
 
 #### 10. **orders**
 Customer orders.

@@ -349,5 +349,51 @@
         "tagline": "Personal Data Protection",
         "title": "GDPR Information Clause",
         "downloadPdf": "Download PDF"
+    },
+    "productModal": {
+        "depositPaid": "Deposit has been paid!",
+        "thankYou": "Thank you for your order!",
+        "depositConfirmation": "Your appointment is confirmed. A confirmation has been sent to your email.",
+        "orderConfirmation": "A confirmation has been sent to your email. We will contact you soon regarding fulfilment.",
+        "backToHome": "Back to homepage",
+        "closeWindow": "Close window",
+        "backToProduct": "Back to product",
+        "yourCart": "Your Cart",
+        "total": "Total:",
+        "checkoutTitle": "Complete Order",
+        "voucherAmount": "Choose voucher amount (PLN):",
+        "minimum": "Minimum: {min} PLN",
+        "inCart": "In cart: {count} item(s)",
+        "cartTotal": "Total: {total} PLN",
+        "goToCart": "Click to go to cart →",
+        "quantity": "Quantity:",
+        "addToCart": "Add to Cart",
+        "buyNow": "Buy Now",
+        "safePurchase": "Secure payment and satisfaction guarantee by Mikrostomart."
+    },
+    "checkoutForm": {
+        "shippingAddress": "Shipping address",
+        "editDetails": "Edit details",
+        "noPaymentConfig": "Payment not configured",
+        "noPaymentDesc": "To enable payments, add NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY to .env.local.",
+        "deliveryData": "Delivery details",
+        "fullName": "Full Name",
+        "email": "Email",
+        "phone": "Phone",
+        "city": "City",
+        "zipCode": "Postcode",
+        "street": "Street",
+        "houseNumber": "House no.",
+        "apartment": "Flat no. (optional)",
+        "total": "Total:",
+        "proceedToPayment": "Proceed to payment →"
+    },
+    "stripePayment": {
+        "payment": "Payment",
+        "paymentError": "A payment error occurred.",
+        "toPay": "Amount due:",
+        "back": "Back",
+        "processing": "Processing...",
+        "payNow": "Pay now"
     }
 }

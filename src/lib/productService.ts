@@ -10,8 +10,11 @@ export interface Product {
     image: string;
     gallery?: string[];
     isVisible?: boolean;
-    isVariablePrice?: boolean; // CamelCase for TS interface
-    minPrice?: number;         // CamelCase
+    isVariablePrice?: boolean;
+    minPrice?: number;
+    nameTranslations?: Record<string, string>;
+    descriptionTranslations?: Record<string, string>;
+    categoryTranslations?: Record<string, string>;
 }
 
 // Helper to get Admin Client (server-side only)
@@ -27,9 +30,6 @@ function getSupabaseAdmin() {
 }
 
 export async function getProducts(): Promise<Product[]> {
-    // Use Public Client (Anon Key) for reading.
-    // This works because we added "Enable read access for all users" policy.
-    // This avoids crashing if SERVICE_ROLE_KEY is missing in production.
     const { data, error } = await supabasePublic
         .from('products')
         .select('*')
@@ -50,7 +50,10 @@ export async function getProducts(): Promise<Product[]> {
         gallery: row.gallery,
         isVisible: row.is_visible,
         isVariablePrice: row.is_variable_price,
-        minPrice: row.min_price
+        minPrice: row.min_price,
+        nameTranslations: row.name_translations || {},
+        descriptionTranslations: row.description_translations || {},
+        categoryTranslations: row.category_translations || {},
     }));
 }
 
@@ -67,7 +70,10 @@ export async function saveProduct(product: Product): Promise<Product> {
         gallery: product.gallery,
         is_visible: product.isVisible ?? true,
         is_variable_price: product.isVariablePrice ?? false,
-        min_price: product.minPrice ?? 0
+        min_price: product.minPrice ?? 0,
+        name_translations: product.nameTranslations ?? {},
+        description_translations: product.descriptionTranslations ?? {},
+        category_translations: product.categoryTranslations ?? {},
     };
 
     const { data, error } = await supabase

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
+import { useTranslations } from "next-intl";
 
 interface StripePaymentFormProps {
     amount: number;
@@ -14,6 +15,7 @@ export default function StripePaymentForm({ amount, onSuccess, onBack }: StripeP
     const elements = useElements();
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
+    const t = useTranslations('stripePayment');
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -33,7 +35,7 @@ export default function StripePaymentForm({ amount, onSuccess, onBack }: StripeP
         });
 
         if (error) {
-            setErrorMessage(error.message || "Wystąpił błąd płatności.");
+            setErrorMessage(error.message || t('paymentError'));
             setIsProcessing(false);
         } else if (paymentIntent && paymentIntent.status === "succeeded") {
             // Payment succeeded!
@@ -47,7 +49,7 @@ export default function StripePaymentForm({ amount, onSuccess, onBack }: StripeP
     return (
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
             <h4 style={{ color: '#9ca3af', fontSize: '0.9rem', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                Płatność
+                {t('payment')}
             </h4>
 
             {/* Stripe UI */}
@@ -61,7 +63,7 @@ export default function StripePaymentForm({ amount, onSuccess, onBack }: StripeP
 
             <div style={{ marginTop: "1rem", borderTop: "1px solid var(--color-surface-hover)", paddingTop: "1rem" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "1rem", fontWeight: "bold", fontSize: '1.2rem', color: 'white' }}>
-                    <span>Do zapłaty:</span>
+                    <span>{t('toPay')}</span>
                     <span style={{ color: '#dcb14a' }}>{amount} PLN</span>
                 </div>
 
@@ -72,7 +74,7 @@ export default function StripePaymentForm({ amount, onSuccess, onBack }: StripeP
                         className="btn-secondary"
                         style={{ flex: 1, background: "transparent", border: "1px solid var(--color-surface-hover)", color: "white" }}
                     >
-                        Wróć
+                        {t('back')}
                     </button>
                     <button
                         type="submit"
@@ -80,7 +82,7 @@ export default function StripePaymentForm({ amount, onSuccess, onBack }: StripeP
                         className="btn-primary"
                         style={{ flex: 2, opacity: isProcessing ? 0.7 : 1 }}
                     >
-                        {isProcessing ? "Przetwarzanie..." : "Zapłać teraz"}
+                        {isProcessing ? t('processing') : t('payNow')}
                     </button>
                 </div>
             </div>

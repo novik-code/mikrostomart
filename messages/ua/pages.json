@@ -349,5 +349,51 @@
         "tagline": "Захист Персональних Даних",
         "title": "Інформаційна Клаузула GDPR",
         "downloadPdf": "Завантажити PDF"
+    },
+    "productModal": {
+        "depositPaid": "Завдаток сплачено!",
+        "thankYou": "Дякуємо за замовлення!",
+        "depositConfirmation": "Ваш візит підтверджено. Підтвердження надіслано на вашу електронну пошту.",
+        "orderConfirmation": "Підтвердження надіслано на вашу електронну пошту. Ми зв'яжемося з вами найближчим часом щодо виконання.",
+        "backToHome": "Повернутися на головну",
+        "closeWindow": "Закрити вікно",
+        "backToProduct": "Повернутися до товару",
+        "yourCart": "Ваш кошик",
+        "total": "Сума:",
+        "checkoutTitle": "Оформлення замовлення",
+        "voucherAmount": "Оберіть суму ваучера (PLN):",
+        "minimum": "Мінімум: {min} PLN",
+        "inCart": "У кошику: {count} товар(ів)",
+        "cartTotal": "Сума: {total} PLN",
+        "goToCart": "Натисніть, щоб перейти до кошика →",
+        "quantity": "Кількість:",
+        "addToCart": "До кошика",
+        "buyNow": "Купити зараз",
+        "safePurchase": "Безпечна оплата та гарантія задоволення від Mikrostomart."
+    },
+    "checkoutForm": {
+        "shippingAddress": "Адреса доставки",
+        "editDetails": "Редагувати дані",
+        "noPaymentConfig": "Оплата не налаштована",
+        "noPaymentDesc": "Щоб увімкнути платежі, додайте NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY в .env.local.",
+        "deliveryData": "Дані доставки",
+        "fullName": "Ім'я та Прізвище",
+        "email": "Електронна пошта",
+        "phone": "Телефон",
+        "city": "Місто",
+        "zipCode": "Поштовий індекс",
+        "street": "Вулиця",
+        "houseNumber": "Номер будинку",
+        "apartment": "Номер квартири (за бажанням)",
+        "total": "Сума:",
+        "proceedToPayment": "Далі до оплати →"
+    },
+    "stripePayment": {
+        "payment": "Оплата",
+        "paymentError": "Виникла помилка оплати.",
+        "toPay": "До сплати:",
+        "back": "Назад",
+        "processing": "Обробка...",
+        "payNow": "Сплатити зараз"
     }
 }

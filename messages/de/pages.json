@@ -349,5 +349,51 @@
         "tagline": "Schutz personenbezogener Daten",
         "title": "DSGVO-Informationsklausel",
         "downloadPdf": "PDF herunterladen"
+    },
+    "productModal": {
+        "depositPaid": "Anzahlung wurde geleistet!",
+        "thankYou": "Vielen Dank für Ihre Bestellung!",
+        "depositConfirmation": "Ihr Termin ist bestätigt. Eine Bestätigung wurde an Ihre E-Mail gesendet.",
+        "orderConfirmation": "Eine Bestätigung wurde an Ihre E-Mail gesendet. Wir werden uns bezüglich der Abwicklung bei Ihnen melden.",
+        "backToHome": "Zurück zur Startseite",
+        "closeWindow": "Fenster schließen",
+        "backToProduct": "Zurück zum Produkt",
+        "yourCart": "Ihr Warenkorb",
+        "total": "Summe:",
+        "checkoutTitle": "Bestellung abschließen",
+        "voucherAmount": "Gutscheinbetrag wählen (PLN):",
+        "minimum": "Minimum: {min} PLN",
+        "inCart": "Im Warenkorb: {count} Artikel",
+        "cartTotal": "Summe: {total} PLN",
+        "goToCart": "Klicken, um zum Warenkorb zu gelangen →",
+        "quantity": "Menge:",
+        "addToCart": "In den Warenkorb",
+        "buyNow": "Jetzt kaufen",
+        "safePurchase": "Sichere Zahlung und Zufriedenheitsgarantie von Mikrostomart."
+    },
+    "checkoutForm": {
+        "shippingAddress": "Lieferadresse",
+        "editDetails": "Daten bearbeiten",
+        "noPaymentConfig": "Zahlung nicht konfiguriert",
+        "noPaymentDesc": "Um Zahlungen zu aktivieren, fügen Sie NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY in .env.local hinzu.",
+        "deliveryData": "Lieferdaten",
+        "fullName": "Vor- und Nachname",
+        "email": "E-Mail",
+        "phone": "Telefon",
+        "city": "Stadt",
+        "zipCode": "Postleitzahl",
+        "street": "Straße",
+        "houseNumber": "Hausnr.",
+        "apartment": "Wohnungsnr. (optional)",
+        "total": "Summe:",
+        "proceedToPayment": "Weiter zur Zahlung →"
+    },
+    "stripePayment": {
+        "payment": "Zahlung",
+        "paymentError": "Ein Zahlungsfehler ist aufgetreten.",
+        "toPay": "Zu zahlen:",
+        "back": "Zurück",
+        "processing": "Verarbeitung...",
+        "payNow": "Jetzt bezahlen"
     }
 }
