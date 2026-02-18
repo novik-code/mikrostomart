@@ -21,10 +21,10 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-        // Get patient info
+        // Get patient id from Supabase
         const { data: patient } = await supabase
             .from('patients')
-            .select('id, first_name, last_name')
+            .select('id')
             .eq('prodentis_id', payload.prodentisId)
             .single();
 
@@ -32,7 +32,18 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Patient not found' }, { status: 404 });
         }
 
-        const patientName = `${patient.first_name} ${patient.last_name}`;
+        // Get patient name from Prodentis API
+        let patientName = 'Pacjent';
+        try {
+            const prodentisUrl = process.env.PRODENTIS_API_URL || 'http://localhost:3000';
+            const detailsRes = await fetch(`${prodentisUrl}/api/patient/${payload.prodentisId}/details`);
+            if (detailsRes.ok) {
+                const details = await detailsRes.json();
+                patientName = `${details.firstName || ''} ${details.lastName || ''}`.trim() || 'Pacjent';
+            }
+        } catch (e) {
+            console.error('[Chat] Failed to fetch patient name from Prodentis:', e);
+        }
 
         // Find or create open conversation
         let { data: conversation } = await supabase
