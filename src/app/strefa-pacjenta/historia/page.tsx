@@ -175,6 +175,7 @@ export default function VisitHistory() {
                     { href: '/strefa-pacjenta/dashboard', label: 'Panel główny', active: false },
                     { href: '/strefa-pacjenta/historia', label: 'Historia wizyt', active: true },
                     { href: '/strefa-pacjenta/profil', label: 'Mój profil', active: false },
+                    { href: '/strefa-pacjenta/wiadomosci', label: '💬 Wiadomości', active: false },
                     { href: '/strefa-pacjenta/ocen-nas', label: '⭐ Oceń nas', active: false },
                 ].map(link => (
                     <Link

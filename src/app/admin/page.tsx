@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import RevealOnScroll from "@/components/RevealOnScroll";
 import AppointmentInstructionsEditor from "@/components/AppointmentInstructionsEditor";
+import AdminChat from "@/components/AdminChat";
 import { createBrowserClient } from "@supabase/ssr";
 import { useRouter } from "next/navigation";
 import {
@@ -58,7 +59,7 @@ export default function AdminPage() {
     const [products, setProducts] = useState<Product[]>([]);
     const [error, setError] = useState<string | null>(null);
 
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'questions' | 'articles' | 'news' | 'orders' | 'reservations' | 'blog' | 'patients' | 'sms-reminders' | 'appointment-instructions' | 'roles' | 'employees'>('dashboard');
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'questions' | 'articles' | 'news' | 'orders' | 'reservations' | 'blog' | 'patients' | 'sms-reminders' | 'appointment-instructions' | 'roles' | 'employees' | 'chat'>('dashboard');
     const [questions, setQuestions] = useState<any[]>([]);
     const [articles, setArticles] = useState<any[]>([]);
     const [blogPosts, setBlogPosts] = useState<any[]>([]); // New Blog Posts state
@@ -3017,6 +3018,11 @@ export default function AdminPage() {
                             )}
                         </div>
                     } icon={MessageCircle} />
+                    <NavItem id="chat" label={
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", width: "100%" }}>
+                            <span>💬 Czat</span>
+                        </div>
+                    } icon={MessageCircle} />
                     <NavItem id="appointment-instructions" label="Instrukcje Wizyt" icon={FileText} />
                     <NavItem id="employees" label="Pracownicy" icon={Users} />
                     <NavItem id="roles" label="Uprawnienia" icon={Shield} />
@@ -3081,6 +3087,7 @@ export default function AdminPage() {
                             {activeTab === 'questions' && 'Pytania do Eksperta'}
                             {activeTab === 'employees' && 'Pracownicy — Zarządzanie Kontami'}
                             {activeTab === 'roles' && 'Uprawnienia — Zarządzanie Rolami'}
+                            {activeTab === 'chat' && '💬 Czat z Pacjentami'}
                         </h1>
                         <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
                             {/* Header Actions if needed */}
@@ -3308,6 +3315,7 @@ export default function AdminPage() {
                     {activeTab === 'appointment-instructions' && <AppointmentInstructionsEditor />}
                     {activeTab === 'employees' && renderEmployeesTab()}
                     {activeTab === 'roles' && renderRolesTab()}
+                    {activeTab === 'chat' && <AdminChat />}
                 </div>
             </main>
         </div>

@@ -126,6 +126,7 @@ export default function OcenNas() {
                     { href: '/strefa-pacjenta/dashboard', label: 'Panel główny', active: false },
                     { href: '/strefa-pacjenta/historia', label: 'Historia wizyt', active: false },
                     { href: '/strefa-pacjenta/profil', label: 'Mój profil', active: false },
+                    { href: '/strefa-pacjenta/wiadomosci', label: '💬 Wiadomości', active: false },
                     { href: '/strefa-pacjenta/ocen-nas', label: '⭐ Oceń nas', active: true },
                 ].map(link => (
                     <Link
