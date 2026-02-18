@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sendSMS, getSMSTemplate, formatSMSMessage } from '@/lib/smsService';
 import { mapAppointmentTypeToSlug } from '@/lib/appointmentTypeMapper';
+import { sendTranslatedPushToUser } from '@/lib/webpush';
 import { randomUUID } from 'crypto';
 import { nanoid } from 'nanoid';
 
@@ -432,6 +433,21 @@ export async function GET(req: Request) {
                 }
 
                 draftsCreated++;
+
+                // Send push notification to patient (if subscribed)
+                if (patientId) {
+                    sendTranslatedPushToUser(
+                        patientId,
+                        'patient',
+                        'appointment_24h',
+                        {
+                            time: appointmentTime,
+                            doctor: doctorName,
+                            type: appointmentType,
+                        },
+                        '/strefa-pacjenta/dashboard'
+                    ).catch(err => console.error('   ⚠️  Push notification error:', err));
+                }
 
                 try {
                     const appointmentActionId = randomUUID();

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { verifyToken } from '@/lib/jwt';
 import { sendTelegramNotification } from '@/lib/telegram';
+import { broadcastPush } from '@/lib/webpush';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -97,6 +98,20 @@ export async function POST(request: NextRequest) {
         const prefix = isNewConversation ? '🆕 NOWA ROZMOWA CZAT' : '💬 NOWA WIADOMOŚĆ CZAT';
         const telegramMsg = `${prefix}\n\n👤 Pacjent: ${patientName}\n✉️ ${content.trim().substring(0, 200)}`;
         sendTelegramNotification(telegramMsg, 'messages').catch(console.error);
+
+        // Push notification to all admin/employee subscribers
+        broadcastPush(
+            'admin',
+            'chat_patient_to_admin',
+            { name: patientName, message: content.trim().substring(0, 100) },
+            '/admin'
+        ).catch(console.error);
+        broadcastPush(
+            'employee',
+            'chat_patient_to_admin',
+            { name: patientName, message: content.trim().substring(0, 100) },
+            '/admin'
+        ).catch(console.error);
 
         return NextResponse.json({ message });
     } catch (error) {

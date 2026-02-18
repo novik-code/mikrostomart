@@ -26,6 +26,26 @@ interface Message {
     created_at: string;
 }
 
+// Admin panel labels — centralized for i18n. Admin panel is always PL.
+const labels = {
+    filterOpen: 'Aktywne',
+    filterClosed: 'Zamknięte',
+    loading: 'Ładowanie...',
+    noConversations: 'Brak rozmów',
+    selectConversation: 'Wybierz rozmowę z listy',
+    chatWithPatient: 'Czat z pacjentem',
+    closeConversation: 'Zamknij rozmowę',
+    closeConfirm: 'Zamknąć tę rozmowę?',
+    noMessages: 'Brak wiadomości',
+    placeholder: 'Napisz odpowiedź...',
+    send: '📤 Odpowiedz',
+    sending: '⏳',
+    now: 'teraz',
+    minAgo: 'min temu',
+    hAgo: 'h temu',
+    dAgo: 'd temu',
+};
+
 export default function AdminChat() {
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [selectedConv, setSelectedConv] = useState<string | null>(null);
@@ -186,10 +206,10 @@ export default function AdminChat() {
         const diffHrs = Math.floor(diffMs / 3600000);
         const diffDays = Math.floor(diffMs / 86400000);
 
-        if (diffMin < 1) return 'teraz';
-        if (diffMin < 60) return `${diffMin} min temu`;
-        if (diffHrs < 24) return `${diffHrs}h temu`;
-        return `${diffDays}d temu`;
+        if (diffMin < 1) return labels.now;
+        if (diffMin < 60) return `${diffMin} ${labels.minAgo}`;
+        if (diffHrs < 24) return `${diffHrs}${labels.hAgo}`;
+        return `${diffDays}${labels.dAgo}`;
     };
 
     return (
@@ -231,7 +251,7 @@ export default function AdminChat() {
                             fontSize: '0.85rem',
                         }}
                     >
-                        Aktywne
+                        {labels.filterOpen}
                     </button>
                     <button
                         onClick={() => setStatusFilter('closed')}
@@ -247,7 +267,7 @@ export default function AdminChat() {
                             fontSize: '0.85rem',
                         }}
                     >
-                        Zamknięte
+                        {labels.filterClosed}
                     </button>
                 </div>
 
@@ -255,12 +275,12 @@ export default function AdminChat() {
                 <div style={{ flex: 1, overflowY: 'auto' }}>
                     {loadingConversations ? (
                         <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>
-                            Ładowanie...
+                            {labels.loading}
                         </div>
                     ) : conversations.length === 0 ? (
                         <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>
                             <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>📭</div>
-                            <p>Brak rozmów</p>
+                            <p>{labels.noConversations}</p>
                         </div>
                     ) : (
                         conversations.map((conv) => (
@@ -364,7 +384,7 @@ export default function AdminChat() {
                         color: 'var(--color-text-muted)',
                     }}>
                         <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>💬</div>
-                        <p>Wybierz rozmowę z listy</p>
+                        <p>{labels.selectConversation}</p>
                     </div>
                 ) : (
                     <>
@@ -396,13 +416,13 @@ export default function AdminChat() {
                                         {conversations.find(c => c.id === selectedConv)?.patient_name || 'Pacjent'}
                                     </h3>
                                     <p style={{ color: 'var(--color-text-muted)', fontSize: '0.75rem', margin: 0 }}>
-                                        Czat z pacjentem
+                                        {labels.chatWithPatient}
                                     </p>
                                 </div>
                             </div>
                             <button
                                 onClick={async () => {
-                                    if (!confirm('Zamknąć tę rozmowę?')) return;
+                                    if (!confirm(labels.closeConfirm)) return;
                                     // Close conversation via API
                                     try {
                                         await fetch(`/api/admin/chat/conversations`, {
@@ -427,7 +447,7 @@ export default function AdminChat() {
                                     fontWeight: 'bold',
                                 }}
                             >
-                                Zamknij rozmowę
+                                {labels.closeConversation}
                             </button>
                         </div>
 
@@ -442,11 +462,11 @@ export default function AdminChat() {
                         }}>
                             {loadingMessages ? (
                                 <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '2rem' }}>
-                                    Ładowanie...
+                                    {labels.loading}
                                 </div>
                             ) : messages.length === 0 ? (
                                 <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: '2rem' }}>
-                                    Brak wiadomości
+                                    {labels.noMessages}
                                 </div>
                             ) : (
                                 messages.map((msg) => (
@@ -517,7 +537,7 @@ export default function AdminChat() {
                                 value={newReply}
                                 onChange={(e) => setNewReply(e.target.value)}
                                 onKeyDown={handleKeyPress}
-                                placeholder="Napisz odpowiedź..."
+                                placeholder={labels.placeholder}
                                 rows={1}
                                 style={{
                                     flex: 1,
@@ -556,7 +576,7 @@ export default function AdminChat() {
                                     transition: 'all 0.2s',
                                 }}
                             >
-                                {sending ? '⏳' : '📤 Odpowiedz'}
+                                {sending ? labels.sending : labels.send}
                             </button>
                         </div>
                     </>

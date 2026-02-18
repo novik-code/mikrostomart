@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import OpenAI from "openai";
 import { verifyAdmin } from "@/lib/auth";
+import { broadcastPush } from '@/lib/webpush';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -140,6 +141,14 @@ export async function POST(req: NextRequest) {
         } catch (aiErr: any) {
             console.error("Blog: OpenAI translation error:", aiErr.message);
         }
+
+        // Push notification to all patient subscribers about new blog post
+        broadcastPush(
+            'patient',
+            'new_blog_post',
+            { title: data.title },
+            `/blog/${data.slug}`
+        ).catch(console.error);
 
         return NextResponse.json(data);
     } catch (error: any) {

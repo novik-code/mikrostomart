@@ -4,6 +4,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@supabase/supabase-js';
+import { useTranslations, useLocale } from 'next-intl';
+import PushNotificationPrompt from '@/components/PushNotificationPrompt';
 
 interface Message {
     id: string;
@@ -25,8 +27,11 @@ export default function PatientChat() {
     const [isLoading, setIsLoading] = useState(true);
     const [isSending, setIsSending] = useState(false);
     const [patientName, setPatientName] = useState('');
+    const [patientId, setPatientId] = useState('');
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const router = useRouter();
+    const t = useTranslations('chat');
+    const locale = useLocale();
 
     const getAuthToken = () => {
         const cookies = document.cookie.split('; ');
@@ -62,38 +67,19 @@ export default function PatientChat() {
         }
     }, [router]);
 
-    // Load patient name
+    // Load patient name from localStorage
     useEffect(() => {
-        const loadPatient = async () => {
-            const token = getAuthToken();
-            if (!token) {
-                router.push('/strefa-pacjenta/login');
-                return;
-            }
-
+        const stored = localStorage.getItem('patient_data');
+        if (stored) {
             try {
-                const res = await fetch('/api/patients/me', {
-                    headers: { 'Authorization': `Bearer ${token}` },
-                });
-                if (res.ok) {
-                    const data = await res.json();
-                    setPatientName(data.firstName || '');
-                } else {
-                    router.push('/strefa-pacjenta/login');
-                }
-            } catch {
-                router.push('/strefa-pacjenta/login');
-            }
-        };
-        loadPatient();
-    }, [router]);
-
-    // Load messages
-    useEffect(() => {
+                const data = JSON.parse(stored);
+                setPatientName(`${data.firstName || ''} ${data.lastName || ''}`.trim());
+                setPatientId(data.id || data.prodentisId || '');
+            } catch { /* ignore */ }
+        }
         loadMessages();
     }, [loadMessages]);
 
-    // Scroll to bottom when messages change
     useEffect(() => {
         scrollToBottom();
     }, [messages]);
@@ -184,13 +170,13 @@ export default function PatientChat() {
         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         const msgDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
 
-        const time = d.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
+        const time = d.toLocaleTimeString(locale === 'ua' ? 'uk-UA' : locale === 'pl' ? 'pl-PL' : locale === 'de' ? 'de-DE' : 'en-US', { hour: '2-digit', minute: '2-digit' });
 
         if (msgDay.getTime() === today.getTime()) {
             return time;
         }
 
-        return `${d.toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit' })} ${time}`;
+        return `${d.toLocaleDateString(locale === 'ua' ? 'uk-UA' : locale === 'pl' ? 'pl-PL' : locale === 'de' ? 'de-DE' : 'en-US', { day: '2-digit', month: '2-digit' })} ${time}`;
     };
 
     if (isLoading) {
@@ -203,10 +189,17 @@ export default function PatientChat() {
                 justifyContent: 'center',
                 color: '#fff',
             }}>
-                Ładowanie...
+                {t('loading')}
             </div>
         );
     }
+
+    const suggestions = [
+        t('suggestion1'),
+        t('suggestion2'),
+        t('suggestion3'),
+        t('suggestion4'),
+    ];
 
     return (
         <div style={{
@@ -231,10 +224,10 @@ export default function PatientChat() {
                         color: '#fff',
                         marginBottom: '0.25rem',
                     }}>
-                        Strefa Pacjenta
+                        {t('patientPortal')}
                     </h1>
                     <p style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '0.9rem' }}>
-                        Witaj, {patientName}! 👋
+                        {t('welcome', { name: patientName })}
                     </p>
                 </div>
                 <button
@@ -253,7 +246,7 @@ export default function PatientChat() {
                         cursor: 'pointer',
                     }}
                 >
-                    Wyloguj
+                    {t('logout')}
                 </button>
             </div>
 
@@ -267,11 +260,11 @@ export default function PatientChat() {
                 overflowX: 'auto',
             }}>
                 {[
-                    { href: '/strefa-pacjenta/dashboard', label: 'Panel główny', active: false },
-                    { href: '/strefa-pacjenta/historia', label: 'Historia wizyt', active: false },
-                    { href: '/strefa-pacjenta/profil', label: 'Mój profil', active: false },
-                    { href: '/strefa-pacjenta/wiadomosci', label: '💬 Wiadomości', active: true },
-                    { href: '/strefa-pacjenta/ocen-nas', label: '⭐ Oceń nas', active: false },
+                    { href: '/strefa-pacjenta/dashboard', label: t('dashboard'), active: false },
+                    { href: '/strefa-pacjenta/historia', label: t('history'), active: false },
+                    { href: '/strefa-pacjenta/profil', label: t('profile'), active: false },
+                    { href: '/strefa-pacjenta/wiadomosci', label: t('messages'), active: true },
+                    { href: '/strefa-pacjenta/ocen-nas', label: t('rateUs'), active: false },
                 ].map(link => (
                     <Link
                         key={link.href}
@@ -292,6 +285,15 @@ export default function PatientChat() {
                     </Link>
                 ))}
             </div>
+
+            {/* Push Notification Prompt */}
+            {patientId && (
+                <PushNotificationPrompt
+                    userType="patient"
+                    userId={patientId}
+                    locale={locale}
+                />
+            )}
 
             {/* Chat Area */}
             <div style={{
@@ -327,10 +329,10 @@ export default function PatientChat() {
                         </div>
                         <div>
                             <h2 style={{ color: '#fff', fontSize: '1.1rem', fontWeight: 'bold', margin: 0 }}>
-                                Recepcja Mikrostomart
+                                {t('receptionTitle')}
                             </h2>
                             <p style={{ color: 'rgba(255, 255, 255, 0.5)', fontSize: '0.8rem', margin: 0 }}>
-                                Odpowiedzi w godzinach pracy: Pon-Pt 8:00-20:00
+                                {t('workingHours')}
                             </p>
                         </div>
                     </div>
@@ -359,10 +361,10 @@ export default function PatientChat() {
                         }}>
                             <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>💬</div>
                             <p style={{ fontSize: '1rem', marginBottom: '0.5rem' }}>
-                                Napisz do nas!
+                                {t('writeToUs')}
                             </p>
                             <p style={{ fontSize: '0.85rem' }}>
-                                Np. &quot;Czy mogę zmienić godzinę wizyty?&quot; lub &quot;Jakie dokumenty zabrać?&quot;
+                                {t('emptyHint')}
                             </p>
                         </div>
                     ) : (
@@ -396,7 +398,7 @@ export default function PatientChat() {
                                             textTransform: 'uppercase',
                                             letterSpacing: '0.5px',
                                         }}>
-                                            🏥 Recepcja
+                                            {t('reception')}
                                         </div>
                                     )}
                                     <p style={{
@@ -439,7 +441,7 @@ export default function PatientChat() {
                         value={newMessage}
                         onChange={(e) => setNewMessage(e.target.value)}
                         onKeyDown={handleKeyPress}
-                        placeholder="Napisz wiadomość..."
+                        placeholder={t('placeholder')}
                         rows={1}
                         style={{
                             flex: 1,
@@ -479,7 +481,7 @@ export default function PatientChat() {
                             whiteSpace: 'nowrap',
                         }}
                     >
-                        {isSending ? '⏳' : '📤 Wyślij'}
+                        {isSending ? t('sending') : t('send')}
                     </button>
                 </div>
 
@@ -491,12 +493,7 @@ export default function PatientChat() {
                         gap: '0.5rem',
                         justifyContent: 'center',
                     }}>
-                        {[
-                            'Czy mogę zmienić godzinę wizyty?',
-                            'Jakie dokumenty zabrać na wizytę?',
-                            'Ile kosztuje konsultacja?',
-                            'Chcę umówić wizytę',
-                        ].map((suggestion) => (
+                        {suggestions.map((suggestion) => (
                             <button
                                 key={suggestion}
                                 onClick={() => setNewMessage(suggestion)}

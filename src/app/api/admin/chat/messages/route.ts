@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
+import { sendTranslatedPushToUser } from '@/lib/webpush';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -103,6 +104,23 @@ export async function POST(request: NextRequest) {
                 unread_by_patient: true,
             })
             .eq('id', conversationId);
+
+        // Push notification to patient
+        const { data: conv } = await supabase
+            .from('chat_conversations')
+            .select('patient_id')
+            .eq('id', conversationId)
+            .single();
+
+        if (conv?.patient_id) {
+            sendTranslatedPushToUser(
+                conv.patient_id,
+                'patient',
+                'chat_admin_to_patient',
+                { message: content.trim().substring(0, 100) },
+                '/strefa-pacjenta/wiadomosci'
+            ).catch(console.error);
+        }
 
         return NextResponse.json({ message });
     } catch (error) {
