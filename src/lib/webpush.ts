@@ -171,3 +171,48 @@ export async function broadcastPush(
 
     return { sent, failed };
 }
+
+/**
+ * Send push notification to ALL subscribed employees (broadcast).
+ * Optionally exclude a specific user (e.g., the one who triggered the action).
+ */
+export async function sendPushToAllEmployees(
+    payload: PushPayload,
+    excludeUserId?: string
+): Promise<{ sent: number; failed: number }> {
+    let query = supabase
+        .from('push_subscriptions')
+        .select('*')
+        .eq('user_type', 'employee');
+
+    if (excludeUserId) {
+        query = query.neq('user_id', excludeUserId);
+    }
+
+    const { data: subs } = await query;
+
+    if (!subs || subs.length === 0) return { sent: 0, failed: 0 };
+
+    let sent = 0;
+    let failed = 0;
+
+    for (const sub of subs) {
+        try {
+            await webpush.sendNotification(
+                {
+                    endpoint: sub.endpoint,
+                    keys: { p256dh: sub.p256dh, auth: sub.auth },
+                },
+                JSON.stringify(payload)
+            );
+            sent++;
+        } catch (error: any) {
+            if (error.statusCode === 404 || error.statusCode === 410) {
+                await supabase.from('push_subscriptions').delete().eq('id', sub.id);
+            }
+            failed++;
+        }
+    }
+
+    return { sent, failed };
+}

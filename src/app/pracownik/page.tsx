@@ -5,6 +5,7 @@ import { createBrowserClient } from "@supabase/ssr";
 import { useRouter } from "next/navigation";
 import { LogOut, ChevronLeft, ChevronRight, Calendar, RefreshCw, CheckSquare, Plus, User, AlertTriangle, Trash2, Clock, X, Bell } from "lucide-react";
 import { useUserRoles } from "@/hooks/useUserRoles";
+import PushNotificationPrompt from "@/components/PushNotificationPrompt";
 
 // ─── Types ───────────────────────────────────────────────────────
 interface Badge {
@@ -228,6 +229,7 @@ export default function EmployeePage() {
     const [notesTooltipPos, setNotesTooltipPos] = useState({ x: 0, y: 0 });
     const [badgeTooltip, setBadgeTooltip] = useState<{ badges: Badge[], x: number, y: number } | null>(null);
     const [userEmail, setUserEmail] = useState<string>('');
+    const [userId, setUserId] = useState<string>('');
     const [hiddenDoctors, setHiddenDoctors] = useState<Set<string>>(new Set());
     const [selectedAppointment, setSelectedAppointment] = useState<ScheduleAppointment | null>(null);
     const [patientHistory, setPatientHistory] = useState<Visit[] | null>(null);
@@ -309,6 +311,7 @@ export default function EmployeePage() {
                 router.push("/pracownik/login");
             } else {
                 setUserEmail(user.email || '');
+                setUserId(user.id);
             }
         };
         checkAuth();
@@ -1013,6 +1016,14 @@ export default function EmployeePage() {
                     <LogOut size={16} />
                     Wyloguj
                 </button>
+                {userId && (
+                    <PushNotificationPrompt
+                        userType="employee"
+                        userId={userId}
+                        locale="pl"
+                        compact
+                    />
+                )}
             </header>
 
             {/* Tab Navigation */}

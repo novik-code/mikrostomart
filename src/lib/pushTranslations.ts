@@ -11,7 +11,13 @@ export type PushNotificationType =
     | 'appointment_24h'
     | 'appointment_1h'
     | 'new_blog_post'
-    | 'order_status_update';
+    | 'order_status_update'
+    | 'task_new'
+    | 'task_status'
+    | 'task_assigned'
+    | 'task_comment'
+    | 'task_checklist'
+    | 'task_reminder';
 
 interface PushTemplate {
     title: string;
@@ -44,6 +50,30 @@ const translations: Record<string, Record<PushNotificationType, PushTemplate>> =
             title: '📦 Zmiana statusu zamówienia',
             body: 'Twoje zamówienie: {status}',
         },
+        task_new: {
+            title: '📋 Nowe zadanie',
+            body: '{title} — utworzone przez {creator}',
+        },
+        task_status: {
+            title: '🔄 Zmiana statusu zadania',
+            body: '{title} → {status}',
+        },
+        task_assigned: {
+            title: '👤 Przypisano zadanie',
+            body: '{title}',
+        },
+        task_comment: {
+            title: '💬 Nowy komentarz',
+            body: '{author}: {comment} (w: {title})',
+        },
+        task_checklist: {
+            title: '✅ Checklist zaktualizowany',
+            body: '{item} w zadaniu: {title}',
+        },
+        task_reminder: {
+            title: '⚠️ Zadanie bez daty realizacji',
+            body: '{title}',
+        },
     },
     en: {
         chat_patient_to_admin: {
@@ -69,6 +99,30 @@ const translations: Record<string, Record<PushNotificationType, PushTemplate>> =
         order_status_update: {
             title: '📦 Order status update',
             body: 'Your order: {status}',
+        },
+        task_new: {
+            title: '📋 New task',
+            body: '{title} — created by {creator}',
+        },
+        task_status: {
+            title: '🔄 Task status change',
+            body: '{title} → {status}',
+        },
+        task_assigned: {
+            title: '👤 Task assigned to you',
+            body: '{title}',
+        },
+        task_comment: {
+            title: '💬 New comment',
+            body: '{author}: {comment} (on: {title})',
+        },
+        task_checklist: {
+            title: '✅ Checklist updated',
+            body: '{item} in task: {title}',
+        },
+        task_reminder: {
+            title: '⚠️ Task without due date',
+            body: '{title}',
         },
     },
     de: {
@@ -96,6 +150,30 @@ const translations: Record<string, Record<PushNotificationType, PushTemplate>> =
             title: '📦 Bestellstatus-Update',
             body: 'Ihre Bestellung: {status}',
         },
+        task_new: {
+            title: '📋 Neue Aufgabe',
+            body: '{title} — erstellt von {creator}',
+        },
+        task_status: {
+            title: '🔄 Aufgabenstatus geändert',
+            body: '{title} → {status}',
+        },
+        task_assigned: {
+            title: '👤 Aufgabe zugewiesen',
+            body: '{title}',
+        },
+        task_comment: {
+            title: '💬 Neuer Kommentar',
+            body: '{author}: {comment} (in: {title})',
+        },
+        task_checklist: {
+            title: '✅ Checkliste aktualisiert',
+            body: '{item} in Aufgabe: {title}',
+        },
+        task_reminder: {
+            title: '⚠️ Aufgabe ohne Fälligkeitsdatum',
+            body: '{title}',
+        },
     },
     ua: {
         chat_patient_to_admin: {
@@ -121,6 +199,30 @@ const translations: Record<string, Record<PushNotificationType, PushTemplate>> =
         order_status_update: {
             title: '📦 Оновлення статусу замовлення',
             body: 'Ваше замовлення: {status}',
+        },
+        task_new: {
+            title: '📋 Нове завдання',
+            body: '{title} — створено {creator}',
+        },
+        task_status: {
+            title: '🔄 Зміна статусу завдання',
+            body: '{title} → {status}',
+        },
+        task_assigned: {
+            title: '👤 Призначене завдання',
+            body: '{title}',
+        },
+        task_comment: {
+            title: '💬 Новий коментар',
+            body: '{author}: {comment} (до: {title})',
+        },
+        task_checklist: {
+            title: '✅ Чекліст оновлено',
+            body: '{item} у завданні: {title}',
+        },
+        task_reminder: {
+            title: '⚠️ Завдання без дати',
+            body: '{title}',
         },
     },
 };

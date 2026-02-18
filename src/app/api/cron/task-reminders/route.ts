@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sendTelegramNotification } from '@/lib/telegram';
+import { sendPushToAllEmployees } from '@/lib/webpush';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
@@ -70,6 +71,18 @@ export async function GET(req: Request) {
 
         const sent = await sendTelegramNotification(message, 'default');
         console.log(`[TaskReminders] Telegram sent: ${sent}`);
+
+        // Also send push notifications to all employees
+        try {
+            await sendPushToAllEmployees({
+                title: '⚠️ Zadania bez daty realizacji',
+                body: `${tasks.length} zadań wymaga uzupełnienia daty`,
+                url: '/pracownik',
+                tag: 'task-reminders-daily',
+            });
+        } catch (pushErr) {
+            console.error('[TaskReminders] Push error:', pushErr);
+        }
 
         return NextResponse.json({
             success: true,

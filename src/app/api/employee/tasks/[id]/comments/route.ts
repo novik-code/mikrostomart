@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
 import { createClient } from '@supabase/supabase-js';
+import { sendPushToAllEmployees } from '@/lib/webpush';
 
 export const dynamic = 'force-dynamic';
 
@@ -82,6 +83,30 @@ export async function POST(
         if (error) {
             console.error('[TaskComments] Insert error:', error);
             return NextResponse.json({ error: 'Failed' }, { status: 500 });
+        }
+
+        // Push notification to all employees (except commenter)
+        try {
+            const { data: task } = await supabase
+                .from('employee_tasks')
+                .select('title')
+                .eq('id', id)
+                .single();
+
+            if (task) {
+                const commentPreview = body.content.trim().substring(0, 60);
+                await sendPushToAllEmployees(
+                    {
+                        title: '💬 Nowy komentarz',
+                        body: `${task.title}: ${commentPreview}`,
+                        url: '/pracownik',
+                        tag: `task-comment-${id}`,
+                    },
+                    user.id
+                );
+            }
+        } catch (pushErr) {
+            console.error('[TaskComments] Push error:', pushErr);
         }
 
         return NextResponse.json({ comment: data }, { status: 201 });

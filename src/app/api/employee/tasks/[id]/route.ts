@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
 import { createClient } from '@supabase/supabase-js';
+import { sendPushToAllEmployees } from '@/lib/webpush';
 
 export const dynamic = 'force-dynamic';
 
@@ -183,6 +184,64 @@ export async function PATCH(
         }
 
         console.log(`[Tasks] Updated task ${id} by ${user.email}:`, Object.keys(updates));
+
+        // Send push notification based on change type
+        try {
+            const taskTitle = data.title || oldTask?.title || 'Zadanie';
+            const STATUS_LABELS: Record<string, string> = {
+                todo: 'Do zrobienia',
+                in_progress: 'W trakcie',
+                done: 'Gotowe',
+                archived: 'Zarchiwizowane',
+            };
+
+            if ('status' in body && oldTask && body.status !== oldTask.status) {
+                await sendPushToAllEmployees(
+                    {
+                        title: '🔄 Zmiana statusu zadania',
+                        body: `${taskTitle} → ${STATUS_LABELS[body.status] || body.status}`,
+                        url: '/pracownik',
+                        tag: `task-status-${id}`,
+                    },
+                    user.id
+                );
+            } else if ('assigned_to' in body) {
+                await sendPushToAllEmployees(
+                    {
+                        title: '👤 Zmiana przypisania zadania',
+                        body: taskTitle,
+                        url: '/pracownik',
+                        tag: `task-assign-${id}`,
+                    },
+                    user.id
+                );
+            } else if ('checklist_items' in body && Object.keys(body).length === 1) {
+                // Find which item changed
+                const oldItems = oldTask?.checklist_items || [];
+                const newItems = body.checklist_items || [];
+                let changedItem = '';
+                for (let i = 0; i < newItems.length; i++) {
+                    if (oldItems[i] && oldItems[i].done !== newItems[i].done) {
+                        changedItem = newItems[i].label;
+                        break;
+                    }
+                }
+                if (changedItem) {
+                    await sendPushToAllEmployees(
+                        {
+                            title: '✅ Checklist zaktualizowany',
+                            body: `${changedItem} (${taskTitle})`,
+                            url: '/pracownik',
+                            tag: `task-checklist-${id}`,
+                        },
+                        user.id
+                    );
+                }
+            }
+        } catch (pushErr) {
+            console.error('[Tasks] Push notification error:', pushErr);
+        }
+
         return NextResponse.json({ task: data });
 
     } catch (error: any) {
