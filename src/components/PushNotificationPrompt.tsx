@@ -20,22 +20,57 @@ export default function PushNotificationPrompt({
     const [isSubscribed, setIsSubscribed] = useState(false);
     const [loading, setLoading] = useState(false);
     const [dismissed, setDismissed] = useState(false);
+    const [debugInfo, setDebugInfo] = useState('');
 
     const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
 
     useEffect(() => {
-        if (typeof window === 'undefined' || !('Notification' in window) || !('serviceWorker' in navigator)) {
+        if (typeof window === 'undefined') {
             setPermission('unsupported');
             return;
         }
 
-        setPermission(Notification.permission);
+        // Check basic support
+        const hasSW = 'serviceWorker' in navigator;
+        const hasNotification = 'Notification' in window;
+        const hasPushManager = 'PushManager' in window;
 
-        // Check if already subscribed via the main service worker
+        console.log('[Push] Support check:', { hasSW, hasNotification, hasPushManager, vapidPublicKey: !!vapidPublicKey });
+
+        if (!hasSW || !hasNotification || !hasPushManager) {
+            setPermission('unsupported');
+            setDebugInfo(`Unsupported: SW=${hasSW} Notif=${hasNotification} Push=${hasPushManager}`);
+            return;
+        }
+
+        const currentPerm = Notification.permission;
+        setPermission(currentPerm);
+        console.log('[Push] Current permission:', currentPerm);
+
+        // Check if subscribed via the main service worker
+        // Use a timeout to avoid hanging if SW never becomes ready
+        const timeoutId = setTimeout(() => {
+            console.log('[Push] SW ready timeout — SW may not be registered yet');
+            setDebugInfo('SW not ready after 3s');
+        }, 3000);
+
         navigator.serviceWorker.ready.then(reg => {
+            clearTimeout(timeoutId);
+            console.log('[Push] SW ready, scope:', reg.scope);
+
             reg.pushManager.getSubscription().then(sub => {
-                setIsSubscribed(!!sub);
+                const subscribed = !!sub;
+                console.log('[Push] Subscription status:', subscribed, sub?.endpoint?.substring(0, 50));
+                setIsSubscribed(subscribed);
+                setDebugInfo(subscribed ? 'Subscribed' : 'Not subscribed');
+            }).catch(err => {
+                console.error('[Push] getSubscription error:', err);
+                setDebugInfo('Error checking subscription');
             });
+        }).catch(err => {
+            clearTimeout(timeoutId);
+            console.error('[Push] SW ready error:', err);
+            setDebugInfo('SW ready failed');
         });
 
         // Check dismiss storage
@@ -43,44 +78,51 @@ export default function PushNotificationPrompt({
         if (sessionStorage.getItem(dismissKey)) {
             setDismissed(true);
         }
-    }, [userType, userId]);
+    }, [userType, userId, vapidPublicKey]);
+
+    const urlBase64ToUint8Array = (base64String: string) => {
+        const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+        const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+        const rawData = window.atob(base64);
+        const outputArray = new Uint8Array(rawData.length);
+        for (let i = 0; i < rawData.length; ++i) {
+            outputArray[i] = rawData.charCodeAt(i);
+        }
+        return outputArray;
+    };
 
     const subscribe = useCallback(async () => {
         if (!vapidPublicKey) {
             console.error('[Push] VAPID public key not set');
+            alert('Push config error: VAPID key missing');
             return;
         }
 
         setLoading(true);
         try {
             // Request permission
+            console.log('[Push] Requesting permission...');
             const perm = await Notification.requestPermission();
+            console.log('[Push] Permission result:', perm);
             setPermission(perm);
             if (perm !== 'granted') {
+                alert(`Notification permission: ${perm}. Please enable in browser settings.`);
                 setLoading(false);
                 return;
             }
 
-            // Use the main service worker registration (Workbox SW with push handlers injected)
+            // Use the main service worker registration
+            console.log('[Push] Waiting for SW ready...');
             const registration = await navigator.serviceWorker.ready;
-
-            // Convert VAPID key
-            const urlBase64ToUint8Array = (base64String: string) => {
-                const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
-                const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-                const rawData = window.atob(base64);
-                const outputArray = new Uint8Array(rawData.length);
-                for (let i = 0; i < rawData.length; ++i) {
-                    outputArray[i] = rawData.charCodeAt(i);
-                }
-                return outputArray;
-            };
+            console.log('[Push] SW ready, subscribing to push...');
 
             // Subscribe to push
             const subscription = await registration.pushManager.subscribe({
                 userVisibleOnly: true,
                 applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
             });
+
+            console.log('[Push] Subscription created:', subscription.endpoint.substring(0, 60));
 
             // Send subscription to server
             const res = await fetch('/api/push/subscribe', {
@@ -94,10 +136,33 @@ export default function PushNotificationPrompt({
                 }),
             });
 
-            if (!res.ok) throw new Error('Subscription API failed');
+            const resData = await res.json();
+            console.log('[Push] Subscribe API response:', res.status, resData);
+
+            if (!res.ok) {
+                throw new Error(`Subscription API failed: ${res.status} ${JSON.stringify(resData)}`);
+            }
+
             setIsSubscribed(true);
+            setDebugInfo('Subscribed ✓');
+
+            // Send a test push to verify
+            try {
+                const testRes = await fetch('/api/push/test', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId, userType }),
+                });
+                const testData = await testRes.json();
+                console.log('[Push] Test push result:', testData);
+            } catch (e) {
+                console.log('[Push] Test push skipped:', e);
+            }
+
         } catch (error) {
             console.error('[Push] Subscribe error:', error);
+            setDebugInfo(`Error: ${error}`);
+            alert(`Push subscription failed: ${error}`);
         } finally {
             setLoading(false);
         }
@@ -109,10 +174,7 @@ export default function PushNotificationPrompt({
             const reg = await navigator.serviceWorker.ready;
             const sub = await reg.pushManager.getSubscription();
             if (sub) {
-                // Unsubscribe from browser
                 await sub.unsubscribe();
-
-                // Remove from server
                 await fetch('/api/push/subscribe', {
                     method: 'DELETE',
                     headers: { 'Content-Type': 'application/json' },
@@ -120,6 +182,7 @@ export default function PushNotificationPrompt({
                 });
             }
             setIsSubscribed(false);
+            setDebugInfo('Unsubscribed');
         } catch (error) {
             console.error('[Push] Unsubscribe error:', error);
         } finally {
@@ -133,12 +196,11 @@ export default function PushNotificationPrompt({
         sessionStorage.setItem(dismissKey, '1');
     };
 
-    // Don't render if unsupported, already subscribed in non-compact, or dismissed
+    // Don't render if unsupported or permission denied
     if (permission === 'unsupported') return null;
     if (permission === 'denied' && !compact) return null;
-    if (dismissed && !compact && !isSubscribed) return null;
 
-    // Compact toggle mode
+    // Compact toggle mode — always show when compact
     if (compact) {
         return (
             <button
@@ -167,8 +229,9 @@ export default function PushNotificationPrompt({
         );
     }
 
-    // Full banner mode (if not yet subscribed)
+    // Banner mode — show if not subscribed and not dismissed
     if (isSubscribed) return null;
+    if (dismissed) return null;
 
     const labels: Record<string, { title: string; body: string; btn: string; dismiss: string }> = {
         pl: {
@@ -228,6 +291,11 @@ export default function PushNotificationPrompt({
                 }}>
                     {l.body}
                 </p>
+                {debugInfo && (
+                    <p style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.3)', margin: '0.25rem 0 0 0' }}>
+                        Debug: {debugInfo}
+                    </p>
+                )}
             </div>
             <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
                 <button

@@ -37,9 +37,9 @@ export async function POST(request: NextRequest) {
 
         console.log(`[Push] Subscribed: ${userType}/${userId} (${locale})`);
         return NextResponse.json({ success: true });
-    } catch (error) {
+    } catch (error: unknown) {
         console.error('[Push] Subscribe error:', error);
-        return NextResponse.json({ error: 'Failed to subscribe' }, { status: 500 });
+        return NextResponse.json({ error: 'Failed to subscribe', details: String(error) }, { status: 500 });
     }
 }
 
