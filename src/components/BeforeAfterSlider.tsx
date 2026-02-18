@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useTranslations } from "next-intl";
 
 interface BeforeAfterSliderProps {
     beforeImage: string;
@@ -13,6 +14,7 @@ interface BeforeAfterSliderProps {
 }
 
 export default function BeforeAfterSlider({ beforeImage, afterImage, maskImage, onHoverStart, onHoverEnd, onInteraction }: BeforeAfterSliderProps) {
+    const t = useTranslations('beforeAfter');
     const [sliderPosition, setSliderPosition] = useState(50);
     const [isResizing, setIsResizing] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -134,7 +136,7 @@ export default function BeforeAfterSlider({ beforeImage, afterImage, maskImage, 
                     fontWeight: "bold", fontSize: "0.8rem",
                     zIndex: 2
                 }}>
-                    PO
+                    {t('after')}
                 </div>
             </div>
 
@@ -173,7 +175,7 @@ export default function BeforeAfterSlider({ beforeImage, afterImage, maskImage, 
                         fontWeight: "bold", fontSize: "0.8rem",
                         zIndex: 2
                     }}>
-                        PRZED
+                        {t('before')}
                     </div>
                 </div>
             </div>

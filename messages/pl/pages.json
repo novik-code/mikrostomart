@@ -395,5 +395,36 @@
         "back": "Wróć",
         "processing": "Przetwarzanie...",
         "payNow": "Zapłać teraz"
+    },
+    "simulatorModal": {
+        "title": "Symulator Uśmiechu",
+        "preparing": "Przygotowuję...",
+        "slogan": "Pamiętaj, że my zrobimy to lepiej niż AI!",
+        "downloadError": "Błąd pobierania",
+        "cameraError": "Nie udało się uruchomić kamery. Spróbuj wgrać plik.",
+        "optimizing": "Optymalizuję zdjęcie...",
+        "searchingSmile": "Szukam uśmiechu...",
+        "designingSmile": "Projektuję metamorfozę...",
+        "processingError": "Błąd przetwarzania.",
+        "mouthDetectionError": "Nie udało się wykryć ust. Upewnij się, że twarz jest oświetlona i widoczna, lub oddal nieco aparat.",
+        "serverError": "Błąd serwera. Spróbuj później.",
+        "timeoutError": "Zbyt długi czas oczekiwania. Spróbuj ponownie.",
+        "aiError": "AI nie poradziło sobie z tym zdjęciem. Spróbuj innego.",
+        "instructionTitle": "Instrukcja Idealnego Zdjęcia",
+        "instructionSubtitle": "Aby uzyskać najlepszy efekt symulacji, postępuj zgodnie z poniższymi wskazówkami:",
+        "instructionFront": "Zrób zdjęcie <b>na wprost (en face)</b>, trzymając telefon na wysokości oczu.",
+        "instructionMouth": "<b>Lekko uchyl usta</b>, aby nie zasłaniać całkowicie zębów, ale też ich nie eksponować przesadnie.",
+        "instructionLight": "Zadbaj o <b>dobre, naturalne oświetlenie</b> padające na twarz.",
+        "instructionAvoid": "Unikaj zdjęć z profilu lub z dołu.",
+        "understood": "Zrozumiałem, Zaczynamy!",
+        "startCamera": "Uruchom Kamerę",
+        "uploadPhoto": "Wgraj Zdjęcie",
+        "repeat": "Powtórz",
+        "download": "Pobierz",
+        "backToStart": "Wróć do startu"
+    },
+    "beforeAfter": {
+        "before": "PRZED",
+        "after": "PO"
     }
 }

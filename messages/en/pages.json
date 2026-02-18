@@ -395,5 +395,36 @@
         "back": "Back",
         "processing": "Processing...",
         "payNow": "Pay now"
+    },
+    "simulatorModal": {
+        "title": "Smile Simulator",
+        "preparing": "Preparing...",
+        "slogan": "Remember, we'll do it better than AI!",
+        "downloadError": "Download error",
+        "cameraError": "Failed to start camera. Try uploading a file.",
+        "optimizing": "Optimizing photo...",
+        "searchingSmile": "Looking for a smile...",
+        "designingSmile": "Designing your new smile...",
+        "processingError": "Processing error.",
+        "mouthDetectionError": "Could not detect lips. Make sure your face is well-lit and visible, or move the camera further away.",
+        "serverError": "Server error. Please try again later.",
+        "timeoutError": "The wait time was too long. Please try again.",
+        "aiError": "AI couldn't process this photo. Try a different one.",
+        "instructionTitle": "Perfect Photo Guide",
+        "instructionSubtitle": "For the best simulation results, follow these tips:",
+        "instructionFront": "Take a photo <b>straight on (en face)</b>, holding the phone at eye level.",
+        "instructionMouth": "<b>Slightly open your lips</b> — don't fully cover your teeth, but don't overexpose them either.",
+        "instructionLight": "Ensure <b>good, natural lighting</b> on your face.",
+        "instructionAvoid": "Avoid profile or low-angle shots.",
+        "understood": "Got it, Let's Start!",
+        "startCamera": "Start Camera",
+        "uploadPhoto": "Upload Photo",
+        "repeat": "Repeat",
+        "download": "Download",
+        "backToStart": "Back to start"
+    },
+    "beforeAfter": {
+        "before": "BEFORE",
+        "after": "AFTER"
     }
 }

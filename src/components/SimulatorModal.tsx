@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { X, Camera, Upload, RefreshCw, AlertTriangle, Check, RotateCcw, Download } from "lucide-react";
 import { useSimulator } from "@/context/SimulatorContext";
+import { useTranslations } from "next-intl";
 import { analysisFaceAlignment } from "@/helpers/faceDetection";
 import BeforeAfterSlider from "@/components/BeforeAfterSlider";
 
@@ -16,10 +17,11 @@ const VIDEO_CONSTRAINTS = {
 
 export default function SimulatorModal() {
     const { isOpen, closeSimulator } = useSimulator();
+    const t = useTranslations('simulatorModal');
     type SimulatorStep = 'instruction' | 'intro' | 'camera' | 'processing' | 'result';
     const [step, setStep] = useState<SimulatorStep>('instruction');
     const [error, setError] = useState<string | null>(null);
-    const [statusMsg, setStatusMsg] = useState("Przygotowuję...");
+    const [statusMsg, setStatusMsg] = useState(t('preparing'));
 
     // Data
     const [originalImage, setOriginalImage] = useState<string | null>(null);
@@ -66,7 +68,7 @@ export default function SimulatorModal() {
             }
 
             // Draw Slogan (Bottom Center)
-            const slogan = "Pamiętaj, że my zrobimy to lepiej niż AI!";
+            const slogan = t('slogan');
             ctx.font = `bold ${canvas.width * 0.04}px sans-serif`;
             ctx.fillStyle = "rgba(0,0,0,0.6)"; // Shadow
             ctx.textAlign = "center";
@@ -82,7 +84,7 @@ export default function SimulatorModal() {
             link.click();
         } catch (e) {
             console.error("Download failed", e);
-            alert("Błąd pobierania");
+            alert(t('downloadError'));
         }
     };
 
@@ -118,7 +120,7 @@ export default function SimulatorModal() {
             }
         } catch (err: any) {
             console.error(err);
-            setError("Nie udało się uruchomić kamery. Spróbuj wgrać plik.");
+            setError(t('cameraError'));
             // Fallback to intro ?? Or stay in camera with error?
         }
     };
@@ -170,7 +172,7 @@ export default function SimulatorModal() {
     // --- IMAGE PROCESSING (Normalization & Auto-Mask) ---
     const handleImageSelected = async (rawSrc: string) => {
         setStep('processing');
-        setStatusMsg("Optymalizuję zdjęcie...");
+        setStatusMsg(t('optimizing'));
 
         try {
             // 1. Normalize Orientation (Draw to canvas to bake EXIF)
@@ -178,16 +180,16 @@ export default function SimulatorModal() {
             setOriginalImage(normalizedSrc);
 
             // 2. Auto-Mask
-            setStatusMsg("Szukam uśmiechu...");
+            setStatusMsg(t('searchingSmile'));
             const maskSrc = await generateAutoMask(normalizedSrc);
 
             // 3. Send to API
-            setStatusMsg("Projektuję metamorfozę...");
+            setStatusMsg(t('designingSmile'));
             await runSimulation(normalizedSrc, maskSrc);
 
         } catch (err: any) {
             console.error(err);
-            setError(err.message || "Błąd przetwarzania.");
+            setError(err.message || t('processingError'));
             setStep('intro');
         }
     };
@@ -303,7 +305,7 @@ export default function SimulatorModal() {
         try {
             const analysis = await analysisFaceAlignment(img);
             if (!analysis || !analysis.mouthPath) {
-                throw new Error("Nie udało się wykryć ust. Upewnij się, że twarz jest oświetlona i widoczna, lub oddal nieco aparat.");
+                throw new Error(t('mouthDetectionError'));
             }
 
             // Normal Path: Face Detected
@@ -386,7 +388,7 @@ export default function SimulatorModal() {
 
         } catch (e) {
             console.warn("Face detection failed.", e);
-            throw new Error("Nie udało się wykryć ust. Upewnij się, że twarz jest oświetlona i widoczna, lub oddal nieco aparat.");
+            throw new Error(t('mouthDetectionError'));
         }
     };
 
@@ -403,7 +405,7 @@ export default function SimulatorModal() {
         const res = await fetch("/api/simulate", { method: "POST", body: formData });
         if (!res.ok) {
             const errData = await res.json().catch(() => ({}));
-            throw new Error(errData.error || "Błąd serwera. Spróbuj później.");
+            throw new Error(errData.error || t('serverError'));
         }
 
         const { id } = await res.json();
@@ -415,7 +417,7 @@ export default function SimulatorModal() {
         const poll = async () => {
             attempts++;
             if (attempts > maxAttempts) {
-                setError("Zbyt długi czas oczekiwania. Spróbuj ponownie.");
+                setError(t('timeoutError'));
                 setStep('intro');
                 return;
             }
@@ -428,7 +430,7 @@ export default function SimulatorModal() {
                     setResultImage(data.url);
                     setStep('result');
                 } else if (data.status === 'failed' || data.status === 'canceled') {
-                    setError("AI nie poradziło sobie z tym zdjęciem. Spróbuj innego.");
+                    setError(t('aiError'));
                     setStep('intro');
                 } else {
                     setTimeout(poll, 1000);
@@ -480,7 +482,7 @@ export default function SimulatorModal() {
 
                 {/* --- HEADER --- */}
                 <div style={{ padding: '20px', textAlign: 'center', background: '#0f0f0f' }}>
-                    <h2 style={{ margin: 0, color: '#dcb14a' }}>Symulator Uśmiechu</h2>
+                    <h2 style={{ margin: 0, color: '#dcb14a' }}>{t('title')}</h2>
                 </div>
 
                 {/* --- CONTENT --- */}
@@ -516,18 +518,18 @@ export default function SimulatorModal() {
                             display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'center'
                         }}>
                             <div style={{ fontSize: '50px' }}>📸</div>
-                            <h3 style={{ margin: 0, color: '#dcb14a' }}>Instrukcja Idealnego Zdjęcia</h3>
+                            <h3 style={{ margin: 0, color: '#dcb14a' }}>{t('instructionTitle')}</h3>
                             <p style={{ lineHeight: '1.6', fontSize: '16px', color: '#ccc' }}>
-                                Aby uzyskać najlepszy efekt symulacji, postępuj zgodnie z poniższymi wskazówkami:
+                                {t('instructionSubtitle')}
                             </p>
                             <ul style={{
                                 textAlign: 'left', background: 'rgba(255,255,255,0.05)',
                                 padding: '20px 30px', borderRadius: '15px', lineHeight: '1.8', margin: 0
                             }}>
-                                <li>⭐ Zrób zdjęcie <b>na wprost (en face)</b>, trzymając telefon na wysokości oczu.</li>
-                                <li>👄 <b>Lekko uchyl usta</b>, aby nie zasłaniać całkowicie zębów, ale też ich nie eksponować przesadnie.</li>
-                                <li>☀️ Zadbaj o <b>dobre, naturalne oświetlenie</b> padające na twarz.</li>
-                                <li>🚫 Unikaj zdjęć z profilu lub z dołu.</li>
+                                <li dangerouslySetInnerHTML={{ __html: `⭐ ${t('instructionFront')}` }} />
+                                <li dangerouslySetInnerHTML={{ __html: `👄 ${t('instructionMouth')}` }} />
+                                <li dangerouslySetInnerHTML={{ __html: `☀️ ${t('instructionLight')}` }} />
+                                <li>🚫 {t('instructionAvoid')}</li>
                             </ul>
                             <button onClick={() => setStep('intro')} style={{
                                 marginTop: '10px',
@@ -535,7 +537,7 @@ export default function SimulatorModal() {
                                 background: '#dcb14a', color: 'black', border: 'none',
                                 fontWeight: 'bold', fontSize: '16px', cursor: 'pointer'
                             }}>
-                                Zrozumiałem, Zaczynamy!
+                                {t('understood')}
                             </button>
                         </div>
                     )}
@@ -555,7 +557,7 @@ export default function SimulatorModal() {
                                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
                                 cursor: 'pointer'
                             }}>
-                                <Camera /> Uruchom Kamerę
+                                <Camera /> {t('startCamera')}
                             </button>
 
                             <button onClick={() => fileInputRef.current?.click()} style={{
@@ -564,7 +566,7 @@ export default function SimulatorModal() {
                                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
                                 cursor: 'pointer'
                             }}>
-                                <Upload /> Wgraj Zdjęcie
+                                <Upload /> {t('uploadPhoto')}
                             </button>
 
                             <input type="file" ref={fileInputRef} accept="image/*" onChange={handleFileChange} style={{ display: 'none' }} />
@@ -606,14 +608,14 @@ export default function SimulatorModal() {
                                         background: '#333', color: 'white', border: '1px solid #444', fontWeight: 'bold',
                                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', cursor: 'pointer'
                                     }}>
-                                        <RefreshCw size={18} /> Powtórz
+                                        <RefreshCw size={18} /> {t('repeat')}
                                     </button>
                                     <button onClick={downloadBrandedImage} style={{
                                         flex: 1, padding: '15px', borderRadius: '12px',
                                         background: '#dcb14a', color: 'black', border: 'none', fontWeight: 'bold',
                                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', cursor: 'pointer'
                                     }}>
-                                        <Download size={18} /> Pobierz
+                                        <Download size={18} /> {t('download')}
                                     </button>
                                 </div>
 
@@ -622,7 +624,7 @@ export default function SimulatorModal() {
                                     background: 'transparent', color: '#666', border: 'none', fontSize: '12px',
                                     cursor: 'pointer'
                                 }}>
-                                    Wróć do startu
+                                    {t('backToStart')}
                                 </button>
                             </div>
                         </div>

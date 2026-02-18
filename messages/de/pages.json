@@ -395,5 +395,36 @@
         "back": "Zurück",
         "processing": "Verarbeitung...",
         "payNow": "Jetzt bezahlen"
+    },
+    "simulatorModal": {
+        "title": "Lächeln-Simulator",
+        "preparing": "Vorbereitung...",
+        "slogan": "Denken Sie daran, wir machen es besser als KI!",
+        "downloadError": "Download-Fehler",
+        "cameraError": "Kamera konnte nicht gestartet werden. Versuchen Sie eine Datei hochzuladen.",
+        "optimizing": "Foto wird optimiert...",
+        "searchingSmile": "Suche nach einem Lächeln...",
+        "designingSmile": "Ihr neues Lächeln wird entworfen...",
+        "processingError": "Verarbeitungsfehler.",
+        "mouthDetectionError": "Lippen konnten nicht erkannt werden. Stellen Sie sicher, dass Ihr Gesicht gut beleuchtet und sichtbar ist.",
+        "serverError": "Serverfehler. Bitte versuchen Sie es später erneut.",
+        "timeoutError": "Wartezeit zu lang. Bitte versuchen Sie es erneut.",
+        "aiError": "KI konnte dieses Foto nicht verarbeiten. Versuchen Sie ein anderes.",
+        "instructionTitle": "Anleitung für das perfekte Foto",
+        "instructionSubtitle": "Für beste Simulationsergebnisse befolgen Sie diese Tipps:",
+        "instructionFront": "Machen Sie ein Foto <b>frontal (en face)</b>, halten Sie das Telefon auf Augenhöhe.",
+        "instructionMouth": "<b>Öffnen Sie leicht die Lippen</b> — verdecken Sie die Zähne nicht vollständig, zeigen Sie sie aber auch nicht übermäßig.",
+        "instructionLight": "Sorgen Sie für <b>gute, natürliche Beleuchtung</b> Ihres Gesichts.",
+        "instructionAvoid": "Vermeiden Sie Profil- oder Aufnahmen von unten.",
+        "understood": "Verstanden, los geht's!",
+        "startCamera": "Kamera starten",
+        "uploadPhoto": "Foto hochladen",
+        "repeat": "Wiederholen",
+        "download": "Herunterladen",
+        "backToStart": "Zurück zum Start"
+    },
+    "beforeAfter": {
+        "before": "VORHER",
+        "after": "NACHHER"
     }
 }
