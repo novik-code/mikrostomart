@@ -31,13 +31,11 @@ export default function PushNotificationPrompt({
 
         setPermission(Notification.permission);
 
-        // Check if push-sw already registered and subscribed
-        navigator.serviceWorker.getRegistration('/push-sw.js').then(reg => {
-            if (reg) {
-                reg.pushManager.getSubscription().then(sub => {
-                    setIsSubscribed(!!sub);
-                });
-            }
+        // Check if already subscribed via the main service worker
+        navigator.serviceWorker.ready.then(reg => {
+            reg.pushManager.getSubscription().then(sub => {
+                setIsSubscribed(!!sub);
+            });
         });
 
         // Check dismiss storage
@@ -63,9 +61,8 @@ export default function PushNotificationPrompt({
                 return;
             }
 
-            // Register push service worker
-            const registration = await navigator.serviceWorker.register('/push-sw.js', { scope: '/' });
-            await navigator.serviceWorker.ready;
+            // Use the main service worker registration (Workbox SW with push handlers injected)
+            const registration = await navigator.serviceWorker.ready;
 
             // Convert VAPID key
             const urlBase64ToUint8Array = (base64String: string) => {
@@ -109,20 +106,18 @@ export default function PushNotificationPrompt({
     const unsubscribe = useCallback(async () => {
         setLoading(true);
         try {
-            const reg = await navigator.serviceWorker.getRegistration('/push-sw.js');
-            if (reg) {
-                const sub = await reg.pushManager.getSubscription();
-                if (sub) {
-                    // Unsubscribe from browser
-                    await sub.unsubscribe();
+            const reg = await navigator.serviceWorker.ready;
+            const sub = await reg.pushManager.getSubscription();
+            if (sub) {
+                // Unsubscribe from browser
+                await sub.unsubscribe();
 
-                    // Remove from server
-                    await fetch('/api/push/subscribe', {
-                        method: 'DELETE',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ endpoint: sub.endpoint }),
-                    });
-                }
+                // Remove from server
+                await fetch('/api/push/subscribe', {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ endpoint: sub.endpoint }),
+                });
             }
             setIsSubscribed(false);
         } catch (error) {
