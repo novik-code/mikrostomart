@@ -118,7 +118,7 @@ export async function PATCH(
 
         if (error) {
             console.error('[Tasks] Error updating task:', error);
-            return NextResponse.json({ error: 'Failed to update task' }, { status: 500 });
+            return NextResponse.json({ error: `Failed to update task: ${error.message || error.code}` }, { status: 500 });
         }
 
         if (!data) {
