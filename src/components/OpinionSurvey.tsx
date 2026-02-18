@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useOpinion } from '@/context/OpinionContext';
 import { X, Star, ChevronRight, ChevronLeft, Loader2, Copy, ExternalLink, MessageSquareHeart, Check } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 /* ══════════════════════════════════════════════════════
    TYPES
@@ -19,18 +20,7 @@ interface SurveyAnswers {
     recommend: string;
 }
 
-const PROCEDURES_OPTIONS = [
-    'Przegląd / kontrola',
-    'Leczenie kanałowe',
-    'Implanty',
-    'Wybielanie zębów',
-    'Protetyka (korony, mosty)',
-    'Stomatologia dziecięca',
-    'Chirurgia stomatologiczna',
-    'Leczenie próchnicy',
-    'Higienizacja',
-    'Inne',
-];
+// PROCEDURES_OPTIONS moved inside component to use t()
 
 const GOOGLE_REVIEW_URL = 'https://g.page/r/CSYarbrDoYcDEAE/review';
 
@@ -40,6 +30,12 @@ const GOOGLE_REVIEW_URL = 'https://g.page/r/CSYarbrDoYcDEAE/review';
 
 export default function OpinionSurvey() {
     const { isOpen, closeSurvey } = useOpinion();
+    const t = useTranslations('opinionSurvey');
+
+    const PROCEDURES_OPTIONS = [
+        t('proc1'), t('proc2'), t('proc3'), t('proc4'), t('proc5'),
+        t('proc6'), t('proc7'), t('proc8'), t('proc9'), t('proc10'),
+    ];
     const [step, setStep] = useState(0); // 0=survey, 1=loading, 2=result
     const [questionIdx, setQuestionIdx] = useState(0);
     const [answers, setAnswers] = useState<SurveyAnswers>({
@@ -107,10 +103,10 @@ export default function OpinionSurvey() {
     const questions = [
         // Q0: isPatient
         {
-            title: 'Czy jesteś pacjentem Mikrostomart?',
+            title: t('q0Title'),
             render: () => (
                 <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '0.5rem' }}>
-                    {['Tak, jestem pacjentem', 'Nie, rozważam wizytę'].map(opt => (
+                    {[t('q0Opt1'), t('q0Opt2')].map(opt => (
                         <button
                             key={opt}
                             onClick={() => setAnswers(p => ({ ...p, isPatient: opt }))}
@@ -125,10 +121,10 @@ export default function OpinionSurvey() {
         },
         // Q1: duration
         {
-            title: 'Jak długo się u nas leczysz?',
+            title: t('q1Title'),
             render: () => (
                 <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '0.5rem' }}>
-                    {['Mniej niż 6 miesięcy', '6–12 miesięcy', '1–3 lata', 'Ponad 3 lata'].map(opt => (
+                    {[t('q1Opt1'), t('q1Opt2'), t('q1Opt3'), t('q1Opt4')].map(opt => (
                         <button
                             key={opt}
                             onClick={() => setAnswers(p => ({ ...p, duration: opt }))}
@@ -143,8 +139,8 @@ export default function OpinionSurvey() {
         },
         // Q2: procedures (multi-select)
         {
-            title: 'Z jakich zabiegów korzystałeś/aś?',
-            subtitle: 'Możesz wybrać kilka opcji',
+            title: t('q2Title'),
+            subtitle: t('q2Subtitle'),
             render: () => (
                 <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: '0.4rem' }}>
                     {PROCEDURES_OPTIONS.map(opt => {
@@ -173,25 +169,25 @@ export default function OpinionSurvey() {
         },
         // Q3: staffRating
         {
-            title: 'Jak oceniasz obsługę personelu?',
+            title: t('q3Title'),
             render: () => <StarRating value={answers.staffRating} onChange={v => setAnswers(p => ({ ...p, staffRating: v }))} />,
             valid: () => answers.staffRating > 0,
         },
         // Q4: comfortRating
         {
-            title: 'Jak oceniasz komfort podczas zabiegów?',
+            title: t('q4Title'),
             render: () => <StarRating value={answers.comfortRating} onChange={v => setAnswers(p => ({ ...p, comfortRating: v }))} />,
             valid: () => answers.comfortRating > 0,
         },
         // Q5: whatYouLike
         {
-            title: 'Co szczególnie Ci się u nas podoba?',
-            subtitle: 'Opcjonalne — ale pomoże nam lepiej dopasować opinię',
+            title: t('q5Title'),
+            subtitle: t('q5Subtitle'),
             render: () => (
                 <textarea
                     value={answers.whatYouLike}
                     onChange={e => setAnswers(p => ({ ...p, whatYouLike: e.target.value }))}
-                    placeholder="np. Profesjonalny personel, nowoczesne wyposażenie..."
+                    placeholder={t('q5Placeholder')}
                     rows={3}
                     style={textareaStyle}
                 />
@@ -200,13 +196,13 @@ export default function OpinionSurvey() {
         },
         // Q6: improvements
         {
-            title: 'Co możemy robić lepiej?',
-            subtitle: 'Opcjonalne — Twoja szczera opinia pomoże nam się rozwijać',
+            title: t('q6Title'),
+            subtitle: t('q6Subtitle'),
             render: () => (
                 <textarea
                     value={answers.improvements}
                     onChange={e => setAnswers(p => ({ ...p, improvements: e.target.value }))}
-                    placeholder="np. Czas oczekiwania, dostępność terminów..."
+                    placeholder={t('q6Placeholder')}
                     rows={3}
                     style={textareaStyle}
                 />
@@ -215,10 +211,10 @@ export default function OpinionSurvey() {
         },
         // Q7: recommend
         {
-            title: 'Czy polecisz nas swoim najbliższym?',
+            title: t('q7Title'),
             render: () => (
                 <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '0.5rem' }}>
-                    {['Zdecydowanie tak', 'Raczej tak', 'Nie jestem pewien/pewna', 'Raczej nie'].map(opt => (
+                    {[t('q7Opt1'), t('q7Opt2'), t('q7Opt3'), t('q7Opt4')].map(opt => (
                         <button
                             key={opt}
                             onClick={() => setAnswers(p => ({ ...p, recommend: opt }))}
@@ -306,10 +302,10 @@ export default function OpinionSurvey() {
                                 margin: 0,
                                 letterSpacing: '-0.01em',
                             }}>
-                                Podziel się swoją opinią
+                                {t('headerTitle')}
                             </h2>
                             <p style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', marginTop: '0.3rem' }}>
-                                Twoja opinia jest dla nas niezwykle ważna
+                                {t('headerSubtitle')}
                             </p>
                         </div>
 
@@ -364,7 +360,7 @@ export default function OpinionSurvey() {
                                     padding: '0.5rem',
                                 }}
                             >
-                                <ChevronLeft size={16} /> Wstecz
+                                <ChevronLeft size={16} /> {t('back')}
                             </button>
 
                             <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.25)' }}>
@@ -389,7 +385,7 @@ export default function OpinionSurvey() {
                                         fontWeight: '600',
                                     }}
                                 >
-                                    Generuj opinię ✨
+                                    {t('generateReview')}
                                 </button>
                             ) : (
                                 <button
@@ -409,7 +405,7 @@ export default function OpinionSurvey() {
                                         fontWeight: '500',
                                     }}
                                 >
-                                    Dalej <ChevronRight size={16} />
+                                    {t('next')} <ChevronRight size={16} />
                                 </button>
                             )}
                         </div>
@@ -428,7 +424,7 @@ export default function OpinionSurvey() {
                     }}>
                         <Loader2 size={36} style={{ color: '#d4af37', animation: 'spin 1s linear infinite' }} />
                         <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', margin: 0 }}>
-                            Generujemy Twoją opinię...
+                            {t('loading')}
                         </p>
                         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
                     </div>
@@ -442,10 +438,10 @@ export default function OpinionSurvey() {
                                 <div style={{ textAlign: 'center', marginBottom: '1.25rem' }}>
                                     <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>⭐</div>
                                     <h2 style={{ fontSize: '1.1rem', fontWeight: '700', color: '#fff', margin: 0 }}>
-                                        Twoja opinia jest gotowa!
+                                        {t('resultTitle')}
                                     </h2>
                                     <p style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', marginTop: '0.3rem' }}>
-                                        Kliknij poniżej — tekst zostanie skopiowany automatycznie
+                                        {t('resultSubtitle')}
                                     </p>
                                 </div>
 
@@ -497,9 +493,9 @@ export default function OpinionSurvey() {
                                     }}
                                 >
                                     {copied ? (
-                                        <><Check size={16} /> Skopiowano! Otwieramy Google...</>
+                                        <><Check size={16} /> {t('copiedOpening')}</>
                                     ) : (
-                                        <><ExternalLink size={16} /> Wystaw opinię w Google ⭐⭐⭐⭐⭐</>
+                                        <><ExternalLink size={16} /> {t('submitGoogle')}</>
                                     )}
                                 </button>
 
@@ -511,83 +507,80 @@ export default function OpinionSurvey() {
                                     borderRadius: '0.5rem',
                                     border: '1px solid rgba(255,255,255,0.06)',
                                 }}>
-                                    <p style={{
+                                    <p dangerouslySetInnerHTML={{ __html: t('pasteHint') }} style={{
                                         color: 'rgba(255,255,255,0.45)',
                                         fontSize: '0.75rem',
                                         margin: 0,
                                         lineHeight: 1.5,
-                                    }}>
-                                        📋 Po kliknięciu tekst zostanie skopiowany.<br />
-                                        W oknie Google wklej go (Ctrl+V / ⌘V) i wystaw ⭐⭐⭐⭐⭐
-                                    </p>
+                                        }} />
                                 </div>
 
-                                {/* Manual copy fallback */}
-                                <button
-                                    onClick={handleCopy}
-                                    style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        gap: '0.3rem',
-                                        margin: '0.75rem auto 0',
-                                        background: 'none',
-                                        border: 'none',
-                                        color: 'rgba(255,255,255,0.3)',
-                                        cursor: 'pointer',
-                                        fontSize: '0.75rem',
-                                    }}
-                                >
-                                    <Copy size={12} /> {copied ? 'Skopiowano!' : 'Kopiuj tekst ręcznie'}
-                                </button>
-                            </>
-                        ) : (
-                            /* Negative sentiment */
-                            <>
-                                <div style={{ textAlign: 'center' }}>
-                                    <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>🙏</div>
-                                    <h2 style={{ fontSize: '1.1rem', fontWeight: '700', color: '#fff', margin: '0 0 0.75rem' }}>
-                                        Dziękujemy za szczerą opinię
-                                    </h2>
-                                    <p style={{
-                                        color: 'rgba(255,255,255,0.55)',
-                                        fontSize: '0.88rem',
-                                        lineHeight: '1.6',
-                                        maxWidth: '360px',
-                                        margin: '0 auto 1.25rem',
-                                    }}>
-                                        Weźmiemy pod uwagę wszelkie Twoje uwagi i zastrzeżenia. Ciągle pracujemy nad poprawą jakości naszych usług, aby każda wizyta była dla Ciebie komfortowa.
-                                    </p>
-                                    <p style={{
-                                        color: 'rgba(212,175,55,0.7)',
-                                        fontSize: '0.8rem',
-                                        fontWeight: '500',
-                                    }}>
-                                        Twoja opinia pomoże nam stać się lepszymi — dziękujemy! 💛
-                                    </p>
-                                </div>
-                            </>
-                        )}
-
-                        {/* Close */}
+                        {/* Manual copy fallback */}
                         <button
-                            onClick={resetAndClose}
+                            onClick={handleCopy}
                             style={{
-                                display: 'block',
-                                margin: '1.25rem auto 0',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '0.3rem',
+                                margin: '0.75rem auto 0',
                                 background: 'none',
                                 border: 'none',
-                                color: 'rgba(255,255,255,0.35)',
+                                color: 'rgba(255,255,255,0.3)',
                                 cursor: 'pointer',
-                                fontSize: '0.8rem',
+                                fontSize: '0.75rem',
                             }}
                         >
-                            Zamknij
+                            <Copy size={12} /> {copied ? t('copied') : t('copyManual')}
                         </button>
+                    </>
+                ) : (
+                /* Negative sentiment */
+                <>
+                    <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>🙏</div>
+                        <h2 style={{ fontSize: '1.1rem', fontWeight: '700', color: '#fff', margin: '0 0 0.75rem' }}>
+                            {t('negativeTitle')}
+                        </h2>
+                        <p style={{
+                            color: 'rgba(255,255,255,0.55)',
+                            fontSize: '0.88rem',
+                            lineHeight: '1.6',
+                            maxWidth: '360px',
+                            margin: '0 auto 1.25rem',
+                        }}>
+                            {t('negativeBody')}
+                        </p>
+                        <p style={{
+                            color: 'rgba(212,175,55,0.7)',
+                            fontSize: '0.8rem',
+                            fontWeight: '500',
+                        }}>
+                            {t('negativeFooter')}
+                        </p>
                     </div>
-                )}
+                </>
+                        )}
+
+                {/* Close */}
+                <button
+                    onClick={resetAndClose}
+                    style={{
+                        display: 'block',
+                        margin: '1.25rem auto 0',
+                        background: 'none',
+                        border: 'none',
+                        color: 'rgba(255,255,255,0.35)',
+                        cursor: 'pointer',
+                        fontSize: '0.8rem',
+                    }}
+                >
+                    {t('close')}
+                </button>
             </div>
+                )}
         </div>
+        </div >
     );
 }
 

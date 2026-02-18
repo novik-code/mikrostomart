@@ -3,19 +3,21 @@
 import { useEffect, useRef, useState } from "react";
 import { Camera, Download, RefreshCcw, ChevronLeft, ChevronRight } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 const POSES = [
-    { src: "/images/doctor-pose-1-solo.png", name: "Doktor Solo", placement: 'left' },
-    { src: "/images/doctor-pose-2.png", name: "Czapka Bulls", placement: 'right' },
-    { src: "/images/doctor-pose-3.png", name: "Koszulka Tattoo", placement: 'left' },
-    { src: "/images/doctor-pose-4.png", name: "Czapka Czarna", placement: 'right' },
-    { src: "/images/doctor-pose-5.png", name: "Czapka Bokiem", placement: 'left' }
+    { src: "/images/doctor-pose-1-solo.png", nameKey: "pose1", placement: 'left' },
+    { src: "/images/doctor-pose-2.png", nameKey: "pose2", placement: 'right' },
+    { src: "/images/doctor-pose-3.png", nameKey: "pose3", placement: 'left' },
+    { src: "/images/doctor-pose-4.png", nameKey: "pose4", placement: 'right' },
+    { src: "/images/doctor-pose-5.png", nameKey: "pose5", placement: 'left' }
 ];
 
 export default function SelfieBooth() {
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const router = useRouter();
+    const t = useTranslations('selfieBooth');
 
     const [stream, setStream] = useState<MediaStream | null>(null);
     const [currentPoseIndex, setCurrentPoseIndex] = useState(0);
@@ -96,7 +98,7 @@ export default function SelfieBooth() {
                 }
             } catch (err) {
                 console.error("Camera error:", err);
-                setError("Brak dostępu do kamery. Sprawdź uprawnienia przeglądarki.");
+                setError(t('cameraError'));
             }
         };
 
@@ -224,7 +226,7 @@ export default function SelfieBooth() {
             <div style={{ padding: "2rem", textAlign: "center", color: "#ef4444" }}>
                 <p>{error}</p>
                 <button onClick={() => router.push("/")} className="btn-primary" style={{ marginTop: "1rem" }}>
-                    Powrót
+                    {t('goBack')}
                 </button>
             </div>
         );
@@ -240,7 +242,7 @@ export default function SelfieBooth() {
             justifyContent: "center",
             padding: "20px"
         }}>
-            <h1 style={{ color: "#dcb14a", marginBottom: "20px", fontFamily: "serif" }}>Selfie z Doktorem</h1>
+            <h1 style={{ color: "#dcb14a", marginBottom: "20px", fontFamily: "serif" }}>{t('title')}</h1>
 
             <div style={{
                 position: "relative",
@@ -312,7 +314,7 @@ export default function SelfieBooth() {
                     </button>
 
                     <div style={{ position: "absolute", bottom: "-40px", width: "100%", textAlign: "center", color: "#6b7280", fontSize: "0.9rem" }}>
-                        {POSES[currentPoseIndex].name}
+                        {t(POSES[currentPoseIndex].nameKey)}
                     </div>
                 </div>
             ) : (
@@ -323,7 +325,7 @@ export default function SelfieBooth() {
                         style={{ display: "flex", gap: "10px", alignItems: "center" }}
                     >
                         <RefreshCcw size={20} />
-                        Powtórz
+                        {t('retake')}
                     </button>
                     <button
                         onClick={downloadPhoto}
@@ -331,7 +333,7 @@ export default function SelfieBooth() {
                         style={{ display: "flex", gap: "10px", alignItems: "center", background: "#dcb14a", color: "#000" }}
                     >
                         <Download size={20} />
-                        Pobierz Zdjęcie
+                        {t('download')}
                     </button>
                 </div>
             )}
