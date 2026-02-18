@@ -157,6 +157,7 @@ mikrostomart/
 │   │   │   ├── dashboard/      # Main patient dashboard (next appointment widget)
 │   │   │   ├── historia/       # Visit history
 │   │   │   ├── profil/         # Patient profile
+│   │   │   ├── wiadomosci/     # Patient ↔ Reception real-time chat
 │   │   │   └── ocen-nas/       # Rate Us page (QR code → Google Reviews)
 │   │   ├── api/                # API routes (30+ directories)
 │   │   ├── auth/               # Auth routes (callback for PKCE code exchange)
@@ -1464,6 +1465,51 @@ NODE_ENV=production
 
 #### Environment Variables:
 - **NEW:** `GOOGLE_PLACES_API_KEY` — required for Google Reviews integration
+
+---
+
+### February 18, 2026
+**Patient ↔ Reception Real-time Chat (Supabase Realtime)**
+
+#### Changes:
+1. **Database** — Migration `032_chat.sql`:
+   - `chat_conversations` — one per patient, status (open/closed), unread flags
+   - `chat_messages` — sender_role (patient/reception), content, read flag
+   - Both tables added to `supabase_realtime` publication
+2. **Patient Chat** `/strefa-pacjenta/wiadomosci`:
+   - Real-time message bubbles (patient = gold, reception = white)
+   - Quick suggestion buttons for first-time users
+   - Auto-scroll, auto-grow textarea, time formatting
+   - Supabase Realtime subscription for instant message delivery
+3. **Admin Panel** — 15th tab "💬 Czat":
+   - Left panel: conversation list with patient name, last message preview, unread count badge
+   - Right panel: message thread with reply input
+   - Open/Closed filter, close conversation button
+   - Supabase Realtime for live updates
+4. **API Routes**:
+   - `POST /api/patients/chat` — patient sends message (auto-creates conversation)
+   - `GET /api/patients/chat` — patient loads conversation history
+   - `GET /api/admin/chat/conversations` — list conversations with previews
+   - `PATCH /api/admin/chat/conversations` — close/reopen conversations
+   - `GET /api/admin/chat/messages` — load messages, mark as read
+   - `POST /api/admin/chat/messages` — reception replies
+5. **Telegram notifications** on patient messages (`messages` channel)
+6. **Navigation** — "💬 Wiadomości" tab added to all 5 patient portal pages
+
+#### Files Added:
+- `supabase_migrations/032_chat.sql`
+- `src/app/api/patients/chat/route.ts`
+- `src/app/api/admin/chat/conversations/route.ts`
+- `src/app/api/admin/chat/messages/route.ts`
+- `src/app/strefa-pacjenta/wiadomosci/page.tsx`
+- `src/components/AdminChat.tsx`
+
+#### Files Modified:
+- `src/app/admin/page.tsx` — Added 15th tab "💬 Czat" with AdminChat component
+- `src/app/strefa-pacjenta/dashboard/page.tsx` — Added Wiadomości nav link
+- `src/app/strefa-pacjenta/historia/page.tsx` — Added Wiadomości nav link
+- `src/app/strefa-pacjenta/profil/page.tsx` — Added Wiadomości nav link
+- `src/app/strefa-pacjenta/ocen-nas/page.tsx` — Added Wiadomości nav link
 
 ---
 
