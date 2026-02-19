@@ -184,6 +184,12 @@ export async function POST(req: Request) {
         // Check if the model wants to call a function
         if (responseMessage.tool_calls && responseMessage.tool_calls.length > 0) {
             const toolCall = responseMessage.tool_calls[0];
+
+            // Type guard: only handle 'function' type tool calls
+            if (!('function' in toolCall)) {
+                return NextResponse.json({ reply: 'Nieobsługiwany typ narzędzia', action: null });
+            }
+
             const functionName = toolCall.function.name;
             const functionArgs = JSON.parse(toolCall.function.arguments);
 
