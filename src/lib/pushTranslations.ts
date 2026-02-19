@@ -20,7 +20,12 @@ export type PushNotificationType =
     | 'task_assigned'
     | 'task_comment'
     | 'task_checklist'
-    | 'task_reminder';
+    | 'task_reminder'
+    | 'patient_registered'
+    | 'new_order'
+    | 'new_reservation'
+    | 'new_contact_message'
+    | 'new_treatment_lead';
 
 interface PushTemplate {
     title: string;
@@ -89,6 +94,26 @@ const translations: Record<string, Record<PushNotificationType, PushTemplate>> =
             title: '⚠️ Zadanie bez daty realizacji',
             body: '{title}',
         },
+        patient_registered: {
+            title: '👤 Nowy pacjent zarejestrowany',
+            body: '{email} — oczekuje na weryfikację',
+        },
+        new_order: {
+            title: '🛒 Nowe zamówienie',
+            body: '{name} — {total} PLN',
+        },
+        new_reservation: {
+            title: '📅 Nowa rezerwacja wizyty',
+            body: '{name} — {specialist}, {date} {time}',
+        },
+        new_contact_message: {
+            title: '📩 Nowa wiadomość kontaktowa',
+            body: '{name}: {subject}',
+        },
+        new_treatment_lead: {
+            title: '🧮 Kalkulator leczenia — nowy lead',
+            body: '{name} — {service}',
+        },
     },
     en: {
         chat_patient_to_admin: {
@@ -150,6 +175,26 @@ const translations: Record<string, Record<PushNotificationType, PushTemplate>> =
         task_reminder: {
             title: '⚠️ Task without due date',
             body: '{title}',
+        },
+        patient_registered: {
+            title: '👤 New patient registered',
+            body: '{email} — awaiting verification',
+        },
+        new_order: {
+            title: '🛒 New order',
+            body: '{name} — {total} PLN',
+        },
+        new_reservation: {
+            title: '📅 New appointment reservation',
+            body: '{name} — {specialist}, {date} {time}',
+        },
+        new_contact_message: {
+            title: '📩 New contact message',
+            body: '{name}: {subject}',
+        },
+        new_treatment_lead: {
+            title: '🧮 Treatment calculator — new lead',
+            body: '{name} — {service}',
         },
     },
     de: {
@@ -213,6 +258,26 @@ const translations: Record<string, Record<PushNotificationType, PushTemplate>> =
             title: '⚠️ Aufgabe ohne Fälligkeitsdatum',
             body: '{title}',
         },
+        patient_registered: {
+            title: '👤 Neuer Patient registriert',
+            body: '{email} — wartet auf Verifizierung',
+        },
+        new_order: {
+            title: '🛒 Neue Bestellung',
+            body: '{name} — {total} PLN',
+        },
+        new_reservation: {
+            title: '📅 Neue Terminreservierung',
+            body: '{name} — {specialist}, {date} {time}',
+        },
+        new_contact_message: {
+            title: '📩 Neue Kontaktnachricht',
+            body: '{name}: {subject}',
+        },
+        new_treatment_lead: {
+            title: '🧮 Behandlungsrechner — neuer Lead',
+            body: '{name} — {service}',
+        },
     },
     ua: {
         chat_patient_to_admin: {
@@ -274,6 +339,26 @@ const translations: Record<string, Record<PushNotificationType, PushTemplate>> =
         task_reminder: {
             title: '⚠️ Завдання без дати',
             body: '{title}',
+        },
+        patient_registered: {
+            title: '👤 Новий пацієнт зареєстрований',
+            body: '{email} — очікує верифікації',
+        },
+        new_order: {
+            title: '🛒 Нове замовлення',
+            body: '{name} — {total} PLN',
+        },
+        new_reservation: {
+            title: '📅 Нова резервація візиту',
+            body: '{name} — {specialist}, {date} {time}',
+        },
+        new_contact_message: {
+            title: '📩 Нове контактне повідомлення',
+            body: '{name}: {subject}',
+        },
+        new_treatment_lead: {
+            title: '🧮 Калькулятор лікування — новий лід',
+            body: '{name} — {service}',
         },
     },
 };

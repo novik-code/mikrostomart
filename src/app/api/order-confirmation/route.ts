@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { sendTelegramNotification } from '@/lib/telegram';
+import { broadcastPush } from '@/lib/webpush';
 
 export const runtime = 'nodejs';
 
@@ -98,6 +99,10 @@ export async function POST(req: NextRequest) {
 
         // 2. Send Telegram
         await sendTelegramNotification(telegramMessage, 'default');
+
+        // Push notification to admin
+        broadcastPush('admin', 'new_order', { name, total: String(total) }, '/admin').catch(console.error);
+        broadcastPush('employee', 'new_order', { name, total: String(total) }, '/pracownik').catch(console.error);
 
         // 3. Send Emails (Resend)
         const resendKey = process.env.RESEND_API_KEY;

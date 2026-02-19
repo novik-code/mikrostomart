@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sendTelegramNotification } from '@/lib/telegram';
+import { broadcastPush } from '@/lib/webpush';
 
 export const runtime = "nodejs";
 
@@ -33,6 +34,11 @@ export async function POST(req: NextRequest) {
         } catch (tgErr) {
             console.error("Telegram send error:", tgErr);
         }
+
+        // Push notification to admin
+        broadcastPush('admin', 'new_treatment_lead', {
+            name, service: service || '',
+        }, '/admin').catch(console.error);
 
         // ── Email notification (Resend) ──
         let emailSent = false;

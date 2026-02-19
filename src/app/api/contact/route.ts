@@ -3,6 +3,7 @@ import { Resend } from "resend";
 import fs from "fs";
 import path from "path";
 import { sendTelegramNotification } from '@/lib/telegram';
+import { broadcastPush } from '@/lib/webpush';
 
 export const runtime = 'nodejs';
 
@@ -120,6 +121,20 @@ export async function POST(req: NextRequest) {
             telegramSent = await sendTelegramNotification(telegramMessage, channel);
         } catch (tgErr) {
             console.error("Failed to send Telegram notification:", tgErr);
+        }
+
+        // Push notification to admin + employees
+        if (type === 'contact') {
+            broadcastPush('admin', 'new_contact_message', {
+                name: name || '', subject: subject || 'Bez tematu',
+            }, '/admin').catch(console.error);
+        } else if (type === 'reservation') {
+            broadcastPush('admin', 'new_reservation', {
+                name: name || '', specialist: specialistName || '', date: date || '', time: time || '',
+            }, '/admin').catch(console.error);
+            broadcastPush('employee', 'new_reservation', {
+                name: name || '', specialist: specialistName || '', date: date || '', time: time || '',
+            }, '/pracownik').catch(console.error);
         }
 
         // 3. Try Email Notification (Resend) or Mock

@@ -1283,6 +1283,11 @@ Centralized via `src/lib/telegram.ts` with `sendTelegramNotification(message, ch
 | `appointment_confirmed` | Patient confirms appointment (SMS link or portal) | Admin + employees |
 | `appointment_cancelled` | Patient cancels appointment (SMS link) | Admin + employees |
 | `appointment_rescheduled` | Patient requests reschedule (portal) | Admin + employees |
+| `patient_registered` | New patient registers | Admin |
+| `new_order` | New shop order placed | Admin + employees |
+| `new_reservation` | New appointment reservation | Admin + employees |
+| `new_contact_message` | Contact form submission | Admin |
+| `new_treatment_lead` | Treatment calculator lead | Admin |
 
 **Key Functions** (`src/lib/webpush.ts`):
 - `sendPushToUser(userId, userType, payload)` — send to specific user
@@ -1294,7 +1299,7 @@ Centralized via `src/lib/telegram.ts` with `sendTelegramNotification(message, ch
 
 **Integration Files:**
 - `src/lib/webpush.ts` — Core push sending logic
-- `src/lib/pushTranslations.ts` — Localized push templates (15 types x 4 locales)
+- `src/lib/pushTranslations.ts` — Localized push templates (20 types x 4 locales)
 - `src/components/PushNotificationPrompt.tsx` — Subscribe/unsubscribe UI
 - `worker/index.ts` — Service worker push + notificationclick handlers
 - `src/app/api/push/subscribe/route.ts` — Subscription management API

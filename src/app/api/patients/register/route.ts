@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import bcrypt from 'bcryptjs';
 import { Resend } from 'resend';
+import { broadcastPush } from '@/lib/webpush';
 
 export const dynamic = 'force-dynamic';
 
@@ -172,6 +173,9 @@ export async function POST(request: Request) {
             // Don't fail the registration if email fails - log it
             // User can request new verification link later
         }
+
+        // Push notification to admin
+        broadcastPush('admin', 'patient_registered', { email }, '/admin').catch(console.error);
 
         return NextResponse.json({
             success: true,
