@@ -8,6 +8,7 @@ import RevealOnScroll from "@/components/RevealOnScroll";
 import BeforeAfterSlider from "@/components/BeforeAfterSlider";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
+import { useTheme } from "@/context/ThemeContext";
 
 export default function Home() {
     const [showNotification, setShowNotification] = useState(false);
@@ -16,6 +17,8 @@ export default function Home() {
     const tNarrative = useTranslations('narrative');
     const tNotification = useTranslations('notification');
     const tCta = useTranslations();
+    const { theme } = useTheme();
+    const f = theme.features;
 
     return (
         <main>
@@ -162,8 +165,8 @@ export default function Home() {
                 </div>
             </section>
 
-            <YouTubeFeed />
-            <GoogleReviews />
+            {f.youtubeSection && <YouTubeFeed />}
+            {f.googleReviews && <GoogleReviews />}
 
             {/* Dynamic Notification Toast */}
             {showNotification && (

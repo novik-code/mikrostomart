@@ -1535,7 +1535,7 @@ NODE_ENV=production
 ## 📝 Recent Changes
 
 ### February 19, 2026
-**Push Notifications for Appointments + Admin Alerts + Patient Locale Preference**
+**Push Notifications for Appointments + Admin Alerts + Patient Locale Preference + Admin Theme Customization**
 
 #### Changes:
 1. **8 new push types** added to `pushTranslations.ts` (all 4 locales):
@@ -1585,6 +1585,18 @@ NODE_ENV=production
 - `src/app/api/contact/route.ts` — Added `broadcastPush` for contact form
 - `src/app/api/treatment-lead/route.ts` — Added `broadcastPush` for treatment lead
 - `src/app/strefa-pacjenta/profil/page.tsx` — Language selector UI
+
+5. **Admin Theme Customization System** — comprehensive site-wide theme customization for admins:
+   - Database: `site_settings` table (`supabase_migrations/041_site_settings.sql`) stores theme as JSONB
+   - `src/context/ThemeContext.tsx` — ThemeProvider + useTheme hook, ~50 CSS variable mappings, 5 preset palettes, deep merge, `applyThemeToDOM()`
+   - `src/components/ThemeLayout.tsx` — Client wrapper that conditionally renders layout components based on 17 feature flags
+   - `src/components/ThemeEditor.tsx` — Admin editor: 8 sections (Colors, Typography, Layout, Animations, Hero, Navbar, Features, Presets), live preview, save/reset
+   - `GET /api/theme` — Public theme endpoint (60s cache)
+   - `GET/PUT/POST /api/admin/theme` — Admin theme CRUD + reset
+   - Admin panel: "🎨 Motyw" tab with Paintbrush icon
+   - `Navbar.tsx`: 12 links conditionally hidden via feature flags (both desktop + mobile)
+   - `page.tsx` (homepage): YouTubeFeed/GoogleReviews wrapped in feature flags
+   - `layout.tsx`: Refactored to use `<ThemeLayout>` wrapper
 
 ---
 

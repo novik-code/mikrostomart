@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import RevealOnScroll from "@/components/RevealOnScroll";
 import AppointmentInstructionsEditor from "@/components/AppointmentInstructionsEditor";
 import AdminChat from "@/components/AdminChat";
+import ThemeEditor from "@/components/ThemeEditor";
 import { createBrowserClient } from "@supabase/ssr";
 import { useRouter } from "next/navigation";
 import {
@@ -21,7 +22,8 @@ import {
     X,
     Users,
     MessageCircle,
-    Shield
+    Shield,
+    Paintbrush
 } from "lucide-react";
 
 type Product = {
@@ -59,7 +61,7 @@ export default function AdminPage() {
     const [products, setProducts] = useState<Product[]>([]);
     const [error, setError] = useState<string | null>(null);
 
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'questions' | 'articles' | 'news' | 'orders' | 'reservations' | 'blog' | 'patients' | 'sms-reminders' | 'appointment-instructions' | 'roles' | 'employees' | 'chat'>('dashboard');
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'questions' | 'articles' | 'news' | 'orders' | 'reservations' | 'blog' | 'patients' | 'sms-reminders' | 'appointment-instructions' | 'roles' | 'employees' | 'chat' | 'theme'>('dashboard');
     const [questions, setQuestions] = useState<any[]>([]);
     const [articles, setArticles] = useState<any[]>([]);
     const [blogPosts, setBlogPosts] = useState<any[]>([]); // New Blog Posts state
@@ -3035,6 +3037,10 @@ export default function AdminPage() {
                     <NavItem id="articles" label="Baza Wiedzy" icon={BookOpen} />
                     <NavItem id="blog" label="Blog" icon={FileText} />
                     <NavItem id="questions" label="Pytania Eksperta" icon={HelpCircle} />
+
+                    <div style={{ height: "1px", background: "var(--color-surface-hover)", margin: "1rem 0" }} />
+
+                    <NavItem id="theme" label="🎨 Motyw" icon={Paintbrush} />
                 </nav>
 
                 <div style={{ marginTop: "auto", borderTop: "1px solid var(--color-surface-hover)", paddingTop: "1rem" }}>
@@ -3088,6 +3094,7 @@ export default function AdminPage() {
                             {activeTab === 'employees' && 'Pracownicy — Zarządzanie Kontami'}
                             {activeTab === 'roles' && 'Uprawnienia — Zarządzanie Rolami'}
                             {activeTab === 'chat' && '💬 Czat z Pacjentami'}
+                            {activeTab === 'theme' && '🎨 Personalizacja Motywu'}
                         </h1>
                         <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
                             {/* Header Actions if needed */}
@@ -3316,6 +3323,7 @@ export default function AdminPage() {
                     {activeTab === 'employees' && renderEmployeesTab()}
                     {activeTab === 'roles' && renderRolesTab()}
                     {activeTab === 'chat' && <AdminChat />}
+                    {activeTab === 'theme' && <ThemeEditor />}
                 </div>
             </main>
         </div>

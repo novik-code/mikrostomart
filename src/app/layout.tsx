@@ -3,19 +3,11 @@ import { Inter, Playfair_Display } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
-import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 import { CartProvider } from "@/context/CartContext";
 import { AssistantProvider } from "@/context/AssistantContext";
 import { SimulatorProvider } from "@/context/SimulatorContext";
-import SimulatorModal from "@/components/SimulatorModal";
-import AssistantTeaser from "@/components/AssistantTeaser";
-import BackgroundVideo from "@/components/BackgroundVideo";
-import CookieConsent from "@/components/CookieConsent";
-import SplashScreen from "@/components/SplashScreen";
-import OpinionSurvey from "@/components/OpinionSurvey";
 import { OpinionProvider } from "@/context/OpinionContext";
+import ThemeLayout from "@/components/ThemeLayout";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
@@ -104,19 +96,9 @@ export default async function RootLayout({
                         <AssistantProvider>
                             <SimulatorProvider>
                                 <OpinionProvider>
-                                    <SplashScreen>
-                                        <BackgroundVideo videoId="vGAu6rdJ8WQ" />
-                                        <CookieConsent />
-                                        <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-                                            <Navbar />
-                                            {children}
-                                            <AssistantTeaser />
-                                            <PWAInstallPrompt />
-                                            <Footer />
-                                            <SimulatorModal />
-                                            <OpinionSurvey />
-                                        </div>
-                                    </SplashScreen>
+                                    <ThemeLayout>
+                                        {children}
+                                    </ThemeLayout>
                                 </OpinionProvider>
                             </SimulatorProvider>
                         </AssistantProvider>
