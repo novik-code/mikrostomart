@@ -1535,26 +1535,41 @@ NODE_ENV=production
 ## 📝 Recent Changes
 
 ### February 19, 2026
-**Appointment Push Notifications**
+**Push Notifications for Appointments + Admin Alerts**
 
 #### Changes:
-1. **3 new push types** added to `pushTranslations.ts` (all 4 locales):
+1. **8 new push types** added to `pushTranslations.ts` (all 4 locales):
    - `appointment_confirmed` — "✅ Pacjent potwierdził wizytę" with patient name, date, time, doctor
    - `appointment_cancelled` — "❌ Pacjent odwołał wizytę" with patient name, date, time, doctor
    - `appointment_rescheduled` — "📅 Prośba o przełożenie wizyty" with patient name, date, time, reason
-2. **4 API endpoints updated** with `broadcastPush()` calls to admin + employee subscribers:
-   - `POST /api/appointments/confirm` — patient confirms via SMS link
-   - `POST /api/appointments/cancel` — patient cancels via SMS link
-   - `POST /api/patients/appointments/[id]/confirm-attendance` — patient confirms in portal
-   - `POST /api/patients/appointments/[id]/reschedule` — patient requests reschedule
+   - `patient_registered` — "👤 Nowy pacjent zarejestrowany" with email
+   - `new_order` — "🛒 Nowe zamówienie" with customer name and total
+   - `new_reservation` — "📅 Nowa rezerwacja wizyty" with name, specialist, date/time
+   - `new_contact_message` — "📩 Nowa wiadomość kontaktowa" with name and subject
+   - `new_treatment_lead` — "🧮 Kalkulator leczenia — nowy lead" with name and service
+2. **9 API endpoints updated** with `broadcastPush()` calls:
+   - `POST /api/appointments/confirm` — push to admin+employee on patient SMS confirmation
+   - `POST /api/appointments/cancel` — push to admin+employee on patient SMS cancellation
+   - `POST /api/patients/appointments/[id]/confirm-attendance` — push on portal confirmation
+   - `POST /api/patients/appointments/[id]/reschedule` — push on reschedule request
+   - `POST /api/patients/register` — push to admin on new patient registration
+   - `POST /api/order-confirmation` — push to admin+employee on new shop order
+   - `POST /api/reservations` — push to admin+employee on new reservation
+   - `POST /api/contact` — push to admin (contact) / admin+employee (reservation)
+   - `POST /api/treatment-lead` — push to admin on treatment calculator lead
 3. Push sent alongside existing Telegram, email, and WhatsApp notifications
 
 #### Files Modified:
-- `src/lib/pushTranslations.ts` — 3 new push notification types (15 total)
+- `src/lib/pushTranslations.ts` — 8 new push notification types (20 total)
 - `src/app/api/appointments/confirm/route.ts` — Added `broadcastPush` for confirmation
 - `src/app/api/appointments/cancel/route.ts` — Added `broadcastPush` for cancellation
-- `src/app/api/patients/appointments/[id]/confirm-attendance/route.ts` — Added `broadcastPush` for portal confirmation
-- `src/app/api/patients/appointments/[id]/reschedule/route.ts` — Added `broadcastPush` for reschedule request
+- `src/app/api/patients/appointments/[id]/confirm-attendance/route.ts` — Added `broadcastPush`
+- `src/app/api/patients/appointments/[id]/reschedule/route.ts` — Added `broadcastPush`
+- `src/app/api/patients/register/route.ts` — Added `broadcastPush` for patient registration
+- `src/app/api/order-confirmation/route.ts` — Added `broadcastPush` for new order
+- `src/app/api/reservations/route.ts` — Added `broadcastPush` for new reservation
+- `src/app/api/contact/route.ts` — Added `broadcastPush` for contact form
+- `src/app/api/treatment-lead/route.ts` — Added `broadcastPush` for treatment lead
 
 ---
 
