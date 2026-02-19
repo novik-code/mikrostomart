@@ -61,10 +61,41 @@ async function createTask(args: {
             }
         }
 
-        const checklistItems = (args.checklist_items || []).map(label => ({
-            label,
-            done: false,
-        }));
+        // Auto-fetch checklist from task_type_templates if task_type is provided
+        let checklistItems: { label: string; done: boolean }[] = [];
+
+        if (args.task_type) {
+            // Try to match task_type to a template by key or label
+            const { data: templates } = await supabase
+                .from('task_type_templates')
+                .select('key, label, items')
+                .eq('is_active', true);
+
+            if (templates && templates.length > 0) {
+                const typeLower = args.task_type.toLowerCase();
+                const match = templates.find(t =>
+                    t.key.toLowerCase() === typeLower ||
+                    t.label.toLowerCase() === typeLower ||
+                    t.label.toLowerCase().includes(typeLower) ||
+                    typeLower.includes(t.label.toLowerCase()) ||
+                    typeLower.includes(t.key.replace(/_/g, ' '))
+                );
+
+                if (match && match.items) {
+                    const templateItems: string[] = typeof match.items === 'string'
+                        ? JSON.parse(match.items)
+                        : match.items;
+                    checklistItems = templateItems.map(label => ({ label, done: false }));
+                    // Also normalize the task_type to match the template label
+                    args.task_type = match.label;
+                }
+            }
+        }
+
+        // If no template matched, use manually provided checklist_items
+        if (checklistItems.length === 0 && args.checklist_items && args.checklist_items.length > 0) {
+            checklistItems = args.checklist_items.map(label => ({ label, done: false }));
+        }
 
         const task = {
             title: args.title,
