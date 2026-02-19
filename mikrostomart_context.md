@@ -1278,8 +1278,11 @@ Centralized via `src/lib/telegram.ts` with `sendTelegramNotification(message, ch
 | `task_comment` | New comment on task | All employees (except commenter) |
 | `task_checklist` | Checklist item toggled | All employees (except toggler) |
 | `task_reminder` | Daily cron (tasks without due dates) | All employees |
-| `chat_patient_to_admin` | Patient sends chat message | Admin |
+| `chat_patient_to_admin` | Patient sends chat message | Admin + employees |
 | `chat_admin_to_patient` | Reception replies | Patient |
+| `appointment_confirmed` | Patient confirms appointment (SMS link or portal) | Admin + employees |
+| `appointment_cancelled` | Patient cancels appointment (SMS link) | Admin + employees |
+| `appointment_rescheduled` | Patient requests reschedule (portal) | Admin + employees |
 
 **Key Functions** (`src/lib/webpush.ts`):
 - `sendPushToUser(userId, userType, payload)` — send to specific user
@@ -1291,7 +1294,7 @@ Centralized via `src/lib/telegram.ts` with `sendTelegramNotification(message, ch
 
 **Integration Files:**
 - `src/lib/webpush.ts` — Core push sending logic
-- `src/lib/pushTranslations.ts` — Localized push templates (12 types x 4 locales)
+- `src/lib/pushTranslations.ts` — Localized push templates (15 types x 4 locales)
 - `src/components/PushNotificationPrompt.tsx` — Subscribe/unsubscribe UI
 - `worker/index.ts` — Service worker push + notificationclick handlers
 - `src/app/api/push/subscribe/route.ts` — Subscription management API
@@ -1525,6 +1528,30 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### February 19, 2026
+**Appointment Push Notifications**
+
+#### Changes:
+1. **3 new push types** added to `pushTranslations.ts` (all 4 locales):
+   - `appointment_confirmed` — "✅ Pacjent potwierdził wizytę" with patient name, date, time, doctor
+   - `appointment_cancelled` — "❌ Pacjent odwołał wizytę" with patient name, date, time, doctor
+   - `appointment_rescheduled` — "📅 Prośba o przełożenie wizyty" with patient name, date, time, reason
+2. **4 API endpoints updated** with `broadcastPush()` calls to admin + employee subscribers:
+   - `POST /api/appointments/confirm` — patient confirms via SMS link
+   - `POST /api/appointments/cancel` — patient cancels via SMS link
+   - `POST /api/patients/appointments/[id]/confirm-attendance` — patient confirms in portal
+   - `POST /api/patients/appointments/[id]/reschedule` — patient requests reschedule
+3. Push sent alongside existing Telegram, email, and WhatsApp notifications
+
+#### Files Modified:
+- `src/lib/pushTranslations.ts` — 3 new push notification types (15 total)
+- `src/app/api/appointments/confirm/route.ts` — Added `broadcastPush` for confirmation
+- `src/app/api/appointments/cancel/route.ts` — Added `broadcastPush` for cancellation
+- `src/app/api/patients/appointments/[id]/confirm-attendance/route.ts` — Added `broadcastPush` for portal confirmation
+- `src/app/api/patients/appointments/[id]/reschedule/route.ts` — Added `broadcastPush` for reschedule request
+
+---
 
 ### February 16, 2026
 **Google Reviews Integration + PWA Login Fix + SMS Enhancements**
