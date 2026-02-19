@@ -51,15 +51,52 @@ export default function VoiceAssistant({ userId, userEmail }: VoiceAssistantProp
     const [showSettings, setShowSettings] = useState(false);
     const [showHistory, setShowHistory] = useState(false);
 
-    // Refs
+    // Refs — these avoid stale closure issues
     const recognitionRef = useRef<any>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
     const finalTranscriptRef = useRef('');
+    const messagesRef = useRef<Message[]>([]);        // ← mirror of messages state
+    const isProcessingRef = useRef(false);             // ← mirror of isProcessing
+    const voiceEnabledRef = useRef(true);              // ← mirror of voiceEnabled
+    const wakeLockRef = useRef<WakeLockSentinel | null>(null);
+    const sendingRef = useRef(false);                  // ← prevent double-send
+
+    // Keep refs in sync with state
+    useEffect(() => { messagesRef.current = messages; }, [messages]);
+    useEffect(() => { isProcessingRef.current = isProcessing; }, [isProcessing]);
+    useEffect(() => { voiceEnabledRef.current = voiceEnabled; }, [voiceEnabled]);
+
+    // ─── Wake Lock (prevent screen auto-lock) ────────────────
+    const requestWakeLock = useCallback(async () => {
+        try {
+            if ('wakeLock' in navigator) {
+                wakeLockRef.current = await (navigator as any).wakeLock.request('screen');
+                console.log('[VoiceAssistant] Wake lock acquired');
+            }
+        } catch (err) {
+            console.log('[VoiceAssistant] Wake lock failed:', err);
+        }
+    }, []);
+
+    const releaseWakeLock = useCallback(async () => {
+        try {
+            if (wakeLockRef.current) {
+                await wakeLockRef.current.release();
+                wakeLockRef.current = null;
+                console.log('[VoiceAssistant] Wake lock released');
+            }
+        } catch { /* ignore */ }
+    }, []);
+
+    // Release wake lock on unmount
+    useEffect(() => {
+        return () => { releaseWakeLock(); };
+    }, [releaseWakeLock]);
 
     // ─── Speech Synthesis ────────────────────────────────────
     const speakText = useCallback((text: string) => {
-        if (!voiceEnabled || typeof window === 'undefined') return;
+        if (!voiceEnabledRef.current || typeof window === 'undefined') return;
         window.speechSynthesis.cancel();
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = 'pl-PL';
@@ -69,7 +106,7 @@ export default function VoiceAssistant({ userId, userEmail }: VoiceAssistantProp
         const plVoice = voices.find(v => v.lang.startsWith('pl'));
         if (plVoice) utterance.voice = plVoice;
         window.speechSynthesis.speak(utterance);
-    }, [voiceEnabled]);
+    }, []);
 
     // ─── Calendar Status ─────────────────────────────────────
     const checkCalendarStatus = useCallback(async () => {
@@ -89,11 +126,11 @@ export default function VoiceAssistant({ userId, userEmail }: VoiceAssistantProp
         }
     }, [checkCalendarStatus]);
 
-    // ─── Send Message ────────────────────────────────────────
-    const sendMessage = useCallback(async (text?: string) => {
-        const messageText = text || inputText.trim();
-        if (!messageText || isProcessing) return;
+    // ─── Send Message (uses refs to avoid stale closures) ────
+    const doSendMessage = useCallback(async (messageText: string) => {
+        if (!messageText || isProcessingRef.current || sendingRef.current) return;
 
+        sendingRef.current = true;
         setInputText('');
         setIsProcessing(true);
         setStatusText('Myślę...');
@@ -105,15 +142,16 @@ export default function VoiceAssistant({ userId, userEmail }: VoiceAssistantProp
             timestamp: new Date(),
         };
 
-        const updatedMessages = [...messages, userMessage];
-        setMessages(updatedMessages);
+        // Use ref for current messages to avoid stale closure
+        const currentMessages = [...messagesRef.current, userMessage];
+        setMessages(currentMessages);
 
         try {
             const res = await fetch('/api/employee/assistant', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    messages: updatedMessages.slice(-10).map(m => ({
+                    messages: currentMessages.slice(-10).map(m => ({
                         role: m.role,
                         content: m.content,
                     })),
@@ -145,12 +183,19 @@ export default function VoiceAssistant({ userId, userEmail }: VoiceAssistantProp
             setStatusText('Dotknij, aby mówić');
         } finally {
             setIsProcessing(false);
+            sendingRef.current = false;
         }
-    }, [inputText, isProcessing, messages, speakText]);
+    }, [speakText]);
+
+    // Wrapper for text input / quick actions
+    const sendMessage = useCallback(async (text?: string) => {
+        const messageText = text || inputText.trim();
+        if (messageText) doSendMessage(messageText);
+    }, [inputText, doSendMessage]);
 
     // ─── Speech Recognition ──────────────────────────────────
     const startListening = useCallback(() => {
-        if (isProcessing) return;
+        if (isProcessingRef.current) return;
         if (typeof window === 'undefined') return;
 
         const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -159,9 +204,13 @@ export default function VoiceAssistant({ userId, userEmail }: VoiceAssistantProp
             return;
         }
 
+        // Stop any existing recognition
         if (recognitionRef.current) {
-            recognitionRef.current.stop();
+            try { recognitionRef.current.stop(); } catch { /* ignore */ }
         }
+
+        // Request wake lock to prevent screen from turning off
+        requestWakeLock();
 
         const recognition = new SpeechRecognition();
         recognition.lang = 'pl-PL';
@@ -169,6 +218,7 @@ export default function VoiceAssistant({ userId, userEmail }: VoiceAssistantProp
         recognition.interimResults = true;
         recognitionRef.current = recognition;
         finalTranscriptRef.current = '';
+        sendingRef.current = false;
 
         recognition.onstart = () => {
             setIsListening(true);
@@ -178,57 +228,83 @@ export default function VoiceAssistant({ userId, userEmail }: VoiceAssistantProp
 
         recognition.onresult = (event: any) => {
             let interim = '';
-            let final = '';
+            let finalText = '';
             for (let i = 0; i < event.results.length; i++) {
                 const transcript = event.results[i][0].transcript;
                 if (event.results[i].isFinal) {
-                    final += transcript + ' ';
+                    finalText += transcript + ' ';
                 } else {
                     interim += transcript;
                 }
             }
-            if (final) {
-                finalTranscriptRef.current += final;
+            if (finalText) {
+                finalTranscriptRef.current = finalText;
             }
-            setInterimTranscript(finalTranscriptRef.current + interim);
+            const displayText = (finalTranscriptRef.current + interim).trim();
+            if (displayText) {
+                setInterimTranscript(displayText);
+            }
 
-            // Reset silence timer — auto-send after 2s of silence
+            // Reset silence timer — auto-send after 2.5s of silence
             if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
             silenceTimerRef.current = setTimeout(() => {
                 const fullText = finalTranscriptRef.current.trim();
-                if (fullText) {
-                    recognition.stop();
-                    sendMessage(fullText);
+                if (fullText && !sendingRef.current) {
+                    sendingRef.current = true;
+                    try { recognition.stop(); } catch { /* ignore */ }
+                    setIsListening(false);
+                    releaseWakeLock();
+                    doSendMessage(fullText);
                 }
-            }, 2000);
+            }, 2500);
         };
 
-        recognition.onerror = () => {
+        recognition.onerror = (event: any) => {
+            console.log('[VoiceAssistant] Recognition error:', event.error);
+            // Don't reset on 'no-speech' — just keep listening
+            if (event.error === 'no-speech') {
+                return;
+            }
             setIsListening(false);
             setStatusText('Dotknij, aby mówić');
+            releaseWakeLock();
         };
 
         recognition.onend = () => {
-            setIsListening(false);
-            if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+            // DON'T clear silence timer here — let it fire if it's pending
+            // Only update listening state if not already sending
+            if (!sendingRef.current) {
+                setIsListening(false);
+                releaseWakeLock();
+                // If there's accumulated text that wasn't sent, send it now
+                const fullText = finalTranscriptRef.current.trim();
+                if (fullText) {
+                    doSendMessage(fullText);
+                }
+            }
         };
 
         recognition.start();
-    }, [isProcessing, sendMessage]);
+    }, [requestWakeLock, releaseWakeLock, doSendMessage]);
 
     const stopListening = useCallback(() => {
-        if (recognitionRef.current) {
-            recognitionRef.current.stop();
-        }
         if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-        const fullText = finalTranscriptRef.current.trim();
-        if (fullText) {
-            sendMessage(fullText);
+
+        if (recognitionRef.current) {
+            try { recognitionRef.current.stop(); } catch { /* ignore */ }
         }
+
+        const fullText = finalTranscriptRef.current.trim();
+        if (fullText && !sendingRef.current) {
+            sendingRef.current = true;
+            doSendMessage(fullText);
+        }
+
         setIsListening(false);
-        setStatusText('Dotknij, aby mówić');
         setInterimTranscript('');
-    }, [sendMessage]);
+        setStatusText('Dotknij, aby mówić');
+        releaseWakeLock();
+    }, [doSendMessage, releaseWakeLock]);
 
     const toggleListening = useCallback(() => {
         if (isListening) {
@@ -368,6 +444,9 @@ export default function VoiceAssistant({ userId, userEmail }: VoiceAssistantProp
                     <div style={styles.processingArea}>
                         <Loader2 size={24} style={{ color: '#38bdf8', animation: 'spin 1s linear infinite' }} />
                         <p style={styles.processingText}>Przetwarzam...</p>
+                        {latestUser && (
+                            <p style={styles.processingUserText}>„{latestUser.content}"</p>
+                        )}
                     </div>
                 )}
 
@@ -660,6 +739,14 @@ const styles: Record<string, React.CSSProperties> = {
         fontSize: 14,
         color: '#6b7280',
         margin: 0,
+    },
+    processingUserText: {
+        fontSize: 13,
+        color: '#4b5563',
+        margin: 0,
+        fontStyle: 'italic',
+        maxWidth: 300,
+        textAlign: 'center',
     },
 
     // The Orb
