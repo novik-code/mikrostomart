@@ -2,13 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { sendTelegramNotification } from '@/lib/telegram';
 import { broadcastPush } from '@/lib/webpush';
+import { getEmailTemplate } from '@/lib/emailTemplates';
 
 export const runtime = 'nodejs';
 
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
-        const { name, email, phone, specialist, specialistName, date, time, description, attachment } = body;
+        const { name, email, phone, specialist, specialistName, date, time, description, attachment, locale: requestLocale } = body;
+        const locale = ['pl', 'en', 'de', 'ua'].includes(requestLocale) ? requestLocale : 'pl';
 
         // Format date WITHOUT timezone conversion (date/time are already in Warsaw time)
         const [year, month, day] = date.split('-');
@@ -74,27 +76,16 @@ export async function POST(req: NextRequest) {
             ${attachment ? `<p><strong>Załącznik:</strong> ${attachment.name} (${attachment.type})</p>` : ''}
         `;
 
-        // Email Content (Patient)
-        const patientSubject = `Potwierdzenie rezerwacji - ${specialistName}`;
-        const patientHtml = `
-            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-                <h1 style="color: #dcb14a;">Dziękujemy za rezerwację!</h1>
-                <p>Cześć ${name.split(' ')[0]},</p>
-                <p>Twoja rezerwacja została przyjęta. Skontaktujemy się z Tobą w celu potwierdzenia terminu.</p>
-                
-                <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; margin: 20px 0;">
-                    <h3 style="margin-top: 0;">Szczegóły rezerwacji:</h3>
-                    <p><strong>Specjalista:</strong> ${specialistName}</p>
-                    <p><strong>Preferowana data:</strong> ${appointmentDate}</p>
-                    ${description ? `<p><strong>Opis:</strong> ${description}</p>` : ''}
-                </div>
-
-                <p><strong>⚠️ Uwaga:</strong> To nie jest ostateczne potwierdzenie wizyty. Recepcja skontaktuje się z Tobą telefonicznie lub emailem w celu ustalenia szczegółów.</p>
-
-                <p>W razie pytań prosimy o kontakt zwrotny na ten adres email lub telefonicznie: <a href="tel:+48570270470">570 270 470</a> lub <a href="tel:+48570810800">570 810 800</a></p>
-                <p>Pozdrawiamy,<br/>Zespół Mikrostomart</p>
-            </div>
-        `;
+        // Email Content (Patient - localized)
+        const firstName = name.split(' ')[0];
+        const patientEmail = getEmailTemplate('reservation_confirmation', locale, {
+            firstName,
+            specialist: specialistName,
+            appointmentDate,
+            description: description || '',
+        });
+        const patientSubject = patientEmail.subject;
+        const patientHtml = patientEmail.html;
 
         // Send Telegram
         if (telegramMessage) {

@@ -41,7 +41,7 @@ export async function GET(request: Request) {
         // Fetch email, phone, and account_status from Supabase
         const { data: supabasePatient, error: supabaseError } = await supabase
             .from('patients')
-            .select('email, phone, account_status')
+            .select('email, phone, account_status, locale')
             .eq('prodentis_id', payload.prodentisId)
             .single();
 
@@ -56,6 +56,7 @@ export async function GET(request: Request) {
             email: supabasePatient?.email || patientData.email || null,
             phone: supabasePatient?.phone || patientData.phone || null,
             account_status: supabasePatient?.account_status || null,
+            locale: supabasePatient?.locale || 'pl',
         };
 
         return NextResponse.json(mergedData);
@@ -83,7 +84,7 @@ export async function PATCH(request: Request) {
         }
 
         const body = await request.json();
-        const { email, phone } = body;
+        const { email, phone, locale } = body;
 
         // Build update object (only update provided fields)
         const updates: any = {};
@@ -102,6 +103,17 @@ export async function PATCH(request: Request) {
 
         if (phone !== undefined) {
             updates.phone = phone.replace(/[\s-]/g, ''); // Normalize phone
+        }
+
+        if (locale !== undefined) {
+            const validLocales = ['pl', 'en', 'de', 'ua'];
+            if (!validLocales.includes(locale)) {
+                return NextResponse.json(
+                    { error: 'Nieprawidłowy język' },
+                    { status: 400 }
+                );
+            }
+            updates.locale = locale;
         }
 
         // Update in Supabase
@@ -125,6 +137,7 @@ export async function PATCH(request: Request) {
             patient: {
                 email: data.email,
                 phone: data.phone,
+                locale: data.locale,
             }
         });
 

@@ -81,6 +81,7 @@ export async function POST(request: Request) {
                 account_status: 'pending_admin_approval',
                 email_verified: true,
                 email_verified_at: new Date().toISOString(),
+                locale: tokenData.locale || 'pl',
             })
             .select()
             .single();

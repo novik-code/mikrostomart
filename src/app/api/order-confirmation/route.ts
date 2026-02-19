@@ -2,14 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { sendTelegramNotification } from '@/lib/telegram';
 import { broadcastPush } from '@/lib/webpush';
+import { getEmailTemplate } from '@/lib/emailTemplates';
 
 export const runtime = 'nodejs';
 
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
-        const { cart, total, customerDetails, paymentId } = body;
+        const { cart, total, customerDetails, paymentId, locale: requestLocale } = body;
         const { name, email, phone, street, houseNumber, apartmentNumber, city, zipCode } = customerDetails;
+        const locale = ['pl', 'en', 'de', 'ua'].includes(requestLocale) ? requestLocale : 'pl';
 
         const orderDate = new Date().toLocaleString("pl-PL", { timeZone: "Europe/Warsaw" });
 
@@ -74,28 +76,18 @@ export async function POST(req: NextRequest) {
             <p><small>ID Płatności: ${paymentId}</small></p>
         `;
 
-        // --- EMAIL CONTENT (Buyer) ---
-        const buyerSubject = `Potwierdzenie zamówienia - MIKROSTOMART`;
-        const buyerHtml = `
-            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-                <h1 style="color: #dcb14a;">Dziękujemy za zamówienie!</h1>
-                <p>Cześć ${name.split(' ')[0]},</p>
-                <p>Twoje zamówienie zostało przyjęte i opłacone. Wkrótce przystąpimy do jego realizacji.</p>
-                
-                <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; margin: 20px 0;">
-                    <h3 style="margin-top: 0;">Podsumowanie:</h3>
-                    <ul>${itemsHtml}</ul>
-                    <p style="font-size: 1.2em; font-weight: bold;">Do zapłaty: ${total} PLN (Opłacono)</p>
-                </div>
-
-                <p><strong>Adres dostawy:</strong><br/>
-                ${name}<br/>
-                ${addressString}</p>
-
-                <p>W razie pytań prosimy o kontakt zwrotny na ten adres email.</p>
-                <p>Pozdrawiamy,<br/>Zespół Mikrostomart</p>
-            </div>
-        `;
+        // --- EMAIL CONTENT (Buyer - localized) ---
+        const firstName = name.split(' ')[0];
+        const addressString2 = `${street} ${houseNumber}${apartmentNumber ? '/' + apartmentNumber : ''}, ${zipCode} ${city}`;
+        const buyerEmail = getEmailTemplate('order_confirmation', locale, {
+            firstName,
+            itemsHtml,
+            total: String(total),
+            customerName: name,
+            address: addressString2,
+        });
+        const buyerSubject = buyerEmail.subject;
+        const buyerHtml = buyerEmail.html;
 
         // 2. Send Telegram
         await sendTelegramNotification(telegramMessage, 'default');

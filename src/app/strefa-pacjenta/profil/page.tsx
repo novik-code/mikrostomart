@@ -10,6 +10,7 @@ interface PatientData {
     lastName: string;
     phone: string;
     email: string | null;
+    locale: string;
     address?: {
         street?: string;
         houseNumber?: string;
@@ -24,6 +25,7 @@ export default function PatientProfile() {
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [email, setEmail] = useState('');
+    const [locale, setLocale] = useState('pl');
     const [message, setMessage] = useState('');
     const [accountStatus, setAccountStatus] = useState<string | null>(null);
     const router = useRouter();
@@ -57,6 +59,7 @@ export default function PatientProfile() {
                 const data = await res.json();
                 setPatient(data);
                 setEmail(data.email || '');
+                setLocale(data.locale || 'pl');
                 setAccountStatus(data.account_status || null);
             } catch (err) {
                 console.error('Failed to load patient:', err);
@@ -93,7 +96,7 @@ export default function PatientProfile() {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ email }),
+                body: JSON.stringify({ email, locale }),
             });
 
             const data = await res.json();
@@ -314,6 +317,56 @@ export default function PatientProfile() {
                                         outline: 'none',
                                     }}
                                 />
+                            </div>
+
+                            {/* Language Preference */}
+                            <div>
+                                <label style={{
+                                    display: 'block',
+                                    color: 'rgba(255, 255, 255, 0.9)',
+                                    fontSize: '0.9rem',
+                                    fontWeight: '500',
+                                    marginBottom: '0.5rem',
+                                }}>
+                                    Preferowany język / Preferred language
+                                </label>
+                                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                    {[
+                                        { code: 'pl', flag: '🇵🇱', label: 'Polski' },
+                                        { code: 'en', flag: '🇬🇧', label: 'English' },
+                                        { code: 'de', flag: '🇩🇪', label: 'Deutsch' },
+                                        { code: 'ua', flag: '🇺🇦', label: 'Українська' },
+                                    ].map(lang => (
+                                        <button
+                                            key={lang.code}
+                                            onClick={() => setLocale(lang.code)}
+                                            style={{
+                                                padding: '0.625rem 1rem',
+                                                background: locale === lang.code
+                                                    ? 'rgba(220, 177, 74, 0.2)'
+                                                    : 'rgba(255, 255, 255, 0.05)',
+                                                border: locale === lang.code
+                                                    ? '2px solid rgba(220, 177, 74, 0.6)'
+                                                    : '1px solid rgba(255, 255, 255, 0.1)',
+                                                borderRadius: '0.5rem',
+                                                color: locale === lang.code ? '#dcb14a' : 'rgba(255, 255, 255, 0.7)',
+                                                cursor: 'pointer',
+                                                fontSize: '0.9rem',
+                                                fontWeight: locale === lang.code ? 'bold' : 'normal',
+                                                transition: 'all 0.2s',
+                                            }}
+                                        >
+                                            {lang.flag} {lang.label}
+                                        </button>
+                                    ))}
+                                </div>
+                                <p style={{
+                                    color: 'rgba(255, 255, 255, 0.4)',
+                                    fontSize: '0.8rem',
+                                    marginTop: '0.5rem',
+                                }}>
+                                    Powiadomienia email i SMS będą wysyłane w wybranym języku
+                                </p>
                             </div>
 
                             {message && (
