@@ -9,6 +9,8 @@ const withPWA = withPWAInit({
     disableDevLogs: true,
     skipWaiting: true,
     clientsClaim: true,
+    // Import push notification handlers into the service worker
+    importScripts: ['/push-sw.js'],
     // Don't use navigation fallback for auth-sensitive pages
     navigateFallbackDenylist: [
       /^\/pracownik/,
