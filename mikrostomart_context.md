@@ -1534,6 +1534,48 @@ NODE_ENV=production
 
 ## 📝 Recent Changes
 
+### February 19, 2026 (Session 2)
+**Voice AI Assistant + Google Calendar Integration**
+
+#### Changes:
+1. **Google Calendar OAuth2 Integration**:
+   - Migration `042_calendar_tokens.sql`: `employee_calendar_tokens` table for OAuth refresh tokens
+   - `src/lib/googleCalendar.ts`: OAuth2 flow (consent URL, code exchange, token refresh) + Calendar CRUD (create/list/delete events)
+   - `src/lib/icsGenerator.ts`: `.ics` file generation for patient appointments + Google Calendar URL builder
+   - `src/app/api/employee/calendar/route.ts`: GET/POST/DELETE events
+   - `src/app/api/employee/calendar/auth/route.ts`: GET (status+URL), POST (exchange code), DELETE (disconnect)
+   - `src/app/api/employee/calendar/auth/callback/route.ts`: OAuth2 redirect handler
+
+2. **Voice AI Assistant with OpenAI Function Calling**:
+   - `src/app/api/employee/assistant/route.ts`: GPT-4o with 6 tool definitions, multi-turn conversation, system prompt with Polish clinic context
+   - `src/lib/assistantActions.ts`: Server-side action dispatcher for 6 actions:
+     - `createTask` — creates task in employee_tasks, push notification
+     - `addCalendarEvent` — Google Calendar event creation
+     - `addReminder` — calendar reminder with 15min + at-time popup alerts
+     - `dictateDocumentation` — OpenAI text rewriting + Resend email delivery
+     - `searchPatient` — Prodentis patient lookup
+     - `checkSchedule` — Prodentis appointments by date
+
+3. **VoiceAssistant UI Component** (`src/components/VoiceAssistant.tsx`):
+   - 6 feature tiles in responsive glassmorphic grid (Task, Calendar, Reminder, Documentation, Patient Search, Schedule)
+   - Web Speech API voice input with interim transcript display
+   - `speechSynthesis` for Polish TTS responses
+   - Conversation thread with action result cards (success/error)
+   - Google Calendar connect/disconnect + voice output toggle
+   - Pulse animation on mic recording, processing spinner
+
+4. **Employee Zone Integration** (`src/app/pracownik/page.tsx`):
+   - New "🤖 Asystent AI" tab (`activeTab: 'grafik' | 'zadania' | 'asystent'`)
+   - `VoiceAssistant` component rendered in asystent tab
+   - Bot icon from lucide-react
+
+**New Environment Variables Required:**
+- `GOOGLE_CLIENT_ID` — Google OAuth2 client ID
+- `GOOGLE_CLIENT_SECRET` — Google OAuth2 client secret
+- `GOOGLE_REDIRECT_URI` — OAuth callback URL
+
+---
+
 ### February 19, 2026
 **Push Notifications for Appointments + Admin Alerts + Patient Locale Preference + Admin Theme Customization**
 

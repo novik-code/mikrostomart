@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 import { useRouter } from "next/navigation";
-import { LogOut, ChevronLeft, ChevronRight, Calendar, RefreshCw, CheckSquare, Plus, User, AlertTriangle, Trash2, Clock, X, Bell } from "lucide-react";
+import { LogOut, ChevronLeft, ChevronRight, Calendar, RefreshCw, CheckSquare, Plus, User, AlertTriangle, Trash2, Clock, X, Bell, Bot } from "lucide-react";
+import VoiceAssistant from "@/components/VoiceAssistant";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import PushNotificationPrompt from "@/components/PushNotificationPrompt";
 
@@ -235,7 +236,7 @@ export default function EmployeePage() {
     const [patientHistory, setPatientHistory] = useState<Visit[] | null>(null);
     const [historyLoading, setHistoryLoading] = useState(false);
     const [historyError, setHistoryError] = useState<string | null>(null);
-    const [activeTab, setActiveTab] = useState<'grafik' | 'zadania'>('grafik');
+    const [activeTab, setActiveTab] = useState<'grafik' | 'zadania' | 'asystent'>('grafik');
 
     // ─── Task Management State ───────────────────────────────
     const [tasks, setTasks] = useState<EmployeeTask[]>([]);
@@ -1037,6 +1038,7 @@ export default function EmployeePage() {
                 {[
                     { id: 'grafik' as const, label: 'Grafik', icon: <Calendar size={16} /> },
                     { id: 'zadania' as const, label: 'Zadania', icon: <CheckSquare size={16} /> },
+                    { id: 'asystent' as const, label: 'Asystent AI', icon: <Bot size={16} /> },
                 ].map(tab => (
                     <button
                         key={tab.id}
@@ -4019,6 +4021,11 @@ export default function EmployeePage() {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* ═══ ASYSTENT AI TAB ═══ */}
+            {activeTab === 'asystent' && (
+                <VoiceAssistant userId={userId} userEmail={currentUserEmail || ''} />
             )}
 
             {/* CSS animations */}
