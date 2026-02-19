@@ -1535,7 +1535,7 @@ NODE_ENV=production
 ## 📝 Recent Changes
 
 ### February 19, 2026
-**Push Notifications for Appointments + Admin Alerts**
+**Push Notifications for Appointments + Admin Alerts + Patient Locale Preference**
 
 #### Changes:
 1. **8 new push types** added to `pushTranslations.ts` (all 4 locales):
@@ -1558,18 +1558,33 @@ NODE_ENV=production
    - `POST /api/contact` — push to admin (contact) / admin+employee (reservation)
    - `POST /api/treatment-lead` — push to admin on treatment calculator lead
 3. Push sent alongside existing Telegram, email, and WhatsApp notifications
+4. **Patient Locale Preference** — multilingual patient-facing notifications:
+   - Migration `040_patient_locale.sql`: added `locale` column to `patients` and `email_verification_tokens` (default 'pl')
+   - New `src/lib/emailTemplates.ts`: centralized localized email templates (3 types × 4 locales: pl/en/de/ua)
+     - `verification_email`, `order_confirmation`, `reservation_confirmation`
+   - `/api/patients/register`: accepts locale from frontend, stores in verification token, sends localized email
+   - `/api/patients/verify-email`: copies locale from token → patient record
+   - `/api/patients/me`: GET returns locale, PATCH validates & saves locale
+   - `/api/order-confirmation`: uses `getEmailTemplate()` for localized buyer email
+   - `/api/reservations`: uses `getEmailTemplate()` for localized patient email
+   - Patient profile page: language selector with flag buttons (🇵🇱 PL / 🇬🇧 EN / 🇩🇪 DE / 🇺🇦 UA)
 
 #### Files Modified:
 - `src/lib/pushTranslations.ts` — 8 new push notification types (20 total)
+- `src/lib/emailTemplates.ts` — **[NEW]** Centralized localized email templates (3 types × 4 locales)
+- `supabase_migrations/040_patient_locale.sql` — **[NEW]** locale column migration
 - `src/app/api/appointments/confirm/route.ts` — Added `broadcastPush` for confirmation
 - `src/app/api/appointments/cancel/route.ts` — Added `broadcastPush` for cancellation
 - `src/app/api/patients/appointments/[id]/confirm-attendance/route.ts` — Added `broadcastPush`
 - `src/app/api/patients/appointments/[id]/reschedule/route.ts` — Added `broadcastPush`
-- `src/app/api/patients/register/route.ts` — Added `broadcastPush` for patient registration
-- `src/app/api/order-confirmation/route.ts` — Added `broadcastPush` for new order
-- `src/app/api/reservations/route.ts` — Added `broadcastPush` for new reservation
+- `src/app/api/patients/register/route.ts` — locale + push + localized email
+- `src/app/api/patients/verify-email/route.ts` — locale propagation
+- `src/app/api/patients/me/route.ts` — locale GET/PATCH
+- `src/app/api/order-confirmation/route.ts` — push + localized buyer email
+- `src/app/api/reservations/route.ts` — push + localized patient email
 - `src/app/api/contact/route.ts` — Added `broadcastPush` for contact form
 - `src/app/api/treatment-lead/route.ts` — Added `broadcastPush` for treatment lead
+- `src/app/strefa-pacjenta/profil/page.tsx` — Language selector UI
 
 ---
 
