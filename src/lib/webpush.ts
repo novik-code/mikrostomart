@@ -349,8 +349,25 @@ export async function sendPushByConfig(
         }
     };
 
+    // Normalise group value: config stores singular DB values ('doctor','hygienist')
+    // PushGroup aliases may be plural ('doctors','hygienists') — handle both
+    const normaliseGroupToDbValue = (g: string): string | null => {
+        const map: Record<string, string> = {
+            // plural aliases
+            doctors: 'doctor',
+            hygienists: 'hygienist',
+            // singular DB values (stored directly in push_notification_config)
+            doctor: 'doctor',
+            hygienist: 'hygienist',
+            reception: 'reception',
+            assistant: 'assistant',
+        };
+        return map[g] ?? null;
+    };
+
     for (const group of groups) {
-        if (group === 'patients') {
+        if ((group as string) === 'patients' || (group as string) === 'patient') {
+
             const { data: subs } = await supabase
                 .from('push_subscriptions').select('*').eq('user_type', 'patient');
             await sendBatch(subs || []);
@@ -359,14 +376,11 @@ export async function sendPushByConfig(
                 .from('push_subscriptions').select('*').eq('user_type', 'admin');
             await sendBatch(subs || []);
         } else {
-            const groupMap: Record<string, string> = {
-                doctors: 'doctor',
-                hygienists: 'hygienist',
-                reception: 'reception',
-                assistant: 'assistant',
-            };
-            const dbGroup = groupMap[group];
-            if (!dbGroup) continue;
+            const dbGroup = normaliseGroupToDbValue(group);
+            if (!dbGroup) {
+                console.warn(`[WebPush] sendPushByConfig: unknown group "${group}" — skipped`);
+                continue;
+            }
             const { data: subs } = await supabase
                 .from('push_subscriptions')
                 .select('*')
@@ -376,9 +390,10 @@ export async function sendPushByConfig(
         }
     }
 
-    console.log(`[WebPush] sendPushByConfig: key="${configKey}" → sent=${totalSent} failed=${totalFailed}`);
+    console.log(`[WebPush] sendPushByConfig: key="${configKey}" groups=[${groups.join(',')}] → sent=${totalSent} failed=${totalFailed}`);
     return { sent: totalSent, failed: totalFailed };
 }
+
 
 /**
  * Send push notification to specific users by user_id array.

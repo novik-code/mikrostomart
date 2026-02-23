@@ -3175,10 +3175,34 @@ export default function AdminPage() {
                             })}
                         </div>
                     )}
-                    <button onClick={() => handleSaveConfig(cfg.key)} disabled={pushConfigSaving[cfg.key]}
-                        style={{ padding: '0.35rem 1rem', background: 'var(--color-primary)', border: 'none', borderRadius: '0.4rem', color: 'black', fontWeight: 'bold', cursor: pushConfigSaving[cfg.key] ? 'wait' : 'pointer', fontSize: '0.76rem', opacity: pushConfigSaving[cfg.key] ? 0.6 : 1 }}>
-                        {pushConfigSaving[cfg.key] ? '⏳ Zapisuję...' : '💾 Zapisz'}
-                    </button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        <button onClick={() => handleSaveConfig(cfg.key)} disabled={pushConfigSaving[cfg.key]}
+                            style={{ padding: '0.35rem 1rem', background: 'var(--color-primary)', border: 'none', borderRadius: '0.4rem', color: 'black', fontWeight: 'bold', cursor: pushConfigSaving[cfg.key] ? 'wait' : 'pointer', fontSize: '0.76rem', opacity: pushConfigSaving[cfg.key] ? 0.6 : 1 }}>
+                            {pushConfigSaving[cfg.key] ? '⏳ Zapisuję...' : '💾 Zapisz'}
+                        </button>
+                        <button
+                            onClick={async (e) => {
+                                const btn = e.currentTarget;
+                                btn.disabled = true;
+                                btn.textContent = '🧪 …';
+                                try {
+                                    const res = await fetch('/api/admin/push/test', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ configKey: cfg.key, label: cfg.label }) });
+                                    const data = await res.json();
+                                    btn.textContent = data.error ? `✗ ${data.error}` : `✓ ${data.sent ?? 0} dostarczono`;
+                                    btn.style.color = data.error ? '#ef4444' : '#22c55e';
+                                    btn.style.borderColor = data.error ? 'rgba(239,68,68,0.3)' : 'rgba(34,197,94,0.3)';
+                                } catch (err) {
+                                    btn.textContent = '✗ błąd';
+                                    btn.style.color = '#ef4444';
+                                } finally {
+                                    setTimeout(() => { btn.disabled = false; btn.textContent = '🧪 Test'; btn.style.color = 'rgba(255,255,255,0.5)'; btn.style.borderColor = 'rgba(255,255,255,0.15)'; }, 4000);
+                                }
+                            }}
+                            title="Wyślij testowe powiadomienie do skonfigurowanych grup"
+                            style={{ padding: '0.35rem 0.7rem', background: 'transparent', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '0.4rem', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: '0.76rem' }}>
+                            🧪 Test
+                        </button>
+                    </div>
                 </div>
             );
         };
@@ -3383,9 +3407,33 @@ export default function AdminPage() {
                                                 {pushEmpGroupSaving[emp.user_id] ? '⏳' : '💾 Zapisz'}
                                             </button>
                                         )}
+                                        {/* Test push button per employee */}
+                                        <button
+                                            disabled={!hasSubs}
+                                            title={hasSubs ? `Wyślij testowe push do ${emp.name || emp.email}` : 'Brak subskrypcji push dla tego pracownika'}
+                                            onClick={async (e) => {
+                                                const btn = e.currentTarget;
+                                                btn.disabled = true;
+                                                btn.textContent = '🧪 …';
+                                                try {
+                                                    const res = await fetch('/api/admin/push/test', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: emp.user_id, label: emp.name || emp.email }) });
+                                                    const data = await res.json();
+                                                    btn.textContent = data.error ? `✗` : (data.sent > 0 ? '✓ push' : '○ 0');
+                                                    btn.style.color = data.error ? '#ef4444' : data.sent > 0 ? '#22c55e' : '#9ca3af';
+                                                } catch {
+                                                    btn.textContent = '✗';
+                                                    btn.style.color = '#ef4444';
+                                                } finally {
+                                                    setTimeout(() => { btn.disabled = !hasSubs; btn.textContent = '🧪'; btn.style.color = 'rgba(255,255,255,0.4)'; }, 4000);
+                                                }
+                                            }}
+                                            style={{ padding: '0.2rem 0.45rem', background: 'transparent', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '0.35rem', color: 'rgba(255,255,255,0.4)', cursor: hasSubs ? 'pointer' : 'not-allowed', fontSize: '0.72rem', opacity: hasSubs ? 1 : 0.4 }}>
+                                            🧪
+                                        </button>
                                     </div>
                                 );
                             })}
+
                         </div>
                     )}
                 </div>
