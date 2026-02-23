@@ -276,7 +276,7 @@ export default function EmployeePage() {
     const [showLoginPopup, setShowLoginPopup] = useState(false);
     const [loginPopupTasks, setLoginPopupTasks] = useState<EmployeeTask[]>([]);
     // ─── Enhanced Task Management State ──────────────────
-    const [taskViewMode, setTaskViewMode] = useState<'list' | 'kanban' | 'calendar'>('list');
+    const [taskViewMode, setTaskViewMode] = useState<'list' | 'kanban' | 'calendar'>('kanban');
     const [taskSearchQuery, setTaskSearchQuery] = useState('');
     const [filterAssignee, setFilterAssignee] = useState('');
     const [filterType, setFilterType] = useState('');
@@ -2182,15 +2182,17 @@ export default function EmployeePage() {
                         alignItems: 'center',
                         justifyContent: 'space-between',
                         marginBottom: '1rem',
+                        gap: '0.5rem',
+                        flexWrap: 'wrap',
                     }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                            <CheckSquare size={24} style={{ color: '#38bdf8' }} />
-                            <h2 style={{ fontSize: '1.25rem', fontWeight: '600', margin: 0 }}>
-                                Lista zadań
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
+                            <CheckSquare size={20} style={{ color: '#38bdf8', flexShrink: 0 }} />
+                            <h2 style={{ fontSize: '1.1rem', fontWeight: '600', margin: 0, whiteSpace: 'nowrap' }}>
+                                Zadania
                             </h2>
                             <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)' }}>({tasks.length})</span>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
                             {/* View toggle */}
                             <div style={{ display: 'flex', background: 'rgba(255,255,255,0.05)', borderRadius: '0.5rem', border: '1px solid rgba(255,255,255,0.08)', overflow: 'hidden' }}>
                                 {([
@@ -2203,7 +2205,7 @@ export default function EmployeePage() {
                                         onClick={() => setTaskViewMode(v.id)}
                                         title={v.label}
                                         style={{
-                                            padding: '0.35rem 0.6rem',
+                                            padding: '0.35rem 0.55rem',
                                             background: taskViewMode === v.id ? 'rgba(56,189,248,0.15)' : 'transparent',
                                             border: 'none',
                                             color: taskViewMode === v.id ? '#38bdf8' : 'rgba(255,255,255,0.4)',
@@ -2222,18 +2224,19 @@ export default function EmployeePage() {
                                     background: 'linear-gradient(135deg, #38bdf8, #0ea5e9)',
                                     border: 'none',
                                     borderRadius: '0.5rem',
-                                    padding: '0.5rem 1rem',
+                                    padding: '0.45rem 0.85rem',
                                     display: 'flex',
                                     alignItems: 'center',
-                                    gap: '0.4rem',
+                                    gap: '0.3rem',
                                     color: '#fff',
-                                    fontSize: '0.85rem',
+                                    fontSize: '0.82rem',
                                     fontWeight: '600',
                                     cursor: 'pointer',
                                 }}
                             >
-                                <Plus size={16} /> Dodaj
+                                <Plus size={15} /> Dodaj
                             </button>
+                            {/* Gear — icon-only, opens task type manager */}
                             <button
                                 onClick={() => setShowTypeManager(true)}
                                 title="Zarządzaj typami zadań"
@@ -2241,19 +2244,18 @@ export default function EmployeePage() {
                                     background: 'rgba(255,255,255,0.06)',
                                     border: '1px solid rgba(255,255,255,0.12)',
                                     borderRadius: '0.5rem',
-                                    padding: '0.5rem 0.75rem',
+                                    padding: '0.45rem 0.6rem',
                                     color: 'rgba(255,255,255,0.6)',
-                                    fontSize: '0.85rem',
+                                    fontSize: '0.88rem',
                                     cursor: 'pointer',
                                     display: 'flex',
                                     alignItems: 'center',
-                                    gap: '0.3rem',
                                     transition: 'all 0.15s',
                                 }}
                                 onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = '#a855f7'; }}
                                 onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = 'rgba(255,255,255,0.6)'; }}
                             >
-                                ⚙️ Typy
+                                ⚙️
                             </button>
                             {/* Push send button */}
                             <button
@@ -2263,13 +2265,12 @@ export default function EmployeePage() {
                                     background: 'rgba(251,146,60,0.1)',
                                     border: '1px solid rgba(251,146,60,0.2)',
                                     borderRadius: '0.5rem',
-                                    padding: '0.5rem 0.75rem',
+                                    padding: '0.45rem 0.6rem',
                                     color: '#fb923c',
-                                    fontSize: '0.85rem',
+                                    fontSize: '0.88rem',
                                     cursor: 'pointer',
                                     display: 'flex',
                                     alignItems: 'center',
-                                    gap: '0.3rem',
                                     transition: 'all 0.15s',
                                 }}
                                 onMouseEnter={e => { e.currentTarget.style.background = 'rgba(251,146,60,0.2)'; }}

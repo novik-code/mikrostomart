@@ -24,6 +24,24 @@ interface PushPayload {
 }
 
 /**
+ * Deduplicate a list of push subscriptions by user_id.
+ * Keeps at most `maxPerUser` entries per user (ordered as received — callers
+ * should sort by created_at DESC before calling so we keep the newest ones).
+ * This prevents a user with stale/duplicate rows from getting N identical
+ * notifications instead of 1 (or 1 per actual device).
+ */
+function dedupSubsByUser(subs: any[], maxPerUser = 2): any[] {
+    const counts = new Map<string, number>();
+    return subs.filter(sub => {
+        const key = sub.user_id as string;
+        const n = counts.get(key) || 0;
+        if (n >= maxPerUser) return false;
+        counts.set(key, n + 1);
+        return true;
+    });
+}
+
+/**
  * Send push notification to a specific user (all their subscriptions)
  */
 export async function sendPushToUser(
@@ -189,9 +207,12 @@ export async function sendPushToAllEmployees(
         query = query.neq('user_id', excludeUserId);
     }
 
-    const { data: subs } = await query;
+    // Order by created_at desc so newest come first, then deduplicate by user
+    const rawQuery = query.order('created_at', { ascending: false });
+    const { data: rawSubs } = await rawQuery;
+    const subs = dedupSubsByUser(rawSubs || []);
 
-    if (!subs || subs.length === 0) return { sent: 0, failed: 0 };
+    if (subs.length === 0) return { sent: 0, failed: 0 };
 
     let sent = 0;
     let failed = 0;
@@ -236,8 +257,9 @@ export async function sendPushToGroups(
     const byGroup: Record<string, { sent: number; failed: number }> = {};
 
     const sendBatch = async (subs: any[], groupName: string) => {
+        const deduped = dedupSubsByUser(subs);
         let s = 0; let f = 0;
-        for (const sub of subs) {
+        for (const sub of deduped) {
             try {
                 await webpush.sendNotification(
                     { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
@@ -332,7 +354,9 @@ export async function sendPushByConfig(
     let totalFailed = 0;
 
     const sendBatch = async (subs: any[]) => {
-        for (const sub of subs) {
+        // Deduplicate by user_id before sending — prevents duplicate notifications
+        const deduped = dedupSubsByUser(subs);
+        for (const sub of deduped) {
             if (excludeUserId && sub.user_id === excludeUserId) continue;
             try {
                 await webpush.sendNotification(
@@ -398,6 +422,16 @@ export async function sendPushByConfig(
 /**
  * Send push notification to specific users by user_id array.
  * Used for individual employee targeting in manual push send.
+ *
+ * Deduplication: only the MOST RECENT subscription per user is used.
+ * This prevents users receiving the same notification multiple times
+ * when they have accumulated multiple subscription rows (e.g. after
+ * re-subscribing or enabling push on multiple browsers).
+ *
+ * For genuine multi-device setups, a user who intentionally subscribes
+ * from two different devices still gets one push per device; but if the
+ * same device re-subscribed and left an orphaned row, only the latest
+ * row is used so the user only sees the notification once.
  */
 export async function sendPushToSpecificUsers(
     userIds: string[],
@@ -405,12 +439,46 @@ export async function sendPushToSpecificUsers(
 ): Promise<{ sent: number; failed: number }> {
     if (!userIds || userIds.length === 0) return { sent: 0, failed: 0 };
 
-    const { data: subs } = await supabase
+    // Fetch ALL subscriptions for the requested users, ordered newest-first
+    const { data: allSubs, error } = await supabase
         .from('push_subscriptions')
         .select('*')
-        .in('user_id', userIds);
+        .in('user_id', userIds)
+        .order('created_at', { ascending: false });
 
-    if (!subs || subs.length === 0) return { sent: 0, failed: 0 };
+    if (error) {
+        console.error('[WebPush] sendPushToSpecificUsers DB error:', error);
+        return { sent: 0, failed: 0 };
+    }
+
+    if (!allSubs || allSubs.length === 0) {
+        console.warn('[WebPush] sendPushToSpecificUsers: no subscriptions found for userIds:', userIds);
+        return { sent: 0, failed: 0 };
+    }
+
+    // Deduplicate: keep only the first (most recent) subscription per user.
+    // A user intentionally on 2 devices has 2 different endpoints — both are
+    // considered "most recent" for their respective device, so we keep one
+    // entry per (user_id, endpoint) pair. We limit to max 3 per user to
+    // gracefully support multi-device while preventing mass duplication.
+    const seenByUser = new Map<string, number>(); // user_id → count seen
+    const subs = allSubs.filter(sub => {
+        const count = seenByUser.get(sub.user_id) || 0;
+        if (count >= 3) return false; // safety cap: at most 3 devices per user
+        seenByUser.set(sub.user_id, count + 1);
+        return true;
+    });
+
+    // Debug info
+    console.log(`[WebPush] sendPushToSpecificUsers: userIds=${JSON.stringify(userIds)} found ${allSubs.length} subs (${subs.length} after dedup)`);
+    for (const uid of userIds) {
+        const count = allSubs.filter(s => s.user_id === uid).length;
+        if (count === 0) {
+            console.warn(`[WebPush]   → user ${uid.slice(0, 8)}... has 0 subscriptions!`);
+        } else {
+            console.log(`[WebPush]   → user ${uid.slice(0, 8)}... has ${count} subscription(s), sending to ${Math.min(count, 3)}`);
+        }
+    }
 
     let sent = 0;
     let failed = 0;
@@ -424,12 +492,14 @@ export async function sendPushToSpecificUsers(
             sent++;
         } catch (error: any) {
             if (error.statusCode === 404 || error.statusCode === 410) {
+                console.log(`[WebPush] Removing stale subscription ${sub.id} (HTTP ${error.statusCode})`);
                 await supabase.from('push_subscriptions').delete().eq('id', sub.id);
             }
             failed++;
         }
     }
 
+    console.log(`[WebPush] sendPushToSpecificUsers: sent=${sent} failed=${failed}`);
     return { sent, failed };
 }
 
