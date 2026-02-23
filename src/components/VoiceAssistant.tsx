@@ -233,7 +233,14 @@ export default function VoiceAssistant({ userId, userEmail }: VoiceAssistantProp
     // Wrapper for text input / quick actions
     const sendMessage = useCallback(async (text?: string) => {
         const messageText = text || inputText.trim();
-        if (messageText) doSendMessage(messageText);
+        if (!messageText) return;
+        // Unlock AudioContext synchronously during this user gesture (before async)
+        if (!audioCtxRef.current || audioCtxRef.current.state === 'closed') {
+            try { audioCtxRef.current = new AudioContext(); } catch { /* ignore */ }
+        } else if (audioCtxRef.current.state === 'suspended') {
+            audioCtxRef.current.resume().catch(() => { });
+        }
+        doSendMessage(messageText);
     }, [inputText, doSendMessage]);
 
     // ─── Speech Recognition ──────────────────────────────────
@@ -350,6 +357,14 @@ export default function VoiceAssistant({ userId, userEmail }: VoiceAssistantProp
     }, [doSendMessage, releaseWakeLock]);
 
     const toggleListening = useCallback(() => {
+        // MUST unlock audio synchronously during user gesture (before any async)
+        // Chrome/Safari autoplay: AudioContext must be created/resumed in gesture handler
+        if (!audioCtxRef.current || audioCtxRef.current.state === 'closed') {
+            try { audioCtxRef.current = new AudioContext(); } catch { /* ignore */ }
+        } else if (audioCtxRef.current.state === 'suspended') {
+            audioCtxRef.current.resume().catch(() => { });
+        }
+
         if (isListening) {
             stopListening();
         } else {

@@ -138,8 +138,18 @@ async function createTask(args: {
             return { success: false, action: 'createTask', message: `Nie udało się utworzyć zadania: ${error.message}` };
         }
 
-        // Only send group push for non-private tasks
-        if (!isPrivate) {
+        if (isPrivate) {
+            // Private task: push only to the owner (not the whole team)
+            try {
+                await sendPushToUser(userId, 'employee', {
+                    title: '🔒 Zadanie prywatne',
+                    body: `${args.title}${args.due_time ? ` — ${args.due_time}` : ''}${args.due_date ? ` (${new Date(args.due_date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' })})` : ''}`,
+                    url: '/pracownik',
+                    tag: `task-private-${data.id}`,
+                });
+            } catch { /* push is optional */ }
+        } else {
+            // Clinical task: push to all employees
             try {
                 const { sendPushToAllEmployees } = await import('./webpush');
                 await sendPushToAllEmployees(
