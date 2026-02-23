@@ -173,13 +173,19 @@ export default function VoiceAssistant({ userId, userEmail }: VoiceAssistantProp
                 }),
             });
 
-            if (!res.ok) throw new Error('API error');
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                console.error('[VoiceAssistant] API error:', res.status, errData);
+                throw new Error(errData.detail || errData.error || `HTTP ${res.status}`);
+            }
 
             const data = await res.json();
 
+            const replyText = data.reply || (data.actions?.length > 0 ? 'Gotowe.' : 'Przepraszam, nie mogę teraz odpowiedzieć.');
+
             const assistantMessage: Message = {
                 role: 'assistant',
-                content: data.reply || 'Przepraszam, nie mogę teraz odpowiedzieć.',
+                content: replyText,
                 action: data.action,
                 timestamp: new Date(),
             };
@@ -187,8 +193,10 @@ export default function VoiceAssistant({ userId, userEmail }: VoiceAssistantProp
             setMessages(prev => [...prev, assistantMessage]);
             setStatusText('Dotknij, aby mówić');
 
-            if (data.reply) speakText(data.reply);
-        } catch {
+            // speakText is async — fire-and-forget (don't await, don't block UI)
+            speakText(replyText).catch(e => console.warn('[TTS] fire-and-forget error:', e));
+        } catch (err: any) {
+            console.error('[VoiceAssistant] doSendMessage error:', err);
             const errorMessage: Message = {
                 role: 'assistant',
                 content: 'Przepraszam, wystąpił błąd. Spróbuj ponownie.',

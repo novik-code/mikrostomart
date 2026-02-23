@@ -173,79 +173,85 @@ export async function POST(req: Request) {
 
         const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-        // Call OpenAI with function definitions
-        const completion = await openai.chat.completions.create({
-            model: 'gpt-4o',
-            messages: [
-                { role: 'system', content: SYSTEM_PROMPT },
-                ...messages,
-            ],
-            tools: FUNCTIONS,
-            tool_choice: 'auto',
-            temperature: 0.6,
-            max_tokens: 1000,
-        });
+        // Build full conversation context
+        const conversationMessages: any[] = [
+            { role: 'system', content: SYSTEM_PROMPT },
+            ...messages,
+        ];
 
-        const responseMessage = completion.choices[0].message;
+        // ─── Agentic loop ─────────────────────────────────────────────────
+        // Execute tool calls until GPT returns a text reply (max 5 rounds).
+        // This allows createTask + addCalendarEvent + addReminder all in one turn.
+        const MAX_ROUNDS = 5;
+        const executedActions: { name: string; args: Record<string, any>; result: any }[] = [];
 
-        // Check if the model wants to call a function
-        if (responseMessage.tool_calls && responseMessage.tool_calls.length > 0) {
-            const toolCall = responseMessage.tool_calls[0];
+        for (let round = 0; round < MAX_ROUNDS; round++) {
+            const completion = await openai.chat.completions.create({
+                model: 'gpt-4o',
+                messages: conversationMessages,
+                tools: FUNCTIONS,
+                tool_choice: 'auto',
+                temperature: 0.6,
+                max_tokens: 1000,
+            });
 
-            // Type guard: only handle 'function' type tool calls
-            if (!('function' in toolCall)) {
-                return NextResponse.json({ reply: 'Nieobsługiwany typ narzędzia', action: null });
+            const responseMessage = completion.choices[0].message;
+
+            // No tool calls → GPT is done, return text reply
+            if (!responseMessage.tool_calls || responseMessage.tool_calls.length === 0) {
+                return NextResponse.json({
+                    reply: responseMessage.content || 'Gotowe.',
+                    action: executedActions.length > 0 ? executedActions[executedActions.length - 1] : null,
+                    actions: executedActions,
+                });
             }
 
-            const functionName = toolCall.function.name;
-            const functionArgs = JSON.parse(toolCall.function.arguments);
+            // Add GPT's tool_calls response to conversation
+            conversationMessages.push(responseMessage);
 
-            console.log(`[Assistant] Function call: ${functionName}`, functionArgs);
+            // Execute ALL tool calls in this round
+            for (const toolCall of responseMessage.tool_calls) {
+                if (!('function' in toolCall)) continue;
 
-            // Execute the action
-            const actionResult = await executeAction(
-                functionName,
-                functionArgs,
-                user.id,
-                user.email || ''
-            );
+                let functionArgs: Record<string, any> = {};
+                try {
+                    functionArgs = JSON.parse(toolCall.function.arguments);
+                } catch {
+                    functionArgs = {};
+                }
 
-            // Get a follow-up response from the model with the function result
-            const followUp = await openai.chat.completions.create({
-                model: 'gpt-4o',
-                messages: [
-                    { role: 'system', content: SYSTEM_PROMPT },
-                    ...messages,
-                    responseMessage as any,
-                    {
-                        role: 'tool',
-                        tool_call_id: toolCall.id,
-                        content: JSON.stringify(actionResult),
-                    },
-                ],
-                temperature: 0.4,
-                max_tokens: 500,
-            });
+                const functionName = toolCall.function.name;
+                console.log(`[Assistant] Round ${round + 1}: ${functionName}`, JSON.stringify(functionArgs).substring(0, 200));
 
-            const finalReply = followUp.choices[0].message.content;
+                const actionResult = await executeAction(functionName, functionArgs, user.id, user.email || '');
+                executedActions.push({ name: functionName, args: functionArgs, result: actionResult });
 
-            return NextResponse.json({
-                reply: finalReply,
-                action: {
-                    name: functionName,
-                    args: functionArgs,
-                    result: actionResult,
-                },
-            });
+                // Add tool result to conversation
+                conversationMessages.push({
+                    role: 'tool',
+                    tool_call_id: toolCall.id,
+                    content: JSON.stringify(actionResult),
+                });
+            }
+            // Continue loop — GPT will now decide to call more tools or reply
         }
 
-        // No function call — just a text response (clarification, greeting, etc.)
-        return NextResponse.json({
-            reply: responseMessage.content,
-            action: null,
+        // Max rounds reached — ask GPT to summarize
+        const summary = await openai.chat.completions.create({
+            model: 'gpt-4o',
+            messages: conversationMessages,
+            temperature: 0.5,
+            max_tokens: 300,
         });
+
+        return NextResponse.json({
+            reply: summary.choices[0].message.content || 'Wykonano wszystkie akcje.',
+            action: executedActions.length > 0 ? executedActions[executedActions.length - 1] : null,
+            actions: executedActions,
+        });
+
     } catch (error: any) {
         console.error('[Assistant] Error:', error);
-        return NextResponse.json({ error: 'Wystąpił błąd asystenta' }, { status: 500 });
+        return NextResponse.json({ error: 'Wystąpił błąd asystenta', detail: error.message }, { status: 500 });
     }
 }
