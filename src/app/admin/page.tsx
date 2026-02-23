@@ -1984,6 +1984,33 @@ export default function AdminPage() {
                                         ) : null;
                                     })}
                                 </div>
+                                {/* Podgrupa — show for employees */}
+                                {user.roles.includes('employee') && (
+                                    <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                        <span style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)' }}>Podgrupa push:</span>
+                                        <select
+                                            defaultValue={pushSubGroups[user.user_id] || ''}
+                                            onChange={async (e) => {
+                                                await handleSetPosition(user.user_id, e.target.value);
+                                            }}
+                                            style={{
+                                                padding: '0.2rem 0.5rem',
+                                                background: 'var(--color-surface)',
+                                                border: '1px solid var(--color-border)',
+                                                borderRadius: '4px',
+                                                color: 'var(--color-text-main)',
+                                                fontSize: '0.75rem',
+                                                cursor: 'pointer',
+                                            }}
+                                        >
+                                            <option value="">— nie przypisano —</option>
+                                            <option value="Lekarz">🦷 Lekarz</option>
+                                            <option value="Higienistka">💉 Higienistka</option>
+                                            <option value="Recepcja">📞 Recepcja</option>
+                                            <option value="Asystentka">🔧 Asysta</option>
+                                        </select>
+                                    </div>
+                                )}
                             </div>
 
                             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
