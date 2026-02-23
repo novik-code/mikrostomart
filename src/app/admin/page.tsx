@@ -608,6 +608,14 @@ export default function AdminPage() {
                 const data = await res.json();
                 setRolesUsers(data.users || []);
                 setPatientCandidates(data.patientCandidates || []);
+                // Pre-populate Podgrupa dropdowns from returned employee positions
+                const posMap: Record<string, string> = {};
+                for (const u of (data.users || [])) {
+                    if (u.employeePosition?.position) {
+                        posMap[u.user_id] = u.employeePosition.position;
+                    }
+                }
+                setPushSubGroups(posMap);
             } else {
                 const errData = await res.json();
                 setRolesError(errData.error || 'Blad pobierania danych');
@@ -2943,15 +2951,32 @@ export default function AdminPage() {
     const [pushSending, setPushSending] = useState(false);
     const [pushResult, setPushResult] = useState<any>(null);
     const [pushSubGroups, setPushSubGroups] = useState<Record<string, string>>({}); // userId -> position
+    const [pushConfigs, setPushConfigs] = useState<any[]>([]);
+    const [localConfigs, setLocalConfigs] = useState<Record<string, { groups: string[]; enabled: boolean }>>({});
+    const [pushConfigSaving, setPushConfigSaving] = useState<Record<string, boolean>>({});
 
     const fetchPushData = async () => {
         setPushLoading(true);
         try {
-            const res = await fetch('/api/admin/push');
-            if (res.ok) {
-                const data = await res.json();
+            const [pushRes, configRes] = await Promise.all([
+                fetch('/api/admin/push'),
+                fetch('/api/admin/push/config'),
+            ]);
+            if (pushRes.ok) {
+                const data = await pushRes.json();
                 setPushSubs(data.subscriptions || []);
                 setPushStats(data.stats || {});
+            }
+            if (configRes.ok) {
+                const configData = await configRes.json();
+                const configs = configData.configs || [];
+                setPushConfigs(configs);
+                // Initialize local editable state
+                const localInit: Record<string, { groups: string[]; enabled: boolean }> = {};
+                for (const c of configs) {
+                    localInit[c.key] = { groups: [...(c.groups || [])], enabled: c.enabled };
+                }
+                setLocalConfigs(localInit);
             }
         } catch (e) { console.error(e); }
         finally { setPushLoading(false); }
@@ -2999,6 +3024,27 @@ export default function AdminPage() {
             body: JSON.stringify({ userId, position }),
         });
         setPushSubGroups(prev => ({ ...prev, [userId]: position }));
+        // Refresh subscriptions to show updated group
+        setTimeout(() => fetchPushData(), 500);
+    };
+
+    const handleSaveConfig = async (key: string) => {
+        setPushConfigSaving(prev => ({ ...prev, [key]: true }));
+        try {
+            const cfg = localConfigs[key];
+            const res = await fetch('/api/admin/push/config', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ key, groups: cfg.groups, enabled: cfg.enabled }),
+            });
+            if (res.ok) {
+                // Success — update configs array
+                setPushConfigs(prev => prev.map(c => c.key === key ? { ...c, ...cfg } : c));
+            } else {
+                alert('Błąd zapisu konfiguracji');
+            }
+        } catch (e: any) { alert(e.message); }
+        finally { setPushConfigSaving(prev => ({ ...prev, [key]: false })); }
     };
 
     const GROUP_LABELS: Record<string, string> = {
@@ -3012,158 +3058,183 @@ export default function AdminPage() {
 
     const renderPushTab = () => {
         if (pushLoading) return <div style={{ padding: '2rem', color: 'white' }}>⏳ Ładowanie...</div>;
+
+        const employeeSubs = pushSubs.filter((s: any) => s.user_type === 'employee' || s.user_type === 'admin');
+        const patientSubsCount = pushSubs.filter((s: any) => s.user_type === 'patient').length;
+
+        const cardStyle: React.CSSProperties = { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '1rem', padding: '1.5rem' };
+        const inputS: React.CSSProperties = { width: '100%', padding: '0.75rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.5rem', color: 'white', fontSize: '0.9rem', boxSizing: 'border-box' };
+
         return (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
 
-                {/* Stats bar */}
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem' }}>
-                    {Object.entries(GROUP_LABELS).map(([key, label]) => (
-                        <div key={key} style={{
-                            background: 'rgba(255,255,255,0.05)',
-                            border: '1px solid rgba(255,255,255,0.1)',
-                            borderRadius: '0.75rem',
-                            padding: '1rem 1.5rem',
-                            minWidth: '130px',
-                        }}>
-                            <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--color-primary)' }}>
-                                {pushStats[key === 'doctors' ? 'doctors' : key === 'hygienists' ? 'hygienists' : key] ?? 0}
-                            </div>
-                            <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)' }}>{label}</div>
+                {/* Stats */}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
+                    {[{k:'doctors',l:'🦷 Lekarze'},{k:'hygienists',l:'💉 Higienistki'},{k:'reception',l:'📞 Recepcja'},{k:'assistant',l:'🔧 Asysta'},{k:'admin',l:'👑 Admin'}].map(({k,l}) => (
+                        <div key={k} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.75rem', padding: '0.75rem 1.25rem', minWidth: '110px' }}>
+                            <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: 'var(--color-primary)' }}>{pushStats[k] ?? 0}</div>
+                            <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)' }}>{l}</div>
                         </div>
                     ))}
                     {(pushStats.unassigned ?? 0) > 0 && (
-                        <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '0.75rem', padding: '1rem 1.5rem', minWidth: '130px' }}>
-                            <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#ef4444' }}>{pushStats.unassigned}</div>
-                            <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)' }}>⚠️ Bez grupy</div>
+                        <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '0.75rem', padding: '0.75rem 1.25rem', minWidth: '110px' }}>
+                            <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: '#ef4444' }}>{pushStats.unassigned}</div>
+                            <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)' }}>⚠️ Bez grupy</div>
                         </div>
                     )}
+                    <div style={{ background: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.2)', borderRadius: '0.75rem', padding: '0.75rem 1.25rem', minWidth: '110px' }}>
+                        <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: '#38bdf8' }}>{patientSubsCount}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)' }}>👥 Pacjenci</div>
+                    </div>
                 </div>
 
-                {/* Send form */}
-                <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '1rem', padding: '1.5rem' }}>
-                    <h3 style={{ color: 'white', margin: '0 0 1.5rem 0', fontSize: '1.1rem' }}>📤 Wyślij powiadomienie push</h3>
+                {/* Automatic notifications config */}
+                {pushConfigs.length > 0 && (
+                    <div style={cardStyle}>
+                        <h3 style={{ color: 'white', margin: '0 0 0.5rem 0', fontSize: '1.1rem' }}>🔁 Powiadomienia automatyczne (cron, codziennie ~9:30)</h3>
+                        <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.8rem', margin: '0 0 1.25rem 0' }}>Wybierz które grupy pracowników otrzymują każde z automatycznych powiadomień.</p>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                            {pushConfigs.map((cfg: any) => {
+                                const local = localConfigs[cfg.key] || { groups: cfg.groups || [], enabled: cfg.enabled };
+                                const allGroups = [{k:'doctors',l:'🦷 Lekarze'},{k:'hygienists',l:'💉 Higienistki'},{k:'reception',l:'📞 Recepcja'},{k:'assistant',l:'🔧 Asysta'},{k:'admin',l:'👑 Admin'}];
+                                return (
+                                    <div key={cfg.key} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '0.75rem', padding: '1.1rem' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+                                            <div>
+                                                <div style={{ color: 'white', fontWeight: 'bold', fontSize: '0.9rem' }}>{cfg.label}</div>
+                                                <div style={{ color: 'rgba(255,255,255,0.38)', fontSize: '0.75rem', marginTop: '0.15rem' }}>{cfg.description}</div>
+                                            </div>
+                                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', flexShrink: 0 }}>
+                                                <input type="checkbox" checked={local.enabled}
+                                                    onChange={e => setLocalConfigs(prev => ({ ...prev, [cfg.key]: { ...local, enabled: e.target.checked } }))}
+                                                    style={{ width: '14px', height: '14px', cursor: 'pointer' }} />
+                                                <span style={{ fontSize: '0.78rem', color: local.enabled ? '#22c55e' : 'rgba(255,255,255,0.35)' }}>
+                                                    {local.enabled ? 'Aktywne' : 'Wyłączone'}
+                                                </span>
+                                            </label>
+                                        </div>
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginBottom: '0.85rem' }}>
+                                            {allGroups.map(g => {
+                                                const active = local.groups.includes(g.k);
+                                                return (
+                                                    <button key={g.k}
+                                                        onClick={() => setLocalConfigs(prev => ({
+                                                            ...prev,
+                                                            [cfg.key]: { ...local, groups: active ? local.groups.filter((x: string) => x !== g.k) : [...local.groups, g.k] }
+                                                        }))}
+                                                        style={{ padding: '0.3rem 0.75rem', borderRadius: '2rem', fontSize: '0.78rem', cursor: 'pointer', transition: 'all 0.12s', fontWeight: active ? 'bold' : 'normal',
+                                                            border: `1px solid ${active ? 'var(--color-primary)' : 'rgba(255,255,255,0.15)'}`,
+                                                            background: active ? 'rgba(250,189,0,0.12)' : 'transparent',
+                                                            color: active ? 'var(--color-primary)' : 'rgba(255,255,255,0.5)',
+                                                        }}>{g.l}</button>
+                                                );
+                                            })}
+                                        </div>
+                                        <button onClick={() => handleSaveConfig(cfg.key)} disabled={pushConfigSaving[cfg.key]}
+                                            style={{ padding: '0.4rem 1.1rem', background: 'var(--color-primary)', border: 'none', borderRadius: '0.4rem', color: 'black', fontWeight: 'bold', cursor: pushConfigSaving[cfg.key] ? 'wait' : 'pointer', fontSize: '0.78rem', opacity: pushConfigSaving[cfg.key] ? 0.6 : 1 }}>
+                                            {pushConfigSaving[cfg.key] ? '⏳ Zapisuję...' : '💾 Zapisz ustawienia'}
+                                        </button>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
+
+                {/* Manual send */}
+                <div style={cardStyle}>
+                    <h3 style={{ color: 'white', margin: '0 0 1.25rem 0', fontSize: '1.1rem' }}>📤 Wyślij powiadomienie jednorazowe</h3>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
                         <div>
-                            <label style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.85rem', display: 'block', marginBottom: '0.4rem' }}>Tytuł *</label>
-                            <input value={pushTitle} onChange={e => setPushTitle(e.target.value)}
-                                placeholder="np. Ważna informacja" maxLength={100}
-                                style={{ width: '100%', padding: '0.75rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.5rem', color: 'white', fontSize: '0.9rem', boxSizing: 'border-box' }} />
+                            <label style={{ color: 'rgba(255,255,255,0.65)', fontSize: '0.8rem', display: 'block', marginBottom: '0.35rem' }}>Tytuł *</label>
+                            <input value={pushTitle} onChange={e => setPushTitle(e.target.value)} placeholder="np. Ważna informacja" maxLength={100} style={inputS} />
                         </div>
                         <div>
-                            <label style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.85rem', display: 'block', marginBottom: '0.4rem' }}>Link URL</label>
-                            <input value={pushUrl} onChange={e => setPushUrl(e.target.value)}
-                                placeholder="/pracownik"
-                                style={{ width: '100%', padding: '0.75rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.5rem', color: 'white', fontSize: '0.9rem', boxSizing: 'border-box' }} />
+                            <label style={{ color: 'rgba(255,255,255,0.65)', fontSize: '0.8rem', display: 'block', marginBottom: '0.35rem' }}>Link URL</label>
+                            <input value={pushUrl} onChange={e => setPushUrl(e.target.value)} placeholder="/pracownik" style={inputS} />
                         </div>
                     </div>
                     <div style={{ marginBottom: '1rem' }}>
-                        <label style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.85rem', display: 'block', marginBottom: '0.4rem' }}>Treść *</label>
-                        <textarea value={pushBody} onChange={e => setPushBody(e.target.value)}
-                            placeholder="Treść powiadomienia..." maxLength={300} rows={3}
-                            style={{ width: '100%', padding: '0.75rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.5rem', color: 'white', fontSize: '0.9rem', boxSizing: 'border-box', resize: 'vertical' }} />
+                        <label style={{ color: 'rgba(255,255,255,0.65)', fontSize: '0.8rem', display: 'block', marginBottom: '0.35rem' }}>Treść *</label>
+                        <textarea value={pushBody} onChange={e => setPushBody(e.target.value)} placeholder="Treść powiadomienia..." maxLength={300} rows={3} style={{ ...inputS, resize: 'vertical' }} />
                     </div>
-                    <div style={{ marginBottom: '1.5rem' }}>
-                        <label style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.85rem', display: 'block', marginBottom: '0.75rem' }}>Grupy docelowe * (można wybrać wiele)</label>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                    <div style={{ marginBottom: '1.25rem' }}>
+                        <label style={{ color: 'rgba(255,255,255,0.65)', fontSize: '0.8rem', display: 'block', marginBottom: '0.55rem' }}>Grupy docelowe *</label>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
                             {Object.entries(GROUP_LABELS).map(([key, label]) => {
                                 const active = pushGroups.includes(key);
                                 return (
                                     <button key={key} onClick={() => setPushGroups(prev => active ? prev.filter(g => g !== key) : [...prev, key])}
-                                        style={{
-                                            padding: '0.5rem 1rem', borderRadius: '2rem',
+                                        style={{ padding: '0.4rem 0.9rem', borderRadius: '2rem', cursor: 'pointer', fontSize: '0.82rem', fontWeight: active ? 'bold' : 'normal', transition: 'all 0.12s',
                                             border: `1px solid ${active ? 'var(--color-primary)' : 'rgba(255,255,255,0.15)'}`,
-                                            background: active ? 'rgba(250,189,0,0.15)' : 'transparent',
-                                            color: active ? 'var(--color-primary)' : 'rgba(255,255,255,0.6)',
-                                            cursor: 'pointer', fontSize: '0.85rem', fontWeight: active ? 'bold' : 'normal',
-                                            transition: 'all 0.15s',
+                                            background: active ? 'rgba(250,189,0,0.14)' : 'transparent',
+                                            color: active ? 'var(--color-primary)' : 'rgba(255,255,255,0.5)',
                                         }}>{label}</button>
                                 );
                             })}
                         </div>
                     </div>
                     {pushResult && (
-                        <div style={{
-                            marginBottom: '1rem', padding: '1rem', borderRadius: '0.5rem',
+                        <div style={{ marginBottom: '1rem', padding: '0.8rem 1rem', borderRadius: '0.5rem',
                             background: pushResult.error ? 'rgba(239,68,68,0.1)' : 'rgba(34,197,94,0.1)',
                             border: `1px solid ${pushResult.error ? 'rgba(239,68,68,0.3)' : 'rgba(34,197,94,0.3)'}`,
-                            color: pushResult.error ? '#ef4444' : '#22c55e', fontSize: '0.85rem'
-                        }}>
-                            {pushResult.error ? `❌ Błąd: ${pushResult.error}` :
-                                `✅ Wysłano: ${pushResult.sent} | Nieudane: ${pushResult.failed}`}
+                            color: pushResult.error ? '#ef4444' : '#22c55e', fontSize: '0.82rem' }}>
+                            {pushResult.error ? `❌ Błąd: ${pushResult.error}` : `✅ Wysłano: ${pushResult.sent} | Nieudane: ${pushResult.failed}`}
                         </div>
                     )}
                     <button onClick={handleSendPush} disabled={pushSending || !pushTitle || !pushBody || pushGroups.length === 0}
-                        style={{
-                            padding: '0.75rem 2rem', background: 'var(--color-primary)', border: 'none', borderRadius: '0.5rem',
-                            color: 'black', fontWeight: 'bold', cursor: pushSending || !pushTitle || !pushBody || pushGroups.length === 0 ? 'not-allowed' : 'pointer',
-                            opacity: pushSending || !pushTitle || !pushBody || pushGroups.length === 0 ? 0.5 : 1, transition: 'all 0.2s'
-                        }}>
+                        style={{ padding: '0.7rem 1.75rem', background: 'var(--color-primary)', border: 'none', borderRadius: '0.5rem', color: 'black', fontWeight: 'bold', transition: 'all 0.2s',
+                            cursor: pushSending || !pushTitle || !pushBody || pushGroups.length === 0 ? 'not-allowed' : 'pointer',
+                            opacity: pushSending || !pushTitle || !pushBody || pushGroups.length === 0 ? 0.5 : 1 }}>
                         {pushSending ? '📤 Wysyłanie...' : '📤 Wyślij powiadomienie'}
                     </button>
                 </div>
 
-                {/* Subscriptions table */}
-                <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '1rem', padding: '1.5rem' }}>
+                {/* Employee subscriptions — inline group editing */}
+                <div style={cardStyle}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                        <h3 style={{ color: 'white', margin: 0, fontSize: '1.1rem' }}>📱 Aktywne subskrypcje ({pushSubs.length})</h3>
-                        <button onClick={fetchPushData} style={{ padding: '0.4rem 0.8rem', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.4rem', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', fontSize: '0.8rem' }}>🔄 Odśwież</button>
+                        <div>
+                            <h3 style={{ color: 'white', margin: '0 0 0.2rem 0', fontSize: '1.1rem' }}>👥 Subskrypcje pracowników ({employeeSubs.length})</h3>
+                            {patientSubsCount > 0 && (
+                                <p style={{ color: 'rgba(56,189,248,0.6)', fontSize: '0.75rem', margin: 0 }}>+ {patientSubsCount} pacjentów subskrybuje powiadomienia</p>
+                            )}
+                        </div>
+                        <button onClick={fetchPushData} style={{ padding: '0.35rem 0.7rem', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.4rem', color: 'rgba(255,255,255,0.45)', cursor: 'pointer', fontSize: '0.75rem' }}>🔄 Odśwież</button>
                     </div>
-                    {pushSubs.length === 0 ? (
-                        <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.9rem' }}>Brak aktywnych subskrypcji.</p>
+                    {employeeSubs.length === 0 ? (
+                        <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.88rem' }}>Brak subskrybowanych pracowników.</p>
                     ) : (
-                        <div style={{ overflowX: 'auto' }}>
-                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
-                                <thead>
-                                    <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)' }}>
-                                        <th style={{ textAlign: 'left', padding: '0.5rem' }}>Użytkownik</th>
-                                        <th style={{ textAlign: 'left', padding: '0.5rem' }}>Typ</th>
-                                        <th style={{ textAlign: 'left', padding: '0.5rem' }}>Podgrupa</th>
-                                        <th style={{ textAlign: 'left', padding: '0.5rem' }}>Locale</th>
-                                        <th style={{ textAlign: 'left', padding: '0.5rem' }}>Data</th>
-                                        <th style={{ textAlign: 'left', padding: '0.5rem' }}></th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {pushSubs.map((sub: any) => (
-                                        <tr key={sub.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: 'white' }}>
-                                            <td style={{ padding: '0.6rem 0.5rem' }}>
-                                                <div style={{ fontWeight: 'bold', fontSize: '0.8rem' }}>{sub.employeeName || sub.user_id.substring(0, 12) + '...'}</div>
-                                                {sub.employeeEmail && <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)' }}>{sub.employeeEmail}</div>}
-                                            </td>
-                                            <td style={{ padding: '0.6rem 0.5rem' }}>
-                                                <span style={{
-                                                    padding: '0.2rem 0.6rem', borderRadius: '1rem', fontSize: '0.75rem',
-                                                    background: sub.user_type === 'patient' ? 'rgba(56,189,248,0.15)' : sub.user_type === 'admin' ? 'rgba(168,85,247,0.15)' : 'rgba(34,197,94,0.15)',
-                                                    color: sub.user_type === 'patient' ? '#38bdf8' : sub.user_type === 'admin' ? '#a855f7' : '#22c55e'
-                                                }}>
-                                                    {sub.user_type}
-                                                </span>
-                                            </td>
-                                            <td style={{ padding: '0.6rem 0.5rem' }}>
-                                                {sub.user_type === 'employee' ? (
-                                                    <span style={{
-                                                        padding: '0.2rem 0.6rem', borderRadius: '1rem', fontSize: '0.75rem',
-                                                        background: sub.employee_group ? 'rgba(250,189,0,0.1)' : 'rgba(239,68,68,0.1)',
-                                                        color: sub.employee_group ? 'var(--color-primary)' : '#ef4444'
-                                                    }}>
-                                                        {sub.employee_group ?? '⚠️ brak'}
-                                                    </span>
-                                                ) : '—'}
-                                            </td>
-                                            <td style={{ padding: '0.6rem 0.5rem', color: 'rgba(255,255,255,0.5)' }}>{sub.locale}</td>
-                                            <td style={{ padding: '0.6rem 0.5rem', color: 'rgba(255,255,255,0.4)', fontSize: '0.75rem' }}>
-                                                {new Date(sub.created_at).toLocaleDateString('pl-PL')}
-                                            </td>
-                                            <td style={{ padding: '0.6rem 0.5rem' }}>
-                                                <button onClick={() => handleDeleteSub(sub.id)}
-                                                    style={{ padding: '0.3rem 0.6rem', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '0.4rem', color: '#ef4444', cursor: 'pointer', fontSize: '0.75rem' }}>
-                                                    Usuń
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
+                            {employeeSubs.map((sub: any) => (
+                                <div key={sub.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', padding: '0.7rem 1rem', background: 'rgba(255,255,255,0.025)', borderRadius: '0.5rem', border: '1px solid rgba(255,255,255,0.05)' }}>
+                                    <div style={{ flex: 1, minWidth: '150px' }}>
+                                        <div style={{ color: 'white', fontWeight: 'bold', fontSize: '0.88rem' }}>{sub.employeeName || (sub.user_type === 'admin' ? '👑 Admin' : '—')}</div>
+                                        {sub.employeeEmail && <div style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.72rem' }}>{sub.employeeEmail}</div>}
+                                    </div>
+                                    <span style={{ padding: '0.15rem 0.5rem', borderRadius: '1rem', fontSize: '0.72rem',
+                                        background: sub.user_type === 'admin' ? 'rgba(168,85,247,0.15)' : 'rgba(34,197,94,0.15)',
+                                        color: sub.user_type === 'admin' ? '#a855f7' : '#22c55e' }}>{sub.user_type}</span>
+                                    {sub.user_type === 'employee' && (
+                                        <select value={pushSubGroups[sub.user_id] || ''}
+                                            onChange={e => handleSetPosition(sub.user_id, e.target.value)}
+                                            style={{ padding: '0.28rem 0.55rem', background: 'rgba(255,255,255,0.07)', borderRadius: '0.4rem', fontSize: '0.78rem', cursor: 'pointer',
+                                                border: `1px solid ${pushSubGroups[sub.user_id] ? 'rgba(250,189,0,0.4)' : 'rgba(239,68,68,0.35)'}`,
+                                                color: pushSubGroups[sub.user_id] ? 'var(--color-primary)' : '#ef4444' }}>
+                                            <option value="">— brak grupy —</option>
+                                            <option value="Lekarz">🦷 Lekarz</option>
+                                            <option value="Higienistka">💉 Higienistka</option>
+                                            <option value="Recepcja">📞 Recepcja</option>
+                                            <option value="Asystentka">🔧 Asysta</option>
+                                        </select>
+                                    )}
+                                    <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.72rem' }}>{sub.locale}</span>
+                                    <span style={{ color: 'rgba(255,255,255,0.25)', fontSize: '0.7rem' }}>{new Date(sub.created_at).toLocaleDateString('pl-PL')}</span>
+                                    <button onClick={() => handleDeleteSub(sub.id)}
+                                        style={{ padding: '0.22rem 0.5rem', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '0.35rem', color: '#ef4444', cursor: 'pointer', fontSize: '0.7rem' }}>
+                                        Usuń
+                                    </button>
+                                </div>
+                            ))}
                         </div>
                     )}
                 </div>

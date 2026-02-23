@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sendTelegramNotification } from '@/lib/telegram';
-import { sendPushToAllEmployees } from '@/lib/webpush';
+import { sendPushToGroups, type PushGroup } from '@/lib/webpush';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
@@ -114,18 +114,40 @@ export async function GET(req: Request) {
             console.log(`[TaskReminders] Telegram sent: ${telegramSent}`);
         }
 
-        // Send push notifications
+        // Send push notifications using DB-configured target groups
         try {
+            // Read push config from DB
+            const { data: configs } = await supabase
+                .from('push_notification_config')
+                .select('key, groups, enabled')
+                .in('key', ['task-no-date', 'task-deposit']);
+
+            const configMap: Record<string, { groups: string[]; enabled: boolean }> = {};
+            for (const c of configs || []) {
+                configMap[c.key] = { groups: c.groups || [], enabled: c.enabled };
+            }
+
             if (noDateTasks.length > 0) {
-                await sendPushToAllEmployees({
+                const cfg = configMap['task-no-date'];
+                const groups = (cfg?.enabled !== false && cfg?.groups?.length > 0)
+                    ? cfg.groups as PushGroup[]
+                    : ['doctors', 'hygienists', 'reception', 'assistant', 'admin'] as PushGroup[];
+
+                await sendPushToGroups(groups, {
                     title: '⚠️ Zadania bez daty realizacji',
                     body: `${noDateTasks.length} zadań wymaga uzupełnienia daty`,
                     url: '/pracownik',
                     tag: 'task-reminders-nodate-daily',
                 });
             }
+
             if (pendingDepositTasks.length > 0) {
-                await sendPushToAllEmployees({
+                const cfg = configMap['task-deposit'];
+                const groups = (cfg?.enabled !== false && cfg?.groups?.length > 0)
+                    ? cfg.groups as PushGroup[]
+                    : ['doctors', 'hygienists', 'reception', 'assistant', 'admin'] as PushGroup[];
+
+                await sendPushToGroups(groups, {
                     title: '💰 Oczekujące wpłaty zadatku',
                     body: `${pendingDepositTasks.length} zadań czeka na odznaczenie zadatku`,
                     url: '/pracownik',

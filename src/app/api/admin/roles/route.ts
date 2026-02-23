@@ -83,7 +83,32 @@ export async function GET() {
                 createdAt: p.created_at,
             }));
 
-        return NextResponse.json({ users: allUsers, patientCandidates });
+        // Enrich users with employee position (for Podgrupa dropdown pre-population)
+        const employeeUserIds = allUsers
+            .filter(u => u.roles.includes('employee'))
+            .map(u => u.user_id);
+
+        let employeePositions: Record<string, { position: string | null; employee_group: string | null }> = {};
+        if (employeeUserIds.length > 0) {
+            const { data: employees } = await supabase
+                .from('employees')
+                .select('user_id, position, employee_group')
+                .in('user_id', employeeUserIds);
+            for (const emp of employees || []) {
+                employeePositions[emp.user_id] = {
+                    position: emp.position || null,
+                    employee_group: emp.employee_group || null,
+                };
+            }
+        }
+
+        // Attach position info to each user
+        const enrichedUsers = allUsers.map(u => ({
+            ...u,
+            employeePosition: employeePositions[u.user_id] || null,
+        }));
+
+        return NextResponse.json({ users: enrichedUsers, patientCandidates });
     } catch (error) {
         console.error('[Admin/Roles] Error:', error);
         return NextResponse.json({ error: 'Server error' }, { status: 500 });
