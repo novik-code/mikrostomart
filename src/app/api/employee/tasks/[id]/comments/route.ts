@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
 import { createClient } from '@supabase/supabase-js';
-import { sendPushToAllEmployees } from '@/lib/webpush';
+import { sendPushByConfig } from '@/lib/webpush';
 
 export const dynamic = 'force-dynamic';
 
@@ -95,7 +95,8 @@ export async function POST(
 
             if (task) {
                 const commentPreview = body.content.trim().substring(0, 60);
-                await sendPushToAllEmployees(
+                await sendPushByConfig(
+                    'task-comment',
                     {
                         title: '💬 Nowy komentarz',
                         body: `${task.title}: ${commentPreview}`,
@@ -105,6 +106,7 @@ export async function POST(
                     user.id
                 );
             }
+
         } catch (pushErr) {
             console.error('[TaskComments] Push error:', pushErr);
         }

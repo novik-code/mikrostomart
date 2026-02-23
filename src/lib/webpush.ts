@@ -291,3 +291,130 @@ export async function sendPushToGroups(
 
     return { sent: totalSent, failed: totalFailed, byGroup };
 }
+
+/**
+ * Config-driven push: reads push_notification_config for the given key,
+ * respects enabled flag, and sends to the configured groups.
+ *
+ * This is the CORRECT way to send task/event notifications — it honours
+ * the admin-panel configuration instead of bypassing it.
+ *
+ * @param configKey   — e.g. 'task-new', 'task-status', 'task-comment'
+ * @param payload     — notification content
+ * @param excludeUserId — optional user to exclude (e.g. person who triggered the event)
+ */
+export async function sendPushByConfig(
+    configKey: string,
+    payload: PushPayload,
+    excludeUserId?: string
+): Promise<{ sent: number; failed: number }> {
+    // 1. Fetch config
+    const { data: config } = await supabase
+        .from('push_notification_config')
+        .select('enabled, groups, recipient_types')
+        .eq('key', configKey)
+        .single();
+
+    // 2. Skip if config not found or disabled
+    if (!config || !config.enabled) {
+        console.log(`[WebPush] sendPushByConfig: key="${configKey}" not found or disabled — skipped`);
+        return { sent: 0, failed: 0 };
+    }
+
+    const groups: PushGroup[] = (config.groups || []) as PushGroup[];
+    if (groups.length === 0) {
+        console.log(`[WebPush] sendPushByConfig: key="${configKey}" has no groups configured — skipped`);
+        return { sent: 0, failed: 0 };
+    }
+
+    // 3. Send to configured groups (with optional user exclusion)
+    let totalSent = 0;
+    let totalFailed = 0;
+
+    const sendBatch = async (subs: any[]) => {
+        for (const sub of subs) {
+            if (excludeUserId && sub.user_id === excludeUserId) continue;
+            try {
+                await webpush.sendNotification(
+                    { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+                    JSON.stringify(payload)
+                );
+                totalSent++;
+            } catch (error: any) {
+                if (error.statusCode === 404 || error.statusCode === 410) {
+                    await supabase.from('push_subscriptions').delete().eq('id', sub.id);
+                }
+                totalFailed++;
+            }
+        }
+    };
+
+    for (const group of groups) {
+        if (group === 'patients') {
+            const { data: subs } = await supabase
+                .from('push_subscriptions').select('*').eq('user_type', 'patient');
+            await sendBatch(subs || []);
+        } else if (group === 'admin') {
+            const { data: subs } = await supabase
+                .from('push_subscriptions').select('*').eq('user_type', 'admin');
+            await sendBatch(subs || []);
+        } else {
+            const groupMap: Record<string, string> = {
+                doctors: 'doctor',
+                hygienists: 'hygienist',
+                reception: 'reception',
+                assistant: 'assistant',
+            };
+            const dbGroup = groupMap[group];
+            if (!dbGroup) continue;
+            const { data: subs } = await supabase
+                .from('push_subscriptions')
+                .select('*')
+                .eq('user_type', 'employee')
+                .or(`employee_groups.cs.{"${dbGroup}"},employee_group.eq.${dbGroup}`);
+            await sendBatch(subs || []);
+        }
+    }
+
+    console.log(`[WebPush] sendPushByConfig: key="${configKey}" → sent=${totalSent} failed=${totalFailed}`);
+    return { sent: totalSent, failed: totalFailed };
+}
+
+/**
+ * Send push notification to specific users by user_id array.
+ * Used for individual employee targeting in manual push send.
+ */
+export async function sendPushToSpecificUsers(
+    userIds: string[],
+    payload: PushPayload
+): Promise<{ sent: number; failed: number }> {
+    if (!userIds || userIds.length === 0) return { sent: 0, failed: 0 };
+
+    const { data: subs } = await supabase
+        .from('push_subscriptions')
+        .select('*')
+        .in('user_id', userIds);
+
+    if (!subs || subs.length === 0) return { sent: 0, failed: 0 };
+
+    let sent = 0;
+    let failed = 0;
+
+    for (const sub of subs) {
+        try {
+            await webpush.sendNotification(
+                { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+                JSON.stringify(payload)
+            );
+            sent++;
+        } catch (error: any) {
+            if (error.statusCode === 404 || error.statusCode === 410) {
+                await supabase.from('push_subscriptions').delete().eq('id', sub.id);
+            }
+            failed++;
+        }
+    }
+
+    return { sent, failed };
+}
+

@@ -2966,8 +2966,11 @@ export default function AdminPage() {
     const [pushBody, setPushBody] = useState('');
     const [pushUrl, setPushUrl] = useState('/pracownik');
     const [pushGroups, setPushGroups] = useState<string[]>([]);
+    const [pushIndividuals, setPushIndividuals] = useState<string[]>([]); // individual employee userIds for manual push
+    const [pushEmpSearch, setPushEmpSearch] = useState(''); // search/filter push employee list
     const [pushSending, setPushSending] = useState(false);
     const [pushResult, setPushResult] = useState<any>(null);
+
     // pushEmpGroups: userId -> string[] (local pending state before save)
     const [pushEmpGroups, setPushEmpGroups] = useState<Record<string, string[]>>({});
     const [pushEmpGroupSaving, setPushEmpGroupSaving] = useState<Record<string, boolean>>({});
@@ -3011,8 +3014,8 @@ export default function AdminPage() {
     };
 
     const handleSendPush = async () => {
-        if (!pushTitle || !pushBody || pushGroups.length === 0) {
-            alert('Wpisz tytuł, treść i wybierz co najmniej jedną grupę');
+        if (!pushTitle || !pushBody || (pushGroups.length === 0 && pushIndividuals.length === 0)) {
+            alert('Wpisz tytuł, treść i wybierz co najmniej jedną grupę lub pracownika');
             return;
         }
         setPushSending(true);
@@ -3021,7 +3024,13 @@ export default function AdminPage() {
             const res = await fetch('/api/admin/push', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ title: pushTitle, body: pushBody, url: pushUrl, groups: pushGroups }),
+                body: JSON.stringify({
+                    title: pushTitle,
+                    body: pushBody,
+                    url: pushUrl,
+                    groups: pushGroups,
+                    userIds: pushIndividuals,
+                }),
             });
             const data = await res.json();
             setPushResult(data);
@@ -3029,11 +3038,13 @@ export default function AdminPage() {
                 setPushTitle('');
                 setPushBody('');
                 setPushGroups([]);
+                setPushIndividuals([]);
                 fetchPushData();
             }
         } catch (e: any) { setPushResult({ error: e.message }); }
         finally { setPushSending(false); }
     };
+
 
     const handleDeleteSub = async (id: string) => {
         if (!confirm('Usunąć tę subskrypcję?')) return;
@@ -3238,8 +3249,10 @@ export default function AdminPage() {
                         <label style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.78rem', display: 'block', marginBottom: '0.3rem' }}>Treść *</label>
                         <textarea value={pushBody} onChange={e => setPushBody(e.target.value)} placeholder="Treść powiadomienia..." maxLength={300} rows={3} style={{ ...inputS, resize: 'vertical' }} />
                     </div>
-                    <div style={{ marginBottom: '1.1rem' }}>
-                        <label style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.78rem', display: 'block', marginBottom: '0.5rem' }}>Grupy docelowe *</label>
+
+                    {/* Group chips */}
+                    <div style={{ marginBottom: '0.9rem' }}>
+                        <label style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.78rem', display: 'block', marginBottom: '0.5rem' }}>Grupy docelowe</label>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
                             {Object.entries(GROUP_LABELS).map(([key, label]) => {
                                 const active = pushGroups.includes(key);
@@ -3250,16 +3263,63 @@ export default function AdminPage() {
                             })}
                         </div>
                     </div>
+
+                    {/* Individual employee chips */}
+                    <div style={{ marginBottom: '1.1rem' }}>
+                        <label style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.78rem', display: 'block', marginBottom: '0.5rem' }}>
+                            Konkretni pracownicy
+                            {pushIndividuals.length > 0 && <span style={{ marginLeft: '0.5rem', color: 'var(--color-primary)', fontWeight: 'bold' }}>({pushIndividuals.length} wybranych)</span>}
+                        </label>
+                        {/* Search filter */}
+                        <input
+                            value={pushEmpSearch}
+                            onChange={e => setPushEmpSearch(e.target.value)}
+                            placeholder="Szukaj pracownika..."
+                            style={{ ...inputS, marginBottom: '0.5rem', fontSize: '0.78rem', padding: '0.4rem 0.7rem' }}
+                        />
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', maxHeight: '120px', overflowY: 'auto' }}>
+                            {pushEmployees
+                                .filter((emp: any) => {
+                                    const q = pushEmpSearch.toLowerCase();
+                                    return !q || (emp.name || '').toLowerCase().includes(q) || (emp.email || '').toLowerCase().includes(q);
+                                })
+                                .map((emp: any) => {
+                                    const active = pushIndividuals.includes(emp.user_id);
+                                    const hasSubs = emp.subscription_count > 0;
+                                    return (
+                                        <button key={emp.user_id}
+                                            onClick={() => setPushIndividuals(prev => active ? prev.filter(id => id !== emp.user_id) : [...prev, emp.user_id])}
+                                            style={{ padding: '0.3rem 0.7rem', borderRadius: '2rem', cursor: 'pointer', fontSize: '0.78rem', fontWeight: active ? 'bold' : 'normal', transition: 'all 0.1s', border: `1px solid ${active ? '#38bdf8' : 'rgba(255,255,255,0.12)'}`, background: active ? 'rgba(56,189,248,0.12)' : 'transparent', color: active ? '#38bdf8' : hasSubs ? 'rgba(255,255,255,0.65)' : 'rgba(255,255,255,0.3)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                                            {emp.name || emp.email}
+                                            {hasSubs && <span style={{ fontSize: '0.62rem', opacity: 0.7 }}>📱</span>}
+                                            {!hasSubs && <span style={{ fontSize: '0.62rem', opacity: 0.4 }}>○</span>}
+                                        </button>
+                                    );
+                                })
+                            }
+                        </div>
+                        {pushEmployees.length === 0 && (
+                            <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.75rem', margin: '0.3rem 0 0' }}>Brak danych — załaduj zakładkę Push lub odśwież.</p>
+                        )}
+                    </div>
+
                     {pushResult && (
                         <div style={{ marginBottom: '0.9rem', padding: '0.7rem 1rem', borderRadius: '0.5rem', fontSize: '0.8rem', background: pushResult.error ? 'rgba(239,68,68,0.1)' : 'rgba(34,197,94,0.1)', border: `1px solid ${pushResult.error ? 'rgba(239,68,68,0.3)' : 'rgba(34,197,94,0.3)'}`, color: pushResult.error ? '#ef4444' : '#22c55e' }}>
                             {pushResult.error ? `❌ Błąd: ${pushResult.error}` : `✅ Wysłano: ${pushResult.sent} | Nieudane: ${pushResult.failed}`}
                         </div>
                     )}
-                    <button onClick={handleSendPush} disabled={pushSending || !pushTitle || !pushBody || pushGroups.length === 0}
-                        style={{ padding: '0.65rem 1.6rem', background: 'var(--color-primary)', border: 'none', borderRadius: '0.5rem', color: 'black', fontWeight: 'bold', transition: 'all 0.2s', cursor: pushSending || !pushTitle || !pushBody || pushGroups.length === 0 ? 'not-allowed' : 'pointer', opacity: pushSending || !pushTitle || !pushBody || pushGroups.length === 0 ? 0.5 : 1 }}>
-                        {pushSending ? '📤 Wysyłanie...' : '📤 Wyślij powiadomienie'}
-                    </button>
+                    {(() => {
+                        const hasTargets = pushGroups.length > 0 || pushIndividuals.length > 0;
+                        const canSend = !pushSending && !!pushTitle && !!pushBody && hasTargets;
+                        return (
+                            <button onClick={handleSendPush} disabled={!canSend}
+                                style={{ padding: '0.65rem 1.6rem', background: 'var(--color-primary)', border: 'none', borderRadius: '0.5rem', color: 'black', fontWeight: 'bold', transition: 'all 0.2s', cursor: canSend ? 'pointer' : 'not-allowed', opacity: canSend ? 1 : 0.5 }}>
+                                {pushSending ? '📤 Wysyłanie...' : '📤 Wyślij powiadomienie'}
+                            </button>
+                        );
+                    })()}
                 </div>
+
 
                 {/* ── Employee subscriptions — multi-chip group editing ──── */}
                 <div style={cardStyle}>

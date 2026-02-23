@@ -3,7 +3,7 @@ import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
 import { createClient } from '@supabase/supabase-js';
 import { sendTelegramNotification } from '@/lib/telegram';
-import { sendPushToAllEmployees } from '@/lib/webpush';
+import { sendPushByConfig } from '@/lib/webpush';
 
 export const dynamic = 'force-dynamic';
 
@@ -136,8 +136,9 @@ export async function POST(req: Request) {
 
             await sendTelegramNotification(tgMessage, 'default');
 
-            // Push notification to all subscribed employees (except creator)
-            await sendPushToAllEmployees(
+            // Push notification — uses config-driven routing (respects admin panel settings)
+            await sendPushByConfig(
+                'task-new',
                 {
                     title: '📋 Nowe zadanie',
                     body: `${task.title}${task.patient_name ? ` — ${task.patient_name}` : ''}`,
@@ -146,6 +147,7 @@ export async function POST(req: Request) {
                 },
                 user.id
             );
+
         } catch (tgErr) {
             console.error('[Tasks] Telegram notification error:', tgErr);
         }

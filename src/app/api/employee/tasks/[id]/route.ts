@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
 import { createClient } from '@supabase/supabase-js';
-import { sendPushToAllEmployees } from '@/lib/webpush';
+import { sendPushByConfig } from '@/lib/webpush';
 
 export const dynamic = 'force-dynamic';
 
@@ -196,7 +196,8 @@ export async function PATCH(
             };
 
             if ('status' in body && oldTask && body.status !== oldTask.status) {
-                await sendPushToAllEmployees(
+                await sendPushByConfig(
+                    'task-status',
                     {
                         title: '🔄 Zmiana statusu zadania',
                         body: `${taskTitle} → ${STATUS_LABELS[body.status] || body.status}`,
@@ -206,7 +207,8 @@ export async function PATCH(
                     user.id
                 );
             } else if ('assigned_to' in body) {
-                await sendPushToAllEmployees(
+                await sendPushByConfig(
+                    'task-new',
                     {
                         title: '👤 Zmiana przypisania zadania',
                         body: taskTitle,
@@ -227,7 +229,8 @@ export async function PATCH(
                     }
                 }
                 if (changedItem) {
-                    await sendPushToAllEmployees(
+                    await sendPushByConfig(
+                        'task-comment',
                         {
                             title: '✅ Checklist zaktualizowany',
                             body: `${changedItem} (${taskTitle})`,
@@ -238,6 +241,7 @@ export async function PATCH(
                     );
                 }
             }
+
         } catch (pushErr) {
             console.error('[Tasks] Push notification error:', pushErr);
         }

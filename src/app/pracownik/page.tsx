@@ -296,6 +296,17 @@ export default function EmployeePage() {
     const [typeManagerForm, setTypeManagerForm] = useState({ label: '', icon: '📋', items: [''] });
     const [typeManagerSaving, setTypeManagerSaving] = useState(false);
     const [editingTypeId, setEditingTypeId] = useState<string | null>(null);
+    // ─── Push Send Widget State ───────────────────────────────────
+    const [showPushModal, setShowPushModal] = useState(false);
+    const [pushSendTitle, setPushSendTitle] = useState('');
+    const [pushSendBody, setPushSendBody] = useState('');
+    const [pushSendUrl, setPushSendUrl] = useState('/pracownik');
+    const [pushSendIndividuals, setPushSendIndividuals] = useState<string[]>([]);
+    const [pushSendGroups, setPushSendGroups] = useState<string[]>([]);
+    const [pushSending, setPushSending] = useState(false);
+    const [pushSendResult, setPushSendResult] = useState<{ sent?: number; failed?: number; error?: string } | null>(null);
+    const [pushEmpSearch, setPushEmpSearch] = useState('');
+
     const router = useRouter();
     const { userId: currentUserId, email: currentUserEmail, isAdmin } = useUserRoles();
 
@@ -2244,1575 +2255,1830 @@ export default function EmployeePage() {
                             >
                                 ⚙️ Typy
                             </button>
-                        </div>
-                    </div>
-
-                    {/* Search + Filters */}
-                    <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '0.6rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                        <input
-                            type="text"
-                            placeholder="🔍 Szukaj zadania..."
-                            value={taskSearchQuery}
-                            onChange={e => setTaskSearchQuery(e.target.value)}
-                            style={{
-                                flex: '1 1 200px',
-                                minWidth: '150px',
-                                padding: '0.4rem 0.75rem',
-                                background: 'rgba(255,255,255,0.05)',
-                                border: '1px solid rgba(255,255,255,0.1)',
-                                borderRadius: '0.5rem',
-                                color: '#fff',
-                                fontSize: '0.8rem',
-                                outline: 'none',
-                            }}
-                        />
-                        <select
-                            value={filterAssignee}
-                            onChange={e => setFilterAssignee(e.target.value)}
-                            style={{ padding: '0.4rem 0.5rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.5rem', color: filterAssignee ? '#38bdf8' : 'rgba(255,255,255,0.5)', fontSize: '0.75rem', cursor: 'pointer' }}
-                        >
-                            <option value="">Wszyscy</option>
-                            {staffList.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                        </select>
-                        <select
-                            value={filterType}
-                            onChange={e => setFilterType(e.target.value)}
-                            style={{ padding: '0.4rem 0.5rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.5rem', color: filterType ? '#a855f7' : 'rgba(255,255,255,0.5)', fontSize: '0.75rem', cursor: 'pointer' }}
-                        >
-                            <option value="">Typ: Wszystkie</option>
-                            {Object.entries(TASK_TYPE_CHECKLISTS).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
-                        </select>
-                        <select
-                            value={filterPriority}
-                            onChange={e => setFilterPriority(e.target.value)}
-                            style={{ padding: '0.4rem 0.5rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.5rem', color: filterPriority ? getPriorityColor(filterPriority) : 'rgba(255,255,255,0.5)', fontSize: '0.75rem', cursor: 'pointer' }}
-                        >
-                            <option value="">Priorytet: Wszystkie</option>
-                            <option value="urgent">⚡ Pilne</option>
-                            <option value="normal">Normalny</option>
-                            <option value="low">Niski</option>
-                        </select>
-                        {(taskSearchQuery || filterAssignee || filterType || filterPriority) && (
+                            {/* Push send button */}
                             <button
-                                onClick={() => { setTaskSearchQuery(''); setFilterAssignee(''); setFilterType(''); setFilterPriority(''); }}
-                                style={{ padding: '0.35rem 0.6rem', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '0.5rem', color: '#ef4444', fontSize: '0.7rem', cursor: 'pointer' }}
-                            >
-                                ✕ Wyczyść
-                            </button>
-                        )}
-                    </div>
-
-                    {/* Status filter bar */}
-                    <div style={{
-                        display: 'flex',
-                        gap: '0.4rem',
-                        marginBottom: '1.25rem',
-                        flexWrap: 'wrap',
-                    }}>
-                        {(['all', 'todo', 'in_progress', 'done'] as const).map(f => (
-                            <button
-                                key={f}
-                                onClick={() => setTaskFilter(f)}
+                                onClick={() => { setShowPushModal(true); setPushSendResult(null); }}
+                                title="Wyślij powiadomienie push"
                                 style={{
-                                    background: taskFilter === f ? 'rgba(56, 189, 248, 0.15)' : 'rgba(255,255,255,0.05)',
-                                    border: `1px solid ${taskFilter === f ? 'rgba(56, 189, 248, 0.4)' : 'rgba(255,255,255,0.1)'}`,
+                                    background: 'rgba(251,146,60,0.1)',
+                                    border: '1px solid rgba(251,146,60,0.2)',
                                     borderRadius: '0.5rem',
-                                    padding: '0.4rem 0.85rem',
-                                    color: taskFilter === f ? '#38bdf8' : 'rgba(255,255,255,0.6)',
-                                    fontSize: '0.8rem',
+                                    padding: '0.5rem 0.75rem',
+                                    color: '#fb923c',
+                                    fontSize: '0.85rem',
                                     cursor: 'pointer',
-                                    fontWeight: taskFilter === f ? '600' : '400',
-                                }}
-                            >
-                                {f === 'all' ? `Wszystkie (${tasks.filter(t => t.status !== 'archived').length})` : `${getStatusLabel(f)} (${tasks.filter(t => t.status === f).length})`}
-                            </button>
-                        ))}
-                        <button
-                            onClick={() => setTaskFilter('archived')}
-                            style={{
-                                background: taskFilter === 'archived' ? 'rgba(107,114,128,0.2)' : 'rgba(255,255,255,0.05)',
-                                border: `1px solid ${taskFilter === 'archived' ? 'rgba(107,114,128,0.4)' : 'rgba(255,255,255,0.1)'}`,
-                                borderRadius: '0.5rem',
-                                padding: '0.4rem 0.85rem',
-                                color: taskFilter === 'archived' ? '#9ca3af' : 'rgba(255,255,255,0.4)',
-                                fontSize: '0.8rem',
-                                cursor: 'pointer',
-                                fontWeight: taskFilter === 'archived' ? '600' : '400',
-                                marginLeft: 'auto',
-                            }}
-                        >
-                            📁 Archiwum ({tasks.filter(t => t.status === 'archived').length})
-                        </button>
-                    </div>
-
-                    {/* ═══ LIST VIEW ═══ */}
-                    {taskViewMode === 'list' && (<>
-                        {tasksLoading ? (
-                            <div style={{ textAlign: 'center', padding: '3rem 0' }}>
-                                <div style={{
-                                    width: '36px',
-                                    height: '36px',
-                                    border: '3px solid rgba(56, 189, 248, 0.2)',
-                                    borderTop: '3px solid #38bdf8',
-                                    borderRadius: '50%',
-                                    animation: 'spin 0.8s linear infinite',
-                                    margin: '0 auto 1rem',
-                                }} />
-                                <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.85rem' }}>Ładowanie zadań...</p>
-                            </div>
-                        ) : filteredTasks.length === 0 ? (
-                            <div style={{
-                                background: 'rgba(255,255,255,0.03)',
-                                border: '1px solid rgba(56, 189, 248, 0.12)',
-                                borderRadius: '1rem',
-                                padding: '3rem 2rem',
-                                textAlign: 'center',
-                            }}>
-                                <div style={{ fontSize: '3rem', marginBottom: '0.75rem' }}>📋</div>
-                                <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.9rem', marginBottom: '1rem' }}>
-                                    {taskFilter === 'all' ? 'Brak zadań. Dodaj pierwsze zadanie!' : `Brak zadań w kategorii "${getStatusLabel(taskFilter)}"`}
-                                </p>
-                                {taskFilter === 'all' && <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.8rem' }}>Możesz też utworzyć zadanie z poziomu grafiku — kliknij w wizytę pacjenta</p>}
-                            </div>
-                        ) : (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                                {filteredTasks.map(task => {
-                                    const mine = isMyTask(task);
-                                    return (
-                                        <div key={task.id} style={{
-                                            background: mine ? 'rgba(56, 189, 248, 0.04)' : 'rgba(255,255,255,0.03)',
-                                            border: `1px solid ${task.status === 'done' ? 'rgba(34, 197, 94, 0.15)' : mine ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255,255,255,0.08)'}`,
-                                            borderLeft: mine ? '3px solid #38bdf8' : undefined,
-                                            borderRadius: '0.75rem',
-                                            overflow: 'hidden',
-                                            opacity: task.status === 'done' ? 0.7 : 1,
-                                        }}>
-                                            {/* Task card main row */}
-                                            <div
-                                                style={{
-                                                    padding: '0.85rem 1rem',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: '0.75rem',
-                                                    cursor: 'pointer',
-                                                }}
-                                                onClick={() => {
-                                                    const newId = expandedTaskId === task.id ? null : task.id;
-                                                    setExpandedTaskId(newId);
-                                                    setTaskHistoryExpanded(false);
-                                                    if (newId) {
-                                                        // Fetch history
-                                                        setTaskHistoryLoading(true);
-                                                        setTaskHistory([]);
-                                                        fetch(`/api/employee/tasks/${newId}?history=true`)
-                                                            .then(r => r.json())
-                                                            .then(d => setTaskHistory(d.history || []))
-                                                            .catch(() => setTaskHistory([]))
-                                                            .finally(() => setTaskHistoryLoading(false));
-                                                        // Fetch comments
-                                                        fetchComments(newId);
-                                                    }
-                                                }}
-                                            >
-                                                {/* Status button */}
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleUpdateStatus(task.id, getNextStatus(task.status));
-                                                    }}
-                                                    title={`Zmień na: ${getStatusLabel(getNextStatus(task.status))}`}
-                                                    style={{
-                                                        width: '24px',
-                                                        height: '24px',
-                                                        borderRadius: '50%',
-                                                        border: `2px solid ${getStatusColor(task.status)}`,
-                                                        background: task.status === 'done' ? getStatusColor(task.status) : 'transparent',
-                                                        cursor: 'pointer',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'center',
-                                                        flexShrink: 0,
-                                                        color: '#fff',
-                                                        fontSize: '0.7rem',
-                                                    }}
-                                                >
-                                                    {task.status === 'done' && '✓'}
-                                                    {task.status === 'in_progress' && <div style={{ width: 8, height: 8, borderRadius: '50%', background: getStatusColor(task.status) }} />}
-                                                </button>
-
-                                                {/* Title + meta */}
-                                                <div style={{ flex: 1, minWidth: 0 }}>
-                                                    <div style={{
-                                                        color: '#fff',
-                                                        fontSize: '0.9rem',
-                                                        fontWeight: '500',
-                                                        textDecoration: task.status === 'done' ? 'line-through' : 'none',
-                                                        whiteSpace: 'nowrap',
-                                                        overflow: 'hidden',
-                                                        textOverflow: 'ellipsis',
-                                                    }}>
-                                                        {task.title}
-                                                        {mine && <span style={{ marginLeft: '0.4rem', fontSize: '0.6rem', background: 'rgba(56,189,248,0.2)', color: '#38bdf8', padding: '0.1rem 0.35rem', borderRadius: '0.25rem', fontWeight: '600', verticalAlign: 'middle' }}>Twoje</span>}
-                                                    </div>
-                                                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.2rem' }}>
-                                                        {task.patient_name && (
-                                                            <span style={{ fontSize: '0.7rem', color: '#38bdf8' }}>👤 {task.patient_name}</span>
-                                                        )}
-                                                        {(task.assigned_to || []).length > 0 && (
-                                                            <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap', marginTop: '0.15rem' }}>
-                                                                {task.assigned_to.map((a, i) => (
-                                                                    <span key={i} style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.5)', background: 'rgba(255,255,255,0.06)', padding: '0.1rem 0.4rem', borderRadius: '0.25rem' }}>→ {a.name}</span>
-                                                                ))}
-                                                            </div>
-                                                        )}
-                                                        {!(task.assigned_to || []).length && task.assigned_to_doctor_name && (
-                                                            <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.5)' }}>→ {task.assigned_to_doctor_name}</span>
-                                                        )}
-                                                        {task.checklist_items && task.checklist_items.length > 0 && (
-                                                            <span style={{
-                                                                fontSize: '0.65rem',
-                                                                color: task.checklist_items.every(ci => ci.done) ? '#22c55e' : 'rgba(255,255,255,0.4)',
-                                                                background: task.checklist_items.every(ci => ci.done) ? 'rgba(34,197,94,0.1)' : 'rgba(255,255,255,0.05)',
-                                                                padding: '0.1rem 0.35rem',
-                                                                borderRadius: '0.25rem',
-                                                            }}>
-                                                                ☑ {task.checklist_items.filter(ci => ci.done).length}/{task.checklist_items.length}
-                                                            </span>
-                                                        )}
-                                                        {task.due_date && (
-                                                            <span style={{
-                                                                fontSize: '0.7rem',
-                                                                color: new Date(task.due_date) < new Date() && task.status !== 'done' ? '#ef4444' : 'rgba(255,255,255,0.4)',
-                                                            }}>
-                                                                📅 {new Date(task.due_date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' })}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                </div>
-
-                                                {/* Priority badge */}
-                                                {task.priority !== 'normal' && (
-                                                    <span style={{
-                                                        fontSize: '0.65rem',
-                                                        fontWeight: '600',
-                                                        padding: '0.15rem 0.45rem',
-                                                        borderRadius: '0.3rem',
-                                                        background: `${getPriorityColor(task.priority)}22`,
-                                                        color: getPriorityColor(task.priority),
-                                                        border: `1px solid ${getPriorityColor(task.priority)}44`,
-                                                        flexShrink: 0,
-                                                    }}>
-                                                        {task.priority === 'urgent' && '⚡ '}{getPriorityLabel(task.priority)}
-                                                    </span>
-                                                )}
-                                            </div>
-
-                                            {/* Expanded details */}
-                                            {expandedTaskId === task.id && (
-                                                <div style={{
-                                                    padding: '0 1rem 0.85rem',
-                                                    borderTop: '1px solid rgba(255,255,255,0.06)',
-                                                    paddingTop: '0.75rem',
-                                                }}>
-                                                    {task.description && (
-                                                        <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.8rem', marginBottom: '0.5rem', lineHeight: 1.5 }}>
-                                                            {task.description}
-                                                        </p>
-                                                    )}
-
-                                                    {/* Checklist */}
-                                                    {task.checklist_items && task.checklist_items.length > 0 && (
-                                                        <div style={{
-                                                            background: 'rgba(255,255,255,0.03)',
-                                                            border: '1px solid rgba(255,255,255,0.08)',
-                                                            borderRadius: '0.5rem',
-                                                            padding: '0.6rem 0.75rem',
-                                                            marginBottom: '0.5rem',
-                                                        }}>
-                                                            <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.35rem', display: 'flex', justifyContent: 'space-between' }}>
-                                                                <span>Checklist {task.task_type && TASK_TYPE_CHECKLISTS[task.task_type] ? `— ${TASK_TYPE_CHECKLISTS[task.task_type].icon} ${TASK_TYPE_CHECKLISTS[task.task_type].label}` : ''}</span>
-                                                                <span>{task.checklist_items.filter(ci => ci.done).length}/{task.checklist_items.length} ✓</span>
-                                                            </div>
-                                                            {/* Progress bar */}
-                                                            <div style={{ height: '3px', background: 'rgba(255,255,255,0.08)', borderRadius: '2px', marginBottom: '0.4rem', overflow: 'hidden' }}>
-                                                                <div style={{
-                                                                    width: `${(task.checklist_items.filter(ci => ci.done).length / task.checklist_items.length) * 100}%`,
-                                                                    height: '100%',
-                                                                    background: task.checklist_items.every(ci => ci.done) ? '#22c55e' : '#38bdf8',
-                                                                    borderRadius: '2px',
-                                                                    transition: 'width 0.3s',
-                                                                }} />
-                                                            </div>
-                                                            {task.checklist_items.map((ci, idx) => (
-                                                                <button
-                                                                    key={idx}
-                                                                    onClick={(e) => { e.stopPropagation(); handleToggleChecklist(task.id, idx); }}
-                                                                    style={{
-                                                                        display: 'flex',
-                                                                        alignItems: 'center',
-                                                                        gap: '0.5rem',
-                                                                        width: '100%',
-                                                                        padding: '0.3rem 0.15rem',
-                                                                        border: 'none',
-                                                                        background: 'transparent',
-                                                                        cursor: 'pointer',
-                                                                        textAlign: 'left',
-                                                                        transition: 'all 0.15s',
-                                                                    }}
-                                                                >
-                                                                    <span style={{
-                                                                        width: '18px',
-                                                                        height: '18px',
-                                                                        borderRadius: '4px',
-                                                                        border: ci.done ? '2px solid #22c55e' : '2px solid rgba(255,255,255,0.2)',
-                                                                        background: ci.done ? 'rgba(34,197,94,0.15)' : 'transparent',
-                                                                        display: 'flex',
-                                                                        alignItems: 'center',
-                                                                        justifyContent: 'center',
-                                                                        flexShrink: 0,
-                                                                        fontSize: '0.65rem',
-                                                                        color: '#22c55e',
-                                                                    }}>
-                                                                        {ci.done && '✓'}
-                                                                    </span>
-                                                                    <span style={{
-                                                                        fontSize: '0.8rem',
-                                                                        color: ci.done ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.7)',
-                                                                        textDecoration: ci.done ? 'line-through' : 'none',
-                                                                    }}>
-                                                                        {ci.label}
-                                                                    </span>
-                                                                    {ci.done && ci.checked_by_name && (
-                                                                        <span style={{
-                                                                            fontSize: '0.6rem',
-                                                                            color: 'rgba(34,197,94,0.6)',
-                                                                            marginLeft: '0.3rem',
-                                                                            fontStyle: 'italic',
-                                                                        }}>
-                                                                            ({ci.checked_by_name})
-                                                                        </span>
-                                                                    )}
-                                                                </button>
-                                                            ))}
-                                                        </div>
-                                                    )}
-
-                                                    {/* Task image */}
-                                                    {task.image_url && (
-                                                        <div style={{ marginBottom: '0.5rem' }}>
-                                                            <img
-                                                                src={task.image_url}
-                                                                alt="Zdjęcie zadania"
-                                                                onClick={(e) => { e.stopPropagation(); setZoomedImage(task.image_url); }}
-                                                                style={{
-                                                                    maxWidth: '100%',
-                                                                    maxHeight: '200px',
-                                                                    borderRadius: '0.5rem',
-                                                                    border: '1px solid rgba(255,255,255,0.1)',
-                                                                    cursor: 'zoom-in',
-                                                                    objectFit: 'cover',
-                                                                }}
-                                                            />
-                                                        </div>
-                                                    )}
-
-                                                    {task.linked_appointment_info && (
-                                                        <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.5rem' }}>
-                                                            🔗 Powiązana wizyta: {task.linked_appointment_info}
-                                                        </div>
-                                                    )}
-                                                    <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
-                                                        {/* Status change buttons */}
-                                                        {(['todo', 'in_progress', 'done'] as const).map(s => (
-                                                            <button
-                                                                key={s}
-                                                                onClick={() => handleUpdateStatus(task.id, s)}
-                                                                style={{
-                                                                    padding: '0.25rem 0.6rem',
-                                                                    fontSize: '0.7rem',
-                                                                    borderRadius: '0.35rem',
-                                                                    border: `1px solid ${getStatusColor(s)}44`,
-                                                                    background: task.status === s ? `${getStatusColor(s)}22` : 'transparent',
-                                                                    color: task.status === s ? getStatusColor(s) : 'rgba(255,255,255,0.4)',
-                                                                    cursor: 'pointer',
-                                                                    fontWeight: task.status === s ? '600' : '400',
-                                                                }}
-                                                            >
-                                                                {getStatusLabel(s)}
-                                                            </button>
-                                                        ))}
-                                                        <button
-                                                            onClick={(e) => { e.stopPropagation(); openEditModal(task); }}
-                                                            style={{
-                                                                padding: '0.25rem 0.6rem',
-                                                                fontSize: '0.7rem',
-                                                                borderRadius: '0.35rem',
-                                                                border: '1px solid rgba(56,189,248,0.3)',
-                                                                background: 'transparent',
-                                                                color: '#38bdf8',
-                                                                cursor: 'pointer',
-                                                                display: 'flex',
-                                                                alignItems: 'center',
-                                                                gap: '0.25rem',
-                                                            }}
-                                                        >
-                                                            ✏️ Edytuj
-                                                        </button>
-                                                        {task.status !== 'archived' && (
-                                                            <button
-                                                                onClick={(e) => { e.stopPropagation(); handleUpdateStatus(task.id, 'archived'); }}
-                                                                style={{
-                                                                    padding: '0.25rem 0.6rem',
-                                                                    fontSize: '0.7rem',
-                                                                    borderRadius: '0.35rem',
-                                                                    border: '1px solid rgba(107,114,128,0.3)',
-                                                                    background: 'transparent',
-                                                                    color: '#9ca3af',
-                                                                    cursor: 'pointer',
-                                                                    display: 'flex',
-                                                                    alignItems: 'center',
-                                                                    gap: '0.25rem',
-                                                                }}
-                                                            >
-                                                                📁 Archiwizuj
-                                                            </button>
-                                                        )}
-                                                        {task.status === 'archived' && (
-                                                            <button
-                                                                onClick={(e) => { e.stopPropagation(); handleUpdateStatus(task.id, 'done'); }}
-                                                                style={{
-                                                                    padding: '0.25rem 0.6rem',
-                                                                    fontSize: '0.7rem',
-                                                                    borderRadius: '0.35rem',
-                                                                    border: '1px solid rgba(34,197,94,0.3)',
-                                                                    background: 'transparent',
-                                                                    color: '#22c55e',
-                                                                    cursor: 'pointer',
-                                                                    display: 'flex',
-                                                                    alignItems: 'center',
-                                                                    gap: '0.25rem',
-                                                                }}
-                                                            >
-                                                                ↩️ Przywróć
-                                                            </button>
-                                                        )}
-                                                        {isAdmin && (
-                                                            <button
-                                                                onClick={() => handleDeleteTask(task.id)}
-                                                                style={{
-                                                                    padding: '0.25rem 0.6rem',
-                                                                    fontSize: '0.7rem',
-                                                                    borderRadius: '0.35rem',
-                                                                    border: '1px solid rgba(239,68,68,0.3)',
-                                                                    background: 'transparent',
-                                                                    color: '#ef4444',
-                                                                    cursor: 'pointer',
-                                                                    marginLeft: 'auto',
-                                                                    display: 'flex',
-                                                                    alignItems: 'center',
-                                                                    gap: '0.25rem',
-                                                                }}
-                                                            >
-                                                                <Trash2 size={12} /> Usuń
-                                                            </button>
-                                                        )}
-                                                    </div>
-                                                    <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.25)', marginTop: '0.5rem' }}>
-                                                        Utworzone przez {(() => {
-                                                            const match = staffList.find(s => s.email === task.created_by_email);
-                                                            return match ? match.name : task.created_by_email;
-                                                        })()} • {new Date(task.created_at).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                                                    </div>
-
-                                                    {/* 💬 Comments */}
-                                                    <div style={{ marginTop: '0.5rem' }}>
-                                                        <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.3rem' }}>💬 Komentarze ({(taskComments[task.id] || []).length})</div>
-                                                        {(taskComments[task.id] || []).map((c: any, ci: number) => (
-                                                            <div key={ci} style={{ padding: '0.3rem 0', borderBottom: ci < (taskComments[task.id] || []).length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
-                                                                <span style={{ fontSize: '0.65rem', color: '#38bdf8', fontWeight: '600' }}>{c.author_name || c.author_email}</span>
-                                                                <span style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.25)', marginLeft: '0.4rem' }}>{new Date(c.created_at).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
-                                                                <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.6)', marginTop: '0.1rem' }}>{c.content}</div>
-                                                            </div>
-                                                        ))}
-                                                        <div style={{ display: 'flex', gap: '0.3rem', marginTop: '0.3rem' }}>
-                                                            <input
-                                                                type="text"
-                                                                placeholder="Napisz komentarz..."
-                                                                value={commentInput}
-                                                                onChange={e => setCommentInput(e.target.value)}
-                                                                onKeyDown={e => { if (e.key === 'Enter') handlePostComment(task.id); }}
-                                                                onClick={e => e.stopPropagation()}
-                                                                style={{ flex: 1, padding: '0.3rem 0.5rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.35rem', color: '#fff', fontSize: '0.75rem', outline: 'none' }}
-                                                            />
-                                                            <button
-                                                                onClick={(e) => { e.stopPropagation(); handlePostComment(task.id); }}
-                                                                disabled={commentLoading || !commentInput.trim()}
-                                                                style={{ padding: '0.3rem 0.6rem', background: 'rgba(56,189,248,0.15)', border: '1px solid rgba(56,189,248,0.3)', borderRadius: '0.35rem', color: '#38bdf8', fontSize: '0.7rem', cursor: 'pointer' }}
-                                                            >
-                                                                {commentLoading ? '...' : '→'}
-                                                            </button>
-                                                        </div>
-                                                    </div>
-
-                                                    {/* 📜 Edit history */}
-                                                    <div style={{ marginTop: '0.5rem' }}>
-                                                        <button
-                                                            onClick={(e) => { e.stopPropagation(); setTaskHistoryExpanded(!taskHistoryExpanded); }}
-                                                            style={{
-                                                                background: 'none',
-                                                                border: 'none',
-                                                                color: 'rgba(255,255,255,0.35)',
-                                                                fontSize: '0.7rem',
-                                                                cursor: 'pointer',
-                                                                padding: '0.2rem 0',
-                                                                display: 'flex',
-                                                                alignItems: 'center',
-                                                                gap: '0.3rem',
-                                                            }}
-                                                        >
-                                                            📜 Historia zmian {taskHistory.length > 0 ? `(${taskHistory.length})` : ''}
-                                                            <span style={{ fontSize: '0.6rem' }}>{taskHistoryExpanded ? '▲' : '▼'}</span>
-                                                        </button>
-                                                        {taskHistoryExpanded && (
-                                                            <div style={{
-                                                                marginTop: '0.35rem',
-                                                                background: 'rgba(255,255,255,0.02)',
-                                                                border: '1px solid rgba(255,255,255,0.06)',
-                                                                borderRadius: '0.5rem',
-                                                                padding: '0.5rem',
-                                                                maxHeight: '250px',
-                                                                overflowY: 'auto',
-                                                            }}>
-                                                                {taskHistoryLoading ? (
-                                                                    <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', textAlign: 'center', padding: '0.5rem' }}>Ładowanie...</div>
-                                                                ) : taskHistory.length === 0 ? (
-                                                                    <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', textAlign: 'center', padding: '0.5rem' }}>Brak historii zmian</div>
-                                                                ) : (
-                                                                    taskHistory.map((h: any, idx: number) => {
-                                                                        const changedByName = staffList.find(s => s.email === h.changed_by)?.name || h.changed_by;
-                                                                        const dateStr = new Date(h.changed_at).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-                                                                        const fieldLabels: Record<string, string> = {
-                                                                            title: 'Tytuł', description: 'Opis', status: 'Status', priority: 'Priorytet',
-                                                                            task_type: 'Typ', due_date: 'Termin', assigned_to_doctor_name: 'Przypisano do',
-                                                                            image_url: 'Zdjęcie', assigned_to_doctor_id: 'Przypisano do (ID)',
-                                                                        };
-                                                                        const statusLabels: Record<string, string> = { todo: 'Do zrobienia', in_progress: 'W trakcie', done: 'Wykonane' };
-                                                                        const priorityLabels: Record<string, string> = { low: 'Niski', normal: 'Normalny', urgent: 'Pilny' };
-
-                                                                        return (
-                                                                            <div key={idx} style={{
-                                                                                padding: '0.35rem 0',
-                                                                                borderBottom: idx < taskHistory.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none',
-                                                                            }}>
-                                                                                <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.15rem' }}>
-                                                                                    {h.change_type === 'status' ? '🔄' : h.change_type === 'checklist' ? '☑️' : '✏️'}{' '}
-                                                                                    <strong>{changedByName}</strong> • {dateStr}
-                                                                                </div>
-                                                                                <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.55)' }}>
-                                                                                    {Object.entries(h.changes || {}).map(([key, val]: [string, any]) => {
-                                                                                        if (h.change_type === 'checklist') {
-                                                                                            return (
-                                                                                                <div key={key}>
-                                                                                                    {val.done ? '✅' : '⬜'} {val.item}
-                                                                                                </div>
-                                                                                            );
-                                                                                        }
-                                                                                        const label = fieldLabels[key] || key;
-                                                                                        let oldDisplay = val.old || '—';
-                                                                                        let newDisplay = val.new || '—';
-                                                                                        if (key === 'status') {
-                                                                                            oldDisplay = statusLabels[val.old] || val.old || '—';
-                                                                                            newDisplay = statusLabels[val.new] || val.new || '—';
-                                                                                        } else if (key === 'priority') {
-                                                                                            oldDisplay = priorityLabels[val.old] || val.old || '—';
-                                                                                            newDisplay = priorityLabels[val.new] || val.new || '—';
-                                                                                        } else if (key === 'image_url') {
-                                                                                            oldDisplay = val.old ? '📷' : '—';
-                                                                                            newDisplay = val.new ? '📷' : '—';
-                                                                                        } else if (key === 'due_date') {
-                                                                                            oldDisplay = val.old ? new Date(val.old).toLocaleDateString('pl-PL') : '—';
-                                                                                            newDisplay = val.new ? new Date(val.new).toLocaleDateString('pl-PL') : '—';
-                                                                                        }
-                                                                                        // Skip internal IDs
-                                                                                        if (key === 'assigned_to_doctor_id') return null;
-                                                                                        return (
-                                                                                            <div key={key}>
-                                                                                                {label}: {oldDisplay} → {newDisplay}
-                                                                                            </div>
-                                                                                        );
-                                                                                    })}
-                                                                                </div>
-                                                                            </div>
-                                                                        );
-                                                                    })
-                                                                )}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        )}
-                    </>)}
-
-                    {/* ═══ KANBAN VIEW ═══ */}
-                    {taskViewMode === 'kanban' && (
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', minHeight: '400px' }}>
-                            {(['todo', 'in_progress', 'done'] as const).map(col => {
-                                const colTasks = filteredTasks.filter(t => t.status === col);
-                                return (
-                                    <div
-                                        key={col}
-                                        onDragOver={(e) => handleDragOver(e, col)}
-                                        onDragLeave={() => setDragOverColumn(null)}
-                                        onDrop={() => handleDrop(col)}
-                                        style={{
-                                            background: dragOverColumn === col ? 'rgba(56,189,248,0.08)' : 'rgba(255,255,255,0.02)',
-                                            border: `1px solid ${dragOverColumn === col ? 'rgba(56,189,248,0.3)' : 'rgba(255,255,255,0.06)'}`,
-                                            borderRadius: '0.75rem',
-                                            padding: '0.75rem',
-                                            transition: 'all 0.2s',
-                                        }}
-                                    >
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem', padding: '0 0.25rem' }}>
-                                            <div style={{ width: 10, height: 10, borderRadius: '50%', background: getStatusColor(col) }} />
-                                            <span style={{ fontSize: '0.8rem', fontWeight: '600', color: getStatusColor(col) }}>{getStatusLabel(col)}</span>
-                                            <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)' }}>({colTasks.length})</span>
-                                        </div>
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', minHeight: '60px' }}>
-                                            {colTasks.map(task => (
-                                                <div
-                                                    key={task.id}
-                                                    draggable
-                                                    onDragStart={() => handleDragStart(task.id)}
-                                                    onDragEnd={handleDragEnd}
-                                                    style={{
-                                                        background: draggedTaskId === task.id ? 'rgba(56,189,248,0.1)' : 'rgba(255,255,255,0.04)',
-                                                        border: '1px solid rgba(255,255,255,0.08)',
-                                                        borderRadius: '0.5rem',
-                                                        padding: '0.6rem 0.75rem',
-                                                        cursor: 'grab',
-                                                        opacity: draggedTaskId === task.id ? 0.5 : 1,
-                                                        transition: 'all 0.15s',
-                                                    }}
-                                                >
-                                                    <div style={{ fontSize: '0.8rem', fontWeight: '500', color: '#fff', marginBottom: '0.2rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                                        {task.priority === 'urgent' && <span style={{ color: '#ef4444', marginRight: '0.3rem' }}>⚡</span>}
-                                                        {task.title}
-                                                    </div>
-                                                    <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
-                                                        {task.patient_name && <span style={{ fontSize: '0.6rem', color: '#38bdf8' }}>👤 {task.patient_name}</span>}
-                                                        {task.due_date && (
-                                                            <span style={{ fontSize: '0.6rem', color: new Date(task.due_date) < new Date() ? '#ef4444' : 'rgba(255,255,255,0.4)' }}>
-                                                                📅 {new Date(task.due_date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' })}
-                                                            </span>
-                                                        )}
-                                                        {(task.assigned_to || []).length > 0 && (
-                                                            <span style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)' }}>→ {task.assigned_to.map(a => a.name).join(', ')}</span>
-                                                        )}
-                                                    </div>
-                                                    {task.checklist_items && task.checklist_items.length > 0 && (
-                                                        <div style={{ marginTop: '0.3rem' }}>
-                                                            <div style={{ height: '2px', background: 'rgba(255,255,255,0.08)', borderRadius: '1px', overflow: 'hidden' }}>
-                                                                <div style={{ width: `${(task.checklist_items.filter(ci => ci.done).length / task.checklist_items.length) * 100}%`, height: '100%', background: task.checklist_items.every(ci => ci.done) ? '#22c55e' : '#38bdf8' }} />
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            ))}
-                                            {colTasks.length === 0 && (
-                                                <div style={{ textAlign: 'center', padding: '1.5rem 0.5rem', color: 'rgba(255,255,255,0.2)', fontSize: '0.7rem', fontStyle: 'italic' }}>
-                                                    Przeciągnij zadanie tutaj
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    )}
-
-                    {/* ═══ CALENDAR VIEW ═══ */}
-                    {taskViewMode === 'calendar' && (
-                        <div>
-                            {/* Month navigation */}
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem', marginBottom: '1rem' }}>
-                                <button
-                                    onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1))}
-                                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.5rem', padding: '0.4rem 0.6rem', color: '#fff', cursor: 'pointer' }}
-                                >
-                                    ←
-                                </button>
-                                <span style={{ fontSize: '1rem', fontWeight: '600', minWidth: '180px', textAlign: 'center' }}>
-                                    {calendarMonth.toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' })}
-                                </span>
-                                <button
-                                    onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1))}
-                                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.5rem', padding: '0.4rem 0.6rem', color: '#fff', cursor: 'pointer' }}
-                                >
-                                    →
-                                </button>
-                            </div>
-                            {/* Day headers */}
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '2px', marginBottom: '4px' }}>
-                                {['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'Sb', 'Nd'].map(d => (
-                                    <div key={d} style={{ textAlign: 'center', fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', padding: '0.3rem' }}>{d}</div>
-                                ))}
-                            </div>
-                            {/* Calendar grid */}
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '2px' }}>
-                                {getCalendarDays.map((day, idx) => {
-                                    if (day === null) return <div key={`empty-${idx}`} />;
-                                    const dayTasks = tasksForDate(day);
-                                    const isToday = new Date().getDate() === day && new Date().getMonth() === calendarMonth.getMonth() && new Date().getFullYear() === calendarMonth.getFullYear();
-                                    return (
-                                        <div key={day} style={{
-                                            minHeight: '70px',
-                                            background: isToday ? 'rgba(56,189,248,0.08)' : 'rgba(255,255,255,0.02)',
-                                            border: `1px solid ${isToday ? 'rgba(56,189,248,0.25)' : 'rgba(255,255,255,0.05)'}`,
-                                            borderRadius: '0.35rem',
-                                            padding: '0.25rem',
-                                        }}>
-                                            <div style={{ fontSize: '0.7rem', color: isToday ? '#38bdf8' : 'rgba(255,255,255,0.5)', fontWeight: isToday ? '700' : '400', marginBottom: '0.15rem' }}>{day}</div>
-                                            {dayTasks.slice(0, 3).map(t => (
-                                                <div key={t.id} style={{
-                                                    fontSize: '0.55rem',
-                                                    padding: '0.1rem 0.2rem',
-                                                    background: `${getPriorityColor(t.priority)}15`,
-                                                    color: getPriorityColor(t.priority),
-                                                    borderRadius: '0.15rem',
-                                                    marginBottom: '1px',
-                                                    whiteSpace: 'nowrap',
-                                                    overflow: 'hidden',
-                                                    textOverflow: 'ellipsis',
-                                                    borderLeft: `2px solid ${getStatusColor(t.status)}`,
-                                                }}>
-                                                    {t.title}
-                                                </div>
-                                            ))}
-                                            {dayTasks.length > 3 && (
-                                                <div style={{ fontSize: '0.5rem', color: 'rgba(255,255,255,0.3)', textAlign: 'center' }}>+{dayTasks.length - 3}</div>
-                                            )}
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    )}
-                </div>
-            )}
-
-            {/* ═══ NEW TASK MODAL ═══ */}
-            {showTaskModal && (
-                <div
-                    onClick={() => { setShowTaskModal(false); resetTaskForm(); }}
-                    style={{
-                        position: 'fixed',
-                        inset: 0,
-                        background: 'rgba(0,0,0,0.7)',
-                        backdropFilter: 'blur(8px)',
-                        zIndex: 3000,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        padding: '1rem',
-                    }}
-                >
-                    <div
-                        onClick={(e) => e.stopPropagation()}
-                        style={{
-                            background: 'linear-gradient(135deg, #0d1b2a 0%, #1b2838 100%)',
-                            border: '1px solid rgba(56, 189, 248, 0.2)',
-                            borderRadius: '1rem',
-                            width: '100%',
-                            maxWidth: '550px',
-                            maxHeight: '90vh',
-                            overflowY: 'auto',
-                            boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
-                        }}
-                    >
-                        {/* Modal Header */}
-                        <div style={{
-                            padding: '1.25rem 1.5rem',
-                            borderBottom: '1px solid rgba(56,189,248,0.15)',
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                        }}>
-                            <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '600', color: '#fff' }}>
-                                ✅ Nowe zadanie
-                            </h3>
-                            <button
-                                onClick={() => { setShowTaskModal(false); resetTaskForm(); }}
-                                style={{
-                                    background: 'rgba(255,255,255,0.08)',
-                                    border: '1px solid rgba(255,255,255,0.15)',
-                                    borderRadius: '0.5rem',
-                                    width: '32px',
-                                    height: '32px',
                                     display: 'flex',
                                     alignItems: 'center',
-                                    justifyContent: 'center',
-                                    color: '#fff',
-                                    fontSize: '1.1rem',
-                                    cursor: 'pointer',
+                                    gap: '0.3rem',
+                                    transition: 'all 0.15s',
                                 }}
-                            >✕</button>
+                                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(251,146,60,0.2)'; }}
+                                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(251,146,60,0.1)'; }}
+                            >
+                                📤
+                            </button>
                         </div>
+                    </div>
 
-                        {/* Modal Body */}
-                        <div style={{ padding: '1.25rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                            {/* Patient info banner */}
-                            {taskModalPrefill?.patientName && (
-                                <div style={{
-                                    background: 'rgba(56, 189, 248, 0.08)',
-                                    border: '1px solid rgba(56, 189, 248, 0.2)',
-                                    borderRadius: '0.5rem',
-                                    padding: '0.6rem 0.85rem',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.5rem',
-                                    fontSize: '0.8rem',
-                                    color: '#38bdf8',
-                                }}>
-                                    <User size={14} />
-                                    <span style={{ fontWeight: '600' }}>{taskModalPrefill.patientName}</span>
-                                    {taskModalPrefill.appointmentType && (
-                                        <span style={{ color: 'rgba(255,255,255,0.4)' }}>• {taskModalPrefill.appointmentType}</span>
-                                    )}
+                    {/* ── Push Send Modal ─────────────────────────────────── */}
+                    {showPushModal && (
+                        <div onClick={e => { if (e.target === e.currentTarget) setShowPushModal(false); }}
+                            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+                            <div style={{ background: 'linear-gradient(145deg,#0f172a,#1e293b)', border: '1px solid rgba(251,146,60,0.25)', borderRadius: '1rem', padding: '1.5rem', width: '100%', maxWidth: '480px', maxHeight: '85vh', overflowY: 'auto' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem' }}>
+                                    <h3 style={{ margin: 0, color: '#fb923c' }}>📤 Wyślij powiadomienie</h3>
+                                    <button onClick={() => setShowPushModal(false)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: '1.2rem', cursor: 'pointer' }}>✕</button>
                                 </div>
-                            )}
-                            {/* Task Type Selector */}
-                            <div>
-                                <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>Typ zadania</label>
-                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-                                    {Object.entries(TASK_TYPE_CHECKLISTS).map(([key, val]) => (
-                                        <button
-                                            key={key}
-                                            type="button"
-                                            onClick={() => {
-                                                const items = val.items.map(label => ({ label, done: false }));
-                                                setTaskForm(p => ({ ...p, task_type: key, checklist_items: items }));
-                                            }}
-                                            style={{
-                                                padding: '0.4rem 0.75rem',
-                                                fontSize: '0.78rem',
-                                                borderRadius: '0.5rem',
-                                                border: taskForm.task_type === key
-                                                    ? '1px solid rgba(56,189,248,0.5)'
-                                                    : '1px solid rgba(255,255,255,0.1)',
-                                                background: taskForm.task_type === key
-                                                    ? 'rgba(56,189,248,0.15)'
-                                                    : 'rgba(255,255,255,0.04)',
-                                                color: taskForm.task_type === key ? '#38bdf8' : 'rgba(255,255,255,0.6)',
-                                                cursor: 'pointer',
-                                                fontWeight: taskForm.task_type === key ? '600' : '400',
-                                                transition: 'all 0.15s',
-                                            }}
-                                        >
-                                            {val.icon} {val.label}
-                                        </button>
-                                    ))}
+                                <div style={{ marginBottom: '0.7rem' }}>
+                                    <label style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.75rem', display: 'block', marginBottom: '0.3rem' }}>Tytuł *</label>
+                                    <input value={pushSendTitle} onChange={e => setPushSendTitle(e.target.value)} placeholder="np. Ważna informacja" maxLength={100}
+                                        style={{ width: '100%', padding: '0.5rem 0.7rem', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '0.4rem', color: '#fff', fontSize: '0.88rem', boxSizing: 'border-box' }} />
                                 </div>
-                                {/* Checklist preview */}
-                                {taskForm.checklist_items.length > 0 && (
-                                    <div style={{
-                                        marginTop: '0.6rem',
-                                        background: 'rgba(255,255,255,0.03)',
-                                        border: '1px solid rgba(255,255,255,0.08)',
-                                        borderRadius: '0.5rem',
-                                        padding: '0.6rem 0.85rem',
-                                    }}>
-                                        <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.4rem' }}>Checklist ({taskForm.checklist_items.length} kroków)</div>
-                                        {taskForm.checklist_items.map((item, i) => (
-                                            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.15rem 0', fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)' }}>
-                                                <span style={{ color: 'rgba(255,255,255,0.25)' }}>☐</span> {item.label}
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Title */}
-                            <div>
-                                <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>Tytuł *</label>
-                                <input
-                                    value={taskForm.title}
-                                    onChange={e => setTaskForm(p => ({ ...p, title: e.target.value }))}
-                                    placeholder="np. Korona porcelanowa — Jan Kowalski"
-                                    style={{
-                                        width: '100%',
-                                        background: 'rgba(255,255,255,0.06)',
-                                        border: '1px solid rgba(255,255,255,0.12)',
-                                        borderRadius: '0.5rem',
-                                        padding: '0.6rem 0.85rem',
-                                        color: '#fff',
-                                        fontSize: '0.85rem',
-                                        outline: 'none',
-                                        boxSizing: 'border-box',
-                                    }}
-                                />
-                            </div>
-
-                            {/* Description */}
-                            <div>
-                                <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>Opis</label>
-                                <textarea
-                                    value={taskForm.description}
-                                    onChange={e => setTaskForm(p => ({ ...p, description: e.target.value }))}
-                                    placeholder="Szczegóły zadania..."
-                                    rows={3}
-                                    style={{
-                                        width: '100%',
-                                        background: 'rgba(255,255,255,0.06)',
-                                        border: '1px solid rgba(255,255,255,0.12)',
-                                        borderRadius: '0.5rem',
-                                        padding: '0.6rem 0.85rem',
-                                        color: '#fff',
-                                        fontSize: '0.85rem',
-                                        outline: 'none',
-                                        resize: 'vertical',
-                                        boxSizing: 'border-box',
-                                    }}
-                                />
-                            </div>
-
-                            {/* Priority + Assignee row */}
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                                <div>
-                                    <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>Priorytet</label>
-                                    <select
-                                        value={taskForm.priority}
-                                        onChange={e => setTaskForm(p => ({ ...p, priority: e.target.value as any }))}
-                                        style={{
-                                            width: '100%',
-                                            background: 'rgba(255,255,255,0.06)',
-                                            border: '1px solid rgba(255,255,255,0.12)',
-                                            borderRadius: '0.5rem',
-                                            padding: '0.6rem 0.85rem',
-                                            color: '#fff',
-                                            fontSize: '0.85rem',
-                                            outline: 'none',
-                                        }}
-                                    >
-                                        <option value="low" style={{ background: '#1b2838' }}>🔵 Niski</option>
-                                        <option value="normal" style={{ background: '#1b2838' }}>⚪ Normalny</option>
-                                        <option value="urgent" style={{ background: '#1b2838' }}>🔴 Pilne</option>
-                                    </select>
+                                <div style={{ marginBottom: '0.7rem' }}>
+                                    <label style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.75rem', display: 'block', marginBottom: '0.3rem' }}>Treść *</label>
+                                    <textarea value={pushSendBody} onChange={e => setPushSendBody(e.target.value)} placeholder="Treść powiadomienia..." maxLength={300} rows={3}
+                                        style={{ width: '100%', padding: '0.5rem 0.7rem', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '0.4rem', color: '#fff', fontSize: '0.88rem', resize: 'vertical', boxSizing: 'border-box' }} />
                                 </div>
-                                <div>
-                                    <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>Przypisz do (wielu)</label>
-                                    {/* Selected chips */}
-                                    {taskForm.assigned_to.length > 0 && (
-                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', marginBottom: '0.4rem' }}>
-                                            {taskForm.assigned_to.map((a, i) => (
-                                                <span key={i} style={{
-                                                    display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
-                                                    background: 'rgba(56,189,248,0.15)', border: '1px solid rgba(56,189,248,0.3)',
-                                                    borderRadius: '1rem', padding: '0.2rem 0.5rem', fontSize: '0.75rem', color: '#38bdf8',
-                                                }}>
-                                                    {a.name}
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setTaskForm(p => ({ ...p, assigned_to: p.assigned_to.filter((_, idx) => idx !== i) }))}
-                                                        style={{ background: 'none', border: 'none', color: '#38bdf8', cursor: 'pointer', fontSize: '0.7rem', padding: 0, lineHeight: 1 }}
-                                                    >✕</button>
-                                                </span>
-                                            ))}
-                                        </div>
-                                    )}
-                                    {/* Dropdown to add */}
-                                    <select
-                                        value=""
-                                        onChange={e => {
-                                            const s = staffList.find(s => s.id === e.target.value);
-                                            if (s && !taskForm.assigned_to.some(a => a.id === s.id)) {
-                                                setTaskForm(p => ({ ...p, assigned_to: [...p.assigned_to, { id: s.id, name: s.name }] }));
-                                            }
-                                        }}
-                                        style={{
-                                            width: '100%',
-                                            background: 'rgba(255,255,255,0.06)',
-                                            border: '1px solid rgba(255,255,255,0.12)',
-                                            borderRadius: '0.5rem',
-                                            padding: '0.6rem 0.85rem',
-                                            color: '#fff',
-                                            fontSize: '0.85rem',
-                                            outline: 'none',
-                                        }}
-                                    >
-                                        <option value="" style={{ background: '#1b2838' }}>+ Dodaj pracownika...</option>
-                                        {staffList.filter(s => !taskForm.assigned_to.some(a => a.id === s.id)).map(s => (
-                                            <option key={s.id} value={s.id} style={{ background: '#1b2838' }}>{s.name}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Future appointments for due date */}
-                        {taskModalPrefill?.patientId && (
-                            <div>
-                                <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.4rem', display: 'block' }}>
-                                    📅 Przyszłe wizyty pacjenta — termin realizacji
-                                </label>
-                                {futureAptsLoading ? (
-                                    <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', padding: '0.5rem 0' }}>Szukam wizyt...</div>
-                                ) : futureAppointments.length === 0 ? (
-                                    <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.35)', padding: '0.5rem 0' }}>Brak zaplanowanych wizyt</div>
-                                ) : (
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                                        {futureAppointments.map(apt => {
-                                            const d = new Date(apt.date);
-                                            const isSelected = taskForm.linked_appointment_date === d.toISOString();
+                                <div style={{ marginBottom: '0.7rem' }}>
+                                    <label style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.75rem', display: 'block', marginBottom: '0.4rem' }}>Grupy</label>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem' }}>
+                                        {(['doctors', 'hygienists', 'reception', 'assistant'] as const).map(g => {
+                                            const labels: Record<string, string> = { doctors: '🦷 Lekarze', hygienists: '🪥 Higienistki', reception: '📋 Recepcja', assistant: '🩺 Asystentki' };
+                                            const active = pushSendGroups.includes(g);
                                             return (
-                                                <button
-                                                    key={apt.id}
-                                                    onClick={() => selectFutureAppointment(apt)}
-                                                    style={{
-                                                        background: isSelected ? 'rgba(56,189,248,0.15)' : 'rgba(255,255,255,0.04)',
-                                                        border: `1px solid ${isSelected ? 'rgba(56,189,248,0.4)' : 'rgba(255,255,255,0.08)'}`,
-                                                        borderRadius: '0.5rem',
-                                                        padding: '0.5rem 0.75rem',
-                                                        textAlign: 'left',
-                                                        cursor: 'pointer',
-                                                        color: isSelected ? '#38bdf8' : 'rgba(255,255,255,0.7)',
-                                                        fontSize: '0.8rem',
-                                                        display: 'flex',
-                                                        justifyContent: 'space-between',
-                                                        alignItems: 'center',
-                                                    }}
-                                                >
-                                                    <span>
-                                                        {d.toLocaleDateString('pl-PL', { weekday: 'short', day: 'numeric', month: 'short' })}{' '}
-                                                        {d.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}
-                                                        <span style={{ color: 'rgba(255,255,255,0.4)', marginLeft: '0.5rem' }}>
-                                                            {apt.appointmentType}{apt.doctor?.name ? ` • ${apt.doctor.name}` : ''}
-                                                        </span>
-                                                    </span>
-                                                    {isSelected && <span style={{ fontWeight: '600' }}>✓</span>}
+                                                <button key={g}
+                                                    onClick={() => setPushSendGroups(prev => active ? prev.filter(x => x !== g) : [...prev, g])}
+                                                    style={{ padding: '0.3rem 0.65rem', borderRadius: '2rem', cursor: 'pointer', fontSize: '0.75rem', border: `1px solid ${active ? '#fb923c' : 'rgba(255,255,255,0.14)'}`, background: active ? 'rgba(251,146,60,0.15)' : 'transparent', color: active ? '#fb923c' : 'rgba(255,255,255,0.5)', fontWeight: active ? '600' : '400', transition: 'all 0.1s' }}>
+                                                    {labels[g]}
                                                 </button>
                                             );
                                         })}
                                     </div>
+                                </div>
+                                {staffList.length > 0 && (
+                                    <div style={{ marginBottom: '1rem' }}>
+                                        <label style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.75rem', display: 'block', marginBottom: '0.4rem' }}>
+                                            Konkretni pracownicy
+                                            {pushSendIndividuals.length > 0 && <span style={{ marginLeft: '0.4rem', color: '#fb923c', fontWeight: '600' }}>({pushSendIndividuals.length})</span>}
+                                        </label>
+                                        <input value={pushEmpSearch} onChange={e => setPushEmpSearch(e.target.value)} placeholder="Szukaj..."
+                                            style={{ width: '100%', padding: '0.35rem 0.6rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.4rem', color: '#fff', fontSize: '0.75rem', marginBottom: '0.4rem', boxSizing: 'border-box' }} />
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', maxHeight: '90px', overflowY: 'auto' }}>
+                                            {staffList.filter(s => {
+                                                const q = pushEmpSearch.toLowerCase();
+                                                return !q || (s.name || '').toLowerCase().includes(q);
+                                            }).map(s => {
+                                                const active = pushSendIndividuals.includes(s.id);
+                                                return (
+                                                    <button key={s.id}
+                                                        onClick={() => setPushSendIndividuals(prev => active ? prev.filter(id => id !== s.id) : [...prev, s.id])}
+                                                        style={{ padding: '0.28rem 0.6rem', borderRadius: '2rem', cursor: 'pointer', fontSize: '0.75rem', border: `1px solid ${active ? '#38bdf8' : 'rgba(255,255,255,0.12)'}`, background: active ? 'rgba(56,189,248,0.12)' : 'transparent', color: active ? '#38bdf8' : 'rgba(255,255,255,0.55)', fontWeight: active ? '600' : '400', transition: 'all 0.1s' }}>
+                                                        {s.name || s.email}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
+                                {pushSendResult && (
+                                    <div style={{ marginBottom: '0.8rem', padding: '0.6rem 0.8rem', borderRadius: '0.4rem', fontSize: '0.78rem', background: pushSendResult.error ? 'rgba(239,68,68,0.1)' : 'rgba(34,197,94,0.1)', border: `1px solid ${pushSendResult.error ? 'rgba(239,68,68,0.3)' : 'rgba(34,197,94,0.3)'}`, color: pushSendResult.error ? '#ef4444' : '#22c55e' }}>
+                                        {pushSendResult.error ? `❌ ${pushSendResult.error}` : `✅ Wysłano: ${pushSendResult.sent} powiadomień`}
+                                    </div>
+                                )}
+                                <div style={{ display: 'flex', gap: '0.6rem' }}>
+                                    <button
+                                        disabled={pushSending || !pushSendTitle || !pushSendBody || (pushSendGroups.length === 0 && pushSendIndividuals.length === 0)}
+                                        onClick={async () => {
+                                            if (!pushSendTitle || !pushSendBody || (pushSendGroups.length === 0 && pushSendIndividuals.length === 0)) return;
+                                            setPushSending(true);
+                                            setPushSendResult(null);
+                                            try {
+                                                const res = await fetch('/api/employee/push/send', {
+                                                    method: 'POST',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({ title: pushSendTitle, body: pushSendBody, url: pushSendUrl, groups: pushSendGroups, userIds: pushSendIndividuals }),
+                                                });
+                                                const data = await res.json();
+                                                setPushSendResult(data);
+                                                if (res.ok && !data.error) {
+                                                    setPushSendTitle('');
+                                                    setPushSendBody('');
+                                                    setPushSendGroups([]);
+                                                    setPushSendIndividuals([]);
+                                                }
+                                            } catch (e: any) { setPushSendResult({ error: e.message }); }
+                                            finally { setPushSending(false); }
+                                        }}
+                                        style={{ flex: 1, padding: '0.6rem', background: 'linear-gradient(135deg,#fb923c,#f97316)', border: 'none', borderRadius: '0.4rem', color: '#fff', fontWeight: '600', cursor: 'pointer', opacity: pushSending || !pushSendTitle || !pushSendBody || (pushSendGroups.length === 0 && pushSendIndividuals.length === 0) ? 0.5 : 1 }}
+                                    >
+                                        {pushSending ? 'Wysyłanie...' : '📤 Wyślij'}
+                                    </button>
+                                    <button onClick={() => setShowPushModal(false)} style={{ padding: '0.6rem 1rem', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.4rem', color: 'rgba(255,255,255,0.5)', cursor: 'pointer' }}>
+                                        Anuluj
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Search + Filters */}
+                            {/* Search + Filters */}
+
+                            <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '0.6rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                                <input
+                                    type="text"
+                                    placeholder="🔍 Szukaj zadania..."
+                                    value={taskSearchQuery}
+                                    onChange={e => setTaskSearchQuery(e.target.value)}
+                                    style={{
+                                        flex: '1 1 200px',
+                                        minWidth: '150px',
+                                        padding: '0.4rem 0.75rem',
+                                        background: 'rgba(255,255,255,0.05)',
+                                        border: '1px solid rgba(255,255,255,0.1)',
+                                        borderRadius: '0.5rem',
+                                        color: '#fff',
+                                        fontSize: '0.8rem',
+                                        outline: 'none',
+                                    }}
+                                />
+                                <select
+                                    value={filterAssignee}
+                                    onChange={e => setFilterAssignee(e.target.value)}
+                                    style={{ padding: '0.4rem 0.5rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.5rem', color: filterAssignee ? '#38bdf8' : 'rgba(255,255,255,0.5)', fontSize: '0.75rem', cursor: 'pointer' }}
+                                >
+                                    <option value="">Wszyscy</option>
+                                    {staffList.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                </select>
+                                <select
+                                    value={filterType}
+                                    onChange={e => setFilterType(e.target.value)}
+                                    style={{ padding: '0.4rem 0.5rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.5rem', color: filterType ? '#a855f7' : 'rgba(255,255,255,0.5)', fontSize: '0.75rem', cursor: 'pointer' }}
+                                >
+                                    <option value="">Typ: Wszystkie</option>
+                                    {Object.entries(TASK_TYPE_CHECKLISTS).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
+                                </select>
+                                <select
+                                    value={filterPriority}
+                                    onChange={e => setFilterPriority(e.target.value)}
+                                    style={{ padding: '0.4rem 0.5rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.5rem', color: filterPriority ? getPriorityColor(filterPriority) : 'rgba(255,255,255,0.5)', fontSize: '0.75rem', cursor: 'pointer' }}
+                                >
+                                    <option value="">Priorytet: Wszystkie</option>
+                                    <option value="urgent">⚡ Pilne</option>
+                                    <option value="normal">Normalny</option>
+                                    <option value="low">Niski</option>
+                                </select>
+                                {(taskSearchQuery || filterAssignee || filterType || filterPriority) && (
+                                    <button
+                                        onClick={() => { setTaskSearchQuery(''); setFilterAssignee(''); setFilterType(''); setFilterPriority(''); }}
+                                        style={{ padding: '0.35rem 0.6rem', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '0.5rem', color: '#ef4444', fontSize: '0.7rem', cursor: 'pointer' }}
+                                    >
+                                        ✕ Wyczyść
+                                    </button>
                                 )}
                             </div>
-                        )}
 
-                        {/* Manual due date */}
-                        <div>
-                            <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>
-                                {taskModalPrefill?.patientId ? 'Lub wybierz datę ręcznie' : 'Termin realizacji'}
-                            </label>
-                            <input
-                                type="date"
-                                value={taskForm.due_date}
-                                onChange={e => setTaskForm(p => ({ ...p, due_date: e.target.value, linked_appointment_date: '', linked_appointment_info: '' }))}
-                                style={{
-                                    width: '100%',
-                                    background: 'rgba(255,255,255,0.06)',
-                                    border: '1px solid rgba(255,255,255,0.12)',
-                                    borderRadius: '0.5rem',
-                                    padding: '0.6rem 0.85rem',
-                                    color: '#fff',
-                                    fontSize: '0.85rem',
-                                    outline: 'none',
-                                    boxSizing: 'border-box',
-                                }}
-                            />
-                        </div>
-
-                        {/* Photo upload */}
-                        <div>
-                            <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>📸 Zdjęcie (opcjonalnie)</label>
-                            {taskForm.image_url ? (
-                                <div style={{ position: 'relative', display: 'inline-block' }}>
-                                    <img src={taskForm.image_url} alt="" style={{ maxWidth: '100%', maxHeight: '120px', borderRadius: '0.5rem', border: '1px solid rgba(255,255,255,0.1)' }} />
+                            {/* Status filter bar */}
+                            <div style={{
+                                display: 'flex',
+                                gap: '0.4rem',
+                                marginBottom: '1.25rem',
+                                flexWrap: 'wrap',
+                            }}>
+                                {(['all', 'todo', 'in_progress', 'done'] as const).map(f => (
                                     <button
-                                        onClick={() => setTaskForm(p => ({ ...p, image_url: '' }))}
-                                        style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.7)', border: 'none', color: '#fff', borderRadius: '50%', width: 22, height: 22, cursor: 'pointer', fontSize: '0.7rem' }}
-                                    >✕</button>
-                                </div>
-                            ) : (
-                                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                    <label style={{
-                                        flex: 1,
-                                        padding: '0.6rem',
-                                        background: 'rgba(255,255,255,0.06)',
-                                        border: '1px solid rgba(255,255,255,0.12)',
+                                        key={f}
+                                        onClick={() => setTaskFilter(f)}
+                                        style={{
+                                            background: taskFilter === f ? 'rgba(56, 189, 248, 0.15)' : 'rgba(255,255,255,0.05)',
+                                            border: `1px solid ${taskFilter === f ? 'rgba(56, 189, 248, 0.4)' : 'rgba(255,255,255,0.1)'}`,
+                                            borderRadius: '0.5rem',
+                                            padding: '0.4rem 0.85rem',
+                                            color: taskFilter === f ? '#38bdf8' : 'rgba(255,255,255,0.6)',
+                                            fontSize: '0.8rem',
+                                            cursor: 'pointer',
+                                            fontWeight: taskFilter === f ? '600' : '400',
+                                        }}
+                                    >
+                                        {f === 'all' ? `Wszystkie (${tasks.filter(t => t.status !== 'archived').length})` : `${getStatusLabel(f)} (${tasks.filter(t => t.status === f).length})`}
+                                    </button>
+                                ))}
+                                <button
+                                    onClick={() => setTaskFilter('archived')}
+                                    style={{
+                                        background: taskFilter === 'archived' ? 'rgba(107,114,128,0.2)' : 'rgba(255,255,255,0.05)',
+                                        border: `1px solid ${taskFilter === 'archived' ? 'rgba(107,114,128,0.4)' : 'rgba(255,255,255,0.1)'}`,
                                         borderRadius: '0.5rem',
-                                        color: 'rgba(255,255,255,0.6)',
+                                        padding: '0.4rem 0.85rem',
+                                        color: taskFilter === 'archived' ? '#9ca3af' : 'rgba(255,255,255,0.4)',
                                         fontSize: '0.8rem',
-                                        textAlign: 'center',
-                                        cursor: imageUploading ? 'wait' : 'pointer',
-                                        opacity: imageUploading ? 0.5 : 1,
-                                    }}>
-                                        {imageUploading ? '⏳ Przesyłanie...' : '📷 Aparat / Galeria'}
-                                        <input
-                                            type="file"
-                                            accept="image/*"
+                                        cursor: 'pointer',
+                                        fontWeight: taskFilter === 'archived' ? '600' : '400',
+                                        marginLeft: 'auto',
+                                    }}
+                                >
+                                    📁 Archiwum ({tasks.filter(t => t.status === 'archived').length})
+                                </button>
+                            </div>
 
-                                            style={{ display: 'none' }}
-                                            disabled={imageUploading}
-                                            onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageUpload(f, 'create'); }}
-                                        />
-                                    </label>
+                            {/* ═══ LIST VIEW ═══ */}
+                            {taskViewMode === 'list' && (<>
+                                {tasksLoading ? (
+                                    <div style={{ textAlign: 'center', padding: '3rem 0' }}>
+                                        <div style={{
+                                            width: '36px',
+                                            height: '36px',
+                                            border: '3px solid rgba(56, 189, 248, 0.2)',
+                                            borderTop: '3px solid #38bdf8',
+                                            borderRadius: '50%',
+                                            animation: 'spin 0.8s linear infinite',
+                                            margin: '0 auto 1rem',
+                                        }} />
+                                        <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.85rem' }}>Ładowanie zadań...</p>
+                                    </div>
+                                ) : filteredTasks.length === 0 ? (
+                                    <div style={{
+                                        background: 'rgba(255,255,255,0.03)',
+                                        border: '1px solid rgba(56, 189, 248, 0.12)',
+                                        borderRadius: '1rem',
+                                        padding: '3rem 2rem',
+                                        textAlign: 'center',
+                                    }}>
+                                        <div style={{ fontSize: '3rem', marginBottom: '0.75rem' }}>📋</div>
+                                        <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.9rem', marginBottom: '1rem' }}>
+                                            {taskFilter === 'all' ? 'Brak zadań. Dodaj pierwsze zadanie!' : `Brak zadań w kategorii "${getStatusLabel(taskFilter)}"`}
+                                        </p>
+                                        {taskFilter === 'all' && <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.8rem' }}>Możesz też utworzyć zadanie z poziomu grafiku — kliknij w wizytę pacjenta</p>}
+                                    </div>
+                                ) : (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                                        {filteredTasks.map(task => {
+                                            const mine = isMyTask(task);
+                                            return (
+                                                <div key={task.id} style={{
+                                                    background: mine ? 'rgba(56, 189, 248, 0.04)' : 'rgba(255,255,255,0.03)',
+                                                    border: `1px solid ${task.status === 'done' ? 'rgba(34, 197, 94, 0.15)' : mine ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255,255,255,0.08)'}`,
+                                                    borderLeft: mine ? '3px solid #38bdf8' : undefined,
+                                                    borderRadius: '0.75rem',
+                                                    overflow: 'hidden',
+                                                    opacity: task.status === 'done' ? 0.7 : 1,
+                                                }}>
+                                                    {/* Task card main row */}
+                                                    <div
+                                                        style={{
+                                                            padding: '0.85rem 1rem',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: '0.75rem',
+                                                            cursor: 'pointer',
+                                                        }}
+                                                        onClick={() => {
+                                                            const newId = expandedTaskId === task.id ? null : task.id;
+                                                            setExpandedTaskId(newId);
+                                                            setTaskHistoryExpanded(false);
+                                                            if (newId) {
+                                                                // Fetch history
+                                                                setTaskHistoryLoading(true);
+                                                                setTaskHistory([]);
+                                                                fetch(`/api/employee/tasks/${newId}?history=true`)
+                                                                    .then(r => r.json())
+                                                                    .then(d => setTaskHistory(d.history || []))
+                                                                    .catch(() => setTaskHistory([]))
+                                                                    .finally(() => setTaskHistoryLoading(false));
+                                                                // Fetch comments
+                                                                fetchComments(newId);
+                                                            }
+                                                        }}
+                                                    >
+                                                        {/* Status button */}
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleUpdateStatus(task.id, getNextStatus(task.status));
+                                                            }}
+                                                            title={`Zmień na: ${getStatusLabel(getNextStatus(task.status))}`}
+                                                            style={{
+                                                                width: '24px',
+                                                                height: '24px',
+                                                                borderRadius: '50%',
+                                                                border: `2px solid ${getStatusColor(task.status)}`,
+                                                                background: task.status === 'done' ? getStatusColor(task.status) : 'transparent',
+                                                                cursor: 'pointer',
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                justifyContent: 'center',
+                                                                flexShrink: 0,
+                                                                color: '#fff',
+                                                                fontSize: '0.7rem',
+                                                            }}
+                                                        >
+                                                            {task.status === 'done' && '✓'}
+                                                            {task.status === 'in_progress' && <div style={{ width: 8, height: 8, borderRadius: '50%', background: getStatusColor(task.status) }} />}
+                                                        </button>
+
+                                                        {/* Title + meta */}
+                                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                                            <div style={{
+                                                                color: '#fff',
+                                                                fontSize: '0.9rem',
+                                                                fontWeight: '500',
+                                                                textDecoration: task.status === 'done' ? 'line-through' : 'none',
+                                                                whiteSpace: 'nowrap',
+                                                                overflow: 'hidden',
+                                                                textOverflow: 'ellipsis',
+                                                            }}>
+                                                                {task.title}
+                                                                {mine && <span style={{ marginLeft: '0.4rem', fontSize: '0.6rem', background: 'rgba(56,189,248,0.2)', color: '#38bdf8', padding: '0.1rem 0.35rem', borderRadius: '0.25rem', fontWeight: '600', verticalAlign: 'middle' }}>Twoje</span>}
+                                                            </div>
+                                                            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.2rem' }}>
+                                                                {task.patient_name && (
+                                                                    <span style={{ fontSize: '0.7rem', color: '#38bdf8' }}>👤 {task.patient_name}</span>
+                                                                )}
+                                                                {(task.assigned_to || []).length > 0 && (
+                                                                    <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap', marginTop: '0.15rem' }}>
+                                                                        {task.assigned_to.map((a, i) => (
+                                                                            <span key={i} style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.5)', background: 'rgba(255,255,255,0.06)', padding: '0.1rem 0.4rem', borderRadius: '0.25rem' }}>→ {a.name}</span>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+                                                                {!(task.assigned_to || []).length && task.assigned_to_doctor_name && (
+                                                                    <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.5)' }}>→ {task.assigned_to_doctor_name}</span>
+                                                                )}
+                                                                {task.checklist_items && task.checklist_items.length > 0 && (
+                                                                    <span style={{
+                                                                        fontSize: '0.65rem',
+                                                                        color: task.checklist_items.every(ci => ci.done) ? '#22c55e' : 'rgba(255,255,255,0.4)',
+                                                                        background: task.checklist_items.every(ci => ci.done) ? 'rgba(34,197,94,0.1)' : 'rgba(255,255,255,0.05)',
+                                                                        padding: '0.1rem 0.35rem',
+                                                                        borderRadius: '0.25rem',
+                                                                    }}>
+                                                                        ☑ {task.checklist_items.filter(ci => ci.done).length}/{task.checklist_items.length}
+                                                                    </span>
+                                                                )}
+                                                                {task.due_date && (
+                                                                    <span style={{
+                                                                        fontSize: '0.7rem',
+                                                                        color: new Date(task.due_date) < new Date() && task.status !== 'done' ? '#ef4444' : 'rgba(255,255,255,0.4)',
+                                                                    }}>
+                                                                        📅 {new Date(task.due_date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' })}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Priority badge */}
+                                                        {task.priority !== 'normal' && (
+                                                            <span style={{
+                                                                fontSize: '0.65rem',
+                                                                fontWeight: '600',
+                                                                padding: '0.15rem 0.45rem',
+                                                                borderRadius: '0.3rem',
+                                                                background: `${getPriorityColor(task.priority)}22`,
+                                                                color: getPriorityColor(task.priority),
+                                                                border: `1px solid ${getPriorityColor(task.priority)}44`,
+                                                                flexShrink: 0,
+                                                            }}>
+                                                                {task.priority === 'urgent' && '⚡ '}{getPriorityLabel(task.priority)}
+                                                            </span>
+                                                        )}
+                                                    </div>
+
+                                                    {/* Expanded details */}
+                                                    {expandedTaskId === task.id && (
+                                                        <div style={{
+                                                            padding: '0 1rem 0.85rem',
+                                                            borderTop: '1px solid rgba(255,255,255,0.06)',
+                                                            paddingTop: '0.75rem',
+                                                        }}>
+                                                            {task.description && (
+                                                                <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.8rem', marginBottom: '0.5rem', lineHeight: 1.5 }}>
+                                                                    {task.description}
+                                                                </p>
+                                                            )}
+
+                                                            {/* Checklist */}
+                                                            {task.checklist_items && task.checklist_items.length > 0 && (
+                                                                <div style={{
+                                                                    background: 'rgba(255,255,255,0.03)',
+                                                                    border: '1px solid rgba(255,255,255,0.08)',
+                                                                    borderRadius: '0.5rem',
+                                                                    padding: '0.6rem 0.75rem',
+                                                                    marginBottom: '0.5rem',
+                                                                }}>
+                                                                    <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.35rem', display: 'flex', justifyContent: 'space-between' }}>
+                                                                        <span>Checklist {task.task_type && TASK_TYPE_CHECKLISTS[task.task_type] ? `— ${TASK_TYPE_CHECKLISTS[task.task_type].icon} ${TASK_TYPE_CHECKLISTS[task.task_type].label}` : ''}</span>
+                                                                        <span>{task.checklist_items.filter(ci => ci.done).length}/{task.checklist_items.length} ✓</span>
+                                                                    </div>
+                                                                    {/* Progress bar */}
+                                                                    <div style={{ height: '3px', background: 'rgba(255,255,255,0.08)', borderRadius: '2px', marginBottom: '0.4rem', overflow: 'hidden' }}>
+                                                                        <div style={{
+                                                                            width: `${(task.checklist_items.filter(ci => ci.done).length / task.checklist_items.length) * 100}%`,
+                                                                            height: '100%',
+                                                                            background: task.checklist_items.every(ci => ci.done) ? '#22c55e' : '#38bdf8',
+                                                                            borderRadius: '2px',
+                                                                            transition: 'width 0.3s',
+                                                                        }} />
+                                                                    </div>
+                                                                    {task.checklist_items.map((ci, idx) => (
+                                                                        <button
+                                                                            key={idx}
+                                                                            onClick={(e) => { e.stopPropagation(); handleToggleChecklist(task.id, idx); }}
+                                                                            style={{
+                                                                                display: 'flex',
+                                                                                alignItems: 'center',
+                                                                                gap: '0.5rem',
+                                                                                width: '100%',
+                                                                                padding: '0.3rem 0.15rem',
+                                                                                border: 'none',
+                                                                                background: 'transparent',
+                                                                                cursor: 'pointer',
+                                                                                textAlign: 'left',
+                                                                                transition: 'all 0.15s',
+                                                                            }}
+                                                                        >
+                                                                            <span style={{
+                                                                                width: '18px',
+                                                                                height: '18px',
+                                                                                borderRadius: '4px',
+                                                                                border: ci.done ? '2px solid #22c55e' : '2px solid rgba(255,255,255,0.2)',
+                                                                                background: ci.done ? 'rgba(34,197,94,0.15)' : 'transparent',
+                                                                                display: 'flex',
+                                                                                alignItems: 'center',
+                                                                                justifyContent: 'center',
+                                                                                flexShrink: 0,
+                                                                                fontSize: '0.65rem',
+                                                                                color: '#22c55e',
+                                                                            }}>
+                                                                                {ci.done && '✓'}
+                                                                            </span>
+                                                                            <span style={{
+                                                                                fontSize: '0.8rem',
+                                                                                color: ci.done ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.7)',
+                                                                                textDecoration: ci.done ? 'line-through' : 'none',
+                                                                            }}>
+                                                                                {ci.label}
+                                                                            </span>
+                                                                            {ci.done && ci.checked_by_name && (
+                                                                                <span style={{
+                                                                                    fontSize: '0.6rem',
+                                                                                    color: 'rgba(34,197,94,0.6)',
+                                                                                    marginLeft: '0.3rem',
+                                                                                    fontStyle: 'italic',
+                                                                                }}>
+                                                                                    ({ci.checked_by_name})
+                                                                                </span>
+                                                                            )}
+                                                                        </button>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+
+                                                            {/* Task image */}
+                                                            {task.image_url && (
+                                                                <div style={{ marginBottom: '0.5rem' }}>
+                                                                    <img
+                                                                        src={task.image_url}
+                                                                        alt="Zdjęcie zadania"
+                                                                        onClick={(e) => { e.stopPropagation(); setZoomedImage(task.image_url); }}
+                                                                        style={{
+                                                                            maxWidth: '100%',
+                                                                            maxHeight: '200px',
+                                                                            borderRadius: '0.5rem',
+                                                                            border: '1px solid rgba(255,255,255,0.1)',
+                                                                            cursor: 'zoom-in',
+                                                                            objectFit: 'cover',
+                                                                        }}
+                                                                    />
+                                                                </div>
+                                                            )}
+
+                                                            {task.linked_appointment_info && (
+                                                                <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.5rem' }}>
+                                                                    🔗 Powiązana wizyta: {task.linked_appointment_info}
+                                                                </div>
+                                                            )}
+                                                            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+                                                                {/* Status change buttons */}
+                                                                {(['todo', 'in_progress', 'done'] as const).map(s => (
+                                                                    <button
+                                                                        key={s}
+                                                                        onClick={() => handleUpdateStatus(task.id, s)}
+                                                                        style={{
+                                                                            padding: '0.25rem 0.6rem',
+                                                                            fontSize: '0.7rem',
+                                                                            borderRadius: '0.35rem',
+                                                                            border: `1px solid ${getStatusColor(s)}44`,
+                                                                            background: task.status === s ? `${getStatusColor(s)}22` : 'transparent',
+                                                                            color: task.status === s ? getStatusColor(s) : 'rgba(255,255,255,0.4)',
+                                                                            cursor: 'pointer',
+                                                                            fontWeight: task.status === s ? '600' : '400',
+                                                                        }}
+                                                                    >
+                                                                        {getStatusLabel(s)}
+                                                                    </button>
+                                                                ))}
+                                                                <button
+                                                                    onClick={(e) => { e.stopPropagation(); openEditModal(task); }}
+                                                                    style={{
+                                                                        padding: '0.25rem 0.6rem',
+                                                                        fontSize: '0.7rem',
+                                                                        borderRadius: '0.35rem',
+                                                                        border: '1px solid rgba(56,189,248,0.3)',
+                                                                        background: 'transparent',
+                                                                        color: '#38bdf8',
+                                                                        cursor: 'pointer',
+                                                                        display: 'flex',
+                                                                        alignItems: 'center',
+                                                                        gap: '0.25rem',
+                                                                    }}
+                                                                >
+                                                                    ✏️ Edytuj
+                                                                </button>
+                                                                {task.status !== 'archived' && (
+                                                                    <button
+                                                                        onClick={(e) => { e.stopPropagation(); handleUpdateStatus(task.id, 'archived'); }}
+                                                                        style={{
+                                                                            padding: '0.25rem 0.6rem',
+                                                                            fontSize: '0.7rem',
+                                                                            borderRadius: '0.35rem',
+                                                                            border: '1px solid rgba(107,114,128,0.3)',
+                                                                            background: 'transparent',
+                                                                            color: '#9ca3af',
+                                                                            cursor: 'pointer',
+                                                                            display: 'flex',
+                                                                            alignItems: 'center',
+                                                                            gap: '0.25rem',
+                                                                        }}
+                                                                    >
+                                                                        📁 Archiwizuj
+                                                                    </button>
+                                                                )}
+                                                                {task.status === 'archived' && (
+                                                                    <button
+                                                                        onClick={(e) => { e.stopPropagation(); handleUpdateStatus(task.id, 'done'); }}
+                                                                        style={{
+                                                                            padding: '0.25rem 0.6rem',
+                                                                            fontSize: '0.7rem',
+                                                                            borderRadius: '0.35rem',
+                                                                            border: '1px solid rgba(34,197,94,0.3)',
+                                                                            background: 'transparent',
+                                                                            color: '#22c55e',
+                                                                            cursor: 'pointer',
+                                                                            display: 'flex',
+                                                                            alignItems: 'center',
+                                                                            gap: '0.25rem',
+                                                                        }}
+                                                                    >
+                                                                        ↩️ Przywróć
+                                                                    </button>
+                                                                )}
+                                                                {isAdmin && (
+                                                                    <button
+                                                                        onClick={() => handleDeleteTask(task.id)}
+                                                                        style={{
+                                                                            padding: '0.25rem 0.6rem',
+                                                                            fontSize: '0.7rem',
+                                                                            borderRadius: '0.35rem',
+                                                                            border: '1px solid rgba(239,68,68,0.3)',
+                                                                            background: 'transparent',
+                                                                            color: '#ef4444',
+                                                                            cursor: 'pointer',
+                                                                            marginLeft: 'auto',
+                                                                            display: 'flex',
+                                                                            alignItems: 'center',
+                                                                            gap: '0.25rem',
+                                                                        }}
+                                                                    >
+                                                                        <Trash2 size={12} /> Usuń
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                            <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.25)', marginTop: '0.5rem' }}>
+                                                                Utworzone przez {(() => {
+                                                                    const match = staffList.find(s => s.email === task.created_by_email);
+                                                                    return match ? match.name : task.created_by_email;
+                                                                })()} • {new Date(task.created_at).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                                            </div>
+
+                                                            {/* 💬 Comments */}
+                                                            <div style={{ marginTop: '0.5rem' }}>
+                                                                <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.3rem' }}>💬 Komentarze ({(taskComments[task.id] || []).length})</div>
+                                                                {(taskComments[task.id] || []).map((c: any, ci: number) => (
+                                                                    <div key={ci} style={{ padding: '0.3rem 0', borderBottom: ci < (taskComments[task.id] || []).length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
+                                                                        <span style={{ fontSize: '0.65rem', color: '#38bdf8', fontWeight: '600' }}>{c.author_name || c.author_email}</span>
+                                                                        <span style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.25)', marginLeft: '0.4rem' }}>{new Date(c.created_at).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                                                                        <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.6)', marginTop: '0.1rem' }}>{c.content}</div>
+                                                                    </div>
+                                                                ))}
+                                                                <div style={{ display: 'flex', gap: '0.3rem', marginTop: '0.3rem' }}>
+                                                                    <input
+                                                                        type="text"
+                                                                        placeholder="Napisz komentarz..."
+                                                                        value={commentInput}
+                                                                        onChange={e => setCommentInput(e.target.value)}
+                                                                        onKeyDown={e => { if (e.key === 'Enter') handlePostComment(task.id); }}
+                                                                        onClick={e => e.stopPropagation()}
+                                                                        style={{ flex: 1, padding: '0.3rem 0.5rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.35rem', color: '#fff', fontSize: '0.75rem', outline: 'none' }}
+                                                                    />
+                                                                    <button
+                                                                        onClick={(e) => { e.stopPropagation(); handlePostComment(task.id); }}
+                                                                        disabled={commentLoading || !commentInput.trim()}
+                                                                        style={{ padding: '0.3rem 0.6rem', background: 'rgba(56,189,248,0.15)', border: '1px solid rgba(56,189,248,0.3)', borderRadius: '0.35rem', color: '#38bdf8', fontSize: '0.7rem', cursor: 'pointer' }}
+                                                                    >
+                                                                        {commentLoading ? '...' : '→'}
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+
+                                                            {/* 📜 Edit history */}
+                                                            <div style={{ marginTop: '0.5rem' }}>
+                                                                <button
+                                                                    onClick={(e) => { e.stopPropagation(); setTaskHistoryExpanded(!taskHistoryExpanded); }}
+                                                                    style={{
+                                                                        background: 'none',
+                                                                        border: 'none',
+                                                                        color: 'rgba(255,255,255,0.35)',
+                                                                        fontSize: '0.7rem',
+                                                                        cursor: 'pointer',
+                                                                        padding: '0.2rem 0',
+                                                                        display: 'flex',
+                                                                        alignItems: 'center',
+                                                                        gap: '0.3rem',
+                                                                    }}
+                                                                >
+                                                                    📜 Historia zmian {taskHistory.length > 0 ? `(${taskHistory.length})` : ''}
+                                                                    <span style={{ fontSize: '0.6rem' }}>{taskHistoryExpanded ? '▲' : '▼'}</span>
+                                                                </button>
+                                                                {taskHistoryExpanded && (
+                                                                    <div style={{
+                                                                        marginTop: '0.35rem',
+                                                                        background: 'rgba(255,255,255,0.02)',
+                                                                        border: '1px solid rgba(255,255,255,0.06)',
+                                                                        borderRadius: '0.5rem',
+                                                                        padding: '0.5rem',
+                                                                        maxHeight: '250px',
+                                                                        overflowY: 'auto',
+                                                                    }}>
+                                                                        {taskHistoryLoading ? (
+                                                                            <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', textAlign: 'center', padding: '0.5rem' }}>Ładowanie...</div>
+                                                                        ) : taskHistory.length === 0 ? (
+                                                                            <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', textAlign: 'center', padding: '0.5rem' }}>Brak historii zmian</div>
+                                                                        ) : (
+                                                                            taskHistory.map((h: any, idx: number) => {
+                                                                                const changedByName = staffList.find(s => s.email === h.changed_by)?.name || h.changed_by;
+                                                                                const dateStr = new Date(h.changed_at).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+                                                                                const fieldLabels: Record<string, string> = {
+                                                                                    title: 'Tytuł', description: 'Opis', status: 'Status', priority: 'Priorytet',
+                                                                                    task_type: 'Typ', due_date: 'Termin', assigned_to_doctor_name: 'Przypisano do',
+                                                                                    image_url: 'Zdjęcie', assigned_to_doctor_id: 'Przypisano do (ID)',
+                                                                                };
+                                                                                const statusLabels: Record<string, string> = { todo: 'Do zrobienia', in_progress: 'W trakcie', done: 'Wykonane' };
+                                                                                const priorityLabels: Record<string, string> = { low: 'Niski', normal: 'Normalny', urgent: 'Pilny' };
+
+                                                                                return (
+                                                                                    <div key={idx} style={{
+                                                                                        padding: '0.35rem 0',
+                                                                                        borderBottom: idx < taskHistory.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none',
+                                                                                    }}>
+                                                                                        <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.15rem' }}>
+                                                                                            {h.change_type === 'status' ? '🔄' : h.change_type === 'checklist' ? '☑️' : '✏️'}{' '}
+                                                                                            <strong>{changedByName}</strong> • {dateStr}
+                                                                                        </div>
+                                                                                        <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.55)' }}>
+                                                                                            {Object.entries(h.changes || {}).map(([key, val]: [string, any]) => {
+                                                                                                if (h.change_type === 'checklist') {
+                                                                                                    return (
+                                                                                                        <div key={key}>
+                                                                                                            {val.done ? '✅' : '⬜'} {val.item}
+                                                                                                        </div>
+                                                                                                    );
+                                                                                                }
+                                                                                                const label = fieldLabels[key] || key;
+                                                                                                let oldDisplay = val.old || '—';
+                                                                                                let newDisplay = val.new || '—';
+                                                                                                if (key === 'status') {
+                                                                                                    oldDisplay = statusLabels[val.old] || val.old || '—';
+                                                                                                    newDisplay = statusLabels[val.new] || val.new || '—';
+                                                                                                } else if (key === 'priority') {
+                                                                                                    oldDisplay = priorityLabels[val.old] || val.old || '—';
+                                                                                                    newDisplay = priorityLabels[val.new] || val.new || '—';
+                                                                                                } else if (key === 'image_url') {
+                                                                                                    oldDisplay = val.old ? '📷' : '—';
+                                                                                                    newDisplay = val.new ? '📷' : '—';
+                                                                                                } else if (key === 'due_date') {
+                                                                                                    oldDisplay = val.old ? new Date(val.old).toLocaleDateString('pl-PL') : '—';
+                                                                                                    newDisplay = val.new ? new Date(val.new).toLocaleDateString('pl-PL') : '—';
+                                                                                                }
+                                                                                                // Skip internal IDs
+                                                                                                if (key === 'assigned_to_doctor_id') return null;
+                                                                                                return (
+                                                                                                    <div key={key}>
+                                                                                                        {label}: {oldDisplay} → {newDisplay}
+                                                                                                    </div>
+                                                                                                );
+                                                                                            })}
+                                                                                        </div>
+                                                                                    </div>
+                                                                                );
+                                                                            })
+                                                                        )}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </>)}
+
+                            {/* ═══ KANBAN VIEW ═══ */}
+                            {taskViewMode === 'kanban' && (
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', minHeight: '400px' }}>
+                                    {(['todo', 'in_progress', 'done'] as const).map(col => {
+                                        const colTasks = filteredTasks.filter(t => t.status === col);
+                                        return (
+                                            <div
+                                                key={col}
+                                                onDragOver={(e) => handleDragOver(e, col)}
+                                                onDragLeave={() => setDragOverColumn(null)}
+                                                onDrop={() => handleDrop(col)}
+                                                style={{
+                                                    background: dragOverColumn === col ? 'rgba(56,189,248,0.08)' : 'rgba(255,255,255,0.02)',
+                                                    border: `1px solid ${dragOverColumn === col ? 'rgba(56,189,248,0.3)' : 'rgba(255,255,255,0.06)'}`,
+                                                    borderRadius: '0.75rem',
+                                                    padding: '0.75rem',
+                                                    transition: 'all 0.2s',
+                                                }}
+                                            >
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem', padding: '0 0.25rem' }}>
+                                                    <div style={{ width: 10, height: 10, borderRadius: '50%', background: getStatusColor(col) }} />
+                                                    <span style={{ fontSize: '0.8rem', fontWeight: '600', color: getStatusColor(col) }}>{getStatusLabel(col)}</span>
+                                                    <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)' }}>({colTasks.length})</span>
+                                                </div>
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', minHeight: '60px' }}>
+                                                    {colTasks.map(task => (
+                                                        <div
+                                                            key={task.id}
+                                                            draggable
+                                                            onDragStart={() => handleDragStart(task.id)}
+                                                            onDragEnd={handleDragEnd}
+                                                            style={{
+                                                                background: draggedTaskId === task.id ? 'rgba(56,189,248,0.1)' : 'rgba(255,255,255,0.04)',
+                                                                border: '1px solid rgba(255,255,255,0.08)',
+                                                                borderRadius: '0.5rem',
+                                                                padding: '0.6rem 0.75rem',
+                                                                cursor: 'grab',
+                                                                opacity: draggedTaskId === task.id ? 0.5 : 1,
+                                                                transition: 'all 0.15s',
+                                                            }}
+                                                        >
+                                                            <div style={{ fontSize: '0.8rem', fontWeight: '500', color: '#fff', marginBottom: '0.2rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                                {task.priority === 'urgent' && <span style={{ color: '#ef4444', marginRight: '0.3rem' }}>⚡</span>}
+                                                                {task.title}
+                                                            </div>
+                                                            <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
+                                                                {task.patient_name && <span style={{ fontSize: '0.6rem', color: '#38bdf8' }}>👤 {task.patient_name}</span>}
+                                                                {task.due_date && (
+                                                                    <span style={{ fontSize: '0.6rem', color: new Date(task.due_date) < new Date() ? '#ef4444' : 'rgba(255,255,255,0.4)' }}>
+                                                                        📅 {new Date(task.due_date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' })}
+                                                                    </span>
+                                                                )}
+                                                                {(task.assigned_to || []).length > 0 && (
+                                                                    <span style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)' }}>→ {task.assigned_to.map(a => a.name).join(', ')}</span>
+                                                                )}
+                                                            </div>
+                                                            {task.checklist_items && task.checklist_items.length > 0 && (
+                                                                <div style={{ marginTop: '0.3rem' }}>
+                                                                    <div style={{ height: '2px', background: 'rgba(255,255,255,0.08)', borderRadius: '1px', overflow: 'hidden' }}>
+                                                                        <div style={{ width: `${(task.checklist_items.filter(ci => ci.done).length / task.checklist_items.length) * 100}%`, height: '100%', background: task.checklist_items.every(ci => ci.done) ? '#22c55e' : '#38bdf8' }} />
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                    {colTasks.length === 0 && (
+                                                        <div style={{ textAlign: 'center', padding: '1.5rem 0.5rem', color: 'rgba(255,255,255,0.2)', fontSize: '0.7rem', fontStyle: 'italic' }}>
+                                                            Przeciągnij zadanie tutaj
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+
+                            {/* ═══ CALENDAR VIEW ═══ */}
+                            {taskViewMode === 'calendar' && (
+                                <div>
+                                    {/* Month navigation */}
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem', marginBottom: '1rem' }}>
+                                        <button
+                                            onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1))}
+                                            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.5rem', padding: '0.4rem 0.6rem', color: '#fff', cursor: 'pointer' }}
+                                        >
+                                            ←
+                                        </button>
+                                        <span style={{ fontSize: '1rem', fontWeight: '600', minWidth: '180px', textAlign: 'center' }}>
+                                            {calendarMonth.toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' })}
+                                        </span>
+                                        <button
+                                            onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1))}
+                                            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.5rem', padding: '0.4rem 0.6rem', color: '#fff', cursor: 'pointer' }}
+                                        >
+                                            →
+                                        </button>
+                                    </div>
+                                    {/* Day headers */}
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '2px', marginBottom: '4px' }}>
+                                        {['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'Sb', 'Nd'].map(d => (
+                                            <div key={d} style={{ textAlign: 'center', fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', padding: '0.3rem' }}>{d}</div>
+                                        ))}
+                                    </div>
+                                    {/* Calendar grid */}
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '2px' }}>
+                                        {getCalendarDays.map((day, idx) => {
+                                            if (day === null) return <div key={`empty-${idx}`} />;
+                                            const dayTasks = tasksForDate(day);
+                                            const isToday = new Date().getDate() === day && new Date().getMonth() === calendarMonth.getMonth() && new Date().getFullYear() === calendarMonth.getFullYear();
+                                            return (
+                                                <div key={day} style={{
+                                                    minHeight: '70px',
+                                                    background: isToday ? 'rgba(56,189,248,0.08)' : 'rgba(255,255,255,0.02)',
+                                                    border: `1px solid ${isToday ? 'rgba(56,189,248,0.25)' : 'rgba(255,255,255,0.05)'}`,
+                                                    borderRadius: '0.35rem',
+                                                    padding: '0.25rem',
+                                                }}>
+                                                    <div style={{ fontSize: '0.7rem', color: isToday ? '#38bdf8' : 'rgba(255,255,255,0.5)', fontWeight: isToday ? '700' : '400', marginBottom: '0.15rem' }}>{day}</div>
+                                                    {dayTasks.slice(0, 3).map(t => (
+                                                        <div key={t.id} style={{
+                                                            fontSize: '0.55rem',
+                                                            padding: '0.1rem 0.2rem',
+                                                            background: `${getPriorityColor(t.priority)}15`,
+                                                            color: getPriorityColor(t.priority),
+                                                            borderRadius: '0.15rem',
+                                                            marginBottom: '1px',
+                                                            whiteSpace: 'nowrap',
+                                                            overflow: 'hidden',
+                                                            textOverflow: 'ellipsis',
+                                                            borderLeft: `2px solid ${getStatusColor(t.status)}`,
+                                                        }}>
+                                                            {t.title}
+                                                        </div>
+                                                    ))}
+                                                    {dayTasks.length > 3 && (
+                                                        <div style={{ fontSize: '0.5rem', color: 'rgba(255,255,255,0.3)', textAlign: 'center' }}>+{dayTasks.length - 3}</div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
                             )}
                         </div>
+            )}
 
-                        {/* Submit */}
-                        <button
-                            onClick={handleCreateTask}
-                            disabled={!taskForm.title.trim() || taskSaving}
-                            style={{
-                                width: '100%',
-                                padding: '0.75rem',
-                                background: taskForm.title.trim() ? 'linear-gradient(135deg, #38bdf8, #0ea5e9)' : 'rgba(255,255,255,0.1)',
-                                border: 'none',
-                                borderRadius: '0.5rem',
-                                color: '#fff',
-                                fontSize: '0.9rem',
-                                fontWeight: '600',
-                                cursor: taskForm.title.trim() ? 'pointer' : 'not-allowed',
-                                opacity: taskSaving ? 0.7 : 1,
-                                marginTop: '0.25rem',
-                            }}
-                        >
-                            {taskSaving ? 'Zapisywanie...' : 'Utwórz zadanie'}
-                        </button>
-                    </div>
-                </div>
-            )
-            }
-
-            {/* ═══ EDIT TASK MODAL ═══ */}
-            {
-                editingTask && (
-                    <div
-                        onClick={() => setEditingTask(null)}
-                        style={{
-                            position: 'fixed',
-                            inset: 0,
-                            background: 'rgba(0,0,0,0.6)',
-                            backdropFilter: 'blur(6px)',
-                            zIndex: 3100,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            padding: '1rem',
-                        }}
-                    >
-                        <div
-                            onClick={e => e.stopPropagation()}
-                            style={{
-                                background: 'linear-gradient(165deg, #1a1a2e, #16213e)',
-                                border: '1px solid rgba(56, 189, 248, 0.15)',
-                                borderRadius: '1rem',
-                                width: '100%',
-                                maxWidth: '480px',
-                                maxHeight: '85vh',
-                                overflowY: 'auto',
-                                padding: '1.5rem',
-                            }}
-                        >
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                                <h3 style={{ color: '#fff', fontSize: '1.05rem', margin: 0 }}>✏️ Edytuj zadanie</h3>
-                                <button onClick={() => setEditingTask(null)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: '1.2rem', cursor: 'pointer' }}>✕</button>
-                            </div>
-
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                                {/* Title */}
-                                <div>
-                                    <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>Tytuł</label>
-                                    <input
-                                        value={editForm.title || ''}
-                                        onChange={e => setEditForm(p => ({ ...p, title: e.target.value }))}
-                                        style={{ width: '100%', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '0.5rem', padding: '0.6rem 0.85rem', color: '#fff', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }}
-                                    />
-                                </div>
-
-                                {/* Description */}
-                                <div>
-                                    <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>Opis</label>
-                                    <textarea
-                                        value={editForm.description || ''}
-                                        onChange={e => setEditForm(p => ({ ...p, description: e.target.value }))}
-                                        rows={2}
-                                        style={{ width: '100%', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '0.5rem', padding: '0.6rem 0.85rem', color: '#fff', fontSize: '0.85rem', outline: 'none', resize: 'vertical', boxSizing: 'border-box' }}
-                                    />
-                                </div>
-
-                                {/* Priority + Assignee row */}
-                                <div style={{ display: 'flex', gap: '0.75rem' }}>
-                                    <div style={{ flex: 1 }}>
-                                        <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>Priorytet</label>
-                                        <select
-                                            value={editForm.priority || 'normal'}
-                                            onChange={e => setEditForm(p => ({ ...p, priority: e.target.value }))}
-                                            style={{ width: '100%', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '0.5rem', padding: '0.6rem 0.85rem', color: '#fff', fontSize: '0.85rem', outline: 'none' }}
-                                        >
-                                            <option value="low">Niski</option>
-                                            <option value="normal">Normalny</option>
-                                            <option value="urgent">Pilny</option>
-                                        </select>
-                                    </div>
-                                    <div style={{ flex: 1 }}>
-                                        <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>Przypisz do (wielu)</label>
-                                        {/* Selected chips */}
-                                        {(editForm.assigned_to || []).length > 0 && (
-                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', marginBottom: '0.4rem' }}>
-                                                {(editForm.assigned_to || []).map((a: any, i: number) => (
-                                                    <span key={i} style={{
-                                                        display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
-                                                        background: 'rgba(56,189,248,0.15)', border: '1px solid rgba(56,189,248,0.3)',
-                                                        borderRadius: '1rem', padding: '0.2rem 0.5rem', fontSize: '0.75rem', color: '#38bdf8',
-                                                    }}>
-                                                        {a.name}
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setEditForm((p: any) => ({ ...p, assigned_to: (p.assigned_to || []).filter((_: any, idx: number) => idx !== i) }))}
-                                                            style={{ background: 'none', border: 'none', color: '#38bdf8', cursor: 'pointer', fontSize: '0.7rem', padding: 0, lineHeight: 1 }}
-                                                        >✕</button>
-                                                    </span>
-                                                ))}
-                                            </div>
-                                        )}
-                                        <select
-                                            value=""
-                                            onChange={e => {
-                                                const selectedStaff = staffList.find(s => s.id === e.target.value);
-                                                if (selectedStaff && !(editForm.assigned_to || []).some((a: any) => a.id === selectedStaff.id)) {
-                                                    setEditForm((p: any) => ({ ...p, assigned_to: [...(p.assigned_to || []), { id: selectedStaff.id, name: selectedStaff.name }] }));
-                                                }
-                                            }}
-                                            style={{ width: '100%', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '0.5rem', padding: '0.6rem 0.85rem', color: '#fff', fontSize: '0.85rem', outline: 'none' }}
-                                        >
-                                            <option value="">+ Dodaj pracownika...</option>
-                                            {staffList.filter(s => !(editForm.assigned_to || []).some((a: any) => a.id === s.id)).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                                        </select>
-                                    </div>
-                                </div>
-
-                                {/* Due date */}
-                                <div>
-                                    <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>📅 Termin realizacji</label>
-                                    <input
-                                        type="date"
-                                        value={editForm.due_date || ''}
-                                        onChange={e => setEditForm(p => ({ ...p, due_date: e.target.value }))}
-                                        style={{ width: '100%', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '0.5rem', padding: '0.6rem 0.85rem', color: '#fff', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }}
-                                    />
-                                </div>
-
-                                {/* Photo */}
-                                <div>
-                                    <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>📸 Zdjęcie</label>
-                                    {editForm.image_url ? (
-                                        <div style={{ position: 'relative', display: 'inline-block' }}>
-                                            <img src={editForm.image_url} alt="" style={{ maxWidth: '100%', maxHeight: '120px', borderRadius: '0.5rem', border: '1px solid rgba(255,255,255,0.1)' }} />
-                                            <button
-                                                onClick={() => setEditForm(p => ({ ...p, image_url: '' }))}
-                                                style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.7)', border: 'none', color: '#fff', borderRadius: '50%', width: 22, height: 22, cursor: 'pointer', fontSize: '0.7rem' }}
-                                            >✕</button>
-                                        </div>
-                                    ) : (
-                                        <label style={{
-                                            display: 'block',
-                                            padding: '0.6rem',
-                                            background: 'rgba(255,255,255,0.06)',
-                                            border: '1px solid rgba(255,255,255,0.12)',
-                                            borderRadius: '0.5rem',
-                                            color: 'rgba(255,255,255,0.6)',
-                                            fontSize: '0.8rem',
-                                            textAlign: 'center',
-                                            cursor: imageUploading ? 'wait' : 'pointer',
-                                            opacity: imageUploading ? 0.5 : 1,
-                                        }}>
-                                            {imageUploading ? '⏳ Przesyłanie...' : '📷 Dodaj zdjęcie'}
-                                            <input
-                                                type="file"
-                                                accept="image/*"
-                                                style={{ display: 'none' }}
-                                                disabled={imageUploading}
-                                                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageUpload(f, 'edit'); }}
-                                            />
-                                        </label>
-                                    )}
-                                </div>
-
-                                {/* Save */}
-                                <button
-                                    onClick={handleSaveEdit}
-                                    disabled={editSaving}
-                                    style={{
-                                        width: '100%',
-                                        padding: '0.75rem',
-                                        background: 'linear-gradient(135deg, #38bdf8, #0ea5e9)',
-                                        border: 'none',
-                                        borderRadius: '0.5rem',
-                                        color: '#fff',
-                                        fontSize: '0.9rem',
-                                        fontWeight: '600',
-                                        cursor: 'pointer',
-                                        opacity: editSaving ? 0.7 : 1,
-                                    }}
-                                >
-                                    {editSaving ? 'Zapisywanie...' : '💾 Zapisz zmiany'}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )
-            }
-
-            {/* ═══ ZOOMED IMAGE OVERLAY ═══ */}
-            {
-                zoomedImage && (
-                    <div
-                        onClick={() => setZoomedImage(null)}
-                        style={{
-                            position: 'fixed',
-                            inset: 0,
-                            background: 'rgba(0,0,0,0.85)',
-                            zIndex: 5000,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            cursor: 'zoom-out',
-                            padding: '1rem',
-                        }}
-                    >
-                        <img
-                            src={zoomedImage}
-                            alt="Powiększone zdjęcie"
-                            style={{ maxWidth: '95vw', maxHeight: '90vh', borderRadius: '0.5rem', objectFit: 'contain' }}
-                        />
-                    </div>
-                )
-            }
-
-            {/* ═══ LOGIN TASK POPUP ═══ */}
-            {
-                showLoginPopup && loginPopupTasks.length > 0 && (
-                    <div
-                        onClick={() => setShowLoginPopup(false)}
-                        style={{
-                            position: 'fixed',
-                            inset: 0,
-                            background: 'rgba(0,0,0,0.6)',
-                            backdropFilter: 'blur(6px)',
-                            zIndex: 4000,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            padding: '1rem',
-                        }}
-                    >
-                        <div
-                            onClick={(e) => e.stopPropagation()}
-                            style={{
-                                background: 'linear-gradient(135deg, #0d1b2a 0%, #1b2838 100%)',
-                                border: '1px solid rgba(56, 189, 248, 0.25)',
-                                borderRadius: '1rem',
-                                width: '100%',
-                                maxWidth: '480px',
-                                boxShadow: '0 20px 60px rgba(0,0,0,0.7)',
-                                overflow: 'hidden',
-                            }}
-                        >
-                            {/* Popup Header */}
-                            <div style={{
-                                padding: '1.25rem 1.5rem',
-                                background: 'linear-gradient(135deg, rgba(56,189,248,0.12), rgba(56,189,248,0.04))',
-                                borderBottom: '1px solid rgba(56,189,248,0.15)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.75rem',
-                            }}>
-                                <div style={{
-                                    width: '40px',
-                                    height: '40px',
-                                    borderRadius: '50%',
-                                    background: 'linear-gradient(135deg, #38bdf8, #0ea5e9)',
+                        {/* ═══ NEW TASK MODAL ═══ */}
+                        {showTaskModal && (
+                            <div
+                                onClick={() => { setShowTaskModal(false); resetTaskForm(); }}
+                                style={{
+                                    position: 'fixed',
+                                    inset: 0,
+                                    background: 'rgba(0,0,0,0.7)',
+                                    backdropFilter: 'blur(8px)',
+                                    zIndex: 3000,
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    flexShrink: 0,
-                                }}>
-                                    <Bell size={20} color="#fff" />
-                                </div>
-                                <div style={{ flex: 1 }}>
-                                    <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: '600', color: '#fff' }}>
-                                        Twoje zadania do realizacji
-                                    </h3>
-                                    <p style={{ margin: 0, fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', marginTop: '0.15rem' }}>
-                                        Masz {loginPopupTasks.length}{loginPopupTasks.length >= 5 ? '+' : ''} {loginPopupTasks.length === 1 ? 'zadanie' : loginPopupTasks.length < 5 ? 'zadania' : 'zadań'} do wykonania
-                                    </p>
-                                </div>
-                                <button
-                                    onClick={() => setShowLoginPopup(false)}
+                                    padding: '1rem',
+                                }}
+                            >
+                                <div
+                                    onClick={(e) => e.stopPropagation()}
                                     style={{
-                                        background: 'rgba(255,255,255,0.08)',
-                                        border: '1px solid rgba(255,255,255,0.15)',
-                                        borderRadius: '0.5rem',
-                                        width: '28px',
-                                        height: '28px',
+                                        background: 'linear-gradient(135deg, #0d1b2a 0%, #1b2838 100%)',
+                                        border: '1px solid rgba(56, 189, 248, 0.2)',
+                                        borderRadius: '1rem',
+                                        width: '100%',
+                                        maxWidth: '550px',
+                                        maxHeight: '90vh',
+                                        overflowY: 'auto',
+                                        boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
+                                    }}
+                                >
+                                    {/* Modal Header */}
+                                    <div style={{
+                                        padding: '1.25rem 1.5rem',
+                                        borderBottom: '1px solid rgba(56,189,248,0.15)',
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center',
+                                    }}>
+                                        <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '600', color: '#fff' }}>
+                                            ✅ Nowe zadanie
+                                        </h3>
+                                        <button
+                                            onClick={() => { setShowTaskModal(false); resetTaskForm(); }}
+                                            style={{
+                                                background: 'rgba(255,255,255,0.08)',
+                                                border: '1px solid rgba(255,255,255,0.15)',
+                                                borderRadius: '0.5rem',
+                                                width: '32px',
+                                                height: '32px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                color: '#fff',
+                                                fontSize: '1.1rem',
+                                                cursor: 'pointer',
+                                            }}
+                                        >✕</button>
+                                    </div>
+
+                                    {/* Modal Body */}
+                                    <div style={{ padding: '1.25rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                        {/* Patient info banner */}
+                                        {taskModalPrefill?.patientName && (
+                                            <div style={{
+                                                background: 'rgba(56, 189, 248, 0.08)',
+                                                border: '1px solid rgba(56, 189, 248, 0.2)',
+                                                borderRadius: '0.5rem',
+                                                padding: '0.6rem 0.85rem',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '0.5rem',
+                                                fontSize: '0.8rem',
+                                                color: '#38bdf8',
+                                            }}>
+                                                <User size={14} />
+                                                <span style={{ fontWeight: '600' }}>{taskModalPrefill.patientName}</span>
+                                                {taskModalPrefill.appointmentType && (
+                                                    <span style={{ color: 'rgba(255,255,255,0.4)' }}>• {taskModalPrefill.appointmentType}</span>
+                                                )}
+                                            </div>
+                                        )}
+                                        {/* Task Type Selector */}
+                                        <div>
+                                            <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>Typ zadania</label>
+                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                                                {Object.entries(TASK_TYPE_CHECKLISTS).map(([key, val]) => (
+                                                    <button
+                                                        key={key}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const items = val.items.map(label => ({ label, done: false }));
+                                                            setTaskForm(p => ({ ...p, task_type: key, checklist_items: items }));
+                                                        }}
+                                                        style={{
+                                                            padding: '0.4rem 0.75rem',
+                                                            fontSize: '0.78rem',
+                                                            borderRadius: '0.5rem',
+                                                            border: taskForm.task_type === key
+                                                                ? '1px solid rgba(56,189,248,0.5)'
+                                                                : '1px solid rgba(255,255,255,0.1)',
+                                                            background: taskForm.task_type === key
+                                                                ? 'rgba(56,189,248,0.15)'
+                                                                : 'rgba(255,255,255,0.04)',
+                                                            color: taskForm.task_type === key ? '#38bdf8' : 'rgba(255,255,255,0.6)',
+                                                            cursor: 'pointer',
+                                                            fontWeight: taskForm.task_type === key ? '600' : '400',
+                                                            transition: 'all 0.15s',
+                                                        }}
+                                                    >
+                                                        {val.icon} {val.label}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                            {/* Checklist preview */}
+                                            {taskForm.checklist_items.length > 0 && (
+                                                <div style={{
+                                                    marginTop: '0.6rem',
+                                                    background: 'rgba(255,255,255,0.03)',
+                                                    border: '1px solid rgba(255,255,255,0.08)',
+                                                    borderRadius: '0.5rem',
+                                                    padding: '0.6rem 0.85rem',
+                                                }}>
+                                                    <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.4rem' }}>Checklist ({taskForm.checklist_items.length} kroków)</div>
+                                                    {taskForm.checklist_items.map((item, i) => (
+                                                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.15rem 0', fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)' }}>
+                                                            <span style={{ color: 'rgba(255,255,255,0.25)' }}>☐</span> {item.label}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Title */}
+                                        <div>
+                                            <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>Tytuł *</label>
+                                            <input
+                                                value={taskForm.title}
+                                                onChange={e => setTaskForm(p => ({ ...p, title: e.target.value }))}
+                                                placeholder="np. Korona porcelanowa — Jan Kowalski"
+                                                style={{
+                                                    width: '100%',
+                                                    background: 'rgba(255,255,255,0.06)',
+                                                    border: '1px solid rgba(255,255,255,0.12)',
+                                                    borderRadius: '0.5rem',
+                                                    padding: '0.6rem 0.85rem',
+                                                    color: '#fff',
+                                                    fontSize: '0.85rem',
+                                                    outline: 'none',
+                                                    boxSizing: 'border-box',
+                                                }}
+                                            />
+                                        </div>
+
+                                        {/* Description */}
+                                        <div>
+                                            <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>Opis</label>
+                                            <textarea
+                                                value={taskForm.description}
+                                                onChange={e => setTaskForm(p => ({ ...p, description: e.target.value }))}
+                                                placeholder="Szczegóły zadania..."
+                                                rows={3}
+                                                style={{
+                                                    width: '100%',
+                                                    background: 'rgba(255,255,255,0.06)',
+                                                    border: '1px solid rgba(255,255,255,0.12)',
+                                                    borderRadius: '0.5rem',
+                                                    padding: '0.6rem 0.85rem',
+                                                    color: '#fff',
+                                                    fontSize: '0.85rem',
+                                                    outline: 'none',
+                                                    resize: 'vertical',
+                                                    boxSizing: 'border-box',
+                                                }}
+                                            />
+                                        </div>
+
+                                        {/* Priority + Assignee row */}
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                                            <div>
+                                                <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>Priorytet</label>
+                                                <select
+                                                    value={taskForm.priority}
+                                                    onChange={e => setTaskForm(p => ({ ...p, priority: e.target.value as any }))}
+                                                    style={{
+                                                        width: '100%',
+                                                        background: 'rgba(255,255,255,0.06)',
+                                                        border: '1px solid rgba(255,255,255,0.12)',
+                                                        borderRadius: '0.5rem',
+                                                        padding: '0.6rem 0.85rem',
+                                                        color: '#fff',
+                                                        fontSize: '0.85rem',
+                                                        outline: 'none',
+                                                    }}
+                                                >
+                                                    <option value="low" style={{ background: '#1b2838' }}>🔵 Niski</option>
+                                                    <option value="normal" style={{ background: '#1b2838' }}>⚪ Normalny</option>
+                                                    <option value="urgent" style={{ background: '#1b2838' }}>🔴 Pilne</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>Przypisz do (wielu)</label>
+                                                {/* Selected chips */}
+                                                {taskForm.assigned_to.length > 0 && (
+                                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', marginBottom: '0.4rem' }}>
+                                                        {taskForm.assigned_to.map((a, i) => (
+                                                            <span key={i} style={{
+                                                                display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+                                                                background: 'rgba(56,189,248,0.15)', border: '1px solid rgba(56,189,248,0.3)',
+                                                                borderRadius: '1rem', padding: '0.2rem 0.5rem', fontSize: '0.75rem', color: '#38bdf8',
+                                                            }}>
+                                                                {a.name}
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setTaskForm(p => ({ ...p, assigned_to: p.assigned_to.filter((_, idx) => idx !== i) }))}
+                                                                    style={{ background: 'none', border: 'none', color: '#38bdf8', cursor: 'pointer', fontSize: '0.7rem', padding: 0, lineHeight: 1 }}
+                                                                >✕</button>
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                                {/* Dropdown to add */}
+                                                <select
+                                                    value=""
+                                                    onChange={e => {
+                                                        const s = staffList.find(s => s.id === e.target.value);
+                                                        if (s && !taskForm.assigned_to.some(a => a.id === s.id)) {
+                                                            setTaskForm(p => ({ ...p, assigned_to: [...p.assigned_to, { id: s.id, name: s.name }] }));
+                                                        }
+                                                    }}
+                                                    style={{
+                                                        width: '100%',
+                                                        background: 'rgba(255,255,255,0.06)',
+                                                        border: '1px solid rgba(255,255,255,0.12)',
+                                                        borderRadius: '0.5rem',
+                                                        padding: '0.6rem 0.85rem',
+                                                        color: '#fff',
+                                                        fontSize: '0.85rem',
+                                                        outline: 'none',
+                                                    }}
+                                                >
+                                                    <option value="" style={{ background: '#1b2838' }}>+ Dodaj pracownika...</option>
+                                                    {staffList.filter(s => !taskForm.assigned_to.some(a => a.id === s.id)).map(s => (
+                                                        <option key={s.id} value={s.id} style={{ background: '#1b2838' }}>{s.name}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Future appointments for due date */}
+                                    {taskModalPrefill?.patientId && (
+                                        <div>
+                                            <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.4rem', display: 'block' }}>
+                                                📅 Przyszłe wizyty pacjenta — termin realizacji
+                                            </label>
+                                            {futureAptsLoading ? (
+                                                <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', padding: '0.5rem 0' }}>Szukam wizyt...</div>
+                                            ) : futureAppointments.length === 0 ? (
+                                                <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.35)', padding: '0.5rem 0' }}>Brak zaplanowanych wizyt</div>
+                                            ) : (
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                                                    {futureAppointments.map(apt => {
+                                                        const d = new Date(apt.date);
+                                                        const isSelected = taskForm.linked_appointment_date === d.toISOString();
+                                                        return (
+                                                            <button
+                                                                key={apt.id}
+                                                                onClick={() => selectFutureAppointment(apt)}
+                                                                style={{
+                                                                    background: isSelected ? 'rgba(56,189,248,0.15)' : 'rgba(255,255,255,0.04)',
+                                                                    border: `1px solid ${isSelected ? 'rgba(56,189,248,0.4)' : 'rgba(255,255,255,0.08)'}`,
+                                                                    borderRadius: '0.5rem',
+                                                                    padding: '0.5rem 0.75rem',
+                                                                    textAlign: 'left',
+                                                                    cursor: 'pointer',
+                                                                    color: isSelected ? '#38bdf8' : 'rgba(255,255,255,0.7)',
+                                                                    fontSize: '0.8rem',
+                                                                    display: 'flex',
+                                                                    justifyContent: 'space-between',
+                                                                    alignItems: 'center',
+                                                                }}
+                                                            >
+                                                                <span>
+                                                                    {d.toLocaleDateString('pl-PL', { weekday: 'short', day: 'numeric', month: 'short' })}{' '}
+                                                                    {d.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}
+                                                                    <span style={{ color: 'rgba(255,255,255,0.4)', marginLeft: '0.5rem' }}>
+                                                                        {apt.appointmentType}{apt.doctor?.name ? ` • ${apt.doctor.name}` : ''}
+                                                                    </span>
+                                                                </span>
+                                                                {isSelected && <span style={{ fontWeight: '600' }}>✓</span>}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* Manual due date */}
+                                    <div>
+                                        <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>
+                                            {taskModalPrefill?.patientId ? 'Lub wybierz datę ręcznie' : 'Termin realizacji'}
+                                        </label>
+                                        <input
+                                            type="date"
+                                            value={taskForm.due_date}
+                                            onChange={e => setTaskForm(p => ({ ...p, due_date: e.target.value, linked_appointment_date: '', linked_appointment_info: '' }))}
+                                            style={{
+                                                width: '100%',
+                                                background: 'rgba(255,255,255,0.06)',
+                                                border: '1px solid rgba(255,255,255,0.12)',
+                                                borderRadius: '0.5rem',
+                                                padding: '0.6rem 0.85rem',
+                                                color: '#fff',
+                                                fontSize: '0.85rem',
+                                                outline: 'none',
+                                                boxSizing: 'border-box',
+                                            }}
+                                        />
+                                    </div>
+
+                                    {/* Photo upload */}
+                                    <div>
+                                        <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>📸 Zdjęcie (opcjonalnie)</label>
+                                        {taskForm.image_url ? (
+                                            <div style={{ position: 'relative', display: 'inline-block' }}>
+                                                <img src={taskForm.image_url} alt="" style={{ maxWidth: '100%', maxHeight: '120px', borderRadius: '0.5rem', border: '1px solid rgba(255,255,255,0.1)' }} />
+                                                <button
+                                                    onClick={() => setTaskForm(p => ({ ...p, image_url: '' }))}
+                                                    style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.7)', border: 'none', color: '#fff', borderRadius: '50%', width: 22, height: 22, cursor: 'pointer', fontSize: '0.7rem' }}
+                                                >✕</button>
+                                            </div>
+                                        ) : (
+                                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                                <label style={{
+                                                    flex: 1,
+                                                    padding: '0.6rem',
+                                                    background: 'rgba(255,255,255,0.06)',
+                                                    border: '1px solid rgba(255,255,255,0.12)',
+                                                    borderRadius: '0.5rem',
+                                                    color: 'rgba(255,255,255,0.6)',
+                                                    fontSize: '0.8rem',
+                                                    textAlign: 'center',
+                                                    cursor: imageUploading ? 'wait' : 'pointer',
+                                                    opacity: imageUploading ? 0.5 : 1,
+                                                }}>
+                                                    {imageUploading ? '⏳ Przesyłanie...' : '📷 Aparat / Galeria'}
+                                                    <input
+                                                        type="file"
+                                                        accept="image/*"
+
+                                                        style={{ display: 'none' }}
+                                                        disabled={imageUploading}
+                                                        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageUpload(f, 'create'); }}
+                                                    />
+                                                </label>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Submit */}
+                                    <button
+                                        onClick={handleCreateTask}
+                                        disabled={!taskForm.title.trim() || taskSaving}
+                                        style={{
+                                            width: '100%',
+                                            padding: '0.75rem',
+                                            background: taskForm.title.trim() ? 'linear-gradient(135deg, #38bdf8, #0ea5e9)' : 'rgba(255,255,255,0.1)',
+                                            border: 'none',
+                                            borderRadius: '0.5rem',
+                                            color: '#fff',
+                                            fontSize: '0.9rem',
+                                            fontWeight: '600',
+                                            cursor: taskForm.title.trim() ? 'pointer' : 'not-allowed',
+                                            opacity: taskSaving ? 0.7 : 1,
+                                            marginTop: '0.25rem',
+                                        }}
+                                    >
+                                        {taskSaving ? 'Zapisywanie...' : 'Utwórz zadanie'}
+                                    </button>
+                                </div>
+                            </div>
+                        )
+                        }
+
+                        {/* ═══ EDIT TASK MODAL ═══ */}
+                        {
+                            editingTask && (
+                                <div
+                                    onClick={() => setEditingTask(null)}
+                                    style={{
+                                        position: 'fixed',
+                                        inset: 0,
+                                        background: 'rgba(0,0,0,0.6)',
+                                        backdropFilter: 'blur(6px)',
+                                        zIndex: 3100,
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
-                                        color: '#fff',
-                                        fontSize: '0.9rem',
-                                        cursor: 'pointer',
+                                        padding: '1rem',
                                     }}
-                                >✕</button>
-                            </div>
+                                >
+                                    <div
+                                        onClick={e => e.stopPropagation()}
+                                        style={{
+                                            background: 'linear-gradient(165deg, #1a1a2e, #16213e)',
+                                            border: '1px solid rgba(56, 189, 248, 0.15)',
+                                            borderRadius: '1rem',
+                                            width: '100%',
+                                            maxWidth: '480px',
+                                            maxHeight: '85vh',
+                                            overflowY: 'auto',
+                                            padding: '1.5rem',
+                                        }}
+                                    >
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                                            <h3 style={{ color: '#fff', fontSize: '1.05rem', margin: 0 }}>✏️ Edytuj zadanie</h3>
+                                            <button onClick={() => setEditingTask(null)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: '1.2rem', cursor: 'pointer' }}>✕</button>
+                                        </div>
 
-                            {/* Task list */}
-                            <div style={{ padding: '0.75rem 1.25rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                {loginPopupTasks.map(task => {
-                                    const overdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== 'done';
-                                    return (
-                                        <div key={task.id} style={{
-                                            padding: '0.65rem 0.85rem',
-                                            background: overdue ? 'rgba(239, 68, 68, 0.08)' : 'rgba(255,255,255,0.04)',
-                                            border: `1px solid ${overdue ? 'rgba(239, 68, 68, 0.25)' : 'rgba(255,255,255,0.08)'}`,
-                                            borderRadius: '0.6rem',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '0.6rem',
-                                        }}>
-                                            {/* Priority indicator */}
-                                            <div style={{
-                                                width: '8px',
-                                                height: '8px',
-                                                borderRadius: '50%',
-                                                background: getPriorityColor(task.priority),
-                                                flexShrink: 0,
-                                            }} />
-                                            <div style={{ flex: 1, minWidth: 0 }}>
-                                                <div style={{
-                                                    color: '#fff',
-                                                    fontSize: '0.85rem',
-                                                    fontWeight: '500',
-                                                    whiteSpace: 'nowrap',
-                                                    overflow: 'hidden',
-                                                    textOverflow: 'ellipsis',
-                                                }}>
-                                                    {task.title}
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                            {/* Title */}
+                                            <div>
+                                                <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>Tytuł</label>
+                                                <input
+                                                    value={editForm.title || ''}
+                                                    onChange={e => setEditForm(p => ({ ...p, title: e.target.value }))}
+                                                    style={{ width: '100%', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '0.5rem', padding: '0.6rem 0.85rem', color: '#fff', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }}
+                                                />
+                                            </div>
+
+                                            {/* Description */}
+                                            <div>
+                                                <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>Opis</label>
+                                                <textarea
+                                                    value={editForm.description || ''}
+                                                    onChange={e => setEditForm(p => ({ ...p, description: e.target.value }))}
+                                                    rows={2}
+                                                    style={{ width: '100%', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '0.5rem', padding: '0.6rem 0.85rem', color: '#fff', fontSize: '0.85rem', outline: 'none', resize: 'vertical', boxSizing: 'border-box' }}
+                                                />
+                                            </div>
+
+                                            {/* Priority + Assignee row */}
+                                            <div style={{ display: 'flex', gap: '0.75rem' }}>
+                                                <div style={{ flex: 1 }}>
+                                                    <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>Priorytet</label>
+                                                    <select
+                                                        value={editForm.priority || 'normal'}
+                                                        onChange={e => setEditForm(p => ({ ...p, priority: e.target.value }))}
+                                                        style={{ width: '100%', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '0.5rem', padding: '0.6rem 0.85rem', color: '#fff', fontSize: '0.85rem', outline: 'none' }}
+                                                    >
+                                                        <option value="low">Niski</option>
+                                                        <option value="normal">Normalny</option>
+                                                        <option value="urgent">Pilny</option>
+                                                    </select>
                                                 </div>
-                                                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.15rem' }}>
-                                                    {task.due_date && (
-                                                        <span style={{
-                                                            fontSize: '0.7rem',
-                                                            color: overdue ? '#ef4444' : 'rgba(255,255,255,0.4)',
-                                                            fontWeight: overdue ? '600' : '400',
-                                                        }}>
-                                                            {overdue ? '⚠ Termin minął: ' : '📅 '}
-                                                            {new Date(task.due_date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' })}
-                                                        </span>
+                                                <div style={{ flex: 1 }}>
+                                                    <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>Przypisz do (wielu)</label>
+                                                    {/* Selected chips */}
+                                                    {(editForm.assigned_to || []).length > 0 && (
+                                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', marginBottom: '0.4rem' }}>
+                                                            {(editForm.assigned_to || []).map((a: any, i: number) => (
+                                                                <span key={i} style={{
+                                                                    display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+                                                                    background: 'rgba(56,189,248,0.15)', border: '1px solid rgba(56,189,248,0.3)',
+                                                                    borderRadius: '1rem', padding: '0.2rem 0.5rem', fontSize: '0.75rem', color: '#38bdf8',
+                                                                }}>
+                                                                    {a.name}
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => setEditForm((p: any) => ({ ...p, assigned_to: (p.assigned_to || []).filter((_: any, idx: number) => idx !== i) }))}
+                                                                        style={{ background: 'none', border: 'none', color: '#38bdf8', cursor: 'pointer', fontSize: '0.7rem', padding: 0, lineHeight: 1 }}
+                                                                    >✕</button>
+                                                                </span>
+                                                            ))}
+                                                        </div>
                                                     )}
-                                                    {task.priority === 'urgent' && (
-                                                        <span style={{ fontSize: '0.7rem', color: '#ef4444', fontWeight: '600' }}>⚡ Pilne</span>
-                                                    )}
+                                                    <select
+                                                        value=""
+                                                        onChange={e => {
+                                                            const selectedStaff = staffList.find(s => s.id === e.target.value);
+                                                            if (selectedStaff && !(editForm.assigned_to || []).some((a: any) => a.id === selectedStaff.id)) {
+                                                                setEditForm((p: any) => ({ ...p, assigned_to: [...(p.assigned_to || []), { id: selectedStaff.id, name: selectedStaff.name }] }));
+                                                            }
+                                                        }}
+                                                        style={{ width: '100%', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '0.5rem', padding: '0.6rem 0.85rem', color: '#fff', fontSize: '0.85rem', outline: 'none' }}
+                                                    >
+                                                        <option value="">+ Dodaj pracownika...</option>
+                                                        {staffList.filter(s => !(editForm.assigned_to || []).some((a: any) => a.id === s.id)).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                                    </select>
                                                 </div>
                                             </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
 
-                            {/* Action buttons */}
-                            <div style={{ padding: '0.75rem 1.25rem 1.25rem', display: 'flex', gap: '0.5rem' }}>
-                                <button
-                                    onClick={() => {
-                                        setShowLoginPopup(false);
-                                        setActiveTab('zadania');
-                                    }}
+                                            {/* Due date */}
+                                            <div>
+                                                <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>📅 Termin realizacji</label>
+                                                <input
+                                                    type="date"
+                                                    value={editForm.due_date || ''}
+                                                    onChange={e => setEditForm(p => ({ ...p, due_date: e.target.value }))}
+                                                    style={{ width: '100%', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '0.5rem', padding: '0.6rem 0.85rem', color: '#fff', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }}
+                                                />
+                                            </div>
+
+                                            {/* Photo */}
+                                            <div>
+                                                <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>📸 Zdjęcie</label>
+                                                {editForm.image_url ? (
+                                                    <div style={{ position: 'relative', display: 'inline-block' }}>
+                                                        <img src={editForm.image_url} alt="" style={{ maxWidth: '100%', maxHeight: '120px', borderRadius: '0.5rem', border: '1px solid rgba(255,255,255,0.1)' }} />
+                                                        <button
+                                                            onClick={() => setEditForm(p => ({ ...p, image_url: '' }))}
+                                                            style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.7)', border: 'none', color: '#fff', borderRadius: '50%', width: 22, height: 22, cursor: 'pointer', fontSize: '0.7rem' }}
+                                                        >✕</button>
+                                                    </div>
+                                                ) : (
+                                                    <label style={{
+                                                        display: 'block',
+                                                        padding: '0.6rem',
+                                                        background: 'rgba(255,255,255,0.06)',
+                                                        border: '1px solid rgba(255,255,255,0.12)',
+                                                        borderRadius: '0.5rem',
+                                                        color: 'rgba(255,255,255,0.6)',
+                                                        fontSize: '0.8rem',
+                                                        textAlign: 'center',
+                                                        cursor: imageUploading ? 'wait' : 'pointer',
+                                                        opacity: imageUploading ? 0.5 : 1,
+                                                    }}>
+                                                        {imageUploading ? '⏳ Przesyłanie...' : '📷 Dodaj zdjęcie'}
+                                                        <input
+                                                            type="file"
+                                                            accept="image/*"
+                                                            style={{ display: 'none' }}
+                                                            disabled={imageUploading}
+                                                            onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageUpload(f, 'edit'); }}
+                                                        />
+                                                    </label>
+                                                )}
+                                            </div>
+
+                                            {/* Save */}
+                                            <button
+                                                onClick={handleSaveEdit}
+                                                disabled={editSaving}
+                                                style={{
+                                                    width: '100%',
+                                                    padding: '0.75rem',
+                                                    background: 'linear-gradient(135deg, #38bdf8, #0ea5e9)',
+                                                    border: 'none',
+                                                    borderRadius: '0.5rem',
+                                                    color: '#fff',
+                                                    fontSize: '0.9rem',
+                                                    fontWeight: '600',
+                                                    cursor: 'pointer',
+                                                    opacity: editSaving ? 0.7 : 1,
+                                                }}
+                                            >
+                                                {editSaving ? 'Zapisywanie...' : '💾 Zapisz zmiany'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )
+                        }
+
+                        {/* ═══ ZOOMED IMAGE OVERLAY ═══ */}
+                        {
+                            zoomedImage && (
+                                <div
+                                    onClick={() => setZoomedImage(null)}
                                     style={{
-                                        flex: 1,
-                                        padding: '0.65rem',
-                                        background: 'linear-gradient(135deg, #38bdf8, #0ea5e9)',
-                                        border: 'none',
-                                        borderRadius: '0.5rem',
-                                        color: '#fff',
-                                        fontSize: '0.85rem',
-                                        fontWeight: '600',
-                                        cursor: 'pointer',
+                                        position: 'fixed',
+                                        inset: 0,
+                                        background: 'rgba(0,0,0,0.85)',
+                                        zIndex: 5000,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        cursor: 'zoom-out',
+                                        padding: '1rem',
                                     }}
                                 >
-                                    Przejdź do zadań
-                                </button>
-                                <button
+                                    <img
+                                        src={zoomedImage}
+                                        alt="Powiększone zdjęcie"
+                                        style={{ maxWidth: '95vw', maxHeight: '90vh', borderRadius: '0.5rem', objectFit: 'contain' }}
+                                    />
+                                </div>
+                            )
+                        }
+
+                        {/* ═══ LOGIN TASK POPUP ═══ */}
+                        {
+                            showLoginPopup && loginPopupTasks.length > 0 && (
+                                <div
                                     onClick={() => setShowLoginPopup(false)}
                                     style={{
-                                        padding: '0.65rem 1rem',
-                                        background: 'rgba(255,255,255,0.06)',
-                                        border: '1px solid rgba(255,255,255,0.12)',
-                                        borderRadius: '0.5rem',
-                                        color: 'rgba(255,255,255,0.6)',
-                                        fontSize: '0.85rem',
-                                        cursor: 'pointer',
+                                        position: 'fixed',
+                                        inset: 0,
+                                        background: 'rgba(0,0,0,0.6)',
+                                        backdropFilter: 'blur(6px)',
+                                        zIndex: 4000,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        padding: '1rem',
                                     }}
                                 >
-                                    Zamknij
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )
-            }
+                                    <div
+                                        onClick={(e) => e.stopPropagation()}
+                                        style={{
+                                            background: 'linear-gradient(135deg, #0d1b2a 0%, #1b2838 100%)',
+                                            border: '1px solid rgba(56, 189, 248, 0.25)',
+                                            borderRadius: '1rem',
+                                            width: '100%',
+                                            maxWidth: '480px',
+                                            boxShadow: '0 20px 60px rgba(0,0,0,0.7)',
+                                            overflow: 'hidden',
+                                        }}
+                                    >
+                                        {/* Popup Header */}
+                                        <div style={{
+                                            padding: '1.25rem 1.5rem',
+                                            background: 'linear-gradient(135deg, rgba(56,189,248,0.12), rgba(56,189,248,0.04))',
+                                            borderBottom: '1px solid rgba(56,189,248,0.15)',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.75rem',
+                                        }}>
+                                            <div style={{
+                                                width: '40px',
+                                                height: '40px',
+                                                borderRadius: '50%',
+                                                background: 'linear-gradient(135deg, #38bdf8, #0ea5e9)',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                flexShrink: 0,
+                                            }}>
+                                                <Bell size={20} color="#fff" />
+                                            </div>
+                                            <div style={{ flex: 1 }}>
+                                                <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: '600', color: '#fff' }}>
+                                                    Twoje zadania do realizacji
+                                                </h3>
+                                                <p style={{ margin: 0, fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', marginTop: '0.15rem' }}>
+                                                    Masz {loginPopupTasks.length}{loginPopupTasks.length >= 5 ? '+' : ''} {loginPopupTasks.length === 1 ? 'zadanie' : loginPopupTasks.length < 5 ? 'zadania' : 'zadań'} do wykonania
+                                                </p>
+                                            </div>
+                                            <button
+                                                onClick={() => setShowLoginPopup(false)}
+                                                style={{
+                                                    background: 'rgba(255,255,255,0.08)',
+                                                    border: '1px solid rgba(255,255,255,0.15)',
+                                                    borderRadius: '0.5rem',
+                                                    width: '28px',
+                                                    height: '28px',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    color: '#fff',
+                                                    fontSize: '0.9rem',
+                                                    cursor: 'pointer',
+                                                }}
+                                            >✕</button>
+                                        </div>
 
-            {/* ─── Task Type Manager Modal ───────────────────────────── */}
-            {showTypeManager && (
-                <div style={{
-                    position: 'fixed', inset: 0, zIndex: 9999,
-                    background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)',
-                    display: 'flex', justifyContent: 'center', alignItems: 'center',
-                    padding: '1rem',
-                }} onClick={() => setShowTypeManager(false)}>
-                    <div
-                        onClick={e => e.stopPropagation()}
-                        style={{
-                            background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
-                            border: '1px solid rgba(255,255,255,0.1)',
-                            borderRadius: '1rem',
-                            width: '100%', maxWidth: '600px', maxHeight: '85vh',
-                            display: 'flex', flexDirection: 'column',
-                            overflow: 'hidden',
-                        }}
-                    >
-                        {/* Header */}
-                        <div style={{ padding: '1.25rem', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#fff' }}>⚙️ Zarządzaj typami zadań</h3>
-                            <button onClick={() => setShowTypeManager(false)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: '1.5rem', cursor: 'pointer', lineHeight: 1 }}>×</button>
-                        </div>
+                                        {/* Task list */}
+                                        <div style={{ padding: '0.75rem 1.25rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                            {loginPopupTasks.map(task => {
+                                                const overdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== 'done';
+                                                return (
+                                                    <div key={task.id} style={{
+                                                        padding: '0.65rem 0.85rem',
+                                                        background: overdue ? 'rgba(239, 68, 68, 0.08)' : 'rgba(255,255,255,0.04)',
+                                                        border: `1px solid ${overdue ? 'rgba(239, 68, 68, 0.25)' : 'rgba(255,255,255,0.08)'}`,
+                                                        borderRadius: '0.6rem',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '0.6rem',
+                                                    }}>
+                                                        {/* Priority indicator */}
+                                                        <div style={{
+                                                            width: '8px',
+                                                            height: '8px',
+                                                            borderRadius: '50%',
+                                                            background: getPriorityColor(task.priority),
+                                                            flexShrink: 0,
+                                                        }} />
+                                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                                            <div style={{
+                                                                color: '#fff',
+                                                                fontSize: '0.85rem',
+                                                                fontWeight: '500',
+                                                                whiteSpace: 'nowrap',
+                                                                overflow: 'hidden',
+                                                                textOverflow: 'ellipsis',
+                                                            }}>
+                                                                {task.title}
+                                                            </div>
+                                                            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.15rem' }}>
+                                                                {task.due_date && (
+                                                                    <span style={{
+                                                                        fontSize: '0.7rem',
+                                                                        color: overdue ? '#ef4444' : 'rgba(255,255,255,0.4)',
+                                                                        fontWeight: overdue ? '600' : '400',
+                                                                    }}>
+                                                                        {overdue ? '⚠ Termin minął: ' : '📅 '}
+                                                                        {new Date(task.due_date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' })}
+                                                                    </span>
+                                                                )}
+                                                                {task.priority === 'urgent' && (
+                                                                    <span style={{ fontSize: '0.7rem', color: '#ef4444', fontWeight: '600' }}>⚡ Pilne</span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
 
-                        {/* Scrollable body */}
-                        <div style={{ flex: 1, overflowY: 'auto', padding: '1rem 1.25rem' }}>
-                            {/* Existing types */}
-                            <div style={{ marginBottom: '1.5rem' }}>
-                                <h4 style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>Istniejące typy</h4>
-                                {taskTypeTemplates.length === 0 && (
-                                    <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.85rem', fontStyle: 'italic' }}>
-                                        Brak szablonów w bazie — używane są domyślne typy. Dodaj pierwszy typ poniżej, a system przełączy się na dynamiczne szablony.
-                                    </p>
-                                )}
-                                {taskTypeTemplates.map(tmpl => (
-                                    <div key={tmpl.id} style={{
-                                        background: editingTypeId === tmpl.id ? 'rgba(168,85,247,0.08)' : 'rgba(255,255,255,0.03)',
-                                        border: editingTypeId === tmpl.id ? '1px solid rgba(168,85,247,0.3)' : '1px solid rgba(255,255,255,0.06)',
-                                        borderRadius: '0.6rem',
-                                        padding: '0.75rem',
-                                        marginBottom: '0.5rem',
-                                        transition: 'all 0.15s',
-                                    }}>
-                                        {editingTypeId === tmpl.id ? (
-                                            /* Edit mode */
-                                            <div>
+                                        {/* Action buttons */}
+                                        <div style={{ padding: '0.75rem 1.25rem 1.25rem', display: 'flex', gap: '0.5rem' }}>
+                                            <button
+                                                onClick={() => {
+                                                    setShowLoginPopup(false);
+                                                    setActiveTab('zadania');
+                                                }}
+                                                style={{
+                                                    flex: 1,
+                                                    padding: '0.65rem',
+                                                    background: 'linear-gradient(135deg, #38bdf8, #0ea5e9)',
+                                                    border: 'none',
+                                                    borderRadius: '0.5rem',
+                                                    color: '#fff',
+                                                    fontSize: '0.85rem',
+                                                    fontWeight: '600',
+                                                    cursor: 'pointer',
+                                                }}
+                                            >
+                                                Przejdź do zadań
+                                            </button>
+                                            <button
+                                                onClick={() => setShowLoginPopup(false)}
+                                                style={{
+                                                    padding: '0.65rem 1rem',
+                                                    background: 'rgba(255,255,255,0.06)',
+                                                    border: '1px solid rgba(255,255,255,0.12)',
+                                                    borderRadius: '0.5rem',
+                                                    color: 'rgba(255,255,255,0.6)',
+                                                    fontSize: '0.85rem',
+                                                    cursor: 'pointer',
+                                                }}
+                                            >
+                                                Zamknij
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )
+                        }
+
+                        {/* ─── Task Type Manager Modal ───────────────────────────── */}
+                        {showTypeManager && (
+                            <div style={{
+                                position: 'fixed', inset: 0, zIndex: 9999,
+                                background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)',
+                                display: 'flex', justifyContent: 'center', alignItems: 'center',
+                                padding: '1rem',
+                            }} onClick={() => setShowTypeManager(false)}>
+                                <div
+                                    onClick={e => e.stopPropagation()}
+                                    style={{
+                                        background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+                                        border: '1px solid rgba(255,255,255,0.1)',
+                                        borderRadius: '1rem',
+                                        width: '100%', maxWidth: '600px', maxHeight: '85vh',
+                                        display: 'flex', flexDirection: 'column',
+                                        overflow: 'hidden',
+                                    }}
+                                >
+                                    {/* Header */}
+                                    <div style={{ padding: '1.25rem', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#fff' }}>⚙️ Zarządzaj typami zadań</h3>
+                                        <button onClick={() => setShowTypeManager(false)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: '1.5rem', cursor: 'pointer', lineHeight: 1 }}>×</button>
+                                    </div>
+
+                                    {/* Scrollable body */}
+                                    <div style={{ flex: 1, overflowY: 'auto', padding: '1rem 1.25rem' }}>
+                                        {/* Existing types */}
+                                        <div style={{ marginBottom: '1.5rem' }}>
+                                            <h4 style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>Istniejące typy</h4>
+                                            {taskTypeTemplates.length === 0 && (
+                                                <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.85rem', fontStyle: 'italic' }}>
+                                                    Brak szablonów w bazie — używane są domyślne typy. Dodaj pierwszy typ poniżej, a system przełączy się na dynamiczne szablony.
+                                                </p>
+                                            )}
+                                            {taskTypeTemplates.map(tmpl => (
+                                                <div key={tmpl.id} style={{
+                                                    background: editingTypeId === tmpl.id ? 'rgba(168,85,247,0.08)' : 'rgba(255,255,255,0.03)',
+                                                    border: editingTypeId === tmpl.id ? '1px solid rgba(168,85,247,0.3)' : '1px solid rgba(255,255,255,0.06)',
+                                                    borderRadius: '0.6rem',
+                                                    padding: '0.75rem',
+                                                    marginBottom: '0.5rem',
+                                                    transition: 'all 0.15s',
+                                                }}>
+                                                    {editingTypeId === tmpl.id ? (
+                                                        /* Edit mode */
+                                                        <div>
+                                                            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                                                                <input
+                                                                    value={typeManagerForm.icon}
+                                                                    onChange={e => setTypeManagerForm(p => ({ ...p, icon: e.target.value }))}
+                                                                    style={{ width: '3rem', padding: '0.4rem', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '0.4rem', color: '#fff', fontSize: '1.1rem', textAlign: 'center' }}
+                                                                    placeholder="📋"
+                                                                />
+                                                                <input
+                                                                    value={typeManagerForm.label}
+                                                                    onChange={e => setTypeManagerForm(p => ({ ...p, label: e.target.value }))}
+                                                                    style={{ flex: 1, padding: '0.4rem 0.6rem', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '0.4rem', color: '#fff', fontSize: '0.85rem' }}
+                                                                    placeholder="Nazwa typu"
+                                                                />
+                                                            </div>
+                                                            <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.3rem' }}>Checklist items:</div>
+                                                            {typeManagerForm.items.map((item, idx) => (
+                                                                <div key={idx} style={{ display: 'flex', gap: '0.3rem', marginBottom: '0.3rem' }}>
+                                                                    <input
+                                                                        value={item}
+                                                                        onChange={e => {
+                                                                            const newItems = [...typeManagerForm.items];
+                                                                            newItems[idx] = e.target.value;
+                                                                            setTypeManagerForm(p => ({ ...p, items: newItems }));
+                                                                        }}
+                                                                        style={{ flex: 1, padding: '0.35rem 0.5rem', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.3rem', color: '#fff', fontSize: '0.8rem' }}
+                                                                        placeholder={`Krok ${idx + 1}`}
+                                                                    />
+                                                                    <button
+                                                                        onClick={() => setTypeManagerForm(p => ({ ...p, items: p.items.filter((_, i) => i !== idx) }))}
+                                                                        style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '1rem', padding: '0 0.3rem' }}
+                                                                    >×</button>
+                                                                </div>
+                                                            ))}
+                                                            <button
+                                                                onClick={() => setTypeManagerForm(p => ({ ...p, items: [...p.items, ''] }))}
+                                                                style={{ background: 'none', border: '1px dashed rgba(255,255,255,0.15)', borderRadius: '0.3rem', color: 'rgba(255,255,255,0.5)', fontSize: '0.75rem', padding: '0.25rem 0.5rem', cursor: 'pointer', marginBottom: '0.5rem', width: '100%' }}
+                                                            >+ Dodaj krok</button>
+                                                            <div style={{ display: 'flex', gap: '0.4rem' }}>
+                                                                <button
+                                                                    disabled={typeManagerSaving}
+                                                                    onClick={async () => {
+                                                                        setTypeManagerSaving(true);
+                                                                        try {
+                                                                            const cleanItems = typeManagerForm.items.filter(i => i.trim());
+                                                                            await fetch('/api/employee/task-types', {
+                                                                                method: 'PUT',
+                                                                                headers: { 'Content-Type': 'application/json' },
+                                                                                body: JSON.stringify({ id: tmpl.id, label: typeManagerForm.label, icon: typeManagerForm.icon, items: cleanItems }),
+                                                                            });
+                                                                            await fetchTaskTypes();
+                                                                            setEditingTypeId(null);
+                                                                        } finally { setTypeManagerSaving(false); }
+                                                                    }}
+                                                                    style={{ padding: '0.4rem 0.75rem', background: '#22c55e', border: 'none', borderRadius: '0.4rem', color: '#fff', fontSize: '0.78rem', fontWeight: '600', cursor: 'pointer' }}
+                                                                >{typeManagerSaving ? 'Zapisuję...' : '✓ Zapisz'}</button>
+                                                                <button
+                                                                    onClick={() => setEditingTypeId(null)}
+                                                                    style={{ padding: '0.4rem 0.75rem', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.4rem', color: 'rgba(255,255,255,0.6)', fontSize: '0.78rem', cursor: 'pointer' }}
+                                                                >Anuluj</button>
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        /* View mode */
+                                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                                            <div style={{ flex: 1 }}>
+                                                                <div style={{ fontSize: '0.9rem', fontWeight: '600', color: '#fff', marginBottom: '0.2rem' }}>
+                                                                    {tmpl.icon} {tmpl.label}
+                                                                </div>
+                                                                {tmpl.items.length > 0 && (
+                                                                    <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>
+                                                                        {tmpl.items.join(' → ')}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                            <div style={{ display: 'flex', gap: '0.3rem', flexShrink: 0 }}>
+                                                                <button
+                                                                    onClick={() => {
+                                                                        setEditingTypeId(tmpl.id);
+                                                                        setTypeManagerForm({ label: tmpl.label, icon: tmpl.icon, items: tmpl.items.length > 0 ? [...tmpl.items] : [''] });
+                                                                    }}
+                                                                    style={{ background: 'none', border: 'none', color: '#38bdf8', cursor: 'pointer', fontSize: '0.8rem', padding: '0.2rem 0.4rem' }}
+                                                                >✏️</button>
+                                                                <button
+                                                                    onClick={async () => {
+                                                                        if (!confirm(`Usunąć typ "${tmpl.label}"? Istniejące zadania tego typu nie zostaną zmienione.`)) return;
+                                                                        await fetch('/api/employee/task-types', {
+                                                                            method: 'DELETE',
+                                                                            headers: { 'Content-Type': 'application/json' },
+                                                                            body: JSON.stringify({ id: tmpl.id }),
+                                                                        });
+                                                                        await fetchTaskTypes();
+                                                                    }}
+                                                                    style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '0.8rem', padding: '0.2rem 0.4rem' }}
+                                                                >🗑️</button>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        {/* Add new type */}
+                                        {editingTypeId !== 'new' ? (
+                                            <button
+                                                onClick={() => {
+                                                    setEditingTypeId('new');
+                                                    setTypeManagerForm({ label: '', icon: '📋', items: [''] });
+                                                }}
+                                                style={{
+                                                    width: '100%', padding: '0.7rem',
+                                                    background: 'rgba(56,189,248,0.08)',
+                                                    border: '1px dashed rgba(56,189,248,0.3)',
+                                                    borderRadius: '0.6rem',
+                                                    color: '#38bdf8',
+                                                    fontSize: '0.85rem',
+                                                    fontWeight: '600',
+                                                    cursor: 'pointer',
+                                                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
+                                                }}
+                                            >
+                                                + Dodaj nowy typ zadania
+                                            </button>
+                                        ) : (
+                                            <div style={{
+                                                background: 'rgba(56,189,248,0.06)',
+                                                border: '1px solid rgba(56,189,248,0.2)',
+                                                borderRadius: '0.6rem',
+                                                padding: '0.75rem',
+                                            }}>
+                                                <div style={{ fontSize: '0.85rem', fontWeight: '600', color: '#38bdf8', marginBottom: '0.5rem' }}>Nowy typ zadania</div>
                                                 <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
                                                     <input
                                                         value={typeManagerForm.icon}
@@ -3824,7 +4090,8 @@ export default function EmployeePage() {
                                                         value={typeManagerForm.label}
                                                         onChange={e => setTypeManagerForm(p => ({ ...p, label: e.target.value }))}
                                                         style={{ flex: 1, padding: '0.4rem 0.6rem', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '0.4rem', color: '#fff', fontSize: '0.85rem' }}
-                                                        placeholder="Nazwa typu"
+                                                        placeholder="Nazwa nowego typu (np. Proteza)"
+                                                        autoFocus
                                                     />
                                                 </div>
                                                 <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.3rem' }}>Checklist items:</div>
@@ -3852,189 +4119,58 @@ export default function EmployeePage() {
                                                 >+ Dodaj krok</button>
                                                 <div style={{ display: 'flex', gap: '0.4rem' }}>
                                                     <button
-                                                        disabled={typeManagerSaving}
+                                                        disabled={typeManagerSaving || !typeManagerForm.label.trim()}
                                                         onClick={async () => {
                                                             setTypeManagerSaving(true);
                                                             try {
                                                                 const cleanItems = typeManagerForm.items.filter(i => i.trim());
-                                                                await fetch('/api/employee/task-types', {
-                                                                    method: 'PUT',
+                                                                const res = await fetch('/api/employee/task-types', {
+                                                                    method: 'POST',
                                                                     headers: { 'Content-Type': 'application/json' },
-                                                                    body: JSON.stringify({ id: tmpl.id, label: typeManagerForm.label, icon: typeManagerForm.icon, items: cleanItems }),
+                                                                    body: JSON.stringify({ label: typeManagerForm.label, icon: typeManagerForm.icon, items: cleanItems }),
                                                                 });
-                                                                await fetchTaskTypes();
-                                                                setEditingTypeId(null);
+                                                                if (res.ok) {
+                                                                    await fetchTaskTypes();
+                                                                    setEditingTypeId(null);
+                                                                    setTypeManagerForm({ label: '', icon: '📋', items: [''] });
+                                                                } else {
+                                                                    const err = await res.json();
+                                                                    alert(err.error || 'Błąd');
+                                                                }
                                                             } finally { setTypeManagerSaving(false); }
                                                         }}
-                                                        style={{ padding: '0.4rem 0.75rem', background: '#22c55e', border: 'none', borderRadius: '0.4rem', color: '#fff', fontSize: '0.78rem', fontWeight: '600', cursor: 'pointer' }}
-                                                    >{typeManagerSaving ? 'Zapisuję...' : '✓ Zapisz'}</button>
+                                                        style={{
+                                                            padding: '0.4rem 0.75rem',
+                                                            background: typeManagerForm.label.trim() ? '#22c55e' : 'rgba(255,255,255,0.1)',
+                                                            border: 'none', borderRadius: '0.4rem',
+                                                            color: '#fff', fontSize: '0.78rem', fontWeight: '600',
+                                                            cursor: typeManagerForm.label.trim() ? 'pointer' : 'not-allowed',
+                                                        }}
+                                                    >{typeManagerSaving ? 'Tworzę...' : '+ Utwórz typ'}</button>
                                                     <button
                                                         onClick={() => setEditingTypeId(null)}
                                                         style={{ padding: '0.4rem 0.75rem', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.4rem', color: 'rgba(255,255,255,0.6)', fontSize: '0.78rem', cursor: 'pointer' }}
                                                     >Anuluj</button>
                                                 </div>
                                             </div>
-                                        ) : (
-                                            /* View mode */
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                                <div style={{ flex: 1 }}>
-                                                    <div style={{ fontSize: '0.9rem', fontWeight: '600', color: '#fff', marginBottom: '0.2rem' }}>
-                                                        {tmpl.icon} {tmpl.label}
-                                                    </div>
-                                                    {tmpl.items.length > 0 && (
-                                                        <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>
-                                                            {tmpl.items.join(' → ')}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                                <div style={{ display: 'flex', gap: '0.3rem', flexShrink: 0 }}>
-                                                    <button
-                                                        onClick={() => {
-                                                            setEditingTypeId(tmpl.id);
-                                                            setTypeManagerForm({ label: tmpl.label, icon: tmpl.icon, items: tmpl.items.length > 0 ? [...tmpl.items] : [''] });
-                                                        }}
-                                                        style={{ background: 'none', border: 'none', color: '#38bdf8', cursor: 'pointer', fontSize: '0.8rem', padding: '0.2rem 0.4rem' }}
-                                                    >✏️</button>
-                                                    <button
-                                                        onClick={async () => {
-                                                            if (!confirm(`Usunąć typ "${tmpl.label}"? Istniejące zadania tego typu nie zostaną zmienione.`)) return;
-                                                            await fetch('/api/employee/task-types', {
-                                                                method: 'DELETE',
-                                                                headers: { 'Content-Type': 'application/json' },
-                                                                body: JSON.stringify({ id: tmpl.id }),
-                                                            });
-                                                            await fetchTaskTypes();
-                                                        }}
-                                                        style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '0.8rem', padding: '0.2rem 0.4rem' }}
-                                                    >🗑️</button>
-                                                </div>
-                                            </div>
                                         )}
                                     </div>
-                                ))}
-                            </div>
-
-                            {/* Add new type */}
-                            {editingTypeId !== 'new' ? (
-                                <button
-                                    onClick={() => {
-                                        setEditingTypeId('new');
-                                        setTypeManagerForm({ label: '', icon: '📋', items: [''] });
-                                    }}
-                                    style={{
-                                        width: '100%', padding: '0.7rem',
-                                        background: 'rgba(56,189,248,0.08)',
-                                        border: '1px dashed rgba(56,189,248,0.3)',
-                                        borderRadius: '0.6rem',
-                                        color: '#38bdf8',
-                                        fontSize: '0.85rem',
-                                        fontWeight: '600',
-                                        cursor: 'pointer',
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
-                                    }}
-                                >
-                                    + Dodaj nowy typ zadania
-                                </button>
-                            ) : (
-                                <div style={{
-                                    background: 'rgba(56,189,248,0.06)',
-                                    border: '1px solid rgba(56,189,248,0.2)',
-                                    borderRadius: '0.6rem',
-                                    padding: '0.75rem',
-                                }}>
-                                    <div style={{ fontSize: '0.85rem', fontWeight: '600', color: '#38bdf8', marginBottom: '0.5rem' }}>Nowy typ zadania</div>
-                                    <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                                        <input
-                                            value={typeManagerForm.icon}
-                                            onChange={e => setTypeManagerForm(p => ({ ...p, icon: e.target.value }))}
-                                            style={{ width: '3rem', padding: '0.4rem', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '0.4rem', color: '#fff', fontSize: '1.1rem', textAlign: 'center' }}
-                                            placeholder="📋"
-                                        />
-                                        <input
-                                            value={typeManagerForm.label}
-                                            onChange={e => setTypeManagerForm(p => ({ ...p, label: e.target.value }))}
-                                            style={{ flex: 1, padding: '0.4rem 0.6rem', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '0.4rem', color: '#fff', fontSize: '0.85rem' }}
-                                            placeholder="Nazwa nowego typu (np. Proteza)"
-                                            autoFocus
-                                        />
-                                    </div>
-                                    <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.3rem' }}>Checklist items:</div>
-                                    {typeManagerForm.items.map((item, idx) => (
-                                        <div key={idx} style={{ display: 'flex', gap: '0.3rem', marginBottom: '0.3rem' }}>
-                                            <input
-                                                value={item}
-                                                onChange={e => {
-                                                    const newItems = [...typeManagerForm.items];
-                                                    newItems[idx] = e.target.value;
-                                                    setTypeManagerForm(p => ({ ...p, items: newItems }));
-                                                }}
-                                                style={{ flex: 1, padding: '0.35rem 0.5rem', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.3rem', color: '#fff', fontSize: '0.8rem' }}
-                                                placeholder={`Krok ${idx + 1}`}
-                                            />
-                                            <button
-                                                onClick={() => setTypeManagerForm(p => ({ ...p, items: p.items.filter((_, i) => i !== idx) }))}
-                                                style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '1rem', padding: '0 0.3rem' }}
-                                            >×</button>
-                                        </div>
-                                    ))}
-                                    <button
-                                        onClick={() => setTypeManagerForm(p => ({ ...p, items: [...p.items, ''] }))}
-                                        style={{ background: 'none', border: '1px dashed rgba(255,255,255,0.15)', borderRadius: '0.3rem', color: 'rgba(255,255,255,0.5)', fontSize: '0.75rem', padding: '0.25rem 0.5rem', cursor: 'pointer', marginBottom: '0.5rem', width: '100%' }}
-                                    >+ Dodaj krok</button>
-                                    <div style={{ display: 'flex', gap: '0.4rem' }}>
-                                        <button
-                                            disabled={typeManagerSaving || !typeManagerForm.label.trim()}
-                                            onClick={async () => {
-                                                setTypeManagerSaving(true);
-                                                try {
-                                                    const cleanItems = typeManagerForm.items.filter(i => i.trim());
-                                                    const res = await fetch('/api/employee/task-types', {
-                                                        method: 'POST',
-                                                        headers: { 'Content-Type': 'application/json' },
-                                                        body: JSON.stringify({ label: typeManagerForm.label, icon: typeManagerForm.icon, items: cleanItems }),
-                                                    });
-                                                    if (res.ok) {
-                                                        await fetchTaskTypes();
-                                                        setEditingTypeId(null);
-                                                        setTypeManagerForm({ label: '', icon: '📋', items: [''] });
-                                                    } else {
-                                                        const err = await res.json();
-                                                        alert(err.error || 'Błąd');
-                                                    }
-                                                } finally { setTypeManagerSaving(false); }
-                                            }}
-                                            style={{
-                                                padding: '0.4rem 0.75rem',
-                                                background: typeManagerForm.label.trim() ? '#22c55e' : 'rgba(255,255,255,0.1)',
-                                                border: 'none', borderRadius: '0.4rem',
-                                                color: '#fff', fontSize: '0.78rem', fontWeight: '600',
-                                                cursor: typeManagerForm.label.trim() ? 'pointer' : 'not-allowed',
-                                            }}
-                                        >{typeManagerSaving ? 'Tworzę...' : '+ Utwórz typ'}</button>
-                                        <button
-                                            onClick={() => setEditingTypeId(null)}
-                                            style={{ padding: '0.4rem 0.75rem', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.4rem', color: 'rgba(255,255,255,0.6)', fontSize: '0.78rem', cursor: 'pointer' }}
-                                        >Anuluj</button>
-                                    </div>
                                 </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )}
+                            </div>
+                        )}
 
-            {/* ═══ ASYSTENT AI TAB ═══ */}
-            {activeTab === 'asystent' && (
-                <VoiceAssistant userId={userId} userEmail={currentUserEmail || ''} />
-            )}
+                        {/* ═══ ASYSTENT AI TAB ═══ */}
+                        {activeTab === 'asystent' && (
+                            <VoiceAssistant userId={userId} userEmail={currentUserEmail || ''} />
+                        )}
 
-            {/* CSS animations */}
-            <style jsx global>{`
+                        {/* CSS animations */}
+                        <style jsx global>{`
                 @keyframes spin {
                     from { transform: rotate(0deg); }
                     to { transform: rotate(360deg); }
                 }
             `}</style>
-        </div >
-    );
+                    </div >
+                    );
 }
