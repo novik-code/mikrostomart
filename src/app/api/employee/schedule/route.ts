@@ -126,8 +126,11 @@ export async function GET(req: Request) {
 
             for (const apt of rawApts) {
                 const aptDate = new Date(apt.date);
-                const startHour = aptDate.getUTCHours();
-                const startMinute = aptDate.getUTCMinutes();
+                // Use LOCAL time: Prodentis stores times in Polish local time.
+                // Using UTC (getUTCHours) would be 1-2h off, making startTime
+                // not match TIME_SLOTS and rendering every appointment as 15 min.
+                const startHour = aptDate.getHours();
+                const startMinute = aptDate.getMinutes();
 
                 // Skip very early informational entries
                 if (startHour < 7) continue;
