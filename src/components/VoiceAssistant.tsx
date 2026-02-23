@@ -48,6 +48,7 @@ export default function VoiceAssistant({ userId, userEmail }: VoiceAssistantProp
     const [statusText, setStatusText] = useState('Dotknij, aby mówić');
     const [calendarConnected, setCalendarConnected] = useState(false);
     const [voiceEnabled, setVoiceEnabled] = useState(true);
+    const [ttsVoice, setTtsVoice] = useState<'nova' | 'alloy' | 'shimmer'>('nova');
     const [showSettings, setShowSettings] = useState(false);
     const [showHistory, setShowHistory] = useState(false);
 
@@ -56,16 +57,19 @@ export default function VoiceAssistant({ userId, userEmail }: VoiceAssistantProp
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
     const finalTranscriptRef = useRef('');
-    const messagesRef = useRef<Message[]>([]);        // ← mirror of messages state
-    const isProcessingRef = useRef(false);             // ← mirror of isProcessing
-    const voiceEnabledRef = useRef(true);              // ← mirror of voiceEnabled
+    const messagesRef = useRef<Message[]>([]);
+    const isProcessingRef = useRef(false);
+    const voiceEnabledRef = useRef(true);
+    const ttsVoiceRef = useRef<'nova' | 'alloy' | 'shimmer'>('nova');
+    const audioCtxRef = useRef<AudioContext | null>(null);
     const wakeLockRef = useRef<WakeLockSentinel | null>(null);
-    const sendingRef = useRef(false);                  // ← prevent double-send
+    const sendingRef = useRef(false);
 
     // Keep refs in sync with state
     useEffect(() => { messagesRef.current = messages; }, [messages]);
     useEffect(() => { isProcessingRef.current = isProcessing; }, [isProcessing]);
     useEffect(() => { voiceEnabledRef.current = voiceEnabled; }, [voiceEnabled]);
+    useEffect(() => { ttsVoiceRef.current = ttsVoice; }, [ttsVoice]);
 
     // ─── Wake Lock (prevent screen auto-lock) ────────────────
     const requestWakeLock = useCallback(async () => {
@@ -94,18 +98,32 @@ export default function VoiceAssistant({ userId, userEmail }: VoiceAssistantProp
         return () => { releaseWakeLock(); };
     }, [releaseWakeLock]);
 
-    // ─── Speech Synthesis ────────────────────────────────────
-    const speakText = useCallback((text: string) => {
+    // ─── OpenAI TTS (natural voice) ──────────────────────────
+    const speakText = useCallback(async (text: string) => {
         if (!voiceEnabledRef.current || typeof window === 'undefined') return;
-        window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = 'pl-PL';
-        utterance.rate = 1.05;
-        utterance.pitch = 1.0;
-        const voices = window.speechSynthesis.getVoices();
-        const plVoice = voices.find(v => v.lang.startsWith('pl'));
-        if (plVoice) utterance.voice = plVoice;
-        window.speechSynthesis.speak(utterance);
+        try { if (audioCtxRef.current) audioCtxRef.current.close(); } catch { /* ignore */ }
+        try {
+            const res = await fetch('/api/employee/tts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text, voice: ttsVoiceRef.current }),
+            });
+            if (!res.ok) return; // fail silently — no robot voice fallback
+            const arrayBuffer = await res.arrayBuffer();
+            const audioCtx = new AudioContext();
+            audioCtxRef.current = audioCtx;
+            const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+            const source = audioCtx.createBufferSource();
+            source.buffer = audioBuffer;
+            const gainNode = audioCtx.createGain();
+            gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+            gainNode.gain.linearRampToValueAtTime(1, audioCtx.currentTime + 0.05);
+            source.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            source.start();
+        } catch (e) {
+            console.warn('[VoiceAssistant] TTS error:', e);
+        }
     }, []);
 
     // ─── Calendar Status ─────────────────────────────────────
@@ -121,9 +139,6 @@ export default function VoiceAssistant({ userId, userEmail }: VoiceAssistantProp
 
     useEffect(() => {
         checkCalendarStatus();
-        if (typeof window !== 'undefined') {
-            window.speechSynthesis.getVoices();
-        }
     }, [checkCalendarStatus]);
 
     // ─── Send Message (uses refs to avoid stale closures) ────
@@ -377,6 +392,26 @@ export default function VoiceAssistant({ userId, userEmail }: VoiceAssistantProp
                         >
                             {voiceEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
                         </button>
+                    </div>
+                    <div style={styles.settingsRow}>
+                        <span style={styles.settingsLabel}>Głos AI</span>
+                        <select
+                            value={ttsVoice}
+                            onChange={e => setTtsVoice(e.target.value as any)}
+                            style={{
+                                background: 'rgba(56,189,248,0.1)',
+                                border: '1px solid rgba(56,189,248,0.25)',
+                                borderRadius: 6,
+                                padding: '4px 8px',
+                                color: '#38bdf8',
+                                cursor: 'pointer',
+                                fontSize: 12,
+                            }}
+                        >
+                            <option value="nova">👧 Nova (domyślny)</option>
+                            <option value="alloy">🤖 Alloy (neutralny)</option>
+                            <option value="shimmer">✨ Shimmer (miękki)</option>
+                        </select>
                     </div>
                     <div style={styles.settingsRow}>
                         <span style={styles.settingsLabel}>

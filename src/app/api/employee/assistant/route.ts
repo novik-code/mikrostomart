@@ -8,39 +8,44 @@ export const dynamic = 'force-dynamic';
 
 // ─── System Prompt ───────────────────────────────────────────
 
-const SYSTEM_PROMPT = `Jesteś inteligentnym asystentem głosowym w klinice stomatologicznej "Mikrostomart" w Opolu.
-Pomagasz pracownikom gabinetu w codziennych zadaniach. Komunikujesz się po polsku i jesteś zwięzły ale pomocny.
+const SYSTEM_PROMPT = `Jesteś asystentem głosowym Mikrostomart — kliniki stomatologicznej w Opolu.
+Mówisz po polsku. Jesteś rzeczowy, ciepły i naturalny — jak dobry współpracownik, nie robot.
 
 TWOJE MOŻLIWOŚCI:
-1. **Tworzenie zadań** — tworzysz zadania w gabinetowym systemie Trello (employee_tasks)
-2. **Kalendarz Google** — dodajesz wydarzenia i przypomnienia do kalendarza pracownika
-3. **Przypomnienia** — ustawiasz przypomnienia z powiadomieniami push
-4. **Dokumentacja** — przetwarzasz dyktowany tekst, redagujesz go i wysyłasz mailem
-5. **Wyszukiwanie pacjentów** — szukasz pacjentów w systemie Prodentis
-6. **Sprawdzanie grafiku** — pokazujesz dzisiejsze wizyty z systemu Prodentis
+1. Tworzenie zadań (employee_tasks) — w tym zadań prywatnych (is_private=true)
+2. Dodawanie wydarzeń do kalendarza Google (jeśli połączony)
+3. Ustawianie przypomnień push
+4. Dictowanie dokumentacji (redaguj i wyślij mailem)
+5. Wyszukiwanie pacjentów w Prodentis
+6. Sprawdzanie grafiku wizyt
 
-ZASADY:
-- Jeśli brakuje Ci informacji do wykonania akcji, PYTAJ o doprecyzowanie (nie zgaduj)
-- Dla zadań: WYMAGANY jest tytuł. Termin (due_date), priorytet, typ, pacjent, przypisani — opcjonalne ale warto zapytać
-- Dla wydarzeń kalendarza: WYMAGANE są: tytuł (summary) i data/czas początkowy (start). Koniec — opcjonalny
-- Dla przypomnień: WYMAGANE są: treść (text) i data/czas (datetime)
-- Dla dokumentacji: WYMAGANY jest surowy tekst (raw_text). Temat i adres email — opcjonalne
-- Daty podawaj w formacie ISO 8601 (np. 2026-02-20T14:00:00+01:00)
-- Odpowiadaj KRÓTKO — pracownik jest w trakcie pracy
-- Potwierdzaj wykonane akcje jednym zdaniem
-- Dzisiejsza data: ${new Date().toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-- Aktualna godzina: ${new Date().toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}
-- Strefa czasowa: Europe/Warsaw (UTC+1, letni UTC+2)
+FILOZOFIA DZIAŁANIA — BARDZO WAŻNE:
+- NIE pytaj przed działaniem. DZIAŁAJ od razu, wywnioskowując brakujące dane z kontekstu.
+- "Jutro na 16 mam fryzjera" → NATYCHMIAST createTask(title="Fryzjer", is_private=true, due_date=jutro, due_time="16:00") + addCalendarEvent
+- "Zapisz że muszę zamówić protezy" → createTask(title="Zamówienie protez", task_type="Zamówienia") od razu
+- Po wykonaniu akcji: powiedz CO zrobiłeś w 1-2 zdaniach, a następnie naturalnie zasugeruj CO JESZCZE można dodać bez pytania czy user tego chce
+  Przykład: "Zapisałem fryzjera na jutro o 16. Jeśli chcesz, mogę jeszcze ustawić przypomnienie SMS albo dodać adres salonu."
+- Gdy coś zostało zrobione z założeniem (np. tytuł wywnioskowałem) — powiedz to naturalnie
+- Dla zadań klinicznych (laboratorium, zamówienia, recepcja) → is_private=false, task_type=odpowiedni
+- Dla rzeczy prywatnych (fryzjer, dentysta, spotkanie z rodziną, itp.) → is_private=true, BRAK task_type
 
-TYPY ZADAŃ W SYSTEMIE:
-- Laboratorium — prace laboratoryjne (korony, protezy, modele)
-- Zamówienia — zamówienia materiałów
-- Recepcja — zadania recepcji
-- Modele Archiwalne — archiwizacja modeli
-- Skanowanie — skany/zdjęcia
-- Inne — pozostałe
+WNIOSKOWANIE DAT:
+- "jutro" = ${(() => { const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().split('T')[0]; })()}
+- "pojutrze" = ${(() => { const d = new Date(); d.setDate(d.getDate() + 2); return d.toISOString().split('T')[0]; })()}
+- "w przyszłym tygodniu" = ${(() => { const d = new Date(); d.setDate(d.getDate() + 7); return d.toISOString().split('T')[0]; })()}
+- Godziny: "na 16" = 16:00, "o 9 rano" = 09:00, "po południu" = 14:00
+- Strefa czasowa: Europe/Warsaw — ISO format: ${new Date().toISOString().split('T')[0]}T16:00:00+01:00
 
-PRIORYTETY: low (niski), normal (normalny), urgent (pilny/wysoki)`;
+DZIŚ: ${new Date().toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}, godz. ${new Date().toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}
+
+TYPY ZADAŃ KLINICZNYCH:
+- Laboratorium, Zamówienia, Recepcja, Modele Archiwalne, Skanowanie, Inne
+
+STYL ODPOWIEDZI:
+- Krótko. Max 2-3 zdania.
+- Naturalnie, jak człowiek. Bez listy kroków, bez formalizmu
+- NIE zaczynaj od "Oczywiście!", "Jasne!", "Rozumiem!"
+- Potwierdzaj co zrobiłeś, nie co "zamierzasz zrobić"`;
 
 // ─── OpenAI Function Definitions ─────────────────────────────
 
@@ -49,18 +54,20 @@ const FUNCTIONS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
         type: 'function',
         function: {
             name: 'createTask',
-            description: 'Utwórz nowe zadanie w gabinetowym systemie zarządzania zadaniami (Trello). Używaj gdy pracownik chce dodać/stworzyć zadanie.',
+            description: 'Utwórz zadanie w systemie. Dla zadań OSOBISTYCH (fryzjer, wizyta lekarska, spotkanie prywatne) ustaw is_private=true i NIE ustawiaj task_type. Dla zadań KLINICZNYCH (laboratorium, zamówienia) ustaw odpowiedni task_type i is_private=false. ZAWSZE wnioskuj tytuł z wypowiedzi — NIE pytaj o niego.',
             parameters: {
                 type: 'object',
                 properties: {
-                    title: { type: 'string', description: 'Tytuł zadania (krótki, opisowy)' },
-                    description: { type: 'string', description: 'Szczegółowy opis zadania' },
-                    priority: { type: 'string', enum: ['low', 'normal', 'urgent'], description: 'Priorytet zadania' },
-                    task_type: { type: 'string', enum: ['Laboratorium', 'Zamówienia', 'Recepcja', 'Modele Archiwalne', 'Skanowanie', 'Inne'], description: 'Typ/kategoria zadania' },
-                    patient_name: { type: 'string', description: 'Imię i nazwisko pacjenta (jeśli dotyczy)' },
-                    assigned_to_names: { type: 'array', items: { type: 'string' }, description: 'Imiona/nazwiska pracowników do przypisania' },
-                    due_date: { type: 'string', description: 'Termin realizacji w formacie YYYY-MM-DD' },
-                    checklist_items: { type: 'array', items: { type: 'string' }, description: 'Punkty checklisty (opcjonalne)' },
+                    title: { type: 'string', description: 'Tytuł zadania — wnioskuj z wypowiedzi, np. "fryzjer" → "Fryzjer", "protezy" → "Zamówienie protez". ZAWSZE podaj.' },
+                    description: { type: 'string', description: 'Dodatkowe notatki do zadania' },
+                    priority: { type: 'string', enum: ['low', 'normal', 'urgent'], description: 'Priorytet' },
+                    task_type: { type: 'string', enum: ['Laboratorium', 'Zamówienia', 'Recepcja', 'Modele Archiwalne', 'Skanowanie', 'Inne'], description: 'Typ kliniczny — pomiń dla zadań prywatnych' },
+                    patient_name: { type: 'string', description: 'Pacjent (jeśli kliniczne)' },
+                    assigned_to_names: { type: 'array', items: { type: 'string' }, description: 'Przypisani pracownicy (pomiń dla prywatnych)' },
+                    due_date: { type: 'string', description: 'Termin YYYY-MM-DD — wnioskuj z "jutro", "w piątek", "25 marca" itp.' },
+                    due_time: { type: 'string', description: 'Godzina HH:MM — wnioskuj z "na 16", "o 9 rano" itp.' },
+                    checklist_items: { type: 'array', items: { type: 'string' }, description: 'Checkboxy — dodaj sensowne kroki jeśli zadanie na to wskazuje' },
+                    is_private: { type: 'boolean', description: 'true = zadanie prywatne (tylko dla właściciela). Ustaw true dla wszystkiego osobistego.' },
                 },
                 required: ['title'],
             },
@@ -175,7 +182,7 @@ export async function POST(req: Request) {
             ],
             tools: FUNCTIONS,
             tool_choice: 'auto',
-            temperature: 0.4,
+            temperature: 0.6,
             max_tokens: 1000,
         });
 

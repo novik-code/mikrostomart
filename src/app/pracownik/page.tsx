@@ -270,6 +270,7 @@ export default function EmployeePage() {
         due_date: '',
         linked_appointment_date: '',
         linked_appointment_info: '',
+        is_private: false,
     });
     const [staffList, setStaffList] = useState<StaffMember[]>([]);
     const [futureAppointments, setFutureAppointments] = useState<FutureAppointment[]>([]);
@@ -606,6 +607,7 @@ export default function EmployeePage() {
             due_date: '',
             linked_appointment_date: '',
             linked_appointment_info: '',
+            is_private: false,
         });
         setTaskModalPrefill(null);
         setFutureAppointments([]);
@@ -706,6 +708,7 @@ export default function EmployeePage() {
                 due_date: taskForm.due_date || null,
                 linked_appointment_date: taskForm.linked_appointment_date || null,
                 linked_appointment_info: taskForm.linked_appointment_info || null,
+                is_private: taskForm.is_private,
             };
             const res = await fetch('/api/employee/tasks', {
                 method: 'POST',
@@ -943,7 +946,9 @@ export default function EmployeePage() {
             );
         }
         // Type filter
-        if (filterType) {
+        if (filterType === '__private__') {
+            base = base.filter(t => t.is_private && t.owner_user_id === currentUserId);
+        } else if (filterType) {
             base = base.filter(t => t.task_type === filterType);
         }
         // Priority filter
@@ -2480,6 +2485,7 @@ export default function EmployeePage() {
                             style={{ padding: '0.4rem 0.5rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.5rem', color: filterType ? '#a855f7' : 'rgba(255,255,255,0.5)', fontSize: '0.75rem', cursor: 'pointer' }}
                         >
                             <option value="">Typ: Wszystkie</option>
+                            <option value="__private__">🔒 Prywatne</option>
                             {Object.entries(TASK_TYPE_CHECKLISTS).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
                         </select>
                         <select
@@ -3416,6 +3422,36 @@ export default function EmployeePage() {
                                         ))}
                                     </div>
                                 )}
+                            </div>
+
+                            {/* Privacy toggle */}
+                            <div>
+                                <button
+                                    type="button"
+                                    onClick={() => setTaskForm(p => ({ ...p, is_private: !p.is_private }))}
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.5rem',
+                                        padding: '0.5rem 0.85rem',
+                                        borderRadius: '0.5rem',
+                                        border: taskForm.is_private
+                                            ? '1px solid rgba(168,85,247,0.5)'
+                                            : '1px solid rgba(255,255,255,0.1)',
+                                        background: taskForm.is_private
+                                            ? 'rgba(168,85,247,0.15)'
+                                            : 'rgba(255,255,255,0.04)',
+                                        color: taskForm.is_private ? '#c084fc' : 'rgba(255,255,255,0.45)',
+                                        fontSize: '0.82rem',
+                                        cursor: 'pointer',
+                                        fontWeight: taskForm.is_private ? '600' : '400',
+                                        transition: 'all 0.15s',
+                                        width: '100%',
+                                        justifyContent: 'center',
+                                    }}
+                                >
+                                    {taskForm.is_private ? '🔒 Zadanie prywatne (tylko dla Ciebie)' : '🌐 Zadanie widoczne dla wszystkich'}
+                                </button>
                             </div>
 
                             {/* Title */}

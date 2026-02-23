@@ -33,7 +33,9 @@ async function createTask(args: {
     patient_name?: string;
     assigned_to_names?: string[];
     due_date?: string;
+    due_time?: string;
     checklist_items?: string[];
+    is_private?: boolean;
 }, userId: string, userEmail: string): Promise<ActionResult> {
     try {
         // Resolve assigned_to names to staff IDs
@@ -97,6 +99,8 @@ async function createTask(args: {
             checklistItems = args.checklist_items.map(label => ({ label, done: false }));
         }
 
+        const isPrivate = args.is_private === true;
+
         const task = {
             title: args.title,
             description: args.description || null,
@@ -105,8 +109,11 @@ async function createTask(args: {
             task_type: args.task_type || null,
             patient_name: args.patient_name || null,
             due_date: args.due_date || null,
+            due_time: args.due_time || null,
             assigned_to: assignedTo,
             checklist_items: checklistItems,
+            is_private: isPrivate,
+            owner_user_id: isPrivate ? userId : null,
             created_by: userId,
             created_by_email: userEmail,
         };
@@ -122,29 +129,33 @@ async function createTask(args: {
             return { success: false, action: 'createTask', message: `Nie udało się utworzyć zadania: ${error.message}` };
         }
 
-        // Send push notification to employees
-        try {
-            const { sendPushToAllEmployees } = await import('./webpush');
-            await sendPushToAllEmployees(
-                {
-                    title: '📋 Nowe zadanie (Asystent)',
-                    body: `${args.title}${args.patient_name ? ` — ${args.patient_name}` : ''}`,
-                    url: '/pracownik',
-                    tag: `task-new-${data.id}`,
-                },
-                userId
-            );
-        } catch { /* push is optional */ }
+        // Only send group push for non-private tasks
+        if (!isPrivate) {
+            try {
+                const { sendPushToAllEmployees } = await import('./webpush');
+                await sendPushToAllEmployees(
+                    {
+                        title: '📋 Nowe zadanie (Asystent)',
+                        body: `${args.title}${args.patient_name ? ` — ${args.patient_name}` : ''}`,
+                        url: '/pracownik',
+                        tag: `task-new-${data.id}`,
+                    },
+                    userId
+                );
+            } catch { /* push is optional */ }
+        }
 
         const dueDateStr = args.due_date
             ? new Date(args.due_date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'long', year: 'numeric' })
-            : 'brak terminu';
+            : null;
+        const timeStr = args.due_time ? ` o ${args.due_time}` : '';
+        const dateInfo = dueDateStr ? ` na ${dueDateStr}${timeStr}` : '';
 
         return {
             success: true,
             action: 'createTask',
-            message: `Utworzono zadanie "${args.title}"${args.patient_name ? ` dla pacjenta ${args.patient_name}` : ''}. Termin: ${dueDateStr}.${assignedTo.length > 0 ? ` Przypisano do: ${assignedTo.map(a => a.name).join(', ')}.` : ''}`,
-            data: { taskId: data.id },
+            message: `Zapisano${isPrivate ? ' (prywatne)' : ''}: "${args.title}"${dateInfo}.${assignedTo.length > 0 ? ` Przypisano do: ${assignedTo.map(a => a.name).join(', ')}.` : ''}`,
+            data: { taskId: data.id, is_private: isPrivate },
         };
     } catch (err: any) {
         return { success: false, action: 'createTask', message: `Błąd tworzenia zadania: ${err.message}` };
