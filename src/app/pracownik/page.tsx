@@ -345,7 +345,9 @@ export default function EmployeePage() {
     const fetchSchedule = useCallback(async () => {
         setLoading(true);
         try {
-            const weekStr = currentWeekStart.toISOString().split('T')[0];
+            // Use local date string to avoid UTC midnight rollback (timezone bug)
+            const d = currentWeekStart;
+            const weekStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
             const response = await fetch(`/api/employee/schedule?weekStart=${weekStr}`);
             if (!response.ok) {
                 if (response.status === 403) {
@@ -413,13 +415,15 @@ export default function EmployeePage() {
     };
 
     // Determine which days to show (skip Sat/Sun if empty, respect hiddenScheduleDays)
+    // hiddenScheduleDays stores JS day-of-week: 0=Sun, 1=Mon, 2=Tue, ..., 6=Sat
     const getVisibleDays = (): ScheduleDay[] => {
         if (!scheduleData) return [];
-        return scheduleData.days.filter((day, i) => {
+        return scheduleData.days.filter((day) => {
+            const jsDay = new Date(day.date + 'T12:00:00').getDay(); // noon to avoid DST issues
             // If explicitly hidden by user → never show
-            if (hiddenScheduleDays.has(i)) return false;
+            if (hiddenScheduleDays.has(jsDay)) return false;
             // Mon–Fri: always show unless hidden
-            if (i < 5) return true;
+            if (jsDay >= 1 && jsDay <= 5) return true;
             // Sat/Sun: show only if they have appointments
             return day.appointments.length > 0;
         });
@@ -1310,11 +1314,13 @@ export default function EmployeePage() {
                         }}>
                             <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.45)', marginRight: '0.25rem', whiteSpace: 'nowrap' }}>Dni:</span>
                             {(['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'Sb', 'Nd'] as const).map((label, i) => {
-                                const isVisible = !hiddenScheduleDays.has(i);
+                                // Map UI label index to JS day-of-week: Pn=1, Wt=2, ..., Sb=6, Nd=0
+                                const jsDay = i < 6 ? i + 1 : 0; // Nd is last in UI (i=6) but JS day 0
+                                const isVisible = !hiddenScheduleDays.has(jsDay);
                                 return (
                                     <button
                                         key={label}
-                                        onClick={() => toggleScheduleDay(i)}
+                                        onClick={() => toggleScheduleDay(jsDay)}
                                         title={isVisible ? `Ukryj ${label}` : `Pokaż ${label}`}
                                         style={{
                                             padding: '0.2rem 0.5rem',
