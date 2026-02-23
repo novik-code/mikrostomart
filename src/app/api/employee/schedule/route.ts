@@ -15,6 +15,7 @@ interface ProdentisBadge {
 interface ProdentisAppointment {
     id: string;
     date: string;
+    endDate?: string | null;   // End date/time of appointment (reliable duration source)
     patientName: string;
     patientPhone: string;
     patientId?: string;
@@ -125,12 +126,26 @@ export async function GET(req: Request) {
             const parsed: ParsedApt[] = [];
 
             for (const apt of rawApts) {
-                const aptDate = new Date(apt.date);
-                // Use LOCAL time: Prodentis stores times in Polish local time.
-                // Using UTC (getUTCHours) would be 1-2h off, making startTime
-                // not match TIME_SLOTS and rendering every appointment as 15 min.
-                const startHour = aptDate.getHours();
-                const startMinute = aptDate.getMinutes();
+                // Robust time extraction: parse HH:MM directly from the date string.
+                // Prodentis may return ISO strings with a timezone offset (+02:00) or
+                // without. Using Date methods (getHours/getUTCHours) is unreliable on
+                // Vercel (UTC server). Instead, take the 'T' portion of the string.
+                // e.g. '2026-02-23T09:00:00+01:00' → startHour=9, startMinute=0
+                let startHour: number;
+                let startMinute: number;
+                const dateStr_apt = apt.date as string;
+                const tIdx = dateStr_apt.indexOf('T');
+                if (tIdx !== -1) {
+                    // Extract the time portion immediately after 'T'
+                    const timePart = dateStr_apt.slice(tIdx + 1, tIdx + 6); // 'HH:MM'
+                    startHour = parseInt(timePart.slice(0, 2), 10);
+                    startMinute = parseInt(timePart.slice(3, 5), 10);
+                } else {
+                    // Fallback
+                    const aptDate = new Date(dateStr_apt);
+                    startHour = aptDate.getHours();
+                    startMinute = aptDate.getMinutes();
+                }
 
                 // Skip very early informational entries
                 if (startHour < 7) continue;
@@ -144,6 +159,7 @@ export async function GET(req: Request) {
                     doctorName,
                 });
             }
+
 
             // Group by doctor for duration inference
             const byDoctor = new Map<string, ParsedApt[]>();
@@ -167,18 +183,37 @@ export async function GET(req: Request) {
                     const startMinute = p.startMinutes % 60;
                     const startTime = `${startHour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')}`;
 
-                    // Use real duration from API if available, otherwise infer from gap
+                    // Compute duration from endDate when available (most reliable)
+                    // This is the same approach used by strefa-pacjenta/dashboard/page.tsx:
+                    //   durationMinutes = (endDate.getTime() - startDate.getTime()) / 60000
+                    // It avoids timezone sensitivity because both timestamps shift by the same offset.
                     let duration: number;
-                    if (p.raw.duration && p.raw.duration > 0) {
-                        duration = p.raw.duration;
-                    } else if (j + 1 < docApts.length) {
-                        duration = docApts[j + 1].startMinutes - p.startMinutes;
-                        // Sanity: cap at 4 hours, minimum 15 min
-                        if (duration <= 0) duration = 15;
-                        if (duration > 240) duration = 30;
+                    const endDateStr = p.raw.endDate;
+                    if (endDateStr) {
+                        const durationMs = new Date(endDateStr).getTime() - new Date(p.raw.date).getTime();
+                        duration = Math.round(durationMs / (1000 * 60));
+                        if (duration <= 0 || duration > 480) {
+                            // Sanity check: fall through to inference
+                            duration = 0;
+                        }
                     } else {
-                        // Last appointment of the day — default 30 min
-                        duration = 30;
+                        duration = 0;
+                    }
+
+                    if (duration <= 0 && p.raw.duration && p.raw.duration > 0) {
+                        // Fallback: use API-provided duration field
+                        duration = p.raw.duration;
+                    }
+
+                    if (duration <= 0) {
+                        // Last resort: infer from gap to next appointment
+                        if (j + 1 < docApts.length) {
+                            duration = docApts[j + 1].startMinutes - p.startMinutes;
+                            if (duration <= 0) duration = 15;
+                            if (duration > 240) duration = 30;
+                        } else {
+                            duration = 30; // Last appointment of the day
+                        }
                     }
 
                     const endMinutes = p.startMinutes + duration;
@@ -203,6 +238,20 @@ export async function GET(req: Request) {
                         badges: p.raw.badges || [],
                     });
                 }
+            }
+
+            // Debug: log first few appointments to verify date parsing and duration
+            if (appointments.length > 0) {
+                const sample = appointments.slice(0, 3);
+                console.log(`[Schedule DEBUG] ${dateStr} — ${appointments.length} appointments, sample:`,
+                    sample.map(a => ({
+                        rawDate: rawApts.find(r => r.id === a.id)?.date,
+                        startTime: a.startTime,
+                        endTime: a.endTime,
+                        duration: a.duration,
+                        rawDuration: rawApts.find(r => r.id === a.id)?.duration,
+                    }))
+                );
             }
 
             // Sort by time
