@@ -52,7 +52,7 @@
 
 ### Backend & Database
 - **Supabase** (PostgreSQL database, authentication, storage)
-  - Database: 43 migrations (003-043: email verification, appointment actions, SMS reminders, user_roles, employee tasks, task history, comments, labels, status fix, google reviews cache, chat, push subscriptions, employee_group, push_notification_config, employee_groups array, news/articles/blog/products i18n, calendar tokens, private tasks + reminders, etc.)
+  - Database: 44 migrations (003-044: email verification, appointment actions, SMS reminders, user_roles, employee tasks, task history, comments, labels, status fix, google reviews cache, chat, push subscriptions, employee_group, push_notification_config, employee_groups array, news/articles/blog/products i18n, calendar tokens, private tasks + reminders, etc.)
   - Auth: Email/password, magic links, JWT tokens
   - Storage: Product images, patient documents, task images
 
@@ -2051,6 +2051,51 @@ NODE_ENV=production
 - `src/app/admin/page.tsx` — New `renderEmployeesTab` with accordion UI, added `expandedStaffId` state, removed `confirm()` dialog, added `e.stopPropagation()` for expanded content
 - `src/app/api/admin/employees/route.ts` — Full rewrite: 74-day Prodentis scan, Supabase cross-reference, registered employees section
 - `mikrostomart_context.md` — Comprehensive documentation update (70+ lines added/modified)
+
+---
+
+### February 23, 2026 (batch 3)
+**AI Memory System + Task Auto-Description + TTS Autoplay Fix**
+
+#### Commits:
+- `336ed02` — feat: AI memory system + task auto-description + TTS autoplay fix
+
+#### Features Added:
+
+1. **Supabase: `assistant_memory` table** (migration 044)
+   - `user_id` (unique), `facts` (jsonb), `updated_at`
+   - RLS: owner reads/writes own row; service role used for server writes
+
+2. **API: `/api/employee/assistant/memory`** (GET + POST)
+   - GET → returns user's facts JSON
+   - POST `{ facts }` → deep-merges (null value = delete key)
+
+3. **`updateMemory` action** (`assistantActions.ts`)
+   - New function + `executeAction` switch case
+   - GPT calls automatically when user mentions address, phone, preference, recurring event
+
+4. **Memory injection into system prompt** (`assistant/route.ts`)
+   - `SYSTEM_PROMPT` const → `buildSystemPrompt(memory)` function
+   - POST handler fetches `assistant_memory` from DB, injects into prompt
+   - `updateMemory` added to `FUNCTIONS` list
+   - System prompt improved: push transparency, explicit follow-up suggestions
+
+5. **Task auto-description** (`assistantActions.ts` `createTask`)
+   - If no description given: auto-generates "Zadanie prywatne • Termin: 24 lutego 2026 o 16:00"
+
+6. **TTS Autoplay fix** (`VoiceAssistant.tsx`)
+   - OLD: `new AudioContext()` every call → Chrome/Safari blocked autoplay
+   - NEW: reuse existing AudioContext, `resume()` if suspended — satisfies autoplay policy
+   - Responses now play automatically
+
+#### Files Modified:
+- `supabase_migrations/044_assistant_memory.sql` — **[NEW]** assistant_memory table
+- `src/app/api/employee/assistant/memory/route.ts` — **[NEW]** memory CRUD API
+- `src/lib/assistantActions.ts` — updateMemory action + auto-description in createTask
+- `src/app/api/employee/assistant/route.ts` — buildSystemPrompt + memory fetch + updateMemory FUNCTION
+- `src/components/VoiceAssistant.tsx` — AudioContext reuse for TTS autoplay
+
+> **ACTION REQUIRED:** Run `supabase_migrations/044_assistant_memory.sql` in Supabase SQL Editor
 
 ---
 
