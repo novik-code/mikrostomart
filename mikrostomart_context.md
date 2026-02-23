@@ -52,7 +52,7 @@
 
 ### Backend & Database
 - **Supabase** (PostgreSQL database, authentication, storage)
-  - Database: 37 migrations (003-037: email verification, appointment actions, SMS reminders, user_roles, employee tasks, task history, comments, labels, status fix, google reviews cache, chat, push subscriptions, employee_group, push_notification_config, employee_groups array, etc.)
+  - Database: 43 migrations (003-043: email verification, appointment actions, SMS reminders, user_roles, employee tasks, task history, comments, labels, status fix, google reviews cache, chat, push subscriptions, employee_group, push_notification_config, employee_groups array, news/articles/blog/products i18n, calendar tokens, private tasks + reminders, etc.)
   - Auth: Email/password, magic links, JWT tokens
   - Storage: Product images, patient documents, task images
 
@@ -224,7 +224,7 @@ mikrostomart/
 │   ├── en/common.json          # English
 │   ├── de/common.json          # German
 │   └── ua/common.json          # Ukrainian
-├── supabase_migrations/        # Database migrations (27 files: 003-027)
+├── supabase_migrations/        # Database migrations (40 files: 003-043, some gaps)
 ├── public/                     # Static assets (incl. qr-ocen-nas.png)
 ├── scripts/                    # Utility scripts (13 files)
 └── vercel.json                 # Deployment configuration (6 cron jobs: 3 daily + 2 Friday-only + 1 task reminders)
@@ -2026,6 +2026,73 @@ NODE_ENV=production
 - `src/app/admin/page.tsx` — New `renderEmployeesTab` with accordion UI, added `expandedStaffId` state, removed `confirm()` dialog, added `e.stopPropagation()` for expanded content
 - `src/app/api/admin/employees/route.ts` — Full rewrite: 74-day Prodentis scan, Supabase cross-reference, registered employees section
 - `mikrostomart_context.md` — Comprehensive documentation update (70+ lines added/modified)
+
+---
+
+### February 23, 2026
+**Schedule Display Fix + Push Notification Dedup + Calendar Fix + Day Toggle + AI Voice Private Tasks**
+
+#### Commits:
+- `89033d7` — Fixed appointments displaying as 15 min in desktop schedule (endDate-based duration calc)
+- `9669aab` — Push notification dedup, default Kanban view, mobile zadania layout
+- `a0dcd55` — Calendar bug fix (slice 0,10), schedule day toggle, AI voice private tasks backend
+- `dd169da` — Fixed migration number collision (028→043)
+
+#### Features Added / Fixed:
+
+1. **Desktop Schedule Duration Fix**
+   - All appointments showed as 15 min in `pracownik/page.tsx` schedule grid
+   - Fixed: `schedule/route.ts` now uses `endDate - startDate` (mirrors patient zone logic)
+   - `ProdentisAppointment` interface updated to include `endDate`
+
+2. **Push Notification Deduplication**
+   - Users received 3× the same notification (multiple subscription rows)
+   - New `dedupSubsByUser()` helper in `webpush.ts` — keeps max 2 rows per user (newest first)
+   - Applied to ALL send paths: `sendPushToAllEmployees`, `sendPushToGroups`, `sendPushByConfig`, `sendPushToSpecificUsers`
+   - `sendPushToSpecificUsers` now has per-user logging in Vercel Logs to diagnose 0-sends
+
+3. **Zadania Tab (Mobile)**
+   - Default view changed from `'list'` to `'kanban'`
+   - Header `flexWrap: wrap` — buttons no longer overflow on mobile
+   - ⚙️ Typy button changed to icon-only
+
+4. **Calendar View Bug Fix**
+   - `tasksForDate()` used strict `===` comparison — failed when `due_date` stored as full ISO timestamp
+   - Fixed with `.slice(0, 10)` — tasks now correctly appear in calendar cells
+
+5. **Schedule Day Toggle (Pn–Nd)**
+   - New row of 7 buttons (Pn Wt Śr Cz Pt Sb Nd) above operator toggles in Grafik tab
+   - Click hides/shows that day's column
+   - State persisted to `localStorage('schedule-hidden-days')` — restored on page reload
+   - `getVisibleDays()` updated to respect `hiddenScheduleDays` state
+
+6. **AI Voice Personal Private Tasks (backend)**
+   - **Migration 043** (`043_private_tasks_and_reminders.sql`):
+     - `employee_tasks`: +`is_private` (bool), +`owner_user_id` (uuid), +`due_time` (time)
+     - New table: `task_reminders` — scheduler for individual push notifications
+   - **NEW** `/api/employee/tasks/ai-parse` — GPT-4o-mini parses natural language text:
+     - Extracts: title, due_date, due_time, checklist_items, reminder intervals
+     - Creates private tasks + schedules `task_reminders` rows
+   - **UPDATED** `/api/employee/tasks/route.ts`:
+     - GET: private tasks filtered by `owner_user_id` (only owner sees them)
+     - POST: accepts `is_private`, `owner_user_id`, `due_time`; skips Telegram/push for private tasks
+   - **UPDATED** `/api/cron/task-reminders/route.ts`:
+     - Added Part 3: processes `task_reminders` table, sends push per task owner
+     - Skips done/archived tasks and fully-ticked checklists
+   - `EmployeeTask` interface in `pracownik/page.tsx`: +`is_private`, +`owner_user_id`, +`due_time`
+   - VoiceAssistant component (`src/components/VoiceAssistant.tsx`) already handles voice input → routes to `/api/employee/assistant` which can call `ai-parse`
+
+#### Files Modified:
+- `src/app/api/employee/schedule/route.ts` — endDate duration calc, `ProdentisAppointment.endDate`
+- `src/lib/webpush.ts` — `dedupSubsByUser()` helper, applied to all 4 send functions
+- `src/app/pracownik/page.tsx` — default kanban view, mobile header, calendar fix, day toggle, `EmployeeTask` interface
+- `src/app/api/employee/tasks/route.ts` — private task filtering GET + POST fields
+- `src/app/api/cron/task-reminders/route.ts` — personal reminders processing (Part 3)
+- `src/app/api/employee/tasks/ai-parse/route.ts` — NEW endpoint
+- `supabase_migrations/043_private_tasks_and_reminders.sql` — NEW migration
+
+#### DB Migration Required:
+- Run `supabase_migrations/043_private_tasks_and_reminders.sql` in Supabase SQL Editor
 
 ---
 
