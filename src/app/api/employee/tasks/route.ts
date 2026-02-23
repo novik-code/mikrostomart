@@ -35,27 +35,30 @@ export async function GET(req: Request) {
     const url = new URL(req.url);
     const status = url.searchParams.get('status');
     const assignedTo = url.searchParams.get('assignedTo');
+    const includePrivate = url.searchParams.get('includePrivate') !== 'false'; // default true
 
     let query = supabase
         .from('employee_tasks')
         .select('*')
         .order('created_at', { ascending: false });
 
-    if (status) {
-        query = query.eq('status', status);
-    }
-    if (assignedTo) {
-        query = query.eq('assigned_to_doctor_id', assignedTo);
-    }
+    if (status) query = query.eq('status', status);
+    if (assignedTo) query = query.eq('assigned_to_doctor_id', assignedTo);
 
     const { data, error } = await query;
-
     if (error) {
         console.error('[Tasks] Error listing tasks:', error);
         return NextResponse.json({ error: 'Failed to list tasks' }, { status: 500 });
     }
 
-    return NextResponse.json({ tasks: data || [] });
+    // Filter: private tasks visible only to their owner
+    const tasks = (data || []).filter(t => {
+        if (!t.is_private) return true; // public task — visible to all
+        if (!includePrivate) return false; // caller opted out of private tasks
+        return t.owner_user_id === user.id; // private: only owner sees it
+    });
+
+    return NextResponse.json({ tasks });
 }
 
 /**
@@ -97,11 +100,15 @@ export async function POST(req: Request) {
             patient_name: body.patient_name || null,
             appointment_type: body.appointment_type || null,
             due_date: body.due_date || null,
+            due_time: body.due_time || null,
             linked_appointment_date: body.linked_appointment_date || null,
             linked_appointment_info: body.linked_appointment_info || null,
             assigned_to_doctor_id: body.assigned_to_doctor_id || null,
             assigned_to_doctor_name: body.assigned_to_doctor_name || null,
             assigned_to: body.assigned_to || [],
+            // Private task support
+            is_private: body.is_private === true,
+            owner_user_id: body.is_private ? user.id : null,
             created_by: user.id,
             created_by_email: user.email,
         };
@@ -117,40 +124,36 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Failed to create task' }, { status: 500 });
         }
 
-        console.log(`[Tasks] Created task "${task.title}" by ${user.email}`);
+        // Skip Telegram/push for private personal tasks (only visible to owner)
+        if (!task.is_private) {
+            try {
+                const dueDateStr = task.due_date
+                    ? new Date(task.due_date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'long', year: 'numeric' })
+                    : '⚠️ BRAK DATY';
 
-        // Send Telegram notification
-        try {
-            const dueDateStr = task.due_date
-                ? new Date(task.due_date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'long', year: 'numeric' })
-                : '⚠️ BRAK DATY';
+                let tgMessage = `✅ <b>NOWE ZADANIE</b>\n\n`;
+                tgMessage += `📋 <b>${task.title}</b>\n`;
+                if (task.task_type) tgMessage += `🦷 Typ: ${task.task_type}\n`;
+                if (task.patient_name) tgMessage += `👤 Pacjent: ${task.patient_name}\n`;
+                const assignedNames = (task.assigned_to || []).map((a: any) => a.name).filter(Boolean);
+                if (assignedNames.length > 0) tgMessage += `→ Przypisano do: ${assignedNames.join(', ')}\n`;
+                tgMessage += `📅 Termin: ${dueDateStr}\n`;
+                tgMessage += `✍️ Utworzył: ${user.email}`;
 
-            let tgMessage = `✅ <b>NOWE ZADANIE</b>\n\n`;
-            tgMessage += `📋 <b>${task.title}</b>\n`;
-            if (task.task_type) tgMessage += `🦷 Typ: ${task.task_type}\n`;
-            if (task.patient_name) tgMessage += `👤 Pacjent: ${task.patient_name}\n`;
-            const assignedNames = (task.assigned_to || []).map((a: any) => a.name).filter(Boolean);
-            if (assignedNames.length > 0) tgMessage += `→ Przypisano do: ${assignedNames.join(', ')}\n`;
-            tgMessage += `📅 Termin: ${dueDateStr}\n`;
-            tgMessage += `✍️ Utworzył: ${user.email}`;
+                await sendTelegramNotification(tgMessage, 'default');
 
-            await sendTelegramNotification(tgMessage, 'default');
-
-            // Push notification — uses config-driven routing (respects admin panel settings)
-            await sendPushByConfig(
-                'task-new',
-                {
-                    title: '📋 Nowe zadanie',
-                    body: `${task.title}${task.patient_name ? ` — ${task.patient_name}` : ''}`,
-                    url: '/pracownik',
-                    tag: `task-new-${data.id}`,
-                }
-                // NOTE: no excludeUserId — all configured recipients get the push
-            );
-
-
-        } catch (tgErr) {
-            console.error('[Tasks] Telegram notification error:', tgErr);
+                await sendPushByConfig(
+                    'task-new',
+                    {
+                        title: '📋 Nowe zadanie',
+                        body: `${task.title}${task.patient_name ? ` — ${task.patient_name}` : ''}`,
+                        url: '/pracownik',
+                        tag: `task-new-${data.id}`,
+                    }
+                );
+            } catch (tgErr) {
+                console.error('[Tasks] Telegram notification error:', tgErr);
+            }
         }
 
         return NextResponse.json({ task: data }, { status: 201 });

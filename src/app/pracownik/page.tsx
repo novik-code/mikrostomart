@@ -82,6 +82,7 @@ interface EmployeeTask {
     patient_name: string | null;
     appointment_type: string | null;
     due_date: string | null;
+    due_time: string | null;
     linked_appointment_date: string | null;
     linked_appointment_info: string | null;
     assigned_to_doctor_id: string | null;
@@ -90,6 +91,9 @@ interface EmployeeTask {
     created_by_email: string | null;
     created_at: string;
     updated_at: string;
+    // Private task fields (migration 028)
+    is_private: boolean;
+    owner_user_id: string | null;
 }
 
 interface FutureAppointment {
@@ -232,6 +236,13 @@ export default function EmployeePage() {
     const [userEmail, setUserEmail] = useState<string>('');
     const [userId, setUserId] = useState<string>('');
     const [hiddenDoctors, setHiddenDoctors] = useState<Set<string>>(new Set());
+    // ─── Schedule: hidden days of week (persisted to localStorage) ─────────
+    const [hiddenScheduleDays, setHiddenScheduleDays] = useState<Set<number>>(() => {
+        try {
+            const saved = typeof window !== 'undefined' ? localStorage.getItem('schedule-hidden-days') : null;
+            return saved ? new Set(JSON.parse(saved) as number[]) : new Set();
+        } catch { return new Set(); }
+    });
     const [selectedAppointment, setSelectedAppointment] = useState<ScheduleAppointment | null>(null);
     const [patientHistory, setPatientHistory] = useState<Visit[] | null>(null);
     const [historyLoading, setHistoryLoading] = useState(false);
@@ -400,14 +411,25 @@ export default function EmployeePage() {
         return dateStr === today;
     };
 
-    // Determine which days to show (skip Sat/Sun if empty)
+    // Determine which days to show (skip Sat/Sun if empty, respect hiddenScheduleDays)
     const getVisibleDays = (): ScheduleDay[] => {
         if (!scheduleData) return [];
         return scheduleData.days.filter((day, i) => {
-            // Always show Mon-Fri
+            // If explicitly hidden by user → never show
+            if (hiddenScheduleDays.has(i)) return false;
+            // Mon–Fri: always show unless hidden
             if (i < 5) return true;
-            // Show Sat/Sun only if they have appointments
+            // Sat/Sun: show only if they have appointments
             return day.appointments.length > 0;
+        });
+    };
+
+    const toggleScheduleDay = (dayIdx: number) => {
+        setHiddenScheduleDays(prev => {
+            const next = new Set(prev);
+            if (next.has(dayIdx)) next.delete(dayIdx); else next.add(dayIdx);
+            try { localStorage.setItem('schedule-hidden-days', JSON.stringify([...next])); } catch { }
+            return next;
         });
     };
 
@@ -892,7 +914,7 @@ export default function EmployeePage() {
         const year = calendarMonth.getFullYear();
         const month = calendarMonth.getMonth();
         const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-        return tasks.filter(t => t.due_date === dateStr && t.status !== 'archived');
+        return tasks.filter(t => t.due_date?.slice(0, 10) === dateStr && t.status !== 'archived');
     }, [tasks, calendarMonth]);
 
     // ─── Enhanced: Filtered Tasks with search/filters ──────
@@ -1267,6 +1289,47 @@ export default function EmployeePage() {
                                     </strong>
                                 </span>
                             </div>
+                        </div>
+
+                        {/* Day-of-week toggle bar */}
+                        <div style={{
+                            marginBottom: '0.6rem',
+                            background: 'rgba(255,255,255,0.02)',
+                            border: '1px solid rgba(255,255,255,0.08)',
+                            borderRadius: '0.75rem',
+                            padding: '0.55rem 0.8rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            flexWrap: 'wrap',
+                        }}>
+                            <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.45)', marginRight: '0.25rem', whiteSpace: 'nowrap' }}>Dni:</span>
+                            {(['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'Sb', 'Nd'] as const).map((label, i) => {
+                                const isVisible = !hiddenScheduleDays.has(i);
+                                return (
+                                    <button
+                                        key={label}
+                                        onClick={() => toggleScheduleDay(i)}
+                                        title={isVisible ? `Ukryj ${label}` : `Pokaż ${label}`}
+                                        style={{
+                                            padding: '0.2rem 0.5rem',
+                                            background: isVisible ? 'rgba(56,189,248,0.12)' : 'rgba(255,255,255,0.03)',
+                                            border: `1px solid ${isVisible ? 'rgba(56,189,248,0.28)' : 'rgba(255,255,255,0.08)'}`,
+                                            borderRadius: '5px',
+                                            color: isVisible ? '#38bdf8' : 'rgba(255,255,255,0.25)',
+                                            cursor: 'pointer',
+                                            fontSize: '0.72rem',
+                                            fontWeight: isVisible ? '600' : '400',
+                                            transition: 'all 0.12s',
+                                            minWidth: '28px',
+                                            textAlign: 'center',
+                                            textDecoration: isVisible ? 'none' : 'line-through',
+                                        }}
+                                    >
+                                        {label}
+                                    </button>
+                                );
+                            })}
                         </div>
 
                         {/* Operator Toggle Bar */}
