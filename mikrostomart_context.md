@@ -1058,6 +1058,8 @@ Features:
 | `/employee/tasks/ai-parse` | POST | **NEW** — GPT-4o-mini parses natural-language text → creates private tasks + schedules task_reminders |
 | `/employee/tasks/labels` | GET, POST | Task labels CRUD (list all labels, create new label) |
 | `/employee/tasks/upload-image` | POST | Upload task image to Supabase Storage (`task-images` bucket) |
+| `/employee/tts` | POST | **NEW** — OpenAI TTS proxy (`tts-1` model). `{ text, voice? }` → returns `audio/mpeg`. Voices: nova (default), alloy, shimmer. Auth: employee/admin only. |
+| `/employee/assistant` | POST | AI Voice Assistant (GPT-4o function-calling). System prompt: **proactive** — acts immediately, suggests improvements after. Supports: createTask, addCalendarEvent, addReminder, dictateDocumentation, searchPatient, checkSchedule. |
 
 ### Push Notification APIs (`/api/push/*`)
 
@@ -2049,6 +2051,50 @@ NODE_ENV=production
 - `src/app/admin/page.tsx` — New `renderEmployeesTab` with accordion UI, added `expandedStaffId` state, removed `confirm()` dialog, added `e.stopPropagation()` for expanded content
 - `src/app/api/admin/employees/route.ts` — Full rewrite: 74-day Prodentis scan, Supabase cross-reference, registered employees section
 - `mikrostomart_context.md` — Comprehensive documentation update (70+ lines added/modified)
+
+---
+
+### February 23, 2026 (batch 2)
+**Private Tasks UI + AI Proactive Behavior + OpenAI TTS**
+
+#### Commits:
+- `b2b87c6` — Private tasks UI, AI proactive system prompt, OpenAI TTS voice, assistantActions is_private+due_time
+
+#### Features Added / Fixed:
+
+1. **Private Task Creation UI**
+   - Task creation modal: 🔒/🌐 toggle button (full-width, above Title field) — default: 🌐 Widoczne dla wszystkich
+   - `taskForm` state: +`is_private: false`; `resetTaskForm()` resets it
+   - `handleCreateTask()` passes `is_private` to POST body
+   - Filter dropdown: +`🔒 Prywatne` option (`value='__private__'`) — shows only `is_private=true && owner_user_id == currentUserId`
+   - `filteredTasks` logic updated to handle `__private__` filter value
+
+2. **AI Assistant: Proactive Behavior**
+   - System prompt in `assistant/route.ts` completely rewritten: NIE PYTAJ → DZIAŁAJ od razu
+   - Date inference pre-computed: jutro/pojutrze/przyszły tydzień resolved at request time
+   - After executing: natural 2-3 sentence reply + suggests what else could be added
+   - `createTask` schema: +`is_private`, +`due_time`; task_type pomiń for private
+   - `temperature`: 0.4 → 0.6 for more natural wording
+   - Style: no "Oczywiście!"; confirms what was DONE not future tense
+
+3. **OpenAI TTS (replaces browser speechSynthesis)**
+   - New: `src/app/api/employee/tts/route.ts` — POST `{ text, voice? }` → `audio/mpeg` (tts-1, nova default)
+   - `VoiceAssistant.tsx`: `speakText()` now async, uses `AudioContext` + smooth gain ramp-in
+   - Settings panel: voice selector (Nova / Alloy / Shimmer)
+   - `ttsVoice` state + `ttsVoiceRef` added to component
+   - Removed `window.speechSynthesis.getVoices()` call
+
+4. **assistantActions.ts createTask**
+   - +`is_private`, +`due_time` to function signature + DB insert
+   - Private tasks skip `sendPushToAllEmployees`
+   - Return message includes time if provided
+
+#### Files Modified:
+- `src/app/pracownik/page.tsx` — is_private toggle, __private__ filter, is_private in POST
+- `src/components/VoiceAssistant.tsx` — OpenAI TTS, voice selector, removed speechSynthesis
+- `src/app/api/employee/assistant/route.ts` — system prompt rewrite, createTask schema
+- `src/lib/assistantActions.ts` — createTask: is_private, due_time, private push skip
+- `src/app/api/employee/tts/route.ts` — **[NEW]** OpenAI TTS proxy
 
 ---
 
