@@ -33,11 +33,10 @@ export async function GET(req: Request) {
     }
 
     try {
-        // Find tasks without due_date that are not done
-        const { data: tasks, error } = await supabase
+        // Find all active tasks
+        const { data: allTasks, error } = await supabase
             .from('employee_tasks')
-            .select('id, title, task_type, patient_name, assigned_to_doctor_name, created_by_email, created_at')
-            .is('due_date', null)
+            .select('id, title, task_type, patient_name, assigned_to_doctor_name, created_by_email, created_at, checklist_items, due_date')
             .neq('status', 'done')
             .order('created_at', { ascending: true });
 
@@ -46,48 +45,98 @@ export async function GET(req: Request) {
             return NextResponse.json({ error: 'DB error' }, { status: 500 });
         }
 
-        if (!tasks || tasks.length === 0) {
-            console.log('[TaskReminders] No tasks without dates found');
+        if (!allTasks || allTasks.length === 0) {
+            console.log('[TaskReminders] No active tasks found');
             return NextResponse.json({ success: true, reminded: 0 });
         }
 
-        console.log(`[TaskReminders] Found ${tasks.length} tasks without due_date`);
+        // Filter 1: Tasks without due_date
+        const noDateTasks = allTasks.filter(t => t.due_date === null);
 
-        // Build a single message with all tasks
-        let message = `⚠️ <b>ZADANIA BEZ DATY REALIZACJI</b>\n\n`;
-        message += `Poniższe zadania nie mają ustawionej daty realizacji.\nProszę uzupełnić.\n\n`;
+        // Filter 2: Tasks with pending 'zadatek' or 'wpłacony zadatek'
+        const pendingDepositTasks = allTasks.filter(t => {
+            if (!t.checklist_items || !Array.isArray(t.checklist_items)) return false;
+            return t.checklist_items.some((item: any) =>
+                !item.done &&
+                (item.text.toLowerCase().includes('zadatek') || item.text.toLowerCase().includes('wpłacony zadatek'))
+            );
+        });
 
-        for (const task of tasks) {
-            const ageMs = Date.now() - new Date(task.created_at).getTime();
-            const ageDays = Math.floor(ageMs / (1000 * 60 * 60 * 24));
-
-            message += `📋 <b>${task.title}</b>\n`;
-            if (task.patient_name) message += `   👤 ${task.patient_name}\n`;
-            if (task.assigned_to_doctor_name) message += `   → ${task.assigned_to_doctor_name}\n`;
-            message += `   ⏱ Utworzono ${ageDays} dni temu\n\n`;
+        if (noDateTasks.length === 0 && pendingDepositTasks.length === 0) {
+            console.log('[TaskReminders] No tasks requiring daily reminders found');
+            return NextResponse.json({ success: true, reminded: 0 });
         }
 
-        message += `📊 Łącznie: ${tasks.length} zadań bez daty`;
+        console.log(`[TaskReminders] Found ${noDateTasks.length} tasks without date, ${pendingDepositTasks.length} with pending deposit`);
 
-        const sent = await sendTelegramNotification(message, 'default');
-        console.log(`[TaskReminders] Telegram sent: ${sent}`);
+        // Build Telegram message
+        let message = '';
 
-        // Also send push notifications to all employees
+        if (noDateTasks.length > 0) {
+            message += `⚠️ <b>ZADANIA BEZ DATY REALIZACJI</b>\n\n`;
+            message += `Poniższe zadania nie mają ustawionej daty realizacji. Proszę uzupełnić.\n\n`;
+
+            for (const task of noDateTasks) {
+                const ageMs = Date.now() - new Date(task.created_at).getTime();
+                const ageDays = Math.floor(ageMs / (1000 * 60 * 60 * 24));
+                message += `📋 <b>${task.title}</b>\n`;
+                if (task.patient_name) message += `   👤 ${task.patient_name}\n`;
+                if (task.assigned_to_doctor_name) message += `   → ${task.assigned_to_doctor_name}\n`;
+                message += `   ⏱ Utworzono ${ageDays} dni temu\n\n`;
+            }
+        }
+
+        if (pendingDepositTasks.length > 0) {
+            if (message) message += `\n---\n\n`;
+            message += `💰 <b>NIEWPŁACONY ZADATEK</b>\n\n`;
+            message += `W poniższych zadaniach należy pobrać i odznaczyć wpłatę zadatku.\n\n`;
+
+            for (const task of pendingDepositTasks) {
+                message += `📋 <b>${task.title}</b>\n`;
+                if (task.patient_name) message += `   👤 ${task.patient_name}\n`;
+                if (task.due_date) {
+                    const dueDateStr = new Date(task.due_date).toLocaleDateString('pl-PL');
+                    message += `   📅 Termin: ${dueDateStr}\n`;
+                }
+                message += `\n`;
+            }
+        }
+
+        const totalReminded = noDateTasks.length + pendingDepositTasks.length;
+        message += `📊 Dodatkowe zadania i zadatki do sprawdzenia: ${totalReminded}`;
+
+        let telegramSent = false;
+        if (message) {
+            telegramSent = await sendTelegramNotification(message, 'default');
+            console.log(`[TaskReminders] Telegram sent: ${telegramSent}`);
+        }
+
+        // Send push notifications
         try {
-            await sendPushToAllEmployees({
-                title: '⚠️ Zadania bez daty realizacji',
-                body: `${tasks.length} zadań wymaga uzupełnienia daty`,
-                url: '/pracownik',
-                tag: 'task-reminders-daily',
-            });
+            if (noDateTasks.length > 0) {
+                await sendPushToAllEmployees({
+                    title: '⚠️ Zadania bez daty realizacji',
+                    body: `${noDateTasks.length} zadań wymaga uzupełnienia daty`,
+                    url: '/pracownik',
+                    tag: 'task-reminders-nodate-daily',
+                });
+            }
+            if (pendingDepositTasks.length > 0) {
+                await sendPushToAllEmployees({
+                    title: '💰 Oczekujące wpłaty zadatku',
+                    body: `${pendingDepositTasks.length} zadań czeka na odznaczenie zadatku`,
+                    url: '/pracownik',
+                    tag: 'task-reminders-deposit-daily',
+                });
+            }
         } catch (pushErr) {
             console.error('[TaskReminders] Push error:', pushErr);
         }
 
         return NextResponse.json({
             success: true,
-            reminded: tasks.length,
-            telegramSent: sent,
+            reminded: totalReminded,
+            telegramSent,
         });
 
     } catch (error: any) {
