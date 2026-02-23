@@ -1,83 +1,144 @@
 ---
-description: Update mikrostomart_context.md after completing any coding task
+description: MANDATORY end-of-session: update the entire mikrostomart_context.md after any coding task
 ---
 
 # Workflow: Update Context After Task
 
 // turbo-all
 
-## MANDATORY — Run this workflow after EVERY coding task in the Mikrostomart project.
+## ⚠️ MANDATORY — Run AFTER completing any coding task in Mikrostomart
 
-This ensures the context file remains accurate for future AI sessions and prevents:
-- Wrong migration numbers (e.g., creating 028 when 028 already exists)
-- Stale API endpoint docs
-- Missing DB table descriptions
-- Outdated feature lists
+Go through EVERY section below and update what changed. Do not skip sections — check each one.
 
 ---
 
-## Steps
-
-### 1. Check what migrations exist BEFORE creating new ones
-```bash
-ls -1 supabase_migrations/ | sort | tail -5
-```
-**Use the NEXT available number.** Never assume — always check first.
-
-### 2. Update `mikrostomart_context.md` — Last Updated header
-Change the date at the top of the file:
+## Step 1 — Update "Last Updated" header
+Line ~1 of `mikrostomart_context.md`:
 ```
 > **Last Updated:** YYYY-MM-DD
 ```
 
-### 3. Update migration count (line ~55)
-```
-- Database: N migrations (003-NNN: ...)
-```
+---
 
-### 4. Add entry to Recent Changes (top of section, line ~2030+)
-Format:
+## Step 2 — Update Project Overview (if scope changed)
+Lines ~45–70. Update if:
+- New major feature added → add to feature list
+- New tech/library used → add to stack
+- Migration count changed → update number
+- New cron job added → update cron count in vercel.json description
+
+---
+
+## Step 3 — Update Directory Structure (if new files/dirs added)
+Lines ~200–280. Update if:
+- New API route created → add to `src/app/api/...`
+- New component created → add to `src/components/`
+- New library file → add to `src/lib/`
+- New migration → update count comment
+- New workflow → update `.agents/workflows/`
+
+---
+
+## Step 4 — Update Database Schema (if DB changed)
+Search for `## 🗄️ Database Schema`. Update if:
+- New table created → add with all columns
+- New column added → add to existing table definition
+- Column type changed → update
+- New index → note it
+
+---
+
+## Step 5 — Update API Endpoints (if routes changed)
+Search for `## 🔌 API Endpoints`. Update if:
+- New endpoint created → add with method, path, auth, description
+- Endpoint behavior changed → update description
+- Endpoint deleted → remove
+
+---
+
+## Step 6 — Update Features & Components (if UI changed)
+Search for `## ✨ Features` or `## 🧩 Components`. Update if:
+- New UI tab/section added
+- New state variable added to major component
+- New props added to shared component
+- Behavior changed (e.g., default view changed from 'list' to 'kanban')
+
+---
+
+## Step 7 — Update Push Notification section (if push changed)
+Search for `Push Notification`. Update if:
+- New push send path added
+- Dedup logic changed
+- New cron for push created
+
+---
+
+## Step 8 — Update Environment Variables (if new envs added)
+Search for `## 🔐 Environment Variables`. Add any new `process.env.*` used.
+
+---
+
+## Step 9 — Update Known Issues / Pending Work
+Search for `## ⚠️ Known Issues` or `## 🔧 Pending`. Update if:
+- Bug was fixed → remove from Known Issues
+- New bug found → add
+- Feature partially implemented → note what's pending
+
+---
+
+## Step 10 — Add to Recent Changes (ALWAYS)
+At the TOP of Recent Changes section (line ~2030+):
+
 ```markdown
 ### [Month Day], 2026
-**[Short description of what was done]**
+**[Short title of what was done]**
 
 #### Commits:
-- `abc1234` — description
+- `abc1234` — description (get from: git log --oneline -5)
 
 #### Features Added / Fixed:
-1. **Feature name** — what changed, what was broken, what was fixed
+1. **Feature name**
+   - What was broken / what changed
+   - How it was fixed / implemented
+   - Key files involved
 
 #### Files Modified:
-- `path/to/file.ts` — what changed
+- `src/path/to/file.ts` — what changed
 
 #### DB Migration Required: (if applicable)
 - Run `supabase_migrations/NNN_name.sql` in Supabase SQL Editor
 ```
 
-### 5. Update Database Schema section (if new tables/columns added)
-Find the relevant section and add:
-- New tables with their full column list
-- New columns on existing tables
+---
 
-### 6. Update API Endpoints section (if new routes added)
-Find `## 🔌 API Endpoints` and add new routes.
-
-### 7. Commit the context update
+## Step 11 — Commit the context update
 ```bash
 git add mikrostomart_context.md
-git commit -m "docs: update context file after [feature name]"
+git commit -m "docs: update context after [feature name]"
 git push
 ```
 
 ---
 
-## Common Mistakes to Avoid
+## ✅ Checklist (tick each before finishing)
+- [ ] Last Updated date changed
+- [ ] Migration count updated (if applicable)
+- [ ] New tables/columns added to DB Schema (if applicable)
+- [ ] New API routes added to API Endpoints (if applicable)
+- [ ] New UI features added to Features section (if applicable)
+- [ ] New env vars added (if applicable)
+- [ ] Known Issues updated (if applicable)
+- [ ] Recent Changes entry added (ALWAYS)
+- [ ] Committed and pushed
 
-❌ **WRONG:** Creating migration `028` without checking → collision  
-✅ **RIGHT:** `ls supabase_migrations/ | sort | tail -5` → pick next number
+---
 
-❌ **WRONG:** Completing a task without updating context  
-✅ **RIGHT:** Update context as the LAST STEP of every task
+## ❌ Common Mistakes
 
-❌ **WRONG:** Vague entries like "Fixed bugs"  
-✅ **RIGHT:** Specific: commit hash, file names, what exactly changed
+| Wrong | Right |
+|-------|-------|
+| Only updating Recent Changes | Go through ALL sections |
+| "Fixed bugs" as description | Specific: what exact bug, which file, which fix |
+| Creating migration 028 without checking | Always `ls supabase_migrations/ \| sort \| tail -5` first |
+| Skipping context update entirely | Context update = mandatory last step of every task |
+| Leaving fixed bugs in Known Issues | Remove them when resolved |

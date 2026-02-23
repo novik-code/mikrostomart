@@ -393,6 +393,9 @@ Task management system for clinic staff.
 - priority ('low', 'medium', 'high')
 - task_type (varchar(100)) -- e.g. 'Laboratorium', 'Zamówienia', 'Recepcja'
 - due_date (date)
+- due_time (time)                        -- ← NEW (migration 043): specific time of day
+- is_private (boolean, DEFAULT false)     -- ← NEW (migration 043): only visible to owner
+- owner_user_id (uuid, FK → auth.users)  -- ← NEW (migration 043): creator of private task
 - patient_name (text)
 - patient_id (text) -- Prodentis patient ID
 - assigned_to_doctor_id (text) -- legacy single assignment
@@ -404,6 +407,22 @@ Task management system for clinic staff.
 - created_by_email (text)
 - created_at, updated_at
 ```
+Note: Private tasks (`is_private=true`) are only visible to `owner_user_id` — filtered server-side in GET /api/employee/tasks. Telegram/push notifications are skipped for private tasks.
+
+#### 13. **task_reminders** ← NEW (migration 043)
+Scheduler for individual push notification reminders (AI voice private tasks).
+```sql
+- id (uuid, PK, DEFAULT gen_random_uuid())
+- task_id (uuid, FK → employee_tasks ON DELETE CASCADE)
+- user_id (uuid, NOT NULL)  -- recipient of the push
+- remind_at (timestamptz, NOT NULL)  -- when to fire the push
+- reminded (boolean, DEFAULT false)  -- true after push sent
+- remind_type (text, DEFAULT 'push') -- 'push' only for now
+- created_at (timestamptz)
+```
+Indexes: `idx_task_reminders_pending ON remind_at WHERE NOT reminded`, `idx_task_reminders_task ON task_id`
+Processed by: `GET /api/cron/task-reminders` (Part 3 — runs alongside daily group reminders)
+
 
 #### 13. **task_history**
 Audit log for task edits, status changes, and checklist toggles.
@@ -784,6 +803,7 @@ Features:
    - **Time slots**: 15-minute intervals, 7:00–20:00
    - **Multi-doctor columns**: one column per operator/doctor
    - **Operator toggle buttons**: show/hide individual doctors, "Pokaż wszystkich" / "Ukryj wszystkich"
+   - **Day-of-week toggle buttons** ← NEW: Pn Wt Śr Cz Pt Sb Nd row above operator toggles; click hides/shows that day's column; state persisted via `localStorage('schedule-hidden-days')` — restored on page reload
    - **Prodentis color mapping**: appointment type → color (matching Prodentis desktop app)
      - 15+ type colors: Zachowawcza (yellow), Chirurgia (magenta), Protetyka (cyan), Endodoncja (purple), etc.
    - **Week navigation**: ◀ / ▶ buttons, "Dziś" button to jump to current week
@@ -806,9 +826,11 @@ Features:
    - **Status workflow**: Todo → In Progress → Done → Archived, with filter tabs
    - **Priority levels**: Low, Medium, High — color-coded badges
    - **Search & filters**: text search + filter by assignee, task type, priority
-   - **View modes**: Lista (list) | Kanban (3-column drag-and-drop board) | Kalendarz (monthly calendar)
+   - **View modes**: Lista (list) | Kanban (3-column board, default) | Kalendarz (monthly calendar)
    - **Kanban board**: drag tasks between Todo/In Progress/Done columns via `onDragStart`/`onDragOver`/`onDrop`
-   - **Calendar view**: monthly grid showing task counts per day, due date dots
+   - **Calendar view**: monthly grid showing task counts per day, due date dots. Bug fixed: `tasksForDate()` now uses `.slice(0,10)` to compare `due_date` timestamps correctly
+   - **Private tasks** ← NEW: tasks with `is_private=true` visible only to creator (`owner_user_id`); filtered server-side; 🔒 badge planned for UI
+   - **AI Voice Task Creation** ← NEW: Asystent AI tab → voice/text input → `POST /api/employee/tasks/ai-parse` → GPT-4o-mini extracts tasks with dates, times, checklist items → creates private tasks + schedules push reminders in `task_reminders` table
    - **Task comments**: threaded comments per task (author name, timestamps, post new comment)
    - **Task history**: audit log of all edits, status changes, checklist toggles with timestamps
    - **Labels/tags**: custom colored labels (5 defaults seeded), assignable per task
@@ -1030,9 +1052,10 @@ Features:
 | `/employee/patient-history` | GET | Patient visit history from Prodentis (`?patientId=&limit=`) |
 | `/employee/patient-appointments` | GET | Future appointments for patient from Prodentis (`?patientId=`) — used for task due date suggestions |
 | `/employee/staff` | GET | Registered employees list from `user_roles` table (fast, no Prodentis scan) |
-| `/employee/tasks` | GET, POST, PUT, DELETE | Task CRUD (list with filters, create, update status/fields, delete) |
+| `/employee/tasks` | GET, POST, PUT, DELETE | Task CRUD. GET filters private tasks by `owner_user_id`; POST accepts `is_private`, `due_time`; private tasks skip Telegram/push |
 | `/employee/tasks/[id]` | GET, PUT, DELETE | Individual task operations (get details, update, archive) |
 | `/employee/tasks/[id]/comments` | GET, POST | Task comments (list comments, add new comment) |
+| `/employee/tasks/ai-parse` | POST | **NEW** — GPT-4o-mini parses natural-language text → creates private tasks + schedules task_reminders |
 | `/employee/tasks/labels` | GET, POST | Task labels CRUD (list all labels, create new label) |
 | `/employee/tasks/upload-image` | POST | Upload task image to Supabase Storage (`task-images` bucket) |
 
@@ -1081,7 +1104,7 @@ Features:
 | `/cron/sms-auto-send` | Auto-send approved drafts | Daily 8:00 AM UTC |
 | `/cron/sms-auto-send?targetDate=monday` | Auto-send Monday drafts (Fri only) | Friday 9:00 AM UTC |
 | `/cron/daily-article` | Daily article publishing | Daily 7:00 AM UTC |
-| `/cron/task-reminders` | Telegram + push reminder for tasks without due dates | Daily 8:30 AM UTC |
+| `/cron/task-reminders` | (1) Telegram + push for tasks without due dates; (2) push for deposit keyword tasks; (3) individual push from `task_reminders` scheduler table | Daily 8:30 AM UTC |
 
 
 ---
