@@ -6,7 +6,6 @@ const supabase = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-// POST — subscribe to push notifications
 export async function POST(request: NextRequest) {
     try {
         const { subscription, userType, userId, locale } = await request.json();
@@ -18,20 +17,30 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'userType and userId required' }, { status: 400 });
         }
 
-        // Resolve employee_group for employees
+        // Resolve push groups for employees
         let employee_group: string | null = null;
+        let employee_groups: string[] | null = null;
+
         if (userType === 'employee') {
             const { data: emp } = await supabase
                 .from('employees')
-                .select('position')
+                .select('position, push_groups')
                 .eq('user_id', userId)
                 .single();
 
-            const position = emp?.position?.toLowerCase() || '';
-            if (position.includes('lekarz') || position.includes('doktor')) employee_group = 'doctor';
-            else if (position.includes('higienist')) employee_group = 'hygienist';
-            else if (position.includes('recep')) employee_group = 'reception';
-            else if (position.includes('asysta') || position.includes('asystentka')) employee_group = 'assistant';
+            // Prefer the new push_groups array (managed via admin panel)
+            if (emp?.push_groups && emp.push_groups.length > 0) {
+                employee_groups = emp.push_groups;
+                employee_group = emp.push_groups[0];
+            } else if (emp?.position) {
+                // Derive from position string as fallback
+                const pos = (emp.position || '').toLowerCase();
+                if (pos.includes('lekarz') || pos.includes('doktor')) employee_group = 'doctor';
+                else if (pos.includes('higienist')) employee_group = 'hygienist';
+                else if (pos.includes('recep')) employee_group = 'reception';
+                else if (pos.includes('asysta') || pos.includes('asystentka')) employee_group = 'assistant';
+                if (employee_group) employee_groups = [employee_group];
+            }
         }
 
         // Upsert — update locale/keys/group if endpoint already exists
@@ -46,13 +55,14 @@ export async function POST(request: NextRequest) {
                     auth: subscription.keys.auth,
                     locale: locale || 'pl',
                     employee_group,
+                    employee_groups,
                 },
                 { onConflict: 'endpoint' }
             );
 
         if (error) throw error;
 
-        console.log(`[Push] Subscribed: ${userType}/${userId} (${locale}) group: ${employee_group}`);
+        console.log(`[Push] Subscribed: ${userType}/${userId} (${locale}) groups:`, employee_groups);
         return NextResponse.json({ success: true });
     } catch (error: unknown) {
         console.error('[Push] Subscribe error:', error);

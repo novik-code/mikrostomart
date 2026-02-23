@@ -609,13 +609,16 @@ export default function AdminPage() {
                 setRolesUsers(data.users || []);
                 setPatientCandidates(data.patientCandidates || []);
                 // Pre-populate Podgrupa dropdowns from returned employee positions
-                const posMap: Record<string, string> = {};
+                const posMap: Record<string, string[]> = {};
                 for (const u of (data.users || [])) {
-                    if (u.employeePosition?.position) {
-                        posMap[u.user_id] = u.employeePosition.position;
+                    if (u.employeePosition?.push_groups?.length > 0) {
+                        posMap[u.user_id] = u.employeePosition.push_groups;
+                    } else if (u.employeePosition?.employee_group) {
+                        // legacy fallback
+                        posMap[u.user_id] = [u.employeePosition.employee_group];
                     }
                 }
-                setPushSubGroups(posMap);
+                setPushEmpGroups(posMap);
             } else {
                 const errData = await res.json();
                 setRolesError(errData.error || 'Blad pobierania danych');
@@ -1992,33 +1995,46 @@ export default function AdminPage() {
                                         ) : null;
                                     })}
                                 </div>
-                                {/* Podgrupa — show for employees */}
-                                {user.roles.includes('employee') && (
-                                    <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                        <span style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)' }}>Podgrupa push:</span>
-                                        <select
-                                            defaultValue={pushSubGroups[user.user_id] || ''}
-                                            onChange={async (e) => {
-                                                await handleSetPosition(user.user_id, e.target.value);
-                                            }}
-                                            style={{
-                                                padding: '0.2rem 0.5rem',
-                                                background: 'var(--color-surface)',
-                                                border: '1px solid var(--color-border)',
-                                                borderRadius: '4px',
-                                                color: 'var(--color-text-main)',
-                                                fontSize: '0.75rem',
-                                                cursor: 'pointer',
-                                            }}
-                                        >
-                                            <option value="">— nie przypisano —</option>
-                                            <option value="Lekarz">🦷 Lekarz</option>
-                                            <option value="Higienistka">💉 Higienistka</option>
-                                            <option value="Recepcja">📞 Recepcja</option>
-                                            <option value="Asystentka">🔧 Asysta</option>
-                                        </select>
-                                    </div>
-                                )}
+                                {/* Podgrupa push — multi-chip selector in Roles tab */}
+                                {user.roles.includes('employee') && (() => {
+                                    const EMP_OPTS = [
+                                        { key: 'doctor', label: '🦷 Lekarz' },
+                                        { key: 'hygienist', label: '💉 Higienistka' },
+                                        { key: 'reception', label: '📞 Recepcja' },
+                                        { key: 'assistant', label: '🔧 Asysta' },
+                                    ];
+                                    const currentGroups = pushEmpGroups[user.user_id] || [];
+                                    return (
+                                        <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                                            <span style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)', flexShrink: 0 }}>Grupy push:</span>
+                                            {EMP_OPTS.map(opt => {
+                                                const active = currentGroups.includes(opt.key);
+                                                return (
+                                                    <button key={opt.key}
+                                                        onClick={() => {
+                                                            const next = active
+                                                                ? currentGroups.filter(g => g !== opt.key)
+                                                                : [...currentGroups, opt.key];
+                                                            setPushEmpGroups(prev => ({ ...prev, [user.user_id]: next }));
+                                                            // auto-save immediately
+                                                            fetch('/api/admin/employees/position', {
+                                                                method: 'PATCH',
+                                                                headers: { 'Content-Type': 'application/json' },
+                                                                body: JSON.stringify({ userId: user.user_id, groups: next }),
+                                                            });
+                                                        }}
+                                                        style={{
+                                                            padding: '0.18rem 0.5rem', borderRadius: '2rem', fontSize: '0.7rem', cursor: 'pointer',
+                                                            border: `1px solid ${active ? 'var(--color-primary)' : 'var(--color-border)'}`,
+                                                            background: active ? 'rgba(250,189,0,0.12)' : 'transparent',
+                                                            color: active ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                                                            fontWeight: active ? 'bold' : 'normal', transition: 'all 0.1s',
+                                                        }}>{opt.label}</button>
+                                                );
+                                            })}
+                                        </div>
+                                    );
+                                })()}
                             </div>
 
                             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
@@ -2941,7 +2957,9 @@ export default function AdminPage() {
 
 
     // ---- Push state ----
-    const [pushSubs, setPushSubs] = useState<any[]>([]);
+    const [pushEmployees, setPushEmployees] = useState<any[]>([]); // all employees from /api/admin/push
+    const [pushAdminSubs, setPushAdminSubs] = useState<any[]>([]);
+    const [pushPatientSubsCount, setPushPatientSubsCount] = useState(0);
     const [pushStats, setPushStats] = useState<any>({});
     const [pushLoading, setPushLoading] = useState(false);
     const [pushTitle, setPushTitle] = useState('');
@@ -2950,7 +2968,9 @@ export default function AdminPage() {
     const [pushGroups, setPushGroups] = useState<string[]>([]);
     const [pushSending, setPushSending] = useState(false);
     const [pushResult, setPushResult] = useState<any>(null);
-    const [pushSubGroups, setPushSubGroups] = useState<Record<string, string>>({}); // userId -> position
+    // pushEmpGroups: userId -> string[] (local pending state before save)
+    const [pushEmpGroups, setPushEmpGroups] = useState<Record<string, string[]>>({});
+    const [pushEmpGroupSaving, setPushEmpGroupSaving] = useState<Record<string, boolean>>({});
     const [pushConfigs, setPushConfigs] = useState<any[]>([]);
     const [localConfigs, setLocalConfigs] = useState<Record<string, { groups: string[]; enabled: boolean }>>({});
     const [pushConfigSaving, setPushConfigSaving] = useState<Record<string, boolean>>({});
@@ -2964,14 +2984,22 @@ export default function AdminPage() {
             ]);
             if (pushRes.ok) {
                 const data = await pushRes.json();
-                setPushSubs(data.subscriptions || []);
+                const emps = data.employees || [];
+                setPushEmployees(emps);
+                setPushAdminSubs(data.adminSubs || []);
+                setPushPatientSubsCount(data.patientSubsCount || 0);
                 setPushStats(data.stats || {});
+                // Initialize local group state from server push_groups
+                const groupMap: Record<string, string[]> = {};
+                for (const emp of emps) {
+                    groupMap[emp.user_id] = emp.push_groups || [];
+                }
+                setPushEmpGroups(groupMap);
             }
             if (configRes.ok) {
                 const configData = await configRes.json();
                 const configs = configData.configs || [];
                 setPushConfigs(configs);
-                // Initialize local editable state
                 const localInit: Record<string, { groups: string[]; enabled: boolean }> = {};
                 for (const c of configs) {
                     localInit[c.key] = { groups: [...(c.groups || [])], enabled: c.enabled };
@@ -3017,15 +3045,39 @@ export default function AdminPage() {
         fetchPushData();
     };
 
-    const handleSetPosition = async (userId: string, position: string) => {
-        await fetch('/api/admin/employees/position', {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId, position }),
+    // Toggle a group chip for an employee (local state only — save needed)
+    const handleToggleEmpGroup = (userId: string, group: string) => {
+        setPushEmpGroups(prev => {
+            const current = prev[userId] || [];
+            if (current.includes(group)) {
+                return { ...prev, [userId]: current.filter(g => g !== group) };
+            } else {
+                return { ...prev, [userId]: [...current, group] };
+            }
         });
-        setPushSubGroups(prev => ({ ...prev, [userId]: position }));
-        // Refresh subscriptions to show updated group
-        setTimeout(() => fetchPushData(), 500);
+    };
+
+    // Save groups for one employee
+    const handleSaveEmpGroups = async (userId: string) => {
+        setPushEmpGroupSaving(prev => ({ ...prev, [userId]: true }));
+        try {
+            const groups = pushEmpGroups[userId] || [];
+            const res = await fetch('/api/admin/employees/position', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId, groups }),
+            });
+            if (!res.ok) {
+                const err = await res.json();
+                alert(err.error || 'Błąd zapisu');
+            } else {
+                // Update local employees list
+                setPushEmployees(prev => prev.map(e =>
+                    e.user_id === userId ? { ...e, push_groups: groups } : e
+                ));
+            }
+        } catch (e: any) { alert(e.message); }
+        finally { setPushEmpGroupSaving(prev => ({ ...prev, [userId]: false })); }
     };
 
     const handleSaveConfig = async (key: string) => {
@@ -3038,8 +3090,7 @@ export default function AdminPage() {
                 body: JSON.stringify({ key, groups: cfg.groups, enabled: cfg.enabled }),
             });
             if (res.ok) {
-                // Success — update configs array
-                setPushConfigs(prev => prev.map(c => c.key === key ? { ...c, ...cfg } : c));
+                setPushConfigs(prev => prev.map((c: any) => c.key === key ? { ...c, ...cfg } : c));
             } else {
                 alert('Błąd zapisu konfiguracji');
             }
@@ -3056,191 +3107,232 @@ export default function AdminPage() {
         admin: '👑 Admin',
     };
 
+    // DB group key -> label mapping for employee chip display
+    const EMP_GROUP_OPTIONS: { key: string; label: string }[] = [
+        { key: 'doctor', label: '🦷 Lekarz' },
+        { key: 'hygienist', label: '💉 Higienistka' },
+        { key: 'reception', label: '📞 Recepcja' },
+        { key: 'assistant', label: '🔧 Asysta' },
+    ];
+
     const renderPushTab = () => {
         if (pushLoading) return <div style={{ padding: '2rem', color: 'white' }}>⏳ Ładowanie...</div>;
 
-        const employeeSubs = pushSubs.filter((s: any) => s.user_type === 'employee' || s.user_type === 'admin');
-        const patientSubsCount = pushSubs.filter((s: any) => s.user_type === 'patient').length;
-
         const cardStyle: React.CSSProperties = { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '1rem', padding: '1.5rem' };
         const inputS: React.CSSProperties = { width: '100%', padding: '0.75rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.5rem', color: 'white', fontSize: '0.9rem', boxSizing: 'border-box' };
+
+        // Split push configs into employee-targeted and patient-targeted
+        const empConfigs = pushConfigs.filter((c: any) =>
+            !c.recipient_types || c.recipient_types.includes('employees')
+        );
+        const patientConfigs = pushConfigs.filter((c: any) =>
+            c.recipient_types && c.recipient_types.includes('patients') && !c.recipient_types.includes('employees')
+        );
+        const allEmpGroups = [{ k: 'doctors', l: '🦷 Lekarze' }, { k: 'hygienists', l: '💉 Higienistki' }, { k: 'reception', l: '📞 Recepcja' }, { k: 'assistant', l: '🔧 Asysta' }, { k: 'admin', l: '👑 Admin' }];
+
+        const renderConfigRow = (cfg: any) => {
+            const local = localConfigs[cfg.key] || { groups: cfg.groups || [], enabled: cfg.enabled };
+            const isEmpTargeted = !cfg.recipient_types || cfg.recipient_types.includes('employees');
+            return (
+                <div key={cfg.key} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '0.75rem', padding: '1rem 1.2rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.6rem', gap: '1rem' }}>
+                        <div style={{ minWidth: 0 }}>
+                            <div style={{ color: 'white', fontWeight: 'bold', fontSize: '0.88rem', marginBottom: '0.1rem' }}>{cfg.label}</div>
+                            <div style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.73rem' }}>{cfg.description}</div>
+                        </div>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', flexShrink: 0 }}>
+                            <input type="checkbox" checked={local.enabled}
+                                onChange={e => setLocalConfigs(prev => ({ ...prev, [cfg.key]: { ...local, enabled: e.target.checked } }))}
+                                style={{ width: '14px', height: '14px', cursor: 'pointer' }} />
+                            <span style={{ fontSize: '0.78rem', color: local.enabled ? '#22c55e' : 'rgba(255,255,255,0.35)' }}>
+                                {local.enabled ? 'Aktywne' : 'Wyłączone'}
+                            </span>
+                        </label>
+                    </div>
+                    {isEmpTargeted && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', marginBottom: '0.75rem' }}>
+                            {allEmpGroups.map(g => {
+                                const active = local.groups.includes(g.k);
+                                return (
+                                    <button key={g.k}
+                                        onClick={() => setLocalConfigs(prev => ({
+                                            ...prev,
+                                            [cfg.key]: { ...local, groups: active ? local.groups.filter((x: string) => x !== g.k) : [...local.groups, g.k] }
+                                        }))}
+                                        style={{ padding: '0.25rem 0.65rem', borderRadius: '2rem', fontSize: '0.75rem', cursor: 'pointer', transition: 'all 0.1s', fontWeight: active ? 'bold' : 'normal', border: `1px solid ${active ? 'var(--color-primary)' : 'rgba(255,255,255,0.15)'}`, background: active ? 'rgba(250,189,0,0.12)' : 'transparent', color: active ? 'var(--color-primary)' : 'rgba(255,255,255,0.45)' }}>{g.l}</button>
+                                );
+                            })}
+                        </div>
+                    )}
+                    <button onClick={() => handleSaveConfig(cfg.key)} disabled={pushConfigSaving[cfg.key]}
+                        style={{ padding: '0.35rem 1rem', background: 'var(--color-primary)', border: 'none', borderRadius: '0.4rem', color: 'black', fontWeight: 'bold', cursor: pushConfigSaving[cfg.key] ? 'wait' : 'pointer', fontSize: '0.76rem', opacity: pushConfigSaving[cfg.key] ? 0.6 : 1 }}>
+                        {pushConfigSaving[cfg.key] ? '⏳ Zapisuję...' : '💾 Zapisz'}
+                    </button>
+                </div>
+            );
+        };
 
         return (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
 
                 {/* Stats */}
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
-                    {[{k:'doctors',l:'🦷 Lekarze'},{k:'hygienists',l:'💉 Higienistki'},{k:'reception',l:'📞 Recepcja'},{k:'assistant',l:'🔧 Asysta'},{k:'admin',l:'👑 Admin'}].map(({k,l}) => (
-                        <div key={k} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.75rem', padding: '0.75rem 1.25rem', minWidth: '110px' }}>
-                            <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: 'var(--color-primary)' }}>{pushStats[k] ?? 0}</div>
-                            <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)' }}>{l}</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.65rem' }}>
+                    {[{ k: 'doctors', l: '🦷 Lekarze' }, { k: 'hygienists', l: '💉 Higienistki' }, { k: 'reception', l: '📞 Recepcja' }, { k: 'assistant', l: '🔧 Asysta' }, { k: 'admin', l: '👑 Admin' }].map(({ k, l }) => (
+                        <div key={k} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.75rem', padding: '0.65rem 1.1rem', minWidth: '100px' }}>
+                            <div style={{ fontSize: '1.3rem', fontWeight: 'bold', color: 'var(--color-primary)' }}>{pushStats[k] ?? 0}</div>
+                            <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.5)' }}>{l}</div>
                         </div>
                     ))}
                     {(pushStats.unassigned ?? 0) > 0 && (
-                        <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '0.75rem', padding: '0.75rem 1.25rem', minWidth: '110px' }}>
-                            <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: '#ef4444' }}>{pushStats.unassigned}</div>
-                            <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)' }}>⚠️ Bez grupy</div>
+                        <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '0.75rem', padding: '0.65rem 1.1rem', minWidth: '100px' }}>
+                            <div style={{ fontSize: '1.3rem', fontWeight: 'bold', color: '#ef4444' }}>{pushStats.unassigned}</div>
+                            <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.5)' }}>⚠️ Bez grupy</div>
                         </div>
                     )}
-                    <div style={{ background: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.2)', borderRadius: '0.75rem', padding: '0.75rem 1.25rem', minWidth: '110px' }}>
-                        <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: '#38bdf8' }}>{patientSubsCount}</div>
-                        <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)' }}>👥 Pacjenci</div>
+                    <div style={{ background: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.2)', borderRadius: '0.75rem', padding: '0.65rem 1.1rem', minWidth: '100px' }}>
+                        <div style={{ fontSize: '1.3rem', fontWeight: 'bold', color: '#38bdf8' }}>{pushPatientSubsCount}</div>
+                        <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.5)' }}>👥 Pacjenci</div>
                     </div>
                 </div>
 
-                {/* Automatic notifications config */}
-                {pushConfigs.length > 0 && (
+                {/* ── Automatic notifications — FOR EMPLOYEES ────────────── */}
+                {empConfigs.length > 0 && (
                     <div style={cardStyle}>
-                        <h3 style={{ color: 'white', margin: '0 0 0.5rem 0', fontSize: '1.1rem' }}>🔁 Powiadomienia automatyczne (cron, codziennie ~9:30)</h3>
-                        <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.8rem', margin: '0 0 1.25rem 0' }}>Wybierz które grupy pracowników otrzymują każde z automatycznych powiadomień.</p>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                            {pushConfigs.map((cfg: any) => {
-                                const local = localConfigs[cfg.key] || { groups: cfg.groups || [], enabled: cfg.enabled };
-                                const allGroups = [{k:'doctors',l:'🦷 Lekarze'},{k:'hygienists',l:'💉 Higienistki'},{k:'reception',l:'📞 Recepcja'},{k:'assistant',l:'🔧 Asysta'},{k:'admin',l:'👑 Admin'}];
-                                return (
-                                    <div key={cfg.key} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '0.75rem', padding: '1.1rem' }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
-                                            <div>
-                                                <div style={{ color: 'white', fontWeight: 'bold', fontSize: '0.9rem' }}>{cfg.label}</div>
-                                                <div style={{ color: 'rgba(255,255,255,0.38)', fontSize: '0.75rem', marginTop: '0.15rem' }}>{cfg.description}</div>
-                                            </div>
-                                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', flexShrink: 0 }}>
-                                                <input type="checkbox" checked={local.enabled}
-                                                    onChange={e => setLocalConfigs(prev => ({ ...prev, [cfg.key]: { ...local, enabled: e.target.checked } }))}
-                                                    style={{ width: '14px', height: '14px', cursor: 'pointer' }} />
-                                                <span style={{ fontSize: '0.78rem', color: local.enabled ? '#22c55e' : 'rgba(255,255,255,0.35)' }}>
-                                                    {local.enabled ? 'Aktywne' : 'Wyłączone'}
-                                                </span>
-                                            </label>
-                                        </div>
-                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginBottom: '0.85rem' }}>
-                                            {allGroups.map(g => {
-                                                const active = local.groups.includes(g.k);
-                                                return (
-                                                    <button key={g.k}
-                                                        onClick={() => setLocalConfigs(prev => ({
-                                                            ...prev,
-                                                            [cfg.key]: { ...local, groups: active ? local.groups.filter((x: string) => x !== g.k) : [...local.groups, g.k] }
-                                                        }))}
-                                                        style={{ padding: '0.3rem 0.75rem', borderRadius: '2rem', fontSize: '0.78rem', cursor: 'pointer', transition: 'all 0.12s', fontWeight: active ? 'bold' : 'normal',
-                                                            border: `1px solid ${active ? 'var(--color-primary)' : 'rgba(255,255,255,0.15)'}`,
-                                                            background: active ? 'rgba(250,189,0,0.12)' : 'transparent',
-                                                            color: active ? 'var(--color-primary)' : 'rgba(255,255,255,0.5)',
-                                                        }}>{g.l}</button>
-                                                );
-                                            })}
-                                        </div>
-                                        <button onClick={() => handleSaveConfig(cfg.key)} disabled={pushConfigSaving[cfg.key]}
-                                            style={{ padding: '0.4rem 1.1rem', background: 'var(--color-primary)', border: 'none', borderRadius: '0.4rem', color: 'black', fontWeight: 'bold', cursor: pushConfigSaving[cfg.key] ? 'wait' : 'pointer', fontSize: '0.78rem', opacity: pushConfigSaving[cfg.key] ? 0.6 : 1 }}>
-                                            {pushConfigSaving[cfg.key] ? '⏳ Zapisuję...' : '💾 Zapisz ustawienia'}
-                                        </button>
-                                    </div>
-                                );
-                            })}
+                        <h3 style={{ color: 'white', margin: '0 0 0.4rem 0', fontSize: '1.05rem' }}>🔁 Powiadomienia automatyczne — dla pracowników</h3>
+                        <p style={{ color: 'rgba(255,255,255,0.38)', fontSize: '0.77rem', margin: '0 0 1.1rem 0' }}>
+                            Wybierz grupy pracowników, które otrzymają każdy typ powiadomienia. Kliknij Zapisz po zmianach.
+                        </p>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                            {empConfigs.map(renderConfigRow)}
                         </div>
                     </div>
                 )}
 
-                {/* Manual send */}
+                {/* ── Automatic notifications — FOR PATIENTS ────────────── */}
+                {patientConfigs.length > 0 && (
+                    <div style={cardStyle}>
+                        <h3 style={{ color: 'white', margin: '0 0 0.4rem 0', fontSize: '1.05rem' }}>👥 Powiadomienia automatyczne — dla pacjentów</h3>
+                        <p style={{ color: 'rgba(255,255,255,0.38)', fontSize: '0.77rem', margin: '0 0 1.1rem 0' }}>
+                            Te powiadomienia trafiają do konkretnych pacjentów (np. przypomnienia o wizytach). Włącz lub wyłącz.
+                        </p>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                            {patientConfigs.map(renderConfigRow)}
+                        </div>
+                    </div>
+                )}
+
+                {/* ── Manual send ──────────────────────────────────────────── */}
                 <div style={cardStyle}>
-                    <h3 style={{ color: 'white', margin: '0 0 1.25rem 0', fontSize: '1.1rem' }}>📤 Wyślij powiadomienie jednorazowe</h3>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                    <h3 style={{ color: 'white', margin: '0 0 1.1rem 0', fontSize: '1.05rem' }}>📤 Wyślij powiadomienie jednorazowe</h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '0.9rem' }}>
                         <div>
-                            <label style={{ color: 'rgba(255,255,255,0.65)', fontSize: '0.8rem', display: 'block', marginBottom: '0.35rem' }}>Tytuł *</label>
+                            <label style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.78rem', display: 'block', marginBottom: '0.3rem' }}>Tytuł *</label>
                             <input value={pushTitle} onChange={e => setPushTitle(e.target.value)} placeholder="np. Ważna informacja" maxLength={100} style={inputS} />
                         </div>
                         <div>
-                            <label style={{ color: 'rgba(255,255,255,0.65)', fontSize: '0.8rem', display: 'block', marginBottom: '0.35rem' }}>Link URL</label>
+                            <label style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.78rem', display: 'block', marginBottom: '0.3rem' }}>Link URL</label>
                             <input value={pushUrl} onChange={e => setPushUrl(e.target.value)} placeholder="/pracownik" style={inputS} />
                         </div>
                     </div>
-                    <div style={{ marginBottom: '1rem' }}>
-                        <label style={{ color: 'rgba(255,255,255,0.65)', fontSize: '0.8rem', display: 'block', marginBottom: '0.35rem' }}>Treść *</label>
+                    <div style={{ marginBottom: '0.9rem' }}>
+                        <label style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.78rem', display: 'block', marginBottom: '0.3rem' }}>Treść *</label>
                         <textarea value={pushBody} onChange={e => setPushBody(e.target.value)} placeholder="Treść powiadomienia..." maxLength={300} rows={3} style={{ ...inputS, resize: 'vertical' }} />
                     </div>
-                    <div style={{ marginBottom: '1.25rem' }}>
-                        <label style={{ color: 'rgba(255,255,255,0.65)', fontSize: '0.8rem', display: 'block', marginBottom: '0.55rem' }}>Grupy docelowe *</label>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                    <div style={{ marginBottom: '1.1rem' }}>
+                        <label style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.78rem', display: 'block', marginBottom: '0.5rem' }}>Grupy docelowe *</label>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
                             {Object.entries(GROUP_LABELS).map(([key, label]) => {
                                 const active = pushGroups.includes(key);
                                 return (
                                     <button key={key} onClick={() => setPushGroups(prev => active ? prev.filter(g => g !== key) : [...prev, key])}
-                                        style={{ padding: '0.4rem 0.9rem', borderRadius: '2rem', cursor: 'pointer', fontSize: '0.82rem', fontWeight: active ? 'bold' : 'normal', transition: 'all 0.12s',
-                                            border: `1px solid ${active ? 'var(--color-primary)' : 'rgba(255,255,255,0.15)'}`,
-                                            background: active ? 'rgba(250,189,0,0.14)' : 'transparent',
-                                            color: active ? 'var(--color-primary)' : 'rgba(255,255,255,0.5)',
-                                        }}>{label}</button>
+                                        style={{ padding: '0.35rem 0.8rem', borderRadius: '2rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: active ? 'bold' : 'normal', transition: 'all 0.1s', border: `1px solid ${active ? 'var(--color-primary)' : 'rgba(255,255,255,0.15)'}`, background: active ? 'rgba(250,189,0,0.14)' : 'transparent', color: active ? 'var(--color-primary)' : 'rgba(255,255,255,0.5)' }}>{label}</button>
                                 );
                             })}
                         </div>
                     </div>
                     {pushResult && (
-                        <div style={{ marginBottom: '1rem', padding: '0.8rem 1rem', borderRadius: '0.5rem',
-                            background: pushResult.error ? 'rgba(239,68,68,0.1)' : 'rgba(34,197,94,0.1)',
-                            border: `1px solid ${pushResult.error ? 'rgba(239,68,68,0.3)' : 'rgba(34,197,94,0.3)'}`,
-                            color: pushResult.error ? '#ef4444' : '#22c55e', fontSize: '0.82rem' }}>
+                        <div style={{ marginBottom: '0.9rem', padding: '0.7rem 1rem', borderRadius: '0.5rem', fontSize: '0.8rem', background: pushResult.error ? 'rgba(239,68,68,0.1)' : 'rgba(34,197,94,0.1)', border: `1px solid ${pushResult.error ? 'rgba(239,68,68,0.3)' : 'rgba(34,197,94,0.3)'}`, color: pushResult.error ? '#ef4444' : '#22c55e' }}>
                             {pushResult.error ? `❌ Błąd: ${pushResult.error}` : `✅ Wysłano: ${pushResult.sent} | Nieudane: ${pushResult.failed}`}
                         </div>
                     )}
                     <button onClick={handleSendPush} disabled={pushSending || !pushTitle || !pushBody || pushGroups.length === 0}
-                        style={{ padding: '0.7rem 1.75rem', background: 'var(--color-primary)', border: 'none', borderRadius: '0.5rem', color: 'black', fontWeight: 'bold', transition: 'all 0.2s',
-                            cursor: pushSending || !pushTitle || !pushBody || pushGroups.length === 0 ? 'not-allowed' : 'pointer',
-                            opacity: pushSending || !pushTitle || !pushBody || pushGroups.length === 0 ? 0.5 : 1 }}>
+                        style={{ padding: '0.65rem 1.6rem', background: 'var(--color-primary)', border: 'none', borderRadius: '0.5rem', color: 'black', fontWeight: 'bold', transition: 'all 0.2s', cursor: pushSending || !pushTitle || !pushBody || pushGroups.length === 0 ? 'not-allowed' : 'pointer', opacity: pushSending || !pushTitle || !pushBody || pushGroups.length === 0 ? 0.5 : 1 }}>
                         {pushSending ? '📤 Wysyłanie...' : '📤 Wyślij powiadomienie'}
                     </button>
                 </div>
 
-                {/* Employee subscriptions — inline group editing */}
+                {/* ── Employee subscriptions — multi-chip group editing ──── */}
                 <div style={cardStyle}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.9rem' }}>
                         <div>
-                            <h3 style={{ color: 'white', margin: '0 0 0.2rem 0', fontSize: '1.1rem' }}>👥 Subskrypcje pracowników ({employeeSubs.length})</h3>
-                            {patientSubsCount > 0 && (
-                                <p style={{ color: 'rgba(56,189,248,0.6)', fontSize: '0.75rem', margin: 0 }}>+ {patientSubsCount} pacjentów subskrybuje powiadomienia</p>
-                            )}
+                            <h3 style={{ color: 'white', margin: '0 0 0.2rem 0', fontSize: '1.05rem' }}>👥 Pracownicy i grupy powiadomień ({pushEmployees.length})</h3>
+                            <p style={{ color: 'rgba(56,189,248,0.6)', fontSize: '0.73rem', margin: 0 }}>
+                                {pushPatientSubsCount > 0 && `+ ${pushPatientSubsCount} pacjentów subskrybuje push`}
+                            </p>
                         </div>
-                        <button onClick={fetchPushData} style={{ padding: '0.35rem 0.7rem', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.4rem', color: 'rgba(255,255,255,0.45)', cursor: 'pointer', fontSize: '0.75rem' }}>🔄 Odśwież</button>
+                        <button onClick={fetchPushData} style={{ padding: '0.3rem 0.65rem', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.4rem', color: 'rgba(255,255,255,0.45)', cursor: 'pointer', fontSize: '0.73rem' }}>🔄 Odśwież</button>
                     </div>
-                    {employeeSubs.length === 0 ? (
-                        <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.88rem' }}>Brak subskrybowanych pracowników.</p>
+
+                    {pushEmployees.length === 0 ? (
+                        <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.85rem' }}>Brak pracowników.</p>
                     ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
-                            {employeeSubs.map((sub: any) => (
-                                <div key={sub.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', padding: '0.7rem 1rem', background: 'rgba(255,255,255,0.025)', borderRadius: '0.5rem', border: '1px solid rgba(255,255,255,0.05)' }}>
-                                    <div style={{ flex: 1, minWidth: '150px' }}>
-                                        <div style={{ color: 'white', fontWeight: 'bold', fontSize: '0.88rem' }}>{sub.employeeName || (sub.user_type === 'admin' ? '👑 Admin' : '—')}</div>
-                                        {sub.employeeEmail && <div style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.72rem' }}>{sub.employeeEmail}</div>}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            {pushEmployees.map((emp: any) => {
+                                const currentGroups = pushEmpGroups[emp.user_id] || emp.push_groups || [];
+                                const serverGroups = emp.push_groups || [];
+                                const changed = JSON.stringify([...currentGroups].sort()) !== JSON.stringify([...serverGroups].sort());
+                                const hasSubs = emp.subscription_count > 0;
+                                return (
+                                    <div key={emp.user_id} style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap', padding: '0.65rem 0.9rem', background: 'rgba(255,255,255,0.025)', borderRadius: '0.5rem', border: `1px solid ${hasSubs ? 'rgba(34,197,94,0.12)' : 'rgba(255,255,255,0.05)'}` }}>
+                                        {/* Name & email */}
+                                        <div style={{ flex: 1, minWidth: '140px' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                                <span style={{ color: 'white', fontWeight: 'bold', fontSize: '0.85rem' }}>{emp.name || '—'}</span>
+                                                {hasSubs && (
+                                                    <span style={{ padding: '0.08rem 0.4rem', borderRadius: '1rem', fontSize: '0.65rem', background: 'rgba(34,197,94,0.15)', color: '#22c55e' }}>
+                                                        📱 {emp.subscription_count}
+                                                    </span>
+                                                )}
+                                                {!hasSubs && (
+                                                    <span style={{ padding: '0.08rem 0.4rem', borderRadius: '1rem', fontSize: '0.65rem', background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.3)' }}>
+                                                        brak sub.
+                                                    </span>
+                                                )}
+                                            </div>
+                                            {emp.email && <div style={{ color: 'rgba(255,255,255,0.32)', fontSize: '0.7rem' }}>{emp.email}</div>}
+                                        </div>
+
+                                        {/* Group chips — multi-select */}
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', alignItems: 'center' }}>
+                                            {EMP_GROUP_OPTIONS.map(opt => {
+                                                const active = currentGroups.includes(opt.key);
+                                                return (
+                                                    <button key={opt.key}
+                                                        onClick={() => handleToggleEmpGroup(emp.user_id, opt.key)}
+                                                        style={{ padding: '0.22rem 0.6rem', borderRadius: '2rem', fontSize: '0.73rem', cursor: 'pointer', transition: 'all 0.1s', fontWeight: active ? 'bold' : 'normal', border: `1px solid ${active ? 'var(--color-primary)' : 'rgba(255,255,255,0.12)'}`, background: active ? 'rgba(250,189,0,0.13)' : 'transparent', color: active ? 'var(--color-primary)' : 'rgba(255,255,255,0.38)' }}>
+                                                        {opt.label}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+
+                                        {/* Save button — only visible when changed */}
+                                        {changed && (
+                                            <button onClick={() => handleSaveEmpGroups(emp.user_id)} disabled={pushEmpGroupSaving[emp.user_id]}
+                                                style={{ padding: '0.25rem 0.7rem', background: 'var(--color-primary)', border: 'none', borderRadius: '0.4rem', color: 'black', fontWeight: 'bold', cursor: pushEmpGroupSaving[emp.user_id] ? 'wait' : 'pointer', fontSize: '0.73rem', opacity: pushEmpGroupSaving[emp.user_id] ? 0.6 : 1 }}>
+                                                {pushEmpGroupSaving[emp.user_id] ? '⏳' : '💾 Zapisz'}
+                                            </button>
+                                        )}
                                     </div>
-                                    <span style={{ padding: '0.15rem 0.5rem', borderRadius: '1rem', fontSize: '0.72rem',
-                                        background: sub.user_type === 'admin' ? 'rgba(168,85,247,0.15)' : 'rgba(34,197,94,0.15)',
-                                        color: sub.user_type === 'admin' ? '#a855f7' : '#22c55e' }}>{sub.user_type}</span>
-                                    {sub.user_type === 'employee' && (
-                                        <select value={pushSubGroups[sub.user_id] || ''}
-                                            onChange={e => handleSetPosition(sub.user_id, e.target.value)}
-                                            style={{ padding: '0.28rem 0.55rem', background: 'rgba(255,255,255,0.07)', borderRadius: '0.4rem', fontSize: '0.78rem', cursor: 'pointer',
-                                                border: `1px solid ${pushSubGroups[sub.user_id] ? 'rgba(250,189,0,0.4)' : 'rgba(239,68,68,0.35)'}`,
-                                                color: pushSubGroups[sub.user_id] ? 'var(--color-primary)' : '#ef4444' }}>
-                                            <option value="">— brak grupy —</option>
-                                            <option value="Lekarz">🦷 Lekarz</option>
-                                            <option value="Higienistka">💉 Higienistka</option>
-                                            <option value="Recepcja">📞 Recepcja</option>
-                                            <option value="Asystentka">🔧 Asysta</option>
-                                        </select>
-                                    )}
-                                    <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.72rem' }}>{sub.locale}</span>
-                                    <span style={{ color: 'rgba(255,255,255,0.25)', fontSize: '0.7rem' }}>{new Date(sub.created_at).toLocaleDateString('pl-PL')}</span>
-                                    <button onClick={() => handleDeleteSub(sub.id)}
-                                        style={{ padding: '0.22rem 0.5rem', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '0.35rem', color: '#ef4444', cursor: 'pointer', fontSize: '0.7rem' }}>
-                                        Usuń
-                                    </button>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     )}
                 </div>
             </div>
         );
     };
+
 
     const NavItem = ({ id, label, icon: Icon }: any) => (
         <button

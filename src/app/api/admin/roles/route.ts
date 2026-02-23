@@ -88,16 +88,17 @@ export async function GET() {
             .filter(u => u.roles.includes('employee'))
             .map(u => u.user_id);
 
-        let employeePositions: Record<string, { position: string | null; employee_group: string | null }> = {};
+        let employeePositions: Record<string, { position: string | null; employee_group: string | null; push_groups: string[] | null }> = {};
         if (employeeUserIds.length > 0) {
             const { data: employees } = await supabase
                 .from('employees')
-                .select('user_id, position, employee_group')
+                .select('user_id, position, employee_group, push_groups')
                 .in('user_id', employeeUserIds);
             for (const emp of employees || []) {
                 employeePositions[emp.user_id] = {
                     position: emp.position || null,
                     employee_group: emp.employee_group || null,
+                    push_groups: emp.push_groups || null,
                 };
             }
         }

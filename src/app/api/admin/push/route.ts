@@ -12,15 +12,26 @@ const supabase = createClient(
 
 /**
  * GET /api/admin/push
- * List all push subscriptions with user info
+ * Returns:
+ *   - employees: all employees with their push_groups and subscription count
+ *   - patientSubsCount: how many patient subscriptions exist
+ *   - adminSubs: admin subscriptions list
+ *   - stats: group-level counts
  */
 export async function GET() {
     const adminUser = await verifyAdmin();
     if (!adminUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+    // 1. Fetch ALL employees
+    const { data: allEmployees } = await supabase
+        .from('employees')
+        .select('user_id, name, email, position, push_groups')
+        .order('name', { ascending: true });
+
+    // 2. Fetch ALL push subscriptions
     const { data: subs, error } = await supabase
         .from('push_subscriptions')
-        .select('id, user_type, user_id, employee_group, locale, created_at, endpoint')
+        .select('id, user_type, user_id, employee_group, employee_groups, locale, created_at')
         .order('created_at', { ascending: false });
 
     if (error) {
@@ -28,43 +39,51 @@ export async function GET() {
         return NextResponse.json({ error: 'DB error' }, { status: 500 });
     }
 
-    // Enrich with email/name from employees table for employee subs
-    const employeeUserIds = (subs || [])
-        .filter(s => s.user_type === 'employee')
-        .map(s => s.user_id);
-
-    let employeeMap: Record<string, { email: string; name: string }> = {};
-    if (employeeUserIds.length > 0) {
-        const { data: employees } = await supabase
-            .from('employees')
-            .select('user_id, email, name')
-            .in('user_id', employeeUserIds);
-        for (const emp of employees || []) {
-            employeeMap[emp.user_id] = { email: emp.email, name: emp.name };
-        }
+    // 3. Count subscriptions per user
+    const subCountPerUser: Record<string, number> = {};
+    for (const s of subs || []) {
+        subCountPerUser[s.user_id] = (subCountPerUser[s.user_id] || 0) + 1;
     }
 
-    // Stats
-    const stats = {
-        total: subs?.length || 0,
-        patients: subs?.filter(s => s.user_type === 'patient').length || 0,
-        doctors: subs?.filter(s => s.employee_group === 'doctor').length || 0,
-        hygienists: subs?.filter(s => s.employee_group === 'hygienist').length || 0,
-        reception: subs?.filter(s => s.employee_group === 'reception').length || 0,
-        assistant: subs?.filter(s => s.employee_group === 'assistant').length || 0,
-        admin: subs?.filter(s => s.user_type === 'admin').length || 0,
-        unassigned: subs?.filter(s => s.user_type === 'employee' && !s.employee_group).length || 0,
-    };
-
-    const enriched = (subs || []).map(s => ({
-        ...s,
-        endpoint: s.endpoint.substring(0, 50) + '...', // truncate for display
-        employeeName: employeeMap[s.user_id]?.name || null,
-        employeeEmail: employeeMap[s.user_id]?.email || null,
+    // 4. Build employees response — every employee, with groups and sub count
+    const employees = (allEmployees || []).map(emp => ({
+        user_id: emp.user_id,
+        name: emp.name,
+        email: emp.email,
+        position: emp.position,
+        push_groups: emp.push_groups || [],
+        subscription_count: subCountPerUser[emp.user_id] || 0,
     }));
 
-    return NextResponse.json({ subscriptions: enriched, stats });
+    // 5. Admin subscriptions
+    const adminSubs = (subs || [])
+        .filter(s => s.user_type === 'admin')
+        .map(s => ({ ...s }));
+
+    // 6. Patient sub count
+    const patientSubsCount = (subs || []).filter(s => s.user_type === 'patient').length;
+
+    // 7. Stats
+    const employeeSubs = (subs || []).filter(s => s.user_type === 'employee');
+    const stats = {
+        total: subs?.length || 0,
+        patients: patientSubsCount,
+        doctors: employeeSubs.filter(s =>
+            (s.employee_groups || []).includes('doctor') || s.employee_group === 'doctor').length,
+        hygienists: employeeSubs.filter(s =>
+            (s.employee_groups || []).includes('hygienist') || s.employee_group === 'hygienist').length,
+        reception: employeeSubs.filter(s =>
+            (s.employee_groups || []).includes('reception') || s.employee_group === 'reception').length,
+        assistant: employeeSubs.filter(s =>
+            (s.employee_groups || []).includes('assistant') || s.employee_group === 'assistant').length,
+        admin: adminSubs.length,
+        unassigned: employeeSubs.filter(s =>
+            !s.employee_group && (!s.employee_groups || s.employee_groups.length === 0)).length,
+    };
+
+    return NextResponse.json({ employees, adminSubs, patientSubsCount, stats });
 }
+
 
 /**
  * POST /api/admin/push

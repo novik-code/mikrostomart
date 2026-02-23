@@ -9,74 +9,67 @@ const supabase = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const POSITION_TO_GROUP: Record<string, string> = {
-    lekarz: 'doctor',
-    doktor: 'doctor',
-    higienistka: 'hygienist',
-    higienist: 'hygienist',
-    recepcja: 'reception',
-    recepcjonistka: 'reception',
-    asysta: 'assistant',
-    asystentka: 'assistant',
-};
-
-function positionToGroup(position: string | null | undefined): string | null {
-    if (!position) return null;
-    const lower = position.toLowerCase();
-    for (const [key, group] of Object.entries(POSITION_TO_GROUP)) {
-        if (lower.includes(key)) return group;
-    }
-    return null;
-}
+/**
+ * Valid push group keys
+ */
+const VALID_GROUPS = ['doctor', 'hygienist', 'reception', 'assistant'];
 
 /**
  * PATCH /api/admin/employees/position
- * Updates the employee's position (sub-group) and syncs push_subscriptions.employee_group.
- * Body: { userId: string, position: string }
+ * Update an employee's push groups (multi-group support).
+ * Body: { userId: string, groups: string[] }  — groups are DB-level keys (doctor/hygienist/reception/assistant)
+ *
+ * Also accepts legacy { userId, position } for backward compat (converts to groups[]).
  */
 export async function PATCH(request: NextRequest) {
     const adminUser = await verifyAdmin();
-    if (!adminUser) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    if (!adminUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     try {
-        const { userId, position } = await request.json();
+        const body = await request.json();
+        const { userId } = body;
 
-        if (!userId) {
-            return NextResponse.json({ error: 'userId required' }, { status: 400 });
+        if (!userId) return NextResponse.json({ error: 'userId required' }, { status: 400 });
+
+        let groups: string[] = [];
+
+        if (Array.isArray(body.groups)) {
+            // New: array of group keys ('doctor', 'hygienist', 'reception', 'assistant')
+            groups = body.groups.filter((g: string) => VALID_GROUPS.includes(g));
+        } else if (body.position !== undefined) {
+            // Legacy: single position string → convert
+            const pos = (body.position || '').toLowerCase();
+            if (pos.includes('lekarz') || pos.includes('doktor')) groups = ['doctor'];
+            else if (pos.includes('higienist')) groups = ['hygienist'];
+            else if (pos.includes('recepcj')) groups = ['reception'];
+            else if (pos.includes('asystent')) groups = ['assistant'];
         }
 
-        const employee_group = positionToGroup(position);
-
-        // Update employees.position
-        const { error: empError } = await supabase
+        // Update employees table: push_groups array
+        await supabase
             .from('employees')
-            .update({ position: position || null, updated_at: new Date().toISOString() })
+            .update({
+                push_groups: groups.length > 0 ? groups : null,
+            })
             .eq('user_id', userId);
 
-        if (empError) {
-            console.error('[Position] employees update error:', empError);
-            return NextResponse.json({ error: 'Failed to update position' }, { status: 500 });
-        }
+        // Sync to all push_subscriptions for this user
+        const updatePayload: Record<string, any> = {
+            employee_groups: groups.length > 0 ? groups : null,
+            // Keep single employee_group for backward-compat (first element)
+            employee_group: groups.length > 0 ? groups[0] : null,
+        };
 
-        // Sync to push_subscriptions
-        const { error: pushError } = await supabase
+        await supabase
             .from('push_subscriptions')
-            .update({ employee_group })
+            .update(updatePayload)
             .eq('user_id', userId)
             .eq('user_type', 'employee');
 
-        if (pushError) {
-            console.error('[Position] push_subscriptions sync error:', pushError);
-            // Non-fatal — position was updated, subscriptions will re-sync next subscribe
-        }
-
-        console.log(`[Position] Updated ${userId} → position: ${position}, group: ${employee_group}`);
-
-        return NextResponse.json({ success: true, position, employee_group });
+        console.log(`[Admin/EmployeePosition] Set groups for ${userId}:`, groups);
+        return NextResponse.json({ success: true, groups });
     } catch (error: any) {
-        console.error('[Position] Error:', error);
+        console.error('[Admin/EmployeePosition] Error:', error);
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }

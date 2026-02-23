@@ -278,11 +278,13 @@ export async function sendPushToGroups(
             const dbGroup = groupMap[group];
             if (!dbGroup) continue;
 
+            // Use array containment to support multi-group employees.
+            // Falls back to employee_group (single TEXT) for backwards compat.
             const { data: subs } = await supabase
                 .from('push_subscriptions')
                 .select('*')
                 .eq('user_type', 'employee')
-                .eq('employee_group', dbGroup);
+                .or(`employee_groups.cs.{"${dbGroup}"},employee_group.eq.${dbGroup}`);
             await sendBatch(subs || [], group);
         }
     }
