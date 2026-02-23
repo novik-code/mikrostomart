@@ -298,21 +298,26 @@ export default function PushNotificationPrompt({
                     style={{
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '0.5rem',
-                        padding: '0.5rem 1rem',
+                        gap: '0.35rem',
+                        padding: '0.45rem 0.75rem',
                         background: 'rgba(251, 191, 36, 0.1)',
                         border: '1px solid rgba(251, 191, 36, 0.2)',
                         borderRadius: '0.5rem',
                         color: '#fbbf24',
                         cursor: 'pointer',
-                        fontSize: '0.85rem',
+                        fontSize: '0.8rem',
                         transition: 'all 0.2s',
+                        flexShrink: 0,
+                        whiteSpace: 'nowrap',
+                        maxWidth: '150px',
+                        overflow: 'hidden',
                     }}
                 >
-                    📱 Dodaj do ekranu
+                    📱 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>Dodaj do ekranu</span>
                 </button>
             );
         }
+
 
         if (status === 'denied') {
             return (
@@ -374,11 +379,12 @@ export default function PushNotificationPrompt({
             <button
                 onClick={status === 'subscribed' ? unsubscribe : subscribe}
                 disabled={loading}
+                title={status === 'subscribed' ? 'Wyłącz powiadomienia push' : 'Włącz powiadomienia push'}
                 style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '0.5rem',
-                    padding: '0.5rem 1rem',
+                    gap: '0.35rem',
+                    padding: '0.45rem 0.75rem',
                     background: status === 'subscribed'
                         ? 'rgba(34, 197, 94, 0.1)'
                         : 'rgba(255, 255, 255, 0.05)',
@@ -386,13 +392,17 @@ export default function PushNotificationPrompt({
                     borderRadius: '0.5rem',
                     color: status === 'subscribed' ? '#22c55e' : 'rgba(255,255,255,0.7)',
                     cursor: loading ? 'not-allowed' : 'pointer',
-                    fontSize: '0.85rem',
+                    fontSize: '0.8rem',
                     transition: 'all 0.2s',
                     opacity: loading ? 0.5 : 1,
+                    flexShrink: 0,
+                    whiteSpace: 'nowrap',
+                    maxWidth: '160px',
+                    overflow: 'hidden',
                 }}
             >
                 {status === 'subscribed' ? '🔔' : '🔕'}
-                {loading ? '...' : status === 'subscribed' ? 'Powiadomienia ON' : 'Włącz powiadomienia'}
+                {loading ? '...' : status === 'subscribed' ? ' ON' : ' Push'}
             </button>
         );
     }

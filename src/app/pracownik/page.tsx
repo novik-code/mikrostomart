@@ -3038,80 +3038,120 @@ export default function EmployeePage() {
 
                     {/* ═══ KANBAN VIEW ═══ */}
                     {taskViewMode === 'kanban' && (
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', minHeight: '400px' }}>
-                            {(['todo', 'in_progress', 'done'] as const).map(col => {
-                                const colTasks = filteredTasks.filter(t => t.status === col);
-                                return (
-                                    <div
-                                        key={col}
-                                        onDragOver={(e) => handleDragOver(e, col)}
-                                        onDragLeave={() => setDragOverColumn(null)}
-                                        onDrop={() => handleDrop(col)}
-                                        style={{
-                                            background: dragOverColumn === col ? 'rgba(56,189,248,0.08)' : 'rgba(255,255,255,0.02)',
-                                            border: `1px solid ${dragOverColumn === col ? 'rgba(56,189,248,0.3)' : 'rgba(255,255,255,0.06)'}`,
-                                            borderRadius: '0.75rem',
-                                            padding: '0.75rem',
-                                            transition: 'all 0.2s',
-                                        }}
-                                    >
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem', padding: '0 0.25rem' }}>
-                                            <div style={{ width: 10, height: 10, borderRadius: '50%', background: getStatusColor(col) }} />
-                                            <span style={{ fontSize: '0.8rem', fontWeight: '600', color: getStatusColor(col) }}>{getStatusLabel(col)}</span>
-                                            <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)' }}>({colTasks.length})</span>
-                                        </div>
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', minHeight: '60px' }}>
-                                            {colTasks.map(task => (
-                                                <div
-                                                    key={task.id}
-                                                    draggable
-                                                    onDragStart={() => handleDragStart(task.id)}
-                                                    onDragEnd={handleDragEnd}
-                                                    style={{
-                                                        background: draggedTaskId === task.id ? 'rgba(56,189,248,0.1)' : 'rgba(255,255,255,0.04)',
-                                                        border: '1px solid rgba(255,255,255,0.08)',
-                                                        borderRadius: '0.5rem',
-                                                        padding: '0.6rem 0.75rem',
-                                                        cursor: 'grab',
-                                                        opacity: draggedTaskId === task.id ? 0.5 : 1,
-                                                        transition: 'all 0.15s',
-                                                    }}
-                                                >
-                                                    <div style={{ fontSize: '0.8rem', fontWeight: '500', color: '#fff', marginBottom: '0.2rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                                        {task.priority === 'urgent' && <span style={{ color: '#ef4444', marginRight: '0.3rem' }}>⚡</span>}
-                                                        {task.title}
-                                                    </div>
-                                                    <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
-                                                        {task.patient_name && <span style={{ fontSize: '0.6rem', color: '#38bdf8' }}>👤 {task.patient_name}</span>}
-                                                        {task.due_date && (
-                                                            <span style={{ fontSize: '0.6rem', color: new Date(task.due_date) < new Date() ? '#ef4444' : 'rgba(255,255,255,0.4)' }}>
-                                                                📅 {new Date(task.due_date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' })}
-                                                            </span>
-                                                        )}
-                                                        {(task.assigned_to || []).length > 0 && (
-                                                            <span style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)' }}>→ {task.assigned_to.map(a => a.name).join(', ')}</span>
-                                                        )}
-                                                    </div>
-                                                    {task.checklist_items && task.checklist_items.length > 0 && (
-                                                        <div style={{ marginTop: '0.3rem' }}>
-                                                            <div style={{ height: '2px', background: 'rgba(255,255,255,0.08)', borderRadius: '1px', overflow: 'hidden' }}>
-                                                                <div style={{ width: `${(task.checklist_items.filter(ci => ci.done).length / task.checklist_items.length) * 100}%`, height: '100%', background: task.checklist_items.every(ci => ci.done) ? '#22c55e' : '#38bdf8' }} />
-                                                            </div>
+                        <div style={{
+                            /* Horizontal scroll container — columns scroll inside, NOT the whole page */
+                            overflowX: 'auto',
+                            overflowY: 'visible',
+                            WebkitOverflowScrolling: 'touch' as any,
+                            overscrollBehaviorX: 'contain' as any,
+                            marginLeft: '-0.5rem',
+                            marginRight: '-0.5rem',
+                            paddingLeft: '0.5rem',
+                            paddingRight: '0.5rem',
+                            paddingBottom: '0.5rem',
+                        }}>
+                            <div style={{
+                                display: 'grid',
+                                gridTemplateColumns: 'repeat(3, minmax(240px, 1fr))',
+                                gap: '0.75rem',
+                                minHeight: '400px',
+                                /* Keep inner grid as wide as needed to fit all columns */
+                                minWidth: 'calc(3 * 240px + 2 * 0.75rem)',
+                            }}>
+                                {(['todo', 'in_progress', 'done'] as const).map((col, colIdx) => {
+                                    const colTasks = filteredTasks.filter(t => t.status === col);
+                                    const prevCol = colIdx > 0 ? (['todo', 'in_progress', 'done'] as const)[colIdx - 1] : null;
+                                    const nextCol = colIdx < 2 ? (['todo', 'in_progress', 'done'] as const)[colIdx + 1] : null;
+                                    return (
+                                        <div
+                                            key={col}
+                                            onDragOver={(e) => handleDragOver(e, col)}
+                                            onDragLeave={() => setDragOverColumn(null)}
+                                            onDrop={() => handleDrop(col)}
+                                            style={{
+                                                background: dragOverColumn === col ? 'rgba(56,189,248,0.08)' : 'rgba(255,255,255,0.02)',
+                                                border: `1px solid ${dragOverColumn === col ? 'rgba(56,189,248,0.3)' : 'rgba(255,255,255,0.06)'}`,
+                                                borderRadius: '0.75rem',
+                                                padding: '0.75rem',
+                                                transition: 'all 0.2s',
+                                                minWidth: '240px',
+                                            }}
+                                        >
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem', padding: '0 0.25rem' }}>
+                                                <div style={{ width: 10, height: 10, borderRadius: '50%', background: getStatusColor(col) }} />
+                                                <span style={{ fontSize: '0.8rem', fontWeight: '600', color: getStatusColor(col) }}>{getStatusLabel(col)}</span>
+                                                <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)' }}>({colTasks.length})</span>
+                                            </div>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', minHeight: '60px' }}>
+                                                {colTasks.map(task => (
+                                                    <div
+                                                        key={task.id}
+                                                        draggable
+                                                        onDragStart={() => handleDragStart(task.id)}
+                                                        onDragEnd={handleDragEnd}
+                                                        style={{
+                                                            background: draggedTaskId === task.id ? 'rgba(56,189,248,0.1)' : 'rgba(255,255,255,0.04)',
+                                                            border: '1px solid rgba(255,255,255,0.08)',
+                                                            borderRadius: '0.5rem',
+                                                            padding: '0.6rem 0.75rem',
+                                                            cursor: 'grab',
+                                                            opacity: draggedTaskId === task.id ? 0.5 : 1,
+                                                            transition: 'all 0.15s',
+                                                        }}
+                                                    >
+                                                        <div style={{ fontSize: '0.8rem', fontWeight: '500', color: '#fff', marginBottom: '0.2rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                            {task.priority === 'urgent' && <span style={{ color: '#ef4444', marginRight: '0.3rem' }}>⚡</span>}
+                                                            {task.title}
                                                         </div>
-                                                    )}
-                                                </div>
-                                            ))}
-                                            {colTasks.length === 0 && (
-                                                <div style={{ textAlign: 'center', padding: '1.5rem 0.5rem', color: 'rgba(255,255,255,0.2)', fontSize: '0.7rem', fontStyle: 'italic' }}>
-                                                    Przeciągnij zadanie tutaj
-                                                </div>
-                                            )}
+                                                        {task.patient_name && <div style={{ fontSize: '0.6rem', color: '#38bdf8', marginBottom: '0.15rem' }}>👤 {task.patient_name}</div>}
+                                                        {task.due_date && (
+                                                            <div style={{ fontSize: '0.6rem', color: new Date(task.due_date) < new Date() ? '#ef4444' : 'rgba(255,255,255,0.4)' }}>
+                                                                📅 {new Date(task.due_date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' })}
+                                                            </div>
+                                                        )}
+                                                        {task.checklist_items && task.checklist_items.length > 0 && (
+                                                            <div style={{ marginTop: '0.3rem' }}>
+                                                                <div style={{ height: '2px', background: 'rgba(255,255,255,0.08)', borderRadius: '1px', overflow: 'hidden' }}>
+                                                                    <div style={{ width: `${(task.checklist_items.filter(ci => ci.done).length / task.checklist_items.length) * 100}%`, height: '100%', background: task.checklist_items.every(ci => ci.done) ? '#22c55e' : '#38bdf8' }} />
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                        {/* ← → arrows: mobile-friendly way to move between columns */}
+                                                        <div style={{ display: 'flex', gap: '0.3rem', marginTop: '0.4rem' }}>
+                                                            {prevCol && (
+                                                                <button
+                                                                    onClick={(e) => { e.stopPropagation(); handleUpdateStatus(task.id, prevCol); }}
+                                                                    title={`Przenieś do: ${getStatusLabel(prevCol)}`}
+                                                                    style={{ flex: 1, padding: '0.2rem', fontSize: '0.6rem', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '0.3rem', color: 'rgba(255,255,255,0.4)', cursor: 'pointer' }}
+                                                                >
+                                                                    ← {getStatusLabel(prevCol)}
+                                                                </button>
+                                                            )}
+                                                            {nextCol && (
+                                                                <button
+                                                                    onClick={(e) => { e.stopPropagation(); handleUpdateStatus(task.id, nextCol); }}
+                                                                    title={`Przenieś do: ${getStatusLabel(nextCol)}`}
+                                                                    style={{ flex: 1, padding: '0.2rem', fontSize: '0.6rem', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '0.3rem', color: 'rgba(255,255,255,0.4)', cursor: 'pointer' }}
+                                                                >
+                                                                    {getStatusLabel(nextCol)} →
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                                {colTasks.length === 0 && (
+                                                    <div style={{ textAlign: 'center', padding: '1.5rem 0.5rem', color: 'rgba(255,255,255,0.2)', fontSize: '0.7rem', fontStyle: 'italic' }}>
+                                                        Brak zadań
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
-                                    </div>
-                                );
-                            })}
+                                    );
+                                })}
+                            </div>
                         </div>
                     )}
+
 
                     {/* ═══ CALENDAR VIEW ═══ */}
                     {taskViewMode === 'calendar' && (
