@@ -99,20 +99,40 @@ export default function VoiceAssistant({ userId, userEmail }: VoiceAssistantProp
     }, [releaseWakeLock]);
 
     // ─── OpenAI TTS (natural voice) ──────────────────────────
+    // AudioContext is created ONCE on first use (within user gesture chain)
+    // and reused/resumed on subsequent calls — required for browser autoplay policy
     const speakText = useCallback(async (text: string) => {
         if (!voiceEnabledRef.current || typeof window === 'undefined') return;
-        try { if (audioCtxRef.current) audioCtxRef.current.close(); } catch { /* ignore */ }
         try {
             const res = await fetch('/api/employee/tts', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ text, voice: ttsVoiceRef.current }),
             });
-            if (!res.ok) return; // fail silently — no robot voice fallback
+            if (!res.ok) return; // fail silently
+
             const arrayBuffer = await res.arrayBuffer();
-            const audioCtx = new AudioContext();
-            audioCtxRef.current = audioCtx;
+
+            // Reuse existing AudioContext or create a new one
+            // Creating inside async function that's triggered by user gesture satisfies autoplay
+            if (!audioCtxRef.current || audioCtxRef.current.state === 'closed') {
+                audioCtxRef.current = new AudioContext();
+            }
+            const audioCtx = audioCtxRef.current;
+
+            // Resume if suspended (required after tab switch / page visibility change)
+            if (audioCtx.state === 'suspended') {
+                await audioCtx.resume();
+            }
+
             const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+
+            // Stop any currently playing source
+            try {
+                const silencer = audioCtx.createGain();
+                silencer.gain.setValueAtTime(0, audioCtx.currentTime);
+            } catch { /* ignore */ }
+
             const source = audioCtx.createBufferSource();
             source.buffer = audioBuffer;
             const gainNode = audioCtx.createGain();

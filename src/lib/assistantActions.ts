@@ -103,7 +103,16 @@ async function createTask(args: {
 
         const task = {
             title: args.title,
-            description: args.description || null,
+            description: args.description || (
+                // Auto-generate description from context if none provided
+                [
+                    args.is_private ? 'Zadanie prywatne' : null,
+                    args.patient_name ? `Pacjent: ${args.patient_name}` : null,
+                    args.due_date
+                        ? `Termin: ${new Date(args.due_date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'long', year: 'numeric' })}${args.due_time ? ` o ${args.due_time}` : ''}`
+                        : null,
+                ].filter(Boolean).join(' • ') || null
+            ),
             status: 'todo',
             priority: args.priority || 'normal',
             task_type: args.task_type || null,
@@ -443,6 +452,54 @@ async function checkSchedule(args: {
     }
 }
 
+// ─── Action: Update Memory ────────────────────────────────────
+
+async function updateMemory(args: {
+    facts: Record<string, string | null>;
+    reason?: string;
+}, userId: string): Promise<ActionResult> {
+    try {
+        const { data: existing } = await supabase
+            .from('assistant_memory')
+            .select('facts')
+            .eq('user_id', userId)
+            .single();
+
+        const currentFacts: Record<string, any> = (existing as any)?.facts ?? {};
+        const merged: Record<string, any> = { ...currentFacts };
+
+        for (const [k, v] of Object.entries(args.facts)) {
+            if (v === null) {
+                delete merged[k];
+            } else {
+                merged[k] = v;
+            }
+        }
+
+        const { error } = await supabase
+            .from('assistant_memory')
+            .upsert(
+                { user_id: userId, facts: merged, updated_at: new Date().toISOString() },
+                { onConflict: 'user_id' }
+            );
+
+        if (error) {
+            console.error('[AssistantActions] Memory update error:', error);
+            return { success: false, action: 'updateMemory', message: 'Nie udało się zapisać do pamięci.' };
+        }
+
+        const keys = Object.keys(args.facts).filter(k => args.facts[k] !== null);
+        return {
+            success: true,
+            action: 'updateMemory',
+            message: `Zapamiętałem: ${keys.join(', ')}.`,
+            data: { updatedKeys: keys, totalFacts: Object.keys(merged).length },
+        };
+    } catch (err: any) {
+        return { success: false, action: 'updateMemory', message: `Błąd zapisu pamięci: ${err.message}` };
+    }
+}
+
 // ─── Main Dispatcher ─────────────────────────────────────────
 
 export async function executeAction(
@@ -466,7 +523,10 @@ export async function executeAction(
             return searchPatient(args as any);
         case 'checkSchedule':
             return checkSchedule(args as any);
+        case 'updateMemory':
+            return updateMemory(args as any, userId);
         default:
             return { success: false, action: functionName, message: `Nieznana akcja: ${functionName}` };
     }
 }
+

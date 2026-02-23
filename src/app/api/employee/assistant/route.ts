@@ -1,33 +1,45 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
+import { createClient } from '@supabase/supabase-js';
 import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
 import { executeAction } from '@/lib/assistantActions';
 
 export const dynamic = 'force-dynamic';
 
-// ─── System Prompt ───────────────────────────────────────────
+const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
-const SYSTEM_PROMPT = `Jesteś asystentem głosowym Mikrostomart — kliniki stomatologicznej w Opolu.
+// ─── System Prompt (injected with per-user memory) ───────────
+
+function buildSystemPrompt(memory: Record<string, string> = {}): string {
+    const memorySection = Object.keys(memory).length > 0
+        ? `\n\nTWÓJ KONTEKST O UŻYTKOWNIKU (zapamiętane fakty):\n${Object.entries(memory).map(([k, v]) => `- ${k}: ${v}`).join('\n')}\n- Używaj tych danych naturalnie — np. jeśli znasz adres fryzjera, dodaj go do opisu zadania/kalendarza.`
+        : '';
+
+    return `Jesteś asystentem głosowym Mikrostomart — kliniki stomatologicznej w Opolu.
 Mówisz po polsku. Jesteś rzeczowy, ciepły i naturalny — jak dobry współpracownik, nie robot.
 
 TWOJE MOŻLIWOŚCI:
 1. Tworzenie zadań (employee_tasks) — w tym zadań prywatnych (is_private=true)
 2. Dodawanie wydarzeń do kalendarza Google (jeśli połączony)
-3. Ustawianie przypomnień push
+3. Ustawianie przypomnień (Google Calendar popup — NIE push)
 4. Dictowanie dokumentacji (redaguj i wyślij mailem)
 5. Wyszukiwanie pacjentów w Prodentis
 6. Sprawdzanie grafiku wizyt
+7. Zapisywanie do pamięci — updateMemory gdy użytkownik poda coś wartego zapamiętania
 
 FILOZOFIA DZIAŁANIA — BARDZO WAŻNE:
 - NIE pytaj przed działaniem. DZIAŁAJ od razu, wywnioskowując brakujące dane z kontekstu.
-- "Jutro na 16 mam fryzjera" → NATYCHMIAST createTask(title="Fryzjer", is_private=true, due_date=jutro, due_time="16:00") + addCalendarEvent
-- "Zapisz że muszę zamówić protezy" → createTask(title="Zamówienie protez", task_type="Zamówienia") od razu
-- Po wykonaniu akcji: powiedz CO zrobiłeś w 1-2 zdaniach, a następnie naturalnie zasugeruj CO JESZCZE można dodać bez pytania czy user tego chce
-  Przykład: "Zapisałem fryzjera na jutro o 16. Jeśli chcesz, mogę jeszcze ustawić przypomnienie SMS albo dodać adres salonu."
-- Gdy coś zostało zrobione z założeniem (np. tytuł wywnioskowałem) — powiedz to naturalnie
-- Dla zadań klinicznych (laboratorium, zamówienia, recepcja) → is_private=false, task_type=odpowiedni
-- Dla rzeczy prywatnych (fryzjer, dentysta, spotkanie z rodziną, itp.) → is_private=true, BRAK task_type
+- "Jutro na 16 mam fryzjera" → NATYCHMIAST createTask(is_private=true, due_date=jutro, due_time=16:00) + addCalendarEvent, następnie updateMemory({"ostatni_fryzjer": "fryzjer, 16:00"})
+- Po wykonaniu akcji: 1-2 zdania CO zrobiłeś, potem KONKRETNA propozycja co jeszcze można dodać
+  Przykład: "Zapisałem fryzjera na jutro o 16 i dodałem do kalendarza. Jeśli chcesz, podaj adres — dodam go do wydarzenia."
+- Powiedz wprost co zrobiłeś z przypomnieniem: "Ustawiłem przypomnienie w Google Calendar na 15 minut przed."
+- Powiedz jeśli NIE ustawiłeś push notification — bo push idą tylko dla zadań klinicznych (żeby nie spamować zespołu)
+- Zadania prywatne → NIE przesyłaj push do zespołu (informuj o tym!)
+- updateMemory ZAWSZE gdy user poda: adres, telefon, preferencję, kogoś ważnego, termin cykliczny
 
 WNIOSKOWANIE DAT:
 - "jutro" = ${(() => { const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().split('T')[0]; })()}
@@ -38,14 +50,14 @@ WNIOSKOWANIE DAT:
 
 DZIŚ: ${new Date().toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}, godz. ${new Date().toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}
 
-TYPY ZADAŃ KLINICZNYCH:
-- Laboratorium, Zamówienia, Recepcja, Modele Archiwalne, Skanowanie, Inne
+TYPY ZADAŃ KLINICZNYCH: Laboratorium, Zamówienia, Recepcja, Modele Archiwalne, Skanowanie, Inne
 
 STYL ODPOWIEDZI:
 - Krótko. Max 2-3 zdania.
 - Naturalnie, jak człowiek. Bez listy kroków, bez formalizmu
 - NIE zaczynaj od "Oczywiście!", "Jasne!", "Rozumiem!"
-- Potwierdzaj co zrobiłeś, nie co "zamierzasz zrobić"`;
+- Potwierdzaj co zrobiłeś, nie co "zamierzasz zrobić"${memorySection}`;
+}
 
 // ─── OpenAI Function Definitions ─────────────────────────────
 
@@ -150,6 +162,25 @@ const FUNCTIONS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
             },
         },
     },
+    {
+        type: 'function',
+        function: {
+            name: 'updateMemory',
+            description: 'Zapisz fakty o użytkowniku do długoterminowej pamięci. ZAWSZE wywołuj gdy user poda: adres, telefon, preferencję, miejsce, osobę, termin cykliczny. Automatycznie wywołuj po każdej nowej informacji bez pytania.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    facts: {
+                        type: 'object',
+                        description: 'Słownik klucz→wartość do zapamiętania. Wartość null = usuń ten fakt. Przykład: {"fryzjer_adres": "ul. Krakowska 15", "preferowana_godzina": "16:00"}',
+                        additionalProperties: { type: 'string' },
+                    },
+                    reason: { type: 'string', description: 'Krótki opis dlaczego to zapamiętano (opcjonalne)' },
+                },
+                required: ['facts'],
+            },
+        },
+    },
 ];
 
 // ─── API Handler ─────────────────────────────────────────────
@@ -173,9 +204,21 @@ export async function POST(req: Request) {
 
         const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-        // Build full conversation context
+        // Fetch user memory to personalize the system prompt
+        let userMemory: Record<string, string> = {};
+        try {
+            const { data: memData } = await supabase
+                .from('assistant_memory')
+                .select('facts')
+                .eq('user_id', user.id)
+                .single();
+            if (memData?.facts) userMemory = memData.facts;
+        } catch { /* memory is optional */ }
+
+        // Build full conversation context with personalized system prompt
+        const systemPrompt = buildSystemPrompt(userMemory);
         const conversationMessages: any[] = [
-            { role: 'system', content: SYSTEM_PROMPT },
+            { role: 'system', content: systemPrompt },
             ...messages,
         ];
 
