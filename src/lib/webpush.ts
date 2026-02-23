@@ -216,3 +216,76 @@ export async function sendPushToAllEmployees(
 
     return { sent, failed };
 }
+
+// ----------------------------------------------------------------
+// Group-targeted push notifications
+// ----------------------------------------------------------------
+
+export type PushGroup = 'patients' | 'doctors' | 'hygienists' | 'reception' | 'assistant' | 'admin';
+
+/**
+ * Send push notification to one or more user groups.
+ * groups: array of PushGroup identifiers — can mix any combination.
+ */
+export async function sendPushToGroups(
+    groups: PushGroup[],
+    payload: PushPayload
+): Promise<{ sent: number; failed: number; byGroup: Record<string, { sent: number; failed: number }> }> {
+    let totalSent = 0;
+    let totalFailed = 0;
+    const byGroup: Record<string, { sent: number; failed: number }> = {};
+
+    const sendBatch = async (subs: any[], groupName: string) => {
+        let s = 0; let f = 0;
+        for (const sub of subs) {
+            try {
+                await webpush.sendNotification(
+                    { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+                    JSON.stringify(payload)
+                );
+                s++;
+            } catch (error: any) {
+                if (error.statusCode === 404 || error.statusCode === 410) {
+                    await supabase.from('push_subscriptions').delete().eq('id', sub.id);
+                }
+                f++;
+            }
+        }
+        byGroup[groupName] = { sent: s, failed: f };
+        totalSent += s;
+        totalFailed += f;
+    };
+
+    for (const group of groups) {
+        if (group === 'patients') {
+            const { data: subs } = await supabase
+                .from('push_subscriptions').select('*').eq('user_type', 'patient');
+            await sendBatch(subs || [], 'patients');
+
+        } else if (group === 'admin') {
+            const { data: subs } = await supabase
+                .from('push_subscriptions').select('*').eq('user_type', 'admin');
+            await sendBatch(subs || [], 'admin');
+
+        } else {
+            // Employee sub-groups: doctors, hygienists, reception, assistant
+            const groupMap: Record<string, string> = {
+                doctors: 'doctor',
+                hygienists: 'hygienist',
+                reception: 'reception',
+                assistant: 'assistant',
+            };
+            const dbGroup = groupMap[group];
+            if (!dbGroup) continue;
+
+            const { data: subs } = await supabase
+                .from('push_subscriptions')
+                .select('*')
+                .eq('user_type', 'employee')
+                .eq('employee_group', dbGroup);
+            await sendBatch(subs || [], group);
+        }
+    }
+
+    return { sent: totalSent, failed: totalFailed, byGroup };
+}

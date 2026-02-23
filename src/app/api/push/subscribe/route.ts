@@ -18,7 +18,23 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'userType and userId required' }, { status: 400 });
         }
 
-        // Upsert — update locale/keys if endpoint already exists
+        // Resolve employee_group for employees
+        let employee_group: string | null = null;
+        if (userType === 'employee') {
+            const { data: emp } = await supabase
+                .from('employees')
+                .select('position')
+                .eq('user_id', userId)
+                .single();
+
+            const position = emp?.position?.toLowerCase() || '';
+            if (position.includes('lekarz') || position.includes('doktor')) employee_group = 'doctor';
+            else if (position.includes('higienist')) employee_group = 'hygienist';
+            else if (position.includes('recep')) employee_group = 'reception';
+            else if (position.includes('asysta') || position.includes('asystentka')) employee_group = 'assistant';
+        }
+
+        // Upsert — update locale/keys/group if endpoint already exists
         const { error } = await supabase
             .from('push_subscriptions')
             .upsert(
@@ -29,19 +45,21 @@ export async function POST(request: NextRequest) {
                     p256dh: subscription.keys.p256dh,
                     auth: subscription.keys.auth,
                     locale: locale || 'pl',
+                    employee_group,
                 },
                 { onConflict: 'endpoint' }
             );
 
         if (error) throw error;
 
-        console.log(`[Push] Subscribed: ${userType}/${userId} (${locale})`);
+        console.log(`[Push] Subscribed: ${userType}/${userId} (${locale}) group: ${employee_group}`);
         return NextResponse.json({ success: true });
     } catch (error: unknown) {
         console.error('[Push] Subscribe error:', error);
         return NextResponse.json({ error: 'Failed to subscribe', details: String(error) }, { status: 500 });
     }
 }
+
 
 // DELETE — unsubscribe from push notifications
 export async function DELETE(request: NextRequest) {

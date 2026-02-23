@@ -23,7 +23,9 @@ import {
     Users,
     MessageCircle,
     Shield,
-    Paintbrush
+    Paintbrush,
+    Bell,
+    Trash2
 } from "lucide-react";
 
 type Product = {
@@ -61,7 +63,7 @@ export default function AdminPage() {
     const [products, setProducts] = useState<Product[]>([]);
     const [error, setError] = useState<string | null>(null);
 
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'questions' | 'articles' | 'news' | 'orders' | 'reservations' | 'blog' | 'patients' | 'sms-reminders' | 'appointment-instructions' | 'roles' | 'employees' | 'chat' | 'theme'>('dashboard');
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'questions' | 'articles' | 'news' | 'orders' | 'reservations' | 'blog' | 'patients' | 'sms-reminders' | 'appointment-instructions' | 'roles' | 'employees' | 'chat' | 'theme' | 'push'>('dashboard');
     const [questions, setQuestions] = useState<any[]>([]);
     const [articles, setArticles] = useState<any[]>([]);
     const [blogPosts, setBlogPosts] = useState<any[]>([]); // New Blog Posts state
@@ -2903,6 +2905,245 @@ export default function AdminPage() {
     );
 
 
+    // ---- Push state ----
+    const [pushSubs, setPushSubs] = useState<any[]>([]);
+    const [pushStats, setPushStats] = useState<any>({});
+    const [pushLoading, setPushLoading] = useState(false);
+    const [pushTitle, setPushTitle] = useState('');
+    const [pushBody, setPushBody] = useState('');
+    const [pushUrl, setPushUrl] = useState('/pracownik');
+    const [pushGroups, setPushGroups] = useState<string[]>([]);
+    const [pushSending, setPushSending] = useState(false);
+    const [pushResult, setPushResult] = useState<any>(null);
+    const [pushSubGroups, setPushSubGroups] = useState<Record<string, string>>({}); // userId -> position
+
+    const fetchPushData = async () => {
+        setPushLoading(true);
+        try {
+            const res = await fetch('/api/admin/push');
+            if (res.ok) {
+                const data = await res.json();
+                setPushSubs(data.subscriptions || []);
+                setPushStats(data.stats || {});
+            }
+        } catch (e) { console.error(e); }
+        finally { setPushLoading(false); }
+    };
+
+    const handleSendPush = async () => {
+        if (!pushTitle || !pushBody || pushGroups.length === 0) {
+            alert('Wpisz tytuł, treść i wybierz co najmniej jedną grupę');
+            return;
+        }
+        setPushSending(true);
+        setPushResult(null);
+        try {
+            const res = await fetch('/api/admin/push', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title: pushTitle, body: pushBody, url: pushUrl, groups: pushGroups }),
+            });
+            const data = await res.json();
+            setPushResult(data);
+            if (res.ok) {
+                setPushTitle('');
+                setPushBody('');
+                setPushGroups([]);
+                fetchPushData();
+            }
+        } catch (e: any) { setPushResult({ error: e.message }); }
+        finally { setPushSending(false); }
+    };
+
+    const handleDeleteSub = async (id: string) => {
+        if (!confirm('Usunąć tę subskrypcję?')) return;
+        await fetch('/api/admin/push', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id }),
+        });
+        fetchPushData();
+    };
+
+    const handleSetPosition = async (userId: string, position: string) => {
+        await fetch('/api/admin/employees/position', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId, position }),
+        });
+        setPushSubGroups(prev => ({ ...prev, [userId]: position }));
+    };
+
+    const GROUP_LABELS: Record<string, string> = {
+        patients: '👥 Pacjenci',
+        doctors: '🦷 Lekarze',
+        hygienists: '💉 Higienistki',
+        reception: '📞 Recepcja',
+        assistant: '🔧 Asysta',
+        admin: '👑 Admin',
+    };
+
+    const renderPushTab = () => {
+        if (pushLoading) return <div style={{ padding: '2rem', color: 'white' }}>⏳ Ładowanie...</div>;
+        return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+
+                {/* Stats bar */}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem' }}>
+                    {Object.entries(GROUP_LABELS).map(([key, label]) => (
+                        <div key={key} style={{
+                            background: 'rgba(255,255,255,0.05)',
+                            border: '1px solid rgba(255,255,255,0.1)',
+                            borderRadius: '0.75rem',
+                            padding: '1rem 1.5rem',
+                            minWidth: '130px',
+                        }}>
+                            <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--color-primary)' }}>
+                                {pushStats[key === 'doctors' ? 'doctors' : key === 'hygienists' ? 'hygienists' : key] ?? 0}
+                            </div>
+                            <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)' }}>{label}</div>
+                        </div>
+                    ))}
+                    {(pushStats.unassigned ?? 0) > 0 && (
+                        <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '0.75rem', padding: '1rem 1.5rem', minWidth: '130px' }}>
+                            <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#ef4444' }}>{pushStats.unassigned}</div>
+                            <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)' }}>⚠️ Bez grupy</div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Send form */}
+                <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '1rem', padding: '1.5rem' }}>
+                    <h3 style={{ color: 'white', margin: '0 0 1.5rem 0', fontSize: '1.1rem' }}>📤 Wyślij powiadomienie push</h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                        <div>
+                            <label style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.85rem', display: 'block', marginBottom: '0.4rem' }}>Tytuł *</label>
+                            <input value={pushTitle} onChange={e => setPushTitle(e.target.value)}
+                                placeholder="np. Ważna informacja" maxLength={100}
+                                style={{ width: '100%', padding: '0.75rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.5rem', color: 'white', fontSize: '0.9rem', boxSizing: 'border-box' }} />
+                        </div>
+                        <div>
+                            <label style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.85rem', display: 'block', marginBottom: '0.4rem' }}>Link URL</label>
+                            <input value={pushUrl} onChange={e => setPushUrl(e.target.value)}
+                                placeholder="/pracownik"
+                                style={{ width: '100%', padding: '0.75rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.5rem', color: 'white', fontSize: '0.9rem', boxSizing: 'border-box' }} />
+                        </div>
+                    </div>
+                    <div style={{ marginBottom: '1rem' }}>
+                        <label style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.85rem', display: 'block', marginBottom: '0.4rem' }}>Treść *</label>
+                        <textarea value={pushBody} onChange={e => setPushBody(e.target.value)}
+                            placeholder="Treść powiadomienia..." maxLength={300} rows={3}
+                            style={{ width: '100%', padding: '0.75rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.5rem', color: 'white', fontSize: '0.9rem', boxSizing: 'border-box', resize: 'vertical' }} />
+                    </div>
+                    <div style={{ marginBottom: '1.5rem' }}>
+                        <label style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.85rem', display: 'block', marginBottom: '0.75rem' }}>Grupy docelowe * (można wybrać wiele)</label>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                            {Object.entries(GROUP_LABELS).map(([key, label]) => {
+                                const active = pushGroups.includes(key);
+                                return (
+                                    <button key={key} onClick={() => setPushGroups(prev => active ? prev.filter(g => g !== key) : [...prev, key])}
+                                        style={{
+                                            padding: '0.5rem 1rem', borderRadius: '2rem',
+                                            border: `1px solid ${active ? 'var(--color-primary)' : 'rgba(255,255,255,0.15)'}`,
+                                            background: active ? 'rgba(250,189,0,0.15)' : 'transparent',
+                                            color: active ? 'var(--color-primary)' : 'rgba(255,255,255,0.6)',
+                                            cursor: 'pointer', fontSize: '0.85rem', fontWeight: active ? 'bold' : 'normal',
+                                            transition: 'all 0.15s',
+                                        }}>{label}</button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                    {pushResult && (
+                        <div style={{
+                            marginBottom: '1rem', padding: '1rem', borderRadius: '0.5rem',
+                            background: pushResult.error ? 'rgba(239,68,68,0.1)' : 'rgba(34,197,94,0.1)',
+                            border: `1px solid ${pushResult.error ? 'rgba(239,68,68,0.3)' : 'rgba(34,197,94,0.3)'}`,
+                            color: pushResult.error ? '#ef4444' : '#22c55e', fontSize: '0.85rem'
+                        }}>
+                            {pushResult.error ? `❌ Błąd: ${pushResult.error}` :
+                                `✅ Wysłano: ${pushResult.sent} | Nieudane: ${pushResult.failed}`}
+                        </div>
+                    )}
+                    <button onClick={handleSendPush} disabled={pushSending || !pushTitle || !pushBody || pushGroups.length === 0}
+                        style={{
+                            padding: '0.75rem 2rem', background: 'var(--color-primary)', border: 'none', borderRadius: '0.5rem',
+                            color: 'black', fontWeight: 'bold', cursor: pushSending || !pushTitle || !pushBody || pushGroups.length === 0 ? 'not-allowed' : 'pointer',
+                            opacity: pushSending || !pushTitle || !pushBody || pushGroups.length === 0 ? 0.5 : 1, transition: 'all 0.2s'
+                        }}>
+                        {pushSending ? '📤 Wysyłanie...' : '📤 Wyślij powiadomienie'}
+                    </button>
+                </div>
+
+                {/* Subscriptions table */}
+                <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '1rem', padding: '1.5rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                        <h3 style={{ color: 'white', margin: 0, fontSize: '1.1rem' }}>📱 Aktywne subskrypcje ({pushSubs.length})</h3>
+                        <button onClick={fetchPushData} style={{ padding: '0.4rem 0.8rem', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.4rem', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', fontSize: '0.8rem' }}>🔄 Odśwież</button>
+                    </div>
+                    {pushSubs.length === 0 ? (
+                        <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.9rem' }}>Brak aktywnych subskrypcji.</p>
+                    ) : (
+                        <div style={{ overflowX: 'auto' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                                <thead>
+                                    <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)' }}>
+                                        <th style={{ textAlign: 'left', padding: '0.5rem' }}>Użytkownik</th>
+                                        <th style={{ textAlign: 'left', padding: '0.5rem' }}>Typ</th>
+                                        <th style={{ textAlign: 'left', padding: '0.5rem' }}>Podgrupa</th>
+                                        <th style={{ textAlign: 'left', padding: '0.5rem' }}>Locale</th>
+                                        <th style={{ textAlign: 'left', padding: '0.5rem' }}>Data</th>
+                                        <th style={{ textAlign: 'left', padding: '0.5rem' }}></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {pushSubs.map((sub: any) => (
+                                        <tr key={sub.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: 'white' }}>
+                                            <td style={{ padding: '0.6rem 0.5rem' }}>
+                                                <div style={{ fontWeight: 'bold', fontSize: '0.8rem' }}>{sub.employeeName || sub.user_id.substring(0, 12) + '...'}</div>
+                                                {sub.employeeEmail && <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)' }}>{sub.employeeEmail}</div>}
+                                            </td>
+                                            <td style={{ padding: '0.6rem 0.5rem' }}>
+                                                <span style={{
+                                                    padding: '0.2rem 0.6rem', borderRadius: '1rem', fontSize: '0.75rem',
+                                                    background: sub.user_type === 'patient' ? 'rgba(56,189,248,0.15)' : sub.user_type === 'admin' ? 'rgba(168,85,247,0.15)' : 'rgba(34,197,94,0.15)',
+                                                    color: sub.user_type === 'patient' ? '#38bdf8' : sub.user_type === 'admin' ? '#a855f7' : '#22c55e'
+                                                }}>
+                                                    {sub.user_type}
+                                                </span>
+                                            </td>
+                                            <td style={{ padding: '0.6rem 0.5rem' }}>
+                                                {sub.user_type === 'employee' ? (
+                                                    <span style={{
+                                                        padding: '0.2rem 0.6rem', borderRadius: '1rem', fontSize: '0.75rem',
+                                                        background: sub.employee_group ? 'rgba(250,189,0,0.1)' : 'rgba(239,68,68,0.1)',
+                                                        color: sub.employee_group ? 'var(--color-primary)' : '#ef4444'
+                                                    }}>
+                                                        {sub.employee_group ?? '⚠️ brak'}
+                                                    </span>
+                                                ) : '—'}
+                                            </td>
+                                            <td style={{ padding: '0.6rem 0.5rem', color: 'rgba(255,255,255,0.5)' }}>{sub.locale}</td>
+                                            <td style={{ padding: '0.6rem 0.5rem', color: 'rgba(255,255,255,0.4)', fontSize: '0.75rem' }}>
+                                                {new Date(sub.created_at).toLocaleDateString('pl-PL')}
+                                            </td>
+                                            <td style={{ padding: '0.6rem 0.5rem' }}>
+                                                <button onClick={() => handleDeleteSub(sub.id)}
+                                                    style={{ padding: '0.3rem 0.6rem', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '0.4rem', color: '#ef4444', cursor: 'pointer', fontSize: '0.75rem' }}>
+                                                    Usuń
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    };
+
     const NavItem = ({ id, label, icon: Icon }: any) => (
         <button
             onClick={() => setActiveTab(id)}
@@ -3028,6 +3269,7 @@ export default function AdminPage() {
                     <NavItem id="appointment-instructions" label="Instrukcje Wizyt" icon={FileText} />
                     <NavItem id="employees" label="Pracownicy" icon={Users} />
                     <NavItem id="roles" label="Uprawnienia" icon={Shield} />
+                    <NavItem id="push" label="🔔 Push" icon={Bell} onClick={() => { setActiveTab('push'); fetchPushData(); }} />
                     <NavItem id="orders" label="Zamówienia" icon={ShoppingBag} />
                     <NavItem id="products" label="Produkty (Sklep)" icon={Package} />
 
@@ -3093,6 +3335,7 @@ export default function AdminPage() {
                             {activeTab === 'questions' && 'Pytania do Eksperta'}
                             {activeTab === 'employees' && 'Pracownicy — Zarządzanie Kontami'}
                             {activeTab === 'roles' && 'Uprawnienia — Zarządzanie Rolami'}
+                            {activeTab === 'push' && '🔔 Powiadomienia Push'}
                             {activeTab === 'chat' && '💬 Czat z Pacjentami'}
                             {activeTab === 'theme' && '🎨 Personalizacja Motywu'}
                         </h1>
@@ -3322,6 +3565,7 @@ export default function AdminPage() {
                     {activeTab === 'appointment-instructions' && <AppointmentInstructionsEditor />}
                     {activeTab === 'employees' && renderEmployeesTab()}
                     {activeTab === 'roles' && renderRolesTab()}
+                    {activeTab === 'push' && renderPushTab()}
                     {activeTab === 'chat' && <AdminChat />}
                     {activeTab === 'theme' && <ThemeEditor />}
                 </div>
