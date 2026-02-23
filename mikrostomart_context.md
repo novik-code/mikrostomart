@@ -1,6 +1,6 @@
 # Mikrostomart - Complete Project Context
 
-> **Last Updated:** 2026-02-18  
+> **Last Updated:** 2026-02-23  
 > **Version:** Production (Vercel Deployment)  
 > **Status:** Active Development
 
@@ -52,7 +52,7 @@
 
 ### Backend & Database
 - **Supabase** (PostgreSQL database, authentication, storage)
-  - Database: 33 migrations (003-033: email verification, appointment actions, SMS reminders, user_roles, employee tasks, task history, comments, labels, status fix, google reviews cache, chat, push subscriptions, etc.)
+  - Database: 37 migrations (003-037: email verification, appointment actions, SMS reminders, user_roles, employee tasks, task history, comments, labels, status fix, google reviews cache, chat, push subscriptions, employee_group, push_notification_config, employee_groups array, etc.)
   - Auth: Email/password, magic links, JWT tokens
   - Storage: Product images, patient documents, task images
 
@@ -497,12 +497,42 @@ Web Push API subscription metadata for patients, employees, and admins.
 - p256dh (text, NOT NULL)
 - auth (text, NOT NULL)
 - locale (text, DEFAULT 'pl')
+- employee_group (text, CHECK IN ('doctor','hygienist','reception','assistant')) -- legacy single group
+- employee_groups (text[], DEFAULT NULL) -- multi-group array (GIN indexed)
 - created_at (timestamptz)
 - UNIQUE(endpoint)
 - INDEX idx_push_subs_user (user_type, user_id)
+- INDEX idx_push_subs_employee_groups (employee_groups) -- GIN index for array containment
 ```
 
----
+#### 21. **employees**
+Employee account data (linked to Supabase Auth users).
+```sql
+- id (uuid, PK)
+- user_id (uuid, FK → auth.users)
+- name (text)
+- email (text)
+- position (text) -- HR position from Prodentis (e.g. 'Lekarz', 'Higienistka')
+- employee_group (text) -- legacy single push group
+- push_groups (text[], DEFAULT NULL) -- canonical multi-groups for push routing (configurable from admin panel)
+- created_at (timestamptz)
+```
+
+#### 22. **push_notification_config**
+Per-notification-type configuration for automated push notifications (configurable from Admin Panel Push tab).
+```sql
+- id (uuid, PK)
+- key (text, UNIQUE) -- e.g. 'task-no-date', 'appointment-confirmed'
+- label (text) -- human-readable name for admin panel
+- description (text) -- short description for admin panel
+- groups (text[]) -- employee groups that receive this notification
+- recipient_types (text[], DEFAULT ARRAY['employees']) -- 'employees' | 'patients'
+- enabled (boolean, DEFAULT true)
+- created_at (timestamptz)
+```
+Seeded with 15 notification types: 13 employee-targeted (task events, appointment events, orders, registrations, chat), 2 patient-targeted (appointment-24h, appointment-1h reminders).
+
+
 
 ## ✨ Feature Catalog
 
@@ -800,7 +830,7 @@ Features:
 
 **Authentication Required** (Supabase Auth + admin email check)
 
-**14 Tabs** (`page.tsx` — 186KB, 3311 lines):
+**15 Tabs** (`page.tsx` — ~216KB, 3750+ lines):
 
 #### 1. Dashboard
 - Overview statistics
@@ -886,16 +916,42 @@ Features:
 - **RBAC system** — 3 roles: `admin`, `employee`, `patient`
 - **User list** — all Supabase Auth users with their assigned roles
 - **Grant/revoke roles** — buttons to add/remove roles per user
+- **Push groups (multi-chip)** — each employee row shows chip buttons (🦷 Lekarz / 💉 Higienistka / 📞 Recepcja / 🔧 Asysta); clicking a chip toggles the group and auto-saves immediately to `employees.push_groups` and `push_subscriptions.employee_groups`
 - **Patient candidates** — Patient Portal users who can be promoted to admin/employee
   - Creates Supabase Auth account + sends password reset email
   - "Odrzuć" (dismiss) button — hides candidate from list (`promotion_dismissed` flag)
 - **Self-protection** — cannot revoke own admin role
 - **API**: `/api/admin/roles` (GET, POST, DELETE), `/api/admin/roles/promote`, `/api/admin/roles/dismiss`, `/api/admin/roles/delete`
 
-#### 14. Password Reset Page (`/admin/update-password`)
+#### 14. Push Notifications (`push` tab)
+- **Stats bar** — subscription counts per group (🦷 Lekarze, 💉 Higienistki, 📞 Recepcja, 🔧 Asysta, 👑 Admin, 👥 Pacjenci, ⚠️ Bez grupy)
+
+- **Powiadomienia automatyczne — dla pracowników** — configuration for all 13 employee-targeted notification types:
+  - Each notification: label, description, enable/disable toggle, group chip multi-selector
+  - Groups: Lekarze, Higienistki, Recepcja, Asysta, Admin — toggleable per notification type
+  - „💾 Zapisz" button persists to `push_notification_config` via `/api/admin/push/config` PATCH
+  - Cron jobs and live event handlers read from this config at runtime
+
+- **Powiadomienia automatyczne — dla pacjentów** — separate section for 2 patient-targeted types:
+  - `appointment-24h` and `appointment-1h` — enable/disable toggle only (no group selector)
+
+- **Wyślij powiadomienie jednorazowe** — manual one-time push broadcast:
+  - Title, Body, URL inputs; target group multi-chip selector; success/error feedback
+
+- **Pracownicy i grupy powiadomień** — subscriptions management:
+  - Shows ALL employees from `employees` table (even those without active subscriptions)
+  - Per employee: name, email, 📱 N badge (subscription count) or „brak sub.", multi-chip group editor
+  - „💾 Zapisz" button appears only when local state differs from server
+  - Patient subscriptions: shown as summary stat only
+
+- **API**: `/api/admin/push` (GET, POST, DELETE), `/api/admin/push/config` (GET, PATCH)
+
+#### 15. Password Reset Page (`/admin/update-password`)
 - Landing page for password reset links
 - Uses direct `verifyOtp` flow (no Supabase redirect)
 - Token passed via `?token_hash=` URL parameter
+
+
 
 ---
 
@@ -959,6 +1015,12 @@ Features:
 | `/admin/questions` | GET, DELETE | Expert questions management |
 | `/admin/reservations` | GET | Booking requests list |
 | `/admin/appointment-instructions` | GET, POST, PUT, DELETE | Instruction templates CRUD |
+| `/admin/push` | GET | All employees with push_groups + subscription counts + stats |
+| `/admin/push` | POST | Send manual push to selected groups |
+| `/admin/push` | DELETE | Remove a push subscription by ID |
+| `/admin/push/config` | GET | Get all push notification type configurations |
+| `/admin/push/config` | PATCH | Update groups/enabled for a notification type |
+| `/admin/employees/position` | PATCH | Set employee push groups `{ userId, groups: string[] }` (updates employees + push_subscriptions) |
 
 ### Employee APIs (`/api/employee/*`)
 
@@ -1266,45 +1328,73 @@ Centralized via `src/lib/telegram.ts` with `sendTelegramNotification(message, ch
 **Architecture:**
 - **Service Worker**: Push logic merged into main Workbox SW via `@ducanh2912/next-pwa` `customWorkerSrc` (`worker/index.ts`)
 - **iOS Support**: Requires PWA (Add to Home Screen) — `PushNotificationPrompt` detects Safari vs PWA and shows appropriate UI
-- **Subscription Storage**: `push_subscriptions` table in Supabase (user_type, user_id, endpoint, keys, locale)
+- **Subscription Storage**: `push_subscriptions` table (user_type, user_id, endpoint, keys, locale, employee_group [legacy], employee_groups [])
 - **Sending**: `web-push` npm library via `src/lib/webpush.ts`
+- **Multi-group routing**: employees can belong to multiple push groups simultaneously (e.g. `['reception', 'assistant']`). Stored in `push_subscriptions.employee_groups TEXT[]` (GIN indexed) and `employees.push_groups TEXT[]`. Configurable from Admin Panel Push tab.
+- **Runtime config**: `push_notification_config` table drives which groups receive each automated notification type — editable via Admin Panel without code changes.
 
-**Push Notification Types** (`src/lib/pushTranslations.ts` — 4 locales):
-| Type | Trigger | Target |
-|------|---------|--------|
-| `task_new` | New task created | All employees (except creator) |
-| `task_status` | Task status changed | All employees (except updater) |
-| `task_assigned` | Task assigned/reassigned | All employees (except assigner) |
-| `task_comment` | New comment on task | All employees (except commenter) |
-| `task_checklist` | Checklist item toggled | All employees (except toggler) |
-| `task_reminder` | Daily cron (tasks without due dates) | All employees |
-| `chat_patient_to_admin` | Patient sends chat message | Admin + employees |
-| `chat_admin_to_patient` | Reception replies | Patient |
-| `appointment_confirmed` | Patient confirms appointment (SMS link or portal) | Admin + employees |
-| `appointment_cancelled` | Patient cancels appointment (SMS link) | Admin + employees |
-| `appointment_rescheduled` | Patient requests reschedule (portal) | Admin + employees |
-| `patient_registered` | New patient registers | Admin |
-| `new_order` | New shop order placed | Admin + employees |
-| `new_reservation` | New appointment reservation | Admin + employees |
-| `new_contact_message` | Contact form submission | Admin |
-| `new_treatment_lead` | Treatment calculator lead | Admin |
+**Employee Group Keys:**
+
+| Config/API group | DB value in employee_groups | Admin label |
+|---|---|---|
+| `doctors` | `doctor` | 🦷 Lekarze |
+| `hygienists` | `hygienist` | 💉 Higienistki |
+| `reception` | `reception` | 📞 Recepcja |
+| `assistant` | `assistant` | 🔧 Asysta |
+| `admin` | (admin user_type) | 👑 Admin |
+| `patients` | (patient user_type) | 👥 Pacjenci |
+
+**Push Notification Types** (`src/lib/pushTranslations.ts` — 4 locales pl/en/de/ua):
+| Type key | Trigger | Target | Config key |
+|----------|---------|--------|------------|
+| `task_new` | New task created | Employees (by group) | `task-new` |
+| `task_status` | Task status changed | Employees (by group) | `task-status` |
+| `task_assigned` | Task assigned/reassigned | Employees (by group) | — |
+| `task_comment` | New comment on task | Employees (by group) | `task-comment` |
+| `task_checklist` | Checklist item toggled | Employees (by group) | — |
+| `task_reminder` | Daily cron — tasks without due date | Employees (configurable) | `task-no-date` |
+| `task_deposit` | Daily cron — unchecked deposit tasks | Employees (configurable) | `task-deposit` |
+| `chat_patient_to_admin` | Patient sends chat message | Employees (configurable) | `chat-patient-to-admin` |
+| `chat_admin_to_patient` | Reception replies to chat | Patient (specific user) | — |
+| `appointment_confirmed` | Patient confirms appointment | Employees (configurable) | `appointment-confirmed` |
+| `appointment_cancelled` | Patient cancels appointment | Employees (configurable) | `appointment-cancelled` |
+| `appointment_rescheduled` | Patient requests reschedule | Employees (configurable) | `appointment-rescheduled` |
+| `patient_registered` | New patient registers | Employees (configurable) | `new-registration` |
+| `new_order` | New shop order placed | Employees (configurable) | `new-order` |
+| `new_reservation` | New appointment reservation | Employees (configurable) | `new-reservation` |
+| `new_contact_message` | Contact form submission | Employees (configurable) | `new-contact-message` |
+| `new_treatment_lead` | Treatment calculator lead | Employees | — |
+| `order_status_update` | Order status changed | Patient (specific user) | — |
+| `appointment_24h` | 24h before appointment | Patient (specific user) | `appointment-24h` |
+| `appointment_1h` | 1h before appointment | Patient (specific user) | `appointment-1h` |
+| `new_blog_post` | Blog post published | All subscribers | — |
 
 **Key Functions** (`src/lib/webpush.ts`):
-- `sendPushToUser(userId, userType, payload)` — send to specific user
+- `sendPushToUser(userId, userType, payload)` — send to specific user (all their devices)
+- `sendTranslatedPushToUser(userId, userType, notifType, params, url?)` — localized push using `pushTranslations.ts`
 - `sendPushToAllEmployees(payload, excludeUserId?)` — broadcast to all subscribed employees
-- `sendTranslatedPushToUser(userId, userType, notifType, params)` — localized push
-- `broadcastPush(payload)` — send to all subscribers
+- `broadcastPush(userType, notifType, params, url?)` — broadcast to all subscribers of a type
+- `sendPushToGroups(groups: PushGroup[], payload)` — send to specific employee groups; uses `.or('employee_groups.cs.{"group"},employee_group.eq.group')` array containment with legacy fallback
 
 **UI Component**: `PushNotificationPrompt` — compact mode (toggle button for employee header) and full banner mode (patient chat page)
 
 **Integration Files:**
-- `src/lib/webpush.ts` — Core push sending logic
-- `src/lib/pushTranslations.ts` — Localized push templates (20 types x 4 locales)
+- `src/lib/webpush.ts` — Core push sending logic (5 send functions)
+- `src/lib/pushTranslations.ts` — Localized push templates (20 types × 4 locales)
 - `src/components/PushNotificationPrompt.tsx` — Subscribe/unsubscribe UI
 - `worker/index.ts` — Service worker push + notificationclick handlers
-- `src/app/api/push/subscribe/route.ts` — Subscription management API
+- `src/app/api/push/subscribe/route.ts` — Subscription management (reads employees.push_groups, stores employee_groups[])
 - `src/app/api/push/test/route.ts` — Test push endpoint
-- `supabase_migrations/033_push_subscriptions.sql` — Database table
+- `src/app/api/admin/push/route.ts` — Admin push: GET all employees+stats, POST send to groups, DELETE remove sub
+- `src/app/api/admin/push/config/route.ts` — GET/PATCH push_notification_config table
+- `src/app/api/admin/employees/position/route.ts` — PATCH: set employee push groups[] (updates both tables)
+- `supabase_migrations/033_push_subscriptions.sql` — Base push subscriptions table
+- `supabase_migrations/034_push_employee_group.sql` — Added employee_group TEXT column
+- `supabase_migrations/035_push_notification_config.sql` — push_notification_config table (initial 2 rows)
+- `supabase_migrations/036_push_config_full.sql` — Full 15-type config + recipient_types column ⚠️ **RUN IN SUPABASE**
+- `supabase_migrations/037_employee_groups_array.sql` — employee_groups TEXT[] (GIN indexed) + employees.push_groups ⚠️ **RUN IN SUPABASE**
+
+
 
 ---
 
@@ -1371,15 +1461,19 @@ Centralized via `src/lib/telegram.ts` with `sendTelegramNotification(message, ch
 ### 4. Task Reminders
 **Path:** `/api/cron/task-reminders`  
 **Schedule:** Daily at 8:30 AM UTC (9:30–10:30 AM Warsaw)  
-**Purpose:** Send Telegram reminder for tasks without due dates (`due_date IS NULL`)
+**Purpose:** Send Telegram + push reminders for undated tasks and unchecked deposit tasks
 
 **Workflow:**
-1. Query `employee_tasks` for tasks where `due_date IS NULL` and `status != 'done'`
-2. Build a single Telegram message listing all undated tasks with title, patient name, assigned person, and age in days
-3. Send via `sendTelegramNotification(message, 'default')`
-4. Repeats daily until someone adds a due date to each task
+1. Read `push_notification_config` from DB to get enabled status and target groups for `task-no-date` and `task-deposit` keys
+2. Query `employee_tasks` for tasks where `due_date IS NULL` and `status NOT IN ('done','archived')`
+3. Build Telegram message listing undated tasks with title, patient, assigned person, age in days
+4. Send push via `sendPushToGroups()` (only if config enabled + groups set)
+5. Query tasks with deposit checklist items unchecked → separate push for `task-deposit` config
+6. Repeats daily — target groups configurable from Admin Panel Push tab without code changes
 
 **Auth:** Vercel `CRON_SECRET` or `?manual=true` bypass
+
+
 
 ---
 
@@ -1533,6 +1627,49 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### February 23, 2026
+**Push Admin Panel — Comprehensive Fixes (4 Issues)**
+
+#### Commits:
+- `1bfcf99` — Initial push panel fixes (renderPushTab rewrite, /api/admin/push/config, migration 035)
+- `b8d0318` — Comprehensive fixes: multi-group, full 15-type notification catalog, all employees display
+
+#### Problems Fixed:
+1. Only 2 of 15 notification types configurable in admin → now all 15 (13 employee, 2 patient)
+2. Patients couldn't be targeted in notification config → separate patient section added
+3. Subscriptions table showed duplicates / missed employees without active subscriptions
+4. Only one push group per employee → now multi-group (`employees.push_groups TEXT[]`)
+
+#### Database Migrations (RUN IN SUPABASE SQL EDITOR):
+- `036_push_config_full.sql` — Added `recipient_types TEXT[]` to `push_notification_config`; seeded all 15 notification types
+- `037_employee_groups_array.sql` — Added `push_subscriptions.employee_groups TEXT[]` (GIN indexed); added `employees.push_groups TEXT[]`; backfilled from existing data
+
+#### API Changes:
+- `/api/admin/push` GET — returns `employees[]` (ALL employees), `adminSubs[]`, `patientSubsCount`, `stats`
+- `/api/admin/push/config` (GET, PATCH) — new endpoint for push_notification_config CRUD
+- `/api/admin/employees/position` PATCH — now accepts `{ userId, groups: string[] }`; updates `employees.push_groups` + `push_subscriptions.employee_groups`
+- `/api/push/subscribe` POST — reads `employees.push_groups`, stores `employee_groups[]`
+- `/api/admin/roles` GET — response includes `employeePosition.push_groups[]`
+- `/api/cron/task-reminders` — reads target groups from `push_notification_config` at runtime (was hardcoded)
+
+#### Backend Library:
+- `src/lib/webpush.ts` — `sendPushToGroups()` uses array containment query `.or('employee_groups.cs.{"group"},employee_group.eq.group')`
+
+#### Admin Panel UI (`src/app/admin/page.tsx`):
+- **Push tab** completely rewritten: employee-targeted configs (13 types), patient-targeted configs (2 types), manual broadcast, all-employees subscriptions table with multi-chip group editor
+- **Roles tab** Podgrupa: replaced single dropdown with multi-chip group buttons (auto-save on click)
+- State renamed: `pushSubs[]` → `pushEmployees[]`, `pushSubGroups` → `pushEmpGroups: Record<userId, string[]>`
+
+#### Files Modified:
+- `src/app/admin/page.tsx`, `src/app/api/admin/push/route.ts`, `src/app/api/admin/employees/position/route.ts`
+- `src/app/api/push/subscribe/route.ts`, `src/app/api/admin/roles/route.ts`
+- `src/app/api/cron/task-reminders/route.ts`, `src/lib/webpush.ts`
+- `supabase_migrations/035_push_notification_config.sql` [NEW]
+- `supabase_migrations/036_push_config_full.sql` [NEW]
+- `supabase_migrations/037_employee_groups_array.sql` [NEW]
+
+---
 
 ### February 19, 2026 (Session 2)
 **Voice AI Assistant + Google Calendar Integration**
