@@ -53,13 +53,16 @@ export async function GET(req: Request) {
         // Filter 1: Tasks without due_date
         const noDateTasks = allTasks.filter(t => t.due_date === null);
 
-        // Filter 2: Tasks with pending 'zadatek' or 'wpłacony zadatek'
+        // Filter 2: Tasks with pending deposit-related items (zadatek, zaliczka, wpłata, przedpłata)
+        const depositKeywords = ['zadatek', 'wpłac', 'wpłacony', 'wpłata', 'wplata', 'zaliczka', 'przedpłata'];
+
         const pendingDepositTasks = allTasks.filter(t => {
             if (!t.checklist_items || !Array.isArray(t.checklist_items)) return false;
-            return t.checklist_items.some((item: any) =>
-                !item.done &&
-                (item.text.toLowerCase().includes('zadatek') || item.text.toLowerCase().includes('wpłacony zadatek'))
-            );
+            return t.checklist_items.some((item: any) => {
+                if (item.done) return false;
+                const text = item.text.toLowerCase();
+                return depositKeywords.some(kw => text.includes(kw));
+            });
         });
 
         if (noDateTasks.length === 0 && pendingDepositTasks.length === 0) {
