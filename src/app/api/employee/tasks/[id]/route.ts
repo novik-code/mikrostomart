@@ -203,8 +203,8 @@ export async function PATCH(
                         body: `${taskTitle} → ${STATUS_LABELS[body.status] || body.status}`,
                         url: '/pracownik',
                         tag: `task-status-${id}`,
-                    },
-                    user.id
+                    }
+                    // NOTE: no excludeUserId — all configured recipients get the push
                 );
             } else if ('assigned_to' in body) {
                 await sendPushByConfig(
@@ -214,8 +214,7 @@ export async function PATCH(
                         body: taskTitle,
                         url: '/pracownik',
                         tag: `task-assign-${id}`,
-                    },
-                    user.id
+                    }
                 );
             } else if ('checklist_items' in body && Object.keys(body).length === 1) {
                 // Find which item changed
@@ -236,8 +235,7 @@ export async function PATCH(
                             body: `${changedItem} (${taskTitle})`,
                             url: '/pracownik',
                             tag: `task-checklist-${id}`,
-                        },
-                        user.id
+                        }
                     );
                 }
             }

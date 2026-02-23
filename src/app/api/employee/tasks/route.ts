@@ -144,9 +144,10 @@ export async function POST(req: Request) {
                     body: `${task.title}${task.patient_name ? ` — ${task.patient_name}` : ''}`,
                     url: '/pracownik',
                     tag: `task-new-${data.id}`,
-                },
-                user.id
+                }
+                // NOTE: no excludeUserId — all configured recipients get the push
             );
+
 
         } catch (tgErr) {
             console.error('[Tasks] Telegram notification error:', tgErr);

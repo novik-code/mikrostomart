@@ -102,10 +102,11 @@ export async function POST(
                         body: `${task.title}: ${commentPreview}`,
                         url: '/pracownik',
                         tag: `task-comment-${id}`,
-                    },
-                    user.id
+                    }
+                    // NOTE: no excludeUserId — all configured recipients get the push
                 );
             }
+
 
         } catch (pushErr) {
             console.error('[TaskComments] Push error:', pushErr);
