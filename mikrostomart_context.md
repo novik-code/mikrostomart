@@ -52,7 +52,7 @@
 
 ### Backend & Database
 - **Supabase** (PostgreSQL database, authentication, storage)
-  - Database: 48 migrations (003-048: email verification, appointment actions, SMS reminders, user_roles, employee tasks, task history, comments, labels, status fix, google reviews cache, chat, push subscriptions, employee_group, push_notification_config, employee_groups array, news/articles/blog/products i18n, calendar tokens, private tasks + reminders, SMS post-visit/week-after-visit, SMS unique constraint fix, task multi-images, **push_notifications_log**)
+  - Database: 49 migrations (003-049: email verification, appointment actions, SMS reminders, user_roles, employee tasks, task history, comments, labels, status fix, google reviews cache, chat, push subscriptions, employee_group, push_notification_config, employee_groups array, news/articles/blog/products i18n, calendar tokens, private tasks + reminders, SMS post-visit/week-after-visit, SMS unique constraint fix, task multi-images, **push_notifications_log**, **google_event_id on employee_tasks**)
   - Auth: Email/password, magic links, JWT tokens
   - Storage: Product images, patient documents, task images
 
@@ -2080,6 +2080,13 @@ NODE_ENV=production
 - `2001053` — feat: Telegram notification on new patient registration
 - `527e558` — feat: push notification deep links — auto-navigate to task on click
 - `2c273ce` — fix: responsive tab nav — fixed bottom bar on mobile, top tabs on desktop
+- `b880ef1` — feat: Google Calendar ↔ task sync — delete task removes calendar event (migration 049)
+
+**`b880ef1` — Google Calendar task sync (Feb 24):**
+- `employee_tasks.google_event_id TEXT` column added (migration 049)
+- `createTask()` in `assistantActions.ts`: if `due_date` set + Google Calendar connected → auto-creates calendar event (colorId banana) + saves `google_event_id` to task row
+- `DELETE /api/employee/tasks/[id]`: reads `google_event_id` before deleting; calls `deleteEvent(calUserId, eventId)` fire-and-forget to remove event from Google Calendar
+- AI system prompt updated: `createTask` with `due_date` auto-links calendar — do NOT call `addCalendarEvent` separately (would create duplicate)
 
 **`2c273ce` — Mobile tab nav responsive (Feb 24):**
 - **Problem**: 4-tab navigation overflowed on mobile (4×130px > 375px viewport)
