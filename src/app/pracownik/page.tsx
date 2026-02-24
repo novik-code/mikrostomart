@@ -253,6 +253,16 @@ export default function EmployeePage() {
     const [historyLoading, setHistoryLoading] = useState(false);
     const [historyError, setHistoryError] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<'grafik' | 'zadania' | 'asystent' | 'powiadomienia'>('grafik');
+    const [isMobile, setIsMobile] = useState(false);
+
+    // Detect mobile viewport for tab bar layout
+    useEffect(() => {
+        const mq = window.matchMedia('(max-width: 767px)');
+        setIsMobile(mq.matches);
+        const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+        mq.addEventListener('change', handler);
+        return () => mq.removeEventListener('change', handler);
+    }, []);
 
     // ─── Push Notification History ────────────────────────────────
     const [pushNotifications, setPushNotifications] = useState<{ id: string; title: string; body: string; url: string | null; tag: string | null; sent_at: string }[]>([]);
@@ -1171,27 +1181,85 @@ export default function EmployeePage() {
                 )}
             </header>
 
-            {/* Tab Navigation — top on desktop, bottom on mobile */}
-            <div className="pw-tab-bar">
+            {/* Tab Navigation — top on desktop, fixed bottom on mobile */}
+            <div style={isMobile ? {
+                position: 'fixed',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                zIndex: 9999,
+                display: 'flex',
+                background: 'rgba(10,15,28,0.97)',
+                backdropFilter: 'blur(16px)',
+                WebkitBackdropFilter: 'blur(16px)',
+                borderTop: '1px solid rgba(255,255,255,0.08)',
+                paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+            } : {
+                display: 'flex',
+                gap: '0.25rem',
+                padding: '0.75rem 2rem 0',
+                borderBottom: '1px solid rgba(255,255,255,0.06)',
+                background: 'rgba(0,0,0,0.15)',
+                overflowX: 'auto',
+            }}>
                 {[
-                    { id: 'grafik' as const, label: 'Grafik', icon: <Calendar size={18} /> },
-                    { id: 'zadania' as const, label: 'Zadania', icon: <CheckSquare size={18} /> },
-                    { id: 'asystent' as const, label: 'AI', icon: <Bot size={18} /> },
-                    { id: 'powiadomienia' as const, label: 'Alerty', icon: <Bell size={18} /> },
-                ].map(tab => (
-                    <button
-                        key={tab.id}
-                        className={`pw-tab-btn${activeTab === tab.id ? ' pw-tab-btn--active' : ''}`}
-                        onClick={() => {
-                            setActiveTab(tab.id);
-                            if (tab.id === 'powiadomienia') fetchPushNotifications();
-                        }}
-                    >
-                        <span className="pw-tab-icon">{tab.icon}</span>
-                        <span className="pw-tab-label">{tab.label}</span>
-                    </button>
-                ))}
+                    { id: 'grafik' as const, label: 'Grafik', icon: <Calendar size={isMobile ? 22 : 18} /> },
+                    { id: 'zadania' as const, label: 'Zadania', icon: <CheckSquare size={isMobile ? 22 : 18} /> },
+                    { id: 'asystent' as const, label: 'AI', icon: <Bot size={isMobile ? 22 : 18} /> },
+                    { id: 'powiadomienia' as const, label: 'Alerty', icon: <Bell size={isMobile ? 22 : 18} /> },
+                ].map(tab => {
+                    const isActive = activeTab === tab.id;
+                    return (
+                        <button
+                            key={tab.id}
+                            onClick={() => {
+                                setActiveTab(tab.id);
+                                if (tab.id === 'powiadomienia') fetchPushNotifications();
+                            }}
+                            style={isMobile ? {
+                                flex: 1,
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '3px',
+                                padding: '8px 4px 6px',
+                                background: 'transparent',
+                                border: 'none',
+                                borderTop: isActive ? '2px solid #38bdf8' : '2px solid transparent',
+                                color: isActive ? '#38bdf8' : 'rgba(255,255,255,0.45)',
+                                cursor: 'pointer',
+                                fontSize: '0.65rem',
+                                fontWeight: isActive ? 600 : 400,
+                                transition: 'color 0.2s',
+                                minWidth: 0,
+                            } : {
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.4rem',
+                                padding: '0.6rem 1.1rem',
+                                background: isActive ? 'rgba(56,189,248,0.1)' : 'transparent',
+                                border: 'none',
+                                borderBottom: isActive ? '2px solid #38bdf8' : '2px solid transparent',
+                                borderRadius: '0.5rem 0.5rem 0 0',
+                                color: isActive ? '#38bdf8' : 'rgba(255,255,255,0.5)',
+                                cursor: 'pointer',
+                                fontSize: '0.88rem',
+                                fontWeight: isActive ? 600 : 400,
+                                whiteSpace: 'nowrap',
+                                flexShrink: 0,
+                                transition: 'all 0.2s',
+                            }}
+                        >
+                            {tab.icon}
+                            <span style={{ fontSize: isMobile ? '0.65rem' : '0.88rem', lineHeight: 1 }}>{tab.label}</span>
+                        </button>
+                    );
+                })}
             </div>
+
+            {/* Spacer so fixed bottom nav doesn't cover content on mobile */}
+            {isMobile && <div style={{ height: '64px', flexShrink: 0 }} />}
 
             {/* ═══ GRAFIK TAB ═══ */}
             {activeTab === 'grafik' && (<>
