@@ -144,7 +144,7 @@ async function createTask(args: {
                 await sendPushToUser(userId, 'employee', {
                     title: '🔒 Zadanie prywatne',
                     body: `${args.title}${args.due_time ? ` — ${args.due_time}` : ''}${args.due_date ? ` (${new Date(args.due_date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' })})` : ''}`,
-                    url: '/pracownik',
+                    url: `/pracownik?tab=zadania&taskId=${data.id}`,
                     tag: `task-private-${data.id}`,
                 });
             } catch { /* push is optional */ }
@@ -156,7 +156,7 @@ async function createTask(args: {
                     {
                         title: '📋 Nowe zadanie (Asystent)',
                         body: `${args.title}${args.patient_name ? ` — ${args.patient_name}` : ''}`,
-                        url: '/pracownik',
+                        url: `/pracownik?tab=zadania&taskId=${data.id}`,
                         tag: `task-new-${data.id}`,
                     },
                     userId

@@ -148,7 +148,7 @@ export async function POST(req: Request) {
                     {
                         title: '📋 Nowe zadanie',
                         body: `${task.title}${task.patient_name ? ` — ${task.patient_name}` : ''}`,
-                        url: '/pracownik',
+                        url: `/pracownik?tab=zadania&taskId=${data.id}`,
                         tag: `task-new-${data.id}`,
                     }
                 );

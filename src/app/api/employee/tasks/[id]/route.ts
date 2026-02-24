@@ -201,7 +201,7 @@ export async function PATCH(
                     {
                         title: '🔄 Zmiana statusu zadania',
                         body: `${taskTitle} → ${STATUS_LABELS[body.status] || body.status}`,
-                        url: '/pracownik',
+                        url: `/pracownik?tab=zadania&taskId=${id}`,
                         tag: `task-status-${id}`,
                     }
                     // NOTE: no excludeUserId — all configured recipients get the push
@@ -212,7 +212,7 @@ export async function PATCH(
                     {
                         title: '👤 Zmiana przypisania zadania',
                         body: taskTitle,
-                        url: '/pracownik',
+                        url: `/pracownik?tab=zadania&taskId=${id}`,
                         tag: `task-assign-${id}`,
                     }
                 );
@@ -233,7 +233,7 @@ export async function PATCH(
                         {
                             title: '✅ Checklist zaktualizowany',
                             body: `${changedItem} (${taskTitle})`,
-                            url: '/pracownik',
+                            url: `/pracownik?tab=zadania&taskId=${id}`,
                             tag: `task-checklist-${id}`,
                         }
                     );

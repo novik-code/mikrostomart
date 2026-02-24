@@ -53,7 +53,7 @@ export async function POST(
         const result = await sendPushByConfig('task-status', {
             title: '🔔 Powiadomienie o zadaniu',
             body: `${task.title}${task.patient_name ? ` — ${task.patient_name}` : ''} [${STATUS_LABELS[task.status] || task.status}]`,
-            url: '/pracownik',
+            url: `/pracownik?tab=zadania&taskId=${id}`,
             tag: `task-manual-${id}`,
         });
 

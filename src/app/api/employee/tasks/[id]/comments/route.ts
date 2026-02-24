@@ -100,7 +100,7 @@ export async function POST(
                     {
                         title: '💬 Nowy komentarz',
                         body: `${task.title}: ${commentPreview}`,
-                        url: '/pracownik',
+                        url: `/pracownik?tab=zadania&taskId=${id}`,
                         tag: `task-comment-${id}`,
                     }
                     // NOTE: no excludeUserId — all configured recipients get the push
