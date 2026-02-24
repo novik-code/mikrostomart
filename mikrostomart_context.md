@@ -2066,6 +2066,15 @@ NODE_ENV=production
 - `547e576` — fix: SMS draft count mismatch — unique constraint + NOT NULL fixes (migration 046)
 - `b06893c` — feat: task multi-photo + comment input fix + image compression (migration 047)
 - `807a611` — fix: push notification duplicates + task history expand in modal
+- `eb3fb2c` — fix: PWA push reliability — SW timeout, iOS renewal, dedup fixes
+
+**`eb3fb2c` — PWA push reliability (Feb 24):**
+- **Gray bell fix** (`PushNotificationPrompt.tsx`): `serviceWorker.ready` now wrapped in `Promise.race` with 10s timeout → fallback to manual `sw.js` register with activation wait + 5s safety timeout. Eliminates infinite hang on PWA cold-start.
+- **iOS endpoint rotation fix** (`PushNotificationPrompt.tsx` useEffect): every app load re-POSTs active subscription to `/api/push/subscribe` (idempotent upsert). iOS Safari silently rotates endpoint after backgrounding → old endpoint in DB → 410 on send → silence. Re-POST registers new endpoint before any send fails.
+- **SW pushsubscriptionchange** (`push-sw.js`): on Chromium/Firefox, handles endpoint rotation in SW directly via new `/api/push/resubscribe` route (updates DB row by old endpoint). iOS doesn't fire this event — client renewal above covers iOS.
+- **New route** `api/push/resubscribe/route.ts`: no-auth endpoint for SW to update rotated endpoint in `push_subscriptions` table.
+- **Duplicate fix** (`webpush.ts` `sendPushToUser`): now applies `dedupSubsByUser(subs, 2)` + endpoint `Set` before iterating — previously sent to ALL rows with no dedup.
+- **`renotify: true`** in push-sw.js so notifications with same `tag` always appear.
 
 **`807a611` — Push & History fixes (Feb 24):**
 - **Push 8×dup ROOT CAUSE FIX** (`webpush.ts` `sendPushByConfig`): added `sentEndpoints: Set<string>` persisting across all group iterations — a user whose `employee_groups` matched multiple configured groups now receives exactly 1 push instead of 1 per matching group
