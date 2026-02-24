@@ -353,11 +353,21 @@ export async function sendPushByConfig(
     let totalSent = 0;
     let totalFailed = 0;
 
+    // ── Global dedup across ALL groups ─────────────────────────────────────
+    // A user who belongs to multiple matching groups (e.g. employee_groups
+    // contains both 'doctor' and 'reception') must receive only ONE push.
+    // Without this set, the per-group dedupSubsByUser call would prevent
+    // duplicates within a single group, but not across group iterations.
+    const sentEndpoints = new Set<string>();
+
     const sendBatch = async (subs: any[]) => {
-        // Deduplicate by user_id before sending — prevents duplicate notifications
+        // Deduplicate by user_id within this batch first (handles stale rows)
         const deduped = dedupSubsByUser(subs);
         for (const sub of deduped) {
             if (excludeUserId && sub.user_id === excludeUserId) continue;
+            // Skip endpoints already notified in a previous group iteration
+            if (sentEndpoints.has(sub.endpoint)) continue;
+            sentEndpoints.add(sub.endpoint);
             try {
                 await webpush.sendNotification(
                     { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },

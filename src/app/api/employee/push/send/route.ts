@@ -1,9 +1,15 @@
 import { NextResponse } from 'next/server';
 import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
-import { sendPushToGroups, sendPushToSpecificUsers, PushGroup } from '@/lib/webpush';
+import { sendPushToSpecificUsers } from '@/lib/webpush';
+import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
+
+const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+);
 
 /**
  * POST /api/employee/push/send
@@ -15,8 +21,13 @@ export const dynamic = 'force-dynamic';
  *   title: string         — notification title (required)
  *   body: string          — notification body text (required)
  *   url?: string          — optional click URL
- *   groups?: PushGroup[]  — target groups (patients/doctors/hygienists/reception/assistant/admin)
+ *   groups?: string[]     — target groups (patients/doctors/hygienists/reception/assistant/admin)
  *   userIds?: string[]    — target individual user IDs
+ *
+ * Deduplication: if a user matches both a group and an explicit userId,
+ * they receive exactly ONE notification (not two).
+ * This works by collecting all target user_ids into a Set first,
+ * then sending via sendPushToSpecificUsers which deduplicates by endpoint.
  */
 export async function POST(req: Request) {
     const user = await verifyAdmin();
@@ -47,26 +58,49 @@ export async function POST(req: Request) {
             tag: `manual-${Date.now()}`,
         };
 
-        let totalSent = 0;
-        let totalFailed = 0;
+        // ── Collect all target user IDs (groups + explicit), deduplicated ──
+        // This prevents a user in both a group and the explicit list from
+        // receiving duplicate notifications.
+        const allUserIds = new Set<string>(userIds || []);
 
-        // Send to groups
         if (groups && groups.length > 0) {
-            const result = await sendPushToGroups(groups as PushGroup[], payload);
-            totalSent += result.sent;
-            totalFailed += result.failed;
+            const groupMap: Record<string, string> = {
+                doctors: 'doctor', doctor: 'doctor',
+                hygienists: 'hygienist', hygienist: 'hygienist',
+                reception: 'reception',
+                assistant: 'assistant',
+            };
+
+            for (const group of groups as string[]) {
+                if (group === 'patients' || group === 'patient') {
+                    const { data: subs } = await supabase
+                        .from('push_subscriptions').select('user_id').eq('user_type', 'patient');
+                    (subs || []).forEach((s: any) => allUserIds.add(s.user_id));
+                } else if (group === 'admin') {
+                    const { data: subs } = await supabase
+                        .from('push_subscriptions').select('user_id').eq('user_type', 'admin');
+                    (subs || []).forEach((s: any) => allUserIds.add(s.user_id));
+                } else {
+                    const dbGroup = groupMap[group];
+                    if (!dbGroup) continue;
+                    const { data: subs } = await supabase
+                        .from('push_subscriptions').select('user_id').eq('user_type', 'employee')
+                        .or(`employee_groups.cs.{"${dbGroup}"},employee_group.eq.${dbGroup}`);
+                    (subs || []).forEach((s: any) => allUserIds.add(s.user_id));
+                }
+            }
         }
 
-        // Send to individual users (dedup from groups by tracking sent endpoints — simplified here)
-        if (userIds && userIds.length > 0) {
-            const result = await sendPushToSpecificUsers(userIds, payload);
-            totalSent += result.sent;
-            totalFailed += result.failed;
+        if (allUserIds.size === 0) {
+            return NextResponse.json({ sent: 0, failed: 0, message: 'Brak subskrybentów w wybranych grupach' });
         }
 
-        console.log(`[PushSend] ${user.email} sent manual push → sent=${totalSent} failed=${totalFailed}`);
+        // Single deduplicated send — sendPushToSpecificUsers keeps max 3 subs per user
+        // (covers genuine multi-device users) and cleans up expired subscriptions.
+        const result = await sendPushToSpecificUsers([...allUserIds], payload);
 
-        return NextResponse.json({ sent: totalSent, failed: totalFailed });
+        console.log(`[PushSend] ${user.email} manual push → users=${allUserIds.size} sent=${result.sent} failed=${result.failed}`);
+        return NextResponse.json({ sent: result.sent, failed: result.failed });
     } catch (err: any) {
         console.error('[PushSend] Error:', err);
         return NextResponse.json({ error: 'Server error' }, { status: 500 });

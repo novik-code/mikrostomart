@@ -4013,11 +4013,56 @@ export default function EmployeePage() {
                             </div>
                         </div>
 
-                        {/* History summary */}
+                        {/* 📜 Edit history */}
                         {taskHistoryLoading && <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.3)', marginBottom: '0.75rem' }}>Ładowanie historii...</div>}
-                        {!taskHistoryLoading && taskHistory.length > 0 && (
-                            <div style={{ marginBottom: '1rem', fontSize: '0.72rem', color: 'rgba(255,255,255,0.35)' }}>
-                                📝 {taskHistory.length} {taskHistory.length === 1 ? 'zmiana' : 'zmiany/zmian'} w historii
+                        {!taskHistoryLoading && (
+                            <div style={{ marginBottom: '1rem' }}>
+                                <button
+                                    onClick={() => setTaskHistoryExpanded(!taskHistoryExpanded)}
+                                    style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.35)', fontSize: '0.72rem', cursor: 'pointer', padding: '0.2rem 0', display: 'flex', alignItems: 'center', gap: '0.3rem', fontWeight: taskHistory.length > 0 ? '600' : '400' }}
+                                >
+                                    📜 Historia zmian {taskHistory.length > 0 ? `(${taskHistory.length})` : '(brak)'}
+                                    <span style={{ fontSize: '0.6rem' }}>{taskHistoryExpanded ? '▲' : '▼'}</span>
+                                </button>
+                                {taskHistoryExpanded && (
+                                    <div style={{ marginTop: '0.35rem', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '0.5rem', padding: '0.5rem', maxHeight: '250px', overflowY: 'auto' }}>
+                                        {taskHistory.length === 0 ? (
+                                            <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', textAlign: 'center', padding: '0.5rem' }}>Brak historii zmian</div>
+                                        ) : (
+                                            taskHistory.map((h: any, idx: number) => {
+                                                const changedByName = staffList.find(s => s.email === h.changed_by)?.name || h.changed_by;
+                                                const dateStr = new Date(h.changed_at).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+                                                const fieldLabels: Record<string, string> = {
+                                                    title: 'Tytuł', description: 'Opis', status: 'Status', priority: 'Priorytet',
+                                                    task_type: 'Typ', due_date: 'Termin', assigned_to_doctor_name: 'Przypisano do', image_url: 'Zdjęcie',
+                                                };
+                                                const statusLabels: Record<string, string> = { todo: 'Do zrobienia', in_progress: 'W trakcie', done: 'Wykonane', archived: 'Archiwum' };
+                                                const priorityLabels: Record<string, string> = { low: 'Niski', normal: 'Normalny', urgent: 'Pilny' };
+                                                return (
+                                                    <div key={idx} style={{ padding: '0.35rem 0', borderBottom: idx < taskHistory.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
+                                                        <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.1rem' }}>
+                                                            {h.change_type === 'status' ? '🔄' : h.change_type === 'checklist' ? '☑️' : '✏️'} <strong>{changedByName}</strong> • {dateStr}
+                                                        </div>
+                                                        <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.55)' }}>
+                                                            {Object.entries(h.changes || {}).map(([key, val]: [string, any]) => {
+                                                                if (h.change_type === 'checklist') return <div key={key}>{val.done ? '✅' : '⬜'} {val.item}</div>;
+                                                                if (key === 'assigned_to_doctor_id') return null;
+                                                                const label = fieldLabels[key] || key;
+                                                                let oldDisplay = val.old || '—';
+                                                                let newDisplay = val.new || '—';
+                                                                if (key === 'status') { oldDisplay = statusLabels[val.old] || val.old || '—'; newDisplay = statusLabels[val.new] || val.new || '—'; }
+                                                                else if (key === 'priority') { oldDisplay = priorityLabels[val.old] || val.old || '—'; newDisplay = priorityLabels[val.new] || val.new || '—'; }
+                                                                else if (key === 'image_url') { oldDisplay = val.old ? '📷' : '—'; newDisplay = val.new ? '📷' : '—'; }
+                                                                else if (key === 'due_date') { oldDisplay = val.old ? new Date(val.old).toLocaleDateString('pl-PL') : '—'; newDisplay = val.new ? new Date(val.new).toLocaleDateString('pl-PL') : '—'; }
+                                                                return <div key={key}>{label}: {oldDisplay} → {newDisplay}</div>;
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         )}
 
