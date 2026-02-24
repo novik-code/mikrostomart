@@ -2083,6 +2083,7 @@ NODE_ENV=production
 - `1a64c7d` — fix: pw-tab-bar CSS moved to globals.css (styled-jsx global unreliable in App Router)
 - `5d3480e` — fix: replace useSearchParams with window.location — fixes tab nav disappearing
 - `9869abb` — fix: tab nav 100% inline styles + JS isMobile — definitive mobile fix
+- `e5cc54c` — fix: task history crash for image_urls/complex fields (defensive toStr helper)
 - `b880ef1` — feat: Google Calendar ↔ task sync — delete task removes calendar event (migration 049)
 
 **`b880ef1` — Google Calendar task sync (Feb 24):**
