@@ -61,7 +61,10 @@ export async function GET(req: Request) {
             .select('*')
             .eq('status', 'draft')
             .gte('created_at', today.start.toISOString())
-            .lte('created_at', today.end.toISOString());
+            .lte('created_at', today.end.toISOString())
+            // Only send 'reminder' type drafts (or null sms_type for backward compat)
+            // post_visit and week_after_visit are handled by /api/cron/post-visit-auto-send
+            .or('sms_type.eq.reminder,sms_type.is.null');
 
         // In Monday mode: only pick drafts for Monday appointments
         if (isMondayMode) {

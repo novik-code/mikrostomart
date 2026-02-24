@@ -20,8 +20,26 @@ const REMINDER_DOCTORS = process.env.REMINDER_DOCTORS?.split(',').map(d => d.tri
 const SURVEY_URL = 'https://mikrostomart.pl/strefa-pacjenta/ocen-nas';
 
 /**
- * Identical to appointment-reminders isDoctorInList — copy to keep consistent behaviour
+ * Detect whether a Polish first name is female.
+ * Rule: names ending in 'a' (excl. Kuba) → female.
  */
+function detectGender(firstName: string): 'female' | 'male' {
+    const name = firstName.trim().toLowerCase();
+    const MALE_A_ENDINGS = ['kuba', 'barnaba', 'bonawentura', 'kalina', 'costa', 'sasha'];
+    if (MALE_A_ENDINGS.includes(name)) return 'male';
+    if (name.endsWith('a')) return 'female';
+    return 'male';
+}
+
+/**
+ * Generate formal Polish salutation: "Pani Agnieszko" / "Panie Marcinie"
+ * Uses nominative "Pani [imię]" / "Pan [imię]" — simpler and universally accepted.
+ */
+function buildSalutation(firstName: string): string {
+    const gender = detectGender(firstName);
+    return gender === 'female' ? `Pani ${firstName}` : `Panie ${firstName}`;
+}
+
 function isDoctorInList(apiDoctorName: string, doctorList: string[]): boolean {
     const normalize = (name: string) =>
         name.replace(/\s*\(I\)\s*/g, ' ')
@@ -29,7 +47,6 @@ function isDoctorInList(apiDoctorName: string, doctorList: string[]): boolean {
             .replace(/\s+/g, ' ')
             .trim()
             .toLowerCase();
-
     const normalizedApi = normalize(apiDoctorName);
     return doctorList.some(listName => {
         const normalizedList = normalize(listName);
@@ -59,32 +76,14 @@ const FUN_FACTS: string[] = [
     'Regularne wizyty co 6 miesiecy to najlepsza inwestycja w usmiech.',
     'Zelenina jak marchew i seler naturalnie czyszcza zeby podczas gryenia!',
     'Przecietny czlowiek spedza ok. 38 dni zycia na myciu zebow. Warto!',
-    'Zyrafa myje zeby... jezykiem! Ma go tak dlugiego, ze dosiegnie kazdego zeba.',
-    'Herbata zielona zawiera fluor i polifenole - naturalny sprzymierzeniec zdrowych zebow.',
     'Slina to superplyn: neutralizuje kwasy, niszczy bakterie i remineralizuje szkliwo.',
-    'Rekiny maja setki zebow i wymieniaja je co 1-2 tygodnie. My mamy tylko dwa zestawy.',
     'Pasta do zebow istnieje od starozytnego Egiptu. Tamta receptura: popiol, pumeks i wino.',
-    'Zucie gumy bez cukru przez 20 min po jedzeniu pomaga oczyscic zeby. Maly trik!',
-    'Ciekawostka: usmiech angazuje od 5 do 53 miesni twarzy. Im szerzej, tym wiecej treningu!',
-    'Fluoryzacja wody pitnej to jeden z 10 najwiekszych osiagniec zdrowia publicznego XX w.',
-    'Sloniowe ciosy to... zeby! Powiekszonych siekacze slonia waza nawet 90 kg.',
-    'Zdrowe dziasula nie krwawia. Jesli zauwazysc cos niepokojacego, odezwij sie do nas.',
-    'Dawniej zlote zeby byly oznaka bogactwa. Dzis mamy porcelany i kompozyty - piekniejsze.',
-    'Najstarszy wypelniony zab odkryto we Wloszech - ma 13 000 lat!',
-    'Wielbłądy mają 34 zęby. Twoje ważą trochę mniej niż 90 kg ci slonia.',
-    'Profilaktyka jest tansza niz leczenie — tak samo jak w zyciu: lepiej zapobiegac.',
-    'Mozg nie potrafi dokladnie zlokalizowac bolu zeba - dlatego czasem boli cos w okolicach.',
-    'Niemowleta rodza sie bez bakterii w ustach. Pierwsze zebuszki to wielkie wydarzenie!',
-    'Zwykla woda po jedzeniu jest wietna - naturalie wyplukuje resztki jedzenia.',
+    'Profilaktyka jest tansza niz leczenie - lepiej zapobiegac niz leczyc.',
 ];
 
-function pickFunFact(appointmentId: string): string {
-    let hash = 0;
-    for (let i = 0; i < appointmentId.length; i++) {
-        hash = (hash * 31 + appointmentId.charCodeAt(i)) >>> 0;
-    }
-    return FUN_FACTS[hash % FUN_FACTS.length];
-}
+// Default templates (ASCII-safe for GSM-7 encoding)
+const FALLBACK_TEMPLATE_REVIEW = `Dziekujemy za wizyte, {salutation}! Cenimy kazda opinie - czy mozemy prosic o chwile na ocene naszego gabinetu? {surveyUrl}`;
+const FALLBACK_TEMPLATE_REVIEWED = `Dziekujemy za wizyte, {salutation}! {funFact} Do zobaczenia na kolejnej wizycie - Mikrostomart`;
 
 /**
  * POST-VISIT SMS Cron — Stage 1: Generate DRAFTS
@@ -92,15 +91,16 @@ function pickFunFact(appointmentId: string): string {
  * Schedule: 0 18 * * * (18:00 UTC = 19:00 Warsaw CET)
  *
  * Flow:
- * 1. Fetch TODAY's appointments from Prodentis
+ * 1. Fetch appointments from today
  * 2. Filter: same logic as appointment-reminders (isWorkingHour, business hours, doctor list)
- * 3. Check google_reviews for fuzzy name match → pick appropriate template
+ * 3. Separate patients who already left a Google review (already_reviewed = true)
  * 4. Save as DRAFT (status='draft', sms_type='post_visit')
- * 5. Send push notification to admin
- * 6. Auto-send fires 1h later via /api/cron/post-visit-auto-send
+ * 5. Push to admin — auto-send fires 1h later via /api/cron/post-visit-auto-send
+ *
+ * Returns: {draftsCreated, skipped, skippedDetails[], errors[]}
  */
 export async function GET(req: Request) {
-    console.log('🦷 [Post-Visit SMS] Starting draft generation...');
+    console.log('📱 [Post-Visit SMS] Starting draft generation...');
     const startTime = Date.now();
 
     const authHeader = req.headers.get('authorization');
@@ -118,46 +118,48 @@ export async function GET(req: Request) {
         process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    let processedCount = 0;
     let draftsCreated = 0;
     let skippedCount = 0;
     const errors: string[] = [];
+    const skippedDetails: Array<{ name: string; doctor: string; time: string; reason: string }> = [];
 
     try {
-        // Target date: today (or override)
-        const targetDate = overrideDate ? new Date(overrideDate) : new Date();
+        const targetDate = overrideDate
+            ? new Date(overrideDate)
+            : new Date();
         const targetDateStr = targetDate.toISOString().split('T')[0];
         console.log(`📅 [Post-Visit SMS] Target date: ${targetDateStr}`);
 
-        // Fetch appointments
         const apiUrl = `${PRODENTIS_API_URL}/api/appointments/by-date?date=${targetDateStr}`;
         const apiResponse = await fetch(apiUrl, { headers: { 'Content-Type': 'application/json' } });
         if (!apiResponse.ok) throw new Error(`Prodentis API error: ${apiResponse.status}`);
 
         const data = await apiResponse.json();
         const appointments = data.appointments || [];
+        console.log(`📊 Total appointments from Prodentis: ${appointments.length}`);
 
         if (appointments.length === 0) {
-            return NextResponse.json({ success: true, draftsCreated: 0, message: `No appointments on ${targetDateStr}` });
+            return NextResponse.json({ success: true, draftsCreated: 0, skipped: 0, message: `No appointments on ${targetDateStr}` });
         }
-        console.log(`📊 Found ${appointments.length} appointments`);
 
         // Load templates
         const { data: templates } = await supabase.from('sms_templates').select('key, template');
         const templateMap = new Map<string, string>();
         for (const t of templates || []) templateMap.set(t.key.toLowerCase(), t.template);
+        const templateReview = templateMap.get('post_visit_review') || FALLBACK_TEMPLATE_REVIEW;
+        const templateReviewed = templateMap.get('post_visit_reviewed') || FALLBACK_TEMPLATE_REVIEWED;
 
-        const reviewTemplate = templateMap.get('post_visit_review')
-            || 'Dziekujemy za wizyte, {patientFirstName}! Zalezy nam na Twojej opinii - wypelnij ankiete: {surveyUrl} Jesli mozesz, zostaw nam gwiazdki w Google!';
+        // Load patient reviews list
+        let reviewerNames: string[] = [];
+        try {
+            const reviewsRes = await fetch(`${PRODENTIS_API_URL}/api/patient-reviews?minRating=4`);
+            if (reviewsRes.ok) {
+                const reviewsData = await reviewsRes.json();
+                reviewerNames = (reviewsData.reviews || []).map((r: any) => r.patientName || '').filter(Boolean);
+            }
+        } catch { /* non-critical */ }
 
-        const reviewedTemplate = templateMap.get('post_visit_reviewed')
-            || 'Dziekujemy za wizyte, {patientFirstName}! {funFact} Do zobaczenia! - Zespol Mikrostomart';
-
-        // Load google reviewer names
-        const { data: reviewsData } = await supabase.from('google_reviews').select('google_author_name');
-        const reviewerNames = (reviewsData || []).map((r: any) => r.google_author_name as string);
-
-        // Clean up old post_visit drafts for this target date
+        // Clean up old draft post_visit entries for today (re-run safety)
         await supabase.from('sms_reminders')
             .delete()
             .eq('sms_type', 'post_visit')
@@ -165,7 +167,7 @@ export async function GET(req: Request) {
             .gte('appointment_date', `${targetDateStr}T00:00:00.000Z`)
             .lte('appointment_date', `${targetDateStr}T23:59:59.999Z`);
 
-        // Already-sent (non-draft) post_visit SMS for dedup
+        // Already-sent post-visit SMS (dedup by prodentis_id)
         const { data: alreadySent } = await supabase
             .from('sms_reminders')
             .select('prodentis_id')
@@ -173,71 +175,96 @@ export async function GET(req: Request) {
             .eq('status', 'sent');
         const alreadySentIds = new Set<string>((alreadySent || []).map((r: any) => String(r.prodentis_id)));
 
+        // Free slots — skip busy/reserved patients
+        let freeSlotProdentisIds = new Set<string>();
+        try {
+            const slotsRes = await fetch(`${PRODENTIS_API_URL}/api/slots/free?date=${targetDateStr}`);
+            if (slotsRes.ok) {
+                const slotsData = await slotsRes.json();
+                freeSlotProdentisIds = new Set((slotsData.slots || []).map((s: any) => String(s.prodentisId)));
+            }
+        } catch { /* non-critical */ }
+
         const MIN_HOUR = 8;
         const MAX_HOUR = 20;
 
         for (const appointment of appointments) {
-            processedCount++;
+            const appointmentDate = new Date(appointment.date);
+            const aptHour = appointmentDate.getUTCHours();
+            const aptMin = appointmentDate.getUTCMinutes();
+            const appointmentTime = `${aptHour.toString().padStart(2, '0')}:${aptMin.toString().padStart(2, '0')}`;
+            const doctorName = (appointment.doctor?.name || '').replace(/\s*\(I\)\s*/g, ' ').trim();
+            const patientName = appointment.patientName || '';
+            const phone = appointment.patientPhone;
+
             try {
-                const appointmentDate = new Date(appointment.date);
-                const aptHour = appointmentDate.getUTCHours();
-                const aptMin = appointmentDate.getUTCMinutes();
-                const appointmentTime = `${aptHour.toString().padStart(2, '0')}:${aptMin.toString().padStart(2, '0')}`;
+                // Filter 1: Phone number
+                if (!phone) {
+                    skippedDetails.push({ name: patientName, doctor: doctorName, time: appointmentTime, reason: 'Brak numeru telefonu' });
+                    skippedCount++; continue;
+                }
 
-                const doctorName = (appointment.doctor?.name || '').replace(/\s*\(I\)\s*/g, ' ').trim();
-                const patientName = appointment.patientName || '';
-                const phone = appointment.patientPhone;
-
-                // Phone check
-                if (!phone) { skippedCount++; continue; }
-
-                // Elżbieta Nowosielska exception
-                const isNowosielska = doctorName.toLowerCase().includes('nowosielska')
-                    && (doctorName.toLowerCase().includes('elżbieta') || doctorName.toLowerCase().includes('elzbieta'));
+                const isNowosielska = doctorName.toLowerCase().includes('nowosielska') &&
+                    (doctorName.toLowerCase().includes('elżbieta') || doctorName.toLowerCase().includes('elzbieta'));
 
                 if (isNowosielska) {
+                    // Filter 2a: Nowosielska custom hours 08:30-16:00
                     const totalMin = aptHour * 60 + aptMin;
-                    if (totalMin < 8 * 60 + 30 || totalMin >= 16 * 60) { skippedCount++; continue; }
+                    if (totalMin < 8 * 60 + 30 || totalMin >= 16 * 60) {
+                        skippedDetails.push({ name: patientName, doctor: doctorName, time: appointmentTime, reason: `Poza godzinami E. Nowosielskiej (08:30-16:00)` });
+                        skippedCount++; continue;
+                    }
                 } else {
-                    if (appointment.isWorkingHour !== true) { skippedCount++; continue; }
-                    if (aptHour < MIN_HOUR || aptHour >= MAX_HOUR) { skippedCount++; continue; }
-                    if (!isDoctorInList(doctorName, REMINDER_DOCTORS)) { skippedCount++; continue; }
+                    // Filter 2b: isWorkingHour flag
+                    if (appointment.isWorkingHour !== true) {
+                        skippedDetails.push({ name: patientName, doctor: doctorName, time: appointmentTime, reason: 'Nie jest godzina robocza (szare/czerwone pole w Prodentis)' });
+                        skippedCount++; continue;
+                    }
+                    // Filter 3: Business hours 08:00-20:00
+                    if (aptHour < MIN_HOUR || aptHour >= MAX_HOUR) {
+                        skippedDetails.push({ name: patientName, doctor: doctorName, time: appointmentTime, reason: `Poza oknem 08:00-20:00 (wizyta: ${appointmentTime})` });
+                        skippedCount++; continue;
+                    }
+                    // Filter 4: Doctor in list
+                    if (!isDoctorInList(doctorName, REMINDER_DOCTORS)) {
+                        skippedDetails.push({ name: patientName, doctor: doctorName, time: appointmentTime, reason: `Lekarz nie jest na liście REMINDER_DOCTORS (${doctorName})` });
+                        skippedCount++; continue;
+                    }
                 }
 
-                // Dedup: skip if already SENT (not just drafted)
+                // Filter 5: Already sent post-visit SMS
                 const appointmentId = String(appointment.id);
                 if (alreadySentIds.has(appointmentId)) {
-                    console.log(`   ✅ Already sent post-visit for #${appointmentId} — skipping`);
-                    skippedCount++;
-                    continue;
+                    skippedDetails.push({ name: patientName, doctor: doctorName, time: appointmentTime, reason: 'SMS po wizycie już wysłany wcześniej' });
+                    skippedCount++; continue;
                 }
 
-                // Google review check
+                // Build salutation and message
+                const patientFirstName = patientName.split(' ').find((p: string) => p.length > 1) || patientName.split(' ')[0];
+                const salutation = buildSalutation(patientFirstName);
                 const alreadyReviewed = patientAlreadyReviewed(patientName, reviewerNames);
-                const patientFirstName = patientName.split(' ')[0];
-                const funFact = alreadyReviewed ? pickFunFact(appointmentId) : '';
-                const template = alreadyReviewed ? reviewedTemplate : reviewTemplate;
+                const funFact = FUN_FACTS[Math.floor(Math.random() * FUN_FACTS.length)];
 
-                const message = formatSMSMessage(template, {
+                const smsTemplate = alreadyReviewed ? templateReviewed : templateReview;
+                const message = formatSMSMessage(smsTemplate, {
                     patientFirstName,
                     patientName,
+                    salutation,
                     doctor: doctorName,
                     doctorName,
-                    time: appointmentTime,
                     surveyUrl: SURVEY_URL,
                     funFact,
                 });
 
-                // Find patient_id
+                // Patient ID lookup
                 let patientId: string | null = null;
                 const { data: patientRow } = await supabase
                     .from('patients').select('id').eq('prodentis_id', appointment.patientId).maybeSingle();
                 patientId = patientRow?.id || null;
 
-                // Save as DRAFT
-                const smsId = randomUUID();
+                // Insert draft
                 await supabase.from('sms_reminders').insert({
-                    id: smsId,
+                    id: randomUUID(),
                     patient_id: patientId,
                     prodentis_id: appointment.id,
                     patient_name: patientName,
@@ -254,46 +281,43 @@ export async function GET(req: Request) {
                 });
 
                 draftsCreated++;
-                console.log(`   📋 Draft created for ${patientName}`);
+                console.log(`   📋 Draft: ${patientName} | ${salutation} | already_reviewed=${alreadyReviewed}`);
 
             } catch (err: any) {
-                errors.push(`${appointment.patientName}: ${err.message}`);
+                errors.push(`${patientName}: ${err.message}`);
             }
         }
 
-        // Push notification to admin
+        // Push to admin
         if (draftsCreated > 0) {
             try {
                 const { data: adminUsers } = await supabase
-                    .from('push_subscriptions')
-                    .select('user_id')
-                    .eq('role', 'admin')
-                    .limit(10);
-
+                    .from('push_subscriptions').select('user_id').eq('role', 'admin').limit(10);
                 const adminUserIds = [...new Set((adminUsers || []).map((u: any) => u.user_id))];
                 for (const userId of adminUserIds) {
                     await sendPushToUser(userId, 'admin', {
-                        title: `✉️ SMS po wizycie: ${draftsCreated} wiadomości do wysyłki`,
-                        body: 'Sprawdź szkice w panelu admin → SMS po wizycie. Wyślemy je automatycznie za 1 godzinę.',
+                        title: `✉️ SMS po wizycie: ${draftsCreated} szkiców gotowych`,
+                        body: `Sprawdź i zatwierdź w panelu admin. Wyślemy je za 1 godzinę.`,
                         url: '/admin',
                     });
                 }
-                console.log(`🔔 Push sent to ${adminUserIds.length} admins`);
             } catch (pushErr: any) {
                 console.error('Push notification failed (non-critical):', pushErr.message);
             }
         }
 
         const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+        console.log(`📊 Done: drafts=${draftsCreated} skipped=${skippedCount} errors=${errors.length} (${duration}s)`);
+
         return NextResponse.json({
             success: true,
             targetDate: targetDateStr,
-            processed: processedCount,
+            totalAppointments: appointments.length,
             draftsCreated,
             skipped: skippedCount,
+            skippedDetails,
             errors: errors.length > 0 ? errors : undefined,
             duration: `${duration}s`,
-            message: `Created ${draftsCreated} draft post-visit SMS. Auto-send in ~1h.`,
         });
 
     } catch (error: any) {

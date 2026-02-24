@@ -206,6 +206,7 @@ export function formatSMSMessage(
         doctorName?: string;
         patientName?: string;
         patientFirstName?: string;
+        salutation?: string;        // e.g. 'Pani Agnieszko' / 'Panie Marcinie'
         appointmentType?: string;
         date?: string;
         surveyUrl?: string;
@@ -220,6 +221,7 @@ export function formatSMSMessage(
     if (variables.doctorName) message = message.replace(/{doctorName}/g, variables.doctorName);
     if (variables.patientName) message = message.replace(/{patientName}/g, variables.patientName);
     if (variables.patientFirstName) message = message.replace(/{patientFirstName}/g, variables.patientFirstName);
+    if (variables.salutation) message = message.replace(/{salutation}/g, variables.salutation);
     if (variables.appointmentType) message = message.replace(/{appointmentType}/g, variables.appointmentType);
     if (variables.date) message = message.replace(/{date}/g, variables.date);
     if (variables.surveyUrl) message = message.replace(/{surveyUrl}/g, variables.surveyUrl);

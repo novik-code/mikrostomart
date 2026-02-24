@@ -3306,8 +3306,10 @@ export default function AdminPage() {
                         {postVisitCronRunning ? '⏳ Uruchamianie...' : '▶ Uruchom cron teraz (test)'}
                     </button>
                     {postVisitCronResult && (
-                        <div style={{ fontSize: '0.78rem', padding: '0.3rem 0.7rem', borderRadius: '0.4rem', background: postVisitCronResult.error ? 'rgba(239,68,68,0.1)' : 'rgba(34,197,94,0.1)', border: `1px solid ${postVisitCronResult.error ? 'rgba(239,68,68,0.3)' : 'rgba(34,197,94,0.3)'}`, color: postVisitCronResult.error ? '#ef4444' : '#22c55e' }}>
-                            {postVisitCronResult.error ? `❌ ${postVisitCronResult.error}` : `✅ Szkice: ${postVisitCronResult.draftsCreated ?? 0} | Pominięto: ${postVisitCronResult.skipped ?? 0}`}
+                        <div style={{ fontSize: '0.78rem', padding: '0.4rem 0.8rem', borderRadius: '0.4rem', background: postVisitCronResult.error ? 'rgba(239,68,68,0.1)' : 'rgba(34,197,94,0.1)', border: `1px solid ${postVisitCronResult.error ? 'rgba(239,68,68,0.3)' : 'rgba(34,197,94,0.3)'}`, color: postVisitCronResult.error ? '#ef4444' : '#22c55e' }}>
+                            {postVisitCronResult.error
+                                ? `❌ ${postVisitCronResult.error}`
+                                : `✅ Razem: ${postVisitCronResult.totalAppointments ?? '?'} wizyt | Szkice: ${postVisitCronResult.draftsCreated ?? 0} | Pominięto: ${postVisitCronResult.skipped ?? 0}`}
                         </div>
                     )}
                     {postVisitSms.filter(s => s.status === 'draft').length > 0 && (
@@ -3326,6 +3328,25 @@ export default function AdminPage() {
                         </button>
                     )}
                 </div>
+
+                {/* Skipped details panel - shows why appointments were not included */}
+                {postVisitCronResult && !postVisitCronResult.error && (postVisitCronResult.skippedDetails || []).length > 0 && (
+                    <details style={{ marginBottom: '1rem', background: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: '0.6rem', padding: '0.75rem 1rem' }}>
+                        <summary style={{ cursor: 'pointer', fontSize: '0.8rem', color: '#f59e0b', fontWeight: 'bold' }}>
+                            {postVisitCronResult.skippedDetails.length} pominiętych wizyt — kliknij aby zobaczyć powody
+                        </summary>
+                        <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                            {postVisitCronResult.skippedDetails.map((s: any, i: number) => (
+                                <div key={i} style={{ fontSize: '0.73rem', padding: '0.35rem 0.7rem', borderRadius: '0.35rem', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                                    <span style={{ color: 'white', fontWeight: 600, minWidth: '140px' }}>{s.name}</span>
+                                    <span style={{ color: 'rgba(255,255,255,0.4)' }}>{s.time}</span>
+                                    <span style={{ color: 'rgba(255,255,255,0.35)' }}>Dr. {s.doctor}</span>
+                                    <span style={{ color: '#f59e0b', marginLeft: 'auto' }}>{s.reason}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </details>
+                )}
 
                 {/* Sub-tabs */}
                 <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '0.5rem' }}>
@@ -3527,10 +3548,10 @@ export default function AdminPage() {
                         {weekAfterCronRunning ? '⏳ Uruchamianie...' : '▶ Uruchom cron teraz (test)'}
                     </button>
                     {weekAfterCronResult && (
-                        <div style={{ fontSize: '0.78rem', padding: '0.3rem 0.7rem', borderRadius: '0.4rem', background: weekAfterCronResult.error ? 'rgba(239,68,68,0.1)' : 'rgba(34,197,94,0.1)', border: `1px solid ${weekAfterCronResult.error ? 'rgba(239,68,68,0.3)' : 'rgba(34,197,94,0.3)'}`, color: weekAfterCronResult.error ? '#ef4444' : '#22c55e' }}>
+                        <div style={{ fontSize: '0.78rem', padding: '0.4rem 0.8rem', borderRadius: '0.4rem', background: weekAfterCronResult.error ? 'rgba(239,68,68,0.1)' : 'rgba(34,197,94,0.1)', border: `1px solid ${weekAfterCronResult.error ? 'rgba(239,68,68,0.3)' : 'rgba(34,197,94,0.3)'}`, color: weekAfterCronResult.error ? '#ef4444' : '#22c55e' }}>
                             {weekAfterCronResult.error
                                 ? `❌ ${weekAfterCronResult.error}`
-                                : `✅ Szkice: ${weekAfterCronResult.draftsCreated ?? 0} | Pominięto: ${weekAfterCronResult.skipped ?? 0}${weekAfterCronResult.targetDate ? ` | Data: ${weekAfterCronResult.targetDate}` : ''}`
+                                : `✅ Razem: ${weekAfterCronResult.totalAppointments ?? '?'} wizyt | Szkice: ${weekAfterCronResult.draftsCreated ?? 0} | Pominięto: ${weekAfterCronResult.skipped ?? 0}${weekAfterCronResult.targetDate ? ` | Data: ${weekAfterCronResult.targetDate}` : ''}`
                             }
                         </div>
                     )}
@@ -3559,6 +3580,25 @@ export default function AdminPage() {
                         </button>
                     )}
                 </div>
+
+                {/* Skipped details panel - shows why appointments were not included */}
+                {weekAfterCronResult && !weekAfterCronResult.error && (weekAfterCronResult.skippedDetails || []).length > 0 && (
+                    <details style={{ marginBottom: '1rem', background: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: '0.6rem', padding: '0.75rem 1rem' }}>
+                        <summary style={{ cursor: 'pointer', fontSize: '0.8rem', color: '#f59e0b', fontWeight: 'bold' }}>
+                            {weekAfterCronResult.skippedDetails.length} pominiętych wizyt — kliknij aby zobaczyć powody
+                        </summary>
+                        <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                            {weekAfterCronResult.skippedDetails.map((s: any, i: number) => (
+                                <div key={i} style={{ fontSize: '0.73rem', padding: '0.35rem 0.7rem', borderRadius: '0.35rem', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                                    <span style={{ color: 'white', fontWeight: 600, minWidth: '140px' }}>{s.name}</span>
+                                    <span style={{ color: 'rgba(255,255,255,0.4)' }}>{s.time}</span>
+                                    <span style={{ color: 'rgba(255,255,255,0.35)' }}>Dr. {s.doctor}</span>
+                                    <span style={{ color: '#f59e0b', marginLeft: 'auto' }}>{s.reason}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </details>
+                )}
 
                 {/* Sub-tabs */}
                 <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '0.5rem' }}>

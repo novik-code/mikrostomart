@@ -414,6 +414,7 @@ export async function GET(req: Request) {
                         appointment_type: appointmentType,
                         sms_message: message,
                         status: 'draft',
+                        sms_type: 'reminder',
                         created_at: new Date().toISOString(),
                         updated_at: new Date().toISOString(),
                     }])
