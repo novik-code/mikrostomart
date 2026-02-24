@@ -2068,6 +2068,12 @@ NODE_ENV=production
 - `807a611` — fix: push notification duplicates + task history expand in modal
 - `eb3fb2c` — fix: PWA push reliability — SW timeout, iOS renewal, dedup fixes
 - `66f632b` — feat: push notification history tab + sendPushToGroups dedup fix (migration 048)
+- `ea03ea1` — fix: push logging + final dedup in sendPushByConfig and sendPushToAllEmployees
+
+**`ea03ea1` — Push logging completeness (Feb 24):**
+- **`sendPushByConfig`**: added `loggedUsers Set` (was declared in wrong scope — lint error) + `logPush()` in `sendBatch`. Main task/config notifications now appear in history tab.
+- **`sendPushToAllEmployees`**: added `sentEndpoints Set` (AI broadcast with 2 subs → 2 notifs) + `logPush()` per user.
+- **`sendTranslatedPushToUser`**: added cross-locale `sentEndpoints Set` + `logPush()` exactly once per user.
 
 **`66f632b` — Push history + last dedup fix (Feb 24):**
 - **sendPushToGroups dedup FIX** (`webpush.ts`): added cross-group `sentEndpoints Set` + `loggedUsers Set` at function scope. Last remaining duplicate source — user in multiple groups received 1 push per matching group passed to `sendPushToGroups`.
