@@ -235,7 +235,12 @@ export default function EmployeePage() {
     const [badgeTooltip, setBadgeTooltip] = useState<{ badges: Badge[], x: number, y: number } | null>(null);
     const [userEmail, setUserEmail] = useState<string>('');
     const [userId, setUserId] = useState<string>('');
-    const [hiddenDoctors, setHiddenDoctors] = useState<Set<string>>(new Set());
+    const [hiddenDoctors, setHiddenDoctors] = useState<Set<string>>(() => {
+        try {
+            const saved = typeof window !== 'undefined' ? localStorage.getItem('schedule-hidden-doctors') : null;
+            return saved ? new Set(JSON.parse(saved) as string[]) : new Set();
+        } catch { return new Set(); }
+    });
     // ─── Schedule: hidden days of week (persisted to localStorage) ─────────
     const [hiddenScheduleDays, setHiddenScheduleDays] = useState<Set<number>>(() => {
         try {
@@ -454,12 +459,20 @@ export default function EmployeePage() {
             } else {
                 next.add(doctor);
             }
+            try { localStorage.setItem('schedule-hidden-doctors', JSON.stringify([...next])); } catch { }
             return next;
         });
     };
 
-    const showAllDoctors = () => setHiddenDoctors(new Set());
-    const hideAllDoctors = () => setHiddenDoctors(new Set(doctors));
+    const showAllDoctors = () => {
+        setHiddenDoctors(new Set());
+        try { localStorage.setItem('schedule-hidden-doctors', '[]'); } catch { }
+    };
+    const hideAllDoctors = () => {
+        const allHidden = new Set(doctors);
+        setHiddenDoctors(allHidden);
+        try { localStorage.setItem('schedule-hidden-doctors', JSON.stringify([...allHidden])); } catch { }
+    };
 
     // Open patient history modal
     const openPatientHistory = useCallback(async (apt: ScheduleAppointment) => {
@@ -3272,18 +3285,22 @@ export default function EmployeePage() {
                                         }}>
                                             <div style={{ fontSize: '0.7rem', color: isToday ? '#38bdf8' : 'rgba(255,255,255,0.5)', fontWeight: isToday ? '700' : '400', marginBottom: '0.15rem' }}>{day}</div>
                                             {dayTasks.slice(0, 3).map(t => (
-                                                <div key={t.id} style={{
-                                                    fontSize: '0.55rem',
-                                                    padding: '0.1rem 0.2rem',
-                                                    background: `${getPriorityColor(t.priority)}15`,
-                                                    color: getPriorityColor(t.priority),
-                                                    borderRadius: '0.15rem',
-                                                    marginBottom: '1px',
-                                                    whiteSpace: 'nowrap',
-                                                    overflow: 'hidden',
-                                                    textOverflow: 'ellipsis',
-                                                    borderLeft: `2px solid ${getStatusColor(t.status)}`,
-                                                }}>
+                                                <div
+                                                    key={t.id}
+                                                    onClick={() => openEditModal(t)}
+                                                    style={{
+                                                        fontSize: '0.55rem',
+                                                        padding: '0.1rem 0.2rem',
+                                                        background: `${getPriorityColor(t.priority)}15`,
+                                                        color: getPriorityColor(t.priority),
+                                                        borderRadius: '0.15rem',
+                                                        marginBottom: '1px',
+                                                        whiteSpace: 'nowrap',
+                                                        overflow: 'hidden',
+                                                        textOverflow: 'ellipsis',
+                                                        borderLeft: `2px solid ${getStatusColor(t.status)}`,
+                                                        cursor: 'pointer',
+                                                    }}>
                                                     {t.title}
                                                 </div>
                                             ))}

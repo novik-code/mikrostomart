@@ -462,6 +462,94 @@ async function checkSchedule(args: {
     }
 }
 
+// ─── Action: Update Task ──────────────────────────────────────
+
+async function updateTask(args: {
+    task_id?: string;            // Preferred: direct UUID
+    title_query?: string;        // Alternative: search by title (finds most recent match)
+    new_title?: string;
+    description?: string;
+    priority?: 'low' | 'normal' | 'urgent';
+    status?: 'todo' | 'in_progress' | 'done' | 'archived';
+    due_date?: string;
+    due_time?: string;
+    checklist_items?: string[];  // Full replacement of checklist
+    merge_checklist?: string[];  // Add items to existing checklist (don't replace)
+}, userId: string): Promise<ActionResult> {
+    try {
+        let taskId = args.task_id;
+
+        // If no direct ID, find by title query
+        if (!taskId && args.title_query) {
+            const { data: found, error: searchErr } = await supabase
+                .from('employee_tasks')
+                .select('id, title, checklist_items')
+                .or(`created_by.eq.${userId},owner_user_id.eq.${userId}`)
+                .ilike('title', `%${args.title_query}%`)
+                .order('created_at', { ascending: false })
+                .limit(1);
+
+            if (searchErr || !found || found.length === 0) {
+                return { success: false, action: 'updateTask', message: `Nie znalazłem zadania pasującego do: "${args.title_query}"` };
+            }
+            taskId = found[0].id;
+
+            // If merging checklist, get existing items
+            if (args.merge_checklist && args.merge_checklist.length > 0) {
+                const existingItems: Array<{ label: string; done: boolean }> = found[0].checklist_items || [];
+                const existingLabels = new Set(existingItems.map(i => i.label.toLowerCase()));
+                const newItems = args.merge_checklist
+                    .filter(label => !existingLabels.has(label.toLowerCase()))
+                    .map(label => ({ label, done: false }));
+                args = { ...args, checklist_items: [...existingItems.map(i => i.label), ...newItems.map(i => i.label)] };
+            }
+        }
+
+        if (!taskId) {
+            return { success: false, action: 'updateTask', message: 'Podaj ID zadania lub tytuł do wyszukania.' };
+        }
+
+        // Build update payload — only include provided fields
+        const updates: Record<string, any> = {};
+        if (args.new_title !== undefined) updates.title = args.new_title;
+        if (args.description !== undefined) updates.description = args.description;
+        if (args.priority !== undefined) updates.priority = args.priority;
+        if (args.status !== undefined) updates.status = args.status;
+        if (args.due_date !== undefined) updates.due_date = args.due_date;
+        if (args.due_time !== undefined) updates.due_time = args.due_time;
+        if (args.checklist_items !== undefined) {
+            updates.checklist_items = args.checklist_items.map((label, i) => ({
+                id: i,
+                label,
+                done: false,
+            }));
+        }
+
+        if (Object.keys(updates).length === 0) {
+            return { success: false, action: 'updateTask', message: 'Brak danych do aktualizacji.' };
+        }
+
+        const { error } = await supabase
+            .from('employee_tasks')
+            .update(updates)
+            .eq('id', taskId);
+
+        if (error) {
+            return { success: false, action: 'updateTask', message: `Błąd aktualizacji: ${error.message}` };
+        }
+
+        const updatedFields = Object.keys(updates).join(', ');
+        return {
+            success: true,
+            action: 'updateTask',
+            message: `Zadanie zaktualizowano (${updatedFields}).`,
+            data: { taskId, updatedFields: Object.keys(updates) },
+        };
+    } catch (err: any) {
+        return { success: false, action: 'updateTask', message: `Błąd: ${err.message}` };
+    }
+}
+
 // ─── Action: Update Memory ────────────────────────────────────
 
 async function updateMemory(args: {
@@ -533,6 +621,8 @@ export async function executeAction(
             return searchPatient(args as any);
         case 'checkSchedule':
             return checkSchedule(args as any);
+        case 'updateTask':
+            return updateTask(args as any, userId);
         case 'updateMemory':
             return updateMemory(args as any, userId);
         default:

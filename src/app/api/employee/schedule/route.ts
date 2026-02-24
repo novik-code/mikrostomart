@@ -184,29 +184,30 @@ export async function GET(req: Request) {
                     const startTime = `${startHour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')}`;
 
                     // Compute duration from endDate when available (most reliable)
-                    // This is the same approach used by strefa-pacjenta/dashboard/page.tsx:
-                    //   durationMinutes = (endDate.getTime() - startDate.getTime()) / 60000
-                    // It avoids timezone sensitivity because both timestamps shift by the same offset.
-                    let duration: number;
+                    // IMPORTANT: Parse the time portion as a string (same as startTime above)
+                    // to avoid UTC timezone sensitivity on Vercel (UTC server vs UTC+1/+2 local).
+                    let duration: number = 0;
                     const endDateStr = p.raw.endDate;
                     if (endDateStr) {
-                        const durationMs = new Date(endDateStr).getTime() - new Date(p.raw.date).getTime();
-                        duration = Math.round(durationMs / (1000 * 60));
-                        if (duration <= 0 || duration > 480) {
-                            // Sanity check: fall through to inference
-                            duration = 0;
+                        const eTIdx = String(endDateStr).indexOf('T');
+                        if (eTIdx !== -1) {
+                            const eTimePart = String(endDateStr).slice(eTIdx + 1, eTIdx + 6); // 'HH:MM'
+                            const eHour = parseInt(eTimePart.slice(0, 2), 10);
+                            const eMin = parseInt(eTimePart.slice(3, 5), 10);
+                            const endMinutes = eHour * 60 + eMin;
+                            duration = endMinutes - p.startMinutes;
+                            // Sanity: appointment must be between 5 min and 8 hours
+                            if (duration <= 0 || duration > 480) duration = 0;
                         }
-                    } else {
-                        duration = 0;
                     }
 
                     if (duration <= 0 && p.raw.duration && p.raw.duration > 0) {
-                        // Fallback: use API-provided duration field
+                        // Fallback: use API-provided duration field (in minutes)
                         duration = p.raw.duration;
                     }
 
                     if (duration <= 0) {
-                        // Last resort: infer from gap to next appointment
+                        // Last resort: infer from gap to next appointment of the same doctor
                         if (j + 1 < docApts.length) {
                             duration = docApts[j + 1].startMinutes - p.startMinutes;
                             if (duration <= 0) duration = 15;

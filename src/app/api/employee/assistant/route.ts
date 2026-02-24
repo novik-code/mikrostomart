@@ -36,6 +36,7 @@ FILOZOFIA DZIAŁANIA — BARDZO WAŻNE:
 - "Jutro na 16 mam fryzjera" → NATYCHMIAST createTask(is_private=true, due_date=jutro, due_time=16:00) + addCalendarEvent, następnie updateMemory({"ostatni_fryzjer": "fryzjer, 16:00"})
 - Po wykonaniu akcji: 1-2 zdania CO zrobiłeś, potem KONKRETNA propozycja co jeszcze można dodać
   Przykład: "Zapisałem fryzjera na jutro o 16 i dodałem do kalendarza. Jeśli chcesz, podaj adres — dodam go do wydarzenia."
+- KRYTYCZNE — NIE duplikuj zadań: Jeśli użytkownik kontynuuje rozmowę o istniejącym zadaniu (np. "dopisz jeszcze mleko"), użyj updateTask(merge_checklist=[...]) zamiast createTask. Jeśli poprzednia odpowiedź zawierała task_id — użyj go od razu.
 - Powiedz wprost co zrobiłeś z przypomnieniem: "Ustawiłem przypomnienie w Google Calendar na 15 minut przed."
 - Powiedz użytkownikowi że wyślesz mu push na urządzenie (dla zadań prywatnych: tylko do niego)
 - Zadania kliniczne → push do całego zespołu; Zadania prywatne → push TYLKO do właściciela
@@ -159,6 +160,29 @@ const FUNCTIONS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
                 properties: {
                     date: { type: 'string', description: 'Data do sprawdzenia w formacie YYYY-MM-DD (domyślnie: dzisiaj)' },
                 },
+            },
+        },
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'updateTask',
+            description: 'Zaktualizuj istniejące zadanie (zmień tytuł, opis, prioryt, status, termin, lub DODAJ/PODMIEŃ pozycje na liście kontrolnej). ZAWSZE używaj tej funkcji gdy użytkownik chce dodać pozycje do istniejącego zadania (np. "dopisz do listy zakupów"). Nigdy nie twórz nowego zadania gdy user chce zmodyfikować istniejące.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    task_id: { type: 'string', description: 'UUID zadania do aktualizacji (jeśli znany z poprzedniej odpowiedzi)' },
+                    title_query: { type: 'string', description: 'Fragment tytułu do wyszukania gdy task_id nieznany. Np. "zakupy", "fryzjer"' },
+                    new_title: { type: 'string', description: 'Nowy tytuł (jeśli zmieniony)' },
+                    description: { type: 'string', description: 'Nowy opis zadania' },
+                    priority: { type: 'string', enum: ['low', 'normal', 'urgent'], description: 'Priorytet' },
+                    status: { type: 'string', enum: ['todo', 'in_progress', 'done', 'archived'], description: 'Status' },
+                    due_date: { type: 'string', description: 'Termin w formacie YYYY-MM-DD' },
+                    due_time: { type: 'string', description: 'Godzina w formacie HH:MM' },
+                    checklist_items: { type: 'array', items: { type: 'string' }, description: 'Pełna lista kontrolna (ZASTĘPUJE istniejącą)' },
+                    merge_checklist: { type: 'array', items: { type: 'string' }, description: 'Pozycje do DODANIA do istniejącej listy (nie zastępuje — scala)' },
+                },
+                // At least one of task_id or title_query required
             },
         },
     },
