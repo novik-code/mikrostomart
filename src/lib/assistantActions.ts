@@ -170,11 +170,50 @@ async function createTask(args: {
         const timeStr = args.due_time ? ` o ${args.due_time}` : '';
         const dateInfo = dueDateStr ? ` na ${dueDateStr}${timeStr}` : '';
 
+        // ── Auto-link Google Calendar ──────────────────────────────────────
+        // If the task has a due_date and user has Google Calendar connected,
+        // create a calendar event and save the eventId in the task row.
+        // This allows the task DELETE route to also remove the calendar event.
+        let calendarLinked = false;
+        if (args.due_date) {
+            try {
+                const { connected } = await isCalendarConnected(userId);
+                if (connected) {
+                    const startStr = args.due_time
+                        ? `${args.due_date}T${args.due_time}:00`
+                        : `${args.due_date}T09:00:00`;
+                    const calResult = await createEvent(userId, {
+                        summary: `📋 ${args.title}`,
+                        description: [
+                            args.description || null,
+                            args.patient_name ? `Pacjent: ${args.patient_name}` : null,
+                            isPrivate ? '🔒 Zadanie prywatne' : null,
+                        ].filter(Boolean).join('\n') || '',
+                        start: startStr,
+                        colorId: '5', // banana yellow for tasks
+                    });
+                    if (calResult.success && calResult.eventId) {
+                        await supabase
+                            .from('employee_tasks')
+                            .update({ google_event_id: calResult.eventId })
+                            .eq('id', data.id);
+                        calendarLinked = true;
+                        console.log(`[AssistantActions] Linked task ${data.id} → gcal event ${calResult.eventId}`);
+                    }
+                }
+            } catch (calErr) {
+                // Calendar link is optional — don't fail the whole action
+                console.error('[AssistantActions] Calendar auto-link failed:', calErr);
+            }
+        }
+
+        const calendarNote = calendarLinked ? ' Dodano do kalendarza Google.' : '';
+
         return {
             success: true,
             action: 'createTask',
-            message: `Zapisano${isPrivate ? ' (prywatne)' : ''}: "${args.title}"${dateInfo}.${assignedTo.length > 0 ? ` Przypisano do: ${assignedTo.map(a => a.name).join(', ')}.` : ''}`,
-            data: { taskId: data.id, is_private: isPrivate },
+            message: `Zapisano${isPrivate ? ' (prywatne)' : ''}: „${args.title}"${dateInfo}.${assignedTo.length > 0 ? ` Przypisano do: ${assignedTo.map(a => a.name).join(', ')}.` : ''}${calendarNote}`,
+            data: { taskId: data.id, is_private: isPrivate, calendarLinked },
         };
     } catch (err: any) {
         return { success: false, action: 'createTask', message: `Błąd tworzenia zadania: ${err.message}` };

@@ -3,6 +3,7 @@ import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
 import { createClient } from '@supabase/supabase-js';
 import { sendPushByConfig } from '@/lib/webpush';
+import { deleteEvent } from '@/lib/googleCalendar';
 
 export const dynamic = 'force-dynamic';
 
@@ -275,6 +276,27 @@ export async function DELETE(
     const { id } = await params;
 
     try {
+        // Read task before deleting — need google_event_id to clean up Google Calendar
+        const { data: taskRow } = await supabase
+            .from('employee_tasks')
+            .select('google_event_id, owner_user_id, created_by')
+            .eq('id', id)
+            .single();
+
+        // If a Google Calendar event is linked, delete it (fire-and-forget)
+        if (taskRow?.google_event_id) {
+            const calUserId = taskRow.owner_user_id || taskRow.created_by || user.id;
+            deleteEvent(calUserId, taskRow.google_event_id)
+                .then(r => {
+                    if (r.success) {
+                        console.log(`[Tasks] Deleted gcal event ${taskRow.google_event_id} for task ${id}`);
+                    } else {
+                        console.warn(`[Tasks] Failed to delete gcal event ${taskRow.google_event_id}:`, r.error);
+                    }
+                })
+                .catch(e => console.error('[Tasks] Calendar delete error:', e));
+        }
+
         const { error } = await supabase
             .from('employee_tasks')
             .delete()
