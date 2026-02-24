@@ -2052,6 +2052,48 @@ NODE_ENV=production
 - `src/app/api/admin/employees/route.ts` — Full rewrite: 74-day Prodentis scan, Supabase cross-reference, registered employees section
 - `mikrostomart_context.md` — Comprehensive documentation update (70+ lines added/modified)
 
+### February 24, 2026 (batch 5)
+**Week-After-Visit App Promotion SMS + /aplikacja PWA Landing Page**
+
+#### Commits:
+- `d9b23da` — feat: week-after-visit app promotion SMS + /aplikacja PWA landing page
+
+#### New Feature: SMS 7 days after visit — promoting the app
+
+**Cron: `/api/cron/week-after-visit-sms`** — registered in `vercel.json` as `0 9 * * *` (10:00 Warsaw CET)
+- Fetches appointments from **7 days ago** via Prodentis `/api/appointments/by-date`
+- Same filtering: `isWorkingHour`, doctor list, phone, Nowosielska exception
+- Global dedup: skips if `week_after_visit` SMS already sent for this `prodentis_id`
+- Template (ASCII-safe for GSM-7, ~130 chars + URL):
+  `Dziekujemy, ze jestes naszym pacjentem! 😊 Miej Mikrostomart zawsze przy sobie - pobierz aplikacje na telefon: {appUrl}`
+- `appUrl` = `https://mikrostomart.pl/aplikacja`
+- Supports `?manual=true` (test trigger) and `?date=YYYY-MM-DD` (date override)
+- `sms_type='week_after_visit'` in `sms_reminders`
+
+**Migration 046: `supabase_migrations/046_sms_week_after_visit.sql`**
+- Seeds `week_after_visit` template in `sms_templates` (no schema change)
+
+#### New Page: `/aplikacja` — PWA Install Landing Page
+
+**`src/app/aplikacja/page.tsx`** — premium marketing landing page:
+- **Nav**: transparent → glassmorphism scroll effect
+- **Hero**: h1 with gradient branding + mock phone UI with animated app preview
+- **Benefits grid**: 6 cards — terminy, czat, dokumentacja, push, opinie, szybkość
+- **Install guide**: togglable iOS (Safari) / Android (Chrome) step cards
+- **Setup tabs**: Instalacja / Konto / Powiadomienia push — each with 4-step cards
+- **CTA**: double button (install + register), full brand theming
+- Brand: `#dcb14a` gold on `#0a0a0f` dark
+
+#### Files:
+- `supabase_migrations/046_sms_week_after_visit.sql` — [NEW]
+- `src/app/api/cron/week-after-visit-sms/route.ts` — [NEW]
+- `src/app/aplikacja/page.tsx` — [NEW]
+- `vercel.json` — added `0 9 * * *` cron
+- `src/lib/smsService.ts` — added `appUrl?` variable to `formatSMSMessage`
+- `src/app/api/admin/sms-templates/route.ts` — added `week_after_visit` to DEFAULT_TEMPLATES
+
+---
+
 ### February 24, 2026 (batch 4)
 **Post-Visit SMS Automation System + Admin Panel Section**
 
