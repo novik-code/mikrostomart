@@ -71,24 +71,42 @@ export default function PushNotificationPrompt({
         const existingSub = localStorage.getItem(subKey);
 
         if (existingSub) {
-            // Verify the subscription is still valid
+            // Verify the subscription is still valid and re-sync to server on every load.
+            // This is critical for iOS Safari PWA where the push endpoint silently
+            // rotates after the app is backgrounded for several hours. The new endpoint
+            // must be re-registered with our server or pushes will fail (404/410).
             navigator.serviceWorker.ready.then(reg => {
-                reg.pushManager.getSubscription().then(sub => {
+                reg.pushManager.getSubscription().then(async sub => {
                     if (sub) {
-                        console.log('[Push] → subscribed (verified, endpoint:', sub.endpoint.substring(0, 50), ')');
+                        console.log('[Push] → subscribed (endpoint:', sub.endpoint.substring(0, 50), ')');
+                        // Always re-POST current subscription to server (idempotent upsert).
+                        // If iOS rotated the endpoint, this registers the new one.
+                        // The server uses ON CONFLICT(endpoint) DO UPDATE so old rows are kept
+                        // until they return 410 during an actual send.
+                        try {
+                            await fetch('/api/push/subscribe', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    subscription: sub.toJSON(),
+                                    userType,
+                                    userId,
+                                    locale,
+                                }),
+                            });
+                            console.log('[Push] Subscription re-synced to server');
+                        } catch (e) {
+                            console.warn('[Push] Re-sync failed (offline?):', e);
+                        }
                         setStatus('subscribed');
                     } else {
-                        // Subscription expired or was removed
-                        console.log('[Push] → can-subscribe (localStorage says subscribed but no active subscription)');
+                        // Subscription was fully revoked — need fresh subscribe
+                        console.log('[Push] → can-subscribe (localStorage stale, no active subscription)');
                         localStorage.removeItem(subKey);
                         setStatus('can-subscribe');
                     }
-                }).catch(() => {
-                    setStatus('can-subscribe');
-                });
-            }).catch(() => {
-                setStatus('can-subscribe');
-            });
+                }).catch(() => { setStatus('can-subscribe'); });
+            }).catch(() => { setStatus('can-subscribe'); });
         } else {
             console.log('[Push] → can-subscribe');
             setStatus('can-subscribe');
@@ -135,39 +153,45 @@ export default function PushNotificationPrompt({
                 return;
             }
 
-            // Step 2: Register service worker if not ready
-            console.log('[Push] Step 2: Waiting for SW ready...');
+            // Step 2: Get service worker registration.
+            // Use a 10-second timeout on serviceWorker.ready to avoid hanging
+            // indefinitely during PWA cold-start while Workbox SW is installing.
+            console.log('[Push] Step 2: Waiting for SW ready (max 10s)...');
             let registration: ServiceWorkerRegistration;
             try {
-                registration = await navigator.serviceWorker.ready;
+                registration = await Promise.race([
+                    navigator.serviceWorker.ready,
+                    new Promise<never>((_, reject) =>
+                        setTimeout(() => reject(new Error('SW ready timeout')), 10000)
+                    ),
+                ]);
                 console.log('[Push] SW ready, scope:', registration.scope);
             } catch (swError) {
-                console.error('[Push] SW not ready:', swError);
-                // Try to register it manually
+                console.warn('[Push] SW not ready in time, registering manually...');
                 try {
                     registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
                     console.log('[Push] Manually registered SW, scope:', registration.scope);
-                    // Wait for it to activate
+                    // Wait for activation (installing → activated)
                     await new Promise<void>((resolve) => {
                         if (registration.active) {
                             resolve();
-                        } else {
-                            const sw = registration.installing || registration.waiting;
-                            if (sw) {
-                                sw.addEventListener('statechange', function handler() {
-                                    if (sw.state === 'activated') {
-                                        sw.removeEventListener('statechange', handler);
-                                        resolve();
-                                    }
-                                });
-                            } else {
+                            return;
+                        }
+                        const waitFor = registration.installing || registration.waiting;
+                        if (!waitFor) { resolve(); return; }
+                        const handler = () => {
+                            if (waitFor.state === 'activated') {
+                                waitFor.removeEventListener('statechange', handler);
                                 resolve();
                             }
-                        }
+                        };
+                        waitFor.addEventListener('statechange', handler);
+                        // Safety: also resolve after 5s in case statechange never fires
+                        setTimeout(resolve, 5000);
                     });
                 } catch (regError) {
                     console.error('[Push] Failed to register SW:', regError);
-                    setErrorMessage('Nie udało się zarejestrować Service Workera');
+                    setErrorMessage('Nie udało się zarejestrować Service Workera. Spróbuj odświeżyć aplikację.');
                     setStatus('error');
                     setLoading(false);
                     return;

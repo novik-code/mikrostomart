@@ -11,6 +11,7 @@ self.addEventListener('push', function (event) {
             icon: data.icon || '/icon-192x192.png',
             badge: '/icon-192x192.png',
             tag: data.tag || 'mikrostomart-notification',
+            renotify: true, // Always show even if same tag — don't silently replace
             data: {
                 url: data.url || '/',
             },
@@ -43,5 +44,39 @@ self.addEventListener('notificationclick', function (event) {
             // Open new window/tab
             return clients.openWindow(url);
         })
+    );
+});
+
+/**
+ * pushsubscriptionchange — fires when the browser rotates/expires a push endpoint.
+ * Re-subscribes automatically and POSTs the new subscription to the server.
+ * NOTE: iOS Safari does NOT support this event (as of iOS 17) — the client-side
+ * renewal in PushNotificationPrompt.tsx handles iOS recovery instead.
+ */
+self.addEventListener('pushsubscriptionchange', function (event) {
+    console.log('[PushSW] pushsubscriptionchange — re-subscribing...');
+
+    event.waitUntil(
+        (async () => {
+            try {
+                // Re-subscribe with the same VAPID options as the old subscription
+                const options = event.oldSubscription
+                    ? event.oldSubscription.options
+                    : { userVisibleOnly: true };
+
+                const newSub = await self.registration.pushManager.subscribe(options);
+                console.log('[PushSW] Re-subscribed:', newSub.endpoint.substring(0, 60));
+
+                // POST to server — no auth needed since this is called by the SW
+                // The server upserts on endpoint conflict so this is idempotent
+                await fetch('/api/push/resubscribe', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ subscription: newSub.toJSON() }),
+                });
+            } catch (err) {
+                console.error('[PushSW] Re-subscribe failed:', err);
+            }
+        })()
     );
 });

@@ -53,14 +53,22 @@ export async function sendPushToUser(
         .from('push_subscriptions')
         .select('*')
         .eq('user_id', userId)
-        .eq('user_type', userType);
+        .eq('user_type', userType)
+        .order('created_at', { ascending: false }); // newest first for dedup
 
     if (!subs || subs.length === 0) return { sent: 0, failed: 0 };
+
+    // Dedup: keep at most 2 subscriptions per user (multi-device) and skip
+    // duplicate endpoints (stale rows with same endpoint after key rotation)
+    const deduped = dedupSubsByUser(subs, 2);
+    const sentEndpoints = new Set<string>();
 
     let sent = 0;
     let failed = 0;
 
-    for (const sub of subs) {
+    for (const sub of deduped) {
+        if (sentEndpoints.has(sub.endpoint)) continue; // exact duplicate endpoint — skip
+        sentEndpoints.add(sub.endpoint);
         try {
             await webpush.sendNotification(
                 {
