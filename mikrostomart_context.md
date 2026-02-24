@@ -2060,6 +2060,16 @@ NODE_ENV=production
 - `94c1ca1` — fix: remove invalid metadata export from 'use client' component (/aplikacja page)
 - `7ab7146` — feat: add 'SMS tydzień po wizycie' admin panel tab
 - `1354429` — fix: post-visit SMS — encoding error + draft flow + admin review
+- `0bdfc9c` — feat: SMS tabs auto-load on entry, delete-all drafts, week-after-visit draft controls
+- `ec185c1` — fix: SMS isolation + Pani/Panie salutation + skip reasons panel
+
+**`ec185c1` — 3 critical UX/logic fixes for post-visit & week-after-visit SMS:**
+- **Bug #1 — Skipped reasons**: Both crons now return `skippedDetails[]` with `{name, doctor, time, reason}` for every skipped appointment. Reasons: no phone | not working hour | outside 08:00–20:00 | doctor not in list | already sent. Admin panel shows a collapsible yellow `<details>` panel after running the cron manually — each row shows patient name, time, doctor, and the exact skip reason.
+- **Bug #2 — SMS misz-masz in wrong tab**: Post-visit and week-after-visit drafts were appearing in the SMS Przypomnienia tab because `sms-auto-send` had no type filter and `appointment-reminders` set no `sms_type`. Fixed:
+  - `sms-auto-send` → `.or('sms_type.eq.reminder,sms_type.is.null')` filter
+  - `appointment-reminders` → inserts with `sms_type: 'reminder'`
+  - `admin/fetchSmsReminders` → fetches `?sms_type=reminder` only
+- **Bug #3 — Pani/Panie salutation**: Added `detectGender(firstName)` + `buildSalutation()` (female names end in 'a' → "Pani X", otherwise "Panie X"). Both cron templates updated: `"Dziekujemy za wizyte, {salutation}!"`. `smsService.formatSMSMessage` now supports `{salutation}` variable.
 
 **`1354429` — Critical SMS fixes** (`src/lib/smsService.ts`, `src/app/api/cron/post-visit-sms/route.ts`, `src/app/api/cron/week-after-visit-sms/route.ts`):
 - **Bug fix — SMSAPI error 11**: Added `encoding: 'utf-8'` to SMSAPI request body. Without it, SMSAPI rejects any message with Polish chars or emoji.
