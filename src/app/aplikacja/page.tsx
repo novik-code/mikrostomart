@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 
-export const metadata = undefined; // client component so metadata is in separate file
+
 
 const BRAND = '#dcb14a';
 const BRAND_LIGHT = '#f0c975';
