@@ -2065,6 +2065,12 @@ NODE_ENV=production
 - `49d1eb5` — fix: SMS crons — isWorkingHour bool coercion + visible error routing
 - `547e576` — fix: SMS draft count mismatch — unique constraint + NOT NULL fixes (migration 046)
 - `b06893c` — feat: task multi-photo + comment input fix + image compression (migration 047)
+- `807a611` — fix: push notification duplicates + task history expand in modal
+
+**`807a611` — Push & History fixes (Feb 24):**
+- **Push 8×dup ROOT CAUSE FIX** (`webpush.ts` `sendPushByConfig`): added `sentEndpoints: Set<string>` persisting across all group iterations — a user whose `employee_groups` matched multiple configured groups now receives exactly 1 push instead of 1 per matching group
+- **Task history in detail modal**: `selectedViewTask` popup now shows expandable history section (same `taskHistoryExpanded` toggle as card inline view) — previously only static count was shown
+- **Manual push double-send fix** (`employee/push/send` route): rewrote to collect all target user_ids from groups via DB into a Set, merge with explicit userIds, then call `sendPushToSpecificUsers` once — eliminates group+userId overlap duplication
 
 **`b06893c` — Employee task fixes (Feb 24):**
 - **Comment input in detail modal**: Full comment section (all comments + input field) now visible in `selectedViewTask` popup modal — previously only existed in collapsed task card inline view
