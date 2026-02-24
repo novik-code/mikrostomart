@@ -2060,6 +2060,53 @@ NODE_ENV=production
 - `src/app/api/admin/employees/route.ts` — Full rewrite: 74-day Prodentis scan, Supabase cross-reference, registered employees section
 - `mikrostomart_context.md` — Comprehensive documentation update (70+ lines added/modified)
 
+### February 24, 2026 (batch 6)
+**Employee Tab Nav Fix + Task History Crash Fix + /aplikacja Landing Page Fixes**
+
+#### Commits:
+- `9869abb` — fix: tab nav 100% inline styles + JS isMobile detection, z-index 9999
+- `e5cc54c` — fix: task history crash when image_urls/complex fields in changes
+- `f80d13a` — fix: /aplikacja landing page — broken register links + navbar overlap + duplicate tab
+
+**`9869abb` — Definitive employee tab navigation fix (Feb 24):**
+- **Problem**: Employee panel (Grafik/Zadania/AI/Alerty) tabs disappeared on mobile. CSS class-based approach (globals.css + styled-jsx) proved unreliable in Next.js App Router client components.
+- **Root causes found (in sequence)**:
+  1. `styled-jsx global` not applying in App Router client components → moved to `globals.css`
+  2. `useSearchParams()` without `<Suspense>` boundary → render bailout → replaced with `window.location.search` in `useEffect`
+  3. CSS classes still unreliable → final fix: 100% inline styles
+- **Final fix**: Replaced `className="pw-tab-bar"` with `style={isMobile ? {...} : {...}}` ternary
+  - `isMobile` state set via `window.matchMedia('(max-width: 767px)')` in `useEffect` with change listener
+  - Mobile: `position:fixed; bottom:0; z-index: 9999` — guaranteed above all other UI
+  - Each tab `flex:1`, vertical icon+label layout, `borderTop` active indicator
+  - Desktop: horizontal top bar with `borderBottom` active indicator  
+  - Added spacer `<div style={{height:'64px'}}>` on mobile so content isn't hidden behind fixed nav
+  - Zero dependency on any CSS file — always renders correctly
+- **Files**: `src/app/pracownik/page.tsx`
+
+**`e5cc54c` — Task history client-side crash fix (Feb 24):**
+- **Problem**: Clicking "Historia zmian" (edit history) on tasks like "Mruczek Damian w trakcie" and "plan leczenia Wójtowicz Piotr" crashed with "Application error: a client-side exception"
+- **Root cause**: `task_history.changes` JSONB can store arrays (e.g. `image_urls: { old: [url1, url2], new: [url3] }`) or objects. The renderer did `val.old || '—'` which returned the array directly — React cannot render arrays as JSX children.
+- **Fix**: Added defensive `toStr(v)` helper in both history rendering blocks:
+  - `Array` + image_urls/image_url key → `📷 ×N`
+  - `Array` (other keys) → `[N elem.]`  
+  - `Object` → `JSON.stringify(v).substring(0, 60)`
+  - Primitive → `String(v)` or `—`
+- Also added `patient_id` and `linked_appointment_info` to skip list (alongside `assigned_to_doctor_id`)
+- **Both rendering copies fixed**: task list inline view (line ~3203) AND selectedViewTask modal (line ~4134)
+- **Files**: `src/app/pracownik/page.tsx`
+
+**`f80d13a` — /aplikacja landing page fixes (Feb 24):**
+- **Bug 1 — Broken register links (404)**: Both `href="/strefa-pacjenta/register"` → 404 (directory with no `page.tsx`). Fixed to `/strefa-pacjenta/register/verify` (entry point of multi-step registration flow).
+- **Bug 2 — Global Navbar overlap**: `ThemeLayout` renders global Navbar on every page including /aplikacja which has its own `<nav>`. Fix: `useEffect` in `/aplikacja/page.tsx` injects `<style id='hide-global-nav'>` targeting `nav[class*="Navbar"], footer[class*="Footer"] { display:none !important }` on mount, removes on unmount.
+- **Bug 3 — Duplicate Instalacja tab**: "Konfiguracja konta" section had `Instalacja` tab showing iOS-only StepCards — identical content to the full install section above. Removed the tab; section now has only `Konto` and `Powiadomienia` tabs (starting with `account`). State type narrowed from `'install'|'account'|'push'` to `'account'|'push'`.
+- **Files**: `src/app/aplikacja/page.tsx`
+
+#### Files Modified:
+- `src/app/pracownik/page.tsx` — tab nav inline styles + isMobile state + history crash fix
+- `src/app/aplikacja/page.tsx` — register links, navbar hide, duplicate tab removal
+
+---
+
 ### February 24, 2026 (batch 5)
 **Week-After-Visit App Promotion SMS + /aplikacja PWA Landing Page + Admin Panel Tab + SMS Bug Fixes**
 
@@ -2084,6 +2131,7 @@ NODE_ENV=production
 - `5d3480e` — fix: replace useSearchParams with window.location — fixes tab nav disappearing
 - `9869abb` — fix: tab nav 100% inline styles + JS isMobile — definitive mobile fix
 - `e5cc54c` — fix: task history crash for image_urls/complex fields (defensive toStr helper)
+- `f80d13a` — fix: /aplikacja landing page — broken register links + navbar overlap + duplicate tab
 - `b880ef1` — feat: Google Calendar ↔ task sync — delete task removes calendar event (migration 049)
 
 **`b880ef1` — Google Calendar task sync (Feb 24):**
@@ -2209,13 +2257,13 @@ NODE_ENV=production
 
 #### New Page: `/aplikacja` — PWA Install Landing Page
 
-**`src/app/aplikacja/page.tsx`** — premium marketing landing page:
-- **Nav**: transparent → glassmorphism scroll effect
+**`src/app/aplikacja/page.tsx`** — premium marketing landing page (fixed in batch 6):
+- **Nav**: transparent → glassmorphism scroll effect; global Navbar hidden via injected CSS (`nav[class*='Navbar'] display:none`)
 - **Hero**: h1 with gradient branding + mock phone UI with animated app preview
 - **Benefits grid**: 6 cards — terminy, czat, dokumentacja, push, opinie, szybkość
 - **Install guide**: togglable iOS (Safari) / Android (Chrome) step cards
-- **Setup tabs**: Instalacja / Konto / Powiadomienia push — each with 4-step cards
-- **CTA**: double button (install + register), full brand theming
+- **Setup tabs**: Konto / Powiadomienia push — each with 4-step cards (Instalacja tab removed — duplicated main install section)
+- **CTA**: double button (install + register → `/strefa-pacjenta/register/verify`), full brand theming
 - Brand: `#dcb14a` gold on `#0a0a0f` dark
 
 #### Files:
