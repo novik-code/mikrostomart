@@ -2053,12 +2053,31 @@ NODE_ENV=production
 - `mikrostomart_context.md` — Comprehensive documentation update (70+ lines added/modified)
 
 ### February 24, 2026 (batch 5)
-**Week-After-Visit App Promotion SMS + /aplikacja PWA Landing Page + Admin Panel Tab**
+**Week-After-Visit App Promotion SMS + /aplikacja PWA Landing Page + Admin Panel Tab + SMS Bug Fixes**
 
 #### Commits:
 - `d9b23da` — feat: week-after-visit app promotion SMS + /aplikacja PWA landing page
 - `94c1ca1` — fix: remove invalid metadata export from 'use client' component (/aplikacja page)
 - `7ab7146` — feat: add 'SMS tydzień po wizycie' admin panel tab
+- `1354429` — fix: post-visit SMS — encoding error + draft flow + admin review
+
+**`1354429` — Critical SMS fixes** (`src/lib/smsService.ts`, `src/app/api/cron/post-visit-sms/route.ts`, `src/app/api/cron/week-after-visit-sms/route.ts`):
+- **Bug fix — SMSAPI error 11**: Added `encoding: 'utf-8'` to SMSAPI request body. Without it, SMSAPI rejects any message with Polish chars or emoji.
+- **Bug fix — wrong patient filtering**: Both post-visit crons rewritten to use identical filtering as the working `appointment-reminders`:
+  - `isWorkingHour === true` check (white calendar slots only)
+  - Business hours window 08:00–20:00
+  - `isDoctorInList()` fuzzy matching
+  - Elżbieta Nowosielska custom 08:30–16:00 exception
+- **New flow — Draft → Admin Review → Auto-Send**:
+  - Cron generates DRAFT records (`status='draft'`) instead of direct sends
+  - 🔔 Push notification sent to admin: "Check drafts in panel admin"
+  - Admin can edit text, delete, or send-now per individual draft
+  - "Wyślij wszystkie szkice" bulk button in panel
+  - New `post-visit-auto-send` cron (Stage 2) fires ~1h after draft cron and sends remaining drafts
+- **New files**:
+  - `src/app/api/cron/post-visit-auto-send/route.ts` — Stage 2 auto-send, handles both `post_visit` and `week_after_visit`
+  - `src/app/api/admin/sms-send/route.ts` — single-draft immediate send endpoint
+- **Vercel.json**: `post-visit-sms` @ 18:00 UTC → `post-visit-auto-send` @ 19:00 UTC; `week-after-visit-sms` @ 09:00 UTC → `post-visit-auto-send?sms_type=week_after_visit` @ 10:00 UTC
 
 **`7ab7146` — Admin Panel: "📱 SMS tydzień po wizycie" tab** (`src/app/admin/page.tsx`):
 - New sidebar nav item below "SMS po wizycie", green accent (`#34d399`) to distinguish visually
