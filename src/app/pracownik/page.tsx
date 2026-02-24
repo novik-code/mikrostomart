@@ -287,6 +287,7 @@ export default function EmployeePage() {
     const [editSaving, setEditSaving] = useState(false);
     const [zoomedImage, setZoomedImage] = useState<string | null>(null);
     const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
+    const [selectedViewTask, setSelectedViewTask] = useState<EmployeeTask | null>(null);
     const [taskHistory, setTaskHistory] = useState<any[]>([]);
     const [taskHistoryLoading, setTaskHistoryLoading] = useState(false);
     const [taskHistoryExpanded, setTaskHistoryExpanded] = useState(false);
@@ -2622,21 +2623,16 @@ export default function EmployeePage() {
                                                     cursor: 'pointer',
                                                 }}
                                                 onClick={() => {
-                                                    const newId = expandedTaskId === task.id ? null : task.id;
-                                                    setExpandedTaskId(newId);
+                                                    setSelectedViewTask(task);
                                                     setTaskHistoryExpanded(false);
-                                                    if (newId) {
-                                                        // Fetch history
-                                                        setTaskHistoryLoading(true);
-                                                        setTaskHistory([]);
-                                                        fetch(`/api/employee/tasks/${newId}?history=true`)
-                                                            .then(r => r.json())
-                                                            .then(d => setTaskHistory(d.history || []))
-                                                            .catch(() => setTaskHistory([]))
-                                                            .finally(() => setTaskHistoryLoading(false));
-                                                        // Fetch comments
-                                                        fetchComments(newId);
-                                                    }
+                                                    setTaskHistory([]);
+                                                    setTaskHistoryLoading(true);
+                                                    fetch(`/api/employee/tasks/${task.id}?history=true`)
+                                                        .then(r => r.json())
+                                                        .then(d => setTaskHistory(d.history || []))
+                                                        .catch(() => setTaskHistory([]))
+                                                        .finally(() => setTaskHistoryLoading(false));
+                                                    fetchComments(task.id);
                                                 }}
                                             >
                                                 {/* Status button */}
@@ -3178,12 +3174,26 @@ export default function EmployeePage() {
                                                         draggable
                                                         onDragStart={() => handleDragStart(task.id)}
                                                         onDragEnd={handleDragEnd}
+                                                        onClick={(e) => {
+                                                            // Only open if not dragging
+                                                            if (draggedTaskId) return;
+                                                            setSelectedViewTask(task);
+                                                            setTaskHistoryExpanded(false);
+                                                            setTaskHistory([]);
+                                                            setTaskHistoryLoading(true);
+                                                            fetch(`/api/employee/tasks/${task.id}?history=true`)
+                                                                .then(r => r.json())
+                                                                .then(d => setTaskHistory(d.history || []))
+                                                                .catch(() => setTaskHistory([]))
+                                                                .finally(() => setTaskHistoryLoading(false));
+                                                            fetchComments(task.id);
+                                                        }}
                                                         style={{
                                                             background: draggedTaskId === task.id ? 'rgba(56,189,248,0.1)' : 'rgba(255,255,255,0.04)',
                                                             border: '1px solid rgba(255,255,255,0.08)',
                                                             borderRadius: '0.5rem',
                                                             padding: '0.6rem 0.75rem',
-                                                            cursor: 'grab',
+                                                            cursor: draggedTaskId ? 'grabbing' : 'pointer',
                                                             opacity: draggedTaskId === task.id ? 0.5 : 1,
                                                             transition: 'all 0.15s',
                                                         }}
@@ -3287,7 +3297,18 @@ export default function EmployeePage() {
                                             {dayTasks.slice(0, 3).map(t => (
                                                 <div
                                                     key={t.id}
-                                                    onClick={() => openEditModal(t)}
+                                                    onClick={() => {
+                                                        setSelectedViewTask(t);
+                                                        setTaskHistoryExpanded(false);
+                                                        setTaskHistory([]);
+                                                        setTaskHistoryLoading(true);
+                                                        fetch(`/api/employee/tasks/${t.id}?history=true`)
+                                                            .then(r => r.json())
+                                                            .then(d => setTaskHistory(d.history || []))
+                                                            .catch(() => setTaskHistory([]))
+                                                            .finally(() => setTaskHistoryLoading(false));
+                                                        fetchComments(t.id);
+                                                    }}
                                                     style={{
                                                         fontSize: '0.55rem',
                                                         padding: '0.1rem 0.2rem',
@@ -3729,6 +3750,178 @@ export default function EmployeePage() {
                 </div>
             )
             }
+
+            {/* ═══ TASK DETAIL MODAL ═══ */}
+            {selectedViewTask && (
+                <div
+                    onClick={() => setSelectedViewTask(null)}
+                    style={{
+                        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)',
+                        zIndex: 3000, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        padding: '1rem',
+                    }}
+                >
+                    <div
+                        onClick={e => e.stopPropagation()}
+                        style={{
+                            background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+                            border: '1px solid rgba(255,255,255,0.1)',
+                            borderRadius: '1rem',
+                            width: '100%',
+                            maxWidth: '560px',
+                            maxHeight: '90vh',
+                            overflowY: 'auto',
+                            padding: '1.5rem',
+                            boxShadow: '0 25px 50px rgba(0,0,0,0.7)',
+                        }}
+                    >
+                        {/* Header */}
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', marginBottom: '1rem' }}>
+                            <button
+                                onClick={() => {
+                                    handleUpdateStatus(selectedViewTask.id, getNextStatus(selectedViewTask.status));
+                                    setSelectedViewTask(prev => prev ? { ...prev, status: getNextStatus(prev.status) } : null);
+                                }}
+                                title={`Zmień na: ${getStatusLabel(getNextStatus(selectedViewTask.status))}`}
+                                style={{
+                                    width: '28px', height: '28px', borderRadius: '50%', flexShrink: 0, marginTop: '2px',
+                                    border: `2px solid ${getStatusColor(selectedViewTask.status)}`,
+                                    background: selectedViewTask.status === 'done' ? getStatusColor(selectedViewTask.status) : 'transparent',
+                                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff',
+                                }}
+                            >
+                                {selectedViewTask.status === 'done' && '✓'}
+                            </button>
+                            <div style={{ flex: 1 }}>
+                                <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: '700', color: '#fff', lineHeight: 1.3 }}>
+                                    {selectedViewTask.priority === 'urgent' && <span style={{ color: '#ef4444', marginRight: '0.3rem' }}>⚡</span>}
+                                    {selectedViewTask.title}
+                                </h3>
+                                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.4rem', alignItems: 'center' }}>
+                                    <span style={{ fontSize: '0.7rem', padding: '0.15rem 0.5rem', borderRadius: '1rem', background: `${getStatusColor(selectedViewTask.status)}22`, color: getStatusColor(selectedViewTask.status), border: `1px solid ${getStatusColor(selectedViewTask.status)}44` }}>
+                                        {getStatusLabel(selectedViewTask.status)}
+                                    </span>
+                                    <span style={{ fontSize: '0.7rem', padding: '0.15rem 0.5rem', borderRadius: '1rem', background: `${getPriorityColor(selectedViewTask.priority)}22`, color: getPriorityColor(selectedViewTask.priority), border: `1px solid ${getPriorityColor(selectedViewTask.priority)}44` }}>
+                                        {getPriorityLabel(selectedViewTask.priority)}
+                                    </span>
+                                    {selectedViewTask.is_private && <span style={{ fontSize: '0.7rem', color: '#a78bfa' }}>🔒 Prywatne</span>}
+                                    {selectedViewTask.task_type && <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)' }}>{selectedViewTask.task_type}</span>}
+                                </div>
+                            </div>
+                            <button onClick={() => setSelectedViewTask(null)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: '1.2rem', padding: '0', flexShrink: 0 }}>✕</button>
+                        </div>
+
+                        {/* Meta info row */}
+                        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1rem', fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)' }}>
+                            {selectedViewTask.due_date && (
+                                <span style={{ color: new Date(selectedViewTask.due_date) < new Date() && selectedViewTask.status !== 'done' ? '#ef4444' : 'rgba(255,255,255,0.5)' }}>
+                                    📅 {new Date(selectedViewTask.due_date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                    {selectedViewTask.due_time && ` o ${selectedViewTask.due_time}`}
+                                </span>
+                            )}
+                            {selectedViewTask.patient_name && <span>👤 {selectedViewTask.patient_name}</span>}
+                            {selectedViewTask.assigned_to && selectedViewTask.assigned_to.length > 0 && (
+                                <span>👥 {selectedViewTask.assigned_to.map((a: any) => a.name || a).join(', ')}</span>
+                            )}
+                        </div>
+
+                        {/* Description */}
+                        {selectedViewTask.description && (
+                            <div style={{ marginBottom: '1rem', padding: '0.75rem 1rem', background: 'rgba(255,255,255,0.04)', borderRadius: '0.5rem', fontSize: '0.82rem', color: 'rgba(255,255,255,0.75)', lineHeight: 1.6 }}>
+                                {selectedViewTask.description}
+                            </div>
+                        )}
+
+                        {/* Checklist */}
+                        {selectedViewTask.checklist_items && selectedViewTask.checklist_items.length > 0 && (
+                            <div style={{ marginBottom: '1rem' }}>
+                                <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.4rem', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                    Lista kontrolna ({selectedViewTask.checklist_items.filter(ci => ci.done).length}/{selectedViewTask.checklist_items.length})
+                                </div>
+                                {/* Progress bar */}
+                                <div style={{ height: '3px', background: 'rgba(255,255,255,0.08)', borderRadius: '2px', overflow: 'hidden', marginBottom: '0.5rem' }}>
+                                    <div style={{ width: `${(selectedViewTask.checklist_items.filter(ci => ci.done).length / selectedViewTask.checklist_items.length) * 100}%`, height: '100%', background: selectedViewTask.checklist_items.every(ci => ci.done) ? '#22c55e' : '#38bdf8', transition: 'width 0.3s' }} />
+                                </div>
+                                {selectedViewTask.checklist_items.map((ci, idx) => (
+                                    <label key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.3rem 0', cursor: 'pointer' }}>
+                                        <input
+                                            type="checkbox" checked={ci.done}
+                                            onChange={() => {
+                                                handleToggleChecklist(selectedViewTask.id, idx);
+                                                setSelectedViewTask(prev => {
+                                                    if (!prev) return null;
+                                                    const newItems = prev.checklist_items!.map((item, i) => i === idx ? { ...item, done: !item.done } : item);
+                                                    return { ...prev, checklist_items: newItems };
+                                                });
+                                            }}
+                                            style={{ accentColor: '#38bdf8', width: '14px', height: '14px' }}
+                                        />
+                                        <span style={{ fontSize: '0.82rem', color: ci.done ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.8)', textDecoration: ci.done ? 'line-through' : 'none' }}>{ci.label}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* Comments preview */}
+                        {(taskComments[selectedViewTask.id] || []).length > 0 && (
+                            <div style={{ marginBottom: '1rem' }}>
+                                <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.4rem', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                    Komentarze ({(taskComments[selectedViewTask.id] || []).length})
+                                </div>
+                                {(taskComments[selectedViewTask.id] || []).slice(0, 3).map((c: any) => (
+                                    <div key={c.id} style={{ padding: '0.4rem 0.6rem', background: 'rgba(255,255,255,0.04)', borderRadius: '0.4rem', marginBottom: '0.3rem', fontSize: '0.78rem' }}>
+                                        <span style={{ color: '#38bdf8', fontWeight: '600', fontSize: '0.7rem' }}>{c.author_email?.split('@')[0]}</span>
+                                        <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.65rem', marginLeft: '0.4rem' }}>{new Date(c.created_at).toLocaleDateString('pl-PL')}</span>
+                                        <div style={{ color: 'rgba(255,255,255,0.7)', marginTop: '0.2rem' }}>{c.content}</div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* History summary */}
+                        {taskHistoryLoading && <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.3)', marginBottom: '0.75rem' }}>Ładowanie historii...</div>}
+                        {!taskHistoryLoading && taskHistory.length > 0 && (
+                            <div style={{ marginBottom: '1rem', fontSize: '0.72rem', color: 'rgba(255,255,255,0.35)' }}>
+                                📝 {taskHistory.length} {taskHistory.length === 1 ? 'zmiana' : 'zmiany/zmian'} w historii
+                            </div>
+                        )}
+
+                        {/* Action buttons */}
+                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', paddingTop: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+                            <button
+                                onClick={() => {
+                                    const task = selectedViewTask;
+                                    setSelectedViewTask(null);
+                                    openEditModal(task);
+                                }}
+                                style={{ flex: 1, padding: '0.6rem 1rem', background: 'rgba(56,189,248,0.15)', border: '1px solid rgba(56,189,248,0.3)', borderRadius: '0.5rem', color: '#38bdf8', cursor: 'pointer', fontSize: '0.82rem', fontWeight: '600' }}
+                            >
+                                ✏️ Edytuj zadanie
+                            </button>
+                            {(['todo', 'in_progress', 'done'] as const).map(s => s !== selectedViewTask.status && (
+                                <button
+                                    key={s}
+                                    onClick={() => {
+                                        handleUpdateStatus(selectedViewTask.id, s);
+                                        setSelectedViewTask(prev => prev ? { ...prev, status: s } : null);
+                                    }}
+                                    style={{ padding: '0.6rem 0.75rem', background: `${getStatusColor(s)}15`, border: `1px solid ${getStatusColor(s)}44`, borderRadius: '0.5rem', color: getStatusColor(s), cursor: 'pointer', fontSize: '0.75rem' }}
+                                >
+                                    → {getStatusLabel(s)}
+                                </button>
+                            ))}
+                            {isAdmin && (
+                                <button
+                                    onClick={() => { handleDeleteTask(selectedViewTask.id); setSelectedViewTask(null); }}
+                                    style={{ padding: '0.6rem 0.75rem', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: '0.5rem', color: '#ef4444', cursor: 'pointer', fontSize: '0.75rem' }}
+                                >
+                                    🗑️ Usuń
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* ═══ EDIT TASK MODAL ═══ */}
             {
