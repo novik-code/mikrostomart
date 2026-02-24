@@ -2057,6 +2057,14 @@ NODE_ENV=production
 
 #### Commits:
 - `d763417` — feat: automated post-visit SMS system with Google review detection
+- `dabf362` — feat: varied per-visit fun facts for post-visit SMS (reviewed patients)
+
+**Improvement: `dabf362`** — `post_visit_reviewed` SMS no longer sends the same static message every time. The cron now:
+- Holds a `FUN_FACTS[]` pool of 22 dental fun facts, anecdotes, historical curiosities, and jokes (Polish)
+- Calls `pickFunFact(appointmentId)` — deterministic hash of appointment ID selects a unique fact per visit
+- Template uses `{funFact}` placeholder; `formatSMSMessage()` in `smsService.ts` injects it
+- Admin panel "Szablony" tab now shows `{funFact}` in the variable hint
+- Migration seed updated to use `{funFact}` placeholder
 
 #### New Feature: Automated SMS after each appointment (19:00 Warsaw / 18:00 UTC)
 
