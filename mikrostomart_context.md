@@ -2070,6 +2070,7 @@ NODE_ENV=production
 - `66f632b` — feat: push notification history tab + sendPushToGroups dedup fix (migration 048)
 - `ea03ea1` — fix: push logging + final dedup in sendPushByConfig and sendPushToAllEmployees
 - `2001053` — feat: Telegram notification on new patient registration
+- `527e558` — feat: push notification deep links — auto-navigate to task on click
 
 **`ea03ea1` — Push logging completeness (Feb 24):**
 - **`sendPushByConfig`**: added `loggedUsers Set` (was declared in wrong scope — lint error) + `logPush()` in `sendBatch`. Main task/config notifications now appear in history tab.
