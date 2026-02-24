@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import bcrypt from 'bcryptjs';
 import { Resend } from 'resend';
 import { broadcastPush } from '@/lib/webpush';
+import { sendTelegramNotification } from '@/lib/telegram';
 import { getEmailTemplate } from '@/lib/emailTemplates';
 
 export const dynamic = 'force-dynamic';
@@ -128,6 +129,17 @@ export async function POST(request: Request) {
 
         // Push notification to admin
         broadcastPush('admin', 'patient_registered', { email }, '/admin').catch(console.error);
+
+        // Telegram notification to default channel
+        const now = new Date().toLocaleString('pl-PL', { timeZone: 'Europe/Warsaw', dateStyle: 'short', timeStyle: 'short' });
+        const telegramMsg =
+            `👤 <b>NOWY PACJENT — REJESTRACJA</b>\n\n` +
+            `🔵 <b>ID Prodentis:</b> ${prodentisId}\n` +
+            `📧 <b>Email:</b> ${email}\n` +
+            `📲 <b>Telefon:</b> ${normalizedPhone}\n` +
+            `🕒 <b>Data rejestracji:</b> ${now}\n\n` +
+            `ℹ️ Pacjent musi zweryfikować email, aby aktywować konto.`;
+        sendTelegramNotification(telegramMsg, 'default').catch(console.error);
 
         return NextResponse.json({
             success: true,
