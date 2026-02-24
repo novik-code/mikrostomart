@@ -52,7 +52,7 @@
 
 ### Backend & Database
 - **Supabase** (PostgreSQL database, authentication, storage)
-  - Database: 47 migrations (003-047: email verification, appointment actions, SMS reminders, user_roles, employee tasks, task history, comments, labels, status fix, google reviews cache, chat, push subscriptions, employee_group, push_notification_config, employee_groups array, news/articles/blog/products i18n, calendar tokens, private tasks + reminders, SMS post-visit/week-after-visit, SMS unique constraint fix, task multi-images)
+  - Database: 48 migrations (003-048: email verification, appointment actions, SMS reminders, user_roles, employee tasks, task history, comments, labels, status fix, google reviews cache, chat, push subscriptions, employee_group, push_notification_config, employee_groups array, news/articles/blog/products i18n, calendar tokens, private tasks + reminders, SMS post-visit/week-after-visit, SMS unique constraint fix, task multi-images, **push_notifications_log**)
   - Auth: Email/password, magic links, JWT tokens
   - Storage: Product images, patient documents, task images
 
@@ -798,7 +798,10 @@ Features:
 **Features:**
 1. **Login** (`/pracownik/login`) — Supabase email/password login + "Zapomniałem hasła" link
 2. **Password Reset** (`/pracownik/reset-haslo`) — sends reset email via `/api/auth/reset-password`
-3. **Tab Navigation** — tab bar below header: 📅 **Grafik** | ✅ **Zadania** (`activeTab` state)
+3. **Tab Navigation** — responsive: **top bar on desktop (≥768px)** | **fixed bottom nav on mobile (<768px)**
+   - 4 tabs: 📅 Grafik | ✅ Zadania | 🤖 AI (Asystent AI) | 🔔 Alerty (Powiadomienia)
+   - CSS class `.pw-tab-bar` / `.pw-tab-btn` — no inline styles, media query driven
+   - Bottom bar: equal-width flex columns, icon stack, env(safe-area-inset-bottom) iPhone support
 4. **Weekly Schedule Grid** (Grafik tab, `/pracownik/page.tsx` — ~220KB, 3500+ lines)
    - **Time slots**: 15-minute intervals, 7:00–20:00
    - **Multi-doctor columns**: one column per operator/doctor
@@ -843,10 +846,12 @@ Features:
       - New comment on task -> push (except commenter)
       - Daily cron reminder for tasks without due dates -> push to all
     - Compact `PushNotificationPrompt` toggle in header (subscribe/unsubscribe)
+8. **Powiadomienia tab** (🔔) — push notification history for last 7 days, grouped by day with relative timestamps, tag-based emoji icons (📋 task / 📅 appointment / 🤖 assistant / 📣 manual), loading skeleton, empty state, Refresh button. Clicking a row performs deep-link navigation.
+9. **Push deep links** — all push notifications now send `url: /pracownik?tab=zadania&taskId={id}`. On load, `useSearchParams` reads `?tab=` and `?taskId=` params: auto-switches active tab and opens task modal after tasks load.
     - **Task reminders cron**: daily Telegram + push notification for tasks without due dates (`/api/cron/task-reminders`)
-    - **DB Migrations**: 019 (task_type + checklists), 020 (image_url), 021 (task_history), 022 (multi_assign), 023 (task_comments), 024 (task_labels), 025 (push_subscriptions), 026 (chat_messages)
-8. **Role check**: `hasRole(userId, 'employee') || hasRole(userId, 'admin')`
-9. **Middleware protection**: unauthenticated → redirect to `/pracownik/login`
+    - **DB Migrations**: 019 (task_type + checklists), 020 (image_url), 021 (task_history), 022 (multi_assign), 023 (task_comments), 024 (task_labels), 025 (push_subscriptions), 026 (chat_messages), 027 (notification_history), 028 (task_reminders)
+10. **Role check**: `hasRole(userId, 'employee') || hasRole(userId, 'admin')`
+11. **Middleware protection**: unauthenticated → redirect to `/pracownik/login`
 
 ### 🛡 Admin Panel (`/admin`)
 
@@ -1068,6 +1073,9 @@ Features:
 | `/push/subscribe` | POST | Subscribe to push notifications (upserts into `push_subscriptions`) |
 | `/push/subscribe` | DELETE | Unsubscribe from push notifications |
 | `/push/test` | POST | Send test push notification to verify delivery |
+| `/push/resubscribe` | POST | **NEW** — SW `pushsubscriptionchange` handler: updates rotated endpoint in DB (no auth required, for service worker use) |
+| `/employee/push/history` | GET | **NEW** — Last 7 days of push notifications for logged-in employee from `push_notifications_log` |
+| `/cron/push-cleanup` | GET | **NEW** — Deletes `push_notifications_log` entries older than 7 days. Protected by `CRON_SECRET`. Runs daily at 03:15 UTC (vercel.json cron). |
 
 ### Appointment APIs (`/api/appointments/*`)
 
@@ -2071,6 +2079,19 @@ NODE_ENV=production
 - `ea03ea1` — fix: push logging + final dedup in sendPushByConfig and sendPushToAllEmployees
 - `2001053` — feat: Telegram notification on new patient registration
 - `527e558` — feat: push notification deep links — auto-navigate to task on click
+- `2c273ce` — fix: responsive tab nav — fixed bottom bar on mobile, top tabs on desktop
+
+**`2c273ce` — Mobile tab nav responsive (Feb 24):**
+- **Problem**: 4-tab navigation overflowed on mobile (4×130px > 375px viewport)
+- **Fix**: CSS class-based `.pw-tab-bar` / `.pw-tab-btn` system
+  - Desktop ≥768px: unchanged horizontal top bar, `overflow-x: auto` as safety fallback
+  - Mobile <768px: `position:fixed; bottom:0` bottom nav bar, 4 equal-width columns, icon+label vertical stack, `border-top` active indicator, `env(safe-area-inset-bottom)` padding for iPhone home bar, translucent backdrop blur
+- `.pw-content-area` class on main wrapper adds `padding-bottom` on mobile to prevent content hidden behind nav
+- Labels shortened on mobile: 'Asystent AI'→'AI', 'Powiadomienia'→'Alerty'
+
+**`527e558` — Push deep links (Feb 24):**
+- All task push URLs changed from `/pracownik` to `/pracownik?tab=zadania&taskId={id}` (6 files)
+- `pracownik/page.tsx`: `useSearchParams` reads `?tab=` + `?taskId=` on mount via one-shot `useRef` guard; `deepLinkTaskId` state waits for tasks to load before opening modal
 
 **`ea03ea1` — Push logging completeness (Feb 24):**
 - **`sendPushByConfig`**: added `loggedUsers Set` (was declared in wrong scope — lint error) + `logPush()` in `sendBatch`. Main task/config notifications now appear in history tab.
