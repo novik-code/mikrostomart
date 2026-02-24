@@ -2053,9 +2053,19 @@ NODE_ENV=production
 - `mikrostomart_context.md` — Comprehensive documentation update (70+ lines added/modified)
 
 ### February 24, 2026 (batch 5)
-**Week-After-Visit App Promotion SMS + /aplikacja PWA Landing Page**
+**Week-After-Visit App Promotion SMS + /aplikacja PWA Landing Page + Admin Panel Tab**
 
 #### Commits:
+- `d9b23da` — feat: week-after-visit app promotion SMS + /aplikacja PWA landing page
+- `94c1ca1` — fix: remove invalid metadata export from 'use client' component (/aplikacja page)
+- `7ab7146` — feat: add 'SMS tydzień po wizycie' admin panel tab
+
+**`7ab7146` — Admin Panel: "📱 SMS tydzień po wizycie" tab** (`src/app/admin/page.tsx`):
+- New sidebar nav item below "SMS po wizycie", green accent (`#34d399`) to distinguish visually
+- Sub-tab **Historia**: searchable list of all `week_after_visit` SMS; shows patient, original appointment date, send date, phone, message, status and error badge
+- Sub-tab **Szablon**: edit `week_after_visit` template, variable hints (`{patientFirstName}`, `{appUrl}`), live char counter (amber at 150+, warning at 160+), save + restore
+- Action bar: Odśwież dane + Uruchom cron teraz (shows result with targetDate)
+
 - `d9b23da` — feat: week-after-visit app promotion SMS + /aplikacja PWA landing page
 
 #### New Feature: SMS 7 days after visit — promoting the app
