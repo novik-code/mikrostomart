@@ -2081,6 +2081,7 @@ NODE_ENV=production
 - `527e558` — feat: push notification deep links — auto-navigate to task on click
 - `2c273ce` — fix: responsive tab nav — fixed bottom bar on mobile, top tabs on desktop
 - `1a64c7d` — fix: pw-tab-bar CSS moved to globals.css (styled-jsx global unreliable in App Router)
+- `5d3480e` — fix: replace useSearchParams with window.location — fixes tab nav disappearing
 - `b880ef1` — feat: Google Calendar ↔ task sync — delete task removes calendar event (migration 049)
 
 **`b880ef1` — Google Calendar task sync (Feb 24):**
