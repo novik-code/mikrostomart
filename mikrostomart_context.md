@@ -2063,6 +2063,20 @@ NODE_ENV=production
 - `0bdfc9c` — feat: SMS tabs auto-load on entry, delete-all drafts, week-after-visit draft controls
 - `ec185c1` — fix: SMS isolation + Pani/Panie salutation + skip reasons panel
 - `49d1eb5` — fix: SMS crons — isWorkingHour bool coercion + visible error routing
+- `547e576` — fix: SMS draft count mismatch — unique constraint + NOT NULL fixes (migration 046)
+
+**`547e576` — Root cause fix for draft count mismatch (cron says 37, list shows 19):**
+- **Bug #1**: `UNIQUE(prodentis_id, appointment_date)` from migration 007 — prevents inserting both `post_visit` and `week_after_visit` SMS for the same appointment (same prodentis_id + same date). Second INSERT silently failed.
+- **Bug #2**: `patient_id NOT NULL` and `doctor_id NOT NULL` — cron sets these to null when patient/doctor not found in local DB → INSERT fails with NOT NULL violation.
+- **Migration 046** (`046_fix_sms_unique_constraint.sql`):
+  - Drops `UNIQUE(prodentis_id, appointment_date)` constraint
+  - Makes `patient_id` and `doctor_id` nullable
+  - Adds proper `UNIQUE(prodentis_id, sms_type) WHERE status != 'cancelled'`
+- Both cron INSERTs now use `{ error: insertError }` — Supabase errors go to `skippedDetails[]` (visible in admin panel yellow panel) instead of invisible exceptions
+- `doctor_id` removed from cron INSERTs (not available in post-visit/week-after crons)
+
+⚠️ **REQUIRES**: Run migration 046 in Supabase SQL editor before testing
+
 
 **`49d1eb5` — Root cause fix for missing SMS appointments:**
 - **Bug**: `appointment.isWorkingHour` compared with strict `=== true`, but Prodentis API returns it as string `'true'` for some records → those appointments passed right into the skip bucket without explanation
