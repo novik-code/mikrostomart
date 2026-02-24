@@ -2052,6 +2052,49 @@ NODE_ENV=production
 - `src/app/api/admin/employees/route.ts` — Full rewrite: 74-day Prodentis scan, Supabase cross-reference, registered employees section
 - `mikrostomart_context.md` — Comprehensive documentation update (70+ lines added/modified)
 
+### February 24, 2026 (batch 3)
+**Calendar View: Pulsing Task Counter Badge + Day Tasks Popup**
+
+#### Commits:
+- `3901f8e` — feat: calendar view — pulsing task counter badge + day tasks popup
+
+#### Changes:
+- **Problem**: Calendar cells showed task title text tiles → layout shifts, different cell heights
+- **Solution**: Each cell now shows a single pulsing circular badge with the task count
+  - Blue (normal days) / Red (if any urgent task on that day)
+  - `@keyframes calPulse` — scale pulse + ripple box-shadow, 2s loop
+- **Day tasks popup** (`calendarDayPopup` state): clicking badge opens modal listing all tasks for that day
+  - Each task card: title with ⚡/🔒 icons + status badge + time/patient/checklist meta
+  - Left border colored by task status; hover highlight
+  - Clicking a task opens the task detail modal on top
+- **Files**: `src/app/pracownik/page.tsx`
+
+---
+
+### February 24, 2026 (batch 2)
+**Unified Task Detail Modal for All 3 Views**
+
+#### Commits:
+- `b7f5255` — feat: unified task detail modal for all 3 task views
+
+#### Changes:
+- **New state**: `selectedViewTask: EmployeeTask | null`
+- **New modal** (`TASK DETAIL MODAL`) inserted in JSX before edit modal:
+  - Header: title, status badge (clickable → advances status), priority badge, 🔒/task_type badges
+  - Meta: due date+time, patient name, assignees
+  - Description block
+  - Interactive checklist (checkboxes work directly in modal, optimistic update)
+  - Comments preview (first 3 comments)
+  - History count (async fetch)
+  - Buttons: ✏️ Edytuj (→ closes detail, opens edit form), status change, 🗑️ Usuń (admin only)
+- **Views wired**:
+  - List view: was inline expand → now opens detail modal
+  - Kanban columns: had no onClick → now opens detail modal
+  - Calendar tiles: was `openEditModal` → now opens detail modal
+- **Files**: `src/app/pracownik/page.tsx`
+
+---
+
 ### February 24, 2026 (batch 1)
 **5 Bug Fixes: Schedule Persistence + Task Click + Duration + AI updateTask**
 
@@ -2060,7 +2103,7 @@ NODE_ENV=production
 
 #### Fixes:
 1. **Schedule: persist hiddenDoctors** — lazy-init + save to `localStorage('schedule-hidden-doctors')` in `toggleDoctor/showAll/hideAll`
-2. **Tasks: calendar task click** — calendar view task tiles now have `onClick={() => openEditModal(t)}` + `cursor: pointer`
+2. **Tasks: calendar task click** — now consistently opens `selectedViewTask` detail modal (not edit modal)
 3. **AI updateTask action** — new `updateTask()` in `assistantActions.ts` finds task by `title_query` (ilike) or `task_id`; `merge_checklist` adds items without replacing existing; added to `FUNCTIONS` + dispatcher
 4. **AI system prompt** — "KRYTYCZNE — NIE duplikuj zadań" rule: use `updateTask(merge_checklist)` not `createTask` when user adds to existing task
 5. **Schedule duration (permanent fix)** — `new Date(endDateStr)` → UTC-sensitive on Vercel; replaced with direct string slice `indexOf('T') + slice` for endDate time, same as startTime already was
