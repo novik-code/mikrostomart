@@ -200,32 +200,24 @@ export function formatSMSMessage(
     variables: {
         time?: string;
         doctor?: string;
+        doctorName?: string;
         patientName?: string;
+        patientFirstName?: string;
         appointmentType?: string;
         date?: string;
+        surveyUrl?: string;
     }
 ): string {
     let message = template;
 
-    if (variables.time) {
-        message = message.replace(/{time}/g, variables.time);
-    }
-
-    if (variables.doctor) {
-        message = message.replace(/{doctor}/g, variables.doctor);
-    }
-
-    if (variables.patientName) {
-        message = message.replace(/{patientName}/g, variables.patientName);
-    }
-
-    if (variables.appointmentType) {
-        message = message.replace(/{appointmentType}/g, variables.appointmentType);
-    }
-
-    if (variables.date) {
-        message = message.replace(/{date}/g, variables.date);
-    }
+    if (variables.time) message = message.replace(/{time}/g, variables.time);
+    if (variables.doctor) message = message.replace(/{doctor}/g, variables.doctor);
+    if (variables.doctorName) message = message.replace(/{doctorName}/g, variables.doctorName);
+    if (variables.patientName) message = message.replace(/{patientName}/g, variables.patientName);
+    if (variables.patientFirstName) message = message.replace(/{patientFirstName}/g, variables.patientFirstName);
+    if (variables.appointmentType) message = message.replace(/{appointmentType}/g, variables.appointmentType);
+    if (variables.date) message = message.replace(/{date}/g, variables.date);
+    if (variables.surveyUrl) message = message.replace(/{surveyUrl}/g, variables.surveyUrl);
 
     return message;
 }

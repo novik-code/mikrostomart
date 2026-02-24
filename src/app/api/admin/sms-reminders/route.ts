@@ -29,6 +29,7 @@ export async function GET(req: Request) {
         const url = new URL(req.url);
         const status = url.searchParams.get('status') || 'all';
         const date = url.searchParams.get('date');
+        const smsType = url.searchParams.get('sms_type'); // 'reminder' | 'post_visit' | null (= all)
         const limit = parseInt(url.searchParams.get('limit') || '100');
 
         let query = supabase
@@ -36,6 +37,11 @@ export async function GET(req: Request) {
             .select('*')
             .order('created_at', { ascending: false })
             .limit(limit);
+
+        // Filter by sms_type
+        if (smsType) {
+            query = query.eq('sms_type', smsType);
+        }
 
         // Filter by status
         if (status !== 'all') {
