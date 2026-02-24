@@ -142,11 +142,18 @@ export async function sendTranslatedPushToUser(
         byLocale.get(locale)!.push(sub);
     }
 
+    // Cross-locale endpoint dedup: a user with two subs in different locales
+    // must only receive one notification.
+    const sentEndpoints = new Set<string>();
+    let logged = false; // log only once per user (all subs share same userId)
+
     for (const [locale, localeSubs] of byLocale) {
         const { title, body } = getPushTranslation(notificationType, locale, params);
         const payload: PushPayload = { title, body, url };
 
         for (const sub of localeSubs) {
+            if (sentEndpoints.has(sub.endpoint)) continue;
+            sentEndpoints.add(sub.endpoint);
             try {
                 await webpush.sendNotification(
                     {
@@ -156,7 +163,10 @@ export async function sendTranslatedPushToUser(
                     JSON.stringify(payload)
                 );
                 sent++;
-                logPush(userId, userType, payload); // log for history tab
+                if (!logged) {
+                    logged = true;
+                    logPush(userId, userType, payload); // log for history tab
+                }
             } catch (error: any) {
                 if (error.statusCode === 404 || error.statusCode === 410) {
                     await supabase.from('push_subscriptions').delete().eq('id', sub.id);
@@ -248,7 +258,14 @@ export async function sendPushToAllEmployees(
     let sent = 0;
     let failed = 0;
 
+    // Endpoint-level dedup (safety net for exact duplicate rows)
+    const sentEndpoints = new Set<string>();
+    // Log once per user (not per device sub)
+    const loggedUsers = new Set<string>();
+
     for (const sub of subs) {
+        if (sentEndpoints.has(sub.endpoint)) continue;
+        sentEndpoints.add(sub.endpoint);
         try {
             await webpush.sendNotification(
                 {
@@ -258,6 +275,10 @@ export async function sendPushToAllEmployees(
                 JSON.stringify(payload)
             );
             sent++;
+            if (!loggedUsers.has(sub.user_id)) {
+                loggedUsers.add(sub.user_id);
+                logPush(sub.user_id, sub.user_type || 'employee', payload);
+            }
         } catch (error: any) {
             if (error.statusCode === 404 || error.statusCode === 410) {
                 await supabase.from('push_subscriptions').delete().eq('id', sub.id);
@@ -404,6 +425,8 @@ export async function sendPushByConfig(
     // Without this set, the per-group dedupSubsByUser call would prevent
     // duplicates within a single group, but not across group iterations.
     const sentEndpoints = new Set<string>();
+    // Log once per user across all group iterations
+    const loggedUsers = new Set<string>();
 
     const sendBatch = async (subs: any[]) => {
         // Deduplicate by user_id within this batch first (handles stale rows)
@@ -419,6 +442,11 @@ export async function sendPushByConfig(
                     JSON.stringify(payload)
                 );
                 totalSent++;
+                // Log once per user for the history tab
+                if (!loggedUsers.has(sub.user_id)) {
+                    loggedUsers.add(sub.user_id);
+                    logPush(sub.user_id, sub.user_type || 'employee', payload);
+                }
             } catch (error: any) {
                 if (error.statusCode === 404 || error.statusCode === 410) {
                     await supabase.from('push_subscriptions').delete().eq('id', sub.id);
