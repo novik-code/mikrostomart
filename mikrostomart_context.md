@@ -52,7 +52,7 @@
 
 ### Backend & Database
 - **Supabase** (PostgreSQL database, authentication, storage)
-  - Database: 44 migrations (003-044: email verification, appointment actions, SMS reminders, user_roles, employee tasks, task history, comments, labels, status fix, google reviews cache, chat, push subscriptions, employee_group, push_notification_config, employee_groups array, news/articles/blog/products i18n, calendar tokens, private tasks + reminders, etc.)
+  - Database: 47 migrations (003-047: email verification, appointment actions, SMS reminders, user_roles, employee tasks, task history, comments, labels, status fix, google reviews cache, chat, push subscriptions, employee_group, push_notification_config, employee_groups array, news/articles/blog/products i18n, calendar tokens, private tasks + reminders, SMS post-visit/week-after-visit, SMS unique constraint fix, task multi-images)
   - Auth: Email/password, magic links, JWT tokens
   - Storage: Product images, patient documents, task images
 
@@ -2064,6 +2064,15 @@ NODE_ENV=production
 - `ec185c1` — fix: SMS isolation + Pani/Panie salutation + skip reasons panel
 - `49d1eb5` — fix: SMS crons — isWorkingHour bool coercion + visible error routing
 - `547e576` — fix: SMS draft count mismatch — unique constraint + NOT NULL fixes (migration 046)
+- `b06893c` — feat: task multi-photo + comment input fix + image compression (migration 047)
+
+**`b06893c` — Employee task fixes (Feb 24):**
+- **Comment input in detail modal**: Full comment section (all comments + input field) now visible in `selectedViewTask` popup modal — previously only existed in collapsed task card inline view
+- **Multi-photo support** (max 5 per task): Thumbnail grid 72×72px in both create and edit modals with individual delete buttons; multi-file input; `image_urls: TEXT[]` column added in migration 047
+- **Client-side compression** (`compressImage` fn): Canvas API → JPEG, max 1200px, quality loop until ≤200KB — no external library needed
+- **openEditModal** now initializes `image_urls` from existing task data
+- **Migration 047**: `employee_tasks.image_urls TEXT[] DEFAULT '{}'` + migrates existing `image_url` values
+
 
 **`547e576` — Root cause fix for draft count mismatch (cron says 37, list shows 19):**
 - **Bug #1**: `UNIQUE(prodentis_id, appointment_date)` from migration 007 — prevents inserting both `post_visit` and `week_after_visit` SMS for the same appointment (same prodentis_id + same date). Second INSERT silently failed.
