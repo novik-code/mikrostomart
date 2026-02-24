@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 
 
-
 const BRAND = '#dcb14a';
 const BRAND_LIGHT = '#f0c975';
 const DARK = '#0a0a0f';
@@ -107,9 +106,18 @@ function StepCard({ n, title, desc, color }: { n: string; title: string; desc: s
 
 export default function AplikacjaPage() {
     const [activeOs, setActiveOs] = useState<'ios' | 'android'>('ios');
-    const [activeSection, setActiveSection] = useState<'install' | 'account' | 'push'>('install');
+    const [activeSection, setActiveSection] = useState<'account' | 'push'>('account');
     const heroRef = useRef<HTMLDivElement>(null);
     const [scrollY, setScrollY] = useState(0);
+
+    // Hide global Navbar and Footer on this standalone landing page
+    useEffect(() => {
+        const style = document.createElement('style');
+        style.id = 'hide-global-nav';
+        style.textContent = 'nav[class*="Navbar"], footer[class*="Footer"] { display: none !important; }';
+        document.head.appendChild(style);
+        return () => document.getElementById('hide-global-nav')?.remove();
+    }, []);
 
     useEffect(() => {
         const handler = () => setScrollY(window.scrollY);
@@ -235,7 +243,7 @@ export default function AplikacjaPage() {
                     }}>
                         📲 Jak zainstalować?
                     </a>
-                    <a href="/strefa-pacjenta/register" style={{
+                    <a href="/strefa-pacjenta/register/verify" style={{
                         padding: '1rem 2rem',
                         background: 'transparent',
                         border: '1px solid rgba(255,255,255,0.2)',
@@ -410,10 +418,9 @@ export default function AplikacjaPage() {
                     <h2 style={{ fontSize: 'clamp(1.8rem, 4vw, 2.5rem)', fontWeight: 900 }}>Konfiguracja konta</h2>
                 </div>
 
-                {/* Tab switch */}
+                {/* Tab switch — Installation tab removed (it's already above), only Account + Push */}
                 <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', marginBottom: '2rem', flexWrap: 'wrap' }}>
                     {([
-                        { key: 'install', label: '📲 Instalacja' },
                         { key: 'account', label: '👤 Konto' },
                         { key: 'push', label: '🔔 Powiadomienia' },
                     ] as const).map(tab => (
@@ -432,7 +439,6 @@ export default function AplikacjaPage() {
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                    {activeSection === 'install' && (stepsIos).map(s => <StepCard key={s.n} {...s} color={BRAND} />)}
                     {activeSection === 'account' && accountSteps.map(s => <StepCard key={s.n} {...s} color='#38bdf8' />)}
                     {activeSection === 'push' && pushSteps.map(s => <StepCard key={s.n} {...s} color='#a78bfa' />)}
                 </div>
@@ -466,7 +472,7 @@ export default function AplikacjaPage() {
                         }}>
                             📲 Zainstaluj teraz — za darmo
                         </a>
-                        <a href="/strefa-pacjenta/register" style={{
+                        <a href="/strefa-pacjenta/register/verify" style={{
                             padding: '1rem 2rem',
                             background: 'transparent',
                             border: '1px solid rgba(255,255,255,0.2)',
