@@ -2067,6 +2067,15 @@ NODE_ENV=production
 - `b06893c` — feat: task multi-photo + comment input fix + image compression (migration 047)
 - `807a611` — fix: push notification duplicates + task history expand in modal
 - `eb3fb2c` — fix: PWA push reliability — SW timeout, iOS renewal, dedup fixes
+- `66f632b` — feat: push notification history tab + sendPushToGroups dedup fix (migration 048)
+
+**`66f632b` — Push history + last dedup fix (Feb 24):**
+- **sendPushToGroups dedup FIX** (`webpush.ts`): added cross-group `sentEndpoints Set` + `loggedUsers Set` at function scope. Last remaining duplicate source — user in multiple groups received 1 push per matching group passed to `sendPushToGroups`.
+- **`logPush()` helper**: inserts row into `push_notifications_log` fire-and-forget after each successful send in `sendPushToUser`, `sendTranslatedPushToUser`, `sendPushToGroups` — one row per user per send.
+- **Migration 048** `push_notifications_log` table: `(id, user_id, user_type, title, body, url, tag, sent_at)`, RLS policy (employees read own rows), indexed on `(user_id, sent_at DESC)`.
+- **GET `/api/employee/push/history`**: last 7 days of push notifications for logged-in employee.
+- **GET `/api/cron/push-cleanup`**: daily cron (03:15 UTC) deletes entries older than 7 days.
+- **Powiadomienia tab** (`pracownik/page.tsx`): 4th tab 🔔 with grouped-by-day history list, relative timestamps, tag-based icons (📋 task / 📅 appointment / 🤖 assistant / 📣 manual), loading skeleton, empty state, Refresh button.
 
 **`eb3fb2c` — PWA push reliability (Feb 24):**
 - **Gray bell fix** (`PushNotificationPrompt.tsx`): `serviceWorker.ready` now wrapped in `Promise.race` with 10s timeout → fallback to manual `sw.js` register with activation wait + 5s safety timeout. Eliminates infinite hang on PWA cold-start.
