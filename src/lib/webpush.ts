@@ -42,6 +42,27 @@ function dedupSubsByUser(subs: any[], maxPerUser = 2): any[] {
 }
 
 /**
+ * Log a push notification to push_notifications_log (once per user, not per device).
+ * Called fire-and-forget after successful sends so failure doesn't block push delivery.
+ */
+async function logPush(
+    userId: string,
+    userType: string,
+    payload: { title: string; body: string; url?: string; tag?: string }
+): Promise<void> {
+    try {
+        await supabase.from('push_notifications_log').insert({
+            user_id: userId,
+            user_type: userType,
+            title: payload.title,
+            body: payload.body,
+            url: payload.url ?? null,
+            tag: payload.tag ?? null,
+        });
+    } catch { /* logging is optional, never break push delivery */ }
+}
+
+/**
  * Send push notification to a specific user (all their subscriptions)
  */
 export async function sendPushToUser(
@@ -78,6 +99,7 @@ export async function sendPushToUser(
                 JSON.stringify(payload)
             );
             sent++;
+            logPush(userId, userType, payload); // log for history tab
         } catch (error: any) {
             console.error(`[WebPush] Failed to send to ${sub.endpoint}:`, error.statusCode);
             // Remove invalid subscriptions (gone/expired)
@@ -134,6 +156,7 @@ export async function sendTranslatedPushToUser(
                     JSON.stringify(payload)
                 );
                 sent++;
+                logPush(userId, userType, payload); // log for history tab
             } catch (error: any) {
                 if (error.statusCode === 404 || error.statusCode === 410) {
                     await supabase.from('push_subscriptions').delete().eq('id', sub.id);
@@ -264,16 +287,30 @@ export async function sendPushToGroups(
     let totalFailed = 0;
     const byGroup: Record<string, { sent: number; failed: number }> = {};
 
+    // ── Cross-group dedup ──────────────────────────────────────────────────────
+    // A user whose employee_groups matches multiple groups in `groups` array would
+    // receive one push per matching group without this Set.
+    const sentEndpoints = new Set<string>();
+    // Track logged user IDs so we log exactly once per user (not once per device).
+    const loggedUsers = new Set<string>();
+
     const sendBatch = async (subs: any[], groupName: string) => {
         const deduped = dedupSubsByUser(subs);
         let s = 0; let f = 0;
         for (const sub of deduped) {
+            if (sentEndpoints.has(sub.endpoint)) continue; // cross-group dedup
+            sentEndpoints.add(sub.endpoint);
             try {
                 await webpush.sendNotification(
                     { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
                     JSON.stringify(payload)
                 );
                 s++;
+                // Log once per user to push_notifications_log
+                if (!loggedUsers.has(sub.user_id)) {
+                    loggedUsers.add(sub.user_id);
+                    logPush(sub.user_id, sub.user_type || 'employee', payload);
+                }
             } catch (error: any) {
                 if (error.statusCode === 404 || error.statusCode === 410) {
                     await supabase.from('push_subscriptions').delete().eq('id', sub.id);

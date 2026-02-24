@@ -43,6 +43,10 @@
         {
             "path": "/api/cron/post-visit-auto-send?sms_type=week_after_visit",
             "schedule": "0 10 * * *"
+        },
+        {
+            "path": "/api/cron/push-cleanup",
+            "schedule": "15 3 * * *"
         }
     ]
 }
