@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { createBrowserClient } from "@supabase/ssr";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { LogOut, ChevronLeft, ChevronRight, Calendar, RefreshCw, CheckSquare, Plus, User, AlertTriangle, Trash2, Clock, X, Bell, Bot } from "lucide-react";
 import VoiceAssistant from "@/components/VoiceAssistant";
 import { useUserRoles } from "@/hooks/useUserRoles";
@@ -586,26 +586,21 @@ export default function EmployeePage() {
     }, [activeTab, fetchTasks]);
 
     // ─── Deep link from push notifications ─────────────────────────────────
-    // Reads ?tab= and ?taskId= from URL on first load. This is how clicking a
-    // push notification (or a link in the Powiadomienia tab) navigates the user
-    // to the correct tab and opens the correct task modal automatically.
-    const searchParams = useSearchParams();
-    const deepLinkApplied = useRef(false);
+    // Reads ?tab= and ?taskId= from URL on mount (client-side only via
+    // window.location — avoids useSearchParams Suspense requirement).
+    const [deepLinkTaskId, setDeepLinkTaskId] = useState<string | null>(null);
     useEffect(() => {
-        if (deepLinkApplied.current) return;
-        const tab = searchParams.get('tab');
-        const taskId = searchParams.get('taskId');
+        const params = new URLSearchParams(window.location.search);
+        const tab = params.get('tab');
+        const taskId = params.get('taskId');
         if (tab && ['grafik', 'zadania', 'asystent', 'powiadomienia'].includes(tab)) {
             setActiveTab(tab as 'grafik' | 'zadania' | 'asystent' | 'powiadomienia');
         }
         if (taskId) {
-            // Tasks may not be loaded yet — store taskId to open after fetch
             setDeepLinkTaskId(taskId);
         }
-        deepLinkApplied.current = true;
-    }, [searchParams]);
+    }, []); // run exactly once on mount
 
-    const [deepLinkTaskId, setDeepLinkTaskId] = useState<string | null>(null);
     // Once tasks are loaded, open the deep-linked task
     useEffect(() => {
         if (!deepLinkTaskId || tasks.length === 0) return;
