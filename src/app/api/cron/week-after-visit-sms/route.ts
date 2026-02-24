@@ -84,7 +84,6 @@ export async function GET(req: Request) {
 
     let draftsCreated = 0;
     let skippedCount = 0;
-    const errors: string[] = [];
     const skippedDetails: Array<{ name: string; doctor: string; time: string; reason: string }> = [];
 
     try {
@@ -157,8 +156,9 @@ export async function GET(req: Request) {
                         skippedCount++; continue;
                     }
                 } else {
-                    // Filter 2: isWorkingHour flag
-                    if (appointment.isWorkingHour !== true) {
+                    // Filter 2: isWorkingHour — coerce to boolean (Prodentis may return string 'true')
+                    const isWorking = appointment.isWorkingHour === true || appointment.isWorkingHour === 'true';
+                    if (!isWorking) {
                         skippedDetails.push({ name: patientName, doctor: doctorName, time: appointmentTime, reason: 'Nie jest godzina robocza (szare/czerwone pole w Prodentis)' });
                         skippedCount++; continue;
                     }
@@ -221,7 +221,13 @@ export async function GET(req: Request) {
                 console.log(`   📋 Draft: ${patientName} | ${salutation}`);
 
             } catch (err: any) {
-                errors.push(`${patientName}: ${err.message}`);
+                skippedDetails.push({
+                    name: patientName,
+                    doctor: doctorName,
+                    time: appointmentTime,
+                    reason: `BLAD DB: ${err.message}`,
+                });
+                skippedCount++;
             }
         }
 
@@ -244,7 +250,7 @@ export async function GET(req: Request) {
         }
 
         const duration = ((Date.now() - startTime) / 1000).toFixed(2);
-        console.log(`📊 Done: drafts=${draftsCreated} skipped=${skippedCount} errors=${errors.length} (${duration}s)`);
+        console.log(`📊 Done: drafts=${draftsCreated} skipped=${skippedCount} dbErrors=${skippedDetails.filter(s => s.reason.startsWith('BLAD')).length} (${duration}s)`);
 
         return NextResponse.json({
             success: true,
@@ -253,7 +259,6 @@ export async function GET(req: Request) {
             draftsCreated,
             skipped: skippedCount,
             skippedDetails,
-            errors: errors.length > 0 ? errors : undefined,
             duration: `${duration}s`,
         });
 

@@ -175,16 +175,6 @@ export async function GET(req: Request) {
             .eq('status', 'sent');
         const alreadySentIds = new Set<string>((alreadySent || []).map((r: any) => String(r.prodentis_id)));
 
-        // Free slots — skip busy/reserved patients
-        let freeSlotProdentisIds = new Set<string>();
-        try {
-            const slotsRes = await fetch(`${PRODENTIS_API_URL}/api/slots/free?date=${targetDateStr}`);
-            if (slotsRes.ok) {
-                const slotsData = await slotsRes.json();
-                freeSlotProdentisIds = new Set((slotsData.slots || []).map((s: any) => String(s.prodentisId)));
-            }
-        } catch { /* non-critical */ }
-
         const MIN_HOUR = 8;
         const MAX_HOUR = 20;
 
@@ -215,8 +205,9 @@ export async function GET(req: Request) {
                         skippedCount++; continue;
                     }
                 } else {
-                    // Filter 2b: isWorkingHour flag
-                    if (appointment.isWorkingHour !== true) {
+                    // Filter 2b: isWorkingHour flag — coerce to boolean (Prodentis may return string 'true')
+                    const isWorking = appointment.isWorkingHour === true || appointment.isWorkingHour === 'true';
+                    if (!isWorking) {
                         skippedDetails.push({ name: patientName, doctor: doctorName, time: appointmentTime, reason: 'Nie jest godzina robocza (szare/czerwone pole w Prodentis)' });
                         skippedCount++; continue;
                     }
@@ -284,7 +275,14 @@ export async function GET(req: Request) {
                 console.log(`   📋 Draft: ${patientName} | ${salutation} | already_reviewed=${alreadyReviewed}`);
 
             } catch (err: any) {
-                errors.push(`${patientName}: ${err.message}`);
+                // Route INSERT/DB errors to skippedDetails so they are visible in admin panel
+                skippedDetails.push({
+                    name: patientName,
+                    doctor: doctorName,
+                    time: appointmentTime,
+                    reason: `BLAD DB: ${err.message}`,
+                });
+                skippedCount++;
             }
         }
 
