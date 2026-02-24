@@ -3209,23 +3209,33 @@ export default function EmployeePage() {
                                                                                             );
                                                                                         }
                                                                                         const label = fieldLabels[key] || key;
-                                                                                        let oldDisplay = val.old || '—';
-                                                                                        let newDisplay = val.new || '—';
+                                                                                        // Safely convert any value to a displayable string
+                                                                                        const toStr = (v: any): string => {
+                                                                                            if (v === null || v === undefined) return '—';
+                                                                                            if (Array.isArray(v)) {
+                                                                                                if (key === 'image_urls' || key === 'image_url') return v.length > 0 ? `📷 ×${v.length}` : '—';
+                                                                                                return v.length > 0 ? `[${v.length} elem.]` : '—';
+                                                                                            }
+                                                                                            if (typeof v === 'object') return JSON.stringify(v).substring(0, 60);
+                                                                                            return String(v) || '—';
+                                                                                        };
+                                                                                        let oldDisplay: string = toStr(val.old);
+                                                                                        let newDisplay: string = toStr(val.new);
                                                                                         if (key === 'status') {
                                                                                             oldDisplay = statusLabels[val.old] || val.old || '—';
                                                                                             newDisplay = statusLabels[val.new] || val.new || '—';
                                                                                         } else if (key === 'priority') {
                                                                                             oldDisplay = priorityLabels[val.old] || val.old || '—';
                                                                                             newDisplay = priorityLabels[val.new] || val.new || '—';
-                                                                                        } else if (key === 'image_url') {
-                                                                                            oldDisplay = val.old ? '📷' : '—';
-                                                                                            newDisplay = val.new ? '📷' : '—';
+                                                                                        } else if (key === 'image_url' || key === 'image_urls') {
+                                                                                            oldDisplay = Array.isArray(val.old) ? (val.old.length > 0 ? `📷 ×${val.old.length}` : '—') : (val.old ? '📷' : '—');
+                                                                                            newDisplay = Array.isArray(val.new) ? (val.new.length > 0 ? `📷 ×${val.new.length}` : '—') : (val.new ? '📷' : '—');
                                                                                         } else if (key === 'due_date') {
                                                                                             oldDisplay = val.old ? new Date(val.old).toLocaleDateString('pl-PL') : '—';
                                                                                             newDisplay = val.new ? new Date(val.new).toLocaleDateString('pl-PL') : '—';
                                                                                         }
                                                                                         // Skip internal IDs
-                                                                                        if (key === 'assigned_to_doctor_id') return null;
+                                                                                        if (key === 'assigned_to_doctor_id' || key === 'patient_id' || key === 'linked_appointment_info') return null;
                                                                                         return (
                                                                                             <div key={key}>
                                                                                                 {label}: {oldDisplay} → {newDisplay}
@@ -4133,13 +4143,26 @@ export default function EmployeePage() {
                                                         <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.55)' }}>
                                                             {Object.entries(h.changes || {}).map(([key, val]: [string, any]) => {
                                                                 if (h.change_type === 'checklist') return <div key={key}>{val.done ? '✅' : '⬜'} {val.item}</div>;
-                                                                if (key === 'assigned_to_doctor_id') return null;
+                                                                if (key === 'assigned_to_doctor_id' || key === 'patient_id' || key === 'linked_appointment_info') return null;
                                                                 const label = fieldLabels[key] || key;
-                                                                let oldDisplay = val.old || '—';
-                                                                let newDisplay = val.new || '—';
+                                                                // Safely convert any value to a displayable string
+                                                                const toStr = (v: any): string => {
+                                                                    if (v === null || v === undefined) return '—';
+                                                                    if (Array.isArray(v)) {
+                                                                        if (key === 'image_urls' || key === 'image_url') return v.length > 0 ? `📷 ×${v.length}` : '—';
+                                                                        return v.length > 0 ? `[${v.length} elem.]` : '—';
+                                                                    }
+                                                                    if (typeof v === 'object') return JSON.stringify(v).substring(0, 60);
+                                                                    return String(v) || '—';
+                                                                };
+                                                                let oldDisplay: string = toStr(val.old);
+                                                                let newDisplay: string = toStr(val.new);
                                                                 if (key === 'status') { oldDisplay = statusLabels[val.old] || val.old || '—'; newDisplay = statusLabels[val.new] || val.new || '—'; }
                                                                 else if (key === 'priority') { oldDisplay = priorityLabels[val.old] || val.old || '—'; newDisplay = priorityLabels[val.new] || val.new || '—'; }
-                                                                else if (key === 'image_url') { oldDisplay = val.old ? '📷' : '—'; newDisplay = val.new ? '📷' : '—'; }
+                                                                else if (key === 'image_url' || key === 'image_urls') {
+                                                                    oldDisplay = Array.isArray(val.old) ? (val.old.length > 0 ? `📷 ×${val.old.length}` : '—') : (val.old ? '📷' : '—');
+                                                                    newDisplay = Array.isArray(val.new) ? (val.new.length > 0 ? `📷 ×${val.new.length}` : '—') : (val.new ? '📷' : '—');
+                                                                }
                                                                 else if (key === 'due_date') { oldDisplay = val.old ? new Date(val.old).toLocaleDateString('pl-PL') : '—'; newDisplay = val.new ? new Date(val.new).toLocaleDateString('pl-PL') : '—'; }
                                                                 return <div key={key}>{label}: {oldDisplay} → {newDisplay}</div>;
                                                             })}
