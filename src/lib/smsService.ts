@@ -207,6 +207,7 @@ export function formatSMSMessage(
         date?: string;
         surveyUrl?: string;
         funFact?: string;
+        appUrl?: string;
     }
 ): string {
     let message = template;
@@ -220,6 +221,7 @@ export function formatSMSMessage(
     if (variables.date) message = message.replace(/{date}/g, variables.date);
     if (variables.surveyUrl) message = message.replace(/{surveyUrl}/g, variables.surveyUrl);
     if (variables.funFact !== undefined) message = message.replace(/{funFact}/g, variables.funFact);
+    if (variables.appUrl) message = message.replace(/{appUrl}/g, variables.appUrl);
 
     return message;
 }

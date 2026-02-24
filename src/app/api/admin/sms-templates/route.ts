@@ -35,6 +35,8 @@ const DEFAULT_TEMPLATES = [
     // Post-visit SMS templates (added Feb 2026)
     { key: 'post_visit_review', label: 'Po wizycie — prośba o recenzję', template: 'Dziękujemy za wizytę, {patientFirstName}! 😊 Podziel się z nami swoją opinią: {surveyUrl} A jeśli możesz — zostaw gwiazdki w Google. Dziękujemy!' },
     { key: 'post_visit_reviewed', label: 'Po wizycie — pacjent z recenzją', template: 'Dziękujemy za wizytę, {patientFirstName}! 😊 {funFact} Do zobaczenia! — Zespół Mikrostomart' },
+    // Week-after-visit (app promotion, Feb 2026)
+    { key: 'week_after_visit', label: 'Tydzień po wizycie — aplikacja', template: 'Dziekujemy, ze jestes naszym pacjentem! 😊 Miej Mikrostomart zawsze przy sobie - pobierz aplikacje na telefon: {appUrl}' },
 ];
 
 async function ensureTemplatesSeeded() {
