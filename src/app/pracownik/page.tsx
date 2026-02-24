@@ -307,6 +307,7 @@ export default function EmployeePage() {
     const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
     const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
     const [calendarMonth, setCalendarMonth] = useState(new Date());
+    const [calendarDayPopup, setCalendarDayPopup] = useState<{ day: number; tasks: EmployeeTask[] } | null>(null);
     const [notifPermission, setNotifPermission] = useState<NotificationPermission>('default');
     // ─── Dynamic Task Type Templates ──────────────────────
     const [taskTypeTemplates, setTaskTypeTemplates] = useState<TaskTypeTemplate[]>([]);
@@ -3294,39 +3295,34 @@ export default function EmployeePage() {
                                             padding: '0.25rem',
                                         }}>
                                             <div style={{ fontSize: '0.7rem', color: isToday ? '#38bdf8' : 'rgba(255,255,255,0.5)', fontWeight: isToday ? '700' : '400', marginBottom: '0.15rem' }}>{day}</div>
-                                            {dayTasks.slice(0, 3).map(t => (
+                                            {/* Pulsing task count badge */}
+                                            {dayTasks.length > 0 && (
                                                 <div
-                                                    key={t.id}
-                                                    onClick={() => {
-                                                        setSelectedViewTask(t);
-                                                        setTaskHistoryExpanded(false);
-                                                        setTaskHistory([]);
-                                                        setTaskHistoryLoading(true);
-                                                        fetch(`/api/employee/tasks/${t.id}?history=true`)
-                                                            .then(r => r.json())
-                                                            .then(d => setTaskHistory(d.history || []))
-                                                            .catch(() => setTaskHistory([]))
-                                                            .finally(() => setTaskHistoryLoading(false));
-                                                        fetchComments(t.id);
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setCalendarDayPopup({ day, tasks: dayTasks });
                                                     }}
                                                     style={{
-                                                        fontSize: '0.55rem',
-                                                        padding: '0.1rem 0.2rem',
-                                                        background: `${getPriorityColor(t.priority)}15`,
-                                                        color: getPriorityColor(t.priority),
-                                                        borderRadius: '0.15rem',
-                                                        marginBottom: '1px',
-                                                        whiteSpace: 'nowrap',
-                                                        overflow: 'hidden',
-                                                        textOverflow: 'ellipsis',
-                                                        borderLeft: `2px solid ${getStatusColor(t.status)}`,
+                                                        display: 'inline-flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        minWidth: '22px',
+                                                        height: '22px',
+                                                        borderRadius: '50%',
+                                                        background: dayTasks.some(t => t.priority === 'urgent') ? 'rgba(239,68,68,0.8)' : 'rgba(56,189,248,0.8)',
+                                                        color: '#fff',
+                                                        fontSize: '0.65rem',
+                                                        fontWeight: '700',
                                                         cursor: 'pointer',
-                                                    }}>
-                                                    {t.title}
+                                                        animation: 'calPulse 2s ease-in-out infinite',
+                                                        boxShadow: dayTasks.some(t => t.priority === 'urgent')
+                                                            ? '0 0 0 0 rgba(239,68,68,0.4)'
+                                                            : '0 0 0 0 rgba(56,189,248,0.4)',
+                                                        padding: '0 4px',
+                                                    }}
+                                                >
+                                                    {dayTasks.length}
                                                 </div>
-                                            ))}
-                                            {dayTasks.length > 3 && (
-                                                <div style={{ fontSize: '0.5rem', color: 'rgba(255,255,255,0.3)', textAlign: 'center' }}>+{dayTasks.length - 3}</div>
                                             )}
                                         </div>
                                     );
@@ -3750,6 +3746,106 @@ export default function EmployeePage() {
                 </div>
             )
             }
+
+            {/* ═══ CALENDAR PULSE ANIMATION ═══ */}
+            <style>{`
+                @keyframes calPulse {
+                    0%   { box-shadow: 0 0 0 0 rgba(56,189,248,0.5); transform: scale(1); }
+                    50%  { box-shadow: 0 0 0 5px rgba(56,189,248,0); transform: scale(1.08); }
+                    100% { box-shadow: 0 0 0 0 rgba(56,189,248,0); transform: scale(1); }
+                }
+            `}</style>
+
+            {/* ═══ CALENDAR DAY TASKS POPUP ═══ */}
+            {calendarDayPopup && (
+                <div
+                    onClick={() => setCalendarDayPopup(null)}
+                    style={{
+                        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)',
+                        zIndex: 3000, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        padding: '1rem',
+                    }}
+                >
+                    <div
+                        onClick={e => e.stopPropagation()}
+                        style={{
+                            background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+                            border: '1px solid rgba(255,255,255,0.1)',
+                            borderRadius: '1rem',
+                            width: '100%',
+                            maxWidth: '480px',
+                            maxHeight: '80vh',
+                            overflowY: 'auto',
+                            padding: '1.25rem',
+                            boxShadow: '0 25px 50px rgba(0,0,0,0.7)',
+                        }}
+                    >
+                        {/* Header */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                            <div>
+                                <div style={{ fontSize: '1rem', fontWeight: '700', color: '#fff' }}>
+                                    {calendarDayPopup.day} {calendarMonth.toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' })}
+                                </div>
+                                <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)', marginTop: '0.1rem' }}>
+                                    {calendarDayPopup.tasks.length} {calendarDayPopup.tasks.length === 1 ? 'zadanie' : calendarDayPopup.tasks.length < 5 ? 'zadania' : 'zadań'}
+                                </div>
+                            </div>
+                            <button onClick={() => setCalendarDayPopup(null)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: '1.2rem', padding: '0' }}>✕</button>
+                        </div>
+                        {/* Task list */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            {calendarDayPopup.tasks.map(t => (
+                                <div
+                                    key={t.id}
+                                    onClick={() => {
+                                        // Open task detail on top of this popup
+                                        setSelectedViewTask(t);
+                                        setTaskHistoryExpanded(false);
+                                        setTaskHistory([]);
+                                        setTaskHistoryLoading(true);
+                                        fetch(`/api/employee/tasks/${t.id}?history=true`)
+                                            .then(r => r.json())
+                                            .then(d => setTaskHistory(d.history || []))
+                                            .catch(() => setTaskHistory([]))
+                                            .finally(() => setTaskHistoryLoading(false));
+                                        fetchComments(t.id);
+                                    }}
+                                    style={{
+                                        padding: '0.75rem 1rem',
+                                        background: 'rgba(255,255,255,0.04)',
+                                        border: `1px solid rgba(255,255,255,0.08)`,
+                                        borderLeft: `3px solid ${getStatusColor(t.status)}`,
+                                        borderRadius: '0.6rem',
+                                        cursor: 'pointer',
+                                        transition: 'background 0.15s',
+                                    }}
+                                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(56,189,248,0.07)')}
+                                    onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
+                                >
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                                        <span style={{ fontSize: '0.8rem', fontWeight: '600', color: '#fff', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                            {t.priority === 'urgent' && <span style={{ color: '#ef4444', marginRight: '0.25rem' }}>⚡</span>}
+                                            {t.is_private && <span style={{ color: '#a78bfa', marginRight: '0.25rem' }}>🔒</span>}
+                                            {t.title}
+                                        </span>
+                                        <span style={{ fontSize: '0.65rem', padding: '0.1rem 0.4rem', borderRadius: '1rem', background: `${getStatusColor(t.status)}22`, color: getStatusColor(t.status), border: `1px solid ${getStatusColor(t.status)}44`, flexShrink: 0 }}>
+                                            {getStatusLabel(t.status)}
+                                        </span>
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '0.75rem', fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)' }}>
+                                        {t.due_time && <span>⏰ {t.due_time}</span>}
+                                        {t.patient_name && <span>👤 {t.patient_name}</span>}
+                                        {t.task_type && <span>{t.task_type}</span>}
+                                        {t.checklist_items && t.checklist_items.length > 0 && (
+                                            <span>☑ {t.checklist_items.filter(ci => ci.done).length}/{t.checklist_items.length}</span>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* ═══ TASK DETAIL MODAL ═══ */}
             {selectedViewTask && (
