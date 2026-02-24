@@ -88,7 +88,7 @@ export async function PATCH(
         // Only allow updating specific fields
         const allowedFields = [
             'title', 'description', 'status', 'priority',
-            'task_type', 'checklist_items', 'image_url',
+            'task_type', 'checklist_items', 'image_url', 'image_urls',
             'patient_id', 'patient_name', 'appointment_type',
             'due_date', 'linked_appointment_date', 'linked_appointment_info',
             'assigned_to_doctor_id', 'assigned_to_doctor_name', 'assigned_to',

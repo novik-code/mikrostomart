@@ -271,6 +271,7 @@ export default function EmployeePage() {
         task_type: '' as string,
         checklist_items: [] as ChecklistItem[],
         image_url: '' as string,
+        image_urls: [] as string[],
         assigned_to: [] as { id: string; name: string }[],
         due_date: '',
         linked_appointment_date: '',
@@ -622,6 +623,7 @@ export default function EmployeePage() {
             task_type: '',
             checklist_items: [],
             image_url: '',
+            image_urls: [],
             assigned_to: [],
             due_date: '',
             linked_appointment_date: '',
@@ -632,12 +634,47 @@ export default function EmployeePage() {
         setFutureAppointments([]);
     };
 
-    // Image upload handler (for both create and edit)
+    // ─── Image compression utility (Canvas → JPEG ≤2-3s, ≤200KB) ───────
+    const compressImage = (file: File, maxKB = 200): Promise<Blob> => {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            const objectUrl = URL.createObjectURL(file);
+            img.onload = () => {
+                URL.revokeObjectURL(objectUrl);
+                const canvas = document.createElement('canvas');
+                let { width, height } = img;
+                // Scale down if image is very large (max 1200px wide)
+                const MAX_DIM = 1200;
+                if (width > MAX_DIM) { height = Math.round(height * MAX_DIM / width); width = MAX_DIM; }
+                if (height > MAX_DIM) { width = Math.round(width * MAX_DIM / height); height = MAX_DIM; }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d')!;
+                ctx.drawImage(img, 0, 0, width, height);
+                // Try decreasing quality until size fits
+                let quality = 0.85;
+                const tryCompress = () => {
+                    canvas.toBlob(blob => {
+                        if (!blob) { reject(new Error('Canvas toBlob failed')); return; }
+                        if (blob.size <= maxKB * 1024 || quality <= 0.3) { resolve(blob); }
+                        else { quality -= 0.1; tryCompress(); }
+                    }, 'image/jpeg', quality);
+                };
+                tryCompress();
+            };
+            img.onerror = reject;
+            img.src = objectUrl;
+        });
+    };
+
+    // Image upload handler (for both create and edit) — compresses then appends to array
     const handleImageUpload = async (file: File, mode: 'create' | 'edit' = 'create') => {
         setImageUploading(true);
         try {
+            const compressed = await compressImage(file);
+            const compressedFile = new File([compressed], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' });
             const formData = new FormData();
-            formData.append('file', file);
+            formData.append('file', compressedFile);
             const res = await fetch('/api/employee/tasks/upload-image', {
                 method: 'POST',
                 body: formData,
@@ -645,9 +682,9 @@ export default function EmployeePage() {
             if (!res.ok) throw new Error('Upload failed');
             const data = await res.json();
             if (mode === 'create') {
-                setTaskForm(p => ({ ...p, image_url: data.url }));
+                setTaskForm(p => ({ ...p, image_url: p.image_url || data.url, image_urls: [...(p.image_urls || []), data.url] }));
             } else {
-                setEditForm(p => ({ ...p, image_url: data.url }));
+                setEditForm(p => ({ ...p, image_url: p.image_url || data.url, image_urls: [...(p.image_urls || []), data.url] }));
             }
         } catch (err) {
             console.error('[Tasks] Image upload error:', err);
@@ -668,6 +705,7 @@ export default function EmployeePage() {
             due_date: task.due_date || '',
             assigned_to: task.assigned_to || [],
             image_url: task.image_url || '',
+            image_urls: (task as any).image_urls || (task.image_url ? [task.image_url] : []),
         });
     };
 
@@ -717,6 +755,8 @@ export default function EmployeePage() {
                 task_type: taskForm.task_type || null,
                 checklist_items: taskForm.checklist_items.length > 0 ? taskForm.checklist_items : null,
                 image_url: taskForm.image_url || null,
+                image_urls: taskForm.image_urls || [],
+
                 patient_id: taskModalPrefill?.patientId || null,
                 patient_name: taskModalPrefill?.patientName || null,
                 appointment_type: taskModalPrefill?.appointmentType || null,
@@ -3683,43 +3723,26 @@ export default function EmployeePage() {
                             />
                         </div>
 
-                        {/* Photo upload */}
+                        {/* Multi-photo upload */}
                         <div>
-                            <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>📸 Zdjęcie (opcjonalnie)</label>
-                            {taskForm.image_url ? (
-                                <div style={{ position: 'relative', display: 'inline-block' }}>
-                                    <img src={taskForm.image_url} alt="" style={{ maxWidth: '100%', maxHeight: '120px', borderRadius: '0.5rem', border: '1px solid rgba(255,255,255,0.1)' }} />
-                                    <button
-                                        onClick={() => setTaskForm(p => ({ ...p, image_url: '' }))}
-                                        style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.7)', border: 'none', color: '#fff', borderRadius: '50%', width: 22, height: 22, cursor: 'pointer', fontSize: '0.7rem' }}
-                                    >✕</button>
-                                </div>
-                            ) : (
-                                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                    <label style={{
-                                        flex: 1,
-                                        padding: '0.6rem',
-                                        background: 'rgba(255,255,255,0.06)',
-                                        border: '1px solid rgba(255,255,255,0.12)',
-                                        borderRadius: '0.5rem',
-                                        color: 'rgba(255,255,255,0.6)',
-                                        fontSize: '0.8rem',
-                                        textAlign: 'center',
-                                        cursor: imageUploading ? 'wait' : 'pointer',
-                                        opacity: imageUploading ? 0.5 : 1,
-                                    }}>
-                                        {imageUploading ? '⏳ Przesyłanie...' : '📷 Aparat / Galeria'}
-                                        <input
-                                            type="file"
-                                            accept="image/*"
-
-                                            style={{ display: 'none' }}
-                                            disabled={imageUploading}
-                                            onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageUpload(f, 'create'); }}
+                            <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.5rem', display: 'block' }}>📸 Zdjęcia (opcjonalnie, maks. 5 — kompresja auto)</label>
+                            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                                {(taskForm.image_urls || []).map((url, idx) => (
+                                    <div key={idx} style={{ position: 'relative', width: 72, height: 72, flexShrink: 0 }}>
+                                        <img src={url} alt="" onClick={() => setZoomedImage(url)} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '0.4rem', border: '1px solid rgba(255,255,255,0.12)', cursor: 'zoom-in' }} />
+                                        <button onClick={() => setTaskForm(p => { const urls = (p.image_urls || []).filter((_, i) => i !== idx); return { ...p, image_urls: urls, image_url: urls[0] || '' }; })} style={{ position: 'absolute', top: 2, right: 2, background: 'rgba(0,0,0,0.8)', border: 'none', color: '#fff', borderRadius: '50%', width: 18, height: 18, cursor: 'pointer', fontSize: '0.6rem', lineHeight: '18px', textAlign: 'center', padding: 0 }}>✕</button>
+                                    </div>
+                                ))}
+                                {(taskForm.image_urls || []).length < 5 && (
+                                    <label style={{ width: 72, height: 72, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.05)', border: '1px dashed rgba(255,255,255,0.2)', borderRadius: '0.4rem', color: 'rgba(255,255,255,0.45)', fontSize: '0.65rem', textAlign: 'center', gap: '0.2rem', cursor: imageUploading ? 'wait' : 'pointer', opacity: imageUploading ? 0.5 : 1, flexShrink: 0 }}>
+                                        <span style={{ fontSize: '1.4rem', lineHeight: 1 }}>{imageUploading ? '⏳' : '📷'}</span>
+                                        {imageUploading ? 'Przesyłanie...' : 'Dodaj zdjęcie'}
+                                        <input type="file" accept="image/*" multiple style={{ display: 'none' }} disabled={imageUploading}
+                                            onChange={async (e) => { const files = Array.from(e.target.files || []); for (const f of files.slice(0, 5 - (taskForm.image_urls || []).length)) { await handleImageUpload(f, 'create'); } e.target.value = ''; }}
                                         />
                                     </label>
-                                </div>
-                            )}
+                                )}
+                            </div>
                         </div>
 
                         {/* Submit */}
@@ -3958,21 +3981,37 @@ export default function EmployeePage() {
                             </div>
                         )}
 
-                        {/* Comments preview */}
-                        {(taskComments[selectedViewTask.id] || []).length > 0 && (
-                            <div style={{ marginBottom: '1rem' }}>
-                                <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.4rem', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                    Komentarze ({(taskComments[selectedViewTask.id] || []).length})
-                                </div>
-                                {(taskComments[selectedViewTask.id] || []).slice(0, 3).map((c: any) => (
-                                    <div key={c.id} style={{ padding: '0.4rem 0.6rem', background: 'rgba(255,255,255,0.04)', borderRadius: '0.4rem', marginBottom: '0.3rem', fontSize: '0.78rem' }}>
-                                        <span style={{ color: '#38bdf8', fontWeight: '600', fontSize: '0.7rem' }}>{c.author_email?.split('@')[0]}</span>
-                                        <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.65rem', marginLeft: '0.4rem' }}>{new Date(c.created_at).toLocaleDateString('pl-PL')}</span>
-                                        <div style={{ color: 'rgba(255,255,255,0.7)', marginTop: '0.2rem' }}>{c.content}</div>
-                                    </div>
-                                ))}
+                        {/* 💬 Comments */}
+                        <div style={{ marginBottom: '1rem' }}>
+                            <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.4rem', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                💬 Komentarze ({(taskComments[selectedViewTask.id] || []).length})
                             </div>
-                        )}
+                            {(taskComments[selectedViewTask.id] || []).map((c: any) => (
+                                <div key={c.id} style={{ padding: '0.4rem 0.6rem', background: 'rgba(255,255,255,0.04)', borderRadius: '0.4rem', marginBottom: '0.3rem', fontSize: '0.78rem' }}>
+                                    <span style={{ color: '#38bdf8', fontWeight: '600', fontSize: '0.7rem' }}>{c.author_name || c.author_email?.split('@')[0]}</span>
+                                    <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.65rem', marginLeft: '0.4rem' }}>{new Date(c.created_at).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                                    <div style={{ color: 'rgba(255,255,255,0.7)', marginTop: '0.15rem' }}>{c.content}</div>
+                                </div>
+                            ))}
+                            {/* Comment input */}
+                            <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.4rem' }}>
+                                <input
+                                    type="text"
+                                    placeholder="Napisz komentarz..."
+                                    value={commentInput}
+                                    onChange={e => setCommentInput(e.target.value)}
+                                    onKeyDown={e => { if (e.key === 'Enter') handlePostComment(selectedViewTask.id); }}
+                                    style={{ flex: 1, padding: '0.45rem 0.7rem', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '0.5rem', color: '#fff', fontSize: '0.8rem', outline: 'none' }}
+                                />
+                                <button
+                                    onClick={() => handlePostComment(selectedViewTask.id)}
+                                    disabled={commentLoading || !commentInput.trim()}
+                                    style={{ padding: '0.45rem 0.85rem', background: commentInput.trim() ? 'rgba(56,189,248,0.2)' : 'rgba(255,255,255,0.05)', border: `1px solid ${commentInput.trim() ? 'rgba(56,189,248,0.4)' : 'rgba(255,255,255,0.1)'}`, borderRadius: '0.5rem', color: commentInput.trim() ? '#38bdf8' : 'rgba(255,255,255,0.3)', cursor: commentInput.trim() ? 'pointer' : 'default', fontSize: '0.8rem', fontWeight: '600', whiteSpace: 'nowrap' }}
+                                >
+                                    {commentLoading ? '...' : 'Wyślij'}
+                                </button>
+                            </div>
+                        </div>
 
                         {/* History summary */}
                         {taskHistoryLoading && <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.3)', marginBottom: '0.75rem' }}>Ładowanie historii...</div>}
@@ -4138,40 +4177,26 @@ export default function EmployeePage() {
                                     />
                                 </div>
 
-                                {/* Photo */}
+                                {/* Multi-photo */}
                                 <div>
-                                    <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>📸 Zdjęcie</label>
-                                    {editForm.image_url ? (
-                                        <div style={{ position: 'relative', display: 'inline-block' }}>
-                                            <img src={editForm.image_url} alt="" style={{ maxWidth: '100%', maxHeight: '120px', borderRadius: '0.5rem', border: '1px solid rgba(255,255,255,0.1)' }} />
-                                            <button
-                                                onClick={() => setEditForm(p => ({ ...p, image_url: '' }))}
-                                                style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.7)', border: 'none', color: '#fff', borderRadius: '50%', width: 22, height: 22, cursor: 'pointer', fontSize: '0.7rem' }}
-                                            >✕</button>
-                                        </div>
-                                    ) : (
-                                        <label style={{
-                                            display: 'block',
-                                            padding: '0.6rem',
-                                            background: 'rgba(255,255,255,0.06)',
-                                            border: '1px solid rgba(255,255,255,0.12)',
-                                            borderRadius: '0.5rem',
-                                            color: 'rgba(255,255,255,0.6)',
-                                            fontSize: '0.8rem',
-                                            textAlign: 'center',
-                                            cursor: imageUploading ? 'wait' : 'pointer',
-                                            opacity: imageUploading ? 0.5 : 1,
-                                        }}>
-                                            {imageUploading ? '⏳ Przesyłanie...' : '📷 Dodaj zdjęcie'}
-                                            <input
-                                                type="file"
-                                                accept="image/*"
-                                                style={{ display: 'none' }}
-                                                disabled={imageUploading}
-                                                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageUpload(f, 'edit'); }}
-                                            />
-                                        </label>
-                                    )}
+                                    <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.5rem', display: 'block' }}>📸 Zdjęcia (maks. 5 — kompresja auto)</label>
+                                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                                        {((editForm.image_urls || []) as string[]).map((url: string, idx: number) => (
+                                            <div key={idx} style={{ position: 'relative', width: 72, height: 72, flexShrink: 0 }}>
+                                                <img src={url} alt="" onClick={() => setZoomedImage(url)} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '0.4rem', border: '1px solid rgba(255,255,255,0.12)', cursor: 'zoom-in' }} />
+                                                <button onClick={() => setEditForm((p: any) => { const urls = ((p.image_urls || []) as string[]).filter((_: string, i: number) => i !== idx); return { ...p, image_urls: urls, image_url: urls[0] || '' }; })} style={{ position: 'absolute', top: 2, right: 2, background: 'rgba(0,0,0,0.8)', border: 'none', color: '#fff', borderRadius: '50%', width: 18, height: 18, cursor: 'pointer', fontSize: '0.6rem', lineHeight: '18px', textAlign: 'center', padding: 0 }}>✕</button>
+                                            </div>
+                                        ))}
+                                        {((editForm.image_urls || []) as string[]).length < 5 && (
+                                            <label style={{ width: 72, height: 72, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.05)', border: '1px dashed rgba(255,255,255,0.2)', borderRadius: '0.4rem', color: 'rgba(255,255,255,0.45)', fontSize: '0.65rem', textAlign: 'center', gap: '0.2rem', cursor: imageUploading ? 'wait' : 'pointer', opacity: imageUploading ? 0.5 : 1, flexShrink: 0 }}>
+                                                <span style={{ fontSize: '1.4rem', lineHeight: 1 }}>{imageUploading ? '⏳' : '📷'}</span>
+                                                {imageUploading ? 'Przesyłanie...' : 'Dodaj zdjęcie'}
+                                                <input type="file" accept="image/*" multiple style={{ display: 'none' }} disabled={imageUploading}
+                                                    onChange={async (e) => { const files = Array.from(e.target.files || []); for (const f of files.slice(0, 5 - ((editForm.image_urls || []) as string[]).length)) { await handleImageUpload(f, 'edit'); } e.target.value = ''; }}
+                                                />
+                                            </label>
+                                        )}
+                                    </div>
                                 </div>
 
                                 {/* Save */}
