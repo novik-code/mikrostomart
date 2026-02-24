@@ -3273,7 +3273,7 @@ export default function AdminPage() {
                 {postVisitSmsTab === 'templates' && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                         <div style={{ padding: '0.75rem 1rem', background: 'rgba(56,189,248,0.07)', border: '1px solid rgba(56,189,248,0.2)', borderRadius: '0.6rem', fontSize: '0.78rem', color: 'rgba(255,255,255,0.6)' }}>
-                            <strong style={{ color: '#38bdf8' }}>Dostępne zmienne:</strong> {'{patientFirstName}'} — imię pacjenta &nbsp;|&nbsp; {'{surveyUrl}'} — link do ankiety &nbsp;|&nbsp; {'{doctorName}'} — lekarz
+                            <strong style={{ color: '#38bdf8' }}>Dostępne zmienne:</strong> {'{patientFirstName}'} — imię pacjenta &nbsp;|&nbsp; {'{surveyUrl}'} — link do ankiety &nbsp;|&nbsp; {'{doctorName}'} — lekarz &nbsp;|&nbsp; {'{funFact}'} — losowa ciekawostka/anegdota (tylko w wersji z recenzją)
                         </div>
                         {postVisitTemplates.length === 0 && !postVisitLoading && (
                             <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.85rem' }}>Brak szablonów — kliknij &ldquo;Odśwież dane&rdquo;.</p>

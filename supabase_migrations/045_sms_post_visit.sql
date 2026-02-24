@@ -32,7 +32,7 @@ VALUES
     (
         'post_visit_reviewed',
         'Po wizycie — pacjent z recenzją',
-        'Dziękujemy za wizytę, {patientFirstName}! 😊 Cieszymy się, że jesteś z nami. Wiedziałeś/aś, że regularne wizyty co 6 miesięcy to najlepszy sposób na zdrowy uśmiech? Do zobaczenia! — Zespół Mikrostomart',
+        'Dziękujemy za wizytę, {patientFirstName}! 😊 {funFact} Do zobaczenia! — Zespół Mikrostomart',
         NOW()
     )
 ON CONFLICT (key) DO NOTHING;

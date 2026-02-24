@@ -206,6 +206,7 @@ export function formatSMSMessage(
         appointmentType?: string;
         date?: string;
         surveyUrl?: string;
+        funFact?: string;
     }
 ): string {
     let message = template;
@@ -218,6 +219,7 @@ export function formatSMSMessage(
     if (variables.appointmentType) message = message.replace(/{appointmentType}/g, variables.appointmentType);
     if (variables.date) message = message.replace(/{date}/g, variables.date);
     if (variables.surveyUrl) message = message.replace(/{surveyUrl}/g, variables.surveyUrl);
+    if (variables.funFact !== undefined) message = message.replace(/{funFact}/g, variables.funFact);
 
     return message;
 }

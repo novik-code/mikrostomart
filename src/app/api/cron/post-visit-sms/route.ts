@@ -22,6 +22,50 @@ const REMINDER_DOCTORS = process.env.REMINDER_DOCTORS?.split(',').map(d => d.tri
 const SURVEY_URL = 'https://mikrostomart.pl/strefa-pacjenta/ocen-nas';
 
 /**
+ * Pool of varied messages for patients who already left a Google review.
+ * Each one is a fun dental fact, anecdote, joke or warm tip (Polish).
+ * Append new entries freely — the pool auto-grows.
+ */
+const FUN_FACTS: string[] = [
+    'Czy wiesz, że zęby są jak odciski palców — każdy człowiek ma unikalny układ uzębienia? 😄',
+    'Ciekawostka: szkliwo to najtwardszy materiał w ludzkim ciele — twardszy nawet niż kość! 🦷',
+    'Słyszałeś/aś o „cheese effect"? Zjedzenie kawałka sera po posiłku neutralizuje kwasy w jamie ustnej. Serio! 🧀',
+    'Dawniej w Europie ból zęba leczono muzyką — wierzono, że dźwięk odpędzi „robaka zębowego". Na szczęście mamy wiertła 😄',
+    'Przeciętny człowiek spędza ok. 38 dni życia na myciu zębów. Warto, bo szkliwo nie odrasta! ⏱️',
+    'Żyrafa myje zęby... językiem! Ma go tak długiego, że dosięga każdego zęba. Ty masz szczoteczkę 😄 🦒',
+    'Herbata zielona zawiera fluor i polifenole — to naturalny sprzymierzeniec zdrowych zębów. Herbatka wieczorkiem? 🍵',
+    'Ślina to superpłyn: neutralizuje kwasy, niszczy bakterie i pomaga remineralizować szkliwo. Dbaj o nawodnienie! 💧',
+    'W średniowieczu dentysta i fryzjer to był jeden zawód — barbier-chirurg. Na szczęście czasy się zmieniły! ✂️😄',
+    'Rekiny mają setki zębów i wymieniają je co 1-2 tygodnie. My mamy tylko dwa zestawy — dlatego warto o nie dbać! 🦈',
+    'Niemowlęta rodzą się bez bakterii w ustach — środowisko to tworzy się dopiero po czasie. Pierwsze zębuszki to wielkie wydarzenie! 🍼',
+    'Pasta do zębów istnieje od starożytnego Egiptu. Tamta receptura: popiół, pumeks i wino. My wolimy miętę 😄',
+    'Ciekawostka: uśmiech angażuje od 5 do 53 mięśni twarzy. Im szerzej, tym więcej treningu! 😁',
+    'Żucie gumy bez cukru przez 20 minut po jedzeniu stymuluje śliniankę i pomaga oczyścić zęby. Mały trik, duży efekt! 🍬',
+    'Mózg nie potrafi dokładnie zlokalizować bólu zęba — dlatego czasem boli „coś w okolicach". Dlatego lepiej nam o tym powiedzieć! 😄',
+    'Wielbłądy mają 34 zęby i potrafią gryźć przez skórę. Nie próbuj tego w domu 🐪😄',
+    'Fluoryzacja wody pitnej to jeden z 10 największych osiągnięć zdrowia publicznego XX wieku — tak mówi WHO. Fluor to Twój sprzymierzeniec! 💧',
+    'Najstarszy wypełniony ząb odkryto we Włoszech — ma 13 000 lat i był wypełniony smołą drzewną. My używamy czegoś zdecydowanie lepszego 😄',
+    'Słoniowe ciosy to... zęby! Powiększone siekacze słonia ważą nawet 90 kg. Twoje ważą trochę mniej 🐘',
+    'Zdrowe dziąsła nie krwawią. Jeśli zauważysz coś niepokojącego, napisz lub zadzwoń — chętnie pomożemy 🙂',
+    'Dawniej złote zęby były oznaką bogactwa. Dziś mamy porcelany i kompozyty — piękniejsze i zdrowsze 👑',
+    'Regularne wizyty co 6 miesięcy to najlepsza inwestycja w uśmiech — i w portfel, bo profilaktyka jest tańsza niż leczenie 😄',
+];
+
+/**
+ * Pick a fun fact deterministically from the pool based on appointmentId.
+ * Same ID always → same fact (stable on retry / re-run).
+ * Different appointments → different facts (rotates through the pool).
+ */
+function pickFunFact(appointmentId: string): string {
+    let hash = 0;
+    for (let i = 0; i < appointmentId.length; i++) {
+        hash = (hash * 31 + appointmentId.charCodeAt(i)) >>> 0;
+    }
+    return FUN_FACTS[hash % FUN_FACTS.length];
+}
+
+
+/**
  * Fuzzy match: check if patientFullName appears in the list of google_author_names.
  * Normalises: lowercase, remove diacritics (loose), collapse spaces, ignore hyphen vs space.
  */
@@ -141,7 +185,7 @@ export async function GET(req: Request) {
             || 'Dziękujemy za wizytę, {patientFirstName}! 😊 Podziel się z nami swoją opinią: {surveyUrl} A jeśli możesz — zostaw gwiazdki w Google. Dziękujemy!';
 
         const reviewedTemplate = templateMap.get('post_visit_reviewed')
-            || 'Dziękujemy za wizytę, {patientFirstName}! 😊 Cieszymy się, że jesteś naszym pacjentem. Czy wiesz, że regularne wizyty co 6 miesięcy to tajemnica pięknego uśmiechu? Do zobaczenia! — Mikrostomart';
+            || 'Dziękujemy za wizytę, {patientFirstName}! 😊 {funFact} Do zobaczenia! — Mikrostomart';
 
         // 4. Load all google_reviews reviewer names for fast lookup
         const { data: reviewsData } = await supabase
@@ -239,6 +283,9 @@ export async function GET(req: Request) {
                 // h. Pick template + build message
                 const template = alreadyReviewed ? reviewedTemplate : reviewTemplate;
                 const patientFirstName = patientName.split(' ')[0];
+                // Pick a unique fun fact per appointment (deterministic hash of appointmentId)
+                const funFact = alreadyReviewed ? pickFunFact(appointmentId) : '';
+                console.log(`   ${alreadyReviewed ? `🎲 Fun fact #${String(appointment.id).length % FUN_FACTS.length}: "${funFact.substring(0, 40)}..."` : 'ℹ️  No fun fact (new reviewer)'}`);
 
                 const message = formatSMSMessage(template, {
                     patientFirstName,
@@ -247,6 +294,7 @@ export async function GET(req: Request) {
                     doctorName,
                     time: appointmentTime,
                     surveyUrl: SURVEY_URL,
+                    funFact,
                 });
 
                 console.log(`   📝 Message (${message.length} chars): "${message.substring(0, 80)}..."`);
