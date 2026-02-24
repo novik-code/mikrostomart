@@ -2062,6 +2062,14 @@ NODE_ENV=production
 - `1354429` — fix: post-visit SMS — encoding error + draft flow + admin review
 - `0bdfc9c` — feat: SMS tabs auto-load on entry, delete-all drafts, week-after-visit draft controls
 - `ec185c1` — fix: SMS isolation + Pani/Panie salutation + skip reasons panel
+- `49d1eb5` — fix: SMS crons — isWorkingHour bool coercion + visible error routing
+
+**`49d1eb5` — Root cause fix for missing SMS appointments:**
+- **Bug**: `appointment.isWorkingHour` compared with strict `=== true`, but Prodentis API returns it as string `'true'` for some records → those appointments passed right into the skip bucket without explanation
+- **Fix**: both crons now coerce: `const isWorking = appointment.isWorkingHour === true || appointment.isWorkingHour === 'true'`
+- **Fix**: per-appointment `catch()` now pushes to `skippedDetails[]` with `"BLAD DB: ..."` reason instead of invisible `errors[]`
+- **Cleaned up**: removed dead `freeSlotProdentisIds` code (fetched `/api/slots/free` which doesn't exist and was never used)
+
 
 **`ec185c1` — 3 critical UX/logic fixes for post-visit & week-after-visit SMS:**
 - **Bug #1 — Skipped reasons**: Both crons now return `skippedDetails[]` with `{name, doctor, time, reason}` for every skipped appointment. Reasons: no phone | not working hour | outside 08:00–20:00 | doctor not in list | already sent. Admin panel shows a collapsible yellow `<details>` panel after running the cron manually — each row shows patient name, time, doctor, and the exact skip reason.
