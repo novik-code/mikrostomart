@@ -32,20 +32,28 @@ const DEFAULT_TEMPLATES = [
     { key: 'byType:endodoncja', label: 'Endodoncja (kanałowe)', template: 'Mikrostomart: leczenie kanalowe u {doctor} jutro o {time}. Potwierdz:' },
     { key: 'byType:konsultacja', label: 'Konsultacja', template: 'Mikrostomart: konsultacja u {doctor} jutro o {time}. Potwierdz:' },
     { key: 'byType:laser', label: 'Laser', template: 'Mikrostomart: zabieg laserowy u {doctor} jutro o {time}. Potwierdz:' },
+    // Post-visit SMS templates (added Feb 2026)
+    { key: 'post_visit_review', label: 'Po wizycie — prośba o recenzję', template: 'Dziękujemy za wizytę, {patientFirstName}! 😊 Podziel się z nami swoją opinią: {surveyUrl} A jeśli możesz — zostaw gwiazdki w Google. Dziękujemy!' },
+    { key: 'post_visit_reviewed', label: 'Po wizycie — pacjent z recenzją', template: 'Dziękujemy za wizytę, {patientFirstName}! 😊 {funFact} Do zobaczenia! — Zespół Mikrostomart' },
 ];
 
 async function ensureTemplatesSeeded() {
+    // Instead of "seed only when empty", we upsert each default template by key.
+    // This guarantees that new templates added in later code versions
+    // always appear in the DB, even when the table already has rows.
     const { data: existing } = await supabase
         .from('sms_templates')
-        .select('id')
-        .limit(1);
+        .select('key');
 
-    if (existing && existing.length > 0) return; // already seeded
+    const existingKeys = new Set((existing || []).map((t: any) => t.key as string));
+    const missing = DEFAULT_TEMPLATES.filter(t => !existingKeys.has(t.key));
 
-    console.log('[SMS Templates] Seeding default templates...');
+    if (missing.length === 0) return; // all present
+
+    console.log(`[SMS Templates] Seeding ${missing.length} missing template(s):`, missing.map(t => t.key));
     const { error } = await supabase
         .from('sms_templates')
-        .insert(DEFAULT_TEMPLATES.map(t => ({
+        .insert(missing.map(t => ({
             key: t.key,
             label: t.label,
             template: t.template,
