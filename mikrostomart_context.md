@@ -2052,6 +2052,55 @@ NODE_ENV=production
 - `src/app/api/admin/employees/route.ts` — Full rewrite: 74-day Prodentis scan, Supabase cross-reference, registered employees section
 - `mikrostomart_context.md` — Comprehensive documentation update (70+ lines added/modified)
 
+### February 24, 2026 (batch 4)
+**Post-Visit SMS Automation System + Admin Panel Section**
+
+#### Commits:
+- `d763417` — feat: automated post-visit SMS system with Google review detection
+
+#### New Feature: Automated SMS after each appointment (19:00 Warsaw / 18:00 UTC)
+
+**Cron: `/api/cron/post-visit-sms`** — registered in `vercel.json` as `0 18 * * *`
+- Fetches TODAY's appointments from Prodentis `/api/appointments/by-date?date=YYYY-MM-DD`
+- Filters: `isWorkingHour=true` + 8–20h business window + doctor in `REMINDER_DOCTORS` list
+- Dedup: skips if `sms_reminders` already has a `post_visit` row for this `prodentis_id`
+- **Google review detection**: fuzzy name match (lowercase + normalize) of patient name vs `google_reviews.google_author_name`
+  - Match found → `post_visit_reviewed` template (thanks + dental tip — no review request)
+  - No match → `post_visit_review` template (thanks + link to `/strefa-pacjenta/ocen-nas`)
+- Sends immediately via `sendSMS()` + saves to `sms_reminders` with `sms_type='post_visit'`
+
+**SMS flow for patient:**
+1. SMS arrives: thanks + link to our internal review page (`/strefa-pacjenta/ocen-nas` — in patient zone "Dodatki" menu)
+2. Patient fills internal survey about their experience
+3. On that page they can optionally post a Google review (existing system)
+
+**Migration 045: `supabase_migrations/045_sms_post_visit.sql`**
+- `sms_reminders.sms_type TEXT DEFAULT 'reminder'` (reminder | post_visit)
+- `sms_reminders.already_reviewed BOOLEAN DEFAULT FALSE`
+- Unique index `idx_sms_reminders_post_visit_unique` on `(prodentis_id, sms_type)` WHERE `sms_type='post_visit'`
+- Seeds 2 new templates: `post_visit_review` + `post_visit_reviewed`
+
+**Admin Panel — new tab "✉️ SMS po wizycie"** (`src/app/admin/page.tsx`)
+- Sub-tab "Historia": searchable list of all sent post-visit SMS; shows sent_at, patient, doctor, message, review status badge
+- Sub-tab "Szablony": edit `post_visit_review` and `post_visit_reviewed` template text with variable hints
+- "Uruchom cron teraz" button for manual test trigger
+
+**API change: `src/app/api/admin/sms-reminders/route.ts`**
+- GET: added `?sms_type=post_visit` filter
+
+**smsService: `src/lib/smsService.ts`**
+- `formatSMSMessage()` extended: added `patientFirstName`, `surveyUrl`, `doctorName` variables
+
+#### Files:
+- `supabase_migrations/045_sms_post_visit.sql` — [NEW] migration
+- `src/app/api/cron/post-visit-sms/route.ts` — [NEW] cron route
+- `vercel.json` — added `0 18 * * *` cron entry
+- `src/lib/smsService.ts` — extended `formatSMSMessage`
+- `src/app/api/admin/sms-reminders/route.ts` — `sms_type` query param
+- `src/app/admin/page.tsx` — post-visit SMS tab (state + nav + render function)
+
+---
+
 ### February 24, 2026 (batch 3)
 **Calendar View: Pulsing Task Counter Badge + Day Tasks Popup**
 
