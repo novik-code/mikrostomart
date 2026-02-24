@@ -254,14 +254,15 @@ export async function GET(req: Request) {
                 patientId = patientRow?.id || null;
 
                 // Insert draft
-                await supabase.from('sms_reminders').insert({
+                const { error: insertError } = await supabase.from('sms_reminders').insert({
                     id: randomUUID(),
-                    patient_id: patientId,
-                    prodentis_id: appointment.id,
-                    patient_name: patientName,
+                    patient_id: patientId,       // nullable after migration 046
+                    prodentis_id: String(appointment.id),
+                    patient_name: patientName || 'Nieznany pacjent',
                     phone,
                     appointment_date: appointment.date,
                     doctor_name: doctorName,
+                    // doctor_id intentionally omitted — not available in post-visit cron
                     appointment_type: appointment.appointmentType?.name || '',
                     sms_message: message,
                     status: 'draft',
@@ -270,6 +271,17 @@ export async function GET(req: Request) {
                     created_at: new Date().toISOString(),
                     updated_at: new Date().toISOString(),
                 });
+
+                if (insertError) {
+                    skippedDetails.push({
+                        name: patientName,
+                        doctor: doctorName,
+                        time: appointmentTime,
+                        reason: `BLAD INSERT: ${insertError.message}`,
+                    });
+                    skippedCount++;
+                    continue;
+                }
 
                 draftsCreated++;
                 console.log(`   📋 Draft: ${patientName} | ${salutation} | already_reviewed=${alreadyReviewed}`);
