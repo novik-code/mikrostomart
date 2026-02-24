@@ -33,8 +33,16 @@
             "schedule": "0 18 * * *"
         },
         {
+            "path": "/api/cron/post-visit-auto-send",
+            "schedule": "0 19 * * *"
+        },
+        {
             "path": "/api/cron/week-after-visit-sms",
             "schedule": "0 9 * * *"
+        },
+        {
+            "path": "/api/cron/post-visit-auto-send?sms_type=week_after_visit",
+            "schedule": "0 10 * * *"
         }
     ]
 }

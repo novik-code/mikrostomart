@@ -129,6 +129,8 @@ export default function AdminPage() {
     const [postVisitSearch, setPostVisitSearch] = useState('');
     const [postVisitCronRunning, setPostVisitCronRunning] = useState(false);
     const [postVisitCronResult, setPostVisitCronResult] = useState<any>(null);
+    const [postVisitEditingId, setPostVisitEditingId] = useState<string | null>(null);
+    const [postVisitDraftEdits, setPostVisitDraftEdits] = useState<Record<string, string>>({});
     // Week-after-visit SMS state
     const [weekAfterSms, setWeekAfterSms] = useState<any[]>([]);
     const [weekAfterTemplates, setWeekAfterTemplates] = useState<any[]>([]);
@@ -138,6 +140,8 @@ export default function AdminPage() {
     const [weekAfterSearch, setWeekAfterSearch] = useState('');
     const [weekAfterCronRunning, setWeekAfterCronRunning] = useState(false);
     const [weekAfterCronResult, setWeekAfterCronResult] = useState<any>(null);
+    const [weekAfterEditingId, setWeekAfterEditingId] = useState<string | null>(null);
+    const [weekAfterDraftEdits, setWeekAfterDraftEdits] = useState<Record<string, string>>({});
     const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
     const [editingTemplateText, setEditingTemplateText] = useState('');
     const [showTemplateEditor, setShowTemplateEditor] = useState(false);
@@ -3195,6 +3199,43 @@ export default function AdminPage() {
             setPostVisitCronRunning(false);
         };
 
+        const sendAllDrafts = async () => {
+            if (!confirm('Wysłać wszystkie wersje robocze TERAZ?')) return;
+            const res = await fetch('/api/cron/post-visit-auto-send?manual=true&sms_type=post_visit');
+            const data = await res.json();
+            alert(`Wysłano: ${data.sent ?? 0} | Błędy: ${data.failed ?? 0}`);
+            await loadData();
+        };
+
+        const editDraft = async (id: string, newMsg: string) => {
+            await fetch('/api/admin/sms-reminders', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, sms_message: newMsg }),
+            });
+            setPostVisitSms(prev => prev.map((s: any) => s.id === id ? { ...s, sms_message: newMsg } : s));
+        };
+
+        const deleteDraft = async (id: string) => {
+            if (!confirm('Usunąć tę wersję roboczą?')) return;
+            await fetch(`/api/admin/sms-reminders?id=${id}`, { method: 'DELETE' });
+            setPostVisitSms(prev => prev.filter((s: any) => s.id !== id));
+        };
+
+        const sendNow = async (id: string, phone: string, message: string) => {
+            if (!confirm(`Wysłać SMS do ${phone} teraz?`)) return;
+            const res = await fetch('/api/admin/sms-send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, phone, message }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                setPostVisitSms(prev => prev.map((s: any) => s.id === id ? { ...s, status: 'sent' } : s));
+                alert('SMS wysłany!');
+            } else { alert('Błąd: ' + data.error); }
+        };
+
         const filtered = postVisitSms.filter(s =>
             !postVisitSearch ||
             (s.patient_name || '').toLowerCase().includes(postVisitSearch.toLowerCase()) ||
@@ -3220,8 +3261,13 @@ export default function AdminPage() {
                     </button>
                     {postVisitCronResult && (
                         <div style={{ fontSize: '0.78rem', padding: '0.3rem 0.7rem', borderRadius: '0.4rem', background: postVisitCronResult.error ? 'rgba(239,68,68,0.1)' : 'rgba(34,197,94,0.1)', border: `1px solid ${postVisitCronResult.error ? 'rgba(239,68,68,0.3)' : 'rgba(34,197,94,0.3)'}`, color: postVisitCronResult.error ? '#ef4444' : '#22c55e' }}>
-                            {postVisitCronResult.error ? `❌ ${postVisitCronResult.error}` : `✅ Wysłano: ${postVisitCronResult.sent ?? 0} | Pominięto: ${postVisitCronResult.skipped ?? 0} | Błędy: ${postVisitCronResult.failed ?? 0}`}
+                            {postVisitCronResult.error ? `❌ ${postVisitCronResult.error}` : `✅ Szkice: ${postVisitCronResult.draftsCreated ?? 0} | Pominięto: ${postVisitCronResult.skipped ?? 0}`}
                         </div>
+                    )}
+                    {postVisitSms.filter(s => s.status === 'draft').length > 0 && (
+                        <button onClick={sendAllDrafts} style={{ padding: '0.5rem 1.1rem', background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.4)', borderRadius: '0.5rem', color: '#22c55e', cursor: 'pointer', fontSize: '0.83rem', fontWeight: 'bold' }}>
+                            📤 Wyślij wszystkie szkice teraz ({postVisitSms.filter(s => s.status === 'draft').length})
+                        </button>
                     )}
                 </div>
 
@@ -3241,8 +3287,10 @@ export default function AdminPage() {
                         <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
                             <input value={postVisitSearch} onChange={e => setPostVisitSearch(e.target.value)}
                                 placeholder="Szukaj pacjenta, lekarza..." style={{ ...inputS, maxWidth: '320px', padding: '0.5rem 0.8rem' }} />
+                            {/* Summary stats */}
                             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)' }}>
                                 Łącznie: <strong style={{ color: 'white' }}>{postVisitSms.length}</strong>
+                                &nbsp;|&nbsp; Szkice: <strong style={{ color: '#f59e0b' }}>{postVisitSms.filter(s => s.status === 'draft').length}</strong>
                                 &nbsp;|&nbsp; Wysłanych: <strong style={{ color: '#22c55e' }}>{postVisitSms.filter(s => s.status === 'sent').length}</strong>
                                 &nbsp;|&nbsp; Błędów: <strong style={{ color: '#ef4444' }}>{postVisitSms.filter(s => s.status === 'failed').length}</strong>
                             </div>
@@ -3254,26 +3302,56 @@ export default function AdminPage() {
                             </div>
                         )}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                            {filtered.map((sms: any) => (
-                                <div key={sms.id} style={{ ...cardStyle, marginBottom: 0, padding: '0.85rem 1rem' }}>
-                                    <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start' }}>
-                                        <div style={{ flex: 1, minWidth: 0 }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.2rem', flexWrap: 'wrap' }}>
-                                                <span style={{ fontWeight: 'bold', color: 'white', fontSize: '0.88rem' }}>{sms.patient_name}</span>
-                                                {statusBadge(sms.status)}
-                                                {sms.already_reviewed && <span style={{ fontSize: '0.65rem', color: '#a78bfa', padding: '0.1rem 0.4rem', borderRadius: '1rem', border: '1px solid rgba(167,139,250,0.3)', background: 'rgba(167,139,250,0.1)' }}>⭐ Ma recenzję Google</span>}
-                                            </div>
-                                            <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.4rem' }}>
-                                                Dr. {sms.doctor_name} &middot; {sms.appointment_type} &middot; {sms.phone}
-                                                {sms.sent_at && <> &middot; wysłano: {new Date(sms.sent_at).toLocaleString('pl-PL')}</>}
-                                            </div>
-                                            <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.55)', background: 'rgba(255,255,255,0.03)', borderRadius: '0.4rem', padding: '0.4rem 0.6rem', fontStyle: 'italic' }}>
-                                                {sms.sms_message}
+                            {filtered.map((sms: any) => {
+                                const isDraft = sms.status === 'draft';
+                                const isEditing = postVisitEditingId === sms.id;
+                                const editMsg = postVisitDraftEdits[sms.id] ?? sms.sms_message;
+                                return (
+                                    <div key={sms.id} style={{ ...cardStyle, marginBottom: 0, padding: '0.85rem 1rem', border: isDraft ? '1px solid rgba(245,158,11,0.3)' : '1px solid rgba(255,255,255,0.08)' }}>
+                                        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start' }}>
+                                            <div style={{ flex: 1, minWidth: 0 }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.2rem', flexWrap: 'wrap' }}>
+                                                    <span style={{ fontWeight: 'bold', color: 'white', fontSize: '0.88rem' }}>{sms.patient_name}</span>
+                                                    {statusBadge(sms.status)}
+                                                    {sms.already_reviewed && <span style={{ fontSize: '0.65rem', color: '#a78bfa', padding: '0.1rem 0.4rem', borderRadius: '1rem', border: '1px solid rgba(167,139,250,0.3)', background: 'rgba(167,139,250,0.1)' }}>⭐ Ma recenzję Google</span>}
+                                                </div>
+                                                <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.4rem' }}>
+                                                    Dr. {sms.doctor_name} &middot; {sms.appointment_type} &middot; {sms.phone}
+                                                    {sms.sent_at && <> &middot; wysłano: {new Date(sms.sent_at).toLocaleString('pl-PL')}</>}
+                                                    {sms.appointment_date && <> &middot; wizyta: {new Date(sms.appointment_date).toLocaleDateString('pl-PL')}</>}
+                                                </div>
+                                                {isEditing ? (
+                                                    <textarea
+                                                        value={editMsg}
+                                                        onChange={e => setPostVisitDraftEdits(prev => ({ ...prev, [sms.id]: e.target.value }))}
+                                                        rows={3}
+                                                        style={{ ...inputS, resize: 'vertical', fontSize: '0.75rem', marginBottom: '0.4rem' }}
+                                                    />
+                                                ) : (
+                                                    <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.55)', background: 'rgba(255,255,255,0.03)', borderRadius: '0.4rem', padding: '0.4rem 0.6rem', fontStyle: 'italic' }}>
+                                                        {sms.sms_message}
+                                                    </div>
+                                                )}
+                                                {sms.send_error && <div style={{ fontSize: '0.68rem', color: '#ef4444', marginTop: '0.3rem' }}>⚠ {sms.send_error}</div>}
+                                                {isDraft && (
+                                                    <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+                                                        {isEditing ? (
+                                                            <>
+                                                                <button onClick={() => { editDraft(sms.id, editMsg); setPostVisitEditingId(null); }} style={{ padding: '0.25rem 0.7rem', background: 'rgba(220,177,74,0.15)', border: '1px solid rgba(220,177,74,0.4)', borderRadius: '0.35rem', color: '#dcb14a', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 'bold' }}>💾 Zapisz</button>
+                                                                <button onClick={() => setPostVisitEditingId(null)} style={{ padding: '0.25rem 0.7rem', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.35rem', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: '0.72rem' }}>Anuluj</button>
+                                                            </>
+                                                        ) : (
+                                                            <button onClick={() => { setPostVisitEditingId(sms.id); setPostVisitDraftEdits(prev => ({ ...prev, [sms.id]: sms.sms_message })); }} style={{ padding: '0.25rem 0.7rem', background: 'rgba(56,189,248,0.1)', border: '1px solid rgba(56,189,248,0.3)', borderRadius: '0.35rem', color: '#38bdf8', cursor: 'pointer', fontSize: '0.72rem' }}>✏️ Edytuj</button>
+                                                        )}
+                                                        <button onClick={() => sendNow(sms.id, sms.phone, editMsg)} style={{ padding: '0.25rem 0.7rem', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: '0.35rem', color: '#22c55e', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 'bold' }}>📤 Wyślij teraz</button>
+                                                        <button onClick={() => deleteDraft(sms.id)} style={{ padding: '0.25rem 0.7rem', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: '0.35rem', color: '#ef4444', cursor: 'pointer', fontSize: '0.72rem' }}>🗑 Usuń</button>
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     </div>
                 )}

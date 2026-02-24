@@ -68,9 +68,12 @@ export async function sendSMS(options: SMSOptions): Promise<SMSResponse> {
         // SMSAPI.pl integration
         // Note: 'from' field omitted - SMSAPI will use default sender ID from account settings
         // To use custom sender, it must be registered in SMSAPI.pl dashboard first
+        // encoding: 'utf-8' is REQUIRED when message contains non-ASCII / Polish characters / emoji
+        // Without this, SMSAPI returns error 11: "Invalid content encoding! Windows-1250 expected"
         const requestBody = {
             to: normalizedPhone,
             message: message,
+            encoding: 'utf-8' as const,  // ← CRITICAL: prevents error 11 for Unicode messages
             format: 'json',
             skip_link_detection: 1  // Allow sending links (bypass error 94)
         };
