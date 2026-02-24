@@ -2052,6 +2052,25 @@ NODE_ENV=production
 - `src/app/api/admin/employees/route.ts` — Full rewrite: 74-day Prodentis scan, Supabase cross-reference, registered employees section
 - `mikrostomart_context.md` — Comprehensive documentation update (70+ lines added/modified)
 
+### February 24, 2026 (batch 1)
+**5 Bug Fixes: Schedule Persistence + Task Click + Duration + AI updateTask**
+
+#### Commits:
+- `d236bfa` / `6a731be` — fix: 5 bugs
+
+#### Fixes:
+1. **Schedule: persist hiddenDoctors** — lazy-init + save to `localStorage('schedule-hidden-doctors')` in `toggleDoctor/showAll/hideAll`
+2. **Tasks: calendar task click** — calendar view task tiles now have `onClick={() => openEditModal(t)}` + `cursor: pointer`
+3. **AI updateTask action** — new `updateTask()` in `assistantActions.ts` finds task by `title_query` (ilike) or `task_id`; `merge_checklist` adds items without replacing existing; added to `FUNCTIONS` + dispatcher
+4. **AI system prompt** — "KRYTYCZNE — NIE duplikuj zadań" rule: use `updateTask(merge_checklist)` not `createTask` when user adds to existing task
+5. **Schedule duration (permanent fix)** — `new Date(endDateStr)` → UTC-sensitive on Vercel; replaced with direct string slice `indexOf('T') + slice` for endDate time, same as startTime already was
+
+#### Files:
+- `src/app/pracownik/page.tsx` — hiddenDoctors localStorage + calendar task click
+- `src/lib/assistantActions.ts` — updateTask action + dispatcher
+- `src/app/api/employee/assistant/route.ts` — updateTask FUNCTION + no-duplicate system prompt rule
+- `src/app/api/employee/schedule/route.ts` — permanent duration string-parse fix
+
 ---
 
 ### February 23, 2026 (batch 3)
