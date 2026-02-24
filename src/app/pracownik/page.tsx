@@ -1083,6 +1083,7 @@ export default function EmployeePage() {
 
     return (
         <div
+            className="pw-content-area"
             onClick={() => {
                 // Dismiss tooltips when tapping outside (mobile support)
                 setNotesAppointment(null);
@@ -1175,56 +1176,24 @@ export default function EmployeePage() {
                 )}
             </header>
 
-            {/* Tab Navigation */}
-            <div style={{
-                display: 'flex',
-                gap: '0.25rem',
-                padding: '0.75rem 2rem 0',
-                borderBottom: '1px solid rgba(255,255,255,0.06)',
-                background: 'rgba(0, 0, 0, 0.15)',
-            }}>
+            {/* Tab Navigation — top on desktop, bottom on mobile */}
+            <div className="pw-tab-bar">
                 {[
-                    { id: 'grafik' as const, label: 'Grafik', icon: <Calendar size={16} /> },
-                    { id: 'zadania' as const, label: 'Zadania', icon: <CheckSquare size={16} /> },
-                    { id: 'asystent' as const, label: 'Asystent AI', icon: <Bot size={16} /> },
-                    { id: 'powiadomienia' as const, label: 'Powiadomienia', icon: <Bell size={16} /> },
+                    { id: 'grafik' as const, label: 'Grafik', icon: <Calendar size={18} /> },
+                    { id: 'zadania' as const, label: 'Zadania', icon: <CheckSquare size={18} /> },
+                    { id: 'asystent' as const, label: 'AI', icon: <Bot size={18} /> },
+                    { id: 'powiadomienia' as const, label: 'Alerty', icon: <Bell size={18} /> },
                 ].map(tab => (
                     <button
                         key={tab.id}
+                        className={`pw-tab-btn${activeTab === tab.id ? ' pw-tab-btn--active' : ''}`}
                         onClick={() => {
                             setActiveTab(tab.id);
                             if (tab.id === 'powiadomienia') fetchPushNotifications();
                         }}
-                        style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.5rem',
-                            padding: '0.65rem 1.25rem',
-                            background: activeTab === tab.id ? 'rgba(56, 189, 248, 0.1)' : 'transparent',
-                            border: 'none',
-                            borderBottom: activeTab === tab.id ? '2px solid #38bdf8' : '2px solid transparent',
-                            borderRadius: '0.5rem 0.5rem 0 0',
-                            color: activeTab === tab.id ? '#38bdf8' : 'rgba(255,255,255,0.5)',
-                            fontWeight: activeTab === tab.id ? '600' : '400',
-                            fontSize: '0.9rem',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s',
-                        }}
-                        onMouseEnter={(e) => {
-                            if (activeTab !== tab.id) {
-                                e.currentTarget.style.color = 'rgba(255,255,255,0.8)';
-                                e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
-                            }
-                        }}
-                        onMouseLeave={(e) => {
-                            if (activeTab !== tab.id) {
-                                e.currentTarget.style.color = 'rgba(255,255,255,0.5)';
-                                e.currentTarget.style.background = 'transparent';
-                            }
-                        }}
                     >
-                        {tab.icon}
-                        {tab.label}
+                        <span className="pw-tab-icon">{tab.icon}</span>
+                        <span className="pw-tab-label">{tab.label}</span>
                     </button>
                 ))}
             </div>
@@ -4933,6 +4902,106 @@ export default function EmployeePage() {
                 @keyframes spin {
                     from { transform: rotate(0deg); }
                     to { transform: rotate(360deg); }
+                }
+
+                /* ─── Tab bar — desktop (top) ──────────────────── */
+                .pw-tab-bar {
+                    display: flex;
+                    gap: 0.25rem;
+                    padding: 0.75rem 2rem 0;
+                    border-bottom: 1px solid rgba(255,255,255,0.06);
+                    background: rgba(0,0,0,0.15);
+                    /* prevent text wrapping that breaks layout */
+                    flex-wrap: nowrap;
+                    overflow-x: auto;
+                    -webkit-overflow-scrolling: touch;
+                    scrollbar-width: none;
+                }
+                .pw-tab-bar::-webkit-scrollbar { display: none; }
+
+                .pw-tab-btn {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.4rem;
+                    padding: 0.6rem 1.1rem;
+                    background: transparent;
+                    border: none;
+                    border-bottom: 2px solid transparent;
+                    border-radius: 0.5rem 0.5rem 0 0;
+                    color: rgba(255,255,255,0.5);
+                    font-weight: 400;
+                    font-size: 0.88rem;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    white-space: nowrap;
+                    flex-shrink: 0;
+                }
+                .pw-tab-btn:hover {
+                    color: rgba(255,255,255,0.8);
+                    background: rgba(255,255,255,0.03);
+                }
+                .pw-tab-btn--active {
+                    background: rgba(56,189,248,0.1) !important;
+                    border-bottom: 2px solid #38bdf8 !important;
+                    color: #38bdf8 !important;
+                    font-weight: 600 !important;
+                }
+
+                /* ─── Tab bar — mobile (bottom fixed) ─────────── */
+                @media (max-width: 767px) {
+                    .pw-tab-bar {
+                        /* Fixed to bottom of viewport */
+                        position: fixed;
+                        bottom: 0;
+                        left: 0;
+                        right: 0;
+                        z-index: 200;
+                        /* Reset top-bar styles */
+                        padding: 0;
+                        gap: 0;
+                        border-bottom: none;
+                        border-top: 1px solid rgba(255,255,255,0.08);
+                        background: rgba(10,15,28,0.97);
+                        backdrop-filter: blur(16px);
+                        -webkit-backdrop-filter: blur(16px);
+                        /* Safe area for home indicator (iPhone) */
+                        padding-bottom: env(safe-area-inset-bottom, 0px);
+                        overflow: visible;
+                    }
+
+                    .pw-tab-btn {
+                        /* Equal-width columns, vertical stack */
+                        flex: 1;
+                        flex-direction: column;
+                        align-items: center;
+                        justify-content: center;
+                        gap: 0.2rem;
+                        padding: 0.55rem 0.25rem 0.5rem;
+                        font-size: 0.68rem;
+                        font-weight: 500;
+                        border-radius: 0;
+                        border-bottom: none;
+                        border-top: 2px solid transparent;
+                        color: rgba(255,255,255,0.45);
+                    }
+                    .pw-tab-btn:hover {
+                        background: rgba(255,255,255,0.04);
+                        color: rgba(255,255,255,0.7);
+                    }
+                    .pw-tab-btn--active {
+                        border-bottom: none !important;
+                        border-top: 2px solid #38bdf8 !important;
+                        background: rgba(56,189,248,0.06) !important;
+                        color: #38bdf8 !important;
+                    }
+
+                    .pw-tab-icon { font-size: 1.1rem; }
+                    .pw-tab-label { font-size: 0.65rem; }
+
+                    /* Push page content up so bottom nav doesn't overlap */
+                    .pw-content-area {
+                        padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+                    }
                 }
             `}</style>
         </div >
