@@ -37,6 +37,29 @@ export default function ContactPage() {
                                         ul. Centralna 33a<br />
                                         45-940 Opole / Chmielowice
                                     </p>
+                                    <a
+                                        href="https://www.google.com/maps/dir/?api=1&destination=ul.+Centralna+33a,+45-940+Opole"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        style={{
+                                            display: "inline-flex",
+                                            alignItems: "center",
+                                            gap: "0.6rem",
+                                            marginTop: "0.75rem",
+                                            padding: "0.6rem 1.2rem",
+                                            background: "var(--color-primary)",
+                                            color: "black",
+                                            fontWeight: 700,
+                                            fontSize: "0.95rem",
+                                            borderRadius: "2px",
+                                            textDecoration: "none",
+                                            transition: "opacity 0.2s",
+                                        }}
+                                        onMouseEnter={e => (e.currentTarget as HTMLElement).style.opacity = '0.85'}
+                                        onMouseLeave={e => (e.currentTarget as HTMLElement).style.opacity = '1'}
+                                    >
+                                        🗺️ Nawiguj do gabinetu
+                                    </a>
                                 </div>
 
                                 <div style={{ marginBottom: "var(--spacing-lg)" }}>
