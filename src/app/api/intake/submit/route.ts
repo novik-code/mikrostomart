@@ -243,8 +243,14 @@ export async function POST(req: Request) {
                 const result = await createRes.json();
 
                 if (createRes.status === 201 && result.prodentisId) {
-                    // Created successfully
+                    // Created successfully — now also write notes to XML field
                     prodentisPatientId = result.prodentisId;
+                    await fetch(`${prodentisUrl}/api/patients/${prodentisPatientId}/notes`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-API-Key': prodentisKey },
+                        body: JSON.stringify({ category: 'medical_intake', text: medicalNotes, appendMode: true }),
+                        signal: AbortSignal.timeout(10000),
+                    });
                     prodentisStatus = 'sent';
                 } else if (result.error === 'PATIENT_EXISTS' && result.prodentisId) {
                     // PESEL conflict → PATCH + notes
