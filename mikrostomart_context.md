@@ -583,6 +583,27 @@ Buffer for patient form data before sending to Prodentis. Service-role only.
 - submitted_at (timestamptz)
 ```
 
+#### 25. **feature_suggestions** (migration 055)
+Employee feature suggestions/improvements visible to all staff.
+```sql
+- id (uuid, PK)
+- author_email (text), author_name (text)
+- content (text) -- suggestion text
+- category (text, DEFAULT 'funkcja') -- 'funkcja' | 'poprawka' | 'pomysł' | 'inny'
+- status (text, DEFAULT 'nowa') -- 'nowa' | 'w_dyskusji' | 'zaplanowana' | 'wdrożona' | 'odrzucona'
+- upvotes (text[], DEFAULT '{}') -- array of emails
+- created_at, updated_at (timestamptz)
+```
+
+#### 26. **feature_suggestion_comments** (migration 055)
+```sql
+- id (uuid, PK)
+- suggestion_id (uuid, FK → feature_suggestions)
+- author_email (text), author_name (text)
+- content (text)
+- created_at (timestamptz)
+```
+
 
 ## ✨ Feature Catalog
 
@@ -1111,6 +1132,8 @@ Features:
 | `/employee/patient-history` | GET | Patient visit history from Prodentis (`?patientId=&limit=`) |
 | `/employee/patient-appointments` | GET | Future appointments for patient from Prodentis (`?patientId=`) — used for task due date suggestions |
 | `/employee/patient-details` | GET | Patient data + medical notes from Prodentis (`?patientId=`) — shows in '👤 Dane' modal |
+| `/employee/suggestions` | GET, POST, PUT | Feature suggestions CRUD. PUT: upvote toggle (`action=upvote`) or status change (`action=status`) |
+| `/employee/suggestions/[id]/comments` | GET, POST | Comments on feature suggestions |
 | `/employee/staff` | GET | Registered employees list from `user_roles` table (fast, no Prodentis scan) |
 | `/employee/tasks` | GET, POST, PUT, DELETE | Task CRUD. GET filters private tasks by `owner_user_id`; POST accepts `is_private`, `due_time`; private tasks skip Telegram/push |
 | `/employee/tasks/[id]` | GET, PUT, DELETE | Individual task operations (get details, update, archive) |
@@ -2176,6 +2199,13 @@ NODE_ENV=production
 - Modal uses Prodentis data directly — all patients now show consistent data
 - Dane osobowe: PESEL, data ur., płeć, nazwisko rodowe, imię drugie (only non-null shown)
 - warnings[] → red cards with date + author
+
+**`1ba3eb9` — Feature Suggestions Tab (Feb 25):**
+- Migration 055: `feature_suggestions` + `feature_suggestion_comments` tables (RLS: all auth read/write)
+- API: `GET/POST/PUT /api/employee/suggestions` + `GET/POST /api/employee/suggestions/[id]/comments`
+- New 'Sugestie' tab (5th tab, Lightbulb icon) in employee panel
+- Textarea form with category selector (Nowa funkcja/Poprawka/Pomysł/Inny)
+- Upvote system (toggle per user email), comment threads, status badges
 
 ---
 
