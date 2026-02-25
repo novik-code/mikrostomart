@@ -25,8 +25,17 @@ export default function AppointmentScheduler({ specialistId, specialistName, onS
     const [selectedSlotStr, setSelectedSlotStr] = useState<string | null>(null);
     const [selectedDateView, setSelectedDateView] = useState<Date | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [minDaysAhead, setMinDaysAhead] = useState(1); // 1 = tomorrow by default
 
     const duration = specialistId === 'malgorzata' ? '60' : '30';
+
+    // Fetch admin-controlled minimum-days-ahead setting
+    useEffect(() => {
+        fetch('/api/admin/booking-settings')
+            .then(r => r.json())
+            .then(d => setMinDaysAhead(typeof d.min_days_ahead === 'number' ? d.min_days_ahead : 1))
+            .catch(() => setMinDaysAhead(1)); // safe default on any error
+    }, []);
 
     const fetchSlotsForWeek = async () => {
         setLoading(true);
@@ -47,6 +56,11 @@ export default function AppointmentScheduler({ specialistId, specialistName, onS
                         return res.json();
                     })
                     .then((data: Slot[]) => {
+                        // Compute cutoff: midnight of (today + minDaysAhead)
+                        const cutoff = new Date();
+                        cutoff.setHours(0, 0, 0, 0);
+                        cutoff.setDate(cutoff.getDate() + minDaysAhead);
+
                         return data.filter(slot => {
                             const apiName = slot.doctorName.toLowerCase();
                             const targetName = specialistName.toLowerCase().replace('lek. dent. ', '').replace('hig. stom. ', '');
@@ -65,6 +79,10 @@ export default function AppointmentScheduler({ specialistId, specialistName, onS
                             if (!isDoctorMatch) return false;
 
                             const slotDate = parseISO(slot.start);
+
+                            // Filter out slots before cutoff (past + today if minDaysAhead >= 1)
+                            if (slotDate < cutoff) return false;
+
                             const minutes = getMinutes(slotDate);
                             return minutes === 0 || minutes === 30;
                         });
@@ -91,7 +109,8 @@ export default function AppointmentScheduler({ specialistId, specialistName, onS
 
     useEffect(() => {
         fetchSlotsForWeek();
-    }, [currentWeekStart, specialistId, duration]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentWeekStart, specialistId, duration, minDaysAhead]);
 
     const handlePrevWeek = () => {
         const now = new Date();
