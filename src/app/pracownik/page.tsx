@@ -1277,7 +1277,6 @@ export default function EmployeePage() {
                                             width: 48,
                                             height: 48,
                                             borderRadius: '50%',
-                                            border: 'none',
                                             background: isActive
                                                 ? `linear-gradient(135deg, ${tab.color}, ${tab.color}cc)`
                                                 : 'rgba(15,23,42,0.95)',

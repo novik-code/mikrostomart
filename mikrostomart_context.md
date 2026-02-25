@@ -2207,6 +2207,19 @@ NODE_ENV=production
 - Textarea form with category selector (Nowa funkcja/Poprawka/Pomysł/Inny)
 - Upvote system (toggle per user email), comment threads, status badges
 
+**`6cd0ce1` — Suggestions Bug Fix (Feb 25):**
+- Fixed: `currentUser` (always `''`) → `currentUserEmail` (from `useUserRoles()` hook)
+- Added error alerts on failed submissions
+- `author_name` now uses full staff name from `staffList`
+
+**`ca4ec01` — Mobile FAB Hamburger Menu (Feb 25):**
+- Replaced full-width bottom tab bar with floating action button (FAB) in bottom-right corner
+- 56px circular toggle (blue gradient → red on open, 90° rotation animation)
+- 5 menu items expand upward with staggered spring animation (50ms delay)
+- Each item: label pill + 48px colored icon circle with per-tab accent color
+- Active tab highlighted with gradient glow + accent shadow
+- Desktop horizontal tabs unchanged
+
 ---
 
 ### February 25, 2026 (batch 4)
