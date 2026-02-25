@@ -73,7 +73,7 @@ export default function ContactPage() {
                                             marginBottom: "0.2rem"
                                         }}>
                                             <AnimatedPhone size={32} color="var(--color-primary)" />
-                                            <span style={{ fontSize: "2rem", fontWeight: "bold" }}>570 270 470</span>
+                                            <span style={{ fontSize: "clamp(1.3rem, 5vw, 2rem)", fontWeight: "bold" }}>570 270 470</span>
                                         </a>
                                         <p style={{ paddingLeft: "3rem", color: "var(--color-text-muted)", fontSize: "0.9rem" }}>{t('mainPhone')}</p>
                                     </div>
@@ -88,7 +88,7 @@ export default function ContactPage() {
                                             marginBottom: "0.2rem"
                                         }}>
                                             <AnimatedPhone size={32} color="var(--color-primary)" />
-                                            <span style={{ fontSize: "2rem", fontWeight: "bold" }}>570 810 800</span>
+                                            <span style={{ fontSize: "clamp(1.3rem, 5vw, 2rem)", fontWeight: "bold" }}>570 810 800</span>
                                         </a>
                                         <p style={{ paddingLeft: "3rem", color: "var(--color-text-muted)", fontSize: "0.9rem" }}>{t('altPhone')}</p>
                                     </div>
@@ -102,7 +102,7 @@ export default function ContactPage() {
                                             textDecoration: "none"
                                         }}>
                                             <AnimatedAt size={32} color="var(--color-primary)" />
-                                            <span style={{ fontSize: "1.5rem" }}>gabinet@mikrostomart.pl</span>
+                                            <span style={{ fontSize: "clamp(0.85rem, 3.5vw, 1.5rem)", wordBreak: "break-all" }}>gabinet@mikrostomart.pl</span>
                                         </a>
                                     </div>
                                 </div>
