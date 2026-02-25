@@ -551,6 +551,37 @@ Per-notification-type configuration for automated push notifications (configurab
 ```
 Seeded with 15 notification types: 13 employee-targeted (task events, appointment events, orders, registrations, chat), 2 patient-targeted (appointment-24h, appointment-1h reminders).
 
+#### 23. **patient_intake_tokens** (migration 054)
+One-time QR tokens for digital patient registration (e-karta). Service-role only (RLS enabled, no policies).
+```sql
+- id (uuid, PK)
+- token (text, UNIQUE, DEFAULT gen_random_uuid()::text)
+- prodentis_patient_id (text) -- NULL = nowy pacjent
+- prefill_first_name, prefill_last_name (text)
+- appointment_id, appointment_date, appointment_type (text)
+- used_at (timestamptz) -- NULL = nieużyty
+- expires_at (timestamptz, DEFAULT NOW() + 24h)
+- created_by_employee (text)
+- created_at (timestamptz)
+```
+Indexes: partial on `token WHERE used_at IS NULL`, on `expires_at`.
+
+#### 24. **patient_intake_submissions** (migration 054)
+Buffer for patient form data before sending to Prodentis. Service-role only.
+```sql
+- id (uuid, PK)
+- token_id (uuid, FK → patient_intake_tokens)
+- first_name, last_name, middle_name, maiden_name (text)
+- pesel (text), birth_date (date), gender (text)
+- street, postal_code, city, phone, email (text)
+- marketing_consent, contact_consent, rodo_consent (boolean)
+- medical_survey (jsonb) -- 40+ checkbox/text fields from paper card
+- medical_notes (text) -- formatted text sent to Prodentis
+- prodentis_status (text, DEFAULT 'pending') -- pending | sent | failed
+- prodentis_patient_id (text), prodentis_error (text)
+- signature_data (text) -- base64 canvas
+- submitted_at (timestamptz)
+```
 
 
 ## ✨ Feature Catalog
@@ -979,6 +1010,13 @@ Features:
 - Token passed via `?token_hash=` URL parameter
 
 
+#### 16. E-Karta Pacjenta — Digital Patient Registration (`/ekarta/[token]`)
+- **Flow:** Employee clicks 📋 E-Karta in schedule popup → QR code generated → patient scans with phone → 3-step form → data saved to Supabase → forwarded to Prodentis API
+- **Step 1:** Personal data (name, PESEL, address, phone, email, gender)
+- **Step 2:** Full medical survey (40+ fields matching paper KARTA DOROSŁY): 16 disease categories, infectious diseases (hep A/B/C, AIDS, TB, STDs), surgery/anesthesia/blood transfusion history, smoking/alcohol/sedatives, women's questions
+- **Step 3:** Consents (RODO, treatment, regulation) + electronic signature (touch canvas, devicePixelRatio-aware)
+- **Notes format:** Structured sections with `--- SEKCJA ---` headers → written to Prodentis XML `notatki` ("Uwagi i ostrzeżenia dla lekarza")
+- **Prodentis integration:** POST create → 409 PESEL exists → PATCH + POST notes; synchronous (not fire-and-forget)
 
 ---
 
@@ -1004,6 +1042,22 @@ Features:
 | `/api/treatment-lead` | POST | Treatment calculator lead form (→ Telegram + Email) |
 | `/api/generate-review` | POST | AI-generated Google review from survey (OpenAI gpt-4o-mini) |
 | `/api/google-reviews` | GET | Real Google reviews from Places API (cached in Supabase, shuffled, 4★+ only) |
+
+### E-Karta (Patient Registration) APIs
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/intake/generate-token` | POST | Generate one-time QR token (employee → patient) |
+| `/api/intake/verify/[token]` | GET | Verify token validity + return prefill data |
+| `/api/intake/submit` | POST | Submit patient form → Supabase + Prodentis |
+
+### Prodentis Write-Back APIs (external: `83.230.40.14:3000`)
+
+| Endpoint | Method | Auth | Purpose |
+|----------|--------|------|---------|
+| `/api/patients` | POST | X-API-Key | Create new patient |
+| `/api/patients/:id` | PATCH | X-API-Key | Update existing patient |
+| `/api/patients/:id/notes` | POST | X-API-Key | Add medical notes → XML "Uwagi dla lekarza" |
 
 ### Auth APIs (`/api/auth/*`)
 
@@ -2061,11 +2115,14 @@ NODE_ENV=production
 - `mikrostomart_context.md` — Comprehensive documentation update (70+ lines added/modified)
 
 ### February 25, 2026 (batch 5)
-**Cyfrowa E-Karta Pacjenta — Full Implementation**
+**Cyfrowa E-Karta Pacjenta — Full Implementation + Login Popup Fix**
 
 #### Commits:
 - `a884df6` — feat: e-karta pacjenta — QR code registration system (Block A)
 - `12d65d6` — feat: integrate Prodentis write-back API for e-karta
+- `30e743d` — fix: pełna karta stanu zdrowia (40+ pól) + podpis mobile + formatowanie notatek
+- `ee029d5` — fix: notes → XML notatki ('Uwagi dla lekarza' zamiast 'Informacje o pacjencie')
+- `4ec3426` — fix: login popup tasks clickable → opens task detail modal
 
 **`a884df6` — E-Karta Block A (Feb 25):**
 - **Migration 054:** `patient_intake_tokens` (jednorazowe tokeny QR, 24h TTL) + `patient_intake_submissions` (bufor danych przed Prodentis)
@@ -2079,8 +2136,26 @@ NODE_ENV=production
 - **Endpoints:** POST /api/patients (create), PATCH /api/patients/:id (update), POST /api/patients/:id/notes (medical notes → "Uwagi dla lekarza" in Prodentis XML)
 - **Flow:** submit → POST patient → 409 PESEL exists → PATCH + POST notes → status=sent
 - **Fix:** fire-and-forget async → synchronous (Vercel kills async), all 5 routes updated 192.168.1.5 → 83.230.40.14
-- **Files modified:** `src/app/api/intake/submit/route.ts`, `src/app/api/cron/appointment-reminders/route.ts`, `src/app/api/cron/push-appointment-1h/route.ts`, `src/app/api/cron/week-after-visit-sms/route.ts`, `src/app/api/cron/post-visit-sms/route.ts`, `src/app/api/prodentis/slots/route.ts`
-- **⚠️ Action:** Add `PRODENTIS_API_KEY=2c9bd5b4-5090-4007-8f06-936811bd0947` to Vercel env vars
+- **⚠️ Action:** `PRODENTIS_API_KEY=2c9bd5b4-5090-4007-8f06-936811bd0947` in Vercel ✅
+
+**`30e743d` — Full Medical Survey (Feb 25):**
+- Form rewritten with ALL fields from paper card (KARTA DOROSŁY 1 czesc.docx):
+  - 16 disease categories (heart, circulatory, vascular, lung, digestive, liver, urinary, metabolic, thyroid, neurological, musculoskeletal, blood, eye, mood, rheumatic, osteoporosis)
+  - Infectious diseases: hepatitis A/B/C, AIDS, TB, STDs
+  - Medical history: surgery, anesthesia tolerance, blood transfusions
+  - Substances: smoking, alcohol (TAK/NIE/OKAZJON.), sedatives/narcotics
+  - Women's questions: pregnancy + month, menstruation, oral contraceptives
+  - General: feelsHealthy, hospital 2yrs, currently treated, medications, allergies, bleeding tendency, fainting, pacemaker, blood pressure
+- Signature canvas: fixed devicePixelRatio-aware resize → full width on mobile
+- Notes formatter: structured sections with `--- SEKCJA ---` headers and blank line separators
+
+**`ee029d5` — Notes to XML (Feb 25):**
+- After POST /api/patients (201 created), now also calls POST /api/patients/:id/notes
+- Fixes: notes go to XML `notatki` field → "Uwagi i ostrzeżenia dla lekarza" (not just `informacje_o_pacjencie`)
+
+**`4ec3426` — Login Popup Tasks Clickable (Feb 25):**
+- Each task in login popup now clickable → closes popup, switches to 'zadania' tab, opens task detail modal
+- Added hover effects, description preview, → arrow indicator
 
 ---
 
