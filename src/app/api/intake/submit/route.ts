@@ -108,12 +108,15 @@ export async function POST(req: Request) {
         .update({ used_at: new Date().toISOString() })
         .eq('id', tokenRow.id);
 
-    // 5. Try to send to Prodentis (async, don't block response)
-    const prodentisUrl = process.env.PRODENTIS_API_URL || 'http://192.168.1.5:3000';
+    // 5. Send to Prodentis API (synchronous — Vercel kills fire-and-forget)
+    const prodentisUrl = process.env.PRODENTIS_API_URL || 'http://83.230.40.14:3000';
     const prodentisKey = process.env.PRODENTIS_API_KEY || '';
 
-    // Fire and forget — update status asynchronously
-    (async () => {
+    let prodentisStatus = 'pending';
+    let prodentisPatientId = tokenRow.prodentis_patient_id || null;
+    let prodentisError = '';
+
+    if (prodentisKey) {
         try {
             const patientPayload = {
                 firstName: formData.firstName,
@@ -135,10 +138,8 @@ export async function POST(req: Request) {
                 notes: medicalNotes,
             };
 
-            let prodentisPatientId = tokenRow.prodentis_patient_id;
-
             if (prodentisPatientId) {
-                // Update existing patient
+                // Known patient → PATCH existing + add notes
                 const patchRes = await fetch(`${prodentisUrl}/api/patients/${prodentisPatientId}`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json', 'X-API-Key': prodentisKey },
@@ -146,19 +147,16 @@ export async function POST(req: Request) {
                     signal: AbortSignal.timeout(10000),
                 });
                 if (patchRes.ok) {
-                    // Add notes
                     await fetch(`${prodentisUrl}/api/patients/${prodentisPatientId}/notes`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'X-API-Key': prodentisKey },
                         body: JSON.stringify({ category: 'medical_intake', text: medicalNotes, appendMode: true }),
                         signal: AbortSignal.timeout(10000),
                     });
-                    await supabase.from('patient_intake_submissions')
-                        .update({ prodentis_status: 'sent', prodentis_patient_id: prodentisPatientId })
-                        .eq('id', submission.id);
+                    prodentisStatus = 'sent';
                 }
             } else {
-                // Create new patient
+                // New patient → POST create
                 const createRes = await fetch(`${prodentisUrl}/api/patients`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'X-API-Key': prodentisKey },
@@ -166,31 +164,52 @@ export async function POST(req: Request) {
                     signal: AbortSignal.timeout(10000),
                 });
                 const result = await createRes.json();
-                if (createRes.ok || result.prodentisId) {
+
+                if (createRes.status === 201 && result.prodentisId) {
+                    // Created successfully
                     prodentisPatientId = result.prodentisId;
-                    await supabase.from('patient_intake_submissions')
-                        .update({ prodentis_status: 'sent', prodentis_patient_id: prodentisPatientId })
-                        .eq('id', submission.id);
+                    prodentisStatus = 'sent';
                 } else if (result.error === 'PATIENT_EXISTS' && result.prodentisId) {
-                    // PESEL conflict — update existing
-                    await fetch(`${prodentisUrl}/api/patients/${result.prodentisId}/notes`, {
+                    // PESEL conflict → PATCH + notes
+                    prodentisPatientId = result.prodentisId;
+                    await fetch(`${prodentisUrl}/api/patients/${prodentisPatientId}`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json', 'X-API-Key': prodentisKey },
+                        body: JSON.stringify(patientPayload),
+                        signal: AbortSignal.timeout(10000),
+                    });
+                    await fetch(`${prodentisUrl}/api/patients/${prodentisPatientId}/notes`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'X-API-Key': prodentisKey },
                         body: JSON.stringify({ category: 'medical_intake', text: medicalNotes, appendMode: true }),
                         signal: AbortSignal.timeout(10000),
                     });
-                    await supabase.from('patient_intake_submissions')
-                        .update({ prodentis_status: 'sent', prodentis_patient_id: result.prodentisId })
-                        .eq('id', submission.id);
+                    prodentisStatus = 'sent';
+                } else {
+                    prodentisStatus = 'failed';
+                    prodentisError = result.error || `HTTP ${createRes.status}`;
                 }
             }
         } catch (e: any) {
-            console.error('Prodentis async send failed (non-blocking):', e.message);
-            await supabase.from('patient_intake_submissions')
-                .update({ prodentis_status: 'failed', prodentis_error: e.message })
-                .eq('id', submission.id);
+            console.error('Prodentis send failed:', e.message);
+            prodentisStatus = 'failed';
+            prodentisError = e.message;
         }
-    })();
+    }
 
-    return NextResponse.json({ success: true, submissionId: submission.id });
+    // 6. Update submission with Prodentis result
+    await supabase.from('patient_intake_submissions')
+        .update({
+            prodentis_status: prodentisStatus,
+            prodentis_patient_id: prodentisPatientId,
+            prodentis_error: prodentisError || null,
+        })
+        .eq('id', submission.id);
+
+    return NextResponse.json({
+        success: true,
+        submissionId: submission.id,
+        prodentisStatus,
+        prodentisPatientId,
+    });
 }

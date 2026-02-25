@@ -4,7 +4,7 @@ import { sendTranslatedPushToUser } from '@/lib/webpush';
 
 export const maxDuration = 30;
 
-const PRODENTIS_API_URL = process.env.PRODENTIS_API_URL || 'http://192.168.1.5:3000';
+const PRODENTIS_API_URL = process.env.PRODENTIS_API_URL || 'http://83.230.40.14:3000';
 
 /**
  * 1-Hour Appointment Push Notification Cron

@@ -11,7 +11,7 @@ export async function GET(request: Request) {
         return NextResponse.json({ error: 'Missing date parameter' }, { status: 400 });
     }
 
-    const apiUrl = process.env.PRODENTIS_API_URL || 'http://192.168.1.5:3000';
+    const apiUrl = process.env.PRODENTIS_API_URL || 'http://83.230.40.14:3000';
     const endpoint = `${apiUrl}/api/slots/free?date=${date}&duration=${duration || '30'}`;
 
     try {

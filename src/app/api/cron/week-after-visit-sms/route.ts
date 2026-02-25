@@ -6,7 +6,7 @@ import { randomUUID } from 'crypto';
 
 export const maxDuration = 120;
 
-const PRODENTIS_API_URL = process.env.PRODENTIS_API_URL || 'http://192.168.1.5:3000';
+const PRODENTIS_API_URL = process.env.PRODENTIS_API_URL || 'http://83.230.40.14:3000';
 const APP_URL = 'https://mikrostomart.pl/aplikacja';
 
 const REMINDER_DOCTORS = process.env.REMINDER_DOCTORS?.split(',').map(d => d.trim()) || [

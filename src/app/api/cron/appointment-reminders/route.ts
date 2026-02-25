@@ -9,7 +9,7 @@ import { nanoid } from 'nanoid';
 export const maxDuration = 120; // Vercel function timeout (increased: many appointments + multiple DB queries per appointment)
 
 // Prodentis API base URL
-const PRODENTIS_API_URL = process.env.PRODENTIS_API_URL || 'http://192.168.1.5:3000';
+const PRODENTIS_API_URL = process.env.PRODENTIS_API_URL || 'http://83.230.40.14:3000';
 
 // Doctor list for reminders (comma-separated env variable)
 const REMINDER_DOCTORS = process.env.REMINDER_DOCTORS?.split(',').map(d => d.trim()) || [
