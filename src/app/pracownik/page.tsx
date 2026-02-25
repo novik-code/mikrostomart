@@ -254,6 +254,9 @@ export default function EmployeePage() {
     // E-Karta QR state
     const [qrModal, setQrModal] = useState<{ url: string; expiresAt: string } | null>(null);
     const [qrLoading, setQrLoading] = useState(false);
+    // Patient data modal state
+    const [patientDataModal, setPatientDataModal] = useState<any>(null);
+    const [patientDataLoading, setPatientDataLoading] = useState(false);
     const [currentUser, setCurrentUser] = useState<string>('');
     const [historyLoading, setHistoryLoading] = useState(false);
     const [historyError, setHistoryError] = useState<string | null>(null);
@@ -2136,7 +2139,7 @@ export default function EmployeePage() {
                                         {selectedAppointment.startTime} – {selectedAppointment.endTime} ({selectedAppointment.duration} min)
                                     </div>
                                 </div>
-                                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start', flexShrink: 0 }}>
+                                <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'flex-start', flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end', maxWidth: '260px' }}>
                                     {/* E-Karta QR button */}
                                     <button
                                         onClick={async () => {
@@ -2185,6 +2188,41 @@ export default function EmployeePage() {
                                         disabled={qrLoading}
                                     >
                                         {qrLoading ? '⏳' : '📋'} E-Karta
+                                    </button>
+                                    {/* Patient Data button */}
+                                    <button
+                                        onClick={async () => {
+                                            if (!selectedAppointment?.patientId) return;
+                                            setPatientDataLoading(true);
+                                            try {
+                                                const res = await fetch(`/api/employee/patient-details?patientId=${selectedAppointment.patientId}`);
+                                                if (res.ok) {
+                                                    const data = await res.json();
+                                                    setPatientDataModal(data);
+                                                } else {
+                                                    alert('Nie udało się pobrać danych pacjenta');
+                                                }
+                                            } catch { alert('Błąd połączenia z Prodentis'); }
+                                            finally { setPatientDataLoading(false); }
+                                        }}
+                                        style={{
+                                            background: 'linear-gradient(135deg, #a78bfa, #7c3aed)',
+                                            border: 'none',
+                                            borderRadius: '0.5rem',
+                                            padding: '0.4rem 0.65rem',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.3rem',
+                                            color: '#fff',
+                                            fontSize: '0.72rem',
+                                            fontWeight: '600',
+                                            cursor: 'pointer',
+                                            whiteSpace: 'nowrap',
+                                        }}
+                                        title="Pokaż dane pacjenta z Prodentis"
+                                        disabled={patientDataLoading || !selectedAppointment?.patientId}
+                                    >
+                                        {patientDataLoading ? '⏳' : '👤'} Dane
                                     </button>
                                     <button
                                         onClick={() => {
@@ -4065,7 +4103,167 @@ export default function EmployeePage() {
                 </div>
             )}
 
-            {/* ═══ TASK DETAIL MODAL ═══ */}
+            {/* ═══ PATIENT DATA MODAL ═══ */}
+            {patientDataModal && (
+                <div
+                    onClick={() => setPatientDataModal(null)}
+                    style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 4500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0.75rem' }}
+                >
+                    <div
+                        onClick={e => e.stopPropagation()}
+                        style={{
+                            background: 'linear-gradient(135deg, #0d1b2a, #1b2838)',
+                            border: '1px solid rgba(167,139,250,0.3)',
+                            borderRadius: '1rem',
+                            maxWidth: 520,
+                            width: '100%',
+                            maxHeight: '90vh',
+                            overflow: 'hidden',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            boxShadow: '0 20px 60px rgba(0,0,0,0.7)',
+                        }}
+                    >
+                        {/* Header */}
+                        <div style={{
+                            padding: '1rem 1.25rem',
+                            background: 'linear-gradient(135deg, rgba(167,139,250,0.12), rgba(124,58,237,0.06))',
+                            borderBottom: '1px solid rgba(167,139,250,0.15)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            flexShrink: 0,
+                        }}>
+                            <div>
+                                <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Dane pacjenta z Prodentis</div>
+                                <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#a78bfa', marginTop: '0.15rem' }}>
+                                    {patientDataModal.imie} {patientDataModal.nazwisko}
+                                </div>
+                            </div>
+                            <button onClick={() => setPatientDataModal(null)} style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '0.5rem', width: 30, height: 30, color: '#fff', fontSize: '1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+                        </div>
+                        {/* Scrollable body */}
+                        <div style={{ padding: '1rem 1.25rem', overflowY: 'auto', flex: 1 }}>
+                            {/* Personal data */}
+                            <div style={{ fontSize: '0.7rem', color: '#a78bfa', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.5rem' }}>Dane osobowe</div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem', marginBottom: '1rem' }}>
+                                {[
+                                    ['PESEL', patientDataModal.pesel],
+                                    ['Data ur.', patientDataModal.data_urodzenia ? new Date(patientDataModal.data_urodzenia).toLocaleDateString('pl-PL') : '—'],
+                                    ['Płeć', patientDataModal.plec === '0000000001' ? 'Mężczyzna' : patientDataModal.plec === '0000000002' ? 'Kobieta' : '—'],
+                                    ['Nazwisko rodowe', patientDataModal.nazwisko_rodowe || '—'],
+                                ].map(([label, val]) => (
+                                    <div key={label as string} style={{ padding: '0.4rem 0.6rem', background: 'rgba(255,255,255,0.04)', borderRadius: '0.4rem' }}>
+                                        <div style={{ fontSize: '0.62rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.1rem' }}>{label}</div>
+                                        <div style={{ fontSize: '0.85rem', color: '#e2e8f0', fontWeight: 500 }}>{val || '—'}</div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Contact */}
+                            <div style={{ fontSize: '0.7rem', color: '#a78bfa', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.5rem' }}>Kontakt</div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem', marginBottom: '1rem' }}>
+                                {[
+                                    ['📱 Telefon', patientDataModal.komorka || patientDataModal.telefon_domowy || '—'],
+                                    ['📧 Email', patientDataModal.email || '—'],
+                                    ['🏠 Adres', [patientDataModal.ulica, patientDataModal.num_domu, patientDataModal.num_mieszkania ? `m. ${patientDataModal.num_mieszkania}` : ''].filter(Boolean).join(' ') || '—'],
+                                    ['🏙️ Miasto', [patientDataModal.kod_pocztowy, patientDataModal.miasto].filter(Boolean).join(' ') || '—'],
+                                ].map(([label, val]) => (
+                                    <div key={label as string} style={{ padding: '0.4rem 0.6rem', background: 'rgba(255,255,255,0.04)', borderRadius: '0.4rem' }}>
+                                        <div style={{ fontSize: '0.62rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.1rem' }}>{label}</div>
+                                        <div style={{ fontSize: '0.85rem', color: '#e2e8f0', fontWeight: 500, wordBreak: 'break-all' }}>{val || '—'}</div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Consents */}
+                            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+                                {patientDataModal.zgoda_marketing && <span style={{ padding: '0.2rem 0.5rem', background: 'rgba(74,222,128,0.15)', color: '#4ade80', borderRadius: '0.3rem', fontSize: '0.7rem', fontWeight: 600 }}>✓ Zgoda marketing</span>}
+                                {patientDataModal.zgoda_komtel && <span style={{ padding: '0.2rem 0.5rem', background: 'rgba(74,222,128,0.15)', color: '#4ade80', borderRadius: '0.3rem', fontSize: '0.7rem', fontWeight: 600 }}>✓ Zgoda kontakt</span>}
+                            </div>
+
+                            {/* Informacje o pacjencie */}
+                            {patientDataModal.informacje_o_pacjencie && (
+                                <>
+                                    <div style={{ fontSize: '0.7rem', color: '#f59e0b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.5rem' }}>📝 Informacje o pacjencie</div>
+                                    <div style={{
+                                        padding: '0.75rem',
+                                        background: 'rgba(245,158,11,0.06)',
+                                        border: '1px solid rgba(245,158,11,0.15)',
+                                        borderRadius: '0.5rem',
+                                        fontSize: '0.8rem',
+                                        color: 'rgba(255,255,255,0.8)',
+                                        lineHeight: 1.6,
+                                        whiteSpace: 'pre-wrap',
+                                        marginBottom: '1rem',
+                                        maxHeight: '200px',
+                                        overflowY: 'auto',
+                                    }}>
+                                        {patientDataModal.informacje_o_pacjencie}
+                                    </div>
+                                </>
+                            )}
+
+                            {/* Medical notes / Uwagi i ostrzeżenia */}
+                            {patientDataModal.medicalNotes && (
+                                <>
+                                    <div style={{ fontSize: '0.7rem', color: '#ef4444', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.5rem' }}>⚠️ Uwagi i ostrzeżenia dla lekarza</div>
+                                    {Array.isArray(patientDataModal.medicalNotes) ? (
+                                        patientDataModal.medicalNotes.map((note: any, i: number) => (
+                                            <div key={i} style={{
+                                                padding: '0.65rem 0.85rem',
+                                                background: 'rgba(239,68,68,0.06)',
+                                                border: '1px solid rgba(239,68,68,0.15)',
+                                                borderRadius: '0.5rem',
+                                                marginBottom: '0.4rem',
+                                            }}>
+                                                <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.35)', marginBottom: '0.25rem' }}>
+                                                    {note.date || note.data_wpisania || ''} {note.author || note.wpisal || ''}
+                                                </div>
+                                                <div style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.85)', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>
+                                                    {note.text || note.tresc || note.uwagi || JSON.stringify(note)}
+                                                </div>
+                                            </div>
+                                        ))
+                                    ) : typeof patientDataModal.medicalNotes === 'object' && patientDataModal.medicalNotes.text ? (
+                                        <div style={{
+                                            padding: '0.75rem',
+                                            background: 'rgba(239,68,68,0.06)',
+                                            border: '1px solid rgba(239,68,68,0.15)',
+                                            borderRadius: '0.5rem',
+                                            fontSize: '0.82rem',
+                                            color: 'rgba(255,255,255,0.85)',
+                                            whiteSpace: 'pre-wrap',
+                                            lineHeight: 1.5,
+                                        }}>
+                                            {patientDataModal.medicalNotes.text}
+                                        </div>
+                                    ) : typeof patientDataModal.medicalNotes === 'string' ? (
+                                        <div style={{
+                                            padding: '0.75rem',
+                                            background: 'rgba(239,68,68,0.06)',
+                                            border: '1px solid rgba(239,68,68,0.15)',
+                                            borderRadius: '0.5rem',
+                                            fontSize: '0.82rem',
+                                            color: 'rgba(255,255,255,0.85)',
+                                            whiteSpace: 'pre-wrap',
+                                            lineHeight: 1.5,
+                                        }}>
+                                            {patientDataModal.medicalNotes}
+                                        </div>
+                                    ) : null}
+                                </>
+                            )}
+
+                            {/* ID */}
+                            <div style={{ marginTop: '1rem', fontSize: '0.65rem', color: 'rgba(255,255,255,0.2)', textAlign: 'center' }}>
+                                Prodentis ID: {patientDataModal.id || '—'}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {selectedViewTask && (
                 <div
                     onClick={() => setSelectedViewTask(null)}
