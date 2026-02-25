@@ -2060,6 +2060,76 @@ NODE_ENV=production
 - `src/app/api/admin/employees/route.ts` — Full rewrite: 74-day Prodentis scan, Supabase cross-reference, registered employees section
 - `mikrostomart_context.md` — Comprehensive documentation update (70+ lines added/modified)
 
+### February 25, 2026 (batch 2)
+**Supabase RLS Security Fixes + /kontakt Mobile Fix + Navigation Button**
+
+#### Commits:
+- `7be9677` — security: migration 051 — RLS fixes for all 17 tables (Supabase Security Advisor)
+- `7d1d193` — fix: /kontakt mobile layout — responsive clamp font sizes for phone/email
+- `a2fb6c5` — feat: 'Nawiguj do gabinetu' button on /kontakt page
+
+**`7be9677` — RLS security hardening (Feb 25):**
+- **Trigger:** Supabase Security Advisor email — 22 errors (RLS disabled on 17 tables), 16 warnings, 2 info
+- **Root cause:** Tables created without `ALTER TABLE ... ENABLE ROW LEVEL SECURITY`. All accessed server-side via service_role but anon key had theoretical direct access.
+- **Fix:** Migration 051 — idempotent `DO...IF NOT EXISTS` blocks enabling RLS on all 17 tables:
+  - `email_verification_tokens`, `password_reset_tokens` → `USING (false)` (service_role only)
+  - `chat_messages`, `chat_conversations` → `USING (auth.role() = 'authenticated')` (AdminChat.tsx uses browser client)
+  - 13 remaining server-only tables (`user_roles`, `employees`, `patients`, `appointment_actions`, `appointment_instructions`, `task_history`, `task_comments`, `task_labels`, `task_label_assignments`, `task_type_templates`, `task_reminders`, `push_notification_config`, `short_links`) → `USING (false)`
+  - 4 trigger functions fixed: added `SET search_path = public` (resolves "Function Search Path Mutable" warnings)
+- **No app code changes** — service_role key bypasses RLS; all server API routes unaffected
+- **Files:** `supabase_migrations/051_rls_security_fixes.sql` — [NEW]
+- **⚠️ Action required:** Run migration 051 in Supabase SQL editor to take effect on production
+
+**`a2fb6c5` + `7d1d193` — /kontakt page fixes (Feb 25):**
+- Added "🗺️ Nawiguj do gabinetu" button with Google Maps deep link (`maps/dir/?api=1&destination=...`)
+- Fixed mobile layout: `fontSize: "2rem"` for phones → `clamp(1.3rem, 5vw, 2rem)`, email `clamp(0.85rem, 3.5vw, 1.5rem)` + `word-break: break-all`
+- **Files:** `src/app/kontakt/page.tsx`
+
+---
+
+### February 25, 2026 (batch 1)
+**Booking Date Filter + Admin Setting for Minimum Days in Advance**
+
+#### Commits:
+- `2c4a96d` — feat: booking date filter + admin setting (migration 050)
+
+#### Root Cause Fixed:
+`/rezerwacja` was showing past/today slots from the current week. Prodentis returns all free slots for a given date including past weekdays (Monday, Tuesday when today is Wednesday) — they were genuinely free because no one was booked. The `AppointmentScheduler` had zero date filtering so these appeared as available.
+
+**`2c4a96d` — Booking date filter + admin-controlled setting (Feb 25):**
+
+**Migration 050** (`supabase_migrations/050_booking_settings.sql`):
+- New singleton table `booking_settings (id INT PK DEFAULT 1, min_days_ahead INT DEFAULT 1, updated_at TIMESTAMPTZ)`
+- RLS: SELECT is public (needed by booking form), UPDATE requires `service_role`
+- Default row seeded: `min_days_ahead = 1` (tomorrow)
+
+**API `GET/PUT /api/admin/booking-settings`** (`src/app/api/admin/booking-settings/route.ts`):
+- `GET` — public, returns `{ min_days_ahead: number }`; falls back to `1` if table missing (pre-migration safety)
+- `PUT` — accepts `{ min_days_ahead: number }`, validates 0–90 range, upserts singleton row
+
+**`AppointmentScheduler.tsx`** (`src/components/scheduler/AppointmentScheduler.tsx`):
+- Added `minDaysAhead` state (default `1`)
+- `useEffect([], [])` — fetches `/api/admin/booking-settings` on mount, updates state
+- In `fetchSlotsForWeek` — computes `cutoff = midnight(today + minDaysAhead)` and filters `slot.start < cutoff` out of results
+- Added `minDaysAhead` to `useEffect` deps array so slots re-fetch on setting change
+
+**Admin Panel** (`src/app/admin/page.tsx`):
+- Added `'booking-settings'` to activeTab union type
+- State: `minDaysAhead`, `bookingSettingsSaving`, `bookingSettingsMsg`
+- Auto-loads current value from DB when tab is opened (in `useEffect([activeTab])`)
+- New sidebar NavItem: `📅 Rezerwacje` (above 🎨 Motyw)
+- Full tab UI: select (Dziś/Jutro/2 dni/3 dni/Tydzień/2 tygodnie), Zapisz button with success/error toast, info box
+
+#### Files:
+- `supabase_migrations/050_booking_settings.sql` — [NEW]
+- `src/app/api/admin/booking-settings/route.ts` — [NEW]
+- `src/components/scheduler/AppointmentScheduler.tsx` — cutoff filter + minDaysAhead fetch
+- `src/app/admin/page.tsx` — Rezerwacje tab + settings UI
+
+> ⚠️ **REQUIRES**: Run migration 050 in Supabase SQL editor before testing on production.
+
+---
+
 ### February 24, 2026 (batch 6)
 **Employee Tab Nav Fix + Task History Crash Fix + /aplikacja Landing Page Fixes**
 
