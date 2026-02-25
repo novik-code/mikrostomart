@@ -2157,6 +2157,13 @@ NODE_ENV=production
 - Each task in login popup now clickable → closes popup, switches to 'zadania' tab, opens task detail modal
 - Added hover effects, description preview, → arrow indicator
 
+**`ad28fbe` — PESEL Validation (Feb 25):**
+- Full PESEL checksum validation (weights 1,3,7,9)
+- Auto-fills birthDate (century offsets 1800-2200) and gender (digit 10: even=K, odd=M)
+- Cross-validates birthDate ↔ PESEL when either field changes
+- Green border + confirmation when valid, red border + error message when invalid
+- Blocks step 1 → 2 progression if PESEL has errors
+
 ---
 
 ### February 25, 2026 (batch 4)
