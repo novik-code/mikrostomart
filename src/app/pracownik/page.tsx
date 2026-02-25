@@ -5306,12 +5306,13 @@ export default function EmployeePage() {
                     if (!sugForm.content.trim()) return;
                     setSugSubmitting(true);
                     try {
+                        const authorName = staffList.find(s => s.id === currentUserId)?.name || currentUserEmail || '';
                         const res = await fetch('/api/employee/suggestions', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
-                                author_email: currentUser,
-                                author_name: currentUser.split('@')[0],
+                                author_email: currentUserEmail,
+                                author_name: authorName,
                                 content: sugForm.content,
                                 category: sugForm.category,
                             }),
@@ -5320,8 +5321,11 @@ export default function EmployeePage() {
                             const newSug = await res.json();
                             setSuggestions(prev => [{ ...newSug, feature_suggestion_comments: [{ count: 0 }] }, ...prev]);
                             setSugForm({ content: '', category: 'funkcja' });
+                        } else {
+                            const err = await res.json().catch(() => ({}));
+                            alert(`Błąd: ${err.error || res.status}`);
                         }
-                    } catch { }
+                    } catch (e: any) { alert(`Błąd sieci: ${e.message}`); }
                     finally { setSugSubmitting(false); }
                 };
 
@@ -5329,7 +5333,7 @@ export default function EmployeePage() {
                     const res = await fetch('/api/employee/suggestions', {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ id, action: 'upvote', email: currentUser }),
+                        body: JSON.stringify({ id, action: 'upvote', email: currentUserEmail }),
                     });
                     if (res.ok) {
                         const { upvotes } = await res.json();
@@ -5352,12 +5356,13 @@ export default function EmployeePage() {
 
                 const submitComment = async (sugId: string) => {
                     if (!sugCommentText.trim()) return;
+                    const authorName = staffList.find(s => s.id === currentUserId)?.name || currentUserEmail || '';
                     const res = await fetch(`/api/employee/suggestions/${sugId}/comments`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            author_email: currentUser,
-                            author_name: currentUser.split('@')[0],
+                            author_email: currentUserEmail,
+                            author_name: authorName,
                             content: sugCommentText,
                         }),
                     });
@@ -5471,7 +5476,7 @@ export default function EmployeePage() {
                                     const cat = categoryLabels[sug.category] || categoryLabels['inny'];
                                     const st = statusLabels[sug.status] || statusLabels['nowa'];
                                     const upvoteCount = sug.upvotes?.length || 0;
-                                    const hasUpvoted = sug.upvotes?.includes(currentUser);
+                                    const hasUpvoted = sug.upvotes?.includes(currentUserEmail);
                                     const commentCount = sug.feature_suggestion_comments?.[0]?.count || 0;
                                     const isExpanded = expandedSuggestion === sug.id;
 
