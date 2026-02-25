@@ -130,6 +130,46 @@ const defaultForm: FormData = {
     signatureData: "",
 };
 
+// ─── PESEL validation ────────────────────────────────────
+function validatePesel(pesel: string): { valid: boolean; error?: string; birthDate?: string; gender?: string } {
+    if (!pesel) return { valid: true }; // empty = optional
+    if (pesel.length < 11) return { valid: false, error: 'PESEL musi mieć 11 cyfr' };
+    if (!/^\d{11}$/.test(pesel)) return { valid: false, error: 'PESEL może zawierać tylko cyfry' };
+
+    // Checksum (weights: 1,3,7,9,1,3,7,9,1,3)
+    const w = [1, 3, 7, 9, 1, 3, 7, 9, 1, 3];
+    const digits = pesel.split('').map(Number);
+    const sum = w.reduce((acc, weight, i) => acc + weight * digits[i], 0);
+    const checksum = (10 - (sum % 10)) % 10;
+    if (checksum !== digits[10]) return { valid: false, error: 'Nieprawidłowa suma kontrolna PESEL' };
+
+    // Extract birth date (century offsets: 00-12=1900s, 20-32=2000s, 40-52=2100s, 60-72=2200s, 80-92=1800s)
+    const yy = digits[0] * 10 + digits[1];
+    const mm = digits[2] * 10 + digits[3];
+    const dd = digits[4] * 10 + digits[5];
+    let century: number, month: number;
+    if (mm >= 1 && mm <= 12) { century = 1900; month = mm; }
+    else if (mm >= 21 && mm <= 32) { century = 2000; month = mm - 20; }
+    else if (mm >= 41 && mm <= 52) { century = 2100; month = mm - 40; }
+    else if (mm >= 61 && mm <= 72) { century = 2200; month = mm - 60; }
+    else if (mm >= 81 && mm <= 92) { century = 1800; month = mm - 80; }
+    else return { valid: false, error: 'Nieprawidłowy miesiąc w PESEL' };
+
+    const year = century + yy;
+    const birthDate = `${year}-${String(month).padStart(2, '0')}-${String(dd).padStart(2, '0')}`;
+
+    // Validate date is real
+    const d = new Date(birthDate);
+    if (isNaN(d.getTime()) || d.getMonth() + 1 !== month || d.getDate() !== dd) {
+        return { valid: false, error: 'Nieprawidłowa data urodzenia w PESEL' };
+    }
+
+    // Gender (10th digit: even=F, odd=M)
+    const gender = digits[9] % 2 === 0 ? 'F' : 'M';
+
+    return { valid: true, birthDate, gender };
+}
+
 // ─── Styles ──────────────────────────────────────────────
 const S = {
     page: { minHeight: "100vh", background: "linear-gradient(135deg, #0a1628 0%, #1a2840 50%, #0a1628 100%)", fontFamily: "'Inter', -apple-system, sans-serif", padding: "1rem", color: "#e2e8f0" } as React.CSSProperties,
@@ -199,9 +239,31 @@ export default function EKartaPage() {
     const [submitting, setSubmitting] = useState(false);
     const [submitted, setSubmitted] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [peselError, setPeselError] = useState<string | null>(null);
+    const [peselAutoFilled, setPeselAutoFilled] = useState(false);
     const sigCanvas = useRef<HTMLCanvasElement>(null);
     const sigContainer = useRef<HTMLDivElement>(null);
     const [drawing, setDrawing] = useState(false);
+
+    // PESEL handler — validates and auto-fills birthDate + gender
+    const handlePeselChange = (raw: string) => {
+        const pesel = raw.replace(/\D/g, '').slice(0, 11);
+        setForm(f => ({ ...f, pesel }));
+        if (pesel.length === 0) { setPeselError(null); setPeselAutoFilled(false); return; }
+        if (pesel.length < 11) { setPeselError(null); setPeselAutoFilled(false); return; }
+        const result = validatePesel(pesel);
+        if (!result.valid) { setPeselError(result.error || 'Nieprawidłowy PESEL'); setPeselAutoFilled(false); return; }
+        setPeselError(null);
+        if (result.birthDate || result.gender) {
+            setPeselAutoFilled(true);
+            setForm(f => ({
+                ...f,
+                pesel,
+                birthDate: result.birthDate || f.birthDate,
+                gender: result.gender || f.gender,
+            }));
+        }
+    };
 
     // Verify token
     useEffect(() => {
@@ -369,8 +431,39 @@ export default function EKartaPage() {
                                 <div><label style={S.label}>Nazwisko rodowe</label><input style={S.input} value={form.maidenName} onChange={e => setForm(f => ({ ...f, maidenName: e.target.value }))} /></div>
                             </div>
                             <div style={{ ...S.grid2, marginTop: '1rem' }}>
-                                <div><label style={S.label}>PESEL</label><input style={S.input} value={form.pesel} onChange={e => setForm(f => ({ ...f, pesel: e.target.value.replace(/\D/g, '').slice(0, 11) }))} placeholder="12345678901" inputMode="numeric" /></div>
-                                <div><label style={S.label}>Data urodzenia</label><input style={S.input} type="date" value={form.birthDate} onChange={e => setForm(f => ({ ...f, birthDate: e.target.value }))} /></div>
+                                <div>
+                                    <label style={S.label}>PESEL</label>
+                                    <input
+                                        style={{ ...S.input, borderColor: peselError ? '#ef4444' : form.pesel.length === 11 && !peselError ? '#22c55e' : undefined }}
+                                        value={form.pesel}
+                                        onChange={e => handlePeselChange(e.target.value)}
+                                        placeholder="12345678901"
+                                        inputMode="numeric"
+                                    />
+                                    {peselError && <div style={{ color: '#ef4444', fontSize: '0.72rem', marginTop: '0.25rem' }}>⚠ {peselError}</div>}
+                                    {peselAutoFilled && !peselError && <div style={{ color: '#22c55e', fontSize: '0.72rem', marginTop: '0.25rem' }}>✓ Data urodzenia i płeć uzupełnione z PESEL</div>}
+                                </div>
+                                <div>
+                                    <label style={S.label}>Data urodzenia</label>
+                                    <input
+                                        style={{ ...S.input, borderColor: peselAutoFilled ? '#22c55e' : undefined }}
+                                        type="date"
+                                        value={form.birthDate}
+                                        onChange={e => {
+                                            const newDate = e.target.value;
+                                            setForm(f => ({ ...f, birthDate: newDate }));
+                                            // Cross-validate with PESEL
+                                            if (form.pesel.length === 11) {
+                                                const result = validatePesel(form.pesel);
+                                                if (result.valid && result.birthDate && result.birthDate !== newDate) {
+                                                    setPeselError('Data urodzenia nie zgadza się z PESEL');
+                                                } else {
+                                                    setPeselError(null);
+                                                }
+                                            }
+                                        }}
+                                    />
+                                </div>
                             </div>
                             <div style={{ marginTop: '1rem' }}>
                                 <label style={S.label}>Płeć</label>
@@ -395,6 +488,8 @@ export default function EKartaPage() {
                             </div>
                             <button style={S.primaryBtn} onClick={() => {
                                 if (!form.firstName || !form.lastName) { setError('Imię i nazwisko są wymagane.'); return; }
+                                if (peselError) { setError('Popraw numer PESEL przed kontynuacją.'); return; }
+                                if (form.pesel.length > 0 && form.pesel.length < 11) { setError('PESEL musi mieć 11 cyfr.'); return; }
                                 setError(null); setStep(2); window.scrollTo(0, 0);
                             }}>Dalej →</button>
                             {error && <p style={{ color: '#f87171', marginTop: '0.75rem', fontSize: '0.9rem', textAlign: 'center' }}>{error}</p>}
