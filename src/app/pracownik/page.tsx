@@ -4148,14 +4148,15 @@ export default function EmployeePage() {
                             <div style={{ fontSize: '0.7rem', color: '#a78bfa', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.5rem' }}>Dane osobowe</div>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem', marginBottom: '1rem' }}>
                                 {[
-                                    ['PESEL', patientDataModal.pesel || patientDataModal.intake?.pesel],
-                                    ['Data ur.', (patientDataModal.birthDate || patientDataModal.intake?.birth_date) ? new Date(patientDataModal.birthDate || patientDataModal.intake?.birth_date).toLocaleDateString('pl-PL') : null],
-                                    ['Płeć', patientDataModal.gender === 'M' || patientDataModal.intake?.gender === 'M' ? 'Mężczyzna' : patientDataModal.gender === 'K' || patientDataModal.gender === 'F' || patientDataModal.intake?.gender === 'F' ? 'Kobieta' : null],
-                                    ['Imię drugie', patientDataModal.middleName || patientDataModal.intake?.middle_name],
-                                ].map(([label, val]) => (
+                                    ['PESEL', patientDataModal.pesel],
+                                    ['Data ur.', patientDataModal.birthDate ? new Date(patientDataModal.birthDate).toLocaleDateString('pl-PL') : null],
+                                    ['Płeć', patientDataModal.gender === 'M' ? 'Mężczyzna' : patientDataModal.gender === 'K' ? 'Kobieta' : null],
+                                    ['Nazwisko rodowe', patientDataModal.maidenName],
+                                    ['Imię drugie', patientDataModal.middleName],
+                                ].filter(([, val]) => val).map(([label, val]) => (
                                     <div key={label as string} style={{ padding: '0.4rem 0.6rem', background: 'rgba(255,255,255,0.04)', borderRadius: '0.4rem' }}>
                                         <div style={{ fontSize: '0.62rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.1rem' }}>{label}</div>
-                                        <div style={{ fontSize: '0.85rem', color: '#e2e8f0', fontWeight: 500 }}>{val || '—'}</div>
+                                        <div style={{ fontSize: '0.85rem', color: '#e2e8f0', fontWeight: 500 }}>{val}</div>
                                     </div>
                                 ))}
                             </div>
@@ -4176,16 +4177,8 @@ export default function EmployeePage() {
                                 ))}
                             </div>
 
-                            {/* Consents */}
-                            {(patientDataModal.marketingConsent || patientDataModal.contactConsent || patientDataModal.intake?.marketing_consent || patientDataModal.intake?.contact_consent) && (
-                                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
-                                    {(patientDataModal.marketingConsent || patientDataModal.intake?.marketing_consent) && <span style={{ padding: '0.2rem 0.5rem', background: 'rgba(74,222,128,0.15)', color: '#4ade80', borderRadius: '0.3rem', fontSize: '0.7rem', fontWeight: 600 }}>✓ Zgoda marketing</span>}
-                                    {(patientDataModal.contactConsent || patientDataModal.intake?.contact_consent) && <span style={{ padding: '0.2rem 0.5rem', background: 'rgba(74,222,128,0.15)', color: '#4ade80', borderRadius: '0.3rem', fontSize: '0.7rem', fontWeight: 600 }}>✓ Zgoda kontakt</span>}
-                                </div>
-                            )}
-
-                            {/* Informacje o pacjencie (from Prodentis or e-karta) */}
-                            {(patientDataModal.notes || patientDataModal.informacje_o_pacjencie || patientDataModal.intake?.medical_notes) && (
+                            {/* Informacje o pacjencie */}
+                            {patientDataModal.notes && (
                                 <>
                                     <div style={{ fontSize: '0.7rem', color: '#f59e0b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.5rem' }}>📝 Informacje o pacjencie</div>
                                     <div style={{
@@ -4198,62 +4191,36 @@ export default function EmployeePage() {
                                         lineHeight: 1.6,
                                         whiteSpace: 'pre-wrap',
                                         marginBottom: '1rem',
-                                        maxHeight: '200px',
+                                        maxHeight: '250px',
                                         overflowY: 'auto',
                                     }}>
-                                        {patientDataModal.notes || patientDataModal.informacje_o_pacjencie || patientDataModal.intake?.medical_notes}
+                                        {patientDataModal.notes}
                                     </div>
                                 </>
                             )}
 
-                            {/* Medical notes / Uwagi i ostrzeżenia */}
-                            {patientDataModal.medicalNotes && (
+                            {/* Uwagi i ostrzeżenia dla lekarza (warnings[]) */}
+                            {patientDataModal.warnings?.length > 0 && (
                                 <>
                                     <div style={{ fontSize: '0.7rem', color: '#ef4444', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.5rem' }}>⚠️ Uwagi i ostrzeżenia dla lekarza</div>
-                                    {Array.isArray(patientDataModal.medicalNotes) ? (
-                                        patientDataModal.medicalNotes.map((note: any, i: number) => (
-                                            <div key={i} style={{
-                                                padding: '0.65rem 0.85rem',
-                                                background: 'rgba(239,68,68,0.06)',
-                                                border: '1px solid rgba(239,68,68,0.15)',
-                                                borderRadius: '0.5rem',
-                                                marginBottom: '0.4rem',
-                                            }}>
+                                    {patientDataModal.warnings.map((w: any, i: number) => (
+                                        <div key={i} style={{
+                                            padding: '0.65rem 0.85rem',
+                                            background: 'rgba(239,68,68,0.06)',
+                                            border: '1px solid rgba(239,68,68,0.15)',
+                                            borderRadius: '0.5rem',
+                                            marginBottom: '0.4rem',
+                                        }}>
+                                            {(w.date || w.author) && (
                                                 <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.35)', marginBottom: '0.25rem' }}>
-                                                    {note.date || note.data_wpisania || ''} {note.author || note.wpisal || ''}
+                                                    {w.date && new Date(w.date).toLocaleDateString('pl-PL')} {w.author && `• ${w.author}`}
                                                 </div>
-                                                <div style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.85)', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>
-                                                    {note.text || note.tresc || note.uwagi || JSON.stringify(note)}
-                                                </div>
+                                            )}
+                                            <div style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.85)', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>
+                                                {w.text}
                                             </div>
-                                        ))
-                                    ) : typeof patientDataModal.medicalNotes === 'object' && patientDataModal.medicalNotes.text ? (
-                                        <div style={{
-                                            padding: '0.75rem',
-                                            background: 'rgba(239,68,68,0.06)',
-                                            border: '1px solid rgba(239,68,68,0.15)',
-                                            borderRadius: '0.5rem',
-                                            fontSize: '0.82rem',
-                                            color: 'rgba(255,255,255,0.85)',
-                                            whiteSpace: 'pre-wrap',
-                                            lineHeight: 1.5,
-                                        }}>
-                                            {patientDataModal.medicalNotes.text}
                                         </div>
-                                    ) : typeof patientDataModal.medicalNotes === 'string' ? (
-                                        <div style={{
-                                            padding: '0.75rem',
-                                            background: 'rgba(239,68,68,0.06)',
-                                            border: '1px solid rgba(239,68,68,0.15)',
-                                            borderRadius: '0.5rem',
-                                            fontSize: '0.82rem',
-                                            color: 'rgba(255,255,255,0.85)',
-                                            whiteSpace: 'pre-wrap',
-                                            lineHeight: 1.5,
-                                        }}>
-                                            {patientDataModal.medicalNotes}
-                                        </div>
-                                    ) : null}
+                                    ))}
                                 </>
                             )}
 
