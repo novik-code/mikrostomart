@@ -5373,7 +5373,7 @@ export default function EmployeePage() {
                 };
 
                 return (
-                    <div style={{ maxWidth: 700, margin: '0 auto', padding: isMobile ? '0.75rem' : '1.5rem' }}>
+                    <div style={{ maxWidth: 700, margin: '0 auto', padding: isMobile ? '0.75rem' : '1.5rem', paddingBottom: isMobile ? '5rem' : '1.5rem' }}>
                         {/* Header */}
                         <div style={{ marginBottom: '1.25rem' }}>
                             <h2 style={{ fontSize: '1.3rem', fontWeight: 700, color: '#e2e8f0', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -5408,6 +5408,7 @@ export default function EmployeePage() {
                                     resize: 'vertical',
                                     outline: 'none',
                                     fontFamily: 'inherit',
+                                    boxSizing: 'border-box',
                                 }}
                             />
                             <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.65rem', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -5436,17 +5437,20 @@ export default function EmployeePage() {
                                         background: sugForm.content.trim() ? 'linear-gradient(135deg, #f59e0b, #d97706)' : 'rgba(255,255,255,0.06)',
                                         border: 'none',
                                         borderRadius: '0.5rem',
-                                        padding: '0.4rem 1rem',
+                                        padding: '0.5rem 1.2rem',
                                         color: sugForm.content.trim() ? '#fff' : 'rgba(255,255,255,0.3)',
-                                        fontSize: '0.82rem',
+                                        fontSize: '0.85rem',
                                         fontWeight: 600,
                                         cursor: sugForm.content.trim() ? 'pointer' : 'default',
                                         display: 'flex',
                                         alignItems: 'center',
                                         gap: '0.35rem',
+                                        opacity: sugSubmitting ? 0.6 : 1,
+                                        WebkitTapHighlightColor: 'transparent',
+                                        touchAction: 'manipulation',
                                     }}
                                 >
-                                    <Send size={14} /> Wyślij
+                                    <Send size={14} /> {sugSubmitting ? 'Wysyłam...' : 'Wyślij'}
                                 </button>
                             </div>
                         </div>
