@@ -2060,6 +2060,27 @@ NODE_ENV=production
 - `src/app/api/admin/employees/route.ts` — Full rewrite: 74-day Prodentis scan, Supabase cross-reference, registered employees section
 - `mikrostomart_context.md` — Comprehensive documentation update (70+ lines added/modified)
 
+### February 25, 2026 (batch 4)
+**RLS Warning Fix Round 2 (migration 053)**
+
+#### Commits:
+- `d4167fc` — security: migration 053 — fix remaining 12 RLS warnings
+
+**`d4167fc` — Fix after migration 052 increased warnings (Feb 25):**
+- **Root causes:**
+  - `USING (false)` without explicit `WITH CHECK (false)` — INSERT defaults to `WITH CHECK (true)` → still flagged
+  - Old policy `Enable insert for everyone` on `article_ideas` — different name not caught by 052 DROP
+  - 3 more functions missing `SET search_path = public`: `update_updated_at_column`, `clean_expired_reset_tokens`, `clean_expired_verification_tokens`
+- **Fix strategy:** Migration 053 drops ALL policies dynamically (loop over `pg_policies`), then applies correct patterns:
+  - `employee_tasks`, `push_subscriptions`, `article_ideas`, `employee_calendar_tokens` → NO policies (RLS enabled = only service_role allowed, anon/authenticated denied by default)
+  - `google_reviews`, `site_settings`, `booking_settings` → single `FOR SELECT USING (true)` policy only (public read, service_role writes bypass RLS)
+  - 3 functions — `CREATE OR REPLACE` with `SET search_path = public`
+- **Expected result:** 0 errors, 1 warning (Leaked Password Protection = Pro plan)
+- **Files:** `supabase_migrations/053_fix_rls_warnings.sql` — [NEW]
+- **⚠️ Action required:** Run migration 053 in Supabase SQL editor
+
+---
+
 ### February 25, 2026 (batch 3)
 **RLS Policy Tightening — Always-True Policies Replaced (migration 052)**
 
