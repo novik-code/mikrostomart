@@ -4137,7 +4137,7 @@ export default function EmployeePage() {
                             <div>
                                 <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Dane pacjenta z Prodentis</div>
                                 <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#a78bfa', marginTop: '0.15rem' }}>
-                                    {patientDataModal.imie} {patientDataModal.nazwisko}
+                                    {patientDataModal.firstName} {patientDataModal.lastName}
                                 </div>
                             </div>
                             <button onClick={() => setPatientDataModal(null)} style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '0.5rem', width: 30, height: 30, color: '#fff', fontSize: '1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
@@ -4148,10 +4148,10 @@ export default function EmployeePage() {
                             <div style={{ fontSize: '0.7rem', color: '#a78bfa', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.5rem' }}>Dane osobowe</div>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem', marginBottom: '1rem' }}>
                                 {[
-                                    ['PESEL', patientDataModal.pesel],
-                                    ['Data ur.', patientDataModal.data_urodzenia ? new Date(patientDataModal.data_urodzenia).toLocaleDateString('pl-PL') : '—'],
-                                    ['Płeć', patientDataModal.plec === '0000000001' ? 'Mężczyzna' : patientDataModal.plec === '0000000002' ? 'Kobieta' : '—'],
-                                    ['Nazwisko rodowe', patientDataModal.nazwisko_rodowe || '—'],
+                                    ['PESEL', patientDataModal.pesel || patientDataModal.intake?.pesel],
+                                    ['Data ur.', (patientDataModal.birthDate || patientDataModal.intake?.birth_date) ? new Date(patientDataModal.birthDate || patientDataModal.intake?.birth_date).toLocaleDateString('pl-PL') : null],
+                                    ['Płeć', patientDataModal.gender === 'M' || patientDataModal.intake?.gender === 'M' ? 'Mężczyzna' : patientDataModal.gender === 'K' || patientDataModal.gender === 'F' || patientDataModal.intake?.gender === 'F' ? 'Kobieta' : null],
+                                    ['Imię drugie', patientDataModal.middleName || patientDataModal.intake?.middle_name],
                                 ].map(([label, val]) => (
                                     <div key={label as string} style={{ padding: '0.4rem 0.6rem', background: 'rgba(255,255,255,0.04)', borderRadius: '0.4rem' }}>
                                         <div style={{ fontSize: '0.62rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.1rem' }}>{label}</div>
@@ -4164,10 +4164,10 @@ export default function EmployeePage() {
                             <div style={{ fontSize: '0.7rem', color: '#a78bfa', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.5rem' }}>Kontakt</div>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem', marginBottom: '1rem' }}>
                                 {[
-                                    ['📱 Telefon', patientDataModal.komorka || patientDataModal.telefon_domowy || '—'],
-                                    ['📧 Email', patientDataModal.email || '—'],
-                                    ['🏠 Adres', [patientDataModal.ulica, patientDataModal.num_domu, patientDataModal.num_mieszkania ? `m. ${patientDataModal.num_mieszkania}` : ''].filter(Boolean).join(' ') || '—'],
-                                    ['🏙️ Miasto', [patientDataModal.kod_pocztowy, patientDataModal.miasto].filter(Boolean).join(' ') || '—'],
+                                    ['📱 Telefon', patientDataModal.phone],
+                                    ['📧 Email', patientDataModal.email],
+                                    ['🏠 Adres', patientDataModal.address ? [patientDataModal.address.street, patientDataModal.address.houseNumber, patientDataModal.address.apartmentNumber ? `m. ${patientDataModal.address.apartmentNumber}` : ''].filter(Boolean).join(' ') : null],
+                                    ['🏙️ Miasto', patientDataModal.address ? [patientDataModal.address.postalCode, patientDataModal.address.city].filter(Boolean).join(' ') : null],
                                 ].map(([label, val]) => (
                                     <div key={label as string} style={{ padding: '0.4rem 0.6rem', background: 'rgba(255,255,255,0.04)', borderRadius: '0.4rem' }}>
                                         <div style={{ fontSize: '0.62rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.1rem' }}>{label}</div>
@@ -4177,13 +4177,15 @@ export default function EmployeePage() {
                             </div>
 
                             {/* Consents */}
-                            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
-                                {patientDataModal.zgoda_marketing && <span style={{ padding: '0.2rem 0.5rem', background: 'rgba(74,222,128,0.15)', color: '#4ade80', borderRadius: '0.3rem', fontSize: '0.7rem', fontWeight: 600 }}>✓ Zgoda marketing</span>}
-                                {patientDataModal.zgoda_komtel && <span style={{ padding: '0.2rem 0.5rem', background: 'rgba(74,222,128,0.15)', color: '#4ade80', borderRadius: '0.3rem', fontSize: '0.7rem', fontWeight: 600 }}>✓ Zgoda kontakt</span>}
-                            </div>
+                            {(patientDataModal.marketingConsent || patientDataModal.contactConsent || patientDataModal.intake?.marketing_consent || patientDataModal.intake?.contact_consent) && (
+                                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+                                    {(patientDataModal.marketingConsent || patientDataModal.intake?.marketing_consent) && <span style={{ padding: '0.2rem 0.5rem', background: 'rgba(74,222,128,0.15)', color: '#4ade80', borderRadius: '0.3rem', fontSize: '0.7rem', fontWeight: 600 }}>✓ Zgoda marketing</span>}
+                                    {(patientDataModal.contactConsent || patientDataModal.intake?.contact_consent) && <span style={{ padding: '0.2rem 0.5rem', background: 'rgba(74,222,128,0.15)', color: '#4ade80', borderRadius: '0.3rem', fontSize: '0.7rem', fontWeight: 600 }}>✓ Zgoda kontakt</span>}
+                                </div>
+                            )}
 
-                            {/* Informacje o pacjencie */}
-                            {patientDataModal.informacje_o_pacjencie && (
+                            {/* Informacje o pacjencie (from Prodentis or e-karta) */}
+                            {(patientDataModal.notes || patientDataModal.informacje_o_pacjencie || patientDataModal.intake?.medical_notes) && (
                                 <>
                                     <div style={{ fontSize: '0.7rem', color: '#f59e0b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.5rem' }}>📝 Informacje o pacjencie</div>
                                     <div style={{
@@ -4199,7 +4201,7 @@ export default function EmployeePage() {
                                         maxHeight: '200px',
                                         overflowY: 'auto',
                                     }}>
-                                        {patientDataModal.informacje_o_pacjencie}
+                                        {patientDataModal.notes || patientDataModal.informacje_o_pacjencie || patientDataModal.intake?.medical_notes}
                                     </div>
                                 </>
                             )}
