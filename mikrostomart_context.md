@@ -1110,6 +1110,7 @@ Features:
 | `/employee/schedule` | GET | Weekly schedule from Prodentis (`?weekStart=`) |
 | `/employee/patient-history` | GET | Patient visit history from Prodentis (`?patientId=&limit=`) |
 | `/employee/patient-appointments` | GET | Future appointments for patient from Prodentis (`?patientId=`) — used for task due date suggestions |
+| `/employee/patient-details` | GET | Patient data + medical notes from Prodentis (`?patientId=`) — shows in '👤 Dane' modal |
 | `/employee/staff` | GET | Registered employees list from `user_roles` table (fast, no Prodentis scan) |
 | `/employee/tasks` | GET, POST, PUT, DELETE | Task CRUD. GET filters private tasks by `owner_user_id`; POST accepts `is_private`, `due_time`; private tasks skip Telegram/push |
 | `/employee/tasks/[id]` | GET, PUT, DELETE | Individual task operations (get details, update, archive) |
@@ -2163,6 +2164,12 @@ NODE_ENV=production
 - Cross-validates birthDate ↔ PESEL when either field changes
 - Green border + confirmation when valid, red border + error message when invalid
 - Blocks step 1 → 2 progression if PESEL has errors
+
+**`8eba1e9` — Patient Data Button in Schedule Popup (Feb 25):**
+- New `GET /api/employee/patient-details?patientId=...` proxy (Prodentis details + notes in parallel)
+- Purple '👤 Dane' button in appointment popup (flexWrap for mobile safety)
+- Full modal: personal data, contact, consents, 'Informacje o pacjencie', '⚠️ Uwagi i ostrzeżenia dla lekarza'
+- Handles array/object/string notes formats from Prodentis
 
 ---
 
