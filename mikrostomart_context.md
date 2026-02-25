@@ -2166,10 +2166,16 @@ NODE_ENV=production
 - Blocks step 1 → 2 progression if PESEL has errors
 
 **`8eba1e9` — Patient Data Button in Schedule Popup (Feb 25):**
-- New `GET /api/employee/patient-details?patientId=...` proxy (Prodentis details + notes in parallel)
+- New `GET /api/employee/patient-details?patientId=...` proxy to Prodentis
 - Purple '👤 Dane' button in appointment popup (flexWrap for mobile safety)
-- Full modal: personal data, contact, consents, 'Informacje o pacjencie', '⚠️ Uwagi i ostrzeżenia dla lekarza'
-- Handles array/object/string notes formats from Prodentis
+- Full modal: personal data, contact, 'Informacje o pacjencie', '⚠️ Uwagi i ostrzeżenia dla lekarza'
+
+**`a9faaa7` — Integrate Extended Prodentis Details API v5.1 (Feb 25):**
+- Prodentis API now returns 7 new fields: `pesel`, `birthDate`, `gender`, `middleName`, `maidenName`, `notes`, `warnings[]`
+- Simplified proxy (pure passthrough, removed Supabase fallback)
+- Modal uses Prodentis data directly — all patients now show consistent data
+- Dane osobowe: PESEL, data ur., płeć, nazwisko rodowe, imię drugie (only non-null shown)
+- warnings[] → red cards with date + author
 
 ---
 
