@@ -118,7 +118,8 @@ END;
 $$;
 
 -- Cleanup function for expired password reset tokens
-CREATE OR REPLACE FUNCTION clean_expired_reset_tokens()
+DROP FUNCTION IF EXISTS clean_expired_reset_tokens();
+CREATE FUNCTION clean_expired_reset_tokens()
 RETURNS void
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -130,7 +131,8 @@ END;
 $$;
 
 -- Cleanup function for expired email verification tokens
-CREATE OR REPLACE FUNCTION clean_expired_verification_tokens()
+DROP FUNCTION IF EXISTS clean_expired_verification_tokens();
+CREATE FUNCTION clean_expired_verification_tokens()
 RETURNS void
 LANGUAGE plpgsql
 SECURITY DEFINER
