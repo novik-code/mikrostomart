@@ -2220,6 +2220,11 @@ NODE_ENV=production
 - Active tab highlighted with gradient glow + accent shadow
 - Desktop horizontal tabs unchanged
 
+**`b8dcf8b` — Dodatki Menu Color Unification (Feb 25):**
+- All dropdown items (desktop + mobile) now use unified warm champagne `#e2d1b3`
+- Removed 8+ multicolored inline styles (blue, purple, green, pink, gold, amber)
+- Hover still transitions to `var(--color-primary)` gold via CSS class
+
 ---
 
 ### February 25, 2026 (batch 4)
