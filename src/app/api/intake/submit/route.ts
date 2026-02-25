@@ -44,30 +44,107 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: 'Token expired' }, { status: 410 });
     }
 
-    // 2. Build medical notes text for Prodentis
+    // 2. Build medical notes text for Prodentis — with clear formatting
     const survey = formData.medicalSurvey || {};
-    const noteLines = [
-        `=== E-KARTA PACJENTA ${new Date().toLocaleDateString('pl-PL')} ===`,
-        `Choroby przewlekłe: ${survey.chronicDiseases || 'brak'}`,
+    const date = new Date().toLocaleDateString('pl-PL');
+    const yn = (v: any) => v ? 'TAK' : 'NIE';
+    const sections: string[] = [];
+
+    // Header
+    sections.push(`=== E-KARTA PACJENTA ${date} ===`);
+    sections.push('');
+
+    // Stan ogólny
+    sections.push('--- STAN OGÓLNY ---');
+    sections.push(`Czuje się zdrowy/a: ${yn(survey.feelsHealthy)}`);
+    if (survey.hospitalLast2Years) sections.push(`Szpital w ciągu 2 lat: TAK — ${survey.hospitalReason || '(brak szczegółów)'}`);
+    if (survey.currentlyTreated) sections.push(`Aktualnie leczy się: TAK — ${survey.currentTreatment || '(brak szczegółów)'}`);
+    if (survey.takesMedication) sections.push(`Przyjmuje leki: TAK — ${survey.medications || '(brak szczegółów)'}`);
+    else sections.push('Przyjmuje leki: NIE');
+    if (survey.hasAllergies) sections.push(`Uczulenia: TAK — ${survey.allergies || '(brak szczegółów)'}`);
+    else sections.push('Uczulenia: NIE');
+    sections.push('');
+
+    // Skłonności
+    sections.push('--- SKŁONNOŚCI ---');
+    sections.push(`Skłonność do krwawień: ${yn(survey.bleedingTendency)}`);
+    sections.push(`Omdlenia/utrata przytomności: ${yn(survey.faintingEpisodes)}`);
+    sections.push(`Rozrusznik serca: ${yn(survey.hasPacemaker)}`);
+    sections.push('');
+
+    // Choroby
+    const diseases: [string, boolean][] = [
+        ['Choroby serca (zawał, wieńcowa, wada, zaburzenia rytmu)', survey.heartDiseases],
+        ['Choroby układu krążenia (nadciśnienie, omdlenia)', survey.circulatoryDiseases],
+        ['Choroby naczyń (żylaki, zapalenie żył)', survey.vascularDiseases],
+        ['Choroby płuc (rozedma, astma, gruźlica, oskrzela)', survey.lungDiseases],
+        ['Choroby układu pokarmowego (wrzody, choroby jelit)', survey.digestiveDiseases],
+        ['Choroby wątroby (kamica, żółtaczka, marskość)', survey.liverDiseases],
+        ['Choroby układu moczowego (nerek, kamica)', survey.urinaryDiseases],
+        ['Zaburzenia przemiany materii (cukrzyca, dna)', survey.metabolicDiseases],
+        ['Choroby tarczycy', survey.thyroidDiseases],
+        ['Choroby ukł. nerwowego (padaczka, niedowłady)', survey.neurologicalDiseases],
+        ['Choroby ukł. kostno-stawowego (zwyrodnienia)', survey.musculoskeletalDiseases],
+        ['Choroby krwi i krzepnięcia (hemofilia, anemia)', survey.bloodDiseases],
+        ['Choroby oczu (jaskra)', survey.eyeDiseases],
+        ['Zmiany nastroju (depresja, nerwica)', survey.moodDisorders],
+        ['Choroba reumatyczna', survey.rheumaticDisease],
+        ['Osteoporoza', survey.osteoporosis],
     ];
-    if (survey.heartDisease) noteLines.push('• Choroby serca/układu krążenia: TAK');
-    if (survey.diabetes) noteLines.push('• Cukrzyca: TAK');
-    if (survey.thyroid) noteLines.push('• Choroby tarczycy: TAK');
-    if (survey.asthma) noteLines.push('• Astma/choroby oddechowe: TAK');
-    if (survey.epilepsy) noteLines.push('• Padaczka/choroby neurologiczne: TAK');
-    if (survey.bloodDisorder) noteLines.push('• Zaburzenia krzepliwości krwi: TAK');
-    if (survey.osteoporosis) noteLines.push('• Osteoporoza/bisfosfoniany: TAK');
-    if (survey.infectiousDisease) noteLines.push('• Choroby zakaźne (WZW/HIV): TAK');
-    noteLines.push(`Leki na stałe: ${survey.medications || 'brak'}`);
-    noteLines.push(`Alergie: ${survey.allergies || 'brak'}`);
-    noteLines.push(`Lateks/metale: ${survey.latexAllergy ? 'TAK' : 'NIE'}`);
-    if (formData.gender === 'F') {
-        noteLines.push(`Ciąża: ${survey.pregnant ? 'TAK' : 'NIE'}`);
-        noteLines.push(`Karmienie piersią: ${survey.breastfeeding ? 'TAK' : 'NIE'}`);
+    const positive = diseases.filter(([, v]) => v);
+    sections.push('--- CHOROBY ---');
+    if (positive.length === 0) {
+        sections.push('Brak oznaczonych chorób.');
+    } else {
+        positive.forEach(([name]) => sections.push(`• ${name}: TAK`));
     }
-    noteLines.push(`Ostatnie RTG: ${survey.lastXray || 'nie podano'}`);
-    if (survey.additionalNotes) noteLines.push(`Uwagi: ${survey.additionalNotes}`);
-    const medicalNotes = noteLines.join('\n');
+    sections.push('');
+
+    // Choroby zakaźne
+    if (survey.infectiousDisease) {
+        sections.push('--- CHOROBY ZAKAŹNE ---');
+        if (survey.hepatitisA) sections.push('• Żółtaczka zakaźna A: TAK');
+        if (survey.hepatitisB) sections.push('• Żółtaczka zakaźna B: TAK');
+        if (survey.hepatitisC) sections.push('• Żółtaczka zakaźna C: TAK');
+        if (survey.aids) sections.push('• AIDS/HIV: TAK');
+        if (survey.tuberculosis) sections.push('• Gruźlica: TAK');
+        if (survey.std) sections.push('• Choroby weneryczne: TAK');
+        sections.push('');
+    }
+
+    // Inne
+    if (survey.otherDiseases) sections.push(`Inne dolegliwości: ${survey.otherDiseases}`);
+    if (survey.lastBloodPressure) sections.push(`Ostatnie ciśnienie: ${survey.lastBloodPressure}`);
+    sections.push('');
+
+    // Historia medyczna
+    sections.push('--- HISTORIA MEDYCZNA ---');
+    if (survey.hadSurgery) sections.push(`Operowany/a: TAK — ${survey.surgeryDetails || '(brak szczegółów)'}`);
+    else sections.push('Operowany/a: NIE');
+    sections.push(`Tolerancja znieczulenia: ${yn(survey.toleratedAnesthesia)}`);
+    if (survey.hadBloodTransfusion) sections.push(`Przetaczanie krwi: TAK — ${survey.transfusionDetails || '(brak szczegółów)'}`);
+    sections.push('');
+
+    // Używki
+    sections.push('--- UŻYWKI ---');
+    if (survey.smoker) sections.push(`Tytoń: TAK — ${survey.smokingDetails || '(brak szczegółów)'}`);
+    else sections.push('Tytoń: NIE');
+    sections.push(`Alkohol: ${survey.drinksAlcohol || 'NIE'}`);
+    if (survey.takesSedatives) sections.push(`Środki uspokajające/nasenne/narkotyki: TAK — ${survey.sedativesDetails || '(brak szczegółów)'}`);
+    else sections.push('Środki uspokajające/nasenne: NIE');
+    sections.push('');
+
+    // Kobiety
+    if (formData.gender === 'F') {
+        sections.push('--- PYTANIA DLA KOBIET ---');
+        sections.push(`Ciąża: ${yn(survey.isPregnant)}${survey.isPregnant && survey.pregnancyMonth ? ` — miesiąc: ${survey.pregnancyMonth}` : ''}`);
+        if (survey.lastPeriod) sections.push(`Ostatnia miesiączka: ${survey.lastPeriod}`);
+        sections.push(`Antykoncepcja doustna: ${yn(survey.usesContraceptives)}`);
+        sections.push('');
+    }
+
+    sections.push(`[Dane z e-karty cyfrowej ${date}]`);
+    const medicalNotes = sections.join('\n');
 
     // 3. Save submission to Supabase
     const { data: submission, error: subErr } = await supabase

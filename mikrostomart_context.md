@@ -2060,6 +2060,30 @@ NODE_ENV=production
 - `src/app/api/admin/employees/route.ts` — Full rewrite: 74-day Prodentis scan, Supabase cross-reference, registered employees section
 - `mikrostomart_context.md` — Comprehensive documentation update (70+ lines added/modified)
 
+### February 25, 2026 (batch 5)
+**Cyfrowa E-Karta Pacjenta — Full Implementation**
+
+#### Commits:
+- `a884df6` — feat: e-karta pacjenta — QR code registration system (Block A)
+- `12d65d6` — feat: integrate Prodentis write-back API for e-karta
+
+**`a884df6` — E-Karta Block A (Feb 25):**
+- **Migration 054:** `patient_intake_tokens` (jednorazowe tokeny QR, 24h TTL) + `patient_intake_submissions` (bufor danych przed Prodentis)
+- **API routes:** `POST /api/intake/generate-token`, `GET /api/intake/verify/[token]`, `POST /api/intake/submit`
+- **Frontend:** `/ekarta/[token]` — 3-step tablet form (dane osobowe → wywiad medyczny → zgody + podpis cyfrowy)
+- **Strefa pracownika:** zielony przycisk 📋 E-Karta w popup wizyty → generuje QR kod do zeskanowania telefonem pacjenta
+- **Dependency:** `qrcode.react` (nowa)
+
+**`12d65d6` — Prodentis Write-Back Integration (Feb 25):**
+- **Prodentis API:** `http://83.230.40.14:3000` (external IP), key `PRODENTIS_API_KEY` env var
+- **Endpoints:** POST /api/patients (create), PATCH /api/patients/:id (update), POST /api/patients/:id/notes (medical notes → "Uwagi dla lekarza" in Prodentis XML)
+- **Flow:** submit → POST patient → 409 PESEL exists → PATCH + POST notes → status=sent
+- **Fix:** fire-and-forget async → synchronous (Vercel kills async), all 5 routes updated 192.168.1.5 → 83.230.40.14
+- **Files modified:** `src/app/api/intake/submit/route.ts`, `src/app/api/cron/appointment-reminders/route.ts`, `src/app/api/cron/push-appointment-1h/route.ts`, `src/app/api/cron/week-after-visit-sms/route.ts`, `src/app/api/cron/post-visit-sms/route.ts`, `src/app/api/prodentis/slots/route.ts`
+- **⚠️ Action:** Add `PRODENTIS_API_KEY=2c9bd5b4-5090-4007-8f06-936811bd0947` to Vercel env vars
+
+---
+
 ### February 25, 2026 (batch 4)
 **RLS Warning Fix Round 2 (migration 053)**
 
