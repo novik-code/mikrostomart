@@ -2151,7 +2151,7 @@ NODE_ENV=production
 
 **`ee029d5` — Notes to XML (Feb 25):**
 - After POST /api/patients (201 created), now also calls POST /api/patients/:id/notes
-- Fixes: notes go to XML `notatki` field → "Uwagi i ostrzeżenia dla lekarza" (not just `informacje_o_pacjencie`)
+- **Server-side fix (Feb 25 15:55):** Prodentis API v3 — notes now write to `<wazneUwagiList>` XML → correctly appears in "Uwagi i ostrzeżenia dla lekarza" (previously only went to `informacje_o_pacjencie`). No code changes needed on our side.
 
 **`4ec3426` — Login Popup Tasks Clickable (Feb 25):**
 - Each task in login popup now clickable → closes popup, switches to 'zadania' tab, opens task detail modal
