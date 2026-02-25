@@ -4584,15 +4584,26 @@ export default function EmployeePage() {
                                 {loginPopupTasks.map(task => {
                                     const overdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== 'done';
                                     return (
-                                        <div key={task.id} style={{
-                                            padding: '0.65rem 0.85rem',
-                                            background: overdue ? 'rgba(239, 68, 68, 0.08)' : 'rgba(255,255,255,0.04)',
-                                            border: `1px solid ${overdue ? 'rgba(239, 68, 68, 0.25)' : 'rgba(255,255,255,0.08)'}`,
-                                            borderRadius: '0.6rem',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '0.6rem',
-                                        }}>
+                                        <div key={task.id}
+                                            onClick={() => {
+                                                setShowLoginPopup(false);
+                                                setActiveTab('zadania');
+                                                setSelectedViewTask(task);
+                                            }}
+                                            style={{
+                                                padding: '0.65rem 0.85rem',
+                                                background: overdue ? 'rgba(239, 68, 68, 0.08)' : 'rgba(255,255,255,0.04)',
+                                                border: `1px solid ${overdue ? 'rgba(239, 68, 68, 0.25)' : 'rgba(255,255,255,0.08)'}`,
+                                                borderRadius: '0.6rem',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '0.6rem',
+                                                cursor: 'pointer',
+                                                transition: 'background 0.15s, border-color 0.15s',
+                                            }}
+                                            onMouseEnter={e => { e.currentTarget.style.background = overdue ? 'rgba(239, 68, 68, 0.15)' : 'rgba(56,189,248,0.08)'; e.currentTarget.style.borderColor = overdue ? 'rgba(239, 68, 68, 0.4)' : 'rgba(56,189,248,0.3)'; }}
+                                            onMouseLeave={e => { e.currentTarget.style.background = overdue ? 'rgba(239, 68, 68, 0.08)' : 'rgba(255,255,255,0.04)'; e.currentTarget.style.borderColor = overdue ? 'rgba(239, 68, 68, 0.25)' : 'rgba(255,255,255,0.08)'; }}
+                                        >
                                             {/* Priority indicator */}
                                             <div style={{
                                                 width: '8px',
@@ -4612,6 +4623,18 @@ export default function EmployeePage() {
                                                 }}>
                                                     {task.title}
                                                 </div>
+                                                {task.description && (
+                                                    <div style={{
+                                                        fontSize: '0.75rem',
+                                                        color: 'rgba(255,255,255,0.35)',
+                                                        whiteSpace: 'nowrap',
+                                                        overflow: 'hidden',
+                                                        textOverflow: 'ellipsis',
+                                                        marginTop: '0.1rem',
+                                                    }}>
+                                                        {task.description}
+                                                    </div>
+                                                )}
                                                 <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.15rem' }}>
                                                     {task.due_date && (
                                                         <span style={{
@@ -4628,6 +4651,7 @@ export default function EmployeePage() {
                                                     )}
                                                 </div>
                                             </div>
+                                            <div style={{ color: 'rgba(56,189,248,0.6)', fontSize: '0.75rem', flexShrink: 0 }}>→</div>
                                         </div>
                                     );
                                 })}
