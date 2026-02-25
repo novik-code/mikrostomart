@@ -265,51 +265,51 @@ export default function Navbar() {
                                                         flexDirection: 'column',
                                                         backdropFilter: 'blur(16px)',
                                                     }}>
-                                                        {f.painMap && <Link href="/mapa-bolu" className={styles.dropdownLink} style={{ color: '#dcb14a', fontWeight: 'bold', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                                                        {f.painMap && <Link href="/mapa-bolu" className={styles.dropdownLink} style={{ color: '#e2d1b3', fontWeight: 'bold', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                                                             🗺️ {t('painMap')}
                                                         </Link>}
-                                                        {f.treatmentCalculator && <Link href="/kalkulator-leczenia" className={styles.dropdownLink} style={{ color: '#38bdf8', fontWeight: 'bold', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                                                        {f.treatmentCalculator && <Link href="/kalkulator-leczenia" className={styles.dropdownLink} style={{ color: '#e2d1b3', fontWeight: 'bold', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                                                             🧮 {t('treatmentCalculator')}
                                                         </Link>}
-                                                        {f.comparator && <Link href="/porownywarka" className={styles.dropdownLink} style={{ color: '#a855f7', fontWeight: 'bold', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                                                        {f.comparator && <Link href="/porownywarka" className={styles.dropdownLink} style={{ color: '#e2d1b3', fontWeight: 'bold', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                                                             ⚖️ {t('comparator')}
                                                         </Link>}
-                                                        <Link href="/cennik" className={styles.dropdownLink} style={{ color: '#10b981', fontWeight: 'bold' }}>
+                                                        <Link href="/cennik" className={styles.dropdownLink} style={{ color: '#e2d1b3', fontWeight: 'bold' }}>
                                                             💰 {t('pricing')}
                                                         </Link>
-                                                        {f.knowledgeBase && <Link href="/baza-wiedzy" className={styles.dropdownLink}>
+                                                        {f.knowledgeBase && <Link href="/baza-wiedzy" className={styles.dropdownLink} style={{ color: '#e2d1b3' }}>
                                                             📚 {t('knowledgeBase')}
                                                         </Link>}
-                                                        {f.blog && <Link href="/nowosielski" className={styles.dropdownLink} style={{ color: '#d4af37', fontWeight: 'bold' }}>
+                                                        {f.blog && <Link href="/nowosielski" className={styles.dropdownLink} style={{ color: '#e2d1b3', fontWeight: 'bold' }}>
                                                             👨‍⚕️ {t('blog')}
                                                         </Link>}
-                                                        {f.shop && <Link href="/sklep" className={styles.dropdownLink}>
+                                                        {f.shop && <Link href="/sklep" className={styles.dropdownLink} style={{ color: '#e2d1b3' }}>
                                                             🛍️ {t('shop')}
                                                         </Link>}
                                                         {f.simulatorModal && <button
                                                             onClick={() => { openSimulator(); setIsDropdownOpen(false); }}
                                                             className={styles.dropdownLink}
-                                                            style={{ color: 'var(--color-primary)', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'center' }}
+                                                            style={{ color: '#e2d1b3', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'center' }}
                                                         >
                                                             ✨ {t('smileSimulator')}
                                                         </button>}
                                                         {f.assistantTeaser && <button
                                                             onClick={() => { openChat(); setIsDropdownOpen(false); }}
                                                             className={styles.dropdownLink}
-                                                            style={{ color: '#60a5fa', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'center' }}
+                                                            style={{ color: '#e2d1b3', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'center' }}
                                                         >
                                                             🤖 {t('assistant')}
                                                         </button>}
-                                                        <Link href="/zadatek" className={styles.dropdownLink} style={{ color: 'var(--color-primary)', fontWeight: 'bold' }}>
+                                                        <Link href="/zadatek" className={styles.dropdownLink} style={{ color: '#e2d1b3', fontWeight: 'bold' }}>
                                                             💳 {t('deposit')}
                                                         </Link>
-                                                        {f.selfie && <Link href="/selfie" className={styles.dropdownLink} style={{ color: '#ec4899', fontWeight: 'bold', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                                                        {f.selfie && <Link href="/selfie" className={styles.dropdownLink} style={{ color: '#e2d1b3', fontWeight: 'bold', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                                                             🤳 {t('selfie')}
                                                         </Link>}
                                                         <button
                                                             onClick={() => { openSurvey(); setIsDropdownOpen(false); }}
                                                             className={styles.dropdownLink}
-                                                            style={{ color: '#f59e0b', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'center', fontWeight: 'bold' }}
+                                                            style={{ color: '#e2d1b3', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'center', fontWeight: 'bold' }}
                                                         >
                                                             ⭐ {t('shareOpinion')}
                                                         </button>
@@ -367,33 +367,33 @@ export default function Navbar() {
                         <Link href="/aktualnosci" className={styles.mobileLink} onClick={closeMenu}>{t('news')}</Link>
 
                         <div style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '1px' }}>{t('extras')}</div>
-                        {f.painMap && <Link href="/mapa-bolu" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem', color: '#dcb14a', fontWeight: 'bold' }}>🗺️ {t('painMap')}</Link>}
-                        {f.treatmentCalculator && <Link href="/kalkulator-leczenia" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem', color: '#38bdf8', fontWeight: 'bold' }}>🧮 {t('treatmentCalculator')}</Link>}
-                        {f.comparator && <Link href="/porownywarka" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem', color: '#a855f7', fontWeight: 'bold' }}>⚖️ {t('comparator')}</Link>}
-                        <Link href="/cennik" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem', color: '#10b981', fontWeight: 'bold' }}>💰 {t('pricing')}</Link>
-                        {f.knowledgeBase && <Link href="/baza-wiedzy" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem' }}>📚 {t('knowledgeBase')}</Link>}
-                        {f.blog && <Link href="/nowosielski" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem', color: '#d4af37', fontWeight: 'bold' }}>👨‍⚕️ {t('blog')}</Link>}
-                        {f.shop && <Link href="/sklep" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem' }}>🛍️ {t('shop')}</Link>}
-                        <Link href="/zadatek" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--color-primary)', fontWeight: 'bold' }}>💳 {t('deposit')}</Link>
-                        {f.selfie && <Link href="/selfie" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem', color: '#ec4899', fontWeight: 'bold' }}>🤳 {t('selfie')}</Link>}
+                        {f.painMap && <Link href="/mapa-bolu" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem', color: '#e2d1b3', fontWeight: 'bold' }}>🗺️ {t('painMap')}</Link>}
+                        {f.treatmentCalculator && <Link href="/kalkulator-leczenia" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem', color: '#e2d1b3', fontWeight: 'bold' }}>🧮 {t('treatmentCalculator')}</Link>}
+                        {f.comparator && <Link href="/porownywarka" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem', color: '#e2d1b3', fontWeight: 'bold' }}>⚖️ {t('comparator')}</Link>}
+                        <Link href="/cennik" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem', color: '#e2d1b3', fontWeight: 'bold' }}>💰 {t('pricing')}</Link>
+                        {f.knowledgeBase && <Link href="/baza-wiedzy" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem', color: '#e2d1b3' }}>📚 {t('knowledgeBase')}</Link>}
+                        {f.blog && <Link href="/nowosielski" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem', color: '#e2d1b3', fontWeight: 'bold' }}>👨‍⚕️ {t('blog')}</Link>}
+                        {f.shop && <Link href="/sklep" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem', color: '#e2d1b3' }}>🛍️ {t('shop')}</Link>}
+                        <Link href="/zadatek" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem', color: '#e2d1b3', fontWeight: 'bold' }}>💳 {t('deposit')}</Link>
+                        {f.selfie && <Link href="/selfie" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem', color: '#e2d1b3', fontWeight: 'bold' }}>🤳 {t('selfie')}</Link>}
                         <button
                             onClick={() => { openSimulator(); closeMenu(); }}
                             className={styles.mobileLink}
-                            style={{ display: 'block', padding: '0.75rem 1.5rem', width: '100%', textAlign: 'center', color: '#dcb14a', fontWeight: 'bold', border: 'none', background: 'transparent', marginTop: '10px' }}
+                            style={{ display: 'block', padding: '0.75rem 1.5rem', width: '100%', textAlign: 'center', color: '#e2d1b3', fontWeight: 'bold', border: 'none', background: 'transparent', marginTop: '10px' }}
                         >
                             ✨ {t('smileSimulator')}
                         </button>
                         <button
                             onClick={() => { openChat(); closeMenu(); }}
                             className={styles.mobileLink}
-                            style={{ display: 'block', width: '100%', padding: '0.75rem 1.5rem', textAlign: 'center', color: '#60a5fa', background: 'transparent', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}
+                            style={{ display: 'block', width: '100%', padding: '0.75rem 1.5rem', textAlign: 'center', color: '#e2d1b3', background: 'transparent', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}
                         >
                             🤖 {t('assistant')}
                         </button>
                         <button
                             onClick={() => { openSurvey(); closeMenu(); }}
                             className={styles.mobileLink}
-                            style={{ display: 'block', width: '100%', padding: '0.75rem 1.5rem', textAlign: 'center', color: '#f59e0b', background: 'transparent', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}
+                            style={{ display: 'block', width: '100%', padding: '0.75rem 1.5rem', textAlign: 'center', color: '#e2d1b3', background: 'transparent', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}
                         >
                             ⭐ {t('shareOpinion')}
                         </button>
