@@ -2060,6 +2060,25 @@ NODE_ENV=production
 - `src/app/api/admin/employees/route.ts` — Full rewrite: 74-day Prodentis scan, Supabase cross-reference, registered employees section
 - `mikrostomart_context.md` — Comprehensive documentation update (70+ lines added/modified)
 
+### February 25, 2026 (batch 3)
+**RLS Policy Tightening — Always-True Policies Replaced (migration 052)**
+
+#### Commits:
+- `0223b40` — security: migration 052 — tighten always-true RLS policies
+
+**`0223b40` — Always-true RLS policy tightening (Feb 25):**
+- **Trigger:** 12 remaining warnings after migration 051 — "RLS Policy Always True" on 6 tables
+- **Fix:** Migration 052 — idempotent DROP + CREATE for each table:
+  - `employee_tasks`, `push_subscriptions`, `article_ideas`, `employee_calendar_tokens` → `service_only` (`USING (false)`) — all server API-only
+  - `google_reviews` → split `public_read` (SELECT) + `service_write` (INSERT, USING false) — public cache needed on homepage
+  - `site_settings` → split `public_read` (SELECT) + `service_write` (INSERT, USING false) — ThemeEditor reads client-side
+  - `booking_settings` → refreshed to `public_read` (SELECT) + `service_write` (UPDATE, USING false) — booking form reads via anon
+- **Result:** Security Advisor warnings reduced from 12 → ~1 (only "Leaked Password Protection" which requires Supabase Pro plan)
+- **Files:** `supabase_migrations/052_tighten_rls_policies.sql` — [NEW]
+- **⚠️ Action required:** Run migration 052 in Supabase SQL editor
+
+---
+
 ### February 25, 2026 (batch 2)
 **Supabase RLS Security Fixes + /kontakt Mobile Fix + Navigation Button**
 
