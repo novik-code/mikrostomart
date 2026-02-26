@@ -63,7 +63,7 @@ export default function AdminPage() {
     const [products, setProducts] = useState<Product[]>([]);
     const [error, setError] = useState<string | null>(null);
 
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'questions' | 'articles' | 'news' | 'orders' | 'reservations' | 'blog' | 'patients' | 'sms-reminders' | 'sms-post-visit' | 'sms-week-after-visit' | 'appointment-instructions' | 'roles' | 'employees' | 'chat' | 'theme' | 'push' | 'booking-settings'>('dashboard');
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'questions' | 'articles' | 'news' | 'orders' | 'reservations' | 'blog' | 'patients' | 'sms-reminders' | 'sms-post-visit' | 'sms-week-after-visit' | 'appointment-instructions' | 'roles' | 'employees' | 'chat' | 'theme' | 'push' | 'booking-settings' | 'online-bookings'>('dashboard');
     const [questions, setQuestions] = useState<any[]>([]);
     const [articles, setArticles] = useState<any[]>([]);
     const [blogPosts, setBlogPosts] = useState<any[]>([]); // New Blog Posts state
@@ -157,6 +157,12 @@ export default function AdminPage() {
     const [bookingSettingsSaving, setBookingSettingsSaving] = useState(false);
     const [bookingSettingsMsg, setBookingSettingsMsg] = useState<string | null>(null);
 
+    // Online Bookings state
+    const [onlineBookings, setOnlineBookings] = useState<any[]>([]);
+    const [onlineBookingsLoading, setOnlineBookingsLoading] = useState(false);
+    const [onlineBookingsFilter, setOnlineBookingsFilter] = useState<string>('pending');
+    const [onlineBookingsPendingCount, setOnlineBookingsPendingCount] = useState(0);
+
     // Responsive State
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
@@ -190,6 +196,10 @@ export default function AdminPage() {
                 fetchSmsReminders(); // Fetch SMS reminders
                 if (activeTab === 'roles') fetchRoles(); // Fetch roles on tab switch
                 if (activeTab === 'employees') fetchEmployees(); // Fetch employees on tab switch
+
+                if (activeTab === 'online-bookings') {
+                    fetchOnlineBookings();
+                }
 
                 // Auto-load SMS post-visit data when entering that tab
                 if (activeTab === 'sms-post-visit') {
@@ -586,6 +596,86 @@ export default function AdminPage() {
             if (res.ok) setReservations(await res.json());
         } catch (err) { console.error(err); }
         finally { setLoading(false); }
+    };
+
+    // ── ONLINE BOOKINGS Functions ─────────────────────
+    const fetchOnlineBookings = async () => {
+        setOnlineBookingsLoading(true);
+        try {
+            const statusParam = onlineBookingsFilter === 'all' ? '' : `?status=${onlineBookingsFilter}`;
+            const res = await fetch(`/api/admin/online-bookings${statusParam}`);
+            const data = await res.json();
+            setOnlineBookings(data.bookings || []);
+            if (onlineBookingsFilter !== 'pending') {
+                const pendingRes = await fetch('/api/admin/online-bookings?status=pending');
+                const pendingData = await pendingRes.json();
+                setOnlineBookingsPendingCount((pendingData.bookings || []).length);
+            } else {
+                setOnlineBookingsPendingCount((data.bookings || []).length);
+            }
+        } catch (err) {
+            console.error('Failed to fetch online bookings:', err);
+        } finally {
+            setOnlineBookingsLoading(false);
+        }
+    };
+
+    const handleApproveBooking = async (id: string) => {
+        try {
+            const res = await fetch('/api/admin/online-bookings', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, action: 'approve', approvedBy: 'admin' }),
+            });
+            const data = await res.json();
+            const booking = data.booking;
+            if (booking?.schedule_status === 'scheduled') {
+                alert(`✅ Wizyta wpisana do grafiku Prodentis!\nID: ${booking.prodentis_appointment_id}`);
+            } else if (booking?.schedule_error) {
+                alert(`⚠️ Wizyta zatwierdzona, ale nie udało się wpisać do grafiku:\n${booking.schedule_error}`);
+            }
+            fetchOnlineBookings();
+        } catch (err) {
+            console.error('Failed to approve booking:', err);
+        }
+    };
+
+    const handleRejectBooking = async (id: string) => {
+        if (!confirm('Czy na pewno chcesz odrzucić tę wizytę?')) return;
+        try {
+            await fetch('/api/admin/online-bookings', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, action: 'reject', approvedBy: 'admin' }),
+            });
+            fetchOnlineBookings();
+        } catch (err) {
+            console.error('Failed to reject booking:', err);
+        }
+    };
+
+    const handleDeleteBooking = async (id: string) => {
+        if (!confirm('Usunąć wpis?')) return;
+        try {
+            await fetch(`/api/admin/online-bookings?id=${id}`, { method: 'DELETE' });
+            fetchOnlineBookings();
+        } catch (err) {
+            console.error('Failed to delete booking:', err);
+        }
+    };
+
+    const handleApproveAllBookings = async () => {
+        const pending = onlineBookings.filter((b: any) => b.schedule_status === 'pending');
+        if (pending.length === 0) return;
+        if (!confirm(`Zatwierdzić wszystkie ${pending.length} oczekujące wizyty?`)) return;
+        for (const b of pending) {
+            await fetch('/api/admin/online-bookings', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: b.id, action: 'approve', approvedBy: 'admin' }),
+            });
+        }
+        fetchOnlineBookings();
     };
 
     const handleDeleteReservation = async (id: string) => {
@@ -4081,6 +4171,229 @@ export default function AdminPage() {
         );
     };
 
+    // ── RENDER: Online Bookings Tab ───────────────────
+    const renderOnlineBookingsTab = () => {
+        const statusColors: Record<string, string> = {
+            pending: '#f59e0b',
+            approved: '#3b82f6',
+            scheduled: '#22c55e',
+            rejected: '#ef4444',
+            failed: '#ef4444',
+        };
+        const statusLabels: Record<string, string> = {
+            pending: '⏳ Oczekuje',
+            approved: '✅ Zatwierdzona',
+            scheduled: '📅 W grafiku',
+            rejected: '❌ Odrzucona',
+            failed: '⚠️ Błąd',
+        };
+        const filterOptions = ['pending', 'approved', 'scheduled', 'rejected', 'all'];
+        const filterLabels: Record<string, string> = {
+            pending: 'Oczekujące',
+            approved: 'Zatwierdzone',
+            scheduled: 'W grafiku',
+            rejected: 'Odrzucone',
+            all: 'Wszystkie',
+        };
+
+        const pendingBookings = onlineBookings.filter(b => b.schedule_status === 'pending');
+
+        return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                {/* Filter pills */}
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                    {filterOptions.map(f => (
+                        <button
+                            key={f}
+                            onClick={() => { setOnlineBookingsFilter(f); setTimeout(fetchOnlineBookings, 50); }}
+                            style={{
+                                padding: '0.4rem 1rem',
+                                borderRadius: '2rem',
+                                border: `1px solid ${onlineBookingsFilter === f ? 'var(--color-primary)' : 'rgba(255,255,255,0.12)'}`,
+                                background: onlineBookingsFilter === f ? 'rgba(220,177,74,0.15)' : 'transparent',
+                                color: onlineBookingsFilter === f ? 'var(--color-primary)' : 'rgba(255,255,255,0.5)',
+                                cursor: 'pointer',
+                                fontSize: '0.82rem',
+                                fontWeight: onlineBookingsFilter === f ? 'bold' : 'normal',
+                            }}
+                        >
+                            {filterLabels[f]}
+                        </button>
+                    ))}
+                    <button
+                        onClick={fetchOnlineBookings}
+                        style={{ marginLeft: 'auto', padding: '0.4rem 0.8rem', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.4rem', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: '0.78rem' }}
+                    >
+                        🔄 Odśwież
+                    </button>
+                </div>
+
+                {/* Bulk approve */}
+                {pendingBookings.length > 0 && onlineBookingsFilter === 'pending' && (
+                    <div style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        padding: '0.75rem 1rem', background: 'rgba(245,158,11,0.08)',
+                        border: '1px solid rgba(245,158,11,0.2)', borderRadius: '0.75rem',
+                    }}>
+                        <span style={{ color: '#f59e0b', fontSize: '0.85rem', fontWeight: 'bold' }}>
+                            {pendingBookings.length} {pendingBookings.length === 1 ? 'wizyta oczekuje' : 'wizyt oczekuje'} na zatwierdzenie
+                        </span>
+                        <button
+                            onClick={handleApproveAllBookings}
+                            style={{
+                                padding: '0.5rem 1.2rem', background: 'var(--color-primary)',
+                                border: 'none', borderRadius: '0.5rem', color: 'black',
+                                fontWeight: 'bold', cursor: 'pointer', fontSize: '0.82rem',
+                            }}
+                        >
+                            ✅ Zatwierdź wszystkie
+                        </button>
+                    </div>
+                )}
+
+                {/* Loading */}
+                {onlineBookingsLoading && (
+                    <div style={{ padding: '2rem', textAlign: 'center', color: 'rgba(255,255,255,0.5)' }}>⏳ Ładowanie...</div>
+                )}
+
+                {/* Empty state */}
+                {!onlineBookingsLoading && onlineBookings.length === 0 && (
+                    <div style={{ padding: '3rem', textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontSize: '0.9rem' }}>
+                        Brak wizyt w tej kategorii.
+                    </div>
+                )}
+
+                {/* Booking cards */}
+                {!onlineBookingsLoading && onlineBookings.map(b => (
+                    <div key={b.id} style={{
+                        background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
+                        borderRadius: '0.75rem', padding: '1rem 1.25rem',
+                    }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap' }}>
+                            {/* Left: Date + Patient */}
+                            <div style={{ flex: 1, minWidth: '200px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.4rem' }}>
+                                    <span style={{ fontSize: '1.1rem', fontWeight: 'bold', color: 'white' }}>
+                                        {new Date(b.appointment_date).toLocaleDateString('pl-PL', { weekday: 'short', day: 'numeric', month: 'short' })}
+                                    </span>
+                                    <span style={{ fontSize: '1.1rem', fontWeight: 'bold', color: 'var(--color-primary)' }}>
+                                        {b.appointment_time?.slice(0, 5)}
+                                    </span>
+                                    {b.is_new_patient && (
+                                        <span style={{
+                                            padding: '0.1rem 0.5rem', borderRadius: '1rem', fontSize: '0.65rem',
+                                            background: 'rgba(59,130,246,0.15)', color: '#60a5fa', fontWeight: 'bold',
+                                        }}>
+                                            🆕 NOWY
+                                        </span>
+                                    )}
+                                </div>
+                                <div style={{ fontSize: '0.95rem', color: 'white', fontWeight: 500 }}>
+                                    {b.patient_name}
+                                </div>
+                                <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)', marginTop: '0.2rem' }}>
+                                    📞 {b.patient_phone}
+                                    {b.patient_email && <> &middot; ✉️ {b.patient_email}</>}
+                                </div>
+                                <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)', marginTop: '0.25rem' }}>
+                                    🩺 {b.specialist_name}
+                                    {b.service_type && <> &middot; {b.service_type}</>}
+                                </div>
+                                {b.description && (
+                                    <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)', marginTop: '0.3rem', fontStyle: 'italic' }}>
+                                        💬 &quot;{b.description}&quot;
+                                    </div>
+                                )}
+                                {b.intake_url && (
+                                    <div style={{ fontSize: '0.72rem', marginTop: '0.3rem' }}>
+                                        <a href={b.intake_url} target="_blank" rel="noopener noreferrer" style={{ color: '#60a5fa', textDecoration: 'underline' }}>
+                                            📋 Link do e-karty
+                                        </a>
+                                    </div>
+                                )}
+                                {b.prodentis_appointment_id && (
+                                    <div style={{ fontSize: '0.72rem', marginTop: '0.3rem', color: '#22c55e' }}>
+                                        📅 Prodentis ID: {b.prodentis_appointment_id}
+                                    </div>
+                                )}
+                                {b.schedule_error && (
+                                    <div style={{ fontSize: '0.72rem', marginTop: '0.3rem', color: '#f59e0b', background: 'rgba(245,158,11,0.08)', padding: '0.25rem 0.5rem', borderRadius: '0.3rem' }}>
+                                        ⚠️ {b.schedule_error}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Right: Status + Actions */}
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
+                                <span style={{
+                                    padding: '0.25rem 0.75rem', borderRadius: '1rem', fontSize: '0.75rem',
+                                    fontWeight: 'bold', color: statusColors[b.schedule_status] || 'white',
+                                    border: `1px solid ${statusColors[b.schedule_status] || 'rgba(255,255,255,0.2)'}`,
+                                    background: `${statusColors[b.schedule_status]}15`,
+                                }}>
+                                    {statusLabels[b.schedule_status] || b.schedule_status}
+                                </span>
+                                <div style={{ display: 'flex', gap: '0.4rem' }}>
+                                    {b.schedule_status === 'pending' && (
+                                        <>
+                                            <button
+                                                onClick={() => handleApproveBooking(b.id)}
+                                                style={{
+                                                    padding: '0.3rem 0.8rem', background: 'rgba(34,197,94,0.1)',
+                                                    border: '1px solid rgba(34,197,94,0.3)', borderRadius: '0.4rem',
+                                                    color: '#22c55e', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 'bold',
+                                                }}
+                                            >
+                                                ✅ Zatwierdź
+                                            </button>
+                                            <button
+                                                onClick={() => handleRejectBooking(b.id)}
+                                                style={{
+                                                    padding: '0.3rem 0.8rem', background: 'rgba(239,68,68,0.08)',
+                                                    border: '1px solid rgba(239,68,68,0.25)', borderRadius: '0.4rem',
+                                                    color: '#ef4444', cursor: 'pointer', fontSize: '0.75rem',
+                                                }}
+                                            >
+                                                ❌ Odrzuć
+                                            </button>
+                                        </>
+                                    )}
+                                    {b.schedule_status === 'approved' && b.schedule_error && (
+                                        <button
+                                            onClick={() => handleApproveBooking(b.id)}
+                                            style={{
+                                                padding: '0.3rem 0.8rem', background: 'rgba(245,158,11,0.1)',
+                                                border: '1px solid rgba(245,158,11,0.3)', borderRadius: '0.4rem',
+                                                color: '#f59e0b', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 'bold',
+                                            }}
+                                        >
+                                            🔄 Ponów
+                                        </button>
+                                    )}
+                                    {(b.schedule_status === 'rejected' || b.schedule_status === 'failed') && (
+                                        <button
+                                            onClick={() => handleDeleteBooking(b.id)}
+                                            style={{
+                                                padding: '0.3rem 0.8rem', background: 'transparent',
+                                                border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.4rem',
+                                                color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: '0.72rem',
+                                            }}
+                                        >
+                                            🗑 Usuń
+                                        </button>
+                                    )}
+                                </div>
+                                <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.25)' }}>
+                                    {new Date(b.created_at).toLocaleString('pl-PL', { dateStyle: 'short', timeStyle: 'short' })}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        );
+    };
+
 
     const NavItem = ({ id, label, icon: Icon }: any) => (
         <button
@@ -4177,6 +4490,27 @@ export default function AdminPage() {
                 <nav style={{ display: "flex", flexDirection: "column", gap: "0.5rem", flex: 1 }}>
                     <NavItem id="dashboard" label="Pulpit" icon={LayoutDashboard} />
                     <NavItem id="reservations" label="Rezerwacje" icon={Calendar} />
+                    <NavItem id="online-bookings" label={
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%' }}>
+                            <span>📅 Wizyty Online</span>
+                            {onlineBookingsPendingCount > 0 && (
+                                <span style={{
+                                    background: '#f59e0b',
+                                    color: 'black',
+                                    borderRadius: '50%',
+                                    width: '20px',
+                                    height: '20px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: '0.7rem',
+                                    fontWeight: 'bold'
+                                }}>
+                                    {onlineBookingsPendingCount}
+                                </span>
+                            )}
+                        </div>
+                    } icon={Calendar} />
                     <NavItem id="patients" label="Pacjenci" icon={Users} />
                     <NavItem id="sms-reminders" label={
                         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", width: "100%" }}>
@@ -4281,6 +4615,7 @@ export default function AdminPage() {
                             {activeTab === 'sms-week-after-visit' && '📱 SMS tydzień po wizycie'}
                             {activeTab === 'chat' && '💬 Czat z Pacjentami'}
                             {activeTab === 'booking-settings' && '📅 Rezerwacje'}
+                            {activeTab === 'online-bookings' && '📅 Wizyty Umówione Online'}
                         </h1>
                         <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
                             {/* Header Actions if needed */}
@@ -4513,6 +4848,7 @@ export default function AdminPage() {
                     {activeTab === 'sms-week-after-visit' && renderWeekAfterVisitSmsTab()}
                     {activeTab === 'chat' && <AdminChat />}
                     {activeTab === 'theme' && <ThemeEditor />}
+                    {activeTab === 'online-bookings' && renderOnlineBookingsTab()}
                     {activeTab === 'booking-settings' && (
                         <div style={{ padding: '2rem', maxWidth: 540 }}>
                             <h2 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: '0.5rem' }}>📅 Ustawienia Rezerwacji Online</h2>

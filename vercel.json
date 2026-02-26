@@ -45,6 +45,10 @@
             "schedule": "0 10 * * *"
         },
         {
+            "path": "/api/cron/online-booking-digest",
+            "schedule": "15 6 * * *"
+        },
+        {
             "path": "/api/cron/push-cleanup",
             "schedule": "15 3 * * *"
         }

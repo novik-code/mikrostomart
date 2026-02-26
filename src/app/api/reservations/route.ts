@@ -3,6 +3,7 @@ import { Resend } from "resend";
 import { sendTelegramNotification } from '@/lib/telegram';
 import { broadcastPush } from '@/lib/webpush';
 import { getEmailTemplate } from '@/lib/emailTemplates';
+import { getDoctorInfo, normalizePhone, fuzzyNameMatch, extractLastName } from '@/lib/doctorMapping';
 
 export const runtime = 'nodejs';
 
@@ -19,36 +20,39 @@ export async function POST(req: NextRequest) {
         const formattedDate = dateObj.toLocaleDateString('pl-PL', { day: 'numeric', month: 'long', year: 'numeric' });
         const appointmentDate = `${dayName}, ${formattedDate} o godz. ${time}`;
 
-        // Save to Database (Supabase)
-        try {
-            const { createClient } = require('@supabase/supabase-js');
-            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://keucogopujdolzmfajjv.supabase.co';
-            const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+        // --- Supabase client (shared across all DB operations) ---
+        const { createClient } = require('@supabase/supabase-js');
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://keucogopujdolzmfajjv.supabase.co';
+        const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+        const supabase = supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
 
-            if (supabaseKey) {
-                const supabase = createClient(supabaseUrl, supabaseKey);
-                const { error: dbError } = await supabase.from('reservations').insert({
+        // Save to Database (Supabase) — capture reservation ID
+        let reservationId: string | null = null;
+        if (supabase) {
+            try {
+                const { data: resData, error: dbError } = await supabase.from('reservations').insert({
                     name,
                     email,
                     phone,
                     date,
                     time,
                     specialist: specialistName,
-                    service: specialistName, // For backward compatibility
+                    service: specialistName,
                     description,
                     has_attachment: !!attachment,
                     status: 'pending',
                     created_at: new Date().toISOString()
-                });
+                }).select('id').single();
 
                 if (dbError) {
                     console.error("Supabase Reservation Insert Error:", dbError);
                 } else {
-                    console.log("Reservation saved to Supabase successfully.");
+                    reservationId = resData?.id || null;
+                    console.log("Reservation saved to Supabase:", reservationId);
                 }
+            } catch (dbEx) {
+                console.error("Database save exception:", dbEx);
             }
-        } catch (dbEx) {
-            console.error("Database save exception:", dbEx);
         }
 
         // Telegram Message (Admin)
@@ -107,7 +111,6 @@ export async function POST(req: NextRequest) {
             const adminEmail = "gabinet@mikrostomart.pl";
             const fromEmail = "powiadomienia@mikrostomart.pl";
 
-            // Email to Admin
             const emailData: any = {
                 from: fromEmail,
                 to: adminEmail,
@@ -115,17 +118,15 @@ export async function POST(req: NextRequest) {
                 html: adminHtml
             };
 
-            // Add attachment if present
             if (attachment && attachment.content) {
                 emailData.attachments = [{
                     filename: attachment.name,
-                    content: attachment.content.split(',')[1], // Remove base64 prefix
+                    content: attachment.content.split(',')[1],
                 }];
             }
 
             await resend.emails.send(emailData);
 
-            // Email to Patient - FROM gabinet@ so they can reply
             await resend.emails.send({
                 from: `Gabinet Mikrostomart <${adminEmail}>`,
                 replyTo: adminEmail,
@@ -135,7 +136,198 @@ export async function POST(req: NextRequest) {
             });
         }
 
-        return NextResponse.json({ success: true });
+        // ═══════════════════════════════════════════════════════════
+        //  ONLINE BOOKING — Patient lookup, auto-create, e-karta
+        // ═══════════════════════════════════════════════════════════
+        let intakeUrl: string | null = null;
+        let isNewPatient = false;
+
+        if (supabase) {
+            try {
+                const prodentisUrl = process.env.PRODENTIS_API_URL || 'http://83.230.40.14:3000';
+                const prodentisKey = process.env.PRODENTIS_API_KEY || '';
+                const doctorInfo = getDoctorInfo(specialist);
+                const normalizedPhone = normalizePhone(phone);
+                const patientLastName = extractLastName(name);
+
+                let prodentisPatientId: string | null = null;
+                let matchMethod: string = 'new';
+
+                // Step 1: Search patient by phone in Prodentis
+                if (prodentisKey && normalizedPhone) {
+                    try {
+                        // Try phone search first
+                        const phoneSearchRes = await fetch(
+                            `${prodentisUrl}/api/patients/search?phone=${normalizedPhone}&limit=5`,
+                            {
+                                headers: { 'Content-Type': 'application/json' },
+                                signal: AbortSignal.timeout(5000),
+                            }
+                        );
+
+                        if (phoneSearchRes.ok) {
+                            const phoneData = await phoneSearchRes.json();
+                            const candidates = phoneData.patients || [];
+
+                            // Verify by last name match
+                            const matched = candidates.find((p: any) =>
+                                fuzzyNameMatch(p.lastName || '', patientLastName)
+                            );
+
+                            if (matched) {
+                                prodentisPatientId = matched.id;
+                                matchMethod = 'phone+name';
+                                console.log(`[OnlineBooking] Patient matched: ${matched.firstName} ${matched.lastName} (ID: ${matched.id})`);
+                            }
+                        } else {
+                            // Phone search not available — fallback to name search
+                            console.log('[OnlineBooking] Phone search not available, trying name search');
+                            const nameSearchRes = await fetch(
+                                `${prodentisUrl}/api/patients/search?q=${encodeURIComponent(patientLastName)}&limit=10`,
+                                {
+                                    headers: { 'Content-Type': 'application/json' },
+                                    signal: AbortSignal.timeout(5000),
+                                }
+                            );
+
+                            if (nameSearchRes.ok) {
+                                const nameData = await nameSearchRes.json();
+                                const candidates = nameData.patients || [];
+
+                                // Match by phone number
+                                const matched = candidates.find((p: any) => {
+                                    const candidatePhone = normalizePhone(p.phone || '');
+                                    return candidatePhone === normalizedPhone;
+                                });
+
+                                if (matched) {
+                                    prodentisPatientId = matched.id;
+                                    matchMethod = 'phone+name';
+                                    console.log(`[OnlineBooking] Patient matched via name search: ${matched.firstName} ${matched.lastName}`);
+                                }
+                            }
+                        }
+                    } catch (searchErr) {
+                        console.error('[OnlineBooking] Patient search error:', searchErr);
+                    }
+                }
+
+                // Step 2: Create new patient if not found
+                if (!prodentisPatientId && prodentisKey) {
+                    isNewPatient = true;
+                    const nameParts = name.trim().split(/\s+/);
+                    const patientFirstName = nameParts[0] || '';
+                    const patientLast = nameParts.slice(1).join(' ') || '';
+
+                    try {
+                        const createRes = await fetch(`${prodentisUrl}/api/patients`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'X-API-Key': prodentisKey },
+                            body: JSON.stringify({
+                                firstName: patientFirstName,
+                                lastName: patientLast,
+                                phone: phone,
+                                email: email || '',
+                            }),
+                            signal: AbortSignal.timeout(10000),
+                        });
+
+                        const createResult = await createRes.json();
+
+                        if (createRes.status === 201 && createResult.prodentisId) {
+                            prodentisPatientId = createResult.prodentisId;
+                            console.log(`[OnlineBooking] New patient created: ${prodentisPatientId}`);
+                        } else if (createResult.error === 'PATIENT_EXISTS' && createResult.prodentisId) {
+                            prodentisPatientId = createResult.prodentisId;
+                            isNewPatient = false;
+                            matchMethod = 'phone+name';
+                            console.log(`[OnlineBooking] Patient already exists: ${prodentisPatientId}`);
+                        } else {
+                            console.error('[OnlineBooking] Failed to create patient:', createResult);
+                        }
+                    } catch (createErr) {
+                        console.error('[OnlineBooking] Patient create error:', createErr);
+                    }
+                }
+
+                // Step 3: Generate e-karta token for new patients
+                let intakeTokenId: string | null = null;
+                if (isNewPatient) {
+                    try {
+                        const nameParts = name.trim().split(/\s+/);
+                        const tokenPayload = {
+                            prodentisPatientId: prodentisPatientId || undefined,
+                            prefillFirstName: nameParts[0] || '',
+                            prefillLastName: nameParts.slice(1).join(' ') || '',
+                            appointmentDate: date,
+                            appointmentType: description || 'Rezerwacja online',
+                            createdByEmployee: 'system-auto-booking',
+                            expiresInHours: 72,
+                        };
+
+                        const { data: tokenData, error: tokenErr } = await supabase
+                            .from('patient_intake_tokens')
+                            .insert({
+                                prodentis_patient_id: tokenPayload.prodentisPatientId || null,
+                                prefill_first_name: tokenPayload.prefillFirstName,
+                                prefill_last_name: tokenPayload.prefillLastName,
+                                appointment_date: tokenPayload.appointmentDate,
+                                appointment_type: tokenPayload.appointmentType,
+                                created_by_employee: tokenPayload.createdByEmployee,
+                                expires_at: new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString(),
+                            })
+                            .select('id, token, expires_at')
+                            .single();
+
+                        if (!tokenErr && tokenData) {
+                            intakeTokenId = tokenData.id;
+                            const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://mikrostomart.pl';
+                            intakeUrl = `${baseUrl}/ekarta/${tokenData.token}`;
+                            console.log(`[OnlineBooking] E-karta token generated: ${intakeUrl}`);
+                        } else {
+                            console.error('[OnlineBooking] Failed to create intake token:', tokenErr);
+                        }
+                    } catch (intakeErr) {
+                        console.error('[OnlineBooking] Intake token error:', intakeErr);
+                    }
+                }
+
+                // Step 4: Save to online_bookings
+                const { error: bookingErr } = await supabase.from('online_bookings').insert({
+                    reservation_id: reservationId,
+                    patient_name: name,
+                    patient_phone: normalizedPhone || phone,
+                    patient_email: email || null,
+                    prodentis_patient_id: prodentisPatientId,
+                    is_new_patient: isNewPatient,
+                    patient_match_method: matchMethod,
+                    specialist_id: specialist,
+                    specialist_name: specialistName,
+                    doctor_prodentis_id: doctorInfo?.prodentisId || null,
+                    appointment_date: date,
+                    appointment_time: time,
+                    service_type: body.service || null,
+                    description: description || null,
+                    schedule_status: 'pending',
+                    intake_token_id: intakeTokenId,
+                    intake_url: intakeUrl,
+                });
+
+                if (bookingErr) {
+                    console.error('[OnlineBooking] Failed to save online booking:', bookingErr);
+                } else {
+                    console.log(`[OnlineBooking] Saved. New: ${isNewPatient}, ProdentisID: ${prodentisPatientId}`);
+                }
+            } catch (bookingEx) {
+                // Non-blocking — don't fail the reservation if booking logic fails
+                console.error('[OnlineBooking] Exception:', bookingEx);
+            }
+        }
+
+        return NextResponse.json({
+            success: true,
+            ...(intakeUrl ? { intakeUrl, isNewPatient: true } : {}),
+        });
 
     } catch (error: any) {
         console.error("Reservation API Error:", error);

@@ -37,6 +37,7 @@ export default function ReservationForm() {
     const [isSuccess, setIsSuccess] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [rodoConsent, setRodoConsent] = useState(false);
+    const [intakeUrl, setIntakeUrl] = useState<string | null>(null);
     const t = useTranslations('reservationForm');
 
     // Build schema with translated validation messages
@@ -150,6 +151,11 @@ export default function ReservationForm() {
 
             if (!response.ok) throw new Error(t('submitError'));
 
+            const result = await response.json();
+            if (result.intakeUrl) {
+                setIntakeUrl(result.intakeUrl);
+            }
+
             setIsSuccess(true);
         } catch (err) {
             setError(t('errorGeneral'));
@@ -175,8 +181,46 @@ export default function ReservationForm() {
                 <p style={{ color: "var(--color-text-muted)" }}>
                     {t('successMessage')}
                 </p>
+
+                {intakeUrl && (
+                    <div style={{
+                        marginTop: '1.5rem',
+                        padding: '1.25rem',
+                        background: 'rgba(212, 175, 55, 0.08)',
+                        border: '1px solid rgba(212, 175, 55, 0.25)',
+                        borderRadius: 'var(--radius-md)',
+                        textAlign: 'left',
+                    }}>
+                        <p style={{ fontSize: '0.95rem', marginBottom: '0.75rem', color: 'var(--color-text-main)', fontWeight: 500 }}>
+                            📋 Pierwszy raz u nas?
+                        </p>
+                        <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', lineHeight: 1.6, marginBottom: '1rem' }}>
+                            Prosimy o uzupełnienie e-Karty pacjenta — pozwoli to oszczędzić Twój czas przed wizytą
+                            i przyspieszyć jej przebieg.
+                        </p>
+                        <a
+                            href={intakeUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                                display: 'inline-block',
+                                padding: '0.7rem 1.5rem',
+                                background: 'var(--color-primary)',
+                                color: 'black',
+                                borderRadius: 'var(--radius-md)',
+                                fontWeight: 'bold',
+                                fontSize: '0.9rem',
+                                textDecoration: 'none',
+                                transition: 'opacity 0.2s',
+                            }}
+                        >
+                            Wypełnij e-Kartę pacjenta →
+                        </a>
+                    </div>
+                )}
+
                 <button
-                    onClick={() => setIsSuccess(false)}
+                    onClick={() => { setIsSuccess(false); setIntakeUrl(null); }}
                     style={{ marginTop: '2rem', padding: '0.8rem 1.5rem', background: 'transparent', border: '1px solid var(--color-primary)', color: 'var(--color-primary)', borderRadius: 'var(--radius-md)', cursor: 'pointer' }}
                 >
                     {t('bookAnother')}
