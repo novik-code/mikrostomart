@@ -24,8 +24,8 @@ export const DOCTOR_MAPPING: Record<string, DoctorInfo> = {
         defaultDuration: 30,
     },
     katarzyna: {
-        prodentisId: '0100000031',
-        name: 'lek. dent. Katarzyna Halupczok',
+        prodentisId: '0100000003',
+        name: 'lek. dent. Katarzyna Hałupczok',
         role: 'doctor',
         defaultDuration: 30,
     },
@@ -36,8 +36,8 @@ export const DOCTOR_MAPPING: Record<string, DoctorInfo> = {
         defaultDuration: 30,
     },
     malgorzata: {
-        prodentisId: '0100000030',
-        name: 'hig. stom. Małgorzata Maćków-Huras',
+        prodentisId: '0100000031',
+        name: 'hig. stom. Małgorzata Zyskowska',
         role: 'hygienist',
         defaultDuration: 60,
     },

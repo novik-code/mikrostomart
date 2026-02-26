@@ -162,6 +162,8 @@ export default function AdminPage() {
     const [onlineBookingsLoading, setOnlineBookingsLoading] = useState(false);
     const [onlineBookingsFilter, setOnlineBookingsFilter] = useState<string>('pending');
     const [onlineBookingsPendingCount, setOnlineBookingsPendingCount] = useState(0);
+    const [prodentisColors, setProdentisColors] = useState<any[]>([]);
+    const [prodentisIcons, setProdentisIcons] = useState<any[]>([]);
 
     // Responsive State
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -199,6 +201,8 @@ export default function AdminPage() {
 
                 if (activeTab === 'online-bookings') {
                     fetchOnlineBookings();
+                    fetchProdentisColors();
+                    fetchProdentisIcons();
                 }
 
                 // Auto-load SMS post-visit data when entering that tab
@@ -622,11 +626,18 @@ export default function AdminPage() {
 
     const handleApproveBooking = async (id: string) => {
         try {
-            await fetch('/api/admin/online-bookings', {
+            const res = await fetch('/api/admin/online-bookings', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ id, action: 'approve', approvedBy: 'admin' }),
             });
+            const data = await res.json();
+            const booking = data.booking;
+            if (booking?.schedule_status === 'scheduled') {
+                alert(`✅ Wizyta wpisana do grafiku Prodentis!\nID: ${booking.prodentis_appointment_id}`);
+            } else if (booking?.schedule_error) {
+                alert(`⚠️ Wizyta zatwierdzona, ale nie udało się wpisać do grafiku:\n${booking.schedule_error}`);
+            }
             fetchOnlineBookings();
         } catch (err) {
             console.error('Failed to approve booking:', err);
@@ -657,6 +668,26 @@ export default function AdminPage() {
         }
     };
 
+    const handleRetrySchedule = async (id: string) => {
+        try {
+            const res = await fetch('/api/admin/online-bookings', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, action: 'schedule' }),
+            });
+            const data = await res.json();
+            const booking = data.booking;
+            if (booking?.schedule_status === 'scheduled') {
+                alert(`✅ Wizyta wpisana do grafiku!\nID: ${booking.prodentis_appointment_id}`);
+            } else if (booking?.schedule_error) {
+                alert(`⚠️ Ponowna próba nie powiodła się:\n${booking.schedule_error}`);
+            }
+            fetchOnlineBookings();
+        } catch (err) {
+            console.error('Failed to retry schedule:', err);
+        }
+    };
+
     const handleApproveAllBookings = async () => {
         const pending = onlineBookings.filter((b: any) => b.schedule_status === 'pending');
         if (pending.length === 0) return;
@@ -669,6 +700,62 @@ export default function AdminPage() {
             });
         }
         fetchOnlineBookings();
+    };
+
+    const fetchProdentisColors = async () => {
+        try {
+            const res = await fetch('/api/admin/prodentis-schedule/colors');
+            const data = await res.json();
+            setProdentisColors(data.colors || []);
+        } catch (err) {
+            console.error('Failed to fetch Prodentis colors:', err);
+        }
+    };
+
+    const fetchProdentisIcons = async () => {
+        try {
+            const res = await fetch('/api/admin/prodentis-schedule/icons');
+            const data = await res.json();
+            setProdentisIcons(data.icons || []);
+        } catch (err) {
+            console.error('Failed to fetch Prodentis icons:', err);
+        }
+    };
+
+    const handleChangeColor = async (appointmentId: string, colorId: string, colorName: string) => {
+        try {
+            const res = await fetch('/api/admin/prodentis-schedule/color', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ appointmentId, colorId }),
+            });
+            if (res.ok) {
+                alert(`🎨 Kolor zmieniony na: ${colorName}`);
+            } else {
+                const data = await res.json();
+                alert(`❌ Błąd: ${data.error || data.message}`);
+            }
+        } catch (err) {
+            console.error('Failed to change color:', err);
+        }
+    };
+
+    const handleAddIcon = async (appointmentId: string, iconId: string, iconName: string) => {
+        try {
+            const res = await fetch('/api/admin/prodentis-schedule/icon', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ appointmentId, iconId }),
+            });
+            if (res.ok) {
+                alert(`✅ Ikona "${iconName}" dodana do wizyty`);
+            } else {
+                const data = await res.json();
+                alert(`❌ Błąd: ${data.error || data.message}`);
+            }
+        } catch (err) {
+            console.error('Failed to add icon:', err);
+        }
     };
 
     const handleDeleteReservation = async (id: string) => {
@@ -4351,10 +4438,66 @@ export default function AdminPage() {
                                             </button>
                                         </>
                                     )}
-                                    {b.schedule_status === 'approved' && (
-                                        <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.35)', fontStyle: 'italic' }}>
-                                            Wpisz ręcznie w grafiku
-                                        </span>
+                                    {b.schedule_status === 'approved' && b.schedule_error && (
+                                        <button
+                                            onClick={() => handleRetrySchedule(b.id)}
+                                            style={{
+                                                padding: '0.3rem 0.8rem', background: 'rgba(245,158,11,0.1)',
+                                                border: '1px solid rgba(245,158,11,0.3)', borderRadius: '0.4rem',
+                                                color: '#f59e0b', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 'bold',
+                                            }}
+                                        >
+                                            🔄 Ponów
+                                        </button>
+                                    )}
+                                    {b.schedule_status === 'scheduled' && b.prodentis_appointment_id && (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', alignItems: 'flex-end' }}>
+                                            {/* Color selector */}
+                                            <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
+                                                <select
+                                                    onChange={(e) => {
+                                                        const colorId = e.target.value;
+                                                        const color = prodentisColors.find((c: any) => c.id === colorId);
+                                                        if (color) handleChangeColor(b.prodentis_appointment_id, colorId, color.name);
+                                                        e.target.value = '';
+                                                    }}
+                                                    defaultValue=""
+                                                    style={{
+                                                        padding: '0.2rem 0.4rem', fontSize: '0.7rem',
+                                                        background: 'rgba(255,255,255,0.05)', color: 'white',
+                                                        border: '1px solid rgba(255,255,255,0.15)', borderRadius: '0.3rem',
+                                                        cursor: 'pointer', maxWidth: '140px',
+                                                    }}
+                                                >
+                                                    <option value="" disabled>🎨 Zmień kolor</option>
+                                                    {prodentisColors.map((c: any) => (
+                                                        <option key={c.id} value={c.id} style={{ background: '#1a1a2e' }}>
+                                                            {c.name}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            {/* Icon buttons */}
+                                            <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                                                {prodentisIcons.map((icon: any) => (
+                                                    <button
+                                                        key={icon.id}
+                                                        onClick={() => handleAddIcon(b.prodentis_appointment_id, icon.id, icon.name)}
+                                                        title={icon.name}
+                                                        style={{
+                                                            padding: '0.2rem 0.5rem', fontSize: '0.65rem',
+                                                            background: icon.name === 'Pacjent potwierdzony' ? 'rgba(34,197,94,0.1)' : 'rgba(255,255,255,0.05)',
+                                                            border: `1px solid ${icon.name === 'Pacjent potwierdzony' ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.1)'}`,
+                                                            borderRadius: '0.3rem',
+                                                            color: icon.name === 'Pacjent potwierdzony' ? '#22c55e' : 'rgba(255,255,255,0.5)',
+                                                            cursor: 'pointer', whiteSpace: 'nowrap',
+                                                        }}
+                                                    >
+                                                        {icon.name === 'Pacjent potwierdzony' ? '✅' : icon.name === 'VIP' ? '⭐' : icon.name === 'Pierwszorazowy' ? '🆕' : '🏷️'} {icon.name}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
                                     )}
                                     {(b.schedule_status === 'rejected' || b.schedule_status === 'failed') && (
                                         <button

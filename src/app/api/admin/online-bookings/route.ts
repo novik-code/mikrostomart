@@ -131,36 +131,57 @@ export async function PUT(request: Request) {
 
         switch (action) {
             case 'approve': {
-                updateData.schedule_status = 'approved';
                 updateData.approved_by = approvedBy || 'admin';
                 updateData.approved_at = now;
-                // NOTE: No auto-scheduling — Prodentis API has a bug where it
-                // ignores patientId and uses the currently active desktop patient.
-                // Use separate 'schedule' action once the API is fixed.
-                break;
-            }
-            case 'schedule': {
-                // Explicit scheduling in Prodentis — triggered by separate button
-                const { data: booking } = await supabase
+
+                // Auto-schedule in Prodentis (API 6.0 — patientId bug fixed)
+                const { data: bookingForApprove } = await supabase
                     .from('online_bookings')
                     .select('*')
                     .eq('id', id)
                     .single();
 
-                if (booking && PRODENTIS_KEY) {
-                    scheduleResult = await scheduleInProdentis(booking);
+                if (bookingForApprove && PRODENTIS_KEY) {
+                    scheduleResult = await scheduleInProdentis(bookingForApprove);
 
                     if (scheduleResult.success) {
                         updateData.schedule_status = 'scheduled';
                         updateData.prodentis_appointment_id = scheduleResult.appointmentId;
+                        updateData.schedule_error = null;
                         console.log(`[OnlineBookings] Scheduled in Prodentis: ${scheduleResult.appointmentId}`);
                     } else {
+                        updateData.schedule_status = 'approved';
                         updateData.schedule_error = scheduleResult.error;
-                        console.warn(`[OnlineBookings] Schedule failed: ${scheduleResult.error}`);
+                        console.warn(`[OnlineBookings] Approved but schedule failed: ${scheduleResult.error}`);
                     }
                 } else {
                     updateData.schedule_status = 'approved';
-                    updateData.schedule_error = 'MISSING_API_KEY';
+                    if (!PRODENTIS_KEY) updateData.schedule_error = 'MISSING_API_KEY';
+                }
+                break;
+            }
+            case 'schedule': {
+                // Manual retry of scheduling in Prodentis
+                const { data: bookingForSchedule } = await supabase
+                    .from('online_bookings')
+                    .select('*')
+                    .eq('id', id)
+                    .single();
+
+                if (bookingForSchedule && PRODENTIS_KEY) {
+                    scheduleResult = await scheduleInProdentis(bookingForSchedule);
+
+                    if (scheduleResult.success) {
+                        updateData.schedule_status = 'scheduled';
+                        updateData.prodentis_appointment_id = scheduleResult.appointmentId;
+                        updateData.schedule_error = null;
+                        console.log(`[OnlineBookings] Scheduled in Prodentis: ${scheduleResult.appointmentId}`);
+                    } else {
+                        updateData.schedule_error = scheduleResult.error;
+                        console.warn(`[OnlineBookings] Schedule retry failed: ${scheduleResult.error}`);
+                    }
+                } else {
+                    updateData.schedule_error = PRODENTIS_KEY ? 'BOOKING_NOT_FOUND' : 'MISSING_API_KEY';
                 }
                 break;
             }
@@ -168,9 +189,6 @@ export async function PUT(request: Request) {
                 updateData.schedule_status = 'rejected';
                 updateData.approved_by = approvedBy || 'admin';
                 updateData.approved_at = now;
-                break;
-            case 'schedule':
-                updateData.schedule_status = 'scheduled';
                 break;
             case 'fail':
                 updateData.schedule_status = 'failed';
