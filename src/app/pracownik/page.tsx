@@ -384,6 +384,8 @@ export default function EmployeePage() {
     } | null>(null);
     const [scheduleColors, setScheduleColors] = useState<any[]>([]);
     const [scheduleIcons, setScheduleIcons] = useState<any[]>([]);
+    const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const longPressFiredRef = useRef(false);
 
     const router = useRouter();
     const { userId: currentUserId, email: currentUserEmail, isAdmin } = useUserRoles();
@@ -482,9 +484,35 @@ export default function EmployeePage() {
         e.preventDefault();
         e.stopPropagation();
         if (isAppointmentPast(dayDate, apt)) {
-            return; // Don't allow changes on past appointments
+            return;
         }
         setScheduleContextMenu({ apt, dayDate, x: e.clientX, y: e.clientY });
+    };
+
+    // Long-press for mobile
+    const handleTouchStart = (e: React.TouchEvent, apt: ScheduleAppointment, dayDate: string) => {
+        longPressFiredRef.current = false;
+        const touch = e.touches[0];
+        const x = touch.clientX;
+        const y = touch.clientY;
+        longPressTimerRef.current = setTimeout(() => {
+            longPressFiredRef.current = true;
+            if (!isAppointmentPast(dayDate, apt)) {
+                setScheduleContextMenu({ apt, dayDate, x, y });
+            }
+        }, 500);
+    };
+    const handleTouchEnd = () => {
+        if (longPressTimerRef.current) {
+            clearTimeout(longPressTimerRef.current);
+            longPressTimerRef.current = null;
+        }
+    };
+    const handleTouchMove = () => {
+        if (longPressTimerRef.current) {
+            clearTimeout(longPressTimerRef.current);
+            longPressTimerRef.current = null;
+        }
     };
 
     // Change appointment color in Prodentis
@@ -1983,11 +2011,15 @@ export default function EmployeePage() {
                                                                         }}
                                                                         onClick={(e) => {
                                                                             e.stopPropagation();
+                                                                            if (longPressFiredRef.current) return; // Don't open history after long-press
                                                                             if (apt.patientId) {
                                                                                 openPatientHistory(apt);
                                                                             }
                                                                         }}
                                                                         onContextMenu={(e) => handleScheduleContextMenu(e, apt, day.date)}
+                                                                        onTouchStart={(e) => handleTouchStart(e, apt, day.date)}
+                                                                        onTouchEnd={handleTouchEnd}
+                                                                        onTouchMove={handleTouchMove}
                                                                     >
                                                                         {/* Notes icon — top-right corner */}
                                                                         {apt.notes && (
