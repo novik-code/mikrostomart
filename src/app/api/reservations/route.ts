@@ -238,10 +238,24 @@ export async function POST(req: NextRequest) {
                             prodentisPatientId = createResult.prodentisId;
                             console.log(`[OnlineBooking] New patient created: ${prodentisPatientId}`);
                         } else if (createResult.error === 'PATIENT_EXISTS' && createResult.prodentisId) {
-                            prodentisPatientId = createResult.prodentisId;
-                            isNewPatient = false;
-                            matchMethod = 'phone+name';
-                            console.log(`[OnlineBooking] Patient already exists: ${prodentisPatientId}`);
+                            // ⚠️ Phone belongs to a different patient in Prodentis
+                            // Verify name before blindly using the returned ID
+                            const existingName = `${createResult.firstName || ''} ${createResult.lastName || ''}`.trim();
+                            const existingLastName = createResult.lastName || '';
+
+                            if (existingLastName && fuzzyNameMatch(existingLastName, patientLast)) {
+                                // Name matches — same person, different spelling maybe
+                                prodentisPatientId = createResult.prodentisId;
+                                isNewPatient = false;
+                                matchMethod = 'phone+name';
+                                console.log(`[OnlineBooking] Patient confirmed via PATIENT_EXISTS: ${existingName} (${prodentisPatientId})`);
+                            } else {
+                                // Name does NOT match — phone belongs to someone else
+                                // Do NOT use this ID! Flag for manual review
+                                isNewPatient = true;
+                                matchMethod = 'phone_conflict';
+                                console.warn(`[OnlineBooking] PHONE CONFLICT: Phone ${phone} belongs to "${existingName}" (${createResult.prodentisId}), but booking is for "${name}". Not using this ID.`);
+                            }
                         } else {
                             console.error('[OnlineBooking] Failed to create patient:', createResult);
                         }
