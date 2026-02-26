@@ -4593,18 +4593,16 @@ export default function AdminPage() {
                                             </div>
                                         </div>
                                     )}
-                                    {(b.schedule_status === 'rejected' || b.schedule_status === 'failed') && (
-                                        <button
-                                            onClick={() => handleDeleteBooking(b.id)}
-                                            style={{
-                                                padding: '0.3rem 0.8rem', background: 'transparent',
-                                                border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.4rem',
-                                                color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: '0.72rem',
-                                            }}
-                                        >
-                                            🗑 Usuń
-                                        </button>
-                                    )}
+                                    <button
+                                        onClick={() => handleDeleteBooking(b.id)}
+                                        style={{
+                                            padding: '0.3rem 0.8rem', background: 'transparent',
+                                            border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.4rem',
+                                            color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: '0.72rem',
+                                        }}
+                                    >
+                                        🗑 Usuń
+                                    </button>
                                 </div>
                                 <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.25)' }}>
                                     {new Date(b.created_at).toLocaleString('pl-PL', { dateStyle: 'short', timeStyle: 'short' })}
