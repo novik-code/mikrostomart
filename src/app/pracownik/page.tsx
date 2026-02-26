@@ -2210,25 +2210,34 @@ export default function EmployeePage() {
                             <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', fontWeight: 'bold' }}>
                                 🎨 Zmień typ wizyty
                             </div>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                                 {scheduleColors.map((c: any) => (
                                     <button
                                         key={c.id}
                                         onClick={() => handleChangeScheduleColor(scheduleContextMenu.apt.id, c.id, c.name)}
-                                        title={c.name}
                                         style={{
-                                            width: '28px', height: '22px',
-                                            background: c.rgb ? `rgb(${c.rgb.r},${c.rgb.g},${c.rgb.b})` : '#666',
+                                            display: 'flex', alignItems: 'center', gap: '0.4rem',
+                                            padding: '0.2rem 0.4rem',
+                                            background: scheduleContextMenu.apt.appointmentTypeId === c.id
+                                                ? 'rgba(255,255,255,0.1)'
+                                                : 'rgba(255,255,255,0.02)',
                                             border: scheduleContextMenu.apt.appointmentTypeId === c.id
-                                                ? '2px solid #fff'
-                                                : '1px solid rgba(255,255,255,0.15)',
-                                            borderRadius: '4px',
+                                                ? '1px solid rgba(255,255,255,0.3)'
+                                                : '1px solid rgba(255,255,255,0.06)',
+                                            borderRadius: '0.3rem',
                                             cursor: 'pointer',
-                                            fontSize: '0.5rem',
-                                            color: 'rgba(0,0,0,0.6)',
-                                            padding: 0,
+                                            textAlign: 'left',
                                         }}
-                                    />
+                                    >
+                                        <span style={{
+                                            width: '16px', height: '16px', borderRadius: '3px', flexShrink: 0,
+                                            background: c.rgb ? `rgb(${c.rgb.r},${c.rgb.g},${c.rgb.b})` : '#666',
+                                            border: '1px solid rgba(255,255,255,0.2)',
+                                        }} />
+                                        <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.85)' }}>
+                                            {c.name}
+                                        </span>
+                                    </button>
                                 ))}
                             </div>
                         </div>
