@@ -622,18 +622,11 @@ export default function AdminPage() {
 
     const handleApproveBooking = async (id: string) => {
         try {
-            const res = await fetch('/api/admin/online-bookings', {
+            await fetch('/api/admin/online-bookings', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ id, action: 'approve', approvedBy: 'admin' }),
             });
-            const data = await res.json();
-            const booking = data.booking;
-            if (booking?.schedule_status === 'scheduled') {
-                alert(`✅ Wizyta wpisana do grafiku Prodentis!\nID: ${booking.prodentis_appointment_id}`);
-            } else if (booking?.schedule_error) {
-                alert(`⚠️ Wizyta zatwierdzona, ale nie udało się wpisać do grafiku:\n${booking.schedule_error}`);
-            }
             fetchOnlineBookings();
         } catch (err) {
             console.error('Failed to approve booking:', err);
@@ -4358,17 +4351,10 @@ export default function AdminPage() {
                                             </button>
                                         </>
                                     )}
-                                    {b.schedule_status === 'approved' && b.schedule_error && (
-                                        <button
-                                            onClick={() => handleApproveBooking(b.id)}
-                                            style={{
-                                                padding: '0.3rem 0.8rem', background: 'rgba(245,158,11,0.1)',
-                                                border: '1px solid rgba(245,158,11,0.3)', borderRadius: '0.4rem',
-                                                color: '#f59e0b', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 'bold',
-                                            }}
-                                        >
-                                            🔄 Ponów
-                                        </button>
+                                    {b.schedule_status === 'approved' && (
+                                        <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.35)', fontStyle: 'italic' }}>
+                                            Wpisz ręcznie w grafiku
+                                        </span>
                                     )}
                                     {(b.schedule_status === 'rejected' || b.schedule_status === 'failed') && (
                                         <button

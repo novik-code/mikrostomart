@@ -131,10 +131,16 @@ export async function PUT(request: Request) {
 
         switch (action) {
             case 'approve': {
+                updateData.schedule_status = 'approved';
                 updateData.approved_by = approvedBy || 'admin';
                 updateData.approved_at = now;
-
-                // Fetch the booking to get details for Prodentis
+                // NOTE: No auto-scheduling — Prodentis API has a bug where it
+                // ignores patientId and uses the currently active desktop patient.
+                // Use separate 'schedule' action once the API is fixed.
+                break;
+            }
+            case 'schedule': {
+                // Explicit scheduling in Prodentis — triggered by separate button
                 const { data: booking } = await supabase
                     .from('online_bookings')
                     .select('*')
@@ -149,13 +155,12 @@ export async function PUT(request: Request) {
                         updateData.prodentis_appointment_id = scheduleResult.appointmentId;
                         console.log(`[OnlineBookings] Scheduled in Prodentis: ${scheduleResult.appointmentId}`);
                     } else {
-                        // Approve but mark as failed to schedule
-                        updateData.schedule_status = 'approved';
                         updateData.schedule_error = scheduleResult.error;
-                        console.warn(`[OnlineBookings] Approved but schedule failed: ${scheduleResult.error}`);
+                        console.warn(`[OnlineBookings] Schedule failed: ${scheduleResult.error}`);
                     }
                 } else {
                     updateData.schedule_status = 'approved';
+                    updateData.schedule_error = 'MISSING_API_KEY';
                 }
                 break;
             }
