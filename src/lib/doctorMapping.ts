@@ -17,14 +17,32 @@ export const DOCTOR_MAPPING: Record<string, DoctorInfo> = {
         role: 'doctor',
         defaultDuration: 30,
     },
+    elzbieta: {
+        prodentisId: '0100000002',
+        name: 'lek. dent. Elżbieta Nowosielska',
+        role: 'doctor',
+        defaultDuration: 30,
+    },
     ilona: {
         prodentisId: '0100000024',
         name: 'lek. dent. Ilona Piechaczek',
         role: 'doctor',
         defaultDuration: 30,
     },
+    aleksandra: {
+        prodentisId: '0100000028',
+        name: 'lek. dent. Aleksandra Modelska-Kępa',
+        role: 'doctor',
+        defaultDuration: 30,
+    },
+    malgorzata: {
+        prodentisId: '0100000030',
+        name: 'hig. stom. Małgorzata Maćków-Huras',
+        role: 'hygienist',
+        defaultDuration: 60,
+    },
     katarzyna: {
-        prodentisId: '0100000003',
+        prodentisId: '0100000031',
         name: 'lek. dent. Katarzyna Hałupczok',
         role: 'doctor',
         defaultDuration: 30,
@@ -35,11 +53,11 @@ export const DOCTOR_MAPPING: Record<string, DoctorInfo> = {
         role: 'doctor',
         defaultDuration: 30,
     },
-    malgorzata: {
-        prodentisId: '0100000031',
-        name: 'hig. stom. Małgorzata Zyskowska',
-        role: 'hygienist',
-        defaultDuration: 60,
+    wiktoria: {
+        prodentisId: '0100000037',
+        name: 'lek. dent. Wiktoria Leja',
+        role: 'doctor',
+        defaultDuration: 30,
     },
 };
 
