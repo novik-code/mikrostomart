@@ -1,6 +1,6 @@
 # Mikrostomart - Complete Project Context
 
-> **Last Updated:** 2026-02-23  
+> **Last Updated:** 2026-02-26  
 > **Version:** Production (Vercel Deployment)  
 > **Status:** Active Development
 
@@ -52,7 +52,7 @@
 
 ### Backend & Database
 - **Supabase** (PostgreSQL database, authentication, storage)
-  - Database: 49 migrations (003-049: email verification, appointment actions, SMS reminders, user_roles, employee tasks, task history, comments, labels, status fix, google reviews cache, chat, push subscriptions, employee_group, push_notification_config, employee_groups array, news/articles/blog/products i18n, calendar tokens, private tasks + reminders, SMS post-visit/week-after-visit, SMS unique constraint fix, task multi-images, **push_notifications_log**, **google_event_id on employee_tasks**)
+  - Database: 56 migrations (003-056: email verification, appointment actions, SMS reminders, user_roles, employee tasks, task history, comments, labels, status fix, google reviews cache, chat, push subscriptions, employee_group, push_notification_config, employee_groups array, news/articles/blog/products i18n, calendar tokens, private tasks + reminders, SMS post-visit/week-after-visit, SMS unique constraint fix, task multi-images, push_notifications_log, google_event_id on employee_tasks, **patient_intake_tokens**, **feature_suggestions**, **online_bookings**)
   - Auth: Email/password, magic links, JWT tokens
   - Storage: Product images, patient documents, task images
 
@@ -604,6 +604,24 @@ Employee feature suggestions/improvements visible to all staff.
 - created_at (timestamptz)
 ```
 
+#### 27. **online_bookings** (migration 056)
+Online appointment bookings with Prodentis scheduling, admin approval workflow.
+```sql
+- id (uuid, PK)
+- reservation_id (uuid, FK → reservations)
+- patient_name (text), patient_phone (text), patient_email (text)
+- prodentis_patient_id (text), is_new_patient (boolean), patient_match_method (text)
+- specialist_id (text), specialist_name (text), doctor_prodentis_id (text)
+- appointment_date (date), appointment_time (time), service_type (text), description (text)
+- schedule_status (text, DEFAULT 'pending') -- pending → approved → scheduled | failed | rejected
+- schedule_error (text), prodentis_appointment_id (text)
+- approved_by (text), approved_at (timestamptz)
+- intake_token_id (uuid), intake_url (text)
+- reported_in_digest (boolean, DEFAULT false)
+- created_at, updated_at (timestamptz)
+```
+Indexes: `schedule_status`, `appointment_date`, partial on `reported_in_digest WHERE false`.
+
 
 ## ✨ Feature Catalog
 
@@ -1072,13 +1090,19 @@ Features:
 | `/api/intake/verify/[token]` | GET | Verify token validity + return prefill data |
 | `/api/intake/submit` | POST | Submit patient form → Supabase + Prodentis |
 
-### Prodentis Write-Back APIs (external: `83.230.40.14:3000`)
+### Prodentis Write-Back APIs (external: `83.230.40.14:3000`, API 6.0)
 
 | Endpoint | Method | Auth | Purpose |
 |----------|--------|------|---------|
 | `/api/patients` | POST | X-API-Key | Create new patient |
 | `/api/patients/:id` | PATCH | X-API-Key | Update existing patient |
 | `/api/patients/:id/notes` | POST | X-API-Key | Add medical notes → XML "Uwagi dla lekarza" |
+| `/api/schedule/appointment` | POST | X-API-Key | Create appointment in Prodentis schedule |
+| `/api/schedule/appointment/:id/color` | PUT | X-API-Key | Change appointment color/type |
+| `/api/schedule/appointment/:id/icon` | POST | X-API-Key | Add icon (e.g. "Pacjent potwierdzony") |
+| `/api/schedule/colors` | GET | — | Available appointment colors with RGB |
+| `/api/schedule/icons` | GET | — | Available appointment icons |
+| `/api/doctors` | GET | — | List all doctors with Prodentis IDs |
 
 ### Auth APIs (`/api/auth/*`)
 
@@ -1117,6 +1141,13 @@ Features:
 | `/admin/questions` | GET, DELETE | Expert questions management |
 | `/admin/reservations` | GET | Booking requests list |
 | `/admin/appointment-instructions` | GET, POST, PUT, DELETE | Instruction templates CRUD |
+| `/admin/online-bookings` | GET | Online bookings list (filter by `?status=`) |
+| `/admin/online-bookings` | PUT | Approve/reject/schedule booking `{ id, action }` |
+| `/admin/online-bookings` | DELETE | Delete booking by `?id=` |
+| `/admin/prodentis-schedule/colors` | GET | Proxy → Prodentis schedule colors |
+| `/admin/prodentis-schedule/icons` | GET | Proxy → Prodentis schedule icons |
+| `/admin/prodentis-schedule/color` | PUT | Change appointment color `{ appointmentId, colorId }` |
+| `/admin/prodentis-schedule/icon` | POST | Add icon to appointment `{ appointmentId, iconId }` |
 | `/admin/push` | GET | All employees with push_groups + subscription counts + stats |
 | `/admin/push` | POST | Send manual push to selected groups |
 | `/admin/push` | DELETE | Remove a push subscription by ID |
@@ -1738,6 +1769,40 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### February 26, 2026
+**Online Booking Automation — Prodentis API 6.0 Integration**
+
+#### Commits:
+- `fd25557` — feat: online booking automation (Phases 1-5)
+- `7bbddc4` — fix: prevent wrong patient scheduling
+- `09e05f4` — hotfix: disable auto-scheduling (Prodentis API bug)
+- `d6a4b22` — feat: Prodentis API 6.0 (re-enable scheduling + color/icon management)
+
+#### New Features:
+1. **Online Booking System**: Patient books on website → saves to `online_bookings` (pending) → admin approves → auto-schedules in Prodentis
+2. **Patient Auto-Create**: Phone search → fuzzy name match → create new patient in Prodentis if not found → e-karta link for new patients
+3. **Admin Panel "Wizyty Online" Tab**: Filter pills (Oczekujące/Zatwierdzone/W grafiku/Odrzucone/Wszystkie), approve/reject/bulk actions, badge with pending count
+4. **Prodentis Color Management**: Color dropdown on scheduled bookings → change visit type in Prodentis
+5. **Prodentis Icon Management**: Icon buttons (✅ Pacjent potwierdzony, ⭐ VIP, 🆕 Pierwszorazowy) on scheduled bookings
+6. **Telegram Daily Digest**: Cron at 8:15 AM with summary of unreported bookings grouped by status
+
+#### Database:
+- Migration 056: `online_bookings` table with RLS + indexes
+
+#### New Files:
+- `src/lib/doctorMapping.ts` — centralized doctor→Prodentis ID mapping
+- `src/app/api/admin/online-bookings/route.ts` — GET/PUT/DELETE with auto-schedule
+- `src/app/api/admin/prodentis-schedule/{colors,icons,color,icon}/route.ts` — 4 proxy routes
+- `src/app/api/cron/online-booking-digest/route.ts` — Telegram digest cron
+
+#### Modified Files:
+- `src/app/api/reservations/route.ts` — patient search + auto-create + online_bookings insert
+- `src/components/ReservationForm.tsx` — e-karta link for new patients
+- `src/app/admin/page.tsx` — "Wizyty Online" tab + color/icon controls
+- `vercel.json` — added online-booking-digest cron
+
+---
 
 ### February 23, 2026
 **Push Admin Panel — Comprehensive Fixes (4 Issues)**
