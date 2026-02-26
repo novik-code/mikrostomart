@@ -200,7 +200,6 @@ export default function AdminPage() {
                 if (activeTab === 'employees') fetchEmployees(); // Fetch employees on tab switch
 
                 if (activeTab === 'online-bookings') {
-                    fetchOnlineBookings();
                     fetchProdentisColors();
                     fetchProdentisIcons();
                 }
@@ -262,6 +261,13 @@ export default function AdminPage() {
         };
         checkUser();
     }, [activeTab]);
+
+    // Fetch online bookings when filter changes
+    useEffect(() => {
+        if (activeTab === 'online-bookings') {
+            fetchOnlineBookings();
+        }
+    }, [onlineBookingsFilter, activeTab]);
 
     const handleLogout = async () => {
         await supabase.auth.signOut();
@@ -4304,7 +4310,7 @@ export default function AdminPage() {
                     {filterOptions.map(f => (
                         <button
                             key={f}
-                            onClick={() => { setOnlineBookingsFilter(f); setTimeout(fetchOnlineBookings, 50); }}
+                            onClick={() => setOnlineBookingsFilter(f)}
                             style={{
                                 padding: '0.4rem 1rem',
                                 borderRadius: '2rem',

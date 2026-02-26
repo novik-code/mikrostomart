@@ -52,7 +52,7 @@
 
 ### Backend & Database
 - **Supabase** (PostgreSQL database, authentication, storage)
-  - Database: 56 migrations (003-056: email verification, appointment actions, SMS reminders, user_roles, employee tasks, task history, comments, labels, status fix, google reviews cache, chat, push subscriptions, employee_group, push_notification_config, employee_groups array, news/articles/blog/products i18n, calendar tokens, private tasks + reminders, SMS post-visit/week-after-visit, SMS unique constraint fix, task multi-images, push_notifications_log, google_event_id on employee_tasks, **patient_intake_tokens**, **feature_suggestions**, **online_bookings**)
+  - Database: 57 migrations (003-057: email verification, appointment actions, SMS reminders, user_roles, employee tasks, task history, comments, labels, status fix, google reviews cache, chat, push subscriptions, employee_group, push_notification_config, employee_groups array, news/articles/blog/products i18n, calendar tokens, private tasks + reminders, SMS post-visit/week-after-visit, SMS unique constraint fix, task multi-images, push_notifications_log, google_event_id on employee_tasks, patient_intake_tokens, feature_suggestions, online_bookings, **patient_match_confidence**)
   - Auth: Email/password, magic links, JWT tokens
   - Storage: Product images, patient documents, task images
 
@@ -622,6 +622,10 @@ Online appointment bookings with Prodentis scheduling, admin approval workflow.
 ```
 Indexes: `schedule_status`, `appointment_date`, partial on `reported_in_digest WHERE false`.
 
+**Patient Matching (migration 057):**
+- `match_confidence` (INTEGER) — score 0-100. ≥85 auto-match, 60-84 needs_review, <60 new patient
+- `match_candidates` (JSONB) — array of `{id, firstName, lastName, score, method}`
+
 
 ## ✨ Feature Catalog
 
@@ -1142,7 +1146,7 @@ Features:
 | `/admin/reservations` | GET | Booking requests list |
 | `/admin/appointment-instructions` | GET, POST, PUT, DELETE | Instruction templates CRUD |
 | `/admin/online-bookings` | GET | Online bookings list (filter by `?status=`) |
-| `/admin/online-bookings` | PUT | Approve/reject/schedule booking `{ id, action }` |
+| `/admin/online-bookings` | PUT | Approve/reject/schedule/pick_patient `{ id, action }` |
 | `/admin/online-bookings` | DELETE | Delete booking by `?id=` |
 | `/admin/prodentis-schedule/colors` | GET | Proxy → Prodentis schedule colors |
 | `/admin/prodentis-schedule/icons` | GET | Proxy → Prodentis schedule icons |
@@ -1778,6 +1782,8 @@ NODE_ENV=production
 - `7bbddc4` — fix: prevent wrong patient scheduling
 - `09e05f4` — hotfix: disable auto-scheduling (Prodentis API bug)
 - `d6a4b22` — feat: Prodentis API 6.0 (re-enable scheduling + color/icon management)
+- `6fbbb18` — hotfix: revert doctor IDs
+- `04c228b` — feat: double verification patient matching
 
 #### New Features:
 1. **Online Booking System**: Patient books on website → saves to `online_bookings` (pending) → admin approves → auto-schedules in Prodentis
@@ -1786,9 +1792,12 @@ NODE_ENV=production
 4. **Prodentis Color Management**: Color dropdown on scheduled bookings → change visit type in Prodentis
 5. **Prodentis Icon Management**: Icon buttons (✅ Pacjent potwierdzony, ⭐ VIP, 🆕 Pierwszorazowy) on scheduled bookings
 6. **Telegram Daily Digest**: Cron at 8:15 AM with summary of unreported bookings grouped by status
+7. **Double Verification Patient Matching**: Scores each candidate by firstName+lastName (Levenshtein + diacritics). ≥85 auto-match, 60-84 admin review, <60 create new patient. Handles shared phones (parent/child), typos, diacritics.
+8. **Admin Patient Picker**: When match is ambiguous (needs_review), admin sees candidate list with % scores and "Wybierz" button to pick correct patient
 
 #### Database:
 - Migration 056: `online_bookings` table with RLS + indexes
+- Migration 057: `match_confidence` (int) + `match_candidates` (jsonb) on `online_bookings`
 
 #### New Files:
 - `src/lib/doctorMapping.ts` — centralized doctor→Prodentis ID mapping
