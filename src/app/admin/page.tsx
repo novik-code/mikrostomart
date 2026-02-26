@@ -758,6 +758,25 @@ export default function AdminPage() {
         }
     };
 
+    const handlePickPatient = async (bookingId: string, patientId: string, patientName: string) => {
+        try {
+            const res = await fetch('/api/admin/online-bookings', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: bookingId, action: 'pick_patient', patientId, patientName }),
+            });
+            if (res.ok) {
+                alert(`✅ Pacjent wybrany: ${patientName}\nMożesz teraz zatwierdzić wizytę.`);
+                fetchOnlineBookings();
+            } else {
+                const data = await res.json();
+                alert(`❌ Błąd: ${data.error}`);
+            }
+        } catch (err) {
+            console.error('Failed to pick patient:', err);
+        }
+    };
+
     const handleDeleteReservation = async (id: string) => {
         if (!confirm("Czy na pewno usunąć rezerwację?")) return;
         await fetch(`/api/admin/reservations?id=${id}`, { method: "DELETE" });
@@ -4401,6 +4420,65 @@ export default function AdminPage() {
                                         ⚠️ {b.schedule_error}
                                     </div>
                                 )}
+                                {/* Match confidence badge */}
+                                {b.match_confidence != null && b.patient_match_method !== 'needs_review' && (
+                                    <div style={{ fontSize: '0.65rem', marginTop: '0.2rem', color: b.match_confidence >= 85 ? 'rgba(34,197,94,0.6)' : 'rgba(245,158,11,0.6)' }}>
+                                        🎯 Match: {b.match_confidence}% ({b.patient_match_method})
+                                    </div>
+                                )}
+                                {/* NEEDS REVIEW — candidate picker */}
+                                {b.patient_match_method === 'needs_review' && b.match_candidates && (
+                                    <div style={{
+                                        marginTop: '0.4rem', padding: '0.5rem', borderRadius: '0.4rem',
+                                        background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)',
+                                    }}>
+                                        <div style={{ fontSize: '0.72rem', color: '#f59e0b', fontWeight: 'bold', marginBottom: '0.3rem' }}>
+                                            ⚠️ Wymaga weryfikacji — znaleziono {b.match_candidates.length} kandydat(ów) o takim samym numerze telefonu:
+                                        </div>
+                                        <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem' }}>
+                                            Pacjent wpisał: <strong style={{ color: 'white' }}>{b.patient_name}</strong> (tel. {b.patient_phone})
+                                        </div>
+                                        {(b.match_candidates as any[]).map((c: any, i: number) => (
+                                            <div key={i} style={{
+                                                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                                padding: '0.3rem 0.4rem', marginTop: '0.2rem',
+                                                background: 'rgba(255,255,255,0.03)', borderRadius: '0.3rem',
+                                                border: '1px solid rgba(255,255,255,0.06)',
+                                            }}>
+                                                <div>
+                                                    <span style={{ color: 'white', fontSize: '0.72rem' }}>
+                                                        {c.firstName} {c.lastName}
+                                                    </span>
+                                                    <span style={{
+                                                        marginLeft: '0.4rem', fontSize: '0.65rem',
+                                                        color: c.score >= 85 ? '#22c55e' : c.score >= 60 ? '#f59e0b' : '#ef4444',
+                                                    }}>
+                                                        ({c.score}%)
+                                                    </span>
+                                                </div>
+                                                <button
+                                                    onClick={() => handlePickPatient(b.id, c.id, `${c.firstName} ${c.lastName}`)}
+                                                    style={{
+                                                        padding: '0.15rem 0.5rem', fontSize: '0.65rem',
+                                                        background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.3)',
+                                                        borderRadius: '0.3rem', color: '#3b82f6', cursor: 'pointer',
+                                                    }}
+                                                >
+                                                    Wybierz
+                                                </button>
+                                            </div>
+                                        ))}
+                                        <div style={{ fontSize: '0.62rem', color: 'rgba(255,255,255,0.3)', marginTop: '0.3rem', fontStyle: 'italic' }}>
+                                            Wybierz pacjenta lub zatwierdź jako nowego
+                                        </div>
+                                    </div>
+                                )}
+                                {/* Phone conflict — no candidates to pick */}
+                                {b.patient_match_method === 'phone_conflict' && (
+                                    <div style={{ fontSize: '0.68rem', marginTop: '0.3rem', color: '#f59e0b', fontStyle: 'italic' }}>
+                                        📞 Konflikt telefonu — inny pacjent ma ten numer. Utworzono nowe konto.
+                                    </div>
+                                )}
                             </div>
 
                             {/* Right: Status + Actions */}
@@ -4413,6 +4491,16 @@ export default function AdminPage() {
                                 }}>
                                     {statusLabels[b.schedule_status] || b.schedule_status}
                                 </span>
+                                {b.patient_match_method === 'needs_review' && (
+                                    <span style={{
+                                        padding: '0.15rem 0.5rem', borderRadius: '1rem', fontSize: '0.65rem',
+                                        fontWeight: 'bold', color: '#f59e0b',
+                                        border: '1px solid rgba(245,158,11,0.3)',
+                                        background: 'rgba(245,158,11,0.1)',
+                                    }}>
+                                        ⚠️ Weryfikacja
+                                    </span>
+                                )}
                                 <div style={{ display: 'flex', gap: '0.4rem' }}>
                                     {b.schedule_status === 'pending' && (
                                         <>

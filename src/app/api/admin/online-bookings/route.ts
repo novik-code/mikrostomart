@@ -194,6 +194,18 @@ export async function PUT(request: Request) {
                 updateData.schedule_status = 'failed';
                 updateData.schedule_error = body.error || 'Unknown error';
                 break;
+            case 'pick_patient': {
+                // Admin picks the correct patient from candidates
+                const { patientId: pickedPatientId, patientName } = body;
+                if (!pickedPatientId) {
+                    return NextResponse.json({ error: 'patientId required' }, { status: 400 });
+                }
+                updateData.prodentis_patient_id = pickedPatientId;
+                updateData.patient_match_method = 'admin_verified';
+                updateData.is_new_patient = false;
+                console.log(`[OnlineBookings] Admin picked patient: ${patientName || pickedPatientId}`);
+                break;
+            }
             default:
                 return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
         }

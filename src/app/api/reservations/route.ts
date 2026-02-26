@@ -3,7 +3,8 @@ import { Resend } from "resend";
 import { sendTelegramNotification } from '@/lib/telegram';
 import { broadcastPush } from '@/lib/webpush';
 import { getEmailTemplate } from '@/lib/emailTemplates';
-import { getDoctorInfo, normalizePhone, fuzzyNameMatch, extractLastName } from '@/lib/doctorMapping';
+import { getDoctorInfo, normalizePhone, fuzzyNameMatch, extractFirstName, extractLastName, findBestPatientMatch, nameMatchScore } from '@/lib/doctorMapping';
+import type { PatientCandidate } from '@/lib/doctorMapping';
 
 export const runtime = 'nodejs';
 
@@ -137,7 +138,7 @@ export async function POST(req: NextRequest) {
         }
 
         // ═══════════════════════════════════════════════════════════
-        //  ONLINE BOOKING — Patient lookup, auto-create, e-karta
+        //  ONLINE BOOKING — Patient matching with double verification
         // ═══════════════════════════════════════════════════════════
         let intakeUrl: string | null = null;
         let isNewPatient = false;
@@ -148,17 +149,19 @@ export async function POST(req: NextRequest) {
                 const prodentisKey = process.env.PRODENTIS_API_KEY || '';
                 const doctorInfo = getDoctorInfo(specialist);
                 const normalizedPhone = normalizePhone(phone);
+                const patientFirstName = extractFirstName(name);
                 const patientLastName = extractLastName(name);
 
                 let prodentisPatientId: string | null = null;
                 let matchMethod: string = 'new';
+                let matchConfidence: number | null = null;
+                let matchCandidates: PatientCandidate[] = [];
 
-                // Step 1: Search patient by phone in Prodentis
+                // ── Step 1: Search patient by phone in Prodentis ──
                 if (prodentisKey && normalizedPhone) {
                     try {
-                        // Try phone search first
                         const phoneSearchRes = await fetch(
-                            `${prodentisUrl}/api/patients/search?phone=${normalizedPhone}&limit=5`,
+                            `${prodentisUrl}/api/patients/search?phone=${normalizedPhone}&limit=10`,
                             {
                                 headers: { 'Content-Type': 'application/json' },
                                 signal: AbortSignal.timeout(5000),
@@ -167,17 +170,36 @@ export async function POST(req: NextRequest) {
 
                         if (phoneSearchRes.ok) {
                             const phoneData = await phoneSearchRes.json();
-                            const candidates = phoneData.patients || [];
+                            const candidates = (phoneData.patients || []).map((p: any) => ({
+                                id: p.id || p.prodentisId,
+                                firstName: p.firstName || p.imie || '',
+                                lastName: p.lastName || p.nazwisko || '',
+                                phone: p.phone || '',
+                            }));
 
-                            // Verify by last name match
-                            const matched = candidates.find((p: any) =>
-                                fuzzyNameMatch(p.lastName || '', patientLastName)
-                            );
+                            if (candidates.length > 0) {
+                                // Score ALL candidates by firstName + lastName
+                                const { best, all } = findBestPatientMatch(candidates, patientFirstName, patientLastName);
+                                matchCandidates = all;
 
-                            if (matched) {
-                                prodentisPatientId = matched.id;
-                                matchMethod = 'phone+name';
-                                console.log(`[OnlineBooking] Patient matched: ${matched.firstName} ${matched.lastName} (ID: ${matched.id})`);
+                                if (best) {
+                                    if (best.score >= 85) {
+                                        // HIGH CONFIDENCE — auto-match
+                                        prodentisPatientId = best.id;
+                                        matchMethod = `phone+name_verified`;
+                                        matchConfidence = best.score;
+                                        console.log(`[OnlineBooking] AUTO-MATCH: "${patientFirstName} ${patientLastName}" → "${best.firstName} ${best.lastName}" (ID: ${best.id}, score: ${best.score})`);
+                                    } else if (best.score >= 60) {
+                                        // MEDIUM CONFIDENCE — needs admin review
+                                        // Do NOT auto-use, save candidates for admin pick
+                                        matchMethod = 'needs_review';
+                                        matchConfidence = best.score;
+                                        console.warn(`[OnlineBooking] NEEDS REVIEW: "${patientFirstName} ${patientLastName}" closest to "${best.firstName} ${best.lastName}" (score: ${best.score}). Admin must verify.`);
+                                    } else {
+                                        // LOW CONFIDENCE — no match
+                                        console.log(`[OnlineBooking] NO MATCH: best candidate "${best.firstName} ${best.lastName}" scored only ${best.score}`);
+                                    }
+                                }
                             }
                         } else {
                             // Phone search not available — fallback to name search
@@ -192,18 +214,30 @@ export async function POST(req: NextRequest) {
 
                             if (nameSearchRes.ok) {
                                 const nameData = await nameSearchRes.json();
-                                const candidates = nameData.patients || [];
+                                const candidates = (nameData.patients || [])
+                                    .filter((p: any) => {
+                                        const candidatePhone = normalizePhone(p.phone || '');
+                                        return candidatePhone === normalizedPhone;
+                                    })
+                                    .map((p: any) => ({
+                                        id: p.id || p.prodentisId,
+                                        firstName: p.firstName || p.imie || '',
+                                        lastName: p.lastName || p.nazwisko || '',
+                                        phone: p.phone || '',
+                                    }));
 
-                                // Match by phone number
-                                const matched = candidates.find((p: any) => {
-                                    const candidatePhone = normalizePhone(p.phone || '');
-                                    return candidatePhone === normalizedPhone;
-                                });
+                                if (candidates.length > 0) {
+                                    const { best, all } = findBestPatientMatch(candidates, patientFirstName, patientLastName);
+                                    matchCandidates = all;
 
-                                if (matched) {
-                                    prodentisPatientId = matched.id;
-                                    matchMethod = 'phone+name';
-                                    console.log(`[OnlineBooking] Patient matched via name search: ${matched.firstName} ${matched.lastName}`);
+                                    if (best && best.score >= 85) {
+                                        prodentisPatientId = best.id;
+                                        matchMethod = 'phone+name_verified';
+                                        matchConfidence = best.score;
+                                    } else if (best && best.score >= 60) {
+                                        matchMethod = 'needs_review';
+                                        matchConfidence = best.score;
+                                    }
                                 }
                             }
                         }
@@ -212,20 +246,20 @@ export async function POST(req: NextRequest) {
                     }
                 }
 
-                // Step 2: Create new patient if not found
-                if (!prodentisPatientId && prodentisKey) {
+                // ── Step 2: Create new patient if not found and not needs_review ──
+                if (!prodentisPatientId && matchMethod !== 'needs_review' && prodentisKey) {
                     isNewPatient = true;
                     const nameParts = name.trim().split(/\s+/);
-                    const patientFirstName = nameParts[0] || '';
-                    const patientLast = nameParts.slice(1).join(' ') || '';
+                    const pFirst = nameParts[0] || '';
+                    const pLast = nameParts.slice(1).join(' ') || '';
 
                     try {
                         const createRes = await fetch(`${prodentisUrl}/api/patients`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json', 'X-API-Key': prodentisKey },
                             body: JSON.stringify({
-                                firstName: patientFirstName,
-                                lastName: patientLast,
+                                firstName: pFirst,
+                                lastName: pLast,
                                 phone: phone,
                                 email: email || '',
                             }),
@@ -236,25 +270,36 @@ export async function POST(req: NextRequest) {
 
                         if (createRes.status === 201 && createResult.prodentisId) {
                             prodentisPatientId = createResult.prodentisId;
+                            matchMethod = 'created';
+                            matchConfidence = 100;
                             console.log(`[OnlineBooking] New patient created: ${prodentisPatientId}`);
                         } else if (createResult.error === 'PATIENT_EXISTS' && createResult.prodentisId) {
-                            // ⚠️ Phone belongs to a different patient in Prodentis
-                            // Verify name before blindly using the returned ID
-                            const existingName = `${createResult.firstName || ''} ${createResult.lastName || ''}`.trim();
-                            const existingLastName = createResult.lastName || '';
+                            // Phone collision — score the returned patient
+                            const returnedFirst = createResult.firstName || '';
+                            const returnedLast = createResult.lastName || '';
+                            const { score, method: mMethod } = nameMatchScore(pFirst, pLast, returnedFirst, returnedLast);
 
-                            if (existingLastName && fuzzyNameMatch(existingLastName, patientLast)) {
-                                // Name matches — same person, different spelling maybe
+                            if (score >= 85) {
                                 prodentisPatientId = createResult.prodentisId;
                                 isNewPatient = false;
-                                matchMethod = 'phone+name';
-                                console.log(`[OnlineBooking] Patient confirmed via PATIENT_EXISTS: ${existingName} (${prodentisPatientId})`);
+                                matchMethod = 'patient_exists_verified';
+                                matchConfidence = score;
+                                console.log(`[OnlineBooking] PATIENT_EXISTS confirmed: "${returnedFirst} ${returnedLast}" (score: ${score})`);
                             } else {
-                                // Name does NOT match — phone belongs to someone else
-                                // Do NOT use this ID! Flag for manual review
+                                // Different person — flag for review, don't use this ID
                                 isNewPatient = true;
-                                matchMethod = 'phone_conflict';
-                                console.warn(`[OnlineBooking] PHONE CONFLICT: Phone ${phone} belongs to "${existingName}" (${createResult.prodentisId}), but booking is for "${name}". Not using this ID.`);
+                                matchMethod = score >= 60 ? 'needs_review' : 'phone_conflict';
+                                matchConfidence = score;
+                                matchCandidates = [{
+                                    id: createResult.prodentisId,
+                                    firstName: returnedFirst,
+                                    lastName: returnedLast,
+                                    score,
+                                    firstNameScore: 0,
+                                    lastNameScore: 0,
+                                    method: mMethod,
+                                }];
+                                console.warn(`[OnlineBooking] PHONE CONFLICT: "${returnedFirst} ${returnedLast}" (score: ${score}), booking for "${name}"`);
                             }
                         } else {
                             console.error('[OnlineBooking] Failed to create patient:', createResult);
@@ -264,9 +309,9 @@ export async function POST(req: NextRequest) {
                     }
                 }
 
-                // Step 3: Generate e-karta token for new patients
+                // ── Step 3: Generate e-karta token for new patients ──
                 let intakeTokenId: string | null = null;
-                if (isNewPatient) {
+                if (isNewPatient || matchMethod === 'needs_review') {
                     try {
                         const nameParts = name.trim().split(/\s+/);
                         const tokenPayload = {
@@ -306,7 +351,7 @@ export async function POST(req: NextRequest) {
                     }
                 }
 
-                // Step 4: Save to online_bookings
+                // ── Step 4: Save to online_bookings ──
                 const { error: bookingErr } = await supabase.from('online_bookings').insert({
                     reservation_id: reservationId,
                     patient_name: name,
@@ -315,6 +360,8 @@ export async function POST(req: NextRequest) {
                     prodentis_patient_id: prodentisPatientId,
                     is_new_patient: isNewPatient,
                     patient_match_method: matchMethod,
+                    match_confidence: matchConfidence,
+                    match_candidates: matchCandidates.length > 0 ? matchCandidates : null,
                     specialist_id: specialist,
                     specialist_name: specialistName,
                     doctor_prodentis_id: doctorInfo?.prodentisId || null,
@@ -322,7 +369,7 @@ export async function POST(req: NextRequest) {
                     appointment_time: time,
                     service_type: body.service || null,
                     description: description || null,
-                    schedule_status: 'pending',
+                    schedule_status: matchMethod === 'needs_review' ? 'pending' : 'pending',
                     intake_token_id: intakeTokenId,
                     intake_url: intakeUrl,
                 });
@@ -330,7 +377,7 @@ export async function POST(req: NextRequest) {
                 if (bookingErr) {
                     console.error('[OnlineBooking] Failed to save online booking:', bookingErr);
                 } else {
-                    console.log(`[OnlineBooking] Saved. New: ${isNewPatient}, ProdentisID: ${prodentisPatientId}`);
+                    console.log(`[OnlineBooking] Saved. Method: ${matchMethod}, Confidence: ${matchConfidence}, ProdentisID: ${prodentisPatientId}`);
                 }
             } catch (bookingEx) {
                 // Non-blocking — don't fail the reservation if booking logic fails
