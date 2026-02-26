@@ -375,6 +375,16 @@ export default function EmployeePage() {
     const [pushSendResult, setPushSendResult] = useState<{ sent?: number; failed?: number; error?: string } | null>(null);
     const [pushEmpSearch, setPushEmpSearch] = useState('');
 
+    // ─── Schedule Context Menu (color/icon changes) ──────────
+    const [scheduleContextMenu, setScheduleContextMenu] = useState<{
+        apt: ScheduleAppointment;
+        dayDate: string;
+        x: number;
+        y: number;
+    } | null>(null);
+    const [scheduleColors, setScheduleColors] = useState<any[]>([]);
+    const [scheduleIcons, setScheduleIcons] = useState<any[]>([]);
+
     const router = useRouter();
     const { userId: currentUserId, email: currentUserEmail, isAdmin } = useUserRoles();
 
@@ -424,6 +434,102 @@ export default function EmployeePage() {
     useEffect(() => {
         fetchSchedule();
     }, [fetchSchedule]);
+
+    // Fetch Prodentis colors and icons for schedule context menu
+    useEffect(() => {
+        const fetchColorsIcons = async () => {
+            try {
+                const [colorsRes, iconsRes] = await Promise.all([
+                    fetch('/api/admin/prodentis-schedule/colors'),
+                    fetch('/api/admin/prodentis-schedule/icons'),
+                ]);
+                if (colorsRes.ok) {
+                    const colorsData = await colorsRes.json();
+                    setScheduleColors(colorsData.colors || []);
+                }
+                if (iconsRes.ok) {
+                    const iconsData = await iconsRes.json();
+                    setScheduleIcons(iconsData.icons || []);
+                }
+            } catch (err) {
+                console.error('[Schedule] Failed to fetch colors/icons:', err);
+            }
+        };
+        fetchColorsIcons();
+    }, []);
+
+    // Close context menu on click outside or Escape
+    useEffect(() => {
+        if (!scheduleContextMenu) return;
+        const close = () => setScheduleContextMenu(null);
+        const keyClose = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
+        window.addEventListener('click', close);
+        window.addEventListener('keydown', keyClose);
+        return () => { window.removeEventListener('click', close); window.removeEventListener('keydown', keyClose); };
+    }, [scheduleContextMenu]);
+
+    // Check if appointment is in the past (date+endTime < now)
+    const isAppointmentPast = (dayDate: string, apt: ScheduleAppointment): boolean => {
+        const now = new Date();
+        const [h, m] = apt.endTime.split(':').map(Number);
+        const aptEnd = new Date(dayDate + 'T00:00:00');
+        aptEnd.setHours(h, m, 0, 0);
+        return aptEnd < now;
+    };
+
+    // Open context menu on right-click
+    const handleScheduleContextMenu = (e: React.MouseEvent, apt: ScheduleAppointment, dayDate: string) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (isAppointmentPast(dayDate, apt)) {
+            return; // Don't allow changes on past appointments
+        }
+        setScheduleContextMenu({ apt, dayDate, x: e.clientX, y: e.clientY });
+    };
+
+    // Change appointment color in Prodentis
+    const handleChangeScheduleColor = async (appointmentId: string, colorId: string, colorName: string) => {
+        setScheduleContextMenu(null);
+        try {
+            const res = await fetch('/api/admin/prodentis-schedule/color', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ appointmentId, colorId }),
+            });
+            if (res.ok) {
+                alert(`✅ Kolor zmieniony na: ${colorName}`);
+                fetchSchedule(); // Refresh to show new color
+            } else {
+                const data = await res.json();
+                alert(`❌ Błąd: ${data.error || data.message}`);
+            }
+        } catch (err) {
+            console.error('[Schedule] Color change error:', err);
+            alert('❌ Błąd połączenia');
+        }
+    };
+
+    // Add icon to appointment in Prodentis
+    const handleAddScheduleIcon = async (appointmentId: string, iconId: string, iconName: string) => {
+        setScheduleContextMenu(null);
+        try {
+            const res = await fetch('/api/admin/prodentis-schedule/icon', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ appointmentId, iconId }),
+            });
+            if (res.ok) {
+                alert(`✅ Ikona "${iconName}" dodana`);
+                fetchSchedule();
+            } else {
+                const data = await res.json();
+                alert(`❌ Błąd: ${data.error || data.message}`);
+            }
+        } catch (err) {
+            console.error('[Schedule] Icon add error:', err);
+            alert('❌ Błąd połączenia');
+        }
+    };
 
     const navigateWeek = (direction: number) => {
         setCurrentWeekStart(prev => {
@@ -1881,6 +1987,7 @@ export default function EmployeePage() {
                                                                                 openPatientHistory(apt);
                                                                             }
                                                                         }}
+                                                                        onContextMenu={(e) => handleScheduleContextMenu(e, apt, day.date)}
                                                                     >
                                                                         {/* Notes icon — top-right corner */}
                                                                         {apt.notes && (
@@ -2066,6 +2173,92 @@ export default function EmployeePage() {
                                     <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.7)' }}>{item.label}</span>
                                 </div>
                             ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* Schedule Context Menu (right-click on appointment) */}
+                {scheduleContextMenu && (
+                    <div
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                            position: 'fixed',
+                            left: `${Math.min(scheduleContextMenu.x, window.innerWidth - 300)}px`,
+                            top: `${Math.min(scheduleContextMenu.y, window.innerHeight - 350)}px`,
+                            background: 'rgba(15, 15, 20, 0.97)',
+                            backdropFilter: 'blur(20px)',
+                            border: '1px solid rgba(56, 189, 248, 0.2)',
+                            borderRadius: '0.75rem',
+                            padding: '0.75rem',
+                            zIndex: 2000,
+                            minWidth: '260px',
+                            maxHeight: '400px',
+                            overflowY: 'auto',
+                            boxShadow: '0 15px 50px rgba(0,0,0,0.6)',
+                        }}
+                    >
+                        {/* Header */}
+                        <div style={{ fontSize: '0.78rem', fontWeight: 'bold', color: '#fff', marginBottom: '0.5rem', paddingBottom: '0.4rem', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                            {scheduleContextMenu.apt.patientName}
+                            <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', fontWeight: 'normal', marginTop: '2px' }}>
+                                {scheduleContextMenu.apt.startTime} — {scheduleContextMenu.apt.appointmentType}
+                            </div>
+                        </div>
+
+                        {/* Color section */}
+                        <div style={{ marginBottom: '0.5rem' }}>
+                            <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', fontWeight: 'bold' }}>
+                                🎨 Zmień typ wizyty
+                            </div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px' }}>
+                                {scheduleColors.map((c: any) => (
+                                    <button
+                                        key={c.id}
+                                        onClick={() => handleChangeScheduleColor(scheduleContextMenu.apt.id, c.id, c.name)}
+                                        title={c.name}
+                                        style={{
+                                            width: '28px', height: '22px',
+                                            background: c.rgb ? `rgb(${c.rgb.r},${c.rgb.g},${c.rgb.b})` : '#666',
+                                            border: scheduleContextMenu.apt.appointmentTypeId === c.id
+                                                ? '2px solid #fff'
+                                                : '1px solid rgba(255,255,255,0.15)',
+                                            borderRadius: '4px',
+                                            cursor: 'pointer',
+                                            fontSize: '0.5rem',
+                                            color: 'rgba(0,0,0,0.6)',
+                                            padding: 0,
+                                        }}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Icons section */}
+                        <div>
+                            <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', fontWeight: 'bold' }}>
+                                🏷️ Dodaj ikonę
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                {scheduleIcons.map((icon: any) => (
+                                    <button
+                                        key={icon.id}
+                                        onClick={() => handleAddScheduleIcon(scheduleContextMenu.apt.id, icon.id, icon.name)}
+                                        style={{
+                                            display: 'flex', alignItems: 'center', gap: '0.4rem',
+                                            padding: '0.25rem 0.5rem',
+                                            background: 'rgba(255,255,255,0.04)',
+                                            border: '1px solid rgba(255,255,255,0.06)',
+                                            borderRadius: '0.3rem',
+                                            color: 'rgba(255,255,255,0.8)',
+                                            cursor: 'pointer',
+                                            fontSize: '0.68rem',
+                                            textAlign: 'left',
+                                        }}
+                                    >
+                                        {icon.name}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
                     </div>
                 )}
