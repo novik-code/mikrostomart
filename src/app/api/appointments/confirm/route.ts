@@ -141,69 +141,39 @@ export async function POST(req: NextRequest) {
         broadcastPush('admin', 'appointment_confirmed', pushParams, '/admin').catch(console.error);
         broadcastPush('employee', 'appointment_confirmed', pushParams, '/pracownik').catch(console.error);
 
-        // Send Email notification
-        let emailSent = false;
+        // Add "Pacjent potwierdzony" icon in Prodentis (icon ID 0000000010)
+        let iconAdded = false;
         try {
-            if (process.env.RESEND_API_KEY) {
-                const { Resend } = await import('resend');
-                const resend = new Resend(process.env.RESEND_API_KEY);
+            const PRODENTIS_API = process.env.PRODENTIS_API_URL || 'http://83.230.40.14:3000';
+            const PRODENTIS_KEY = process.env.PRODENTIS_API_KEY || '';
+            const prodentisAptId = action.prodentis_id;
 
-                await resend.emails.send({
-                    from: 'Mikrostomart \u003cnoreply@mikrostomart.pl\u003e',
-                    to: process.env.ADMIN_EMAIL || 'gabinet@mikrostomart.pl',
-                    subject: '✅ Pacjent potwierdził obecność',
-                    html: `
-                        \u003ch2\u003e✅ PACJENT POTWIERDZIŁ WIZYTĘ\u003c/h2\u003e
-                        <p><strong>Pacjent:</strong> ${action.patient_name || 'Nieznany pacjent'}</p>
-                        <p><strong>Telefon:</strong> ${action.patient_phone || 'Brak'}</p>
-                        <p><strong>Data:</strong> ${appointmentDateFormatted}</p>
-                        <p><strong>Godzina:</strong> ${appointmentTime}</p>
-                        <p><strong>Lekarz:</strong> ${action.doctor_name || 'Nie podano'}</p>
-                        <p><em>✅ Wizyta potwierdzona przez pacjenta</em></p>
-                    `
+            if (prodentisAptId && PRODENTIS_KEY) {
+                const iconRes = await fetch(`${PRODENTIS_API}/api/schedule/appointment/${prodentisAptId}/icon`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': PRODENTIS_KEY,
+                    },
+                    body: JSON.stringify({ iconId: '0000000010' }),
+                    signal: AbortSignal.timeout(10000),
                 });
-                emailSent = true;
+                iconAdded = iconRes.ok;
+                console.log(`[CONFIRM-PUBLIC] Prodentis icon ${iconAdded ? 'added' : 'failed'}:`, prodentisAptId);
+            } else {
+                console.warn('[CONFIRM-PUBLIC] No prodentis_id or API key — skipping icon');
             }
-        } catch (emailError) {
-            console.error('[CONFIRM-PUBLIC] Failed to send email:', emailError);
+        } catch (iconError) {
+            console.error('[CONFIRM-PUBLIC] Failed to add Prodentis icon:', iconError);
         }
 
-        // Send WhatsApp notification (using same Telegram bot)
-        let whatsappSent = false;
-        try {
-            const whatsappToken = process.env.WHATSAPP_BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN;
-            const whatsappChatId = process.env.WHATSAPP_CHAT_ID;
-
-            if (whatsappToken && whatsappChatId) {
-                const whatsappMessage = `✅ PACJENT POTWIERDZIŁ WIZYTĘ\\n\\n` +
-                    `📅 ${appointmentDateFormatted}, ${appointmentTime}\\n` +
-                    `🩺 ${action.doctor_name || 'Nie podano'}\\n` +
-                    `📞 ${patient?.phone || 'Brak'}`;
-
-                const waUrl = `https://api.telegram.org/bot${whatsappToken}/sendMessage`;
-                const response = await fetch(waUrl, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        chat_id: whatsappChatId,
-                        text: whatsappMessage
-                    }),
-                });
-
-                if (response.ok) whatsappSent = true;
-            }
-        } catch (whatsappError) {
-            console.error('[CONFIRM-PUBLIC] WhatsApp notification failed:', whatsappError);
-        }
-
-        console.log('[CONFIRM-PUBLIC] Success:', { telegramSent, whatsappSent, emailSent });
+        console.log('[CONFIRM-PUBLIC] Success:', { telegramSent, iconAdded });
 
         return NextResponse.json({
             success: true,
             message: 'Potwierdzenie wysłane. Gabinet został powiadomiony.',
             telegramSent,
-            whatsappSent,
-            emailSent
+            iconAdded
         });
 
     } catch (error) {

@@ -1785,6 +1785,7 @@ NODE_ENV=production
 - `6fbbb18` — hotfix: revert doctor IDs
 - `04c228b` — feat: double verification patient matching
 - `f0b686e` — feat: right-click color/icon changes on employee schedule
+- `9d9207a` — feat: long-press (500ms) opens color/icon menu on mobile
 
 #### New Features:
 1. **Online Booking System**: Patient books on website → saves to `online_bookings` (pending) → admin approves → auto-schedules in Prodentis
@@ -1795,7 +1796,7 @@ NODE_ENV=production
 6. **Telegram Daily Digest**: Cron at 8:15 AM with summary of unreported bookings grouped by status
 7. **Double Verification Patient Matching**: Scores each candidate by firstName+lastName (Levenshtein + diacritics). ≥85 auto-match, 60-84 admin review, <60 create new patient. Handles shared phones (parent/child), typos, diacritics.
 8. **Admin Patient Picker**: When match is ambiguous (needs_review), admin sees candidate list with % scores and "Wybierz" button to pick correct patient
-9. **Schedule Color/Icon Management**: Right-click any future appointment in employee grafik → context menu with color picker (Prodentis visit types) and icon buttons. Past appointments blocked. Uses `/api/admin/prodentis-schedule/color` and `/icon`.
+9. **Schedule Color/Icon Management**: Right-click (desktop) or long-press 500ms (mobile) any future appointment in employee grafik → context menu with color picker and icon buttons. Past appointments blocked.
 
 #### Database:
 - Migration 056: `online_bookings` table with RLS + indexes

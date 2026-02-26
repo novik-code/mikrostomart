@@ -140,70 +140,12 @@ export async function POST(req: NextRequest) {
         broadcastPush('admin', 'appointment_cancelled', pushParams, '/admin').catch(console.error);
         broadcastPush('employee', 'appointment_cancelled', pushParams, '/pracownik').catch(console.error);
 
-        // Send Email notification
-        let emailSent = false;
-        try {
-            if (process.env.RESEND_API_KEY) {
-                const { Resend } = await import('resend');
-                const resend = new Resend(process.env.RESEND_API_KEY);
-
-                await resend.emails.send({
-                    from: 'Mikrostomart <noreply@mikrostomart.pl>',
-                    to: process.env.ADMIN_EMAIL || 'gabinet@mikrostomart.pl',
-                    subject: '❌ Pacjent odwołał wizytę',
-                    html: `
-                        <h2>❌ PACJENT ODWOŁAŁ WIZYTĘ</h2>
-                        <p><strong>Pacjent:</strong> ${action.patient_name || 'Nieznany pacjent'}</p>
-                        <p><strong>Telefon:</strong> ${action.patient_phone || 'Brak'}</p>
-                        <p><strong>Data:</strong> ${appointmentDateFormatted}</p>
-                        <p><strong>Godzina:</strong> ${appointmentTime}</p>
-                        <p><strong>Lekarz:</strong> ${action.doctor_name || 'Nie podano'}</p>
-                        <p><em>⚠️ Proszę skontaktować się z pacjentem (${new Date().toLocaleString('pl-PL')})</em></p>
-                    `
-                });
-                emailSent = true;
-            }
-        } catch (emailError) {
-            console.error('[CANCEL-PUBLIC] Failed to send email:', emailError);
-        }
-
-        // Send WhatsApp notification
-        let whatsappSent = false;
-        try {
-            const whatsappToken = process.env.WHATSAPP_BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN;
-            const whatsappChatId = process.env.WHATSAPP_CHAT_ID;
-
-            if (whatsappToken && whatsappChatId) {
-                const whatsappMessage = `❌ PACJENT ODWOŁAŁ WIZYTĘ\\n\\n` +
-                    `📅 ${appointmentDateFormatted}, ${appointmentTime}\\n` +
-                    `🩺 ${action.doctor_name || 'Nie podano'}\\n` +
-                    `📞 ${patient?.phone || 'Brak'}\\n\\n` +
-                    `⚠️ Proszę skontaktować się z pacjentem`;
-
-                const waUrl = `https://api.telegram.org/bot${whatsappToken}/sendMessage`;
-                const response = await fetch(waUrl, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        chat_id: whatsappChatId,
-                        text: whatsappMessage
-                    }),
-                });
-
-                if (response.ok) whatsappSent = true;
-            }
-        } catch (whatsappError) {
-            console.error('[CANCEL-PUBLIC] WhatsApp notification failed:', whatsappError);
-        }
-
-        console.log('[CANCEL-PUBLIC] Success:', { telegramSent, whatsappSent, emailSent });
+        console.log('[CANCEL-PUBLIC] Success:', { telegramSent });
 
         return NextResponse.json({
             success: true,
             message: 'Odwołanie wysłane. Gabinet został powiadomiony i skontaktuje się z Tobą.',
-            telegramSent,
-            whatsappSent,
-            emailSent
+            telegramSent
         });
 
     } catch (error) {
