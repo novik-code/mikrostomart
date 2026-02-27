@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+import { CONSENT_TYPES } from '@/lib/consentTypes';
 
 interface ConsentItem {
     type: string;
@@ -21,20 +22,6 @@ interface PatientDetails {
 }
 
 type Phase = 'loading' | 'error' | 'list' | 'preparing' | 'viewing' | 'signing' | 'done';
-
-/**
- * PDF field positions per consent type — where to overlay patient data.
- * x, y are in PDF points (1pt = 1/72 inch), from bottom-left corner.
- * A4 = 595 x 842 points.
- */
-const PDF_FIELD_POSITIONS: Record<string, { name?: { x: number; y: number }; pesel?: { x: number; y: number }; date?: { x: number; y: number }; address?: { x: number; y: number } }> = {
-    // Default positions — most consent forms have name near top, PESEL below
-    _default: {
-        name: { x: 70, y: 742 },
-        pesel: { x: 70, y: 720 },
-        date: { x: 420, y: 742 },
-    },
-};
 
 export default function ConsentSigningPage() {
     const params = useParams();
@@ -170,7 +157,8 @@ export default function ConsentSigningPage() {
 
     /**
      * Pre-fill a PDF with patient data using pdf-lib.
-     * Overlays name, PESEL, and date onto the first page.
+     * Places text precisely in form fields (dotted lines, PESEL boxes) using
+     * coordinate maps from consentTypes.ts
      */
     const prefillPdf = async (consent: ConsentItem): Promise<{ url: string; bytes: Uint8Array }> => {
         // Fetch original PDF
@@ -179,74 +167,93 @@ export default function ConsentSigningPage() {
 
         const pdfDoc = await PDFDocument.load(pdfBytes);
         const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-        const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
         const pages = pdfDoc.getPages();
         const firstPage = pages[0];
-        const { height: pageHeight } = firstPage.getSize();
 
-        const positions = PDF_FIELD_POSITIONS[consent.type] || PDF_FIELD_POSITIONS._default;
         const today = new Date().toLocaleDateString('pl-PL');
         const fullName = patientDetails
             ? `${patientDetails.firstName} ${patientDetails.lastName}`
             : patientName;
         const pesel = patientDetails?.pesel || '';
 
-        // Draw patient info header block at top
-        const headerX = 70;
-        const headerStartY = pageHeight - 60;
-        const fontSize = 10;
-        const lineHeight = 14;
+        // Get field positions for this consent type
+        const consentType = CONSENT_TYPES[consent.type];
+        const fields = consentType?.fields;
 
-        // Semi-transparent white background for readability
-        firstPage.drawRectangle({
-            x: headerX - 5,
-            y: headerStartY - lineHeight * 4 - 5,
-            width: 350,
-            height: lineHeight * 4 + 15,
-            color: rgb(1, 1, 1),
-            opacity: 0.85,
-        });
+        if (fields) {
+            const textColor = rgb(0.05, 0.05, 0.3);
 
-        // Patient name
-        firstPage.drawText(`Pacjent: ${fullName}`, {
-            x: headerX,
-            y: headerStartY,
-            size: fontSize,
-            font: boldFont,
-            color: rgb(0, 0, 0),
-        });
-
-        // PESEL
-        if (pesel) {
-            firstPage.drawText(`PESEL: ${pesel}`, {
-                x: headerX,
-                y: headerStartY - lineHeight,
-                size: fontSize,
-                font,
-                color: rgb(0, 0, 0),
-            });
-        }
-
-        // Date
-        firstPage.drawText(`Data: ${today}`, {
-            x: headerX,
-            y: headerStartY - lineHeight * 2,
-            size: fontSize,
-            font,
-            color: rgb(0, 0, 0),
-        });
-
-        // Address if available
-        if (patientDetails?.address) {
-            const addr = patientDetails.address;
-            const addrStr = `${addr.street || ''} ${addr.houseNumber || ''}${addr.apartmentNumber ? '/' + addr.apartmentNumber : ''}, ${addr.postalCode || ''} ${addr.city || ''}`.trim();
-            if (addrStr.length > 3) {
-                firstPage.drawText(`Adres: ${addrStr}`, {
-                    x: headerX,
-                    y: headerStartY - lineHeight * 3,
-                    size: fontSize - 1,
+            // Patient name on dotted line
+            if (fields.name) {
+                firstPage.drawText(fullName, {
+                    x: fields.name.x,
+                    y: fields.name.y,
+                    size: fields.name.fontSize || 11,
                     font,
-                    color: rgb(0.2, 0.2, 0.2),
+                    color: textColor,
+                });
+            }
+
+            // PESEL — each digit in its own box
+            if (fields.pesel && pesel) {
+                const digits = pesel.split('');
+                for (let i = 0; i < digits.length && i < 11; i++) {
+                    const digitX = fields.pesel.startX + (i * fields.pesel.boxWidth) + (fields.pesel.boxWidth / 2 - 3);
+                    firstPage.drawText(digits[i], {
+                        x: digitX,
+                        y: fields.pesel.y,
+                        size: fields.pesel.fontSize || 12,
+                        font,
+                        color: textColor,
+                    });
+                }
+            }
+
+            // Date field
+            if (fields.date) {
+                firstPage.drawText(today, {
+                    x: fields.date.x,
+                    y: fields.date.y,
+                    size: fields.date.fontSize || 11,
+                    font,
+                    color: textColor,
+                });
+            }
+
+            // Address field
+            if (fields.address && patientDetails?.address) {
+                const addr = patientDetails.address;
+                const addrStr = `${addr.street || ''} ${addr.houseNumber || ''}${addr.apartmentNumber ? '/' + addr.apartmentNumber : ''}, ${addr.postalCode || ''} ${addr.city || ''}`.trim();
+                if (addrStr.length > 3) {
+                    firstPage.drawText(addrStr, {
+                        x: fields.address.x,
+                        y: fields.address.y,
+                        size: fields.address.fontSize || 10,
+                        font,
+                        color: textColor,
+                    });
+                }
+            }
+
+            // City field (implantacja form)
+            if (fields.city && patientDetails?.address?.city) {
+                firstPage.drawText(patientDetails.address.city, {
+                    x: fields.city.x,
+                    y: fields.city.y,
+                    size: fields.city.fontSize || 11,
+                    font,
+                    color: textColor,
+                });
+            }
+
+            // Phone field (RTG form)
+            if (fields.phone && patientDetails?.phone) {
+                firstPage.drawText(patientDetails.phone, {
+                    x: fields.phone.x,
+                    y: fields.phone.y,
+                    size: fields.phone.fontSize || 10,
+                    font,
+                    color: textColor,
                 });
             }
         }
