@@ -8,6 +8,7 @@ import VoiceAssistant from "@/components/VoiceAssistant";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import PushNotificationPrompt from "@/components/PushNotificationPrompt";
 import { QRCodeSVG } from "qrcode.react";
+import { CONSENT_TYPES } from "@/lib/consentTypes";
 
 // ─── Types ───────────────────────────────────────────────────────
 interface Badge {
@@ -386,6 +387,15 @@ export default function EmployeePage() {
     const [scheduleIcons, setScheduleIcons] = useState<any[]>([]);
     const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const longPressFiredRef = useRef(false);
+
+    // ─── Consent Signing System ───────────────────
+    const [consentModalOpen, setConsentModalOpen] = useState(false);
+    const [consentSelectedTypes, setConsentSelectedTypes] = useState<string[]>([]);
+    const [consentGenerating, setConsentGenerating] = useState(false);
+    const [consentUrl, setConsentUrl] = useState('');
+    const [patientConsents, setPatientConsents] = useState<any[]>([]);
+    const [patientSignature, setPatientSignature] = useState<string | null>(null);
+    const [showSignature, setShowSignature] = useState(false);
 
     const router = useRouter();
     const { userId: currentUserId, email: currentUserEmail, isAdmin } = useUserRoles();
@@ -2598,6 +2608,48 @@ export default function EmployeePage() {
                                     >
                                         <Plus size={14} /> Zadanie
                                     </button>
+                                    {/* Consent signing button */}
+                                    <button
+                                        onClick={async () => {
+                                            setConsentModalOpen(true);
+                                            setConsentSelectedTypes([]);
+                                            setConsentUrl('');
+                                            setShowSignature(false);
+                                            if (selectedAppointment.patientId) {
+                                                try {
+                                                    const [consentsRes, intakeRes] = await Promise.all([
+                                                        fetch(`/api/employee/patient-consents?prodentisId=${selectedAppointment.patientId}`),
+                                                        fetch(`/api/employee/patient-intake?prodentisId=${selectedAppointment.patientId}`),
+                                                    ]);
+                                                    if (consentsRes.ok) {
+                                                        const d = await consentsRes.json();
+                                                        setPatientConsents(d.consents || []);
+                                                    }
+                                                    if (intakeRes.ok) {
+                                                        const d = await intakeRes.json();
+                                                        setPatientSignature(d.intake?.signatureData || null);
+                                                    }
+                                                } catch { /* ignore */ }
+                                            }
+                                        }}
+                                        style={{
+                                            background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                                            border: 'none',
+                                            borderRadius: '0.5rem',
+                                            padding: '0.4rem 0.65rem',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.3rem',
+                                            color: '#fff',
+                                            fontSize: '0.72rem',
+                                            fontWeight: '600',
+                                            cursor: 'pointer',
+                                            whiteSpace: 'nowrap',
+                                        }}
+                                        title="Generuj link do podpisania zgód"
+                                    >
+                                        📝 Zgody
+                                    </button>
                                     <button
                                         onClick={() => setSelectedAppointment(null)}
                                         style={{
@@ -2824,6 +2876,226 @@ export default function EmployeePage() {
                 )}
 
             </>)}
+
+            {/* ═══ CONSENT MODAL ═══ */}
+            {consentModalOpen && selectedAppointment && (
+                <div
+                    onClick={() => setConsentModalOpen(false)}
+                    style={{
+                        position: 'fixed', inset: 0,
+                        background: 'rgba(0,0,0,0.7)',
+                        backdropFilter: 'blur(8px)',
+                        zIndex: 3000,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        padding: '1rem',
+                    }}
+                >
+                    <div
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                            background: 'linear-gradient(135deg, #0d1b2a, #1b2838)',
+                            border: '1px solid rgba(56,189,248,0.2)',
+                            borderRadius: '1rem',
+                            width: '100%', maxWidth: '550px',
+                            maxHeight: '85vh', overflowY: 'auto',
+                            padding: '1.5rem',
+                            boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
+                        }}
+                    >
+                        {/* Header */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                            <div>
+                                <h3 style={{ margin: 0, color: '#fff', fontSize: '1rem' }}>📝 Zgody pacjenta</h3>
+                                <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginTop: '0.15rem' }}>
+                                    {selectedAppointment.patientName}
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setConsentModalOpen(false)}
+                                style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '0.5rem', width: '28px', height: '28px', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                            >✕</button>
+                        </div>
+
+                        {/* Token generation */}
+                        {!consentUrl ? (
+                            <div>
+                                <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.7)', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+                                    Wybierz zgody do podpisania:
+                                </div>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', marginBottom: '0.75rem' }}>
+                                    <button
+                                        onClick={() => {
+                                            const allKeys = Object.keys(CONSENT_TYPES);
+                                            setConsentSelectedTypes(prev => prev.length === allKeys.length ? [] : allKeys);
+                                        }}
+                                        style={{
+                                            padding: '0.35rem 0.6rem',
+                                            background: consentSelectedTypes.length === Object.keys(CONSENT_TYPES).length ? 'rgba(56,189,248,0.2)' : 'rgba(255,255,255,0.04)',
+                                            border: '1px solid rgba(255,255,255,0.1)',
+                                            borderRadius: '0.4rem',
+                                            color: '#fff', fontSize: '0.7rem', cursor: 'pointer', fontWeight: 'bold',
+                                        }}
+                                    >
+                                        {consentSelectedTypes.length === Object.keys(CONSENT_TYPES).length ? '✅ Odznacz wszystkie' : '☐ Zaznacz wszystkie'}
+                                    </button>
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', marginBottom: '1rem' }}>
+                                    {Object.entries(CONSENT_TYPES).map(([key, val]) => (
+                                        <label
+                                            key={key}
+                                            style={{
+                                                display: 'flex', alignItems: 'center', gap: '0.5rem',
+                                                padding: '0.4rem 0.6rem',
+                                                background: consentSelectedTypes.includes(key) ? 'rgba(56,189,248,0.08)' : 'rgba(255,255,255,0.02)',
+                                                border: consentSelectedTypes.includes(key) ? '1px solid rgba(56,189,248,0.2)' : '1px solid rgba(255,255,255,0.06)',
+                                                borderRadius: '0.4rem',
+                                                cursor: 'pointer',
+                                                fontSize: '0.78rem', color: '#fff',
+                                            }}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={consentSelectedTypes.includes(key)}
+                                                onChange={(e) => {
+                                                    if (e.target.checked) setConsentSelectedTypes(p => [...p, key]);
+                                                    else setConsentSelectedTypes(p => p.filter(t => t !== key));
+                                                }}
+                                                style={{ accentColor: '#38bdf8' }}
+                                            />
+                                            {val.label}
+                                        </label>
+                                    ))}
+                                </div>
+                                <button
+                                    disabled={!consentSelectedTypes.length || consentGenerating}
+                                    onClick={async () => {
+                                        setConsentGenerating(true);
+                                        try {
+                                            const res = await fetch('/api/employee/consent-tokens', {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({
+                                                    patientName: selectedAppointment.patientName,
+                                                    prodentisPatientId: selectedAppointment.patientId || undefined,
+                                                    consentTypes: consentSelectedTypes,
+                                                }),
+                                            });
+                                            const data = await res.json();
+                                            if (data.url) setConsentUrl(data.url);
+                                            else alert(`Błąd: ${data.error}`);
+                                        } catch { alert('Błąd połączenia'); }
+                                        finally { setConsentGenerating(false); }
+                                    }}
+                                    style={{
+                                        width: '100%', padding: '0.7rem',
+                                        background: consentSelectedTypes.length ? 'linear-gradient(135deg, #f59e0b, #d97706)' : 'rgba(255,255,255,0.06)',
+                                        border: 'none', borderRadius: '0.5rem',
+                                        color: '#fff', fontWeight: 'bold', fontSize: '0.85rem',
+                                        cursor: consentSelectedTypes.length ? 'pointer' : 'default',
+                                        opacity: (!consentSelectedTypes.length || consentGenerating) ? 0.5 : 1,
+                                    }}
+                                >
+                                    {consentGenerating ? '⏳ Generuję...' : `📝 Generuj link (${consentSelectedTypes.length} zgód)`}
+                                </button>
+                            </div>
+                        ) : (
+                            <div style={{ textAlign: 'center' }}>
+                                <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.6)', marginBottom: '0.5rem' }}>
+                                    Link do podpisania zgód:
+                                </div>
+                                <div style={{ background: '#fff', borderRadius: '0.75rem', padding: '1rem', display: 'inline-block', marginBottom: '0.75rem' }}>
+                                    <QRCodeSVG value={consentUrl} size={180} />
+                                </div>
+                                <div style={{
+                                    background: 'rgba(255,255,255,0.05)',
+                                    borderRadius: '0.5rem',
+                                    padding: '0.5rem 0.75rem',
+                                    fontSize: '0.7rem',
+                                    color: '#38bdf8',
+                                    wordBreak: 'break-all',
+                                    marginBottom: '0.5rem',
+                                }}>
+                                    {consentUrl}
+                                </div>
+                                <button
+                                    onClick={() => { navigator.clipboard.writeText(consentUrl); alert('Link skopiowany!'); }}
+                                    style={{
+                                        padding: '0.5rem 1rem',
+                                        background: 'rgba(56,189,248,0.15)',
+                                        border: '1px solid rgba(56,189,248,0.3)',
+                                        borderRadius: '0.4rem',
+                                        color: '#38bdf8', fontSize: '0.78rem', cursor: 'pointer',
+                                    }}
+                                >
+                                    📋 Kopiuj link
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Signed consents */}
+                        {patientConsents.length > 0 && (
+                            <div style={{ marginTop: '1.25rem', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '1rem' }}>
+                                <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.7)', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+                                    ✅ Podpisane zgody ({patientConsents.length})
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                                    {patientConsents.map((c: any) => (
+                                        <a
+                                            key={c.id}
+                                            href={c.file_url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            style={{
+                                                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                                padding: '0.45rem 0.6rem',
+                                                background: 'rgba(34,197,94,0.06)',
+                                                border: '1px solid rgba(34,197,94,0.15)',
+                                                borderRadius: '0.4rem',
+                                                textDecoration: 'none',
+                                            }}
+                                        >
+                                            <span style={{ fontSize: '0.75rem', color: '#fff' }}>📄 {c.consent_label}</span>
+                                            <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)' }}>
+                                                {new Date(c.signed_at).toLocaleDateString('pl-PL')}
+                                            </span>
+                                        </a>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* E-karta signature */}
+                        {patientSignature && (
+                            <div style={{ marginTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '0.75rem' }}>
+                                <button
+                                    onClick={() => setShowSignature(!showSignature)}
+                                    style={{
+                                        background: 'none', border: 'none', cursor: 'pointer',
+                                        color: 'rgba(255,255,255,0.6)', fontSize: '0.75rem',
+                                    }}
+                                >
+                                    ✍️ {showSignature ? 'Ukryj' : 'Pokaż'} podpis e-karty
+                                </button>
+                                {showSignature && (
+                                    <div style={{
+                                        background: '#fff',
+                                        borderRadius: '0.5rem',
+                                        padding: '0.75rem',
+                                        marginTop: '0.5rem',
+                                        textAlign: 'center',
+                                    }}>
+                                        <img
+                                            src={patientSignature}
+                                            alt="Podpis pacjenta"
+                                            style={{ maxWidth: '100%', maxHeight: '150px' }}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
 
             {/* ═══ ZADANIA TAB ═══ */}
             {activeTab === 'zadania' && (

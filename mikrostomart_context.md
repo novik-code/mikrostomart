@@ -1786,6 +1786,7 @@ NODE_ENV=production
 - `04c228b` — feat: double verification patient matching
 - `f0b686e` — feat: right-click color/icon changes on employee schedule
 - `9d9207a` — feat: long-press (500ms) opens color/icon menu on mobile
+- `0da0e11` — feat: auto-add 'Pacjent potwierdzony' icon on confirmation, remove email notifications
 
 #### New Features:
 1. **Online Booking System**: Patient books on website → saves to `online_bookings` (pending) → admin approves → auto-schedules in Prodentis
@@ -1797,6 +1798,7 @@ NODE_ENV=production
 7. **Double Verification Patient Matching**: Scores each candidate by firstName+lastName (Levenshtein + diacritics). ≥85 auto-match, 60-84 admin review, <60 create new patient. Handles shared phones (parent/child), typos, diacritics.
 8. **Admin Patient Picker**: When match is ambiguous (needs_review), admin sees candidate list with % scores and "Wybierz" button to pick correct patient
 9. **Schedule Color/Icon Management**: Right-click (desktop) or long-press 500ms (mobile) any future appointment in employee grafik → context menu with color picker and icon buttons. Past appointments blocked.
+10. **Auto-Icon on Patient Confirmation**: When patient confirms via SMS landing page, system auto-adds 'Pacjent potwierdzony' icon (0000000010) in Prodentis. Email notifications removed from both confirm and cancel endpoints (spam reduction). Telegram + Push kept.
 
 #### Database:
 - Migration 056: `online_bookings` table with RLS + indexes
