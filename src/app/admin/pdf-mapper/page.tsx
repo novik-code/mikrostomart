@@ -181,66 +181,68 @@ export default function PdfMapperPage() {
                         </button>
                     ))}
                 </div>
+
+                {/* Page navigation — in header, always accessible */}
+                {totalPages > 1 && (
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.5rem',
+                        marginTop: '0.5rem',
+                        position: 'relative',
+                        zIndex: 200,
+                    }}>
+                        <button
+                            onClick={(e) => { e.stopPropagation(); setCurrentPage(p => Math.max(1, p - 1)); }}
+                            disabled={currentPage <= 1}
+                            style={{
+                                padding: '0.5rem 1.2rem',
+                                background: currentPage <= 1 ? 'rgba(255,255,255,0.05)' : 'rgba(56,189,248,0.2)',
+                                border: '1px solid rgba(255,255,255,0.2)',
+                                borderRadius: '0.5rem',
+                                color: currentPage <= 1 ? 'rgba(255,255,255,0.3)' : '#38bdf8',
+                                fontSize: '0.85rem',
+                                cursor: currentPage <= 1 ? 'default' : 'pointer',
+                                fontWeight: 'bold',
+                            }}
+                        >
+                            ← Poprzednia
+                        </button>
+                        <div style={{
+                            padding: '0.5rem 1.5rem',
+                            background: 'rgba(56,189,248,0.15)',
+                            borderRadius: '0.5rem',
+                            border: '2px solid rgba(56,189,248,0.4)',
+                            fontWeight: 'bold',
+                            fontSize: '0.95rem',
+                            color: '#38bdf8',
+                        }}>
+                            📄 Strona {currentPage} / {totalPages}
+                        </div>
+                        <button
+                            onClick={(e) => { e.stopPropagation(); setCurrentPage(p => Math.min(totalPages, p + 1)); }}
+                            disabled={currentPage >= totalPages}
+                            style={{
+                                padding: '0.5rem 1.2rem',
+                                background: currentPage >= totalPages ? 'rgba(255,255,255,0.05)' : 'rgba(56,189,248,0.2)',
+                                border: '1px solid rgba(255,255,255,0.2)',
+                                borderRadius: '0.5rem',
+                                color: currentPage >= totalPages ? 'rgba(255,255,255,0.3)' : '#38bdf8',
+                                fontSize: '0.85rem',
+                                cursor: currentPage >= totalPages ? 'default' : 'pointer',
+                                fontWeight: 'bold',
+                            }}
+                        >
+                            Następna →
+                        </button>
+                    </div>
+                )}
             </div>
 
             <div style={{ display: 'flex', gap: '0.75rem', padding: '0.75rem' }}>
                 {/* PDF area with overlay */}
                 <div style={{ flex: 1, position: 'relative' }}>
-                    {/* Page navigation */}
-                    {totalPages > 1 && (
-                        <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '0.5rem',
-                            marginBottom: '0.5rem',
-                        }}>
-                            <button
-                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                                disabled={currentPage <= 1}
-                                style={{
-                                    padding: '0.4rem 0.8rem',
-                                    background: currentPage <= 1 ? 'rgba(255,255,255,0.05)' : 'rgba(56,189,248,0.15)',
-                                    border: '1px solid rgba(255,255,255,0.15)',
-                                    borderRadius: '0.4rem',
-                                    color: currentPage <= 1 ? 'rgba(255,255,255,0.3)' : '#38bdf8',
-                                    fontSize: '0.8rem',
-                                    cursor: currentPage <= 1 ? 'default' : 'pointer',
-                                    fontWeight: 'bold',
-                                }}
-                            >
-                                ← Poprzednia
-                            </button>
-                            <div style={{
-                                padding: '0.4rem 1rem',
-                                background: 'rgba(56,189,248,0.1)',
-                                borderRadius: '0.4rem',
-                                border: '1px solid rgba(56,189,248,0.3)',
-                                fontWeight: 'bold',
-                                fontSize: '0.85rem',
-                                color: '#38bdf8',
-                            }}>
-                                Strona {currentPage} / {totalPages}
-                            </div>
-                            <button
-                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                                disabled={currentPage >= totalPages}
-                                style={{
-                                    padding: '0.4rem 0.8rem',
-                                    background: currentPage >= totalPages ? 'rgba(255,255,255,0.05)' : 'rgba(56,189,248,0.15)',
-                                    border: '1px solid rgba(255,255,255,0.15)',
-                                    borderRadius: '0.4rem',
-                                    color: currentPage >= totalPages ? 'rgba(255,255,255,0.3)' : '#38bdf8',
-                                    fontSize: '0.8rem',
-                                    cursor: currentPage >= totalPages ? 'default' : 'pointer',
-                                    fontWeight: 'bold',
-                                }}
-                            >
-                                Następna →
-                            </button>
-                        </div>
-                    )}
-
                     <div style={{
                         position: 'relative',
                         width: '100%',
