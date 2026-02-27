@@ -1787,6 +1787,7 @@ NODE_ENV=production
 - `f0b686e` — feat: right-click color/icon changes on employee schedule
 - `9d9207a` — feat: long-press (500ms) opens color/icon menu on mobile
 - `0da0e11` — feat: auto-add 'Pacjent potwierdzony' icon on confirmation, remove email notifications
+- `f45c0df` — feat: consent signing system — tablet PDF signing + employee panel
 
 #### New Features:
 1. **Online Booking System**: Patient books on website → saves to `online_bookings` (pending) → admin approves → auto-schedules in Prodentis
@@ -1799,15 +1800,25 @@ NODE_ENV=production
 8. **Admin Patient Picker**: When match is ambiguous (needs_review), admin sees candidate list with % scores and "Wybierz" button to pick correct patient
 9. **Schedule Color/Icon Management**: Right-click (desktop) or long-press 500ms (mobile) any future appointment in employee grafik → context menu with color picker and icon buttons. Past appointments blocked.
 10. **Auto-Icon on Patient Confirmation**: When patient confirms via SMS landing page, system auto-adds 'Pacjent potwierdzony' icon (0000000010) in Prodentis. Email notifications removed from both confirm and cancel endpoints (spam reduction). Telegram + Push kept.
+11. **Consent Signing System**: Employee generates consent token → QR code on tablet → patient views PDF, signs on canvas → pdf-lib merges signature into PDF → uploads to Supabase Storage. Employee panel: 📝 Zgody button, consent type checkboxes, QR code, signed consents list, e-karta signature viewer.
 
 #### Database:
 - Migration 056: `online_bookings` table with RLS + indexes
 - Migration 057: `match_confidence` (int) + `match_candidates` (jsonb) on `online_bookings`
+- Migration 058: `consent_tokens` + `patient_consents` tables with RLS + indexes
 
 #### New Files:
 - `src/lib/doctorMapping.ts` — centralized doctor→Prodentis ID mapping
+- `src/lib/consentTypes.ts` — 10 consent types with Polish labels + PDF filenames
 - `src/app/api/admin/online-bookings/route.ts` — GET/PUT/DELETE with auto-schedule
 - `src/app/api/admin/prodentis-schedule/{colors,icons,color,icon}/route.ts` — 4 proxy routes
+- `src/app/api/employee/consent-tokens/route.ts` — POST/GET consent tokens
+- `src/app/api/consents/verify/route.ts` — POST validate token
+- `src/app/api/consents/sign/route.ts` — POST save signed PDF
+- `src/app/api/employee/patient-intake/route.ts` — GET e-karta data with signature
+- `src/app/api/employee/patient-consents/route.ts` — GET signed consents list
+- `src/app/zgody/[token]/page.tsx` — tablet consent signing page
+- `public/zgody/*.pdf` — 10 consent PDF templates
 - `src/app/api/cron/online-booking-digest/route.ts` — Telegram digest cron
 
 #### Modified Files:
