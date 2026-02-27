@@ -158,7 +158,7 @@ export default function ConsentSigningPage() {
     /**
      * Pre-fill a PDF with patient data using pdf-lib.
      * Places text precisely in form fields (dotted lines, PESEL boxes) using
-     * coordinate maps from consentTypes.ts
+     * coordinate maps from consentTypes.ts. Supports multi-page fields.
      */
     const prefillPdf = async (consent: ConsentItem): Promise<{ url: string; bytes: Uint8Array }> => {
         // Fetch original PDF
@@ -168,7 +168,9 @@ export default function ConsentSigningPage() {
         const pdfDoc = await PDFDocument.load(pdfBytes);
         const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
         const pages = pdfDoc.getPages();
-        const firstPage = pages[0];
+
+        /** Helper: get the correct page (1-indexed page field, default=1) */
+        const getPage = (pageNum?: number) => pages[Math.min((pageNum || 1) - 1, pages.length - 1)];
 
         const today = new Date().toLocaleDateString('pl-PL');
         const fullName = patientDetails
@@ -185,7 +187,7 @@ export default function ConsentSigningPage() {
 
             // Patient name on dotted line
             if (fields.name) {
-                firstPage.drawText(fullName, {
+                getPage(fields.name.page).drawText(fullName, {
                     x: fields.name.x,
                     y: fields.name.y,
                     size: fields.name.fontSize || 11,
@@ -196,10 +198,11 @@ export default function ConsentSigningPage() {
 
             // PESEL — each digit in its own box
             if (fields.pesel && pesel) {
+                const peselPage = getPage(fields.pesel.page);
                 const digits = pesel.split('');
                 for (let i = 0; i < digits.length && i < 11; i++) {
                     const digitX = fields.pesel.startX + (i * fields.pesel.boxWidth) + (fields.pesel.boxWidth / 2 - 3);
-                    firstPage.drawText(digits[i], {
+                    peselPage.drawText(digits[i], {
                         x: digitX,
                         y: fields.pesel.y,
                         size: fields.pesel.fontSize || 12,
@@ -211,7 +214,7 @@ export default function ConsentSigningPage() {
 
             // Date field
             if (fields.date) {
-                firstPage.drawText(today, {
+                getPage(fields.date.page).drawText(today, {
                     x: fields.date.x,
                     y: fields.date.y,
                     size: fields.date.fontSize || 11,
@@ -225,7 +228,7 @@ export default function ConsentSigningPage() {
                 const addr = patientDetails.address;
                 const addrStr = `${addr.street || ''} ${addr.houseNumber || ''}${addr.apartmentNumber ? '/' + addr.apartmentNumber : ''}, ${addr.postalCode || ''} ${addr.city || ''}`.trim();
                 if (addrStr.length > 3) {
-                    firstPage.drawText(addrStr, {
+                    getPage(fields.address.page).drawText(addrStr, {
                         x: fields.address.x,
                         y: fields.address.y,
                         size: fields.address.fontSize || 10,
@@ -235,9 +238,9 @@ export default function ConsentSigningPage() {
                 }
             }
 
-            // City field (implantacja form)
+            // City field
             if (fields.city && patientDetails?.address?.city) {
-                firstPage.drawText(patientDetails.address.city, {
+                getPage(fields.city.page).drawText(patientDetails.address.city, {
                     x: fields.city.x,
                     y: fields.city.y,
                     size: fields.city.fontSize || 11,
@@ -246,9 +249,9 @@ export default function ConsentSigningPage() {
                 });
             }
 
-            // Phone field (RTG form)
+            // Phone field
             if (fields.phone && patientDetails?.phone) {
-                firstPage.drawText(patientDetails.phone, {
+                getPage(fields.phone.page).drawText(patientDetails.phone, {
                     x: fields.phone.x,
                     y: fields.phone.y,
                     size: fields.phone.fontSize || 10,
@@ -309,22 +312,69 @@ export default function ConsentSigningPage() {
             }
 
             const pages = pdfDoc.getPages();
-            const lastPage = pages[pages.length - 1];
+
+            // Get field positions for signature placement
+            const consentTypeDef = CONSENT_TYPES[currentConsent.type];
+            const fields = consentTypeDef?.fields;
 
             // Convert signature canvas to PNG for embedding
             const signatureImageBytes = await fetch(signatureDataUrl).then(r => r.arrayBuffer());
             const signatureImage = await pdfDoc.embedPng(signatureImageBytes);
 
-            // Place signature at bottom of last page
-            const { width: pageWidth } = lastPage.getSize();
-            const sigWidth = 200;
+            // Place PATIENT SIGNATURE at mapped coordinates (or fallback to last page center)
+            const patSigPos = fields?.patient_signature;
+            const patSigPageIdx = Math.min((patSigPos?.page || pages.length) - 1, pages.length - 1);
+            const patSigPage = pages[patSigPageIdx];
+            const sigWidth = 150;
             const sigHeight = (signatureImage.height / signatureImage.width) * sigWidth;
-            lastPage.drawImage(signatureImage, {
-                x: pageWidth / 2 - sigWidth / 2,
-                y: 40,
-                width: sigWidth,
-                height: sigHeight,
-            });
+
+            if (patSigPos) {
+                patSigPage.drawImage(signatureImage, {
+                    x: patSigPos.x,
+                    y: patSigPos.y - sigHeight, // y is baseline, draw upward
+                    width: sigWidth,
+                    height: sigHeight,
+                });
+            } else {
+                // Fallback: center of last page bottom
+                const { width: pageWidth } = patSigPage.getSize();
+                patSigPage.drawImage(signatureImage, {
+                    x: pageWidth / 2 - sigWidth / 2,
+                    y: 40,
+                    width: sigWidth,
+                    height: sigHeight,
+                });
+            }
+
+            // Place DOCTOR SIGNATURE if mapped and available
+            const docSigPos = fields?.doctor_signature;
+            if (docSigPos) {
+                try {
+                    // Fetch doctor signatures from API
+                    const sigRes = await fetch('/api/admin/staff-signatures');
+                    if (sigRes.ok) {
+                        const sigData = await sigRes.json();
+                        // Use first available active signature (TODO: add doctor selection)
+                        const activeSig = sigData.signatures?.[0];
+                        if (activeSig?.signature_data) {
+                            const docSigBytes = await fetch(activeSig.signature_data).then(r => r.arrayBuffer());
+                            const docSigImage = await pdfDoc.embedPng(docSigBytes);
+                            const docSigPageIdx = Math.min((docSigPos.page || 1) - 1, pages.length - 1);
+                            const docSigPage = pages[docSigPageIdx];
+                            const docSigWidth = 120;
+                            const docSigHeight = (docSigImage.height / docSigImage.width) * docSigWidth;
+                            docSigPage.drawImage(docSigImage, {
+                                x: docSigPos.x,
+                                y: docSigPos.y - docSigHeight,
+                                width: docSigWidth,
+                                height: docSigHeight,
+                            });
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Could not embed doctor signature:', e);
+                }
+            }
 
             // Save modified PDF
             const signedPdfBytes = await pdfDoc.save();
