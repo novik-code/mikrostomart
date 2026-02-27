@@ -91,13 +91,20 @@ export async function POST(req: NextRequest) {
 
         const fileUrl = urlData?.publicUrl || storagePath;
 
-        // Upload to Prodentis via API v8.0
+        // Sync to Prodentis — add note with link to signed consent PDF
+        // (The /api/patients/:id/documents endpoint creates a local file path reference
+        //  but doesn't write the file to disk. Using /notes instead with a clickable link.)
         let prodentisSynced = false;
-        let prodentisDocumentId: string | null = null;
         if (tokenRow.prodentis_patient_id) {
             try {
+                const noteText = `=== ZGODA PODPISANA ${date} ===\n` +
+                    `Typ: ${consentInfo.label}\n` +
+                    `Pacjent: ${tokenRow.patient_name}\n` +
+                    `Plik: ${fileUrl}\n` +
+                    `Status: Podpisano elektronicznie na tablecie`;
+
                 const prodentisRes = await fetch(
-                    `${PRODENTIS_API}/api/patients/${tokenRow.prodentis_patient_id}/documents`,
+                    `${PRODENTIS_API}/api/patients/${tokenRow.prodentis_patient_id}/notes`,
                     {
                         method: 'POST',
                         headers: {
@@ -105,25 +112,22 @@ export async function POST(req: NextRequest) {
                             'X-API-Key': PRODENTIS_API_KEY,
                         },
                         body: JSON.stringify({
-                            fileBase64: signedPdfBase64,
-                            fileName,
                             category: 'consent',
-                            description: `${consentInfo.label} — ${tokenRow.patient_name} — ${date}`,
+                            text: noteText,
+                            appendMode: true,
                         }),
                     }
                 );
 
                 if (prodentisRes.ok) {
-                    const prodentisData = await prodentisRes.json();
                     prodentisSynced = true;
-                    prodentisDocumentId = prodentisData.documentId || null;
-                    console.log(`[ConsentSign] Uploaded to Prodentis: ${prodentisDocumentId}`);
+                    console.log(`[ConsentSign] Note added to Prodentis for patient ${tokenRow.prodentis_patient_id}`);
                 } else {
                     const errText = await prodentisRes.text();
-                    console.error('[ConsentSign] Prodentis upload failed:', errText);
+                    console.error('[ConsentSign] Prodentis note failed:', errText);
                 }
             } catch (e) {
-                console.error('[ConsentSign] Prodentis upload error:', e);
+                console.error('[ConsentSign] Prodentis note error:', e);
             }
         }
 
@@ -140,7 +144,7 @@ export async function POST(req: NextRequest) {
                 signature_data: signatureDataUrl || null,
                 created_by: tokenRow.created_by || null,
                 prodentis_synced: prodentisSynced,
-                metadata: prodentisDocumentId ? { prodentis_document_id: prodentisDocumentId } : {},
+                metadata: {},
             })
             .select('id')
             .single();
@@ -153,7 +157,6 @@ export async function POST(req: NextRequest) {
             fileName,
             fileUrl,
             prodentisSynced,
-            prodentisDocumentId,
         });
     } catch (err: any) {
         console.error('[ConsentSign] Error:', err);
