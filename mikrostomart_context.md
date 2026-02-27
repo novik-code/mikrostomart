@@ -1797,6 +1797,7 @@ NODE_ENV=production
 - `4893b7f` — fix: PDF mapper — patient_signature field + multi-page navigation
 - `8fd2e43` — fix: PDF mapper — pdf.js canvas rendering for reliable page nav
 - `0b8b6c3` — feat: all 10 consent form coordinates + multi-page support
+- `4644c84` — fix: do PDF prefill + signatures in submitSignature (one pass)
 
 #### New Features:
 1. **Online Booking System**: Patient books on website → saves to `online_bookings` (pending) → admin approves → auto-schedules in Prodentis
