@@ -49,6 +49,11 @@ export default function ConsentSigningPage() {
     const [prefillOk, setPrefillOk] = useState(true);
     const [prefillError, setPrefillError] = useState<string | null>(null);
 
+    // Doctor & procedure selection
+    const [staffSignatures, setStaffSignatures] = useState<any[]>([]);
+    const [selectedDoctorIdx, setSelectedDoctorIdx] = useState(0);
+    const [procedureText, setProcedureText] = useState('');
+
     // PDF.js page rendering
     const pdfContainerRef = useRef<HTMLDivElement>(null);
     const [pdfPageCount, setPdfPageCount] = useState(0);
@@ -89,6 +94,17 @@ export default function ConsentSigningPage() {
         };
         verify();
     }, [token]);
+
+    // Fetch staff signatures for doctor selection
+    useEffect(() => {
+        fetch('/api/admin/staff-signatures')
+            .then(r => r.ok ? r.json() : [])
+            .then(data => {
+                const sigs = Array.isArray(data) ? data : (data?.signatures || []);
+                setStaffSignatures(sigs);
+            })
+            .catch(() => { });
+    }, []);
 
     // Canvas resize
     const resizeCanvas = useCallback(() => {
@@ -309,6 +325,23 @@ export default function ConsentSigningPage() {
                     size: fields.phone.fontSize || 10, font, color: textColor,
                 });
             }
+
+            // Doctor name
+            const selectedDoctor = staffSignatures[selectedDoctorIdx];
+            if (fields.doctor && selectedDoctor?.staff_name) {
+                getPage(fields.doctor.page).drawText(selectedDoctor.staff_name, {
+                    x: fields.doctor.x, y: fields.doctor.y,
+                    size: fields.doctor.fontSize || 11, font, color: textColor,
+                });
+            }
+
+            // Tooth / procedure text
+            if (fields.tooth && procedureText) {
+                getPage(fields.tooth.page).drawText(procedureText, {
+                    x: fields.tooth.x, y: fields.tooth.y,
+                    size: fields.tooth.fontSize || 11, font, color: textColor,
+                });
+            }
         }
 
         const modifiedBytes = await pdfDoc.save();
@@ -398,6 +431,11 @@ export default function ConsentSigningPage() {
                 }
                 if (fields2.city && patientDetails?.address?.city) getPage2(fields2.city.page).drawText(patientDetails.address.city, { x: fields2.city.x, y: fields2.city.y, size: fields2.city.fontSize || 11, font: interFont, color: textColor });
                 if (fields2.phone && patientDetails?.phone) getPage2(fields2.phone.page).drawText(patientDetails.phone, { x: fields2.phone.x, y: fields2.phone.y, size: fields2.phone.fontSize || 10, font: interFont, color: textColor });
+                // Doctor name
+                const selDoc = staffSignatures[selectedDoctorIdx];
+                if (fields2.doctor && selDoc?.staff_name) getPage2(fields2.doctor.page).drawText(selDoc.staff_name, { x: fields2.doctor.x, y: fields2.doctor.y, size: fields2.doctor.fontSize || 11, font: interFont, color: textColor });
+                // Tooth / procedure
+                if (fields2.tooth && procedureText) getPage2(fields2.tooth.page).drawText(procedureText, { x: fields2.tooth.x, y: fields2.tooth.y, size: fields2.tooth.fontSize || 11, font: interFont, color: textColor });
             }
 
             const pages = pdfDoc.getPages();
@@ -431,31 +469,27 @@ export default function ConsentSigningPage() {
                 });
             }
 
-            // ── STEP 3: Doctor signature (from staff-signatures DB) ──
+            // ── STEP 3: Doctor signature (from selected staff) ──
             const docSigPos = fields?.doctor_signature;
             if (docSigPos) {
-                try {
-                    const sigRes = await fetch('/api/admin/staff-signatures');
-                    if (sigRes.ok) {
-                        const sigData = await sigRes.json();
-                        const activeSig = sigData.signatures?.[0];
-                        if (activeSig?.signature_data) {
-                            const docSigBytes = await fetch(activeSig.signature_data).then(r => r.arrayBuffer());
-                            const docSigImage = await pdfDoc.embedPng(docSigBytes);
-                            const docSigPageIdx = Math.min((docSigPos.page || 1) - 1, pages.length - 1);
-                            const docSigPage = pages[docSigPageIdx];
-                            const docSigWidth = 120;
-                            const docSigHeight = (docSigImage.height / docSigImage.width) * docSigWidth;
-                            docSigPage.drawImage(docSigImage, {
-                                x: docSigPos.x,
-                                y: docSigPos.y - docSigHeight,
-                                width: docSigWidth,
-                                height: docSigHeight,
-                            });
-                        }
+                const activeSig = staffSignatures[selectedDoctorIdx];
+                if (activeSig?.signature_data) {
+                    try {
+                        const docSigBytes = await fetch(activeSig.signature_data).then(r => r.arrayBuffer());
+                        const docSigImage = await pdfDoc.embedPng(docSigBytes);
+                        const docSigPageIdx = Math.min((docSigPos.page || 1) - 1, pages.length - 1);
+                        const docSigPage = pages[docSigPageIdx];
+                        const docSigWidth = 120;
+                        const docSigHeight = (docSigImage.height / docSigImage.width) * docSigWidth;
+                        docSigPage.drawImage(docSigImage, {
+                            x: docSigPos.x,
+                            y: docSigPos.y - docSigHeight,
+                            width: docSigWidth,
+                            height: docSigHeight,
+                        });
+                    } catch (e) {
+                        console.warn('Could not embed doctor signature:', e);
                     }
-                } catch (e) {
-                    console.warn('Could not embed doctor signature:', e);
                 }
             }
 
@@ -543,7 +577,7 @@ export default function ConsentSigningPage() {
 
     if (phase === 'viewing' && currentConsent) {
         return (
-            <div style={{ ...styles.container, flexDirection: 'column', padding: 0 }}>
+            <div style={{ ...styles.container, flexDirection: 'column', alignItems: 'stretch', padding: 0 }}>
                 {/* Header bar - always visible at top */}
                 <div style={{
                     position: 'sticky', top: 0, zIndex: 10,
@@ -604,6 +638,8 @@ export default function ConsentSigningPage() {
                         overflowY: 'auto',
                         padding: '0.5rem',
                         background: 'rgba(255,255,255,0.03)',
+                        width: '100%',
+                        boxSizing: 'border-box',
                     }}
                 >
                     <div style={styles.spinner} />
@@ -726,6 +762,69 @@ export default function ConsentSigningPage() {
                             {patientDetails.birthDate && ` • ur. ${new Date(patientDetails.birthDate).toLocaleDateString('pl-PL')}`}
                         </div>
                     )}
+                </div>
+
+                {/* Doctor selection */}
+                <div style={{
+                    background: 'rgba(255,255,255,0.04)',
+                    borderRadius: '0.75rem',
+                    padding: '0.75rem 1rem',
+                    marginBottom: '0.75rem',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                }}>
+                    <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.4rem' }}>🩺 Lekarz prowadzący</div>
+                    {staffSignatures.length > 0 ? (
+                        <select
+                            value={selectedDoctorIdx}
+                            onChange={e => setSelectedDoctorIdx(Number(e.target.value))}
+                            style={{
+                                width: '100%',
+                                padding: '0.5rem',
+                                borderRadius: '0.5rem',
+                                border: '1px solid rgba(56, 189, 248, 0.3)',
+                                background: 'rgba(20, 20, 35, 0.9)',
+                                color: '#fff',
+                                fontSize: '0.9rem',
+                            }}
+                        >
+                            {staffSignatures.map((sig: any, idx: number) => (
+                                <option key={sig.id || idx} value={idx}>
+                                    {sig.staff_name}{sig.role ? ` (${sig.role})` : ''}
+                                </option>
+                            ))}
+                        </select>
+                    ) : (
+                        <div style={{ fontSize: '0.75rem', color: 'rgba(255,150,50,0.8)' }}>
+                            Brak zapisanych podpisów lekarzy. Dodaj w panelu admin.
+                        </div>
+                    )}
+                </div>
+
+                {/* Procedure / tooth text */}
+                <div style={{
+                    background: 'rgba(255,255,255,0.04)',
+                    borderRadius: '0.75rem',
+                    padding: '0.75rem 1rem',
+                    marginBottom: '1rem',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                }}>
+                    <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.4rem' }}>🦷 Procedura / ząb (opcjonalnie)</div>
+                    <input
+                        type="text"
+                        value={procedureText}
+                        onChange={e => setProcedureText(e.target.value)}
+                        placeholder="np. ząb 36, implant, etc."
+                        style={{
+                            width: '100%',
+                            padding: '0.5rem',
+                            borderRadius: '0.5rem',
+                            border: '1px solid rgba(56, 189, 248, 0.3)',
+                            background: 'rgba(20, 20, 35, 0.9)',
+                            color: '#fff',
+                            fontSize: '0.9rem',
+                            boxSizing: 'border-box',
+                        }}
+                    />
                 </div>
 
                 {allSigned && (
