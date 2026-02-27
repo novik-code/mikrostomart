@@ -284,12 +284,14 @@ export default function ConsentSigningPage() {
 
             if (fields.pesel && pesel) {
                 const peselPage = getPage(fields.pesel.page);
+                const peselSize = fields.pesel.fontSize || 9;
                 const digits = pesel.split('');
                 for (let i = 0; i < digits.length && i < 11; i++) {
-                    const digitX = fields.pesel.startX + (i * fields.pesel.boxWidth) + (fields.pesel.boxWidth / 2 - 3);
+                    const digitWidth = font.widthOfTextAtSize(digits[i], peselSize);
+                    const digitX = fields.pesel.startX + (i * fields.pesel.boxWidth) + (fields.pesel.boxWidth - digitWidth) / 2;
                     peselPage.drawText(digits[i], {
                         x: digitX, y: fields.pesel.y,
-                        size: fields.pesel.fontSize || 12, font, color: textColor,
+                        size: peselSize, font, color: textColor,
                     });
                 }
             }
@@ -421,7 +423,17 @@ export default function ConsentSigningPage() {
                 if (fields2.name) getPage2(fields2.name.page).drawText(fullName, { x: fields2.name.x, y: fields2.name.y, size: fields2.name.fontSize || 11, font: interFont, color: textColor });
                 if (fields2.pesel && pesel) {
                     const peselPage = getPage2(fields2.pesel.page);
-                    pesel.split('').forEach((d: string, i: number) => { if (i < 11) { peselPage.drawText(d, { x: fields2.pesel!.startX + i * fields2.pesel!.boxWidth + (fields2.pesel!.boxWidth / 2 - 3), y: fields2.pesel!.y, size: fields2.pesel!.fontSize || 12, font: interFont, color: textColor }); } });
+                    const peselSize = fields2.pesel.fontSize || 9;
+                    pesel.split('').forEach((d: string, i: number) => {
+                        if (i < 11) {
+                            const dw = interFont.widthOfTextAtSize(d, peselSize);
+                            peselPage.drawText(d, {
+                                x: fields2.pesel!.startX + i * fields2.pesel!.boxWidth + (fields2.pesel!.boxWidth - dw) / 2,
+                                y: fields2.pesel!.y,
+                                size: peselSize, font: interFont, color: textColor,
+                            });
+                        }
+                    });
                 }
                 if (fields2.date) getPage2(fields2.date.page).drawText(today, { x: fields2.date.x, y: fields2.date.y, size: fields2.date.fontSize || 11, font: interFont, color: textColor });
                 if (fields2.address && patientDetails?.address) {
