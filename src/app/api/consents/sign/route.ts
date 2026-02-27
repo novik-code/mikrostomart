@@ -91,20 +91,14 @@ export async function POST(req: NextRequest) {
 
         const fileUrl = urlData?.publicUrl || storagePath;
 
-        // Sync to Prodentis — add note with link to signed consent PDF
-        // (The /api/patients/:id/documents endpoint creates a local file path reference
-        //  but doesn't write the file to disk. Using /notes instead with a clickable link.)
+        // Sync to Prodentis — upload PDF to patient's documents
         let prodentisSynced = false;
+        let prodentisDocumentId: string | null = null;
         if (tokenRow.prodentis_patient_id) {
             try {
-                const noteText = `=== ZGODA PODPISANA ${date} ===\n` +
-                    `Typ: ${consentInfo.label}\n` +
-                    `Pacjent: ${tokenRow.patient_name}\n` +
-                    `Plik: ${fileUrl}\n` +
-                    `Status: Podpisano elektronicznie na tablecie`;
-
+                // Upload actual PDF file via documents API (requires fileBase64 + fileName)
                 const prodentisRes = await fetch(
-                    `${PRODENTIS_API}/api/patients/${tokenRow.prodentis_patient_id}/notes`,
+                    `${PRODENTIS_API}/api/patients/${tokenRow.prodentis_patient_id}/documents`,
                     {
                         method: 'POST',
                         headers: {
@@ -112,22 +106,24 @@ export async function POST(req: NextRequest) {
                             'X-API-Key': PRODENTIS_API_KEY,
                         },
                         body: JSON.stringify({
-                            category: 'consent',
-                            text: noteText,
-                            appendMode: true,
+                            fileBase64: signedPdfBase64,
+                            fileName: fileName,
+                            description: `${consentInfo.label} — podpisano ${date}`,
                         }),
                     }
                 );
 
                 if (prodentisRes.ok) {
+                    const docResult = await prodentisRes.json();
                     prodentisSynced = true;
-                    console.log(`[ConsentSign] Note added to Prodentis for patient ${tokenRow.prodentis_patient_id}`);
+                    prodentisDocumentId = docResult.documentId || null;
+                    console.log(`[ConsentSign] Document uploaded to Prodentis: ${prodentisDocumentId} for patient ${tokenRow.prodentis_patient_id}`);
                 } else {
                     const errText = await prodentisRes.text();
-                    console.error('[ConsentSign] Prodentis note failed:', errText);
+                    console.error('[ConsentSign] Prodentis document upload failed:', errText);
                 }
             } catch (e) {
-                console.error('[ConsentSign] Prodentis note error:', e);
+                console.error('[ConsentSign] Prodentis document upload error:', e);
             }
         }
 
