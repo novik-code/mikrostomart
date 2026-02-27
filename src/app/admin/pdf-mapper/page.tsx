@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { CONSENT_TYPES } from '@/lib/consentTypes';
 
-type FieldType = 'name' | 'pesel' | 'date' | 'address' | 'city' | 'phone' | 'doctor' | 'tooth';
+type FieldType = 'name' | 'pesel' | 'date' | 'address' | 'city' | 'phone' | 'doctor' | 'tooth' | 'doctor_signature';
 
 interface PlacedField {
     type: FieldType;
@@ -22,8 +22,9 @@ const FIELD_LABELS: Record<FieldType, { label: string; color: string }> = {
     address: { label: 'Adres', color: '#a855f7' },
     city: { label: 'Miejscowość', color: '#ec4899' },
     phone: { label: 'Telefon', color: '#06b6d4' },
-    doctor: { label: 'Lekarz', color: '#ef4444' },
+    doctor: { label: 'Lekarz (tekst)', color: '#ef4444' },
     tooth: { label: 'Ząb', color: '#f97316' },
+    doctor_signature: { label: 'Podpis lekarza (obraz)', color: '#8b5cf6' },
 };
 
 /** Known PDF page sizes in pts (width x height) */
