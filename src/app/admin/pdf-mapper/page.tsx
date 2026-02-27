@@ -1,18 +1,15 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { CONSENT_TYPES } from '@/lib/consentTypes';
 
 type FieldType = 'name' | 'pesel' | 'date' | 'address' | 'city' | 'phone' | 'doctor' | 'tooth' | 'doctor_signature' | 'patient_signature';
 
 interface PlacedField {
     type: FieldType;
-    /** Which page this field is on (1-indexed) */
     page: number;
-    /** Normalized 0-1 position on display */
     nx: number;
     ny: number;
-    /** PDF coordinate (pts, origin bottom-left) */
     pdfX: number;
     pdfY: number;
 }
@@ -30,27 +27,33 @@ const FIELD_LABELS: Record<FieldType, { label: string; color: string }> = {
     patient_signature: { label: 'Podpis pacjenta', color: '#14b8a6' },
 };
 
-/** Known PDF page sizes in pts (width x height) */
-const PDF_SIZES: Record<string, { w: number; h: number }> = {
-    protetyka_implant: { w: 595.3, h: 841.9 }, // A4
-};
-const DEFAULT_SIZE = { w: 612, h: 792 };
-
-/** Known number of pages per consent PDF */
-const PDF_PAGES: Record<string, number> = {
-    higienizacja: 1,
-    znieczulenie: 1,
-    chirurgiczne: 2,
-    protetyczne: 2,
-    endodontyczne: 2,
-    zachowawcze: 2,
-    protetyka_implant: 2,
-    rtg: 1,
-    implantacja: 3,
-    wizerunek: 1,
-};
-
 const CONSENT_KEYS = Object.keys(CONSENT_TYPES);
+
+// Load pdf.js from CDN (runs once)
+const PDFJS_CDN = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+const PDFJS_WORKER_CDN = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+function loadPdfJs(): Promise<any> {
+    return new Promise((resolve, reject) => {
+        if ((window as any).pdfjsLib) {
+            resolve((window as any).pdfjsLib);
+            return;
+        }
+        const script = document.createElement('script');
+        script.src = PDFJS_CDN;
+        script.onload = () => {
+            const lib = (window as any).pdfjsLib;
+            if (lib) {
+                lib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_CDN;
+                resolve(lib);
+            } else {
+                reject(new Error('pdfjsLib not found after loading'));
+            }
+        };
+        script.onerror = () => reject(new Error('Failed to load pdf.js'));
+        document.head.appendChild(script);
+    });
+}
 
 export default function PdfMapperPage() {
     const [selectedConsent, setSelectedConsent] = useState(CONSENT_KEYS[0]);
@@ -58,18 +61,92 @@ export default function PdfMapperPage() {
     const [allMappings, setAllMappings] = useState<Record<string, PlacedField[]>>({});
     const [showExport, setShowExport] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [pdfSize, setPdfSize] = useState({ w: 612, h: 792 });
+    const [rendering, setRendering] = useState(false);
+    const [pdfError, setPdfError] = useState<string | null>(null);
+
     const overlayRef = useRef<HTMLDivElement>(null);
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const pdfDocRef = useRef<any>(null);
 
     const fields = allMappings[selectedConsent] || [];
     const fieldsOnPage = fields.filter(f => f.page === currentPage);
-    const pdfSize = PDF_SIZES[selectedConsent] || DEFAULT_SIZE;
-    const totalPages = PDF_PAGES[selectedConsent] || 1;
     const consentType = CONSENT_TYPES[selectedConsent];
     const pdfUrl = consentType ? `/zgody/${consentType.file}` : '';
+
+    // Load PDF when consent changes
+    useEffect(() => {
+        if (!pdfUrl) return;
+        let cancelled = false;
+
+        async function loadPdf() {
+            setRendering(true);
+            setPdfError(null);
+            try {
+                const pdfjsLib = await loadPdfJs();
+                const doc = await pdfjsLib.getDocument(pdfUrl).promise;
+                if (cancelled) return;
+                pdfDocRef.current = doc;
+                setTotalPages(doc.numPages);
+                setCurrentPage(1);
+                // Render first page
+                await renderPage(doc, 1);
+            } catch (err: any) {
+                if (!cancelled) setPdfError(err.message || 'Błąd ładowania PDF');
+            } finally {
+                if (!cancelled) setRendering(false);
+            }
+        }
+
+        loadPdf();
+        return () => { cancelled = true; };
+    }, [pdfUrl]);
+
+    // Render page when currentPage changes
+    useEffect(() => {
+        const doc = pdfDocRef.current;
+        if (!doc) return;
+        let cancelled = false;
+
+        async function doRender() {
+            setRendering(true);
+            try {
+                await renderPage(doc, currentPage);
+            } catch (err: any) {
+                if (!cancelled) setPdfError(err.message);
+            } finally {
+                if (!cancelled) setRendering(false);
+            }
+        }
+
+        doRender();
+        return () => { cancelled = true; };
+    }, [currentPage]);
+
+    async function renderPage(doc: any, pageNum: number) {
+        const page = await doc.getPage(pageNum);
+        const viewport = page.getViewport({ scale: 1.5 }); // higher scale = sharper
+
+        // Store actual PDF dimensions (in pts, unscaled)
+        const unscaled = page.getViewport({ scale: 1 });
+        setPdfSize({ w: Math.round(unscaled.width * 10) / 10, h: Math.round(unscaled.height * 10) / 10 });
+
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        await page.render({ canvasContext: ctx, viewport }).promise;
+    }
 
     const handleConsentChange = (key: string) => {
         setSelectedConsent(key);
         setCurrentPage(1);
+        pdfDocRef.current = null;
     };
 
     const handleClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
@@ -80,7 +157,6 @@ export default function PdfMapperPage() {
         const nx = (e.clientX - rect.left) / rect.width;
         const ny = (e.clientY - rect.top) / rect.height;
 
-        // Convert to PDF coords (origin at bottom-left)
         const pdfX = Math.round(nx * pdfSize.w * 10) / 10;
         const pdfY = Math.round((1 - ny) * pdfSize.h * 10) / 10;
 
@@ -124,6 +200,9 @@ export default function PdfMapperPage() {
         }
         return lines.join('\n');
     };
+
+    // Aspect ratio for canvas container
+    const aspectRatio = pdfSize.h / pdfSize.w;
 
     return (
         <div style={{ minHeight: '100vh', background: '#0a0a1a', color: '#fff', fontFamily: "'Inter', sans-serif" }}>
@@ -182,7 +261,7 @@ export default function PdfMapperPage() {
                     ))}
                 </div>
 
-                {/* Page navigation — in header, always accessible */}
+                {/* Page navigation */}
                 {totalPages > 1 && (
                     <div style={{
                         display: 'flex',
@@ -190,11 +269,9 @@ export default function PdfMapperPage() {
                         justifyContent: 'center',
                         gap: '0.5rem',
                         marginTop: '0.5rem',
-                        position: 'relative',
-                        zIndex: 200,
                     }}>
                         <button
-                            onClick={(e) => { e.stopPropagation(); setCurrentPage(p => Math.max(1, p - 1)); }}
+                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                             disabled={currentPage <= 1}
                             style={{
                                 padding: '0.5rem 1.2rem',
@@ -221,7 +298,7 @@ export default function PdfMapperPage() {
                             📄 Strona {currentPage} / {totalPages}
                         </div>
                         <button
-                            onClick={(e) => { e.stopPropagation(); setCurrentPage(p => Math.min(totalPages, p + 1)); }}
+                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                             disabled={currentPage >= totalPages}
                             style={{
                                 padding: '0.5rem 1.2rem',
@@ -241,30 +318,45 @@ export default function PdfMapperPage() {
             </div>
 
             <div style={{ display: 'flex', gap: '0.75rem', padding: '0.75rem' }}>
-                {/* PDF area with overlay */}
+                {/* PDF area with canvas + overlay */}
                 <div style={{ flex: 1, position: 'relative' }}>
                     <div style={{
                         position: 'relative',
                         width: '100%',
-                        paddingBottom: `${(pdfSize.h / pdfSize.w) * 100}%`,
+                        paddingBottom: `${aspectRatio * 100}%`,
                         borderRadius: '0.5rem',
                         overflow: 'hidden',
                         border: '1px solid rgba(255,255,255,0.1)',
                         background: '#fff',
                     }}>
-                        {/* PDF iframe — use #page=N to navigate */}
-                        <iframe
-                            key={`${selectedConsent}-p${currentPage}`}
-                            src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=0&page=${currentPage}`}
+                        {/* Canvas rendered by pdf.js */}
+                        <canvas
+                            ref={canvasRef}
                             style={{
                                 position: 'absolute',
                                 top: 0, left: 0,
                                 width: '100%',
                                 height: '100%',
-                                border: 'none',
                             }}
-                            title={`PDF page ${currentPage}`}
                         />
+
+                        {/* Loading / error overlay */}
+                        {(rendering || pdfError) && (
+                            <div style={{
+                                position: 'absolute',
+                                top: 0, left: 0,
+                                width: '100%', height: '100%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                background: rendering ? 'rgba(255,255,255,0.8)' : 'rgba(255,0,0,0.1)',
+                                zIndex: 5,
+                            }}>
+                                <span style={{ color: pdfError ? '#ef4444' : '#333', fontSize: '0.85rem', fontWeight: 'bold' }}>
+                                    {pdfError ? `❌ ${pdfError}` : '⏳ Renderuję stronę...'}
+                                </span>
+                            </div>
+                        )}
 
                         {/* Click capture overlay */}
                         <div
@@ -279,7 +371,6 @@ export default function PdfMapperPage() {
                                 zIndex: 10,
                             }}
                         >
-                            {/* Placed markers for current page only */}
                             {fieldsOnPage.map(f => (
                                 <div
                                     key={f.type}
