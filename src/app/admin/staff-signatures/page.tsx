@@ -12,8 +12,14 @@ interface StaffSignature {
 
 const STAFF_LIST = [
     { name: 'lek. dent. Marcin Nowosielski', role: 'lekarz' },
-    { name: 'lek. dent. Justyna Litewka', role: 'lekarz' },
-    { name: 'hig. Agnieszka Kowalska', role: 'higienistka' },
+    { name: 'lek. dent. Elżbieta Nowosielska', role: 'lekarz' },
+    { name: 'lek. dent. Ilona Piechaczek', role: 'lekarz' },
+    { name: 'lek. dent. Aleksandra Modelska-Kępa', role: 'lekarz' },
+    { name: 'lek. dent. Katarzyna Hałupczok', role: 'lekarz' },
+    { name: 'lek. dent. Dominika Milicz', role: 'lekarz' },
+    { name: 'lek. dent. Wiktoria Leja', role: 'lekarz' },
+    { name: 'hig. stom. Małgorzata Maćków-Huras', role: 'higienistka' },
+    { name: 'Justyna Litewka', role: 'asystentka/higienistka' },
 ];
 
 export default function StaffSignaturesPage() {

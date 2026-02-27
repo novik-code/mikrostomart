@@ -4779,6 +4779,29 @@ export default function AdminPage() {
 
                     <NavItem id="booking-settings" label="📅 Rezerwacje" icon={Calendar} />
                     <NavItem id="theme" label="🎨 Motyw" icon={Paintbrush} />
+
+                    <div style={{ height: "1px", background: "var(--color-surface-hover)", margin: "1rem 0" }} />
+                    <div style={{ padding: "0 1rem 0.3rem", fontSize: "0.65rem", color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                        Narzędzia Zgód
+                    </div>
+                    <a href="/admin/staff-signatures" target="_blank" style={{
+                        display: "flex", alignItems: "center", gap: "0.8rem", width: "100%",
+                        padding: "0.8rem 1rem", background: "transparent", color: "var(--color-text-muted)",
+                        border: "none", borderRadius: "var(--radius-md)", cursor: "pointer",
+                        transition: "all 0.2s", textAlign: "left", textDecoration: "none", fontSize: "0.9rem"
+                    }}>
+                        <FileText size={18} />
+                        ✍️ Podpisy personelu
+                    </a>
+                    <a href="/admin/pdf-mapper" target="_blank" style={{
+                        display: "flex", alignItems: "center", gap: "0.8rem", width: "100%",
+                        padding: "0.8rem 1rem", background: "transparent", color: "var(--color-text-muted)",
+                        border: "none", borderRadius: "var(--radius-md)", cursor: "pointer",
+                        transition: "all 0.2s", textAlign: "left", textDecoration: "none", fontSize: "0.9rem"
+                    }}>
+                        <Settings size={18} />
+                        🗺️ Mapper PDF
+                    </a>
                 </nav>
 
                 <div style={{ marginTop: "auto", borderTop: "1px solid var(--color-surface-hover)", paddingTop: "1rem" }}>
