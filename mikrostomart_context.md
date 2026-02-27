@@ -1800,6 +1800,7 @@ NODE_ENV=production
 - `4644c84` — fix: do PDF prefill + signatures in submitSignature (one pass)
 - `a5af7b0` — fix: replace broken Prodentis document upload with notes + link
 - `1c303f5` — fix(critical): first/last name swap in e-karta prefill
+- `cb78dc8` — fix: upload PDF to Prodentis via documents API with fileBase64
 
 #### New Features:
 1. **Online Booking System**: Patient books on website → saves to `online_bookings` (pending) → admin approves → auto-schedules in Prodentis
