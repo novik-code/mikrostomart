@@ -1794,6 +1794,7 @@ NODE_ENV=production
 - `75bd94c` — fix: rewrite PDF mapper — use iframe+overlay instead of pdfjs-dist
 - `f53102a` — feat: staff signature system + doctor_signature field
 - `02c0bae` — fix: real staff in signatures + admin nav links
+- `4893b7f` — fix: PDF mapper — patient_signature field + multi-page navigation
 
 #### New Features:
 1. **Online Booking System**: Patient books on website → saves to `online_bookings` (pending) → admin approves → auto-schedules in Prodentis
