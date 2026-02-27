@@ -35,8 +35,11 @@ export default function ConsentSigningPage() {
     const [consents, setConsents] = useState<ConsentItem[]>([]);
     const [currentConsent, setCurrentConsent] = useState<ConsentItem | null>(null);
     const [signing, setSigning] = useState(false);
-    const [prefilledPdfUrl, setPrefilledPdfUrl] = useState<string | null>(null);
     const [prefilledPdfBytes, setPrefilledPdfBytes] = useState<Uint8Array | null>(null);
+
+    // PDF.js page rendering
+    const pdfContainerRef = useRef<HTMLDivElement>(null);
+    const [pdfPageCount, setPdfPageCount] = useState(0);
 
     // Canvas signature
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -156,12 +159,69 @@ export default function ConsentSigningPage() {
     };
 
     /**
-     * Pre-fill a PDF with patient data using pdf-lib.
-     * Places text precisely in form fields (dotted lines, PESEL boxes) using
-     * coordinate maps from consentTypes.ts. Supports multi-page fields.
+     * Render PDF bytes to canvas elements using pdf.js (all pages stacked vertically).
      */
-    const prefillPdf = async (consent: ConsentItem): Promise<{ url: string; bytes: Uint8Array }> => {
-        // Fetch original PDF
+    const renderPdfToCanvases = useCallback(async (pdfBytes: Uint8Array) => {
+        const container = pdfContainerRef.current;
+        if (!container) return;
+
+        // Clear previous canvases
+        container.innerHTML = '';
+
+        try {
+            // Dynamically import pdf.js
+            const pdfjsLib = await import('pdfjs-dist');
+            pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
+
+            const pdf = await pdfjsLib.getDocument({ data: pdfBytes }).promise;
+            setPdfPageCount(pdf.numPages);
+
+            const containerWidth = container.clientWidth || 800;
+
+            for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                const page = await pdf.getPage(pageNum);
+                const viewport = page.getViewport({ scale: 1 });
+                const scale = Math.min(containerWidth / viewport.width, 2);
+                const scaledViewport = page.getViewport({ scale });
+
+                const canvas = document.createElement('canvas');
+                canvas.width = scaledViewport.width;
+                canvas.height = scaledViewport.height;
+                canvas.style.width = '100%';
+                canvas.style.height = 'auto';
+                canvas.style.display = 'block';
+                canvas.style.borderRadius = '0.5rem';
+                canvas.style.background = '#fff';
+
+                if (pageNum > 1) {
+                    canvas.style.marginTop = '0.75rem';
+                }
+
+                // Page number label
+                if (pdf.numPages > 1) {
+                    const label = document.createElement('div');
+                    label.textContent = `Strona ${pageNum} z ${pdf.numPages}`;
+                    label.style.cssText = 'text-align:center;font-size:0.7rem;color:rgba(255,255,255,0.4);margin:0.3rem 0 0.2rem;';
+                    container.appendChild(label);
+                }
+
+                container.appendChild(canvas);
+
+                const ctx = canvas.getContext('2d');
+                if (ctx) {
+                    await page.render({ canvas, canvasContext: ctx, viewport: scaledViewport } as any).promise;
+                }
+            }
+        } catch (err) {
+            console.error('PDF render error:', err);
+            container.innerHTML = '<p style="color:red;text-align:center;">Nie udało się wyświetlić dokumentu</p>';
+        }
+    }, []);
+
+    /**
+     * Pre-fill a PDF with patient data using pdf-lib.
+     */
+    const prefillPdf = async (consent: ConsentItem): Promise<Uint8Array> => {
         const pdfRes = await fetch(consent.file);
         const pdfBytes = await pdfRes.arrayBuffer();
 
@@ -169,7 +229,6 @@ export default function ConsentSigningPage() {
         const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
         const pages = pdfDoc.getPages();
 
-        /** Helper: get the correct page (1-indexed page field, default=1) */
         const getPage = (pageNum?: number) => pages[Math.min((pageNum || 1) - 1, pages.length - 1)];
 
         const today = new Date().toLocaleDateString('pl-PL');
@@ -178,95 +237,74 @@ export default function ConsentSigningPage() {
             : patientName;
         const pesel = patientDetails?.pesel || '';
 
-        // Get field positions for this consent type
         const consentType = CONSENT_TYPES[consent.type];
         const fields = consentType?.fields;
 
         if (fields) {
             const textColor = rgb(0.05, 0.05, 0.3);
 
-            // Patient name on dotted line
             if (fields.name) {
                 getPage(fields.name.page).drawText(fullName, {
-                    x: fields.name.x,
-                    y: fields.name.y,
-                    size: fields.name.fontSize || 11,
-                    font,
-                    color: textColor,
+                    x: fields.name.x, y: fields.name.y,
+                    size: fields.name.fontSize || 11, font, color: textColor,
                 });
             }
 
-            // PESEL — each digit in its own box
             if (fields.pesel && pesel) {
                 const peselPage = getPage(fields.pesel.page);
                 const digits = pesel.split('');
                 for (let i = 0; i < digits.length && i < 11; i++) {
                     const digitX = fields.pesel.startX + (i * fields.pesel.boxWidth) + (fields.pesel.boxWidth / 2 - 3);
                     peselPage.drawText(digits[i], {
-                        x: digitX,
-                        y: fields.pesel.y,
-                        size: fields.pesel.fontSize || 12,
-                        font,
-                        color: textColor,
+                        x: digitX, y: fields.pesel.y,
+                        size: fields.pesel.fontSize || 12, font, color: textColor,
                     });
                 }
             }
 
-            // Date field
             if (fields.date) {
                 getPage(fields.date.page).drawText(today, {
-                    x: fields.date.x,
-                    y: fields.date.y,
-                    size: fields.date.fontSize || 11,
-                    font,
-                    color: textColor,
+                    x: fields.date.x, y: fields.date.y,
+                    size: fields.date.fontSize || 11, font, color: textColor,
                 });
             }
 
-            // Address field
             if (fields.address && patientDetails?.address) {
                 const addr = patientDetails.address;
                 const addrStr = `${addr.street || ''} ${addr.houseNumber || ''}${addr.apartmentNumber ? '/' + addr.apartmentNumber : ''}, ${addr.postalCode || ''} ${addr.city || ''}`.trim();
                 if (addrStr.length > 3) {
                     getPage(fields.address.page).drawText(addrStr, {
-                        x: fields.address.x,
-                        y: fields.address.y,
-                        size: fields.address.fontSize || 10,
-                        font,
-                        color: textColor,
+                        x: fields.address.x, y: fields.address.y,
+                        size: fields.address.fontSize || 10, font, color: textColor,
                     });
                 }
             }
 
-            // City field
             if (fields.city && patientDetails?.address?.city) {
                 getPage(fields.city.page).drawText(patientDetails.address.city, {
-                    x: fields.city.x,
-                    y: fields.city.y,
-                    size: fields.city.fontSize || 11,
-                    font,
-                    color: textColor,
+                    x: fields.city.x, y: fields.city.y,
+                    size: fields.city.fontSize || 11, font, color: textColor,
                 });
             }
 
-            // Phone field
             if (fields.phone && patientDetails?.phone) {
                 getPage(fields.phone.page).drawText(patientDetails.phone, {
-                    x: fields.phone.x,
-                    y: fields.phone.y,
-                    size: fields.phone.fontSize || 10,
-                    font,
-                    color: textColor,
+                    x: fields.phone.x, y: fields.phone.y,
+                    size: fields.phone.fontSize || 10, font, color: textColor,
                 });
             }
         }
 
         const modifiedBytes = await pdfDoc.save();
-        const blob = new Blob([modifiedBytes.buffer as ArrayBuffer], { type: 'application/pdf' });
-        const url = URL.createObjectURL(blob);
-
-        return { url, bytes: modifiedBytes };
+        return new Uint8Array(modifiedBytes);
     };
+
+    // Render PDF when bytes change and we're viewing
+    useEffect(() => {
+        if (phase === 'viewing' && prefilledPdfBytes && pdfContainerRef.current) {
+            renderPdfToCanvases(prefilledPdfBytes);
+        }
+    }, [phase, prefilledPdfBytes, renderPdfToCanvases]);
 
     // Open consent for viewing (with pre-fill)
     const openConsent = async (consent: ConsentItem) => {
@@ -274,14 +312,19 @@ export default function ConsentSigningPage() {
         setPhase('preparing');
 
         try {
-            const { url, bytes } = await prefillPdf(consent);
-            setPrefilledPdfUrl(url);
+            const bytes = await prefillPdf(consent);
             setPrefilledPdfBytes(bytes);
             setPhase('viewing');
         } catch (err) {
             console.error('PDF prefill error:', err);
-            // Fallback — open without pre-fill
-            setPrefilledPdfUrl(consent.file);
+            // Fallback — load original without pre-fill
+            try {
+                const pdfRes = await fetch(consent.file);
+                const pdfBytes = await pdfRes.arrayBuffer();
+                setPrefilledPdfBytes(new Uint8Array(pdfBytes));
+            } catch {
+                // Can't even load the PDF
+            }
             setPhase('viewing');
         }
     };
@@ -301,88 +344,22 @@ export default function ConsentSigningPage() {
             // Get signature as PNG data URL
             const signatureDataUrl = canvasRef.current.toDataURL('image/png');
 
-            // ── STEP 1: Load original PDF ──
-            const pdfRes = await fetch(currentConsent.file);
-            const pdfBytes = await pdfRes.arrayBuffer();
-            const pdfDoc = await PDFDocument.load(pdfBytes);
-            const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+            // ── STEP 1: Load the pre-filled PDF (already has patient data) ──
+            let pdfDoc: any;
+            if (prefilledPdfBytes) {
+                pdfDoc = await PDFDocument.load(prefilledPdfBytes);
+            } else {
+                // Fallback: load original and re-fill
+                const pdfRes = await fetch(currentConsent.file);
+                const pdfBytes = await pdfRes.arrayBuffer();
+                pdfDoc = await PDFDocument.load(pdfBytes);
+            }
+
             const pages = pdfDoc.getPages();
-
-            /** Helper: get the correct page (1-indexed, default=1) */
-            const getPage = (pageNum?: number) => pages[Math.min((pageNum || 1) - 1, pages.length - 1)];
-
-            // Get field positions
             const consentTypeDef = CONSENT_TYPES[currentConsent.type];
             const fields = consentTypeDef?.fields;
 
-            // ── STEP 2: Pre-fill patient data ──
-            const today = new Date().toLocaleDateString('pl-PL');
-            const fullName = patientDetails
-                ? `${patientDetails.firstName} ${patientDetails.lastName}`
-                : patientName;
-            const pesel = patientDetails?.pesel || '';
-            const textColor = rgb(0.05, 0.05, 0.3);
-
-            if (fields) {
-                // Name
-                if (fields.name) {
-                    getPage(fields.name.page).drawText(fullName, {
-                        x: fields.name.x, y: fields.name.y,
-                        size: fields.name.fontSize || 11, font, color: textColor,
-                    });
-                }
-
-                // PESEL (each digit in its own box)
-                if (fields.pesel && pesel) {
-                    const peselPage = getPage(fields.pesel.page);
-                    const digits = pesel.split('');
-                    for (let i = 0; i < digits.length && i < 11; i++) {
-                        const digitX = fields.pesel.startX + (i * fields.pesel.boxWidth) + (fields.pesel.boxWidth / 2 - 3);
-                        peselPage.drawText(digits[i], {
-                            x: digitX, y: fields.pesel.y,
-                            size: fields.pesel.fontSize || 12, font, color: textColor,
-                        });
-                    }
-                }
-
-                // Date
-                if (fields.date) {
-                    getPage(fields.date.page).drawText(today, {
-                        x: fields.date.x, y: fields.date.y,
-                        size: fields.date.fontSize || 11, font, color: textColor,
-                    });
-                }
-
-                // Address
-                if (fields.address && patientDetails?.address) {
-                    const addr = patientDetails.address;
-                    const addrStr = `${addr.street || ''} ${addr.houseNumber || ''}${addr.apartmentNumber ? '/' + addr.apartmentNumber : ''}, ${addr.postalCode || ''} ${addr.city || ''}`.trim();
-                    if (addrStr.length > 3) {
-                        getPage(fields.address.page).drawText(addrStr, {
-                            x: fields.address.x, y: fields.address.y,
-                            size: fields.address.fontSize || 10, font, color: textColor,
-                        });
-                    }
-                }
-
-                // City
-                if (fields.city && patientDetails?.address?.city) {
-                    getPage(fields.city.page).drawText(patientDetails.address.city, {
-                        x: fields.city.x, y: fields.city.y,
-                        size: fields.city.fontSize || 11, font, color: textColor,
-                    });
-                }
-
-                // Phone
-                if (fields.phone && patientDetails?.phone) {
-                    getPage(fields.phone.page).drawText(patientDetails.phone, {
-                        x: fields.phone.x, y: fields.phone.y,
-                        size: fields.phone.fontSize || 10, font, color: textColor,
-                    });
-                }
-            }
-
-            // ── STEP 3: Patient signature (from canvas) ──
+            // ── STEP 2: Embed patient signature ──
             const signatureImageBytes = await fetch(signatureDataUrl).then(r => r.arrayBuffer());
             const signatureImage = await pdfDoc.embedPng(signatureImageBytes);
 
@@ -409,7 +386,7 @@ export default function ConsentSigningPage() {
                 });
             }
 
-            // ── STEP 4: Doctor signature (from staff-signatures DB) ──
+            // ── STEP 3: Doctor signature (from staff-signatures DB) ──
             const docSigPos = fields?.doctor_signature;
             if (docSigPos) {
                 try {
@@ -437,7 +414,7 @@ export default function ConsentSigningPage() {
                 }
             }
 
-            // ── STEP 5: Save and upload ──
+            // ── STEP 4: Save and upload ──
             const signedPdfBytes = await pdfDoc.save();
 
             const uint8 = new Uint8Array(signedPdfBytes);
@@ -466,11 +443,6 @@ export default function ConsentSigningPage() {
                 return;
             }
 
-            // Clean up blob URL
-            if (prefilledPdfUrl && prefilledPdfUrl.startsWith('blob:')) {
-                URL.revokeObjectURL(prefilledPdfUrl);
-            }
-            setPrefilledPdfUrl(null);
             setPrefilledPdfBytes(null);
 
             // Mark as signed locally
@@ -481,7 +453,7 @@ export default function ConsentSigningPage() {
             setPhase('list');
         } catch (err: any) {
             console.error('Sign error:', err);
-            alert('Błąd podczas zapisywania podpisu');
+            alert('Błąd podczas zapisywania podpisu: ' + (err?.message || 'Nieznany błąd'));
         }
         setSigning(false);
     };
@@ -524,15 +496,13 @@ export default function ConsentSigningPage() {
         );
     }
 
-    if (phase === 'viewing' && currentConsent && prefilledPdfUrl) {
+    if (phase === 'viewing' && currentConsent) {
         return (
             <div style={styles.container}>
                 <div style={{ ...styles.card, maxWidth: '900px', width: '95vw', height: '90vh', display: 'flex', flexDirection: 'column' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                         <h2 style={{ ...styles.title, margin: 0, fontSize: '1rem' }}>{currentConsent.label}</h2>
                         <button onClick={() => {
-                            if (prefilledPdfUrl.startsWith('blob:')) URL.revokeObjectURL(prefilledPdfUrl);
-                            setPrefilledPdfUrl(null);
                             setPrefilledPdfBytes(null);
                             setCurrentConsent(null);
                             setPhase('list');
@@ -561,11 +531,27 @@ export default function ConsentSigningPage() {
                         </div>
                     )}
 
-                    <iframe
-                        src={prefilledPdfUrl}
-                        style={{ flex: 1, border: 'none', borderRadius: '0.5rem', background: '#fff' }}
-                        title={currentConsent.label}
-                    />
+                    {/* PDF pages rendered via pdf.js canvases */}
+                    <div
+                        ref={pdfContainerRef}
+                        style={{
+                            flex: 1,
+                            overflowY: 'auto',
+                            borderRadius: '0.5rem',
+                            padding: '0.5rem',
+                            background: 'rgba(255,255,255,0.03)',
+                        }}
+                    >
+                        <div style={styles.spinner} />
+                        <p style={styles.loadingText}>Renderuję dokument...</p>
+                    </div>
+
+                    {pdfPageCount > 1 && (
+                        <div style={{ textAlign: 'center', fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', marginTop: '0.3rem' }}>
+                            Przewiń w dół aby zobaczyć wszystkie {pdfPageCount} stron(y)
+                        </div>
+                    )}
+
                     <button onClick={goToSigning} style={{ ...styles.primaryBtn, marginTop: '0.75rem' }}>
                         ✍️ Przejdź do podpisania
                     </button>
