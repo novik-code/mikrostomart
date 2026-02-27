@@ -7,9 +7,15 @@ const supabase = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+const PRODENTIS_API = process.env.PRODENTIS_API_URL || 'http://83.230.40.14:3000';
+const PRODENTIS_API_KEY = process.env.PRODENTIS_API_KEY || '2c9bd5b4-5090-4007-8f06-936811bd0947';
+
 /**
  * POST /api/consents/sign
- * Accepts signed PDF (base64) and saves to Supabase Storage + DB.
+ * Accepts signed PDF (base64):
+ * 1. Saves to Supabase Storage
+ * 2. Creates patient_consents record
+ * 3. Uploads to Prodentis via API v8.0
  * Body: { token, consentType, signedPdfBase64, signatureDataUrl }
  */
 export async function POST(req: NextRequest) {
@@ -75,6 +81,42 @@ export async function POST(req: NextRequest) {
 
         const fileUrl = urlData?.publicUrl || storagePath;
 
+        // Upload to Prodentis via API v8.0
+        let prodentisSynced = false;
+        let prodentisDocumentId: string | null = null;
+        if (tokenRow.prodentis_patient_id) {
+            try {
+                const prodentisRes = await fetch(
+                    `${PRODENTIS_API}/api/patients/${tokenRow.prodentis_patient_id}/documents`,
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-API-Key': PRODENTIS_API_KEY,
+                        },
+                        body: JSON.stringify({
+                            fileBase64: signedPdfBase64,
+                            fileName,
+                            category: 'consent',
+                            description: `${consentInfo.label} — ${tokenRow.patient_name} — ${date}`,
+                        }),
+                    }
+                );
+
+                if (prodentisRes.ok) {
+                    const prodentisData = await prodentisRes.json();
+                    prodentisSynced = true;
+                    prodentisDocumentId = prodentisData.documentId || null;
+                    console.log(`[ConsentSign] Uploaded to Prodentis: ${prodentisDocumentId}`);
+                } else {
+                    const errText = await prodentisRes.text();
+                    console.error('[ConsentSign] Prodentis upload failed:', errText);
+                }
+            } catch (e) {
+                console.error('[ConsentSign] Prodentis upload error:', e);
+            }
+        }
+
         // Save record
         const { data: consent, error: insertErr } = await supabase
             .from('patient_consents')
@@ -87,7 +129,8 @@ export async function POST(req: NextRequest) {
                 file_name: fileName,
                 signature_data: signatureDataUrl || null,
                 created_by: tokenRow.created_by || null,
-                prodentis_synced: false,
+                prodentis_synced: prodentisSynced,
+                metadata: prodentisDocumentId ? { prodentis_document_id: prodentisDocumentId } : {},
             })
             .select('id')
             .single();
@@ -99,6 +142,8 @@ export async function POST(req: NextRequest) {
             consentId: consent.id,
             fileName,
             fileUrl,
+            prodentisSynced,
+            prodentisDocumentId,
         });
     } catch (err: any) {
         console.error('[ConsentSign] Error:', err);

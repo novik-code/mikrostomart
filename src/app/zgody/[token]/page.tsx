@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'next/navigation';
-import { PDFDocument } from 'pdf-lib';
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 
 interface ConsentItem {
     type: string;
@@ -11,7 +11,30 @@ interface ConsentItem {
     signed: boolean;
 }
 
-type Phase = 'loading' | 'error' | 'list' | 'viewing' | 'signing' | 'done';
+interface PatientDetails {
+    firstName: string;
+    lastName: string;
+    pesel: string;
+    birthDate: string;
+    phone: string;
+    address: { street: string; houseNumber: string; apartmentNumber: string; postalCode: string; city: string } | null;
+}
+
+type Phase = 'loading' | 'error' | 'list' | 'preparing' | 'viewing' | 'signing' | 'done';
+
+/**
+ * PDF field positions per consent type — where to overlay patient data.
+ * x, y are in PDF points (1pt = 1/72 inch), from bottom-left corner.
+ * A4 = 595 x 842 points.
+ */
+const PDF_FIELD_POSITIONS: Record<string, { name?: { x: number; y: number }; pesel?: { x: number; y: number }; date?: { x: number; y: number }; address?: { x: number; y: number } }> = {
+    // Default positions — most consent forms have name near top, PESEL below
+    _default: {
+        name: { x: 70, y: 742 },
+        pesel: { x: 70, y: 720 },
+        date: { x: 420, y: 742 },
+    },
+};
 
 export default function ConsentSigningPage() {
     const params = useParams();
@@ -21,9 +44,12 @@ export default function ConsentSigningPage() {
     const [error, setError] = useState('');
     const [patientName, setPatientName] = useState('');
     const [prodentisPatientId, setProdentisPatientId] = useState('');
+    const [patientDetails, setPatientDetails] = useState<PatientDetails | null>(null);
     const [consents, setConsents] = useState<ConsentItem[]>([]);
     const [currentConsent, setCurrentConsent] = useState<ConsentItem | null>(null);
     const [signing, setSigning] = useState(false);
+    const [prefilledPdfUrl, setPrefilledPdfUrl] = useState<string | null>(null);
+    const [prefilledPdfBytes, setPrefilledPdfBytes] = useState<Uint8Array | null>(null);
 
     // Canvas signature
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -51,6 +77,7 @@ export default function ConsentSigningPage() {
                 const data = await res.json();
                 setPatientName(data.patientName);
                 setProdentisPatientId(data.prodentisPatientId || '');
+                setPatientDetails(data.patientDetails || null);
                 setConsents(data.consents);
                 setPhase('list');
             } catch {
@@ -141,10 +168,112 @@ export default function ConsentSigningPage() {
         setHasDrawn(false);
     };
 
-    // Open consent for viewing
-    const openConsent = (consent: ConsentItem) => {
+    /**
+     * Pre-fill a PDF with patient data using pdf-lib.
+     * Overlays name, PESEL, and date onto the first page.
+     */
+    const prefillPdf = async (consent: ConsentItem): Promise<{ url: string; bytes: Uint8Array }> => {
+        // Fetch original PDF
+        const pdfRes = await fetch(consent.file);
+        const pdfBytes = await pdfRes.arrayBuffer();
+
+        const pdfDoc = await PDFDocument.load(pdfBytes);
+        const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+        const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+        const pages = pdfDoc.getPages();
+        const firstPage = pages[0];
+        const { height: pageHeight } = firstPage.getSize();
+
+        const positions = PDF_FIELD_POSITIONS[consent.type] || PDF_FIELD_POSITIONS._default;
+        const today = new Date().toLocaleDateString('pl-PL');
+        const fullName = patientDetails
+            ? `${patientDetails.firstName} ${patientDetails.lastName}`
+            : patientName;
+        const pesel = patientDetails?.pesel || '';
+
+        // Draw patient info header block at top
+        const headerX = 70;
+        const headerStartY = pageHeight - 60;
+        const fontSize = 10;
+        const lineHeight = 14;
+
+        // Semi-transparent white background for readability
+        firstPage.drawRectangle({
+            x: headerX - 5,
+            y: headerStartY - lineHeight * 4 - 5,
+            width: 350,
+            height: lineHeight * 4 + 15,
+            color: rgb(1, 1, 1),
+            opacity: 0.85,
+        });
+
+        // Patient name
+        firstPage.drawText(`Pacjent: ${fullName}`, {
+            x: headerX,
+            y: headerStartY,
+            size: fontSize,
+            font: boldFont,
+            color: rgb(0, 0, 0),
+        });
+
+        // PESEL
+        if (pesel) {
+            firstPage.drawText(`PESEL: ${pesel}`, {
+                x: headerX,
+                y: headerStartY - lineHeight,
+                size: fontSize,
+                font,
+                color: rgb(0, 0, 0),
+            });
+        }
+
+        // Date
+        firstPage.drawText(`Data: ${today}`, {
+            x: headerX,
+            y: headerStartY - lineHeight * 2,
+            size: fontSize,
+            font,
+            color: rgb(0, 0, 0),
+        });
+
+        // Address if available
+        if (patientDetails?.address) {
+            const addr = patientDetails.address;
+            const addrStr = `${addr.street || ''} ${addr.houseNumber || ''}${addr.apartmentNumber ? '/' + addr.apartmentNumber : ''}, ${addr.postalCode || ''} ${addr.city || ''}`.trim();
+            if (addrStr.length > 3) {
+                firstPage.drawText(`Adres: ${addrStr}`, {
+                    x: headerX,
+                    y: headerStartY - lineHeight * 3,
+                    size: fontSize - 1,
+                    font,
+                    color: rgb(0.2, 0.2, 0.2),
+                });
+            }
+        }
+
+        const modifiedBytes = await pdfDoc.save();
+        const blob = new Blob([modifiedBytes.buffer as ArrayBuffer], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+
+        return { url, bytes: modifiedBytes };
+    };
+
+    // Open consent for viewing (with pre-fill)
+    const openConsent = async (consent: ConsentItem) => {
         setCurrentConsent(consent);
-        setPhase('viewing');
+        setPhase('preparing');
+
+        try {
+            const { url, bytes } = await prefillPdf(consent);
+            setPrefilledPdfUrl(url);
+            setPrefilledPdfBytes(bytes);
+            setPhase('viewing');
+        } catch (err) {
+            console.error('PDF prefill error:', err);
+            // Fallback — open without pre-fill
+            setPrefilledPdfUrl(consent.file);
+            setPhase('viewing');
+        }
     };
 
     // Go to signing phase
@@ -162,12 +291,16 @@ export default function ConsentSigningPage() {
             // Get signature as PNG data URL
             const signatureDataUrl = canvasRef.current.toDataURL('image/png');
 
-            // Fetch the original PDF
-            const pdfRes = await fetch(currentConsent.file);
-            const pdfBytes = await pdfRes.arrayBuffer();
+            // Use pre-filled PDF bytes or fetch original
+            let pdfDoc: PDFDocument;
+            if (prefilledPdfBytes) {
+                pdfDoc = await PDFDocument.load(prefilledPdfBytes);
+            } else {
+                const pdfRes = await fetch(currentConsent.file);
+                const pdfBytes = await pdfRes.arrayBuffer();
+                pdfDoc = await PDFDocument.load(pdfBytes);
+            }
 
-            // Embed signature on last page using pdf-lib
-            const pdfDoc = await PDFDocument.load(pdfBytes);
             const pages = pdfDoc.getPages();
             const lastPage = pages[pages.length - 1];
 
@@ -175,7 +308,7 @@ export default function ConsentSigningPage() {
             const signatureImageBytes = await fetch(signatureDataUrl).then(r => r.arrayBuffer());
             const signatureImage = await pdfDoc.embedPng(signatureImageBytes);
 
-            // Place signature at bottom of last page (adjustable)
+            // Place signature at bottom of last page
             const { width: pageWidth } = lastPage.getSize();
             const sigWidth = 200;
             const sigHeight = (signatureImage.height / signatureImage.width) * sigWidth;
@@ -188,9 +321,15 @@ export default function ConsentSigningPage() {
 
             // Save modified PDF
             const signedPdfBytes = await pdfDoc.save();
-            const signedPdfBase64 = btoa(
-                String.fromCharCode(...new Uint8Array(signedPdfBytes))
-            );
+
+            // Convert to base64 in chunks (avoid stack overflow for large PDFs)
+            const uint8 = new Uint8Array(signedPdfBytes);
+            let binary = '';
+            const chunkSize = 8192;
+            for (let i = 0; i < uint8.length; i += chunkSize) {
+                binary += String.fromCharCode(...uint8.slice(i, i + chunkSize));
+            }
+            const signedPdfBase64 = btoa(binary);
 
             // Upload
             const res = await fetch('/api/consents/sign', {
@@ -210,6 +349,13 @@ export default function ConsentSigningPage() {
                 setSigning(false);
                 return;
             }
+
+            // Clean up blob URL
+            if (prefilledPdfUrl && prefilledPdfUrl.startsWith('blob:')) {
+                URL.revokeObjectURL(prefilledPdfUrl);
+            }
+            setPrefilledPdfUrl(null);
+            setPrefilledPdfBytes(null);
 
             // Mark as signed locally
             setConsents(prev =>
@@ -251,18 +397,56 @@ export default function ConsentSigningPage() {
         );
     }
 
-    if (phase === 'viewing' && currentConsent) {
+    if (phase === 'preparing') {
+        return (
+            <div style={styles.container}>
+                <div style={styles.card}>
+                    <div style={styles.spinner} />
+                    <p style={styles.loadingText}>Przygotowuję dokument...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (phase === 'viewing' && currentConsent && prefilledPdfUrl) {
         return (
             <div style={styles.container}>
                 <div style={{ ...styles.card, maxWidth: '900px', width: '95vw', height: '90vh', display: 'flex', flexDirection: 'column' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                         <h2 style={{ ...styles.title, margin: 0, fontSize: '1rem' }}>{currentConsent.label}</h2>
-                        <button onClick={() => { setCurrentConsent(null); setPhase('list'); }} style={styles.backBtn}>
+                        <button onClick={() => {
+                            if (prefilledPdfUrl.startsWith('blob:')) URL.revokeObjectURL(prefilledPdfUrl);
+                            setPrefilledPdfUrl(null);
+                            setPrefilledPdfBytes(null);
+                            setCurrentConsent(null);
+                            setPhase('list');
+                        }} style={styles.backBtn}>
                             ← Wróć
                         </button>
                     </div>
+
+                    {/* Patient info banner */}
+                    {patientDetails && (
+                        <div style={{
+                            background: 'rgba(56, 189, 248, 0.08)',
+                            borderRadius: '0.5rem',
+                            padding: '0.4rem 0.75rem',
+                            marginBottom: '0.5rem',
+                            fontSize: '0.72rem',
+                            color: 'rgba(255,255,255,0.7)',
+                            display: 'flex',
+                            gap: '1rem',
+                            flexWrap: 'wrap',
+                            border: '1px solid rgba(56,189,248,0.12)',
+                        }}>
+                            <span>👤 <b style={{ color: '#fff' }}>{patientDetails.firstName} {patientDetails.lastName}</b></span>
+                            {patientDetails.pesel && <span>🆔 {patientDetails.pesel}</span>}
+                            <span>📅 {new Date().toLocaleDateString('pl-PL')}</span>
+                        </div>
+                    )}
+
                     <iframe
-                        src={currentConsent.file}
+                        src={prefilledPdfUrl}
                         style={{ flex: 1, border: 'none', borderRadius: '0.5rem', background: '#fff' }}
                         title={currentConsent.label}
                     />
@@ -286,6 +470,7 @@ export default function ConsentSigningPage() {
                         borderRadius: '0.75rem',
                         background: '#fff',
                         marginBottom: '1rem',
+                        marginTop: '0.75rem',
                         position: 'relative',
                         overflow: 'hidden',
                     }}>
@@ -362,6 +547,12 @@ export default function ConsentSigningPage() {
                 }}>
                     <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)' }}>Pacjent</div>
                     <div style={{ fontSize: '1rem', fontWeight: 'bold', color: '#fff' }}>{patientName}</div>
+                    {patientDetails && (
+                        <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)', marginTop: '0.15rem' }}>
+                            {patientDetails.pesel && `PESEL: ${patientDetails.pesel}`}
+                            {patientDetails.birthDate && ` • ur. ${new Date(patientDetails.birthDate).toLocaleDateString('pl-PL')}`}
+                        </div>
+                    )}
                 </div>
 
                 {allSigned ? (

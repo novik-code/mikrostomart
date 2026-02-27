@@ -7,9 +7,11 @@ const supabase = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+const PRODENTIS_API = process.env.PRODENTIS_API_URL || 'http://83.230.40.14:3000';
+
 /**
  * POST /api/consents/verify
- * Verifies consent token and returns consent list.
+ * Verifies consent token and returns consent list + patient details from Prodentis.
  * Body: { token }
  */
 export async function POST(req: NextRequest) {
@@ -53,9 +55,33 @@ export async function POST(req: NextRequest) {
                 signed: signedTypes.has(ct),
             }));
 
+        // Fetch patient details from Prodentis for PDF pre-fill
+        let patientDetails: any = null;
+        if (tokenRow.prodentis_patient_id) {
+            try {
+                const detailsRes = await fetch(
+                    `${PRODENTIS_API}/api/patient/${tokenRow.prodentis_patient_id}/details`
+                );
+                if (detailsRes.ok) {
+                    const details = await detailsRes.json();
+                    patientDetails = {
+                        firstName: details.firstName || '',
+                        lastName: details.lastName || '',
+                        pesel: details.pesel || '',
+                        birthDate: details.birthDate || '',
+                        phone: details.phone || '',
+                        address: details.address || null,
+                    };
+                }
+            } catch (e) {
+                console.error('[ConsentVerify] Prodentis details fetch error:', e);
+            }
+        }
+
         return NextResponse.json({
             patientName: tokenRow.patient_name,
             prodentisPatientId: tokenRow.prodentis_patient_id,
+            patientDetails,
             consents,
         });
     } catch (err: any) {
