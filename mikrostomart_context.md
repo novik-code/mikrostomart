@@ -1788,6 +1788,7 @@ NODE_ENV=production
 - `9d9207a` — feat: long-press (500ms) opens color/icon menu on mobile
 - `0da0e11` — feat: auto-add 'Pacjent potwierdzony' icon on confirmation, remove email notifications
 - `f45c0df` — feat: consent signing system — tablet PDF signing + employee panel
+- `ea00263` — feat: pre-fill consent PDFs with patient data + auto-upload to Prodentis
 
 #### New Features:
 1. **Online Booking System**: Patient books on website → saves to `online_bookings` (pending) → admin approves → auto-schedules in Prodentis
@@ -1800,7 +1801,7 @@ NODE_ENV=production
 8. **Admin Patient Picker**: When match is ambiguous (needs_review), admin sees candidate list with % scores and "Wybierz" button to pick correct patient
 9. **Schedule Color/Icon Management**: Right-click (desktop) or long-press 500ms (mobile) any future appointment in employee grafik → context menu with color picker and icon buttons. Past appointments blocked.
 10. **Auto-Icon on Patient Confirmation**: When patient confirms via SMS landing page, system auto-adds 'Pacjent potwierdzony' icon (0000000010) in Prodentis. Email notifications removed from both confirm and cancel endpoints (spam reduction). Telegram + Push kept.
-11. **Consent Signing System**: Employee generates consent token → QR code on tablet → patient views PDF, signs on canvas → pdf-lib merges signature into PDF → uploads to Supabase Storage. Employee panel: 📝 Zgody button, consent type checkboxes, QR code, signed consents list, e-karta signature viewer.
+11. **Consent Signing System**: Employee generates consent token → QR code on tablet → patient views PDF pre-filled with name/PESEL/date/address from Prodentis, signs on canvas → pdf-lib merges data+signature into PDF → uploads to Supabase Storage + auto-uploads to Prodentis v8.0. Employee panel: 📝 Zgody button, consent type checkboxes, QR code, signed consents list, e-karta signature viewer.
 
 #### Database:
 - Migration 056: `online_bookings` table with RLS + indexes
