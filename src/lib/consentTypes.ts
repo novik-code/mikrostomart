@@ -43,6 +43,8 @@ export interface ConsentFieldMap {
     tooth?: FieldPosition;
     /** Doctor signature image position (pre-saved PNG from admin panel) */
     doctor_signature?: FieldPosition;
+    /** Patient signature position (drawn on tablet canvas) */
+    patient_signature?: FieldPosition;
 }
 
 export interface ConsentType {

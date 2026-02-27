@@ -3,10 +3,12 @@
 import { useState, useRef, useCallback } from 'react';
 import { CONSENT_TYPES } from '@/lib/consentTypes';
 
-type FieldType = 'name' | 'pesel' | 'date' | 'address' | 'city' | 'phone' | 'doctor' | 'tooth' | 'doctor_signature';
+type FieldType = 'name' | 'pesel' | 'date' | 'address' | 'city' | 'phone' | 'doctor' | 'tooth' | 'doctor_signature' | 'patient_signature';
 
 interface PlacedField {
     type: FieldType;
+    /** Which page this field is on (1-indexed) */
+    page: number;
     /** Normalized 0-1 position on display */
     nx: number;
     ny: number;
@@ -24,15 +26,29 @@ const FIELD_LABELS: Record<FieldType, { label: string; color: string }> = {
     phone: { label: 'Telefon', color: '#06b6d4' },
     doctor: { label: 'Lekarz (tekst)', color: '#ef4444' },
     tooth: { label: 'Ząb', color: '#f97316' },
-    doctor_signature: { label: 'Podpis lekarza (obraz)', color: '#8b5cf6' },
+    doctor_signature: { label: 'Podpis lekarza', color: '#8b5cf6' },
+    patient_signature: { label: 'Podpis pacjenta', color: '#14b8a6' },
 };
 
 /** Known PDF page sizes in pts (width x height) */
 const PDF_SIZES: Record<string, { w: number; h: number }> = {
     protetyka_implant: { w: 595.3, h: 841.9 }, // A4
-    // All others are US Letter
 };
 const DEFAULT_SIZE = { w: 612, h: 792 };
+
+/** Known number of pages per consent PDF */
+const PDF_PAGES: Record<string, number> = {
+    higienizacja: 1,
+    znieczulenie: 1,
+    chirurgiczne: 2,
+    protetyczne: 2,
+    endodontyczne: 2,
+    zachowawcze: 2,
+    protetyka_implant: 2,
+    rtg: 1,
+    implantacja: 3,
+    wizerunek: 1,
+};
 
 const CONSENT_KEYS = Object.keys(CONSENT_TYPES);
 
@@ -41,12 +57,20 @@ export default function PdfMapperPage() {
     const [activeField, setActiveField] = useState<FieldType>('name');
     const [allMappings, setAllMappings] = useState<Record<string, PlacedField[]>>({});
     const [showExport, setShowExport] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1);
     const overlayRef = useRef<HTMLDivElement>(null);
 
     const fields = allMappings[selectedConsent] || [];
+    const fieldsOnPage = fields.filter(f => f.page === currentPage);
     const pdfSize = PDF_SIZES[selectedConsent] || DEFAULT_SIZE;
+    const totalPages = PDF_PAGES[selectedConsent] || 1;
     const consentType = CONSENT_TYPES[selectedConsent];
     const pdfUrl = consentType ? `/zgody/${consentType.file}` : '';
+
+    const handleConsentChange = (key: string) => {
+        setSelectedConsent(key);
+        setCurrentPage(1);
+    };
 
     const handleClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
         const div = overlayRef.current;
@@ -60,7 +84,7 @@ export default function PdfMapperPage() {
         const pdfX = Math.round(nx * pdfSize.w * 10) / 10;
         const pdfY = Math.round((1 - ny) * pdfSize.h * 10) / 10;
 
-        const newField: PlacedField = { type: activeField, nx, ny, pdfX, pdfY };
+        const newField: PlacedField = { type: activeField, page: currentPage, nx, ny, pdfX, pdfY };
 
         setAllMappings(prev => {
             const existing = prev[selectedConsent] || [];
@@ -68,7 +92,7 @@ export default function PdfMapperPage() {
             updated.push(newField);
             return { ...prev, [selectedConsent]: updated };
         });
-    }, [activeField, selectedConsent, pdfSize]);
+    }, [activeField, selectedConsent, pdfSize, currentPage]);
 
     const removeField = (type: FieldType) => {
         setAllMappings(prev => {
@@ -86,10 +110,13 @@ export default function PdfMapperPage() {
             lines.push(`        file: '${CONSENT_TYPES[key]?.file || ''}',`);
             lines.push(`        fields: {`);
             for (const f of flds) {
+                const pageNote = f.page > 1 ? ` // page ${f.page}` : '';
                 if (f.type === 'pesel') {
-                    lines.push(`            pesel: { startX: ${f.pdfX}, y: ${f.pdfY}, boxWidth: 23.5, fontSize: 12 },`);
+                    lines.push(`            pesel: { startX: ${f.pdfX}, y: ${f.pdfY}, boxWidth: 23.5, fontSize: 12, page: ${f.page} },${pageNote}`);
+                } else if (f.type === 'patient_signature' || f.type === 'doctor_signature') {
+                    lines.push(`            ${f.type}: { x: ${f.pdfX}, y: ${f.pdfY}, page: ${f.page} },${pageNote}`);
                 } else {
-                    lines.push(`            ${f.type}: { x: ${f.pdfX}, y: ${f.pdfY}, fontSize: 11 },`);
+                    lines.push(`            ${f.type}: { x: ${f.pdfX}, y: ${f.pdfY}, fontSize: 11, page: ${f.page} },${pageNote}`);
                 }
             }
             lines.push(`        },`);
@@ -116,7 +143,7 @@ export default function PdfMapperPage() {
                     {CONSENT_KEYS.map(key => (
                         <button
                             key={key}
-                            onClick={() => setSelectedConsent(key)}
+                            onClick={() => handleConsentChange(key)}
                             style={{
                                 padding: '0.25rem 0.5rem',
                                 borderRadius: '0.3rem',
@@ -159,6 +186,61 @@ export default function PdfMapperPage() {
             <div style={{ display: 'flex', gap: '0.75rem', padding: '0.75rem' }}>
                 {/* PDF area with overlay */}
                 <div style={{ flex: 1, position: 'relative' }}>
+                    {/* Page navigation */}
+                    {totalPages > 1 && (
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '0.5rem',
+                            marginBottom: '0.5rem',
+                        }}>
+                            <button
+                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                disabled={currentPage <= 1}
+                                style={{
+                                    padding: '0.4rem 0.8rem',
+                                    background: currentPage <= 1 ? 'rgba(255,255,255,0.05)' : 'rgba(56,189,248,0.15)',
+                                    border: '1px solid rgba(255,255,255,0.15)',
+                                    borderRadius: '0.4rem',
+                                    color: currentPage <= 1 ? 'rgba(255,255,255,0.3)' : '#38bdf8',
+                                    fontSize: '0.8rem',
+                                    cursor: currentPage <= 1 ? 'default' : 'pointer',
+                                    fontWeight: 'bold',
+                                }}
+                            >
+                                ← Poprzednia
+                            </button>
+                            <div style={{
+                                padding: '0.4rem 1rem',
+                                background: 'rgba(56,189,248,0.1)',
+                                borderRadius: '0.4rem',
+                                border: '1px solid rgba(56,189,248,0.3)',
+                                fontWeight: 'bold',
+                                fontSize: '0.85rem',
+                                color: '#38bdf8',
+                            }}>
+                                Strona {currentPage} / {totalPages}
+                            </div>
+                            <button
+                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                disabled={currentPage >= totalPages}
+                                style={{
+                                    padding: '0.4rem 0.8rem',
+                                    background: currentPage >= totalPages ? 'rgba(255,255,255,0.05)' : 'rgba(56,189,248,0.15)',
+                                    border: '1px solid rgba(255,255,255,0.15)',
+                                    borderRadius: '0.4rem',
+                                    color: currentPage >= totalPages ? 'rgba(255,255,255,0.3)' : '#38bdf8',
+                                    fontSize: '0.8rem',
+                                    cursor: currentPage >= totalPages ? 'default' : 'pointer',
+                                    fontWeight: 'bold',
+                                }}
+                            >
+                                Następna →
+                            </button>
+                        </div>
+                    )}
+
                     <div style={{
                         position: 'relative',
                         width: '100%',
@@ -168,10 +250,10 @@ export default function PdfMapperPage() {
                         border: '1px solid rgba(255,255,255,0.1)',
                         background: '#fff',
                     }}>
-                        {/* PDF iframe */}
+                        {/* PDF iframe — use #page=N to navigate */}
                         <iframe
-                            key={selectedConsent}
-                            src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=0`}
+                            key={`${selectedConsent}-p${currentPage}`}
+                            src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=0&page=${currentPage}`}
                             style={{
                                 position: 'absolute',
                                 top: 0, left: 0,
@@ -179,7 +261,7 @@ export default function PdfMapperPage() {
                                 height: '100%',
                                 border: 'none',
                             }}
-                            title="PDF preview"
+                            title={`PDF page ${currentPage}`}
                         />
 
                         {/* Click capture overlay */}
@@ -195,8 +277,8 @@ export default function PdfMapperPage() {
                                 zIndex: 10,
                             }}
                         >
-                            {/* Placed markers */}
-                            {fields.map(f => (
+                            {/* Placed markers for current page only */}
+                            {fieldsOnPage.map(f => (
                                 <div
                                     key={f.type}
                                     style={{
@@ -241,7 +323,7 @@ export default function PdfMapperPage() {
                         color: 'rgba(255,255,255,0.35)',
                         textAlign: 'center',
                     }}>
-                        PDF: {pdfSize.w} × {pdfSize.h} pts • Kliknij na dokument aby wyznaczyć pole &quot;{FIELD_LABELS[activeField].label}&quot;
+                        PDF: {pdfSize.w} × {pdfSize.h} pts • Strona {currentPage}/{totalPages} • Kliknij aby wyznaczyć &quot;{FIELD_LABELS[activeField].label}&quot;
                     </div>
                 </div>
 
@@ -269,16 +351,17 @@ export default function PdfMapperPage() {
                                         justifyContent: 'space-between',
                                         alignItems: 'center',
                                         padding: '0.35rem 0.5rem',
-                                        background: 'rgba(255,255,255,0.03)',
+                                        background: f.page === currentPage ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.02)',
                                         borderRadius: '0.35rem',
                                         borderLeft: `3px solid ${FIELD_LABELS[f.type].color}`,
+                                        opacity: f.page === currentPage ? 1 : 0.5,
                                     }}>
                                         <div>
                                             <div style={{ fontSize: '0.67rem', color: FIELD_LABELS[f.type].color, fontWeight: 'bold' }}>
                                                 {FIELD_LABELS[f.type].label}
                                             </div>
                                             <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)', fontFamily: 'monospace' }}>
-                                                x={f.pdfX} y={f.pdfY}
+                                                s.{f.page} x={f.pdfX} y={f.pdfY}
                                             </div>
                                         </div>
                                         <button
