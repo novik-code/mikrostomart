@@ -36,6 +36,8 @@ export default function ConsentSigningPage() {
     const [currentConsent, setCurrentConsent] = useState<ConsentItem | null>(null);
     const [signing, setSigning] = useState(false);
     const [prefilledPdfBytes, setPrefilledPdfBytes] = useState<Uint8Array | null>(null);
+    const [prefillOk, setPrefillOk] = useState(true);
+    const [prefillError, setPrefillError] = useState<string | null>(null);
 
     // PDF.js page rendering
     const pdfContainerRef = useRef<HTMLDivElement>(null);
@@ -310,13 +312,18 @@ export default function ConsentSigningPage() {
     const openConsent = async (consent: ConsentItem) => {
         setCurrentConsent(consent);
         setPhase('preparing');
+        setPrefillOk(true);
+        setPrefillError(null);
 
         try {
             const bytes = await prefillPdf(consent);
             setPrefilledPdfBytes(bytes);
+            setPrefillOk(true);
             setPhase('viewing');
-        } catch (err) {
+        } catch (err: any) {
             console.error('PDF prefill error:', err);
+            setPrefillOk(false);
+            setPrefillError(err?.message || 'Nieznany błąd');
             // Fallback — load original without pre-fill
             try {
                 const pdfRes = await fetch(consent.file);
@@ -498,61 +505,87 @@ export default function ConsentSigningPage() {
 
     if (phase === 'viewing' && currentConsent) {
         return (
-            <div style={styles.container}>
-                <div style={{ ...styles.card, maxWidth: '900px', width: '95vw', height: '90vh', display: 'flex', flexDirection: 'column' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                        <h2 style={{ ...styles.title, margin: 0, fontSize: '1rem' }}>{currentConsent.label}</h2>
-                        <button onClick={() => {
-                            setPrefilledPdfBytes(null);
-                            setCurrentConsent(null);
-                            setPhase('list');
-                        }} style={styles.backBtn}>
-                            ← Wróć
-                        </button>
+            <div style={{ ...styles.container, flexDirection: 'column', padding: 0 }}>
+                {/* Header bar - always visible at top */}
+                <div style={{
+                    position: 'sticky', top: 0, zIndex: 10,
+                    background: 'rgba(20, 20, 35, 0.98)',
+                    borderBottom: '1px solid rgba(56, 189, 248, 0.15)',
+                    padding: '0.5rem 1rem',
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    backdropFilter: 'blur(10px)',
+                }}>
+                    <h2 style={{ ...styles.title, margin: 0, fontSize: '0.95rem' }}>{currentConsent.label}</h2>
+                    <button onClick={() => {
+                        setPrefilledPdfBytes(null);
+                        setCurrentConsent(null);
+                        setPhase('list');
+                    }} style={styles.backBtn}>
+                        ← Wróć
+                    </button>
+                </div>
+
+                {/* Warning if prefill failed */}
+                {!prefillOk && (
+                    <div style={{
+                        background: 'rgba(255, 150, 50, 0.15)',
+                        border: '1px solid rgba(255, 150, 50, 0.4)',
+                        padding: '0.5rem 1rem',
+                        fontSize: '0.75rem',
+                        color: '#ffaa44',
+                        textAlign: 'center',
+                    }}>
+                        ⚠️ Dane pacjenta nie zostały wstawione — {prefillError || 'błąd prefill'}.
+                        Podpis nadal można złożyć.
                     </div>
+                )}
 
-                    {/* Patient info banner */}
-                    {patientDetails && (
-                        <div style={{
-                            background: 'rgba(56, 189, 248, 0.08)',
-                            borderRadius: '0.5rem',
-                            padding: '0.4rem 0.75rem',
-                            marginBottom: '0.5rem',
-                            fontSize: '0.72rem',
-                            color: 'rgba(255,255,255,0.7)',
-                            display: 'flex',
-                            gap: '1rem',
-                            flexWrap: 'wrap',
-                            border: '1px solid rgba(56,189,248,0.12)',
-                        }}>
-                            <span>👤 <b style={{ color: '#fff' }}>{patientDetails.firstName} {patientDetails.lastName}</b></span>
-                            {patientDetails.pesel && <span>🆔 {patientDetails.pesel}</span>}
-                            <span>📅 {new Date().toLocaleDateString('pl-PL')}</span>
-                        </div>
-                    )}
-
-                    {/* PDF pages rendered via pdf.js canvases */}
-                    <div
-                        ref={pdfContainerRef}
-                        style={{
-                            flex: 1,
-                            overflowY: 'auto',
-                            borderRadius: '0.5rem',
-                            padding: '0.5rem',
-                            background: 'rgba(255,255,255,0.03)',
-                        }}
-                    >
-                        <div style={styles.spinner} />
-                        <p style={styles.loadingText}>Renderuję dokument...</p>
+                {/* Patient info banner */}
+                {patientDetails && (
+                    <div style={{
+                        background: 'rgba(56, 189, 248, 0.08)',
+                        padding: '0.35rem 1rem',
+                        fontSize: '0.72rem',
+                        color: 'rgba(255,255,255,0.7)',
+                        display: 'flex',
+                        gap: '1rem',
+                        flexWrap: 'wrap',
+                        borderBottom: '1px solid rgba(56,189,248,0.1)',
+                    }}>
+                        <span>👤 <b style={{ color: '#fff' }}>{patientDetails.firstName} {patientDetails.lastName}</b></span>
+                        {patientDetails.pesel && <span>🆔 {patientDetails.pesel}</span>}
+                        <span>📅 {new Date().toLocaleDateString('pl-PL')}</span>
                     </div>
+                )}
 
+                {/* PDF pages rendered via pdf.js canvases — scrollable area */}
+                <div
+                    ref={pdfContainerRef}
+                    style={{
+                        flex: 1,
+                        overflowY: 'auto',
+                        padding: '0.5rem',
+                        background: 'rgba(255,255,255,0.03)',
+                    }}
+                >
+                    <div style={styles.spinner} />
+                    <p style={styles.loadingText}>Renderuję dokument...</p>
+                </div>
+
+                {/* Footer bar — ALWAYS visible at bottom */}
+                <div style={{
+                    position: 'sticky', bottom: 0, zIndex: 10,
+                    background: 'rgba(20, 20, 35, 0.98)',
+                    borderTop: '1px solid rgba(56, 189, 248, 0.15)',
+                    padding: '0.75rem 1rem',
+                    backdropFilter: 'blur(10px)',
+                }}>
                     {pdfPageCount > 1 && (
-                        <div style={{ textAlign: 'center', fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', marginTop: '0.3rem' }}>
-                            Przewiń w dół aby zobaczyć wszystkie {pdfPageCount} stron(y)
+                        <div style={{ textAlign: 'center', fontSize: '0.65rem', color: 'rgba(255,255,255,0.35)', marginBottom: '0.4rem' }}>
+                            Przewiń aby zobaczyć {pdfPageCount} stron(y)
                         </div>
                     )}
-
-                    <button onClick={goToSigning} style={{ ...styles.primaryBtn, marginTop: '0.75rem' }}>
+                    <button onClick={goToSigning} style={{ ...styles.primaryBtn, fontSize: '1rem', padding: '1rem' }}>
                         ✍️ Przejdź do podpisania
                     </button>
                 </div>
