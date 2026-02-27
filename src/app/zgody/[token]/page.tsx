@@ -2,8 +2,18 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'next/navigation';
-import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+import { PDFDocument, rgb } from 'pdf-lib';
+import fontkit from '@pdf-lib/fontkit';
 import { CONSENT_TYPES } from '@/lib/consentTypes';
+
+/** Cache for the Inter font bytes so we only fetch it once */
+let cachedFontBytes: ArrayBuffer | null = null;
+async function getInterFont(): Promise<ArrayBuffer> {
+    if (cachedFontBytes) return cachedFontBytes;
+    const res = await fetch('/fonts/Inter-Variable.ttf');
+    cachedFontBytes = await res.arrayBuffer();
+    return cachedFontBytes;
+}
 
 interface ConsentItem {
     type: string;
@@ -183,7 +193,8 @@ export default function ConsentSigningPage() {
             for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
                 const page = await pdf.getPage(pageNum);
                 const viewport = page.getViewport({ scale: 1 });
-                const scale = Math.min(containerWidth / viewport.width, 2);
+                // Use high scale for sharp rendering on tablets/retina
+                const scale = Math.min((containerWidth * 2) / viewport.width, 3);
                 const scaledViewport = page.getViewport({ scale });
 
                 const canvas = document.createElement('canvas');
@@ -228,7 +239,10 @@ export default function ConsentSigningPage() {
         const pdfBytes = await pdfRes.arrayBuffer();
 
         const pdfDoc = await PDFDocument.load(pdfBytes);
-        const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+        // Register fontkit and embed Inter (supports Polish characters)
+        pdfDoc.registerFontkit(fontkit);
+        const interFontBytes = await getInterFont();
+        const font = await pdfDoc.embedFont(interFontBytes);
         const pages = pdfDoc.getPages();
 
         const getPage = (pageNum?: number) => pages[Math.min((pageNum || 1) - 1, pages.length - 1)];
@@ -351,15 +365,39 @@ export default function ConsentSigningPage() {
             // Get signature as PNG data URL
             const signatureDataUrl = canvasRef.current.toDataURL('image/png');
 
-            // ── STEP 1: Load the pre-filled PDF (already has patient data) ──
-            let pdfDoc: any;
-            if (prefilledPdfBytes) {
-                pdfDoc = await PDFDocument.load(prefilledPdfBytes);
-            } else {
-                // Fallback: load original and re-fill
-                const pdfRes = await fetch(currentConsent.file);
-                const pdfBytes = await pdfRes.arrayBuffer();
-                pdfDoc = await PDFDocument.load(pdfBytes);
+            // ── STEP 1: Load original PDF and re-apply prefill + signatures ──
+            // Always load from the original file to avoid "No PDF header" parse errors
+            const pdfRes = await fetch(currentConsent.file);
+            const pdfBytes = await pdfRes.arrayBuffer();
+            const pdfDoc = await PDFDocument.load(pdfBytes);
+
+            // Re-apply patient data (prefill) since we start from original
+            pdfDoc.registerFontkit(fontkit);
+            const interFontBytes = await getInterFont();
+            const interFont = await pdfDoc.embedFont(interFontBytes);
+            const today = new Date().toLocaleDateString('pl-PL');
+            const fullName = patientDetails
+                ? `${patientDetails.firstName} ${patientDetails.lastName}`
+                : patientName;
+            const pesel = patientDetails?.pesel || '';
+            const textColor = rgb(0.05, 0.05, 0.3);
+            const consentTypeDef2 = CONSENT_TYPES[currentConsent.type];
+            const fields2 = consentTypeDef2?.fields;
+            if (fields2) {
+                const getPage2 = (p?: number) => pdfDoc.getPages()[Math.min((p || 1) - 1, pdfDoc.getPages().length - 1)];
+                if (fields2.name) getPage2(fields2.name.page).drawText(fullName, { x: fields2.name.x, y: fields2.name.y, size: fields2.name.fontSize || 11, font: interFont, color: textColor });
+                if (fields2.pesel && pesel) {
+                    const peselPage = getPage2(fields2.pesel.page);
+                    pesel.split('').forEach((d: string, i: number) => { if (i < 11) { peselPage.drawText(d, { x: fields2.pesel!.startX + i * fields2.pesel!.boxWidth + (fields2.pesel!.boxWidth / 2 - 3), y: fields2.pesel!.y, size: fields2.pesel!.fontSize || 12, font: interFont, color: textColor }); } });
+                }
+                if (fields2.date) getPage2(fields2.date.page).drawText(today, { x: fields2.date.x, y: fields2.date.y, size: fields2.date.fontSize || 11, font: interFont, color: textColor });
+                if (fields2.address && patientDetails?.address) {
+                    const a = patientDetails.address;
+                    const s = `${a.street || ''} ${a.houseNumber || ''}${a.apartmentNumber ? '/' + a.apartmentNumber : ''}, ${a.postalCode || ''} ${a.city || ''}`.trim();
+                    if (s.length > 3) getPage2(fields2.address.page).drawText(s, { x: fields2.address.x, y: fields2.address.y, size: fields2.address.fontSize || 10, font: interFont, color: textColor });
+                }
+                if (fields2.city && patientDetails?.address?.city) getPage2(fields2.city.page).drawText(patientDetails.address.city, { x: fields2.city.x, y: fields2.city.y, size: fields2.city.fontSize || 11, font: interFont, color: textColor });
+                if (fields2.phone && patientDetails?.phone) getPage2(fields2.phone.page).drawText(patientDetails.phone, { x: fields2.phone.x, y: fields2.phone.y, size: fields2.phone.fontSize || 10, font: interFont, color: textColor });
             }
 
             const pages = pdfDoc.getPages();
@@ -690,51 +728,47 @@ export default function ConsentSigningPage() {
                     )}
                 </div>
 
-                {allSigned ? (
-                    <div style={{ textAlign: 'center', padding: '2rem 0' }}>
-                        <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>✅</div>
-                        <h2 style={styles.title}>Wszystkie zgody podpisane!</h2>
-                        <p style={styles.subtitle}>Dziękujemy. Możesz zwrócić tablet personelowi.</p>
-                    </div>
-                ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                        {consents.map(consent => (
-                            <button
-                                key={consent.type}
-                                onClick={() => !consent.signed && openConsent(consent)}
-                                disabled={consent.signed}
-                                style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.75rem',
-                                    padding: '0.875rem 1rem',
-                                    background: consent.signed ? 'rgba(34, 197, 94, 0.08)' : 'rgba(255,255,255,0.04)',
-                                    border: consent.signed
-                                        ? '1px solid rgba(34, 197, 94, 0.3)'
-                                        : '1px solid rgba(255,255,255,0.08)',
-                                    borderRadius: '0.75rem',
-                                    cursor: consent.signed ? 'default' : 'pointer',
-                                    textAlign: 'left',
-                                    color: '#fff',
-                                    transition: 'background 0.15s',
-                                }}
-                            >
-                                <span style={{ fontSize: '1.5rem' }}>
-                                    {consent.signed ? '✅' : '📄'}
-                                </span>
-                                <div style={{ flex: 1 }}>
-                                    <div style={{ fontWeight: 'bold', fontSize: '0.85rem' }}>{consent.label}</div>
-                                    <div style={{ fontSize: '0.72rem', color: consent.signed ? 'rgba(34,197,94,0.8)' : 'rgba(255,255,255,0.4)' }}>
-                                        {consent.signed ? 'Podpisano' : 'Wymaga podpisu'}
-                                    </div>
-                                </div>
-                                {!consent.signed && (
-                                    <span style={{ fontSize: '0.75rem', color: 'rgba(56, 189, 248, 0.8)' }}>Otwórz →</span>
-                                )}
-                            </button>
-                        ))}
+                {allSigned && (
+                    <div style={{ textAlign: 'center', padding: '1rem 0', marginBottom: '0.75rem' }}>
+                        <div style={{ fontSize: '2rem', marginBottom: '0.3rem' }}>✅</div>
+                        <p style={{ ...styles.subtitle, fontSize: '0.75rem' }}>Wszystkie zgody podpisane. Możesz podpisać ponownie klikając poniżej.</p>
                     </div>
                 )}
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    {consents.map(consent => (
+                        <button
+                            key={consent.type}
+                            onClick={() => openConsent(consent)}
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.75rem',
+                                padding: '0.875rem 1rem',
+                                background: consent.signed ? 'rgba(34, 197, 94, 0.08)' : 'rgba(255,255,255,0.04)',
+                                border: consent.signed
+                                    ? '1px solid rgba(34, 197, 94, 0.3)'
+                                    : '1px solid rgba(255,255,255,0.08)',
+                                borderRadius: '0.75rem',
+                                cursor: 'pointer',
+                                textAlign: 'left',
+                                color: '#fff',
+                                transition: 'background 0.15s',
+                            }}
+                        >
+                            <span style={{ fontSize: '1.5rem' }}>
+                                {consent.signed ? '✅' : '📄'}
+                            </span>
+                            <div style={{ flex: 1 }}>
+                                <div style={{ fontWeight: 'bold', fontSize: '0.85rem' }}>{consent.label}</div>
+                                <div style={{ fontSize: '0.72rem', color: consent.signed ? 'rgba(34,197,94,0.8)' : 'rgba(255,255,255,0.4)' }}>
+                                    {consent.signed ? 'Podpisano ✓ (kliknij aby podpisać ponownie)' : 'Wymaga podpisu'}
+                                </div>
+                            </div>
+                            <span style={{ fontSize: '0.75rem', color: 'rgba(56, 189, 248, 0.8)' }}>Otwórz →</span>
+                        </button>
+                    ))}
+                </div>
             </div>
         </div>
     );
