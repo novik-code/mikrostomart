@@ -1802,6 +1802,7 @@ NODE_ENV=production
 - `1c303f5` — fix(critical): first/last name swap in e-karta prefill
 - `cb78dc8` — fix: upload PDF to Prodentis via documents API with fileBase64
 - `cd59719` — fix: 4 consent signing issues (font/parse/re-sign/resolution)
+- `2490566` — feat: full-width PDF, doctor selection, procedure input, PESEL fix
 
 #### New Features:
 1. **Online Booking System**: Patient books on website → saves to `online_bookings` (pending) → admin approves → auto-schedules in Prodentis
