@@ -37,6 +37,10 @@ export interface ConsentFieldMap {
     phone?: FieldPosition;
     /** Email */
     email?: FieldPosition;
+    /** Doctor name — filled from dropdown on tablet */
+    doctor?: FieldPosition;
+    /** Tooth number — filled from dropdown on tablet */
+    tooth?: FieldPosition;
 }
 
 export interface ConsentType {

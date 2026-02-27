@@ -50,10 +50,20 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Unknown consent type' }, { status: 400 });
         }
 
-        // Build filename
+        // Build filename — ASCII-only for Prodentis compatibility
         const date = new Date().toISOString().slice(0, 10);
-        const safeName = tokenRow.patient_name.replace(/\s+/g, '_');
-        const fileName = `${consentInfo.label}_${safeName}_${date}.pdf`;
+        const polishToAscii = (str: string) => str
+            .replace(/ą/g, 'a').replace(/ć/g, 'c').replace(/ę/g, 'e')
+            .replace(/ł/g, 'l').replace(/ń/g, 'n').replace(/ó/g, 'o')
+            .replace(/ś/g, 's').replace(/ź/g, 'z').replace(/ż/g, 'z')
+            .replace(/Ą/g, 'A').replace(/Ć/g, 'C').replace(/Ę/g, 'E')
+            .replace(/Ł/g, 'L').replace(/Ń/g, 'N').replace(/Ó/g, 'O')
+            .replace(/Ś/g, 'S').replace(/Ź/g, 'Z').replace(/Ż/g, 'Z')
+            .replace(/[^a-zA-Z0-9_\-\.]/g, '_')
+            .replace(/_+/g, '_');
+        const safeName = polishToAscii(tokenRow.patient_name);
+        const safeLabel = polishToAscii(consentType);
+        const fileName = `${safeLabel}_${safeName}_${date}.pdf`;
 
         // Decode base64 to buffer
         const pdfBuffer = Buffer.from(signedPdfBase64, 'base64');

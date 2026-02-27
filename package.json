@@ -30,6 +30,7 @@
     "next-intl": "^4.8.2",
     "openai": "^6.15.0",
     "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^5.4.624",
     "pngjs": "^7.0.0",
     "qrcode.react": "^4.2.0",
     "react": "19.2.3",
