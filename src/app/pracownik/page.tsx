@@ -2515,8 +2515,22 @@ export default function EmployeePage() {
                                                     headers: { 'Content-Type': 'application/json' },
                                                     body: JSON.stringify({
                                                         prodentisPatientId: selectedAppointment.patientId || undefined,
-                                                        prefillFirstName: selectedAppointment.patientName.split(' ')[1] || '',
-                                                        prefillLastName: selectedAppointment.patientName.split(' ')[0] || '',
+                                                        // Fetch real firstName/lastName from Prodentis details API
+                                                        // (patientName from grafik is a single string — splitting is unreliable)
+                                                        ...(await (async () => {
+                                                            if (!selectedAppointment.patientId) return {};
+                                                            try {
+                                                                const detRes = await fetch(`/api/employee/patient-details?patientId=${selectedAppointment.patientId}`);
+                                                                if (detRes.ok) {
+                                                                    const det = await detRes.json();
+                                                                    return {
+                                                                        prefillFirstName: det.firstName || '',
+                                                                        prefillLastName: det.lastName || '',
+                                                                    };
+                                                                }
+                                                            } catch { /* fall through */ }
+                                                            return {};
+                                                        })()),
                                                         appointmentId: selectedAppointment.id,
                                                         appointmentDate: selectedAppointment.startTime,
                                                         appointmentType: selectedAppointment.appointmentType,
