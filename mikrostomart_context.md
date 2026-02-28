@@ -1805,6 +1805,7 @@ NODE_ENV=production
 - `2490566` — feat: full-width PDF, doctor selection, procedure input, PESEL fix
 - `dc5cc65` — fix(critical): split name→firstName+lastName in reservation form
 - `84a89b4` — feat: e-karta PDF generation + signature display
+- `98de644` — feat: PDF design polish — logo header, amber colors, smaller signature
 
 #### New Features:
 1. **Online Booking System**: Patient books on website → saves to `online_bookings` (pending) → admin approves → auto-schedules in Prodentis
