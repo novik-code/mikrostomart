@@ -33,9 +33,9 @@ export async function GET(req: NextRequest) {
         if (tokenIds.length) {
             const { data: byToken } = await supabase
                 .from('patient_intake_submissions')
-                .select('id, first_name, last_name, signature_data, medical_survey, created_at, pdf_url, prodentis_patient_id')
+                .select('id, first_name, last_name, signature_data, medical_survey, submitted_at, pdf_url, prodentis_patient_id')
                 .in('token_id', tokenIds)
-                .order('created_at', { ascending: false })
+                .order('submitted_at', { ascending: false })
                 .limit(1);
             if (byToken?.length) submissions = byToken;
         }
@@ -43,9 +43,9 @@ export async function GET(req: NextRequest) {
         if (!submissions.length) {
             const { data: byProdentis } = await supabase
                 .from('patient_intake_submissions')
-                .select('id, first_name, last_name, signature_data, medical_survey, created_at, pdf_url, prodentis_patient_id')
+                .select('id, first_name, last_name, signature_data, medical_survey, submitted_at, pdf_url, prodentis_patient_id')
                 .eq('prodentis_patient_id', prodentisId)
-                .order('created_at', { ascending: false })
+                .order('submitted_at', { ascending: false })
                 .limit(1);
             if (byProdentis?.length) submissions = byProdentis;
         }
@@ -60,7 +60,7 @@ export async function GET(req: NextRequest) {
                 hasSignature: !!intake.signature_data,
                 signatureData: intake.signature_data,
                 pdfUrl: intake.pdf_url || null,
-                createdAt: intake.created_at,
+                createdAt: intake.submitted_at,
             } : null,
         });
     } catch (err: any) {

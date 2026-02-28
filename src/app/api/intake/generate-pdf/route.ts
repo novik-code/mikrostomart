@@ -207,8 +207,8 @@ async function generateEKartaPdf(submission: any): Promise<Uint8Array> {
     drawText('Informacja dotycząca stanu zdrowia pacjenta', MARGIN, y, 10, rgb(0.3, 0.3, 0.3));
     y -= 12;
 
-    const date = submission.created_at
-        ? new Date(submission.created_at).toLocaleDateString('pl-PL', { year: 'numeric', month: 'long', day: 'numeric' })
+    const date = submission.submitted_at
+        ? new Date(submission.submitted_at).toLocaleDateString('pl-PL', { year: 'numeric', month: 'long', day: 'numeric' })
         : new Date().toLocaleDateString('pl-PL');
     drawText(`Data wypełnienia: ${date}`, MARGIN, y, 8, rgb(0.4, 0.4, 0.4));
     y -= 20;
@@ -360,7 +360,7 @@ export async function POST(req: NextRequest) {
                 .from('patient_intake_submissions')
                 .select('*')
                 .in('token_id', tokenIds)
-                .order('created_at', { ascending: false })
+                .order('submitted_at', { ascending: false })
                 .limit(1);
 
             if (!submissions?.length) return NextResponse.json({ error: 'No submission found' }, { status: 404 });
