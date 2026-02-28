@@ -153,25 +153,22 @@ async function generateEKartaPdf(submission: any): Promise<Uint8Array> {
     const pdfDoc = await PDFDocument.create();
     pdfDoc.registerFontkit(fontkit);
 
-    // Load Inter font — fetch from public URL (works on Vercel serverless)
+    // Load STATIC Inter font (Inter-Regular.ttf) — variable fonts break in pdf-lib
     let font;
     try {
-        // Try filesystem first (local dev)
-        const fontPath = path.join(process.cwd(), 'public', 'fonts', 'Inter-Variable.ttf');
+        const fontPath = path.join(process.cwd(), 'public', 'fonts', 'Inter-Regular.ttf');
         let fontBytes: Buffer;
         try {
             fontBytes = fs.readFileSync(fontPath);
         } catch {
-            // Fallback: fetch from own public URL (Vercel)
-            const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_URL
-                ? `https://${process.env.VERCEL_URL}`
-                : 'https://mikrostomart.pl';
-            const res = await fetch(`${baseUrl}/fonts/Inter-Variable.ttf`);
+            // Fallback: fetch from own public URL (Vercel serverless)
+            const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ||
+                (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://mikrostomart.pl');
+            const res = await fetch(`${baseUrl}/fonts/Inter-Regular.ttf`);
             if (!res.ok) throw new Error('Font fetch failed');
             fontBytes = Buffer.from(await res.arrayBuffer());
         }
-        // CRITICAL: subset: false — variable fonts break with pdf-lib subsetting
-        font = await pdfDoc.embedFont(fontBytes, { subset: false });
+        font = await pdfDoc.embedFont(fontBytes, { subset: true });
     } catch (e) {
         console.error('[EKartaPDF] Font loading failed, using Helvetica:', e);
         font = await pdfDoc.embedFont(StandardFonts.Helvetica);

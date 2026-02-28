@@ -3129,8 +3129,8 @@ export default function EmployeePage() {
                                         </a>
                                     )}
 
-                                    {/* Generate PDF button (if no PDF yet) */}
-                                    {!patientPdfUrl && intakeSubmissionId && (
+                                    {/* Generate / Regenerate PDF button */}
+                                    {intakeSubmissionId && (
                                         <button
                                             onClick={async () => {
                                                 setPdfGenerating(true);
@@ -3142,7 +3142,8 @@ export default function EmployeePage() {
                                                     });
                                                     const data = await res.json();
                                                     if (data.pdfUrl) {
-                                                        setPatientPdfUrl(data.pdfUrl);
+                                                        // Add cache buster to force reload
+                                                        setPatientPdfUrl(data.pdfUrl + '?t=' + Date.now());
                                                     } else {
                                                         alert(`Błąd: ${data.error || 'Nie udało się wygenerować PDF'}`);
                                                     }
@@ -3153,16 +3154,17 @@ export default function EmployeePage() {
                                             style={{
                                                 display: 'flex', alignItems: 'center', gap: '0.3rem',
                                                 padding: '0.45rem 0.7rem',
-                                                background: pdfGenerating ? 'rgba(255,255,255,0.04)' : 'rgba(56,189,248,0.1)',
-                                                border: '1px solid rgba(56,189,248,0.2)',
+                                                background: pdfGenerating ? 'rgba(255,255,255,0.04)' : patientPdfUrl ? 'rgba(255,255,255,0.04)' : 'rgba(56,189,248,0.1)',
+                                                border: `1px solid ${patientPdfUrl ? 'rgba(255,255,255,0.1)' : 'rgba(56,189,248,0.2)'}`,
                                                 borderRadius: '0.4rem',
-                                                color: '#38bdf8', fontSize: '0.75rem', fontWeight: '600',
+                                                color: patientPdfUrl ? 'rgba(255,255,255,0.5)' : '#38bdf8',
+                                                fontSize: '0.75rem', fontWeight: '600',
                                                 cursor: pdfGenerating ? 'wait' : 'pointer',
                                                 marginBottom: '0.4rem',
                                                 width: '100%',
                                             }}
                                         >
-                                            {pdfGenerating ? '⏳ Generuję PDF...' : '🔄 Generuj PDF e-karty'}
+                                            {pdfGenerating ? '⏳ Generuję PDF...' : patientPdfUrl ? '🔄 Regeneruj PDF' : '📄 Generuj PDF e-karty'}
                                         </button>
                                     )}
 
