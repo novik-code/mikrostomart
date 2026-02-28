@@ -18,28 +18,39 @@ export async function GET(req: NextRequest) {
     }
 
     try {
-        // Find intake submission via token that had this prodentis_patient_id
+        // Strategy 1: Find via token's prodentis_patient_id
         const { data: tokens } = await supabase
             .from('patient_intake_tokens')
             .select('id')
             .eq('prodentis_patient_id', prodentisId);
 
-        if (!tokens?.length) {
-            return NextResponse.json({ intake: null });
+        const tokenIds = tokens?.map((t: any) => t.id) || [];
+
+        // Strategy 2: Also search submissions directly by prodentis_patient_id
+        // (set after Prodentis sync in submit route)
+        let submissions: any[] = [];
+
+        if (tokenIds.length) {
+            const { data: byToken } = await supabase
+                .from('patient_intake_submissions')
+                .select('id, first_name, last_name, signature_data, medical_survey, created_at, pdf_url, prodentis_patient_id')
+                .in('token_id', tokenIds)
+                .order('created_at', { ascending: false })
+                .limit(1);
+            if (byToken?.length) submissions = byToken;
         }
 
-        const tokenIds = tokens.map((t: any) => t.id);
+        if (!submissions.length) {
+            const { data: byProdentis } = await supabase
+                .from('patient_intake_submissions')
+                .select('id, first_name, last_name, signature_data, medical_survey, created_at, pdf_url, prodentis_patient_id')
+                .eq('prodentis_patient_id', prodentisId)
+                .order('created_at', { ascending: false })
+                .limit(1);
+            if (byProdentis?.length) submissions = byProdentis;
+        }
 
-        const { data: submissions, error } = await supabase
-            .from('patient_intake_submissions')
-            .select('id, first_name, last_name, signature_data, medical_survey, created_at, pdf_url')
-            .in('token_id', tokenIds)
-            .order('created_at', { ascending: false })
-            .limit(1);
-
-        if (error) throw error;
-
-        const intake = submissions?.[0] || null;
+        const intake = submissions[0] || null;
 
         return NextResponse.json({
             intake: intake ? {
