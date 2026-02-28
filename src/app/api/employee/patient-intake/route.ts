@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
 
         const { data: submissions, error } = await supabase
             .from('patient_intake_submissions')
-            .select('id, first_name, last_name, signature_data, medical_survey, created_at')
+            .select('id, first_name, last_name, signature_data, medical_survey, created_at, pdf_url')
             .in('token_id', tokenIds)
             .order('created_at', { ascending: false })
             .limit(1);
@@ -48,6 +48,7 @@ export async function GET(req: NextRequest) {
                 lastName: intake.last_name,
                 hasSignature: !!intake.signature_data,
                 signatureData: intake.signature_data,
+                pdfUrl: intake.pdf_url || null,
                 createdAt: intake.created_at,
             } : null,
         });

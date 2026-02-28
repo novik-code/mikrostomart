@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { generateEKartaPdf } from '@/app/api/intake/generate-pdf/route';
 
 /**
  * POST /api/intake/submit
@@ -289,10 +290,71 @@ export async function POST(req: Request) {
         })
         .eq('id', submission.id);
 
+    // 7. Auto-generate e-karta PDF (read full submission, generate, upload)
+    let pdfUrl: string | null = null;
+    try {
+        const { data: fullSubmission } = await supabase
+            .from('patient_intake_submissions')
+            .select('*')
+            .eq('id', submission.id)
+            .single();
+
+        if (fullSubmission) {
+            const pdfBytes = await generateEKartaPdf(fullSubmission);
+            const pdfBase64 = Buffer.from(pdfBytes).toString('base64');
+            const firstName = formData.firstName || 'Pacjent';
+            const lastName = formData.lastName || '';
+            const dateStr = new Date().toISOString().slice(0, 10);
+            const fileName = `ekarta_${firstName}_${lastName}_${dateStr}.pdf`.replace(/\s+/g, '_');
+            const resolvedProdentisId = prodentisPatientId || tokenRow.prodentis_patient_id || 'unknown';
+            const storagePath = `${resolvedProdentisId}/${fileName}`;
+
+            const { error: pdfUploadErr } = await supabase.storage
+                .from('consents')
+                .upload(storagePath, Buffer.from(pdfBytes), {
+                    contentType: 'application/pdf',
+                    upsert: true,
+                });
+
+            if (!pdfUploadErr) {
+                const { data: urlData } = supabase.storage.from('consents').getPublicUrl(storagePath);
+                pdfUrl = urlData?.publicUrl || storagePath;
+
+                await supabase.from('patient_intake_submissions')
+                    .update({ pdf_url: pdfUrl })
+                    .eq('id', submission.id);
+
+                // Upload to Prodentis documents
+                if (resolvedProdentisId && resolvedProdentisId !== 'unknown' && prodentisKey) {
+                    try {
+                        await fetch(`${prodentisUrl}/api/patients/${resolvedProdentisId}/documents`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'X-API-Key': prodentisKey },
+                            body: JSON.stringify({
+                                fileBase64: pdfBase64,
+                                fileName,
+                                description: `E-Karta pacjenta — ${firstName} ${lastName} — ${dateStr}`,
+                            }),
+                            signal: AbortSignal.timeout(10000),
+                        });
+                        console.log(`[IntakeSubmit] PDF uploaded to Prodentis for patient ${resolvedProdentisId}`);
+                    } catch (pe) {
+                        console.error('[IntakeSubmit] PDF Prodentis upload error:', pe);
+                    }
+                }
+            } else {
+                console.error('[IntakeSubmit] PDF upload to Supabase failed:', pdfUploadErr);
+            }
+        }
+    } catch (pdfErr) {
+        console.error('[IntakeSubmit] PDF generation error:', pdfErr);
+    }
+
     return NextResponse.json({
         success: true,
         submissionId: submission.id,
         prodentisStatus,
         prodentisPatientId,
+        pdfUrl,
     });
 }

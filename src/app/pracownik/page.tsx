@@ -396,6 +396,9 @@ export default function EmployeePage() {
     const [patientConsents, setPatientConsents] = useState<any[]>([]);
     const [patientSignature, setPatientSignature] = useState<string | null>(null);
     const [showSignature, setShowSignature] = useState(false);
+    const [patientPdfUrl, setPatientPdfUrl] = useState<string | null>(null);
+    const [intakeSubmissionId, setIntakeSubmissionId] = useState<string | null>(null);
+    const [pdfGenerating, setPdfGenerating] = useState(false);
 
     const router = useRouter();
     const { userId: currentUserId, email: currentUserEmail, isAdmin } = useUserRoles();
@@ -2629,6 +2632,8 @@ export default function EmployeePage() {
                                             setConsentSelectedTypes([]);
                                             setConsentUrl('');
                                             setShowSignature(false);
+                                            setPatientPdfUrl(null);
+                                            setIntakeSubmissionId(null);
                                             if (selectedAppointment.patientId) {
                                                 try {
                                                     const [consentsRes, intakeRes] = await Promise.all([
@@ -2642,6 +2647,8 @@ export default function EmployeePage() {
                                                     if (intakeRes.ok) {
                                                         const d = await intakeRes.json();
                                                         setPatientSignature(d.intake?.signatureData || null);
+                                                        setPatientPdfUrl(d.intake?.pdfUrl || null);
+                                                        setIntakeSubmissionId(d.intake?.id || null);
                                                     }
                                                 } catch { /* ignore */ }
                                             }
@@ -3078,31 +3085,98 @@ export default function EmployeePage() {
                             </div>
                         )}
 
-                        {/* E-karta signature */}
-                        {patientSignature && (
-                            <div style={{ marginTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '0.75rem' }}>
-                                <button
-                                    onClick={() => setShowSignature(!showSignature)}
-                                    style={{
-                                        background: 'none', border: 'none', cursor: 'pointer',
-                                        color: 'rgba(255,255,255,0.6)', fontSize: '0.75rem',
-                                    }}
-                                >
-                                    ✍️ {showSignature ? 'Ukryj' : 'Pokaż'} podpis e-karty
-                                </button>
-                                {showSignature && (
-                                    <div style={{
-                                        background: '#fff',
-                                        borderRadius: '0.5rem',
-                                        padding: '0.75rem',
-                                        marginTop: '0.5rem',
-                                        textAlign: 'center',
-                                    }}>
-                                        <img
-                                            src={patientSignature}
-                                            alt="Podpis pacjenta"
-                                            style={{ maxWidth: '100%', maxHeight: '150px' }}
-                                        />
+                        {/* E-karta PDF + signature */}
+                        {(patientPdfUrl || patientSignature || intakeSubmissionId) && (
+                            <div style={{ marginTop: '1.25rem', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '1rem' }}>
+                                <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.7)', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+                                    📋 E-Karta pacjenta
+                                </div>
+
+                                {/* PDF link */}
+                                {patientPdfUrl && (
+                                    <a
+                                        href={patientPdfUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        style={{
+                                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                            padding: '0.5rem 0.7rem',
+                                            background: 'rgba(56,189,248,0.06)',
+                                            border: '1px solid rgba(56,189,248,0.15)',
+                                            borderRadius: '0.4rem',
+                                            textDecoration: 'none',
+                                            marginBottom: '0.4rem',
+                                        }}
+                                    >
+                                        <span style={{ fontSize: '0.75rem', color: '#38bdf8' }}>📄 Otwórz PDF e-karty</span>
+                                        <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)' }}>↗</span>
+                                    </a>
+                                )}
+
+                                {/* Generate PDF button (if no PDF yet) */}
+                                {!patientPdfUrl && intakeSubmissionId && (
+                                    <button
+                                        onClick={async () => {
+                                            setPdfGenerating(true);
+                                            try {
+                                                const res = await fetch('/api/intake/generate-pdf', {
+                                                    method: 'POST',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({ submissionId: intakeSubmissionId }),
+                                                });
+                                                const data = await res.json();
+                                                if (data.pdfUrl) {
+                                                    setPatientPdfUrl(data.pdfUrl);
+                                                } else {
+                                                    alert(`Błąd: ${data.error || 'Nie udało się wygenerować PDF'}`);
+                                                }
+                                            } catch { alert('Błąd połączenia'); }
+                                            finally { setPdfGenerating(false); }
+                                        }}
+                                        disabled={pdfGenerating}
+                                        style={{
+                                            display: 'flex', alignItems: 'center', gap: '0.3rem',
+                                            padding: '0.45rem 0.7rem',
+                                            background: pdfGenerating ? 'rgba(255,255,255,0.04)' : 'rgba(56,189,248,0.1)',
+                                            border: '1px solid rgba(56,189,248,0.2)',
+                                            borderRadius: '0.4rem',
+                                            color: '#38bdf8', fontSize: '0.75rem', fontWeight: '600',
+                                            cursor: pdfGenerating ? 'wait' : 'pointer',
+                                            marginBottom: '0.4rem',
+                                            width: '100%',
+                                        }}
+                                    >
+                                        {pdfGenerating ? '⏳ Generuję PDF...' : '🔄 Generuj PDF e-karty'}
+                                    </button>
+                                )}
+
+                                {/* Signature toggle */}
+                                {patientSignature && (
+                                    <div style={{ marginTop: '0.4rem' }}>
+                                        <button
+                                            onClick={() => setShowSignature(!showSignature)}
+                                            style={{
+                                                background: 'none', border: 'none', cursor: 'pointer',
+                                                color: 'rgba(255,255,255,0.6)', fontSize: '0.75rem',
+                                            }}
+                                        >
+                                            ✍️ {showSignature ? 'Ukryj' : 'Pokaż'} podpis e-karty
+                                        </button>
+                                        {showSignature && (
+                                            <div style={{
+                                                background: '#fff',
+                                                borderRadius: '0.5rem',
+                                                padding: '0.75rem',
+                                                marginTop: '0.5rem',
+                                                textAlign: 'center',
+                                            }}>
+                                                <img
+                                                    src={patientSignature}
+                                                    alt="Podpis pacjenta"
+                                                    style={{ maxWidth: '100%', maxHeight: '150px' }}
+                                                />
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>
