@@ -11,7 +11,11 @@ export const runtime = 'nodejs';
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
-        const { name, email, phone, specialist, specialistName, date, time, description, attachment, locale: requestLocale } = body;
+        const { name, firstName: formFirstName, lastName: formLastName, email, phone, specialist, specialistName, date, time, description, attachment, locale: requestLocale } = body;
+        // Use separate firstName/lastName if provided, otherwise fall back to splitting name
+        const patientFirstName = formFirstName || name?.split(/\s+/)[0] || '';
+        const patientLastName = formLastName || name?.split(/\s+/).slice(1).join(' ') || '';
+        const displayName = name || `${patientFirstName} ${patientLastName}`.trim();
         const locale = ['pl', 'en', 'de', 'ua'].includes(requestLocale) ? requestLocale : 'pl';
 
         // Format date WITHOUT timezone conversion (date/time are already in Warsaw time)
@@ -81,8 +85,7 @@ export async function POST(req: NextRequest) {
             ${attachment ? `<p><strong>Załącznik:</strong> ${attachment.name} (${attachment.type})</p>` : ''}
         `;
 
-        // Email Content (Patient - localized)
-        const firstName = name.split(' ')[0];
+        const firstName = patientFirstName;
         const patientEmail = getEmailTemplate('reservation_confirmation', locale, {
             firstName,
             specialist: specialistName,
@@ -249,9 +252,9 @@ export async function POST(req: NextRequest) {
                 // ── Step 2: Create new patient if not found and not needs_review ──
                 if (!prodentisPatientId && matchMethod !== 'needs_review' && prodentisKey) {
                     isNewPatient = true;
-                    const nameParts = name.trim().split(/\s+/);
-                    const pFirst = nameParts[0] || '';
-                    const pLast = nameParts.slice(1).join(' ') || '';
+                    // Use the separate firstName/lastName fields directly (no name.split guessing)
+                    const pFirst = patientFirstName;
+                    const pLast = patientLastName;
 
                     try {
                         const createRes = await fetch(`${prodentisUrl}/api/patients`, {

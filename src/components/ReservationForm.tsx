@@ -42,7 +42,8 @@ export default function ReservationForm() {
 
     // Build schema with translated validation messages
     const reservationSchema = z.object({
-        name: z.string().min(3, t('validationName')),
+        firstName: z.string().min(2, t('validationFirstName')),
+        lastName: z.string().min(2, t('validationLastName')),
         phone: z.string().min(9, t('validationPhone')),
         email: z.string().email(t('validationEmail')).optional().or(z.literal("")),
         specialist: z.string().min(1, t('validationSpecialist')),
@@ -144,6 +145,7 @@ export default function ReservationForm() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     ...data,
+                    name: `${data.firstName} ${data.lastName}`,
                     specialistName,
                     attachment: attachmentData
                 }),
@@ -240,24 +242,44 @@ export default function ReservationForm() {
             flexDirection: "column",
             gap: "1.5rem"
         }}>
-            {/* NAME */}
-            <div className="form-group">
-                <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", color: "var(--color-text-muted)" }}>{t('nameFieldLabel')}</label>
-                <input
-                    {...register("name")}
-                    type="text"
-                    placeholder={t('namePlaceholder')}
-                    style={{
-                        width: "100%",
-                        padding: "0.8rem",
-                        background: "rgba(0, 0, 0, 0.2)",
-                        border: errors.name ? "1px solid red" : "1px solid var(--color-surface-hover)",
-                        borderRadius: "var(--radius-md)",
-                        color: "var(--color-text-main)",
-                        outline: "none"
-                    }}
-                />
-                {errors.name && <p style={{ color: "red", fontSize: "0.8rem", marginTop: "0.3rem" }}>{errors.name.message}</p>}
+            {/* FIRST NAME & LAST NAME */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+                <div className="form-group">
+                    <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", color: "var(--color-text-muted)" }}>{t('firstNameLabel')} *</label>
+                    <input
+                        {...register("firstName")}
+                        type="text"
+                        placeholder={t('firstNamePlaceholder')}
+                        style={{
+                            width: "100%",
+                            padding: "0.8rem",
+                            background: "rgba(0, 0, 0, 0.2)",
+                            border: errors.firstName ? "1px solid red" : "1px solid var(--color-surface-hover)",
+                            borderRadius: "var(--radius-md)",
+                            color: "var(--color-text-main)",
+                            outline: "none"
+                        }}
+                    />
+                    {errors.firstName && <p style={{ color: "red", fontSize: "0.8rem", marginTop: "0.3rem" }}>{errors.firstName.message}</p>}
+                </div>
+                <div className="form-group">
+                    <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", color: "var(--color-text-muted)" }}>{t('lastNameLabel')} *</label>
+                    <input
+                        {...register("lastName")}
+                        type="text"
+                        placeholder={t('lastNamePlaceholder')}
+                        style={{
+                            width: "100%",
+                            padding: "0.8rem",
+                            background: "rgba(0, 0, 0, 0.2)",
+                            border: errors.lastName ? "1px solid red" : "1px solid var(--color-surface-hover)",
+                            borderRadius: "var(--radius-md)",
+                            color: "var(--color-text-main)",
+                            outline: "none"
+                        }}
+                    />
+                    {errors.lastName && <p style={{ color: "red", fontSize: "0.8rem", marginTop: "0.3rem" }}>{errors.lastName.message}</p>}
+                </div>
             </div>
 
             {/* PHONE & EMAIL GRID */}
