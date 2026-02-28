@@ -212,9 +212,29 @@ async function generateEKartaPdf(submission: any): Promise<Uint8Array> {
         }
     };
 
-    // ─── Header ───
-    drawText('MIKROSTOMART', MARGIN, y, HEADER_SIZE, rgb(0.08, 0.44, 0.75));
-    y -= 16;
+    // ─── Header with logo ───
+    try {
+        const logoPath = path.join(process.cwd(), 'public', 'logo-transparent.png');
+        let logoBytes: Buffer;
+        try {
+            logoBytes = fs.readFileSync(logoPath);
+        } catch {
+            const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ||
+                (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://mikrostomart.pl');
+            const logoRes = await fetch(`${baseUrl}/logo-transparent.png`);
+            logoBytes = Buffer.from(await logoRes.arrayBuffer());
+        }
+        const logoImage = await pdfDoc.embedPng(logoBytes);
+        const logoScale = 40 / logoImage.height; // 40px tall
+        const logoW = logoImage.width * logoScale;
+        page.drawImage(logoImage, { x: MARGIN, y: y - 28, width: logoW, height: 40 });
+        y -= 48;
+    } catch (e) {
+        console.error('[EKartaPDF] Logo embed error:', e);
+        drawText('MIKROSTOMART', MARGIN, y, HEADER_SIZE, rgb(0.85, 0.55, 0.05));
+        y -= 20;
+    }
+
     drawText('Informacja dotycząca stanu zdrowia pacjenta', MARGIN, y, 10, rgb(0.3, 0.3, 0.3));
     y -= 12;
 
@@ -224,8 +244,8 @@ async function generateEKartaPdf(submission: any): Promise<Uint8Array> {
     drawText(`Data wypełnienia: ${date}`, MARGIN, y, 8, rgb(0.4, 0.4, 0.4));
     y -= 20;
 
-    // Separator
-    page.drawLine({ start: { x: MARGIN, y }, end: { x: PAGE_W - MARGIN, y }, thickness: 1, color: rgb(0.08, 0.44, 0.75) });
+    // Separator — amber/gold
+    page.drawLine({ start: { x: MARGIN, y }, end: { x: PAGE_W - MARGIN, y }, thickness: 1, color: rgb(0.85, 0.55, 0.05) });
     y -= 16;
 
     // ─── Sections ───
@@ -240,9 +260,9 @@ async function generateEKartaPdf(submission: any): Promise<Uint8Array> {
                 y: y - 3,
                 width: CONTENT_W,
                 height: LINE_H + 4,
-                color: rgb(0.92, 0.95, 0.98),
+                color: rgb(1.0, 0.96, 0.88),  // warm yellow tint
             });
-            drawText(section.title, MARGIN + 6, y, TITLE_SIZE - 1, rgb(0.08, 0.44, 0.75));
+            drawText(section.title, MARGIN + 6, y, TITLE_SIZE - 1, rgb(0.7, 0.45, 0.0));  // amber text
             y -= LINE_H + 8;
         }
 
@@ -293,9 +313,9 @@ async function generateEKartaPdf(submission: any): Promise<Uint8Array> {
     }
     y -= 8;
 
-    // ─── Signature ───
+    // ─── Signature (normal document-signing size) ───
     if (submission.signature_data) {
-        ensureSpace(120);
+        ensureSpace(80);
         drawText('Podpis pacjenta:', MARGIN, y, 9, rgb(0.3, 0.3, 0.3));
         y -= 10;
 
@@ -305,9 +325,11 @@ async function generateEKartaPdf(submission: any): Promise<Uint8Array> {
             if (base64Match) {
                 const sigBytes = Buffer.from(base64Match[1], 'base64');
                 const sigImage = await pdfDoc.embedPng(sigBytes);
-                const sigDims = sigImage.scale(0.4);
-                const sigW = Math.min(sigDims.width, CONTENT_W);
-                const sigH = Math.min(sigDims.height, 90);
+                // Scale to a normal signature size (~120px wide, proportional height)
+                const targetW = 120;
+                const scale = targetW / sigImage.width;
+                const sigW = targetW;
+                const sigH = Math.min(sigImage.height * scale, 40);
 
                 page.drawImage(sigImage, {
                     x: MARGIN,
