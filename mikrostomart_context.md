@@ -1776,23 +1776,27 @@ NODE_ENV=production
 ## 📝 Recent Changes
 
 ### March 2, 2026
-**Task System Improvements — Multi-category filter, edit access, patient search**
+**Task System Improvements + E-Karta Bug Fix**
 
-#### Commit:
+#### Commits:
 - `908e8ab` — feat(tasks): multi-category filter, kanban edit button, patient search from DB
+- `6b21c19` — ui(tasks): replace filter chips with dropdown checklist multi-select
+- `4fbcb19` — fix(e-karta): sanitize Polish diacritics from PDF filename — fixes Supabase 'Invalid key' error
 
 #### Changes:
-1. **Multi-category task filter**: Replaced single-select `<select>` dropdown with toggleable chip buttons. Users can now select multiple task types simultaneously (OR logic). State: `filterType: string` → `filterTypes: string[]`
-2. **Edit button on Kanban cards**: Added ✏️ button directly on Kanban board cards (between ← → arrows), allowing quick task editing from Kanban view without opening detail modal first
+1. **Multi-category task filter**: Dropdown multi-select with checkmarks (✓). Click "Typ: Wszystkie" → opens list → toggle categories (OR logic). State: `filterType: string` → `filterTypes: string[]`
+2. **Edit button on Kanban cards**: Added ✏️ button directly on Kanban board cards (between ← → arrows)
 3. **Patient search from database**: 
    - **NEW** `GET /api/employee/patient-search?q=...&limit=5` — employee-scoped Prodentis patient search proxy
    - Debounced autocomplete (300ms) in task **creation** and **edit** modals
    - Selected patient displayed as blue chip with ✕ to remove
    - `patient_id` + `patient_name` now stored uniformly whether task created from schedule or manually
+4. **E-Karta PDF fix**: Polish diacritics (ą, ć, ę, ł, ń, ó, ś, ź, ż) in patient names caused Supabase Storage `Invalid key` error. Added `polishToAscii()` sanitizer to `generate-pdf/route.ts` (same approach as `consents/sign/route.ts`)
 
 #### Files changed:
 - `src/app/pracownik/page.tsx` — frontend (filters, modals, Kanban edit button)
 - `src/app/api/employee/patient-search/route.ts` — **NEW** endpoint
+- `src/app/api/intake/generate-pdf/route.ts` — bug fix + improved error messages
 
 ---
 
