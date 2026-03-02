@@ -326,12 +326,21 @@ export default function EmployeePage() {
         linked_appointment_date: '',
         linked_appointment_info: '',
         is_private: false,
+        patient_id: '' as string,
+        patient_name: '' as string,
     });
     const [staffList, setStaffList] = useState<StaffMember[]>([]);
     const [futureAppointments, setFutureAppointments] = useState<FutureAppointment[]>([]);
     const [futureAptsLoading, setFutureAptsLoading] = useState(false);
     const [taskSaving, setTaskSaving] = useState(false);
     const [imageUploading, setImageUploading] = useState(false);
+    // ─── Patient Search State ──────────────────────
+    const [patientSearchQuery, setPatientSearchQuery] = useState('');
+    const [patientSearchResults, setPatientSearchResults] = useState<{ id: string; firstName: string; lastName: string; phone: string; fullName: string }[]>([]);
+    const [patientSearchLoading, setPatientSearchLoading] = useState(false);
+    const [editPatientSearchQuery, setEditPatientSearchQuery] = useState('');
+    const [editPatientSearchResults, setEditPatientSearchResults] = useState<{ id: string; firstName: string; lastName: string; phone: string; fullName: string }[]>([]);
+    const [editPatientSearchLoading, setEditPatientSearchLoading] = useState(false);
     const [editingTask, setEditingTask] = useState<EmployeeTask | null>(null);
     const [editForm, setEditForm] = useState<Record<string, any>>({});
     const [editSaving, setEditSaving] = useState(false);
@@ -347,7 +356,7 @@ export default function EmployeePage() {
     const [taskViewMode, setTaskViewMode] = useState<'list' | 'kanban' | 'calendar'>('kanban');
     const [taskSearchQuery, setTaskSearchQuery] = useState('');
     const [filterAssignee, setFilterAssignee] = useState('');
-    const [filterType, setFilterType] = useState('');
+    const [filterTypes, setFilterTypes] = useState<string[]>([]);
     const [filterPriority, setFilterPriority] = useState('');
     const [taskComments, setTaskComments] = useState<Record<string, any[]>>({});
     const [commentInput, setCommentInput] = useState('');
@@ -850,9 +859,33 @@ export default function EmployeePage() {
             linked_appointment_date: '',
             linked_appointment_info: '',
             is_private: false,
+            patient_id: '',
+            patient_name: '',
         });
         setTaskModalPrefill(null);
         setFutureAppointments([]);
+        setPatientSearchQuery('');
+        setPatientSearchResults([]);
+    };
+
+    // ─── Patient search with debounce ──────────────────────
+    const patientSearchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const searchPatients = (query: string, target: 'create' | 'edit') => {
+        const setResults = target === 'create' ? setPatientSearchResults : setEditPatientSearchResults;
+        const setLoading = target === 'create' ? setPatientSearchLoading : setEditPatientSearchLoading;
+        if (patientSearchTimerRef.current) clearTimeout(patientSearchTimerRef.current);
+        if (query.length < 2) { setResults([]); setLoading(false); return; }
+        setLoading(true);
+        patientSearchTimerRef.current = setTimeout(async () => {
+            try {
+                const res = await fetch(`/api/employee/patient-search?q=${encodeURIComponent(query)}&limit=5`);
+                if (res.ok) {
+                    const data = await res.json();
+                    setResults(data.patients || []);
+                } else { setResults([]); }
+            } catch { setResults([]); }
+            finally { setLoading(false); }
+        }, 300);
     };
 
     // ─── Image compression utility (Canvas → JPEG ≤2-3s, ≤200KB) ───────
@@ -915,7 +948,6 @@ export default function EmployeePage() {
         }
     };
 
-    // Edit task
     const openEditModal = (task: EmployeeTask) => {
         setEditingTask(task);
         setEditForm({
@@ -927,7 +959,11 @@ export default function EmployeePage() {
             assigned_to: task.assigned_to || [],
             image_url: task.image_url || '',
             image_urls: (task as any).image_urls || (task.image_url ? [task.image_url] : []),
+            patient_id: task.patient_id || '',
+            patient_name: task.patient_name || '',
         });
+        setEditPatientSearchQuery('');
+        setEditPatientSearchResults([]);
     };
 
     const handleSaveEdit = async () => {
@@ -978,8 +1014,8 @@ export default function EmployeePage() {
                 image_url: taskForm.image_url || null,
                 image_urls: taskForm.image_urls || [],
 
-                patient_id: taskModalPrefill?.patientId || null,
-                patient_name: taskModalPrefill?.patientName || null,
+                patient_id: taskModalPrefill?.patientId || taskForm.patient_id || null,
+                patient_name: taskModalPrefill?.patientName || taskForm.patient_name || null,
                 appointment_type: taskModalPrefill?.appointmentType || null,
                 assigned_to: taskForm.assigned_to.length > 0 ? taskForm.assigned_to : [],
                 // Keep legacy fields for backward compat
@@ -1225,11 +1261,18 @@ export default function EmployeePage() {
                 t.assigned_to_doctor_id === filterAssignee
             );
         }
-        // Type filter
-        if (filterType === '__private__') {
-            base = base.filter(t => t.is_private && t.owner_user_id === currentUserId);
-        } else if (filterType) {
-            base = base.filter(t => t.task_type === filterType);
+        // Type filter (multi-select)
+        if (filterTypes.length > 0) {
+            base = base.filter(t => {
+                for (const ft of filterTypes) {
+                    if (ft === '__private__') {
+                        if (t.is_private && t.owner_user_id === currentUserId) return true;
+                    } else {
+                        if (t.task_type === ft) return true;
+                    }
+                }
+                return false;
+            });
         }
         // Priority filter
         if (filterPriority) {
@@ -1249,7 +1292,7 @@ export default function EmployeePage() {
             if (b.due_date) return 1;
             return 0;
         });
-    }, [tasks, taskFilter, taskSearchQuery, filterAssignee, filterType, filterPriority, isMyTask]);
+    }, [tasks, taskFilter, taskSearchQuery, filterAssignee, filterTypes, filterPriority, isMyTask, currentUserId]);
 
     return (
         <div
@@ -3447,15 +3490,32 @@ export default function EmployeePage() {
                             <option value="">Wszyscy</option>
                             {staffList.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                         </select>
-                        <select
-                            value={filterType}
-                            onChange={e => setFilterType(e.target.value)}
-                            style={{ padding: '0.4rem 0.5rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.5rem', color: filterType ? '#a855f7' : 'rgba(255,255,255,0.5)', fontSize: '0.75rem', cursor: 'pointer' }}
-                        >
-                            <option value="">Typ: Wszystkie</option>
-                            <option value="__private__">🔒 Prywatne</option>
-                            {Object.entries(TASK_TYPE_CHECKLISTS).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
-                        </select>
+                        {/* Type filter chips (multi-select) */}
+                        <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                            {[{ key: '__private__', icon: '🔒', label: 'Prywatne' }, ...Object.entries(TASK_TYPE_CHECKLISTS).map(([k, v]) => ({ key: k, icon: v.icon, label: v.label }))].map(item => {
+                                const active = filterTypes.includes(item.key);
+                                return (
+                                    <button
+                                        key={item.key}
+                                        onClick={() => setFilterTypes(prev => active ? prev.filter(x => x !== item.key) : [...prev, item.key])}
+                                        style={{
+                                            padding: '0.25rem 0.55rem',
+                                            borderRadius: '1rem',
+                                            border: `1px solid ${active ? 'rgba(168,85,247,0.5)' : 'rgba(255,255,255,0.1)'}`,
+                                            background: active ? 'rgba(168,85,247,0.15)' : 'transparent',
+                                            color: active ? '#c084fc' : 'rgba(255,255,255,0.5)',
+                                            fontSize: '0.7rem',
+                                            fontWeight: active ? '600' : '400',
+                                            cursor: 'pointer',
+                                            transition: 'all 0.15s',
+                                            whiteSpace: 'nowrap',
+                                        }}
+                                    >
+                                        {item.icon} {item.label}
+                                    </button>
+                                );
+                            })}
+                        </div>
                         <select
                             value={filterPriority}
                             onChange={e => setFilterPriority(e.target.value)}
@@ -3466,9 +3526,9 @@ export default function EmployeePage() {
                             <option value="normal">Normalny</option>
                             <option value="low">Niski</option>
                         </select>
-                        {(taskSearchQuery || filterAssignee || filterType || filterPriority) && (
+                        {(taskSearchQuery || filterAssignee || filterTypes.length > 0 || filterPriority) && (
                             <button
-                                onClick={() => { setTaskSearchQuery(''); setFilterAssignee(''); setFilterType(''); setFilterPriority(''); }}
+                                onClick={() => { setTaskSearchQuery(''); setFilterAssignee(''); setFilterTypes([]); setFilterPriority(''); }}
                                 style={{ padding: '0.35rem 0.6rem', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '0.5rem', color: '#ef4444', fontSize: '0.7rem', cursor: 'pointer' }}
                             >
                                 ✕ Wyczyść
@@ -4173,7 +4233,7 @@ export default function EmployeePage() {
                                                                 </div>
                                                             </div>
                                                         )}
-                                                        {/* ← → arrows: mobile-friendly way to move between columns */}
+                                                        {/* ← → arrows + edit button */}
                                                         <div style={{ display: 'flex', gap: '0.3rem', marginTop: '0.4rem' }}>
                                                             {prevCol && (
                                                                 <button
@@ -4184,6 +4244,13 @@ export default function EmployeePage() {
                                                                     ← {getStatusLabel(prevCol)}
                                                                 </button>
                                                             )}
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); openEditModal(task); }}
+                                                                title="Edytuj zadanie"
+                                                                style={{ padding: '0.2rem 0.4rem', fontSize: '0.6rem', background: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.15)', borderRadius: '0.3rem', color: '#38bdf8', cursor: 'pointer' }}
+                                                            >
+                                                                ✏️
+                                                            </button>
                                                             {nextCol && (
                                                                 <button
                                                                     onClick={(e) => { e.stopPropagation(); handleUpdateStatus(task.id, nextCol); }}
@@ -4420,6 +4487,68 @@ export default function EmployeePage() {
                                     </div>
                                 )}
                             </div>
+
+                            {/* Patient search (only when no prefill from schedule) */}
+                            {!taskModalPrefill?.patientId && (
+                                <div>
+                                    <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>👤 Pacjent (wyszukaj z bazy)</label>
+                                    {taskForm.patient_id ? (
+                                        <div style={{
+                                            display: 'flex', alignItems: 'center', gap: '0.5rem',
+                                            background: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.2)',
+                                            borderRadius: '0.5rem', padding: '0.5rem 0.85rem',
+                                        }}>
+                                            <span style={{ fontSize: '0.82rem', color: '#38bdf8', fontWeight: '600', flex: 1 }}>👤 {taskForm.patient_name}</span>
+                                            <button type="button" onClick={() => { setTaskForm(p => ({ ...p, patient_id: '', patient_name: '' })); setPatientSearchQuery(''); setPatientSearchResults([]); }}
+                                                style={{ background: 'none', border: 'none', color: '#38bdf8', cursor: 'pointer', fontSize: '0.8rem' }}>✕</button>
+                                        </div>
+                                    ) : (
+                                        <div style={{ position: 'relative' }}>
+                                            <input
+                                                value={patientSearchQuery}
+                                                onChange={e => { setPatientSearchQuery(e.target.value); searchPatients(e.target.value, 'create'); }}
+                                                placeholder="Wpisz imię lub nazwisko pacjenta..."
+                                                style={{
+                                                    width: '100%', background: 'rgba(255,255,255,0.06)',
+                                                    border: '1px solid rgba(255,255,255,0.12)', borderRadius: '0.5rem',
+                                                    padding: '0.6rem 0.85rem', color: '#fff', fontSize: '0.85rem',
+                                                    outline: 'none', boxSizing: 'border-box',
+                                                }}
+                                            />
+                                            {patientSearchLoading && <div style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)' }}>Szukam...</div>}
+                                            {patientSearchResults.length > 0 && (
+                                                <div style={{
+                                                    position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10,
+                                                    background: '#1b2838', border: '1px solid rgba(56,189,248,0.2)',
+                                                    borderRadius: '0 0 0.5rem 0.5rem', maxHeight: '180px', overflowY: 'auto',
+                                                    boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+                                                }}>
+                                                    {patientSearchResults.map(p => (
+                                                        <button key={p.id} type="button"
+                                                            onClick={() => {
+                                                                setTaskForm(prev => ({ ...prev, patient_id: p.id, patient_name: p.fullName }));
+                                                                setPatientSearchQuery('');
+                                                                setPatientSearchResults([]);
+                                                            }}
+                                                            style={{
+                                                                width: '100%', padding: '0.5rem 0.85rem', background: 'transparent',
+                                                                border: 'none', borderBottom: '1px solid rgba(255,255,255,0.05)',
+                                                                color: '#fff', fontSize: '0.8rem', cursor: 'pointer', textAlign: 'left',
+                                                                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                                            }}
+                                                            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(56,189,248,0.1)')}
+                                                            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                                                        >
+                                                            <span style={{ fontWeight: '600' }}>{p.fullName}</span>
+                                                            {p.phone && <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)' }}>📱 {p.phone}</span>}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
 
                             {/* Privacy toggle */}
                             <div>
@@ -5312,6 +5441,66 @@ export default function EmployeePage() {
                                             {staffList.filter(s => !(editForm.assigned_to || []).some((a: any) => a.id === s.id)).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                                         </select>
                                     </div>
+                                </div>
+
+                                {/* Patient search */}
+                                <div>
+                                    <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>👤 Pacjent</label>
+                                    {editForm.patient_id ? (
+                                        <div style={{
+                                            display: 'flex', alignItems: 'center', gap: '0.5rem',
+                                            background: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.2)',
+                                            borderRadius: '0.5rem', padding: '0.5rem 0.85rem',
+                                        }}>
+                                            <span style={{ fontSize: '0.82rem', color: '#38bdf8', fontWeight: '600', flex: 1 }}>👤 {editForm.patient_name}</span>
+                                            <button type="button" onClick={() => { setEditForm((p: any) => ({ ...p, patient_id: '', patient_name: '' })); setEditPatientSearchQuery(''); setEditPatientSearchResults([]); }}
+                                                style={{ background: 'none', border: 'none', color: '#38bdf8', cursor: 'pointer', fontSize: '0.8rem' }}>✕</button>
+                                        </div>
+                                    ) : (
+                                        <div style={{ position: 'relative' }}>
+                                            <input
+                                                value={editPatientSearchQuery}
+                                                onChange={e => { setEditPatientSearchQuery(e.target.value); searchPatients(e.target.value, 'edit'); }}
+                                                placeholder="Wyszukaj pacjenta..."
+                                                style={{
+                                                    width: '100%', background: 'rgba(255,255,255,0.06)',
+                                                    border: '1px solid rgba(255,255,255,0.12)', borderRadius: '0.5rem',
+                                                    padding: '0.6rem 0.85rem', color: '#fff', fontSize: '0.85rem',
+                                                    outline: 'none', boxSizing: 'border-box' as const,
+                                                }}
+                                            />
+                                            {editPatientSearchLoading && <div style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)' }}>Szukam...</div>}
+                                            {editPatientSearchResults.length > 0 && (
+                                                <div style={{
+                                                    position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10,
+                                                    background: '#1a1a2e', border: '1px solid rgba(56,189,248,0.2)',
+                                                    borderRadius: '0 0 0.5rem 0.5rem', maxHeight: '180px', overflowY: 'auto',
+                                                    boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+                                                }}>
+                                                    {editPatientSearchResults.map(p => (
+                                                        <button key={p.id} type="button"
+                                                            onClick={() => {
+                                                                setEditForm((prev: any) => ({ ...prev, patient_id: p.id, patient_name: p.fullName }));
+                                                                setEditPatientSearchQuery('');
+                                                                setEditPatientSearchResults([]);
+                                                            }}
+                                                            style={{
+                                                                width: '100%', padding: '0.5rem 0.85rem', background: 'transparent',
+                                                                border: 'none', borderBottom: '1px solid rgba(255,255,255,0.05)',
+                                                                color: '#fff', fontSize: '0.8rem', cursor: 'pointer', textAlign: 'left' as const,
+                                                                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                                            }}
+                                                            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(56,189,248,0.1)')}
+                                                            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                                                        >
+                                                            <span style={{ fontWeight: '600' }}>{p.fullName}</span>
+                                                            {p.phone && <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)' }}>📱 {p.phone}</span>}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Due date */}
