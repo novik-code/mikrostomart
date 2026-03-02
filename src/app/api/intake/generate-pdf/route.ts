@@ -425,8 +425,8 @@ export async function POST(req: NextRequest) {
             });
 
         if (uploadErr) {
-            console.error('[EKartaPDF] Upload error:', uploadErr);
-            return NextResponse.json({ error: 'Upload failed' }, { status: 500 });
+            console.error('[EKartaPDF] Upload error:', uploadErr, 'storagePath:', storagePath);
+            return NextResponse.json({ error: `Upload failed: ${uploadErr.message || JSON.stringify(uploadErr)}`, storagePath }, { status: 500 });
         }
 
         const { data: urlData } = supabase.storage
