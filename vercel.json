@@ -51,6 +51,10 @@
         {
             "path": "/api/cron/push-cleanup",
             "schedule": "15 3 * * *"
+        },
+        {
+            "path": "/api/cron/birthday-wishes",
+            "schedule": "0 8 * * *"
         }
     ]
 }
