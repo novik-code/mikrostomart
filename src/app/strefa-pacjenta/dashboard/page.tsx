@@ -3,8 +3,44 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import AppointmentActionsDropdown from '@/components/AppointmentActionsDropdown';
 import type { AppointmentStatusResponse } from '@/types/appointmentActions';
+
+const AppointmentScheduler = dynamic(() => import('@/components/scheduler/AppointmentScheduler'), { ssr: false });
+
+// ── Specialist & service data (mirrored from ReservationForm) ──
+const SPECIALISTS = [
+    { id: 'marcin', name: 'lek. dent. Marcin Nowosielski', role: 'doctor' },
+    { id: 'ilona', name: 'lek. dent. Ilona Piechaczek', role: 'doctor' },
+    { id: 'katarzyna', name: 'lek. dent. Katarzyna Halupczok', role: 'doctor' },
+    { id: 'dominika', name: 'lek. dent. Dominika Milicz', role: 'doctor' },
+    { id: 'malgorzata', name: 'hig. stom. Małgorzata Maćków-Huras', role: 'hygienist' },
+] as const;
+
+const SERVICE_IDS: Record<string, { id: string; label: string }[]> = {
+    doctor: [
+        { id: 'konsultacja', label: 'Konsultacja' },
+        { id: 'bol', label: 'Ból zęba' },
+        { id: 'implanty', label: 'Implanty' },
+        { id: 'licowki', label: 'Licówki' },
+        { id: 'ortodoncja', label: 'Ortodoncja' },
+    ],
+    hygienist: [
+        { id: 'higienizacja', label: 'Higienizacja' },
+        { id: 'wybielanie', label: 'Wybielanie' },
+    ],
+};
+
+interface OnlineBooking {
+    id: string;
+    specialist_name: string;
+    appointment_date: string;
+    appointment_time: string;
+    service_type: string | null;
+    schedule_status: string;
+    created_at: string;
+}
 
 interface PatientData {
     id: string;
@@ -59,7 +95,21 @@ export default function PatientDashboard() {
     const [isLoadingAppointment, setIsLoadingAppointment] = useState(true);
     const [appointmentActionId, setAppointmentActionId] = useState<string | null>(null);
     const [appointmentStatus, setAppointmentStatus] = useState<AppointmentStatusResponse | null>(null);
+    // ── Online booking state ──
+    const [showBookingForm, setShowBookingForm] = useState(false);
+    const [bookingSpecialist, setBookingSpecialist] = useState('');
+    const [bookingService, setBookingService] = useState('');
+    const [bookingDate, setBookingDate] = useState('');
+    const [bookingTime, setBookingTime] = useState('');
+    const [bookingDescription, setBookingDescription] = useState('');
+    const [isBooking, setIsBooking] = useState(false);
+    const [bookingSuccess, setBookingSuccess] = useState(false);
+    const [bookingError, setBookingError] = useState<string | null>(null);
+    const [pendingBookings, setPendingBookings] = useState<OnlineBooking[]>([]);
     const router = useRouter();
+
+    const selectedSpec = SPECIALISTS.find(s => s.id === bookingSpecialist);
+    const availableServices = selectedSpec ? (SERVICE_IDS[selectedSpec.role] || []) : [];
 
     const getAuthToken = () => {
         const cookies = document.cookie.split('; ');
@@ -247,6 +297,72 @@ export default function PatientDashboard() {
         }
     };
 
+
+    // ── Load pending bookings ──
+    useEffect(() => {
+        const loadBookings = async () => {
+            const token = getAuthToken();
+            if (!token || !patient) return;
+            try {
+                const res = await fetch('/api/patients/appointments/bookings', {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    setPendingBookings(
+                        (data.bookings || []).filter((b: OnlineBooking) =>
+                            ['pending', 'approved'].includes(b.schedule_status)
+                        )
+                    );
+                }
+            } catch (e) {
+                console.error('[Dashboard] Failed to load bookings:', e);
+            }
+        };
+        loadBookings();
+    }, [patient, bookingSuccess]);
+
+    // ── Submit booking ──
+    const handleBookingSubmit = async () => {
+        if (!bookingSpecialist || !bookingDate || !bookingTime) return;
+        setIsBooking(true);
+        setBookingError(null);
+        try {
+            const token = getAuthToken();
+            const spec = SPECIALISTS.find(s => s.id === bookingSpecialist);
+            const res = await fetch('/api/patients/appointments/book', {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    specialist: bookingSpecialist,
+                    specialistName: spec?.name || bookingSpecialist,
+                    service: bookingService,
+                    date: bookingDate,
+                    time: bookingTime,
+                    description: bookingDescription || undefined,
+                }),
+            });
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.error || 'Booking failed');
+            }
+            setBookingSuccess(true);
+            setShowBookingForm(false);
+            // Reset form
+            setBookingSpecialist('');
+            setBookingService('');
+            setBookingDate('');
+            setBookingTime('');
+            setBookingDescription('');
+        } catch (e: any) {
+            setBookingError(e.message || 'Wystąpił błąd');
+        } finally {
+            setIsBooking(false);
+        }
+    };
 
     const handleLogout = () => {
         document.cookie = 'patient_token=; path=/; max-age=0';
@@ -596,36 +712,238 @@ export default function PatientDashboard() {
                                 Ładowanie informacji o wizycie...
                             </div>
                         ) : !hasNextAppointment ? (
-                            <div style={{
-                                textAlign: 'center',
-                                padding: '3rem 2rem',
-                                background: 'rgba(255, 255, 255, 0.02)',
-                                borderRadius: '0.75rem',
-                                border: '1px dashed rgba(255, 255, 255, 0.1)',
-                            }}>
-                                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📆</div>
-                                <p style={{ color: 'rgba(255, 255, 255, 0.7)', marginBottom: '1.5rem' }}>
-                                    Nie masz zaplanowanych wizyt
-                                </p>
-                                <a
-                                    href="tel:570270470"
-                                    style={{
-                                        display: 'inline-block',
-                                        padding: '0.75rem 2rem',
-                                        background: 'linear-gradient(135deg, #dcb14a, #f0c96c)',
-                                        border: 'none',
-                                        borderRadius: '0.5rem',
-                                        color: '#000',
-                                        fontSize: '1rem',
-                                        fontWeight: 'bold',
-                                        textDecoration: 'none',
-                                        transition: 'transform 0.2s',
-                                    }}
-                                    onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
-                                    onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
-                                >
-                                    📞 Umów wizytę: 570 270 470
-                                </a>
+                            <div>
+                                {/* Success message */}
+                                {bookingSuccess && (
+                                    <div style={{
+                                        padding: '1.5rem',
+                                        background: 'rgba(34, 197, 94, 0.1)',
+                                        border: '1px solid rgba(34, 197, 94, 0.3)',
+                                        borderRadius: '0.75rem',
+                                        marginBottom: '1.5rem',
+                                        textAlign: 'center',
+                                    }}>
+                                        <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>✅</div>
+                                        <p style={{ color: '#22c55e', fontWeight: 'bold', marginBottom: '0.25rem' }}>Rezerwacja wysłana!</p>
+                                        <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.85rem' }}>
+                                            Gabinet potwierdzi Twoją wizytę w ciągu 24h.
+                                        </p>
+                                    </div>
+                                )}
+
+                                {/* Pending bookings */}
+                                {pendingBookings.length > 0 && (
+                                    <div style={{ marginBottom: '1.5rem' }}>
+                                        {pendingBookings.map(b => {
+                                            const bDate = new Date(`${b.appointment_date}T${b.appointment_time}`);
+                                            return (
+                                                <div key={b.id} style={{
+                                                    padding: '1rem 1.25rem',
+                                                    background: 'rgba(220, 177, 74, 0.08)',
+                                                    border: '1px solid rgba(220, 177, 74, 0.2)',
+                                                    borderRadius: '0.75rem',
+                                                    marginBottom: '0.5rem',
+                                                    display: 'flex',
+                                                    justifyContent: 'space-between',
+                                                    alignItems: 'center',
+                                                    flexWrap: 'wrap',
+                                                    gap: '0.5rem',
+                                                }}>
+                                                    <div>
+                                                        <div style={{ color: '#dcb14a', fontSize: '0.75rem', fontWeight: '600', marginBottom: '0.25rem' }}>
+                                                            ⏳ {b.schedule_status === 'pending' ? 'Oczekuje na potwierdzenie' : 'Zatwierdzona'}
+                                                        </div>
+                                                        <div style={{ color: '#fff', fontSize: '0.95rem', fontWeight: 'bold' }}>
+                                                            {b.specialist_name}
+                                                        </div>
+                                                        <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.85rem' }}>
+                                                            {bDate.toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long' })}, godz. {b.appointment_time?.slice(0, 5)}
+                                                        </div>
+                                                    </div>
+                                                    <div style={{
+                                                        padding: '0.3rem 0.75rem',
+                                                        borderRadius: '99px',
+                                                        fontSize: '0.7rem',
+                                                        fontWeight: '600',
+                                                        background: b.schedule_status === 'pending' ? 'rgba(220, 177, 74, 0.15)' : 'rgba(34, 197, 94, 0.15)',
+                                                        color: b.schedule_status === 'pending' ? '#dcb14a' : '#22c55e',
+                                                    }}>
+                                                        {b.schedule_status === 'pending' ? '⏳ Pending' : '✅ Approved'}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+
+                                {/* No appointment + booking CTA */}
+                                {!showBookingForm ? (
+                                    <div style={{
+                                        textAlign: 'center',
+                                        padding: '3rem 2rem',
+                                        background: 'rgba(255, 255, 255, 0.02)',
+                                        borderRadius: '0.75rem',
+                                        border: '1px dashed rgba(255, 255, 255, 0.1)',
+                                    }}>
+                                        <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📆</div>
+                                        <p style={{ color: 'rgba(255, 255, 255, 0.7)', marginBottom: '1.5rem' }}>
+                                            {pendingBookings.length > 0 ? 'Chcesz umówić kolejną wizytę?' : 'Nie masz zaplanowanych wizyt'}
+                                        </p>
+                                        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                                            <button
+                                                onClick={() => { setShowBookingForm(true); setBookingSuccess(false); }}
+                                                style={{
+                                                    padding: '0.75rem 2rem',
+                                                    background: 'linear-gradient(135deg, #dcb14a, #f0c96c)',
+                                                    border: 'none',
+                                                    borderRadius: '0.5rem',
+                                                    color: '#000',
+                                                    fontSize: '1rem',
+                                                    fontWeight: 'bold',
+                                                    cursor: 'pointer',
+                                                    transition: 'transform 0.2s',
+                                                }}
+                                                onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+                                                onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+                                            >
+                                                🗓️ Umów wizytę online
+                                            </button>
+                                            <a
+                                                href="tel:570270470"
+                                                style={{
+                                                    padding: '0.75rem 2rem',
+                                                    background: 'transparent',
+                                                    border: '1px solid rgba(220, 177, 74, 0.3)',
+                                                    borderRadius: '0.5rem',
+                                                    color: '#dcb14a',
+                                                    fontSize: '1rem',
+                                                    fontWeight: 'bold',
+                                                    textDecoration: 'none',
+                                                    transition: 'transform 0.2s',
+                                                }}
+                                                onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+                                                onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+                                            >
+                                                📞 570 270 470
+                                            </a>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    /* ── Inline booking form ── */
+                                    <div style={{
+                                        padding: '1.5rem',
+                                        background: 'rgba(255, 255, 255, 0.03)',
+                                        borderRadius: '0.75rem',
+                                        border: '1px solid rgba(220, 177, 74, 0.2)',
+                                    }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+                                            <h3 style={{ color: '#dcb14a', fontSize: '1.1rem', fontWeight: 'bold' }}>🗓️ Umów wizytę online</h3>
+                                            <button
+                                                onClick={() => setShowBookingForm(false)}
+                                                style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: '1.2rem', cursor: 'pointer' }}
+                                            >✕</button>
+                                        </div>
+
+                                        {/* Specialist */}
+                                        <div style={{ marginBottom: '1rem' }}>
+                                            <label style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)' }}>Specjalista *</label>
+                                            <select
+                                                value={bookingSpecialist}
+                                                onChange={(e) => { setBookingSpecialist(e.target.value); setBookingService(''); setBookingDate(''); setBookingTime(''); }}
+                                                style={{
+                                                    width: '100%', padding: '0.7rem', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)',
+                                                    borderRadius: '0.5rem', color: '#fff', fontSize: '0.9rem', outline: 'none',
+                                                }}
+                                            >
+                                                <option value="">Wybierz specjalistę</option>
+                                                {SPECIALISTS.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                            </select>
+                                        </div>
+
+                                        {/* Service */}
+                                        {selectedSpec && (
+                                            <div style={{ marginBottom: '1rem' }}>
+                                                <label style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)' }}>Usługa *</label>
+                                                <select
+                                                    value={bookingService}
+                                                    onChange={(e) => setBookingService(e.target.value)}
+                                                    style={{
+                                                        width: '100%', padding: '0.7rem', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)',
+                                                        borderRadius: '0.5rem', color: '#fff', fontSize: '0.9rem', outline: 'none',
+                                                    }}
+                                                >
+                                                    <option value="">Wybierz usługę</option>
+                                                    {availableServices.map(s => <option key={s.id} value={s.label}>{s.label}</option>)}
+                                                </select>
+                                            </div>
+                                        )}
+
+                                        {/* Scheduler */}
+                                        {selectedSpec && (
+                                            <div style={{ marginBottom: '1rem' }}>
+                                                <label style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)' }}>
+                                                    Dostępne terminy *
+                                                </label>
+                                                <AppointmentScheduler
+                                                    specialistId={selectedSpec.id}
+                                                    specialistName={selectedSpec.name}
+                                                    onSlotSelect={(slot) => {
+                                                        if (slot) {
+                                                            setBookingDate(slot.date);
+                                                            setBookingTime(slot.time);
+                                                        } else {
+                                                            setBookingDate('');
+                                                            setBookingTime('');
+                                                        }
+                                                    }}
+                                                />
+                                                {bookingDate && bookingTime && (
+                                                    <p style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: '#dcb14a' }}>
+                                                        ✓ Wybrany termin: {bookingDate}, godz. {bookingTime}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {/* Description */}
+                                        <div style={{ marginBottom: '1rem' }}>
+                                            <label style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)' }}>Opis (opcjonalnie)</label>
+                                            <textarea
+                                                value={bookingDescription}
+                                                onChange={(e) => setBookingDescription(e.target.value)}
+                                                placeholder="Opisz powód wizyty..."
+                                                rows={2}
+                                                style={{
+                                                    width: '100%', padding: '0.7rem', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)',
+                                                    borderRadius: '0.5rem', color: '#fff', fontSize: '0.85rem', outline: 'none', resize: 'vertical', fontFamily: 'inherit',
+                                                }}
+                                            />
+                                        </div>
+
+                                        {bookingError && (
+                                            <div style={{ padding: '0.6rem', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '0.5rem', color: '#ef4444', fontSize: '0.85rem', marginBottom: '1rem' }}>
+                                                {bookingError}
+                                            </div>
+                                        )}
+
+                                        {/* Submit */}
+                                        <button
+                                            onClick={handleBookingSubmit}
+                                            disabled={isBooking || !bookingSpecialist || !bookingDate || !bookingTime}
+                                            style={{
+                                                width: '100%', padding: '0.85rem',
+                                                background: (isBooking || !bookingSpecialist || !bookingDate || !bookingTime)
+                                                    ? 'rgba(220, 177, 74, 0.3)' : 'linear-gradient(135deg, #dcb14a, #f0c96c)',
+                                                border: 'none', borderRadius: '0.5rem', color: '#000', fontSize: '1rem',
+                                                fontWeight: 'bold', cursor: (isBooking || !bookingSpecialist || !bookingDate || !bookingTime) ? 'not-allowed' : 'pointer',
+                                                opacity: (isBooking || !bookingSpecialist || !bookingDate || !bookingTime) ? 0.5 : 1,
+                                                transition: 'all 0.2s',
+                                            }}
+                                        >
+                                            {isBooking ? '⏳ Rezerwuję...' : '📅 Zarezerwuj wizytę'}
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         ) : (
                             (() => {
