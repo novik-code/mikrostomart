@@ -186,6 +186,32 @@ export async function POST(
         broadcastPush('admin', 'appointment_confirmed', pushParams, '/admin').catch(console.error);
         broadcastPush('employee', 'appointment_confirmed', pushParams, '/pracownik').catch(console.error);
 
+        // Add "Pacjent potwierdzony" icon in Prodentis (icon ID 0000000010)
+        let iconAdded = false;
+        try {
+            const PRODENTIS_API = process.env.PRODENTIS_API_URL || 'http://83.230.40.14:3000';
+            const PRODENTIS_KEY = process.env.PRODENTIS_API_KEY || '';
+            const prodentisAptId = appointmentAction.prodentis_id;
+
+            if (prodentisAptId && PRODENTIS_KEY) {
+                const iconRes = await fetch(`${PRODENTIS_API}/api/schedule/appointment/${prodentisAptId}/icon`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': PRODENTIS_KEY,
+                    },
+                    body: JSON.stringify({ iconId: '0000000010' }),
+                    signal: AbortSignal.timeout(10000),
+                });
+                iconAdded = iconRes.ok;
+                console.log(`[CONFIRM-ATTENDANCE] Prodentis icon ${iconAdded ? 'added' : 'failed'}:`, prodentisAptId);
+            } else {
+                console.warn('[CONFIRM-ATTENDANCE] No prodentis_id or API key — skipping icon');
+            }
+        } catch (iconError) {
+            console.error('[CONFIRM-ATTENDANCE] Failed to add Prodentis icon:', iconError);
+        }
+
         const response: AppointmentActionResponse = {
             success: true,
             message: 'Potwierdzenie obecności wysłane. Gabinet został powiadomiony.',
