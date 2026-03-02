@@ -1776,12 +1776,13 @@ NODE_ENV=production
 ## 📝 Recent Changes
 
 ### March 2, 2026
-**Task System Improvements + E-Karta Bug Fix**
+**Task System + E-Karta + Patient Zone Booking**
 
 #### Commits:
 - `908e8ab` — feat(tasks): multi-category filter, kanban edit button, patient search from DB
 - `6b21c19` — ui(tasks): replace filter chips with dropdown checklist multi-select
 - `4fbcb19` — fix(e-karta): sanitize Polish diacritics from PDF filename — fixes Supabase 'Invalid key' error
+- `3cf3033` — feat(patient-zone): online booking from dashboard — uses existing prodentis_id
 
 #### Changes:
 1. **Multi-category task filter**: Dropdown multi-select with checkmarks (✓). Click "Typ: Wszystkie" → opens list → toggle categories (OR logic). State: `filterType: string` → `filterTypes: string[]`
@@ -1791,12 +1792,21 @@ NODE_ENV=production
    - Debounced autocomplete (300ms) in task **creation** and **edit** modals
    - Selected patient displayed as blue chip with ✕ to remove
    - `patient_id` + `patient_name` now stored uniformly whether task created from schedule or manually
-4. **E-Karta PDF fix**: Polish diacritics (ą, ć, ę, ł, ń, ó, ś, ź, ż) in patient names caused Supabase Storage `Invalid key` error. Added `polishToAscii()` sanitizer to `generate-pdf/route.ts` (same approach as `consents/sign/route.ts`)
+4. **E-Karta PDF fix**: Polish diacritics in patient names caused Supabase Storage `Invalid key` error. Added `polishToAscii()` sanitizer
+5. **Patient Zone Online Booking**:
+   - **NEW** `POST /api/patients/appointments/book` — JWT-auth booking, uses existing `prodentis_id` (no patient search/creation, `match_method: patient_zone_auth`, confidence: 100)
+   - **NEW** `GET /api/patients/appointments/bookings` — fetch patient's `online_bookings`
+   - Dashboard: inline booking form (specialist → service → AppointmentScheduler → submit)
+   - Pending booking status cards with "Oczekuje na potwierdzenie" indicator
+   - Saves to `online_bookings` with pre-matched patient → admin approves → auto-schedules in Prodentis
 
 #### Files changed:
 - `src/app/pracownik/page.tsx` — frontend (filters, modals, Kanban edit button)
 - `src/app/api/employee/patient-search/route.ts` — **NEW** endpoint
 - `src/app/api/intake/generate-pdf/route.ts` — bug fix + improved error messages
+- `src/app/api/patients/appointments/book/route.ts` — **NEW** patient booking endpoint
+- `src/app/api/patients/appointments/bookings/route.ts` — **NEW** bookings list endpoint
+- `src/app/strefa-pacjenta/dashboard/page.tsx` — booking form + pending bookings UI
 
 ---
 
