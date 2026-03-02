@@ -406,11 +406,20 @@ export async function POST(req: NextRequest) {
         const pdfBytes = await generateEKartaPdf(submission);
         const pdfBase64 = Buffer.from(pdfBytes).toString('base64');
 
-        // Build filename
+        // Build filename — ASCII-only for Supabase Storage compatibility
+        const polishToAscii = (str: string) => str
+            .replace(/ą/g, 'a').replace(/ć/g, 'c').replace(/ę/g, 'e')
+            .replace(/ł/g, 'l').replace(/ń/g, 'n').replace(/ó/g, 'o')
+            .replace(/ś/g, 's').replace(/ź/g, 'z').replace(/ż/g, 'z')
+            .replace(/Ą/g, 'A').replace(/Ć/g, 'C').replace(/Ę/g, 'E')
+            .replace(/Ł/g, 'L').replace(/Ń/g, 'N').replace(/Ó/g, 'O')
+            .replace(/Ś/g, 'S').replace(/Ź/g, 'Z').replace(/Ż/g, 'Z')
+            .replace(/[^a-zA-Z0-9_\-\.]/g, '_')
+            .replace(/_+/g, '_');
         const firstName = submission.first_name || 'Pacjent';
         const lastName = submission.last_name || '';
         const dateStr = new Date().toISOString().slice(0, 10);
-        const fileName = `ekarta_${firstName}_${lastName}_${dateStr}.pdf`.replace(/\s+/g, '_');
+        const fileName = `ekarta_${polishToAscii(firstName)}_${polishToAscii(lastName)}_${dateStr}.pdf`;
 
         // Resolve prodentis patient ID
         const patientProdentisId = submission.prodentis_patient_id || prodentisPatientId;
