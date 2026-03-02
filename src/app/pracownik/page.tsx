@@ -3490,32 +3490,72 @@ export default function EmployeePage() {
                             <option value="">Wszyscy</option>
                             {staffList.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                         </select>
-                        {/* Type filter chips (multi-select) */}
-                        <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                            {[{ key: '__private__', icon: '🔒', label: 'Prywatne' }, ...Object.entries(TASK_TYPE_CHECKLISTS).map(([k, v]) => ({ key: k, icon: v.icon, label: v.label }))].map(item => {
-                                const active = filterTypes.includes(item.key);
-                                return (
+                        {/* Type filter dropdown (multi-select with checkmarks) */}
+                        {(() => {
+                            const allTypeOptions = [{ key: '__private__', icon: '🔒', label: 'Prywatne' }, ...Object.entries(TASK_TYPE_CHECKLISTS).map(([k, v]) => ({ key: k, icon: v.icon, label: v.label }))];
+                            const selectedLabels = allTypeOptions.filter(o => filterTypes.includes(o.key));
+                            return (
+                                <div style={{ position: 'relative' }}>
                                     <button
-                                        key={item.key}
-                                        onClick={() => setFilterTypes(prev => active ? prev.filter(x => x !== item.key) : [...prev, item.key])}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            const dropdown = e.currentTarget.nextElementSibling as HTMLElement;
+                                            if (dropdown) dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+                                        }}
                                         style={{
-                                            padding: '0.25rem 0.55rem',
-                                            borderRadius: '1rem',
-                                            border: `1px solid ${active ? 'rgba(168,85,247,0.5)' : 'rgba(255,255,255,0.1)'}`,
-                                            background: active ? 'rgba(168,85,247,0.15)' : 'transparent',
-                                            color: active ? '#c084fc' : 'rgba(255,255,255,0.5)',
-                                            fontSize: '0.7rem',
-                                            fontWeight: active ? '600' : '400',
+                                            padding: '0.4rem 0.5rem',
+                                            background: 'rgba(255,255,255,0.05)',
+                                            border: `1px solid ${filterTypes.length > 0 ? 'rgba(168,85,247,0.4)' : 'rgba(255,255,255,0.1)'}`,
+                                            borderRadius: '0.5rem',
+                                            color: filterTypes.length > 0 ? '#c084fc' : 'rgba(255,255,255,0.5)',
+                                            fontSize: '0.75rem',
                                             cursor: 'pointer',
-                                            transition: 'all 0.15s',
                                             whiteSpace: 'nowrap',
+                                            display: 'flex', alignItems: 'center', gap: '0.3rem',
                                         }}
                                     >
-                                        {item.icon} {item.label}
+                                        {filterTypes.length > 0
+                                            ? `Typ: ${selectedLabels.map(l => l.label).join(', ')}`
+                                            : 'Typ: Wszystkie'}
+                                        <span style={{ fontSize: '0.6rem', opacity: 0.6 }}>▾</span>
                                     </button>
-                                );
-                            })}
-                        </div>
+                                    <div
+                                        style={{
+                                            display: 'none',
+                                            position: 'absolute', top: '100%', left: 0, zIndex: 50,
+                                            marginTop: '0.25rem', minWidth: '180px',
+                                            background: '#1a1a2e', border: '1px solid rgba(168,85,247,0.2)',
+                                            borderRadius: '0.5rem', boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+                                            overflow: 'hidden',
+                                        }}
+                                        onClick={e => e.stopPropagation()}
+                                    >
+                                        {allTypeOptions.map(item => {
+                                            const checked = filterTypes.includes(item.key);
+                                            return (
+                                                <button
+                                                    key={item.key}
+                                                    onClick={() => setFilterTypes(prev => checked ? prev.filter(x => x !== item.key) : [...prev, item.key])}
+                                                    style={{
+                                                        width: '100%', padding: '0.5rem 0.75rem',
+                                                        background: checked ? 'rgba(168,85,247,0.1)' : 'transparent',
+                                                        border: 'none', borderBottom: '1px solid rgba(255,255,255,0.05)',
+                                                        color: checked ? '#c084fc' : 'rgba(255,255,255,0.6)',
+                                                        fontSize: '0.78rem', cursor: 'pointer', textAlign: 'left',
+                                                        display: 'flex', alignItems: 'center', gap: '0.5rem',
+                                                    }}
+                                                    onMouseEnter={e => { if (!checked) e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
+                                                    onMouseLeave={e => { e.currentTarget.style.background = checked ? 'rgba(168,85,247,0.1)' : 'transparent'; }}
+                                                >
+                                                    <span style={{ width: '1.1rem', textAlign: 'center', fontSize: '0.7rem' }}>{checked ? '✓' : ''}</span>
+                                                    <span>{item.icon} {item.label}</span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            );
+                        })()}
                         <select
                             value={filterPriority}
                             onChange={e => setFilterPriority(e.target.value)}
