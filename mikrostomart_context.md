@@ -1176,6 +1176,7 @@ Features:
 | `/employee/tasks/ai-parse` | POST | **NEW** — GPT-4o-mini parses natural-language text → creates private tasks + schedules task_reminders |
 | `/employee/tasks/labels` | GET, POST | Task labels CRUD (list all labels, create new label) |
 | `/employee/tasks/upload-image` | POST | Upload task image to Supabase Storage (`task-images` bucket) |
+| `/employee/patient-search` | GET | **NEW** — Prodentis patient search proxy for employees. `?q=name&limit=5`. Auth: employee/admin. Used in task create/edit for linking patients from DB. |
 | `/employee/tts` | POST | **NEW** — OpenAI TTS proxy (`tts-1` model). `{ text, voice? }` → returns `audio/mpeg`. Voices: nova (default), alloy, shimmer. Auth: employee/admin only. |
 | `/employee/assistant` | POST | AI Voice Assistant (GPT-4o function-calling). System prompt: **proactive** — acts immediately, suggests improvements after. Supports: createTask, addCalendarEvent, addReminder, dictateDocumentation, searchPatient, checkSchedule. |
 
@@ -1773,6 +1774,27 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### March 2, 2026
+**Task System Improvements — Multi-category filter, edit access, patient search**
+
+#### Commit:
+- `908e8ab` — feat(tasks): multi-category filter, kanban edit button, patient search from DB
+
+#### Changes:
+1. **Multi-category task filter**: Replaced single-select `<select>` dropdown with toggleable chip buttons. Users can now select multiple task types simultaneously (OR logic). State: `filterType: string` → `filterTypes: string[]`
+2. **Edit button on Kanban cards**: Added ✏️ button directly on Kanban board cards (between ← → arrows), allowing quick task editing from Kanban view without opening detail modal first
+3. **Patient search from database**: 
+   - **NEW** `GET /api/employee/patient-search?q=...&limit=5` — employee-scoped Prodentis patient search proxy
+   - Debounced autocomplete (300ms) in task **creation** and **edit** modals
+   - Selected patient displayed as blue chip with ✕ to remove
+   - `patient_id` + `patient_name` now stored uniformly whether task created from schedule or manually
+
+#### Files changed:
+- `src/app/pracownik/page.tsx` — frontend (filters, modals, Kanban edit button)
+- `src/app/api/employee/patient-search/route.ts` — **NEW** endpoint
+
+---
 
 ### February 26, 2026
 **Online Booking Automation — Prodentis API 6.0 Integration**
