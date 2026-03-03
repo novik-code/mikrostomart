@@ -160,7 +160,7 @@ mikrostomart/
 │   │   │   ├── profil/         # Patient profile
 │   │   │   ├── wiadomosci/     # Patient ↔ Reception real-time chat
 │   │   │   └── ocen-nas/       # Rate Us page (QR code → Google Reviews)
-│   │   ├── api/                # API routes (30+ directories)
+│   │   ├── api/                # API routes (85+ endpoints)
 │   │   ├── auth/               # Auth routes (callback for PKCE code exchange)
 │   │   ├── cennik/             # Pricing page (AI chat assistant)
 │   │   ├── aktualnosci/        # News/articles
@@ -227,7 +227,7 @@ mikrostomart/
 ├── supabase_migrations/        # Database migrations (40 files: 003-043, some gaps)
 ├── public/                     # Static assets (incl. qr-ocen-nas.png)
 ├── scripts/                    # Utility scripts (13 files)
-└── vercel.json                 # Deployment configuration (6 cron jobs: 3 daily + 2 Friday-only + 1 task reminders)
+└── vercel.json                 # Deployment configuration (14 cron jobs: see Cron section)
 ```
 
 ### Request Flow
@@ -1222,6 +1222,7 @@ Features:
 | `/admin/push/config` | GET | Get all push notification type configurations |
 | `/admin/push/config` | PATCH | Update groups/enabled for a notification type |
 | `/admin/employees/position` | PATCH | Set employee push groups `{ userId, groups: string[] }` (updates employees + push_subscriptions) |
+| `/admin/cancelled-appointments` | GET | Fetch cancelled appointments log from `cancelled_appointments` table |
 
 ### Employee APIs (`/api/employee/*`)
 
@@ -1243,6 +1244,8 @@ Features:
 | `/employee/patient-search` | GET | **NEW** — Prodentis patient search proxy for employees. `?q=name&limit=5`. Auth: employee/admin. Used in task create/edit for linking patients from DB. |
 | `/employee/tts` | POST | **NEW** — OpenAI TTS proxy (`tts-1` model). `{ text, voice? }` → returns `audio/mpeg`. Voices: nova (default), alloy, shimmer. Auth: employee/admin only. |
 | `/employee/assistant` | POST | AI Voice Assistant (GPT-4o function-calling). System prompt: **proactive** — acts immediately, suggests improvements after. Supports: createTask, addCalendarEvent, addReminder, dictateDocumentation, searchPatient, checkSchedule. |
+| `/employee/tasks/[id]/push` | POST | Send push notification about a specific task |
+| `/employee/task-types` | GET | List available task type categories |
 
 ### Push Notification APIs (`/api/push/*`)
 
@@ -1251,9 +1254,8 @@ Features:
 | `/push/subscribe` | POST | Subscribe to push notifications (upserts into `push_subscriptions`) |
 | `/push/subscribe` | DELETE | Unsubscribe from push notifications |
 | `/push/test` | POST | Send test push notification to verify delivery |
-| `/push/resubscribe` | POST | **NEW** — SW `pushsubscriptionchange` handler: updates rotated endpoint in DB (no auth required, for service worker use) |
-| `/employee/push/history` | GET | **NEW** — Last 7 days of push notifications for logged-in employee from `push_notifications_log` |
-| `/cron/push-cleanup` | GET | **NEW** — Deletes `push_notifications_log` entries older than 7 days. Protected by `CRON_SECRET`. Runs daily at 03:15 UTC (vercel.json cron). |
+| `/push/resubscribe` | POST | SW `pushsubscriptionchange` handler: updates rotated endpoint in DB (no auth required, for service worker use) |
+| `/employee/push/history` | GET | Last 7 days of push notifications for logged-in employee from `push_notifications_log` |
 
 ### Appointment APIs (`/api/appointments/*`)
 
@@ -1262,6 +1264,12 @@ Features:
 | `/appointments/by-date` | GET | Fetch appointments for date (Prodentis proxy) |
 | `/appointments/confirm` | POST | Patient confirms appointment |
 | `/appointments/cancel` | POST | Patient cancels appointment |
+
+### Prodentis Slots Proxy
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/prodentis/slots` | GET | Free appointment slots proxy (Prodentis → frontend) |
 
 ### Patient Portal APIs (`/api/patients/*`)
 
@@ -1285,17 +1293,27 @@ Features:
 | `/patients/appointments/by-date` | GET | **ENHANCED** — Find by date with ±1min range query |
 | `/patients/appointments/book` | POST | Online booking from patient dashboard |
 | `/patients/appointments/bookings` | GET | Fetch patient's online bookings |
+| `/patients/appointments/[id]/reset-status` | POST | Dev/debug: reset appointment status |
+| `/patients/chat` | GET, POST | Patient ↔ reception chat messages |
 
 ### Cron Job APIs (`/api/cron/*`)
 
 | Endpoint | Purpose | Schedule |
 |----------|---------|----------|
-| `/cron/appointment-reminders` | Generate SMS drafts for tomorrow | Daily 7:00 AM UTC |
-| `/cron/appointment-reminders?targetDate=monday` | Generate SMS drafts for Monday (Fri only) | Friday 8:15 AM UTC |
-| `/cron/sms-auto-send` | Auto-send approved drafts | Daily 8:00 AM UTC |
-| `/cron/sms-auto-send?targetDate=monday` | Auto-send Monday drafts (Fri only) | Friday 9:00 AM UTC |
-| `/cron/daily-article` | Daily article publishing | Daily 7:00 AM UTC |
-| `/cron/task-reminders` | (1) Telegram + push for tasks without due dates; (2) push for deposit keyword tasks; (3) individual push from `task_reminders` scheduler table | Daily 8:30 AM UTC |
+| `/cron/daily-article` | Daily AI article publishing | Daily 7:00 UTC |
+| `/cron/appointment-reminders` | Generate SMS drafts for tomorrow | Daily 7:00 UTC |
+| `/cron/sms-auto-send` | Auto-send approved SMS drafts | Daily 8:00 UTC |
+| `/cron/appointment-reminders?targetDate=monday` | Generate Monday SMS drafts (Fri only) | Friday 8:15 UTC |
+| `/cron/sms-auto-send?targetDate=monday` | Auto-send Monday drafts (Fri only) | Friday 9:00 UTC |
+| `/cron/task-reminders` | (1) Telegram + push for tasks w/o due dates; (2) deposit keyword tasks; (3) `task_reminders` scheduler | Daily 8:30 UTC |
+| `/cron/push-appointment-1h` | Push notification 1h before appointment to patient | Every 15 min |
+| `/cron/birthday-wishes` | Birthday SMS greetings (uses `birthday_wishes` table to prevent duplicates) | Daily 8:00 UTC |
+| `/cron/post-visit-sms` | Generate post-visit feedback SMS drafts | Daily 18:00 UTC |
+| `/cron/post-visit-auto-send` | Auto-send post-visit SMS | Daily 19:00 UTC |
+| `/cron/week-after-visit-sms` | Generate week-after-visit follow-up SMS | Daily 9:00 UTC |
+| `/cron/post-visit-auto-send?sms_type=week_after_visit` | Auto-send week-after-visit SMS | Daily 10:00 UTC |
+| `/cron/online-booking-digest` | Telegram digest of unreported online bookings | Daily 6:15 UTC |
+| `/cron/push-cleanup` | Delete `push_notifications_log` entries older than 7 days | Daily 3:15 UTC |
 
 
 ---
