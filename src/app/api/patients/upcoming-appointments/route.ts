@@ -7,7 +7,10 @@ const PRODENTIS_API = process.env.PRODENTIS_API_URL || 'http://localhost:3000';
 
 /**
  * GET /api/patients/upcoming-appointments
- * Returns all FUTURE appointments for the authenticated patient from Prodentis.
+ * 
+ * Returns all FUTURE appointments for the authenticated patient.
+ * Scans the Prodentis schedule day-by-day for the next 90 days,
+ * filtering by the patient's prodentisId.
  */
 export async function GET(request: Request) {
     try {
@@ -18,49 +21,79 @@ export async function GET(request: Request) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        // Fetch all appointments from Prodentis (same endpoint used by employee/patient-appointments)
-        const url = `${PRODENTIS_API}/api/patient/${payload.prodentisId}/appointments?limit=100`;
-        console.log('[UpcomingAppointments] Fetching:', url);
+        const patientId = payload.prodentisId;
+        console.log('[UpcomingAppointments] Scanning schedule for patient:', patientId);
 
-        const response = await fetch(url, {
-            headers: { 'Content-Type': 'application/json' },
-            cache: 'no-store',
-        });
+        // Scan the next 90 days of the schedule
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
 
-        if (!response.ok) {
-            console.error('[UpcomingAppointments] Prodentis error:', response.status);
-            return NextResponse.json({ appointments: [] });
+        const allFuture: any[] = [];
+        const daysToScan = 90;
+        const batchSize = 7; // Fetch 7 days at a time
+
+        // Process in weekly batches to reduce API calls
+        for (let dayOffset = 0; dayOffset < daysToScan; dayOffset += batchSize) {
+            const batchPromises: Promise<any>[] = [];
+
+            for (let d = dayOffset; d < Math.min(dayOffset + batchSize, daysToScan); d++) {
+                const scanDate = new Date(today);
+                scanDate.setDate(scanDate.getDate() + d);
+
+                // Skip weekends (Sat=6, Sun=0)
+                const dow = scanDate.getDay();
+                if (dow === 0 || dow === 6) continue;
+
+                const dateStr = scanDate.toISOString().split('T')[0];
+                batchPromises.push(
+                    fetch(`${PRODENTIS_API}/api/appointments/by-date?date=${dateStr}`, {
+                        headers: { 'Content-Type': 'application/json' },
+                        cache: 'no-store',
+                    })
+                        .then(res => res.ok ? res.json() : { appointments: [] })
+                        .then(data => {
+                            const apts = data.appointments || [];
+                            // Filter only THIS patient's appointments
+                            return apts.filter((a: any) => a.patientId === patientId);
+                        })
+                        .catch(() => [])
+                );
+            }
+
+            const batchResults = await Promise.all(batchPromises);
+            for (const result of batchResults) {
+                allFuture.push(...result);
+            }
+
+            // Early stop: if we found appointments, keep scanning
+            // but if no results after 4 weeks, stop early
+            if (dayOffset >= 28 && allFuture.length === 0) {
+                break;
+            }
         }
 
-        const data = await response.json();
-        const allAppointments = data.appointments || [];
+        // Sort by date ascending
+        allFuture.sort((a, b) =>
+            new Date(a.date).getTime() - new Date(b.date).getTime()
+        );
 
-        console.log('[UpcomingAppointments] Total appointments from Prodentis:', allAppointments.length);
+        // Map to the expected format
+        const mapped = allFuture.map((apt: any) => ({
+            scheduleId: apt.id || null,
+            date: apt.date,
+            endDate: apt.endDate || (() => {
+                // Calculate endDate from duration if available
+                const start = new Date(apt.date);
+                start.setMinutes(start.getMinutes() + (apt.duration || 30));
+                return start.toISOString();
+            })(),
+            doctor: apt.doctor || {},
+            duration: apt.duration || 30,
+        }));
 
-        // Filter to future appointments only (use start of today as cutoff)
-        const now = new Date();
-        now.setHours(0, 0, 0, 0);
+        console.log('[UpcomingAppointments] Found', mapped.length, 'appointment(s) for patient', patientId);
 
-        const upcoming = allAppointments
-            .filter((apt: any) => {
-                const aptDate = new Date(apt.date);
-                return aptDate >= now;
-            })
-            .sort((a: any, b: any) =>
-                new Date(a.date).getTime() - new Date(b.date).getTime()
-            )
-            .map((apt: any) => ({
-                scheduleId: apt.id || null,
-                date: apt.date,
-                endDate: apt.endDate || apt.date,
-                doctor: apt.doctor || {},
-                cost: apt.cost || 0,
-                paid: apt.paid || 0,
-            }));
-
-        console.log('[UpcomingAppointments] Future appointments found:', upcoming.length);
-
-        return NextResponse.json({ appointments: upcoming });
+        return NextResponse.json({ appointments: mapped });
 
     } catch (error: any) {
         console.error('[UpcomingAppointments] Error:', error);
