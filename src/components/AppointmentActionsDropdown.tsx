@@ -48,420 +48,244 @@ export default function AppointmentActionsDropdown({
     patientHouseNumber,
     patientApartmentNumber
 }: AppointmentActionsDropdownProps) {
-    const [isOpen, setIsOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [showConfirmAttendanceModal, setShowConfirmAttendanceModal] = useState(false);
     const [showCancelModal, setShowCancelModal] = useState(false);
     const [showRescheduleModal, setShowRescheduleModal] = useState(false);
 
-    const dropdownRef = useRef<HTMLDivElement>(null);
     const router = useRouter();
 
-    // Close dropdown when clicking outside
-    useEffect(() => {
-        function handleClickOutside(event: MouseEvent) {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-                setIsOpen(false);
-            }
-        }
-
-        if (isOpen) {
-            document.addEventListener('mousedown', handleClickOutside);
-            return () => document.removeEventListener('mousedown', handleClickOutside);
-        }
-    }, [isOpen]);
-
-    // Determine if actions are available
+    // Action availability
     const canConfirmAttendance = hoursUntilAppointment > 0 && hoursUntilAppointment <= 24 && !attendanceConfirmed;
     const canPayDeposit = !depositPaid && hoursUntilAppointment > 0;
     const canCancel = hoursUntilAppointment > 0 && !attendanceConfirmed && currentStatus !== 'cancellation_pending' && currentStatus !== 'cancelled';
     const canReschedule = hoursUntilAppointment > 0 && !attendanceConfirmed && currentStatus !== 'reschedule_pending' && currentStatus !== 'rescheduled' && currentStatus !== 'cancelled';
 
-    // DEBUG: Log all conditions
-    console.log('[AppointmentActionsDropdown] Conditions:', {
-        hoursUntilAppointment,
-        currentStatus,
-        depositPaid,
-        attendanceConfirmed,
-        canConfirmAttendance,
-        canPayDeposit,
-        canCancel,
-        canReschedule
-    });
-
-    // Status badge config
-    const getStatusConfig = () => {
+    // Status display
+    const getStatusInfo = () => {
         switch (currentStatus) {
             case 'unpaid_reservation':
-                return {
-                    icon: '⚠️',
-                    text: 'Rezerwacja niepotwierdzona',
-                    color: '#ff9800',
-                    bgColor: '#fff3e0'
-                };
+                return { icon: '⚠️', text: 'Rezerwacja niepotwierdzona', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.12)', border: 'rgba(245, 158, 11, 0.25)' };
             case 'deposit_paid':
-                return {
-                    icon: '✅',
-                    text: 'Rezerwacja potwierdzona zadatkiem',
-                    color: '#4caf50',
-                    bgColor: '#e8f5e9'
-                };
+                return { icon: '✅', text: 'Potwierdzona zadatkiem', color: '#22c55e', bg: 'rgba(34, 197, 94, 0.12)', border: 'rgba(34, 197, 94, 0.25)' };
             case 'attendance_confirmed':
-                return {
-                    icon: '✅',
-                    text: 'Obecność potwierdzona',
-                    color: '#2e7d32',
-                    bgColor: '#c8e6c9'
-                };
+                return { icon: '✅', text: 'Obecność potwierdzona', color: '#16a34a', bg: 'rgba(22, 163, 74, 0.12)', border: 'rgba(22, 163, 74, 0.25)' };
             case 'cancellation_pending':
-                return {
-                    icon: '🕐',
-                    text: 'Oczekuje na odwołanie (do 24h)',
-                    color: '#ff9800',
-                    bgColor: '#fff3e0'
-                };
+                return { icon: '🕐', text: 'Odwołanie w toku', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.12)', border: 'rgba(245, 158, 11, 0.25)' };
             case 'reschedule_pending':
-                return {
-                    icon: '🕐',
-                    text: 'Oczekuje na przełożenie (do 24h)',
-                    color: '#ff9800',
-                    bgColor: '#fff3e0'
-                };
+                return { icon: '🕐', text: 'Przełożenie w toku', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.12)', border: 'rgba(245, 158, 11, 0.25)' };
             case 'cancelled':
-                return {
-                    icon: '❌',
-                    text: 'Wizyta odwołana',
-                    color: '#f44336',
-                    bgColor: '#ffebee'
-                };
+                return { icon: '❌', text: 'Wizyta odwołana', color: '#ef4444', bg: 'rgba(239, 68, 68, 0.12)', border: 'rgba(239, 68, 68, 0.25)' };
             case 'rescheduled':
-                return {
-                    icon: '📅',
-                    text: 'Wizyta przełożona',
-                    color: '#9c27b0',
-                    bgColor: '#f3e5f5'
-                };
+                return { icon: '📅', text: 'Wizyta przełożona', color: '#a855f7', bg: 'rgba(168, 85, 247, 0.12)', border: 'rgba(168, 85, 247, 0.25)' };
             default:
-                return {
-                    icon: '📋',
-                    text: currentStatus || 'Nieznany status',
-                    color: '#9e9e9e',
-                    bgColor: '#f5f5f5'
-                };
+                return { icon: '📋', text: currentStatus || 'Status nieznany', color: '#9ca3af', bg: 'rgba(156, 163, 175, 0.12)', border: 'rgba(156, 163, 175, 0.25)' };
         }
     };
 
-    const statusConfig = getStatusConfig();
+    const status = getStatusInfo();
 
     const handlePayDeposit = () => {
-        setIsOpen(false);
         const params = new URLSearchParams({ appointmentId });
-        if (patientName && patientName.trim()) params.append('name', patientName);
-        if (patientEmail && patientEmail.trim()) params.append('email', patientEmail);
-        if (patientPhone && patientPhone.trim()) params.append('phone', patientPhone);
-        if (patientCity && patientCity.trim()) params.append('city', patientCity);
-        if (patientZipCode && patientZipCode.trim()) params.append('zipCode', patientZipCode);
-        if (patientStreet && patientStreet.trim()) params.append('street', patientStreet);
-        if (patientHouseNumber && patientHouseNumber.trim()) params.append('houseNumber', patientHouseNumber);
-        if (patientApartmentNumber && patientApartmentNumber.trim()) params.append('apartmentNumber', patientApartmentNumber);
-        console.log('[handlePayDeposit] Params:', params.toString(), {
-            patientName, patientEmail, patientPhone,
-            patientCity, patientZipCode, patientStreet, patientHouseNumber, patientApartmentNumber
-        });
+        if (patientName?.trim()) params.append('name', patientName);
+        if (patientEmail?.trim()) params.append('email', patientEmail);
+        if (patientPhone?.trim()) params.append('phone', patientPhone);
+        if (patientCity?.trim()) params.append('city', patientCity);
+        if (patientZipCode?.trim()) params.append('zipCode', patientZipCode);
+        if (patientStreet?.trim()) params.append('street', patientStreet);
+        if (patientHouseNumber?.trim()) params.append('houseNumber', patientHouseNumber);
+        if (patientApartmentNumber?.trim()) params.append('apartmentNumber', patientApartmentNumber);
         router.push(`/zadatek?${params.toString()}`);
     };
 
+    const hasAnyAction = canConfirmAttendance || canPayDeposit || canCancel || canReschedule;
+    const isFinalState = currentStatus === 'cancelled' || currentStatus === 'rescheduled' || currentStatus === 'attendance_confirmed';
+
     return (
         <>
-            <div className="appointment-actions-container" ref={dropdownRef}>
-                {/* Status Badge */}
-                <div
-                    className="status-badge"
-                    style={{
-                        background: `rgba(255, 152, 0, 0.12)`,
-                        color: '#fb923c',
-                        border: `1px solid rgba(255, 152, 0, 0.25)`,
-                        padding: '0.5rem 0.875rem',
-                        borderRadius: '4px',
-                        marginBottom: '0.5rem',
-                        fontSize: '0.8rem',
-                        fontWeight: '600',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.5rem'
-                    }}
-                >
-                    <span>{statusConfig.icon}</span>
-                    <span>{statusConfig.text}</span>
+            <div style={{ marginTop: '1rem' }}>
+                {/* ── Status Badge ── */}
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    padding: '0.6rem 1rem',
+                    background: status.bg,
+                    border: `1px solid ${status.border}`,
+                    borderRadius: '0.5rem',
+                    marginBottom: hasAnyAction ? '0.75rem' : '0',
+                }}>
+                    <span style={{ fontSize: '1rem' }}>{status.icon}</span>
+                    <span style={{ color: status.color, fontSize: '0.85rem', fontWeight: '600' }}>{status.text}</span>
                 </div>
 
-                {/* Dropdown Toggle Button */}
-                <button
-                    onClick={() => setIsOpen(!isOpen)}
-                    className="dropdown-toggle"
-                    style={{
-                        width: '100%',
-                        padding: '0.75rem 1rem',
-                        background: 'rgba(59, 130, 246, 0.12)',
-                        color: '#60a5fa',
-                        border: '1px solid rgba(59, 130, 246, 0.25)',
-                        borderRadius: '4px',
-                        fontSize: '0.875rem',
-                        fontWeight: '600',
-                        cursor: 'pointer',
+                {/* ── Action Buttons ── */}
+                {hasAnyAction && (
+                    <div style={{
                         display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        transition: 'all 0.2s ease'
-                    }}
-                    onMouseEnter={(e) => {
-                        e.currentTarget.style.background = 'rgba(59, 130, 246, 0.2)';
-                        e.currentTarget.style.transform = 'translateY(-1px)';
-                    }}
-                    onMouseLeave={(e) => {
-                        e.currentTarget.style.background = 'rgba(59, 130, 246, 0.12)';
-                        e.currentTarget.style.transform = 'translateY(0)';
-                    }}
-                >
-                    <span>Zarządzaj wizytą</span>
-                    <span style={{
-                        transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-                        transition: 'transform 0.2s ease'
+                        flexWrap: 'wrap',
+                        gap: '0.5rem',
                     }}>
-                        ▼
-                    </span>
-                </button>
-
-                {/* Expandable Actions Section */}
-                {isOpen && (
-                    <div
-                        style={{
-                            marginTop: '0.75rem',
-                            background: '#1a1a1a',
-                            border: '1px solid #333',
-                            borderRadius: '8px',
-                            overflow: 'visible',
-                            animation: 'slideDown 0.2s ease'
-                        }}
-                    >
-                        {/* Reset Status (TEST) - First for easy access */}
-                        <button
-                            onClick={async () => {
-                                setIsOpen(false);
-                                setIsLoading(true);
-                                try {
-                                    const response = await fetch(`/api/patients/appointments/${appointmentId}/reset-status`, {
-                                        method: 'POST',
-                                        headers: {
-                                            'Authorization': `Bearer ${authToken}`,
-                                            'Content-Type': 'application/json'
-                                        }
-                                    });
-
-                                    if (response.ok) {
-                                        alert('✅ Status zresetowany! Możesz ponownie testować akcje.');
-                                        onStatusChange();
-                                    } else {
-                                        alert('❌ Nie udało się zresetować statusu');
-                                    }
-                                } catch (error) {
-                                    console.error('Reset error:', error);
-                                    alert('❌ Błąd podczas resetowania');
-                                } finally {
-                                    setIsLoading(false);
-                                }
-                            }}
-                            className="dropdown-item"
-                            style={{
-                                width: '100%',
-                                padding: '0.875rem 1rem',
-                                background: 'rgba(234, 179, 8, 0.1)',
-                                color: '#fbbf24',
-                                border: 'none',
-                                borderBottom: '1px solid rgba(234, 179, 8, 0.2)',
-                                fontSize: '0.875rem',
-                                fontWeight: '600',
-                                textAlign: 'left',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.75rem',
-                                transition: 'background 0.2s ease'
-                            }}
-                            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(234, 179, 8, 0.2)'}
-                            onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(234, 179, 8, 0.1)'}
-                        >
-                            <span style={{ fontSize: '1.2rem' }}>🔄</span>
-                            <span>Reset Status (TEST)</span>
-                        </button>
-
-                        {/* Confirm Attendance (always visible, disabled if >24h) */}
-                        <button
-                            onClick={() => {
-                                if (!canConfirmAttendance) return;
-                                setIsOpen(false);
-                                setShowConfirmAttendanceModal(true);
-                            }}
-                            disabled={!canConfirmAttendance}
-                            className="dropdown-item"
-                            title={!canConfirmAttendance ? 'Dostępne 24h przed wizytą' : 'Potwierdź obecność'}
-                            style={{
-                                width: '100%',
-                                padding: '0.875rem 1rem',
-                                background: canConfirmAttendance ? 'rgba(59, 130, 246, 0.1)' : 'rgba(128, 128, 128, 0.05)',
-                                color: canConfirmAttendance ? '#60a5fa' : '#666',
-                                border: 'none',
-                                borderBottom: canConfirmAttendance ? '1px solid rgba(59, 130, 246, 0.2)' : '1px solid rgba(128, 128, 128, 0.1)',
-                                fontSize: '0.875rem',
-                                textAlign: 'left',
-                                cursor: canConfirmAttendance ? 'pointer' : 'not-allowed',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.75rem',
-                                opacity: canConfirmAttendance ? 1 : 0.5,
-                                transition: 'background 0.2s ease'
-                            }}
-                            onMouseEnter={(e) => {
-                                if (canConfirmAttendance) {
-                                    e.currentTarget.style.background = 'rgba(59, 130, 246, 0.2)';
-                                }
-                            }}
-                            onMouseLeave={(e) => {
-                                if (canConfirmAttendance) {
-                                    e.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)';
-                                }
-                            }}
-                        >
-                            <span style={{ fontSize: '1.2rem' }}>✓</span>
-                            <span>Potwierdź obecność {!canConfirmAttendance && '(dostępne <24h)'}</span>
-                        </button>
-
-
-                        {/* Pay Deposit (if unpaid) */}
+                        {/* Pay Deposit */}
                         {canPayDeposit && (
                             <button
                                 onClick={handlePayDeposit}
-                                className="dropdown-item primary"
                                 style={{
-                                    width: '100%',
-                                    padding: '0.875rem 1rem',
-                                    background: 'rgba(34, 197, 94, 0.15)',
+                                    flex: '1 1 auto',
+                                    minWidth: '140px',
+                                    padding: '0.65rem 1rem',
+                                    background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(34, 197, 94, 0.08))',
+                                    border: '1px solid rgba(34, 197, 94, 0.3)',
+                                    borderRadius: '0.5rem',
                                     color: '#4ade80',
-                                    border: 'none',
-                                    borderBottom: '1px solid rgba(34, 197, 94, 0.2)',
-                                    fontSize: '0.875rem',
+                                    fontSize: '0.8rem',
                                     fontWeight: '600',
-                                    textAlign: 'left',
                                     cursor: 'pointer',
                                     display: 'flex',
                                     alignItems: 'center',
-                                    gap: '0.75rem',
-                                    transition: 'background 0.2s ease'
+                                    justifyContent: 'center',
+                                    gap: '0.4rem',
+                                    transition: 'all 0.2s ease',
                                 }}
-                                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(34, 197, 94, 0.25)'}
-                                onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(34, 197, 94, 0.15)'}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.background = 'linear-gradient(135deg, rgba(34, 197, 94, 0.25), rgba(34, 197, 94, 0.15))';
+                                    e.currentTarget.style.transform = 'translateY(-1px)';
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.background = 'linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(34, 197, 94, 0.08))';
+                                    e.currentTarget.style.transform = 'translateY(0)';
+                                }}
                             >
-                                <span style={{ fontSize: '1.2rem' }}>💳</span>
-                                <span>Wpłać zadatek</span>
+                                💳 Wpłać zadatek
                             </button>
                         )}
 
-                        {/* Status Display (if deposit paid) */}
-                        {depositPaid && (
-                            <div
-                                className="dropdown-item status"
-                                style={{
-                                    padding: '1rem 1.25rem',
-                                    background: '#1e3a1e',
-                                    color: '#4caf50',
-                                    borderBottom: '1px solid #2e5a2e',
-                                    fontSize: '0.95rem',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.75rem'
-                                }}
-                            >
-                                <span style={{ fontSize: '1.2rem' }}>✅</span>
-                                <span>Rezerwacja potwierdzona</span>
-                            </div>
-                        )}
-
-                        {/* Cancel — blocked message when confirmed */}
-                        {!canCancel && attendanceConfirmed && hoursUntilAppointment > 0 && (
-                            <div style={{
-                                padding: '0.875rem 1rem',
-                                background: 'rgba(239, 68, 68, 0.05)',
-                                color: '#999',
-                                borderBottom: '1px solid rgba(128,128,128,0.1)',
-                                fontSize: '0.8rem',
-                                display: 'flex', alignItems: 'center', gap: '0.75rem'
-                            }}>
-                                <span style={{ fontSize: '1.2rem' }}>🔒</span>
-                                <span>Odwołanie i przełożenie niedostępne po potwierdzeniu obecności</span>
-                            </div>
-                        )}
-
-                        {/* Cancel Appointment */}
-                        {canCancel && (
+                        {/* Confirm Attendance */}
+                        {canConfirmAttendance && (
                             <button
-                                onClick={() => {
-                                    setIsOpen(false);
-                                    setShowCancelModal(true);
-                                }}
-                                className="dropdown-item danger"
+                                onClick={() => setShowConfirmAttendanceModal(true)}
                                 style={{
-                                    width: '100%',
-                                    padding: '0.875rem 1rem',
-                                    background: 'rgba(239, 68, 68, 0.1)',
-                                    color: '#f87171',
-                                    border: 'none',
-                                    borderBottom: '1px solid rgba(239, 68, 68, 0.2)',
-                                    fontSize: '0.875rem',
-                                    textAlign: 'left',
+                                    flex: '1 1 auto',
+                                    minWidth: '140px',
+                                    padding: '0.65rem 1rem',
+                                    background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(59, 130, 246, 0.08))',
+                                    border: '1px solid rgba(59, 130, 246, 0.3)',
+                                    borderRadius: '0.5rem',
+                                    color: '#60a5fa',
+                                    fontSize: '0.8rem',
+                                    fontWeight: '600',
                                     cursor: 'pointer',
                                     display: 'flex',
                                     alignItems: 'center',
-                                    gap: '0.75rem',
-                                    transition: 'background 0.2s ease'
+                                    justifyContent: 'center',
+                                    gap: '0.4rem',
+                                    transition: 'all 0.2s ease',
                                 }}
-                                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)'}
-                                onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.background = 'linear-gradient(135deg, rgba(59, 130, 246, 0.25), rgba(59, 130, 246, 0.15))';
+                                    e.currentTarget.style.transform = 'translateY(-1px)';
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.background = 'linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(59, 130, 246, 0.08))';
+                                    e.currentTarget.style.transform = 'translateY(0)';
+                                }}
                             >
-                                <span style={{ fontSize: '1.2rem' }}>❌</span>
-                                <span>Odwołaj wizytę</span>
+                                ✓ Potwierdź obecność
                             </button>
                         )}
 
-                        {/* Reschedule Appointment */}
+                        {/* Reschedule */}
                         {canReschedule && (
                             <button
-                                onClick={() => {
-                                    setIsOpen(false);
-                                    setShowRescheduleModal(true);
-                                }}
-                                className="dropdown-item"
+                                onClick={() => setShowRescheduleModal(true)}
                                 style={{
-                                    width: '100%',
-                                    padding: '0.875rem 1rem',
-                                    background: 'rgba(168, 85, 247, 0.1)',
+                                    flex: '1 1 auto',
+                                    minWidth: '120px',
+                                    padding: '0.65rem 1rem',
+                                    background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.12), rgba(168, 85, 247, 0.06))',
+                                    border: '1px solid rgba(168, 85, 247, 0.25)',
+                                    borderRadius: '0.5rem',
                                     color: '#c084fc',
-                                    border: 'none',
-                                    borderBottom: '1px solid rgba(168, 85, 247, 0.2)',
-                                    fontSize: '0.875rem',
-                                    textAlign: 'left',
+                                    fontSize: '0.8rem',
+                                    fontWeight: '600',
                                     cursor: 'pointer',
                                     display: 'flex',
                                     alignItems: 'center',
-                                    gap: '0.75rem',
-                                    transition: 'background 0.2s ease'
+                                    justifyContent: 'center',
+                                    gap: '0.4rem',
+                                    transition: 'all 0.2s ease',
                                 }}
-                                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(168, 85, 247, 0.2)'}
-                                onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(168, 85, 247, 0.1)'}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.background = 'linear-gradient(135deg, rgba(168, 85, 247, 0.22), rgba(168, 85, 247, 0.12))';
+                                    e.currentTarget.style.transform = 'translateY(-1px)';
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.background = 'linear-gradient(135deg, rgba(168, 85, 247, 0.12), rgba(168, 85, 247, 0.06))';
+                                    e.currentTarget.style.transform = 'translateY(0)';
+                                }}
                             >
-                                <span style={{ fontSize: '1.2rem' }}>📅</span>
-                                <span>Przełóż wizytę</span>
+                                📅 Przełóż
                             </button>
                         )}
+
+                        {/* Cancel */}
+                        {canCancel && (
+                            <button
+                                onClick={() => setShowCancelModal(true)}
+                                style={{
+                                    flex: '1 1 auto',
+                                    minWidth: '120px',
+                                    padding: '0.65rem 1rem',
+                                    background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(239, 68, 68, 0.06))',
+                                    border: '1px solid rgba(239, 68, 68, 0.25)',
+                                    borderRadius: '0.5rem',
+                                    color: '#f87171',
+                                    fontSize: '0.8rem',
+                                    fontWeight: '600',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '0.4rem',
+                                    transition: 'all 0.2s ease',
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.background = 'linear-gradient(135deg, rgba(239, 68, 68, 0.22), rgba(239, 68, 68, 0.12))';
+                                    e.currentTarget.style.transform = 'translateY(-1px)';
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.background = 'linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(239, 68, 68, 0.06))';
+                                    e.currentTarget.style.transform = 'translateY(0)';
+                                }}
+                            >
+                                ❌ Odwołaj
+                            </button>
+                        )}
+                    </div>
+                )}
+
+                {/* Info for final states */}
+                {isFinalState && !hasAnyAction && (
+                    <div style={{
+                        marginTop: '0.5rem',
+                        fontSize: '0.78rem',
+                        color: 'rgba(255, 255, 255, 0.4)',
+                        fontStyle: 'italic',
+                    }}>
+                        {currentStatus === 'cancelled' && 'Wizyta została odwołana. Umów nową wizytę poniżej.'}
+                        {currentStatus === 'rescheduled' && 'Przełożenie zostało zgłoszone. Gabinet potwierdzi nowy termin.'}
+                        {currentStatus === 'attendance_confirmed' && 'Do zobaczenia na wizycie! 🦷'}
+                    </div>
+                )}
+
+                {/* Attendance hint when >24h */}
+                {!canConfirmAttendance && !attendanceConfirmed && hoursUntilAppointment > 24 && !isFinalState && (
+                    <div style={{
+                        marginTop: '0.5rem',
+                        fontSize: '0.78rem',
+                        color: 'rgba(255, 255, 255, 0.35)',
+                    }}>
+                        ℹ️ Potwierdzenie obecności będzie dostępne 24h przed wizytą
                     </div>
                 )}
             </div>
@@ -471,11 +295,10 @@ export default function AppointmentActionsDropdown({
                 isOpen={showConfirmAttendanceModal}
                 onClose={() => setShowConfirmAttendanceModal(false)}
                 onConfirm={async () => {
-                    const token = authToken;
                     const response = await fetch(`/api/patients/appointments/${appointmentId}/confirm-attendance`, {
                         method: 'POST',
                         headers: {
-                            'Authorization': `Bearer ${token}`,
+                            'Authorization': `Bearer ${authToken}`,
                             'Content-Type': 'application/json'
                         },
                         body: JSON.stringify({ appointmentDate })
@@ -486,23 +309,13 @@ export default function AppointmentActionsDropdown({
                         throw new Error(error.error || 'Nie udało się potwierdzić obecności');
                     }
 
-                    const data = await response.json();
-                    console.log('[Confirm Attendance] Response:', data);
-                    if (!data.emailSent) {
-                        console.warn('[Confirm Attendance] Email was NOT sent!');
-                    }
-
                     onStatusChange();
                 }}
                 appointmentDate={new Date(appointmentDate).toLocaleDateString('pl-PL', {
-                    weekday: 'long',
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
+                    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
                 })}
                 appointmentTime={new Date(appointmentDate).toLocaleTimeString('pl-PL', {
-                    hour: '2-digit',
-                    minute: '2-digit'
+                    hour: '2-digit', minute: '2-digit'
                 })}
                 doctorName={doctorName}
             />
@@ -511,11 +324,10 @@ export default function AppointmentActionsDropdown({
                 isOpen={showCancelModal}
                 onClose={() => setShowCancelModal(false)}
                 onConfirm={async (reason) => {
-                    const token = authToken;
                     const response = await fetch(`/api/patients/appointments/${appointmentId}/cancel`, {
                         method: 'POST',
                         headers: {
-                            'Authorization': `Bearer ${token}`,
+                            'Authorization': `Bearer ${authToken}`,
                             'Content-Type': 'application/json'
                         },
                         body: JSON.stringify({ reason })
@@ -526,22 +338,13 @@ export default function AppointmentActionsDropdown({
                         throw new Error(error.error || 'Nie udało się odwołać wizyty');
                     }
 
-                    const data = await response.json();
-                    console.log('[Cancel] Response:', data);
-                    if (!data.emailSent) {
-                        console.warn('[Cancel] Email was NOT sent!');
-                    }
-
                     onStatusChange();
                 }}
                 appointmentDate={new Date(appointmentDate).toLocaleDateString('pl-PL', {
-                    weekday: 'long',
-                    day: 'numeric',
-                    month: 'long'
+                    weekday: 'long', day: 'numeric', month: 'long'
                 })}
                 appointmentTime={new Date(appointmentDate).toLocaleTimeString('pl-PL', {
-                    hour: '2-digit',
-                    minute: '2-digit'
+                    hour: '2-digit', minute: '2-digit'
                 })}
             />
 
@@ -549,11 +352,10 @@ export default function AppointmentActionsDropdown({
                 isOpen={showRescheduleModal}
                 onClose={() => setShowRescheduleModal(false)}
                 onConfirm={async (reason, newDate, newStartTime) => {
-                    const token = authToken;
                     const response = await fetch(`/api/patients/appointments/${appointmentId}/reschedule`, {
                         method: 'POST',
                         headers: {
-                            'Authorization': `Bearer ${token}`,
+                            'Authorization': `Bearer ${authToken}`,
                             'Content-Type': 'application/json'
                         },
                         body: JSON.stringify({ reason, newDate, newStartTime })
@@ -565,46 +367,17 @@ export default function AppointmentActionsDropdown({
                     }
 
                     const result = await response.json();
-                    console.log('[Reschedule] Response:', result);
                     onStatusChange();
                     return result;
                 }}
                 appointmentDate={new Date(appointmentDate).toLocaleDateString('pl-PL', {
-                    weekday: 'long',
-                    day: 'numeric',
-                    month: 'long'
+                    weekday: 'long', day: 'numeric', month: 'long'
                 })}
                 appointmentTime={new Date(appointmentDate).toLocaleTimeString('pl-PL', {
-                    hour: '2-digit',
-                    minute: '2-digit'
+                    hour: '2-digit', minute: '2-digit'
                 })}
                 authToken={authToken}
             />
-
-            <style jsx>{`
-        .appointment-actions-container {
-          position: relative;
-          width: 100%;
-        }
-
-        @keyframes slideDown {
-          from {
-            opacity: 0;
-            transform: translateY(-10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        @media (max-width: 768px) {
-          .dropdown-menu {
-            max-height: 80vh;
-            overflow-y: auto;
-          }
-        }
-      `}</style>
         </>
     );
 }
