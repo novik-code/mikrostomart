@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { verifyToken } from '@/lib/jwt';
+import { verifyTokenFromRequest } from '@/lib/jwt';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -14,8 +14,8 @@ export async function POST(request: NextRequest) {
         const body = await request.json();
         const { prodentis_id, appointment_date, appointment_end_date, doctor_id, doctor_name, schedule_appointment_id } = body;
 
-        const authHeader = request.headers.get('Authorization');
-        const payload = verifyToken(authHeader);
+        
+        const payload = verifyTokenFromRequest(request);
 
         if (!payload) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

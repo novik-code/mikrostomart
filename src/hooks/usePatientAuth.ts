@@ -34,13 +34,29 @@ export function usePatientAuth() {
     const [accountStatus, setAccountStatus] = useState<string | null>(null);
     const router = useRouter();
 
+    /**
+     * Get auth token from cookie (backward compatibility).
+     * With httpOnly cookies, JS can't read the token directly,
+     * but this fallback reads the legacy non-httpOnly cookie if it exists.
+     * For API calls: the httpOnly cookie is sent automatically by the browser.
+     */
     const getAuthToken = useCallback(() => {
         const cookies = document.cookie.split('; ');
         const tokenCookie = cookies.find(c => c.startsWith('patient_token='));
         return tokenCookie ? tokenCookie.split('=')[1] : null;
     }, []);
 
-    const logout = useCallback(() => {
+    /**
+     * Logout — calls server endpoint to clear httpOnly cookie,
+     * also clears legacy client-side cookie and localStorage.
+     */
+    const logout = useCallback(async () => {
+        try {
+            await fetch('/api/patients/logout', { method: 'POST' });
+        } catch {
+            // Fallback: clear non-httpOnly cookie manually
+        }
+        // Also clear legacy client-side data
         document.cookie = 'patient_token=; path=/; max-age=0';
         localStorage.removeItem('patient_data');
         router.push('/strefa-pacjenta/login');
@@ -48,19 +64,16 @@ export function usePatientAuth() {
 
     useEffect(() => {
         const loadPatient = async () => {
-            const token = getAuthToken();
-
-            if (!token) {
-                router.push('/strefa-pacjenta/login');
-                return;
-            }
-
             try {
-                const res = await fetch('/api/patients/me', {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                    },
-                });
+                // With httpOnly cookie, we just call the API — browser sends cookie automatically.
+                // Also try passing Authorization header for backward compat.
+                const token = getAuthToken();
+                const headers: Record<string, string> = {};
+                if (token) {
+                    headers['Authorization'] = `Bearer ${token}`;
+                }
+
+                const res = await fetch('/api/patients/me', { headers });
 
                 if (!res.ok) {
                     throw new Error('Unauthorized');

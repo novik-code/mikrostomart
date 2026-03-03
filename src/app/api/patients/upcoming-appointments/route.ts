@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server';
-import { verifyToken } from '@/lib/jwt';
+import { NextResponse, NextRequest } from 'next/server';
+import { verifyTokenFromRequest } from '@/lib/jwt';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,10 +11,10 @@ const PRODENTIS_API = process.env.PRODENTIS_API_URL || 'http://localhost:3000';
  * Returns all FUTURE appointments for the authenticated patient.
  * Uses the new Prodentis v9.1 endpoint: GET /api/patient/:id/future-appointments
  */
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
     try {
-        const authHeader = request.headers.get('Authorization');
-        const payload = verifyToken(authHeader);
+        
+        const payload = verifyTokenFromRequest(request);
 
         if (!payload) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

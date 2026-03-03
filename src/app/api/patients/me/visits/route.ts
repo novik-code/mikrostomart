@@ -1,13 +1,13 @@
-import { NextResponse } from 'next/server';
-import { verifyToken } from '@/lib/jwt';
+import { NextResponse, NextRequest } from 'next/server';
+import { verifyTokenFromRequest } from '@/lib/jwt';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
     try {
         // Verify JWT
-        const authHeader = request.headers.get('Authorization');
-        const payload = verifyToken(authHeader);
+        
+        const payload = verifyTokenFromRequest(request);
 
         if (!payload) {
             return NextResponse.json(

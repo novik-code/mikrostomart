@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { verifyToken } from '@/lib/jwt';
+import { verifyTokenFromRequest } from '@/lib/jwt';
 import { sendTelegramNotification } from '@/lib/telegram';
 import { broadcastPush } from '@/lib/webpush';
 
@@ -11,7 +11,7 @@ const supabase = createClient(
 
 // POST — patient sends a message
 export async function POST(request: NextRequest) {
-    const payload = verifyToken(request.headers.get('Authorization'));
+    const payload = verifyTokenFromRequest(request);
     if (!payload) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
 
 // GET — patient loads conversation messages
 export async function GET(request: NextRequest) {
-    const payload = verifyToken(request.headers.get('Authorization'));
+    const payload = verifyTokenFromRequest(request);
     if (!payload) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

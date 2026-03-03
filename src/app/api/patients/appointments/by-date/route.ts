@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { verifyToken } from '@/lib/jwt';
+import { verifyTokenFromRequest } from '@/lib/jwt';
 import type { AppointmentAction } from '@/types/appointmentActions';
 
 const supabase = createClient(
@@ -21,8 +21,8 @@ export async function GET(request: NextRequest) {
         }
 
         // Verify JWT
-        const authHeader = request.headers.get('Authorization');
-        const payload = verifyToken(authHeader);
+        
+        const payload = verifyTokenFromRequest(request);
 
         if (!payload) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

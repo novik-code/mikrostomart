@@ -123,9 +123,9 @@ export async function POST(request: Request) {
 
         console.log('[Login] Success:', patient.prodentis_id);
 
-        return NextResponse.json({
+        const response = NextResponse.json({
             success: true,
-            token,
+            token, // kept for backward compatibility
             patient: {
                 ...patientDetails,
                 // Override with Supabase data if exists
@@ -135,6 +135,17 @@ export async function POST(request: Request) {
                 prodentis_id: patient.prodentis_id,
             },
         });
+
+        // Set httpOnly cookie — browser cannot access via JS, only sent with requests
+        response.cookies.set('patient_token', token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            path: '/',
+            maxAge: 7 * 24 * 60 * 60, // 7 days (matches JWT expiry)
+        });
+
+        return response;
 
     } catch (error: any) {
         console.error('[Login] Error:', error);

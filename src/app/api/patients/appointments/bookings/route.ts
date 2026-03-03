@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { verifyToken } from '@/lib/jwt';
+import { verifyTokenFromRequest } from '@/lib/jwt';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,8 +15,7 @@ const supabase = createClient(
  */
 export async function GET(req: NextRequest) {
     try {
-        const authHeader = req.headers.get('Authorization');
-        const payload = verifyToken(authHeader);
+        const payload = verifyTokenFromRequest(req);
 
         if (!payload) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

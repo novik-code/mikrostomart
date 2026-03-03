@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server';
-import { verifyToken } from '@/lib/jwt';
+import { NextResponse, NextRequest } from 'next/server';
+import { verifyTokenFromRequest } from '@/lib/jwt';
 import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
@@ -9,11 +9,10 @@ const supabase = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
     try {
-        // Verify JWT
-        const authHeader = request.headers.get('Authorization');
-        const payload = verifyToken(authHeader);
+        // Verify JWT (from httpOnly cookie or Authorization header)
+        const payload = verifyTokenFromRequest(request);
 
         if (!payload) {
             return NextResponse.json(
@@ -70,11 +69,10 @@ export async function GET(request: Request) {
     }
 }
 
-export async function PATCH(request: Request) {
+export async function PATCH(request: NextRequest) {
     try {
-        // Verify JWT
-        const authHeader = request.headers.get('Authorization');
-        const payload = verifyToken(authHeader);
+        // Verify JWT (from httpOnly cookie or Authorization header)
+        const payload = verifyTokenFromRequest(request);
 
         if (!payload) {
             return NextResponse.json(

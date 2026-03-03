@@ -40,28 +40,29 @@ function AuthenticatedLayout({ children, pathname }: { children: React.ReactNode
     const [isLoading, setIsLoading] = useState(true);
     const router = useRouter();
 
-    const getAuthToken = useCallback(() => {
-        const cookies = document.cookie.split('; ');
-        const tokenCookie = cookies.find(c => c.startsWith('patient_token='));
-        return tokenCookie ? tokenCookie.split('=')[1] : null;
-    }, []);
-
-    const handleLogout = useCallback(() => {
+    const handleLogout = useCallback(async () => {
+        try {
+            await fetch('/api/patients/logout', { method: 'POST' });
+        } catch { /* fallback */ }
+        // Also clear legacy client-side data
         document.cookie = 'patient_token=; path=/; max-age=0';
         localStorage.removeItem('patient_data');
         router.push('/strefa-pacjenta/login');
     }, [router]);
 
     useEffect(() => {
-        const token = getAuthToken();
-        if (!token) {
-            router.push('/strefa-pacjenta/login');
-            return;
+        // With httpOnly cookie, the browser sends it automatically.
+        // Also try Authorization header for backward compat with non-httpOnly cookie.
+        const cookies = document.cookie.split('; ');
+        const tokenCookie = cookies.find(c => c.startsWith('patient_token='));
+        const token = tokenCookie ? tokenCookie.split('=')[1] : null;
+
+        const headers: Record<string, string> = {};
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
         }
 
-        fetch('/api/patients/me', {
-            headers: { 'Authorization': `Bearer ${token}` },
-        })
+        fetch('/api/patients/me', { headers })
             .then(res => { if (!res.ok) throw new Error('Unauthorized'); return res.json(); })
             .then(data => {
                 setPatientName(data.firstName || '');
@@ -69,7 +70,7 @@ function AuthenticatedLayout({ children, pathname }: { children: React.ReactNode
             })
             .catch(() => router.push('/strefa-pacjenta/login'))
             .finally(() => setIsLoading(false));
-    }, [router, getAuthToken]);
+    }, [router]);
 
     if (isLoading) {
         return (

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
-import { verifyToken } from '@/lib/jwt';
+import { verifyTokenFromRequest } from '@/lib/jwt';
 import { sendTelegramNotification } from '@/lib/telegram';
 import { broadcastPush } from '@/lib/webpush';
 import { sendSMS } from '@/lib/smsService';
@@ -25,8 +25,8 @@ export async function POST(
         const body: CancelAppointmentRequest = await request.json();
 
         // Verify JWT
-        const authHeader = request.headers.get('authorization');
-        const payload = verifyToken(authHeader);
+        
+        const payload = verifyTokenFromRequest(request);
 
         if (!payload) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
