@@ -10,7 +10,7 @@ const supabase = createClient(
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { prodentis_id, appointment_date, appointment_end_date, doctor_id, doctor_name } = body;
+        const { prodentis_id, appointment_date, appointment_end_date, doctor_id, doctor_name, schedule_appointment_id } = body;
 
         // Verify JWT
         const authHeader = request.headers.get('Authorization');
@@ -32,11 +32,13 @@ export async function POST(request: NextRequest) {
         }
 
         // Create appointment action record
+        // prodentis_id stores the SCHEDULE APPOINTMENT ID (for DELETE/PUT operations)
+        // NOT the patient's prodentis_id
         const { data: action, error: createError } = await supabase
             .from('appointment_actions')
             .insert({
                 patient_id: patient.id,
-                prodentis_id: patient.prodentis_id,
+                prodentis_id: schedule_appointment_id || prodentis_id || patient.prodentis_id,
                 appointment_date,
                 appointment_end_date,
                 doctor_id,

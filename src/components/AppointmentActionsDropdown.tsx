@@ -141,6 +141,13 @@ export default function AppointmentActionsDropdown({
                     color: '#9c27b0',
                     bgColor: '#f3e5f5'
                 };
+            default:
+                return {
+                    icon: '📋',
+                    text: currentStatus || 'Nieznany status',
+                    color: '#9e9e9e',
+                    bgColor: '#f5f5f5'
+                };
         }
     };
 

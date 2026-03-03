@@ -73,14 +73,20 @@ interface Visit {
     };
 }
 
-interface NextAppointment {
+interface UpcomingAppointment {
+    scheduleId: string | null;
     date: string;
     endDate: string;
     doctor: {
         id: string;
         name: string;
-        title: string;
+        title?: string;
     };
+}
+
+interface AppointmentActionInfo {
+    actionId: string;
+    status: AppointmentStatusResponse;
 }
 
 export default function PatientDashboard() {
@@ -90,11 +96,10 @@ export default function PatientDashboard() {
     const [isLoading, setIsLoading] = useState(true);
     const [isSyncing, setIsSyncing] = useState(false);
     const [accountStatus, setAccountStatus] = useState<string | null>(null);
-    const [nextAppointment, setNextAppointment] = useState<NextAppointment | null>(null);
-    const [hasNextAppointment, setHasNextAppointment] = useState(false);
+    const [upcomingAppointments, setUpcomingAppointments] = useState<UpcomingAppointment[]>([]);
     const [isLoadingAppointment, setIsLoadingAppointment] = useState(true);
-    const [appointmentActionId, setAppointmentActionId] = useState<string | null>(null);
-    const [appointmentStatus, setAppointmentStatus] = useState<AppointmentStatusResponse | null>(null);
+    // Map: appointment date string → { actionId, status }
+    const [appointmentActionsMap, setAppointmentActionsMap] = useState<Record<string, AppointmentActionInfo>>({});
     // ── Online booking state ──
     const [showBookingForm, setShowBookingForm] = useState(false);
     const [bookingSpecialist, setBookingSpecialist] = useState('');
@@ -178,122 +183,105 @@ export default function PatientDashboard() {
         loadData();
     }, [router]);
 
-    // Fetch next appointment from Prodentis API + create/fetch appointment action
+    // Fetch ALL upcoming appointments from Prodentis + create/fetch action records for each
     useEffect(() => {
-        const loadNextAppointment = async () => {
-            if (!patient) return; // Wait for patient data first
+        const loadUpcomingAppointments = async () => {
+            if (!patient) return;
 
             try {
                 setIsLoadingAppointment(true);
+                const token = getAuthToken();
 
-                // Call our proxy API with patient's prodentis_id
-                const response = await fetch(`/api/patients/${patient.id}/next-appointment`);
+                const response = await fetch('/api/patients/upcoming-appointments', {
+                    headers: { 'Authorization': `Bearer ${token}` },
+                });
 
                 if (!response.ok) {
-                    console.error('Failed to fetch next appointment');
-                    setHasNextAppointment(false);
+                    console.error('Failed to fetch upcoming appointments');
+                    setUpcomingAppointments([]);
                     return;
                 }
 
                 const data = await response.json();
+                const appointments: UpcomingAppointment[] = data.appointments || [];
+                setUpcomingAppointments(appointments);
 
-                setHasNextAppointment(data.hasNextAppointment);
-                if (data.hasNextAppointment && data.nextAppointment) {
-                    setNextAppointment(data.nextAppointment);
+                // Create/fetch action records for each appointment
+                const actionsMap: Record<string, AppointmentActionInfo> = {};
+                for (const apt of appointments) {
+                    try {
+                        // Try to create appointment action
+                        const createRes = await fetch('/api/patients/appointments/create', {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': `Bearer ${token}`,
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                prodentis_id: patient.id,
+                                appointment_date: apt.date,
+                                appointment_end_date: apt.endDate,
+                                doctor_id: apt.doctor.id,
+                                doctor_name: apt.doctor.name?.replace(/\s*\(I\)\s*/g, ' ').trim(),
+                                schedule_appointment_id: apt.scheduleId,
+                            })
+                        });
 
-                    // Create/fetch appointment action record
-                    await createOrFetchAppointmentAction(data.nextAppointment);
+                        let actionId: string;
+                        if (createRes.ok) {
+                            const createData = await createRes.json();
+                            actionId = createData.id;
+                        } else {
+                            // Already exists, fetch it by date
+                            const fetchRes = await fetch(
+                                `/api/patients/appointments/by-date?date=${encodeURIComponent(apt.date)}`,
+                                { headers: { 'Authorization': `Bearer ${token}` } }
+                            );
+                            if (!fetchRes.ok) continue;
+                            const fetchData = await fetchRes.json();
+                            actionId = fetchData.id;
+                        }
+
+                        // Fetch status
+                        const statusRes = await fetch(`/api/patients/appointments/${actionId}/status`, {
+                            headers: { 'Authorization': `Bearer ${token}` }
+                        });
+                        if (statusRes.ok) {
+                            const statusData = await statusRes.json();
+                            actionsMap[apt.date] = { actionId, status: statusData };
+                        }
+                    } catch (e) {
+                        console.error('Error creating action for appointment:', apt.date, e);
+                    }
                 }
+                setAppointmentActionsMap(actionsMap);
             } catch (error) {
-                console.error('Error loading next appointment:', error);
-                setHasNextAppointment(false);
+                console.error('Error loading upcoming appointments:', error);
+                setUpcomingAppointments([]);
             } finally {
                 setIsLoadingAppointment(false);
             }
         };
 
-        loadNextAppointment();
-    }, [patient]); // Run when patient data is loaded
+        loadUpcomingAppointments();
+    }, [patient]);
 
-    // Create or fetch appointment action record
-    const createOrFetchAppointmentAction = async (appointment: NextAppointment) => {
-        if (!patient) return;
-
+    // Reload status for a specific appointment by date
+    const reloadAppointmentStatus = async (aptDate: string, actionId: string) => {
         try {
             const token = getAuthToken();
-
-            // Try to create appointment action (will fail if exists due to unique constraint)
-            const createResponse = await fetch(`/api/patients/appointments/create`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    prodentis_id: patient.id,
-                    appointment_date: appointment.date,
-                    appointment_end_date: appointment.endDate,
-                    doctor_id: appointment.doctor.id,
-                    doctor_name: appointment.doctor.name.replace(/\s*\(I\)\s*/g, ' ').trim()
-                })
+            const statusRes = await fetch(`/api/patients/appointments/${actionId}/status`, {
+                headers: { 'Authorization': `Bearer ${token}` }
             });
-
-            let actionId: string;
-
-            if (createResponse.ok) {
-                const createData = await createResponse.json();
-                actionId = createData.id;
-            } else {
-                // Record already exists, fetch it
-                const fetchResponse = await fetch(
-                    `/api/patients/appointments/by-date?date=${encodeURIComponent(appointment.date)}`,
-                    {
-                        headers: {
-                            'Authorization': `Bearer ${token}`
-                        }
-                    }
-                );
-
-                if (!fetchResponse.ok) {
-                    console.error('Failed to fetch appointment action');
-                    return;
-                }
-
-                const fetchData = await fetchResponse.json();
-                actionId = fetchData.id;
-            }
-
-            setAppointmentActionId(actionId);
-
-            // Fetch appointment status
-            await loadAppointmentStatus(actionId);
-        } catch (error) {
-            console.error('Error with appointment action:', error);
-        }
-    };
-
-    // Load appointment status
-    const loadAppointmentStatus = async (actionId: string) => {
-        try {
-            console.log('[Dashboard] Loading appointment status for:', actionId);
-            const token = getAuthToken();
-            const response = await fetch(`/api/patients/appointments/${actionId}/status`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-
-            console.log('[Dashboard] Status response:', response.status);
-
-            if (response.ok) {
-                const statusData = await response.json();
-                console.log('[Dashboard] Status data:', statusData);
-                setAppointmentStatus(statusData);
-            } else {
-                console.error('[Dashboard] Status fetch failed:', response.status, await response.text());
+            if (statusRes.ok) {
+                const statusData = await statusRes.json();
+                setAppointmentActionsMap(prev => ({
+                    ...prev,
+                    [aptDate]: { actionId, status: statusData }
+                }));
             }
         } catch (error) {
-            console.error('Error loading appointment status:', error);
+            console.error('Error reloading appointment status:', error);
         }
     };
 
@@ -685,7 +673,7 @@ export default function PatientDashboard() {
                         </div>
                     </div>
 
-                    {/* Next Appointment */}
+                    {/* Upcoming Appointments */}
                     <div style={{
                         background: 'rgba(255, 255, 255, 0.03)',
                         backdropFilter: 'blur(10px)',
@@ -695,76 +683,119 @@ export default function PatientDashboard() {
                     }}>
                         <div style={{ marginBottom: '1.5rem' }}>
                             <h2 style={{ color: '#fff', fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>
-                                📅 Następna wizyta
+                                📅 Twoje wizyty
                             </h2>
                             <p style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '0.9rem' }}>
-                                Twoja nadchodząca wizyta w naszym gabinecie
+                                Nadchodzące wizyty w naszym gabinecie
                             </p>
                         </div>
 
-                        {/* Next Appointment Widget - Real API Data */}
+                        {/* Appointment list + booking */}
                         {isLoadingAppointment ? (
-                            <div style={{
-                                textAlign: 'center',
-                                padding: '3rem 2rem',
-                                color: 'rgba(255, 255, 255, 0.5)',
-                            }}>
-                                Ładowanie informacji o wizycie...
+                            <div style={{ textAlign: 'center', padding: '3rem 2rem', color: 'rgba(255, 255, 255, 0.5)' }}>
+                                Ładowanie informacji o wizytach...
                             </div>
-                        ) : !hasNextAppointment ? (
+                        ) : (
                             <div>
-                                {/* Success message */}
-                                {bookingSuccess && (
-                                    <div style={{
-                                        padding: '1.5rem',
-                                        background: 'rgba(34, 197, 94, 0.1)',
-                                        border: '1px solid rgba(34, 197, 94, 0.3)',
-                                        borderRadius: '0.75rem',
-                                        marginBottom: '1.5rem',
-                                        textAlign: 'center',
-                                    }}>
-                                        <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>✅</div>
-                                        <p style={{ color: '#22c55e', fontWeight: 'bold', marginBottom: '0.25rem' }}>Rezerwacja wysłana!</p>
-                                        <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.85rem' }}>
-                                            Gabinet potwierdzi Twoją wizytę w ciągu 24h.
-                                        </p>
+                                {/* Upcoming appointments list */}
+                                {upcomingAppointments.length > 0 && (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginBottom: '2rem' }}>
+                                        {upcomingAppointments.map((apt, idx) => {
+                                            const aptDate = new Date(apt.date);
+                                            const aptEnd = new Date(apt.endDate);
+                                            const durMin = Math.round((aptEnd.getTime() - aptDate.getTime()) / (1000 * 60));
+                                            const dUntil = Math.ceil((aptDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+                                            const actionInfo = appointmentActionsMap[apt.date];
+                                            return (
+                                                <div key={apt.date + idx} style={{
+                                                    background: 'linear-gradient(135deg, rgba(220, 177, 74, 0.1), rgba(220, 177, 74, 0.05))',
+                                                    border: '2px solid rgba(220, 177, 74, 0.3)',
+                                                    borderRadius: '1rem', padding: '2rem', position: 'relative', overflow: 'hidden',
+                                                }}>
+                                                    <div style={{
+                                                        position: 'absolute', top: '1rem', right: '1rem',
+                                                        background: 'linear-gradient(135deg, #dcb14a, #f0c96c)',
+                                                        color: '#000', padding: '0.5rem 1rem', borderRadius: '99px',
+                                                        fontWeight: 'bold', fontSize: '0.85rem',
+                                                    }}>
+                                                        {dUntil === 0 ? '🔥 Dziś!' : dUntil === 1 ? '⏰ Jutro' : `Za ${dUntil} dni`}
+                                                    </div>
+                                                    <div style={{ marginBottom: '1.5rem', paddingRight: '7rem' }}>
+                                                        <div style={{ color: '#dcb14a', fontSize: '0.9rem', fontWeight: '500', marginBottom: '0.5rem' }}>📅 Data wizyty</div>
+                                                        <div style={{ color: '#fff', fontSize: '1.75rem', fontWeight: 'bold', marginBottom: '0.25rem' }}>
+                                                            {aptDate.toLocaleDateString('pl-PL', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                                                        </div>
+                                                        <div style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '1.25rem', fontWeight: '600' }}>
+                                                            🕐 Godzina: {apt.date.split('T')[1]?.substring(0, 5) || '--:--'}
+                                                        </div>
+                                                    </div>
+                                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem', marginBottom: '1.5rem' }}>
+                                                        <div style={{ background: 'rgba(0, 0, 0, 0.2)', padding: '1.25rem', borderRadius: '0.75rem' }}>
+                                                            <div style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '0.85rem', marginBottom: '0.5rem' }}>👨‍⚕️ Lekarz</div>
+                                                            <div style={{ color: '#fff', fontSize: '1.1rem', fontWeight: 'bold' }}>
+                                                                {apt.doctor.name?.replace(/\s*\(I\)\s*/g, ' ').trim() || 'Brak danych'}
+                                                            </div>
+                                                        </div>
+                                                        <div style={{ background: 'rgba(0, 0, 0, 0.2)', padding: '1.25rem', borderRadius: '0.75rem' }}>
+                                                            <div style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '0.85rem', marginBottom: '0.5rem' }}>⏱️ Czas trwania</div>
+                                                            <div style={{ color: '#fff', fontSize: '1.5rem', fontWeight: 'bold' }}>{durMin} min</div>
+                                                        </div>
+                                                    </div>
+                                                    {actionInfo && (
+                                                        <AppointmentActionsDropdown
+                                                            appointmentId={actionInfo.actionId}
+                                                            appointmentDate={apt.date}
+                                                            appointmentEndDate={apt.endDate}
+                                                            currentStatus={actionInfo.status.status}
+                                                            depositPaid={actionInfo.status.depositPaid}
+                                                            attendanceConfirmed={actionInfo.status.attendanceConfirmed}
+                                                            hoursUntilAppointment={actionInfo.status.hoursUntilAppointment}
+                                                            doctorName={apt.doctor.name?.replace(/\s*\(I\)\s*/g, ' ').trim() || ''}
+                                                            authToken={getAuthToken() || ''}
+                                                            patientName={patient ? `${patient.firstName} ${patient.lastName}` : ''}
+                                                            patientEmail={patient?.email || ''}
+                                                            patientPhone={patient?.phone || ''}
+                                                            patientCity={patient?.address?.city || ''}
+                                                            patientZipCode={patient?.address?.postalCode || ''}
+                                                            patientStreet={patient?.address?.street || ''}
+                                                            patientHouseNumber={patient?.address?.houseNumber || ''}
+                                                            patientApartmentNumber={patient?.address?.apartmentNumber || ''}
+                                                            onStatusChange={() => reloadAppointmentStatus(apt.date, actionInfo.actionId)}
+                                                        />
+                                                    )}
+                                                    <div style={{ marginTop: '1rem', padding: '0.75rem', background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.2)', borderRadius: '0.5rem', fontSize: '0.85rem', color: 'rgba(255, 255, 255, 0.7)' }}>
+                                                        💡 <strong>Przypomnienie:</strong> Prosimy o przybycie 10 minut przed umówioną godziną.
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 )}
 
-                                {/* Pending bookings */}
+                                {/* Pending online bookings */}
                                 {pendingBookings.length > 0 && (
                                     <div style={{ marginBottom: '1.5rem' }}>
+                                        <h3 style={{ color: '#dcb14a', fontSize: '1rem', marginBottom: '0.75rem' }}>⏳ Rezerwacje online</h3>
                                         {pendingBookings.map(b => {
                                             const bDate = new Date(`${b.appointment_date}T${b.appointment_time}`);
                                             return (
                                                 <div key={b.id} style={{
-                                                    padding: '1rem 1.25rem',
-                                                    background: 'rgba(220, 177, 74, 0.08)',
-                                                    border: '1px solid rgba(220, 177, 74, 0.2)',
-                                                    borderRadius: '0.75rem',
-                                                    marginBottom: '0.5rem',
-                                                    display: 'flex',
-                                                    justifyContent: 'space-between',
-                                                    alignItems: 'center',
-                                                    flexWrap: 'wrap',
-                                                    gap: '0.5rem',
+                                                    padding: '1rem 1.25rem', background: 'rgba(220, 177, 74, 0.08)',
+                                                    border: '1px solid rgba(220, 177, 74, 0.2)', borderRadius: '0.75rem',
+                                                    marginBottom: '0.5rem', display: 'flex', justifyContent: 'space-between',
+                                                    alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem',
                                                 }}>
                                                     <div>
                                                         <div style={{ color: '#dcb14a', fontSize: '0.75rem', fontWeight: '600', marginBottom: '0.25rem' }}>
                                                             ⏳ {b.schedule_status === 'pending' ? 'Oczekuje na potwierdzenie' : 'Zatwierdzona'}
                                                         </div>
-                                                        <div style={{ color: '#fff', fontSize: '0.95rem', fontWeight: 'bold' }}>
-                                                            {b.specialist_name}
-                                                        </div>
+                                                        <div style={{ color: '#fff', fontSize: '0.95rem', fontWeight: 'bold' }}>{b.specialist_name}</div>
                                                         <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.85rem' }}>
                                                             {bDate.toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long' })}, godz. {b.appointment_time?.slice(0, 5)}
                                                         </div>
                                                     </div>
                                                     <div style={{
-                                                        padding: '0.3rem 0.75rem',
-                                                        borderRadius: '99px',
-                                                        fontSize: '0.7rem',
-                                                        fontWeight: '600',
+                                                        padding: '0.3rem 0.75rem', borderRadius: '99px', fontSize: '0.7rem', fontWeight: '600',
                                                         background: b.schedule_status === 'pending' ? 'rgba(220, 177, 74, 0.15)' : 'rgba(34, 197, 94, 0.15)',
                                                         color: b.schedule_status === 'pending' ? '#dcb14a' : '#22c55e',
                                                     }}>
@@ -776,72 +807,41 @@ export default function PatientDashboard() {
                                     </div>
                                 )}
 
-                                {/* No appointment + booking CTA */}
+                                {bookingSuccess && (
+                                    <div style={{ padding: '1.5rem', background: 'rgba(34, 197, 94, 0.1)', border: '1px solid rgba(34, 197, 94, 0.3)', borderRadius: '0.75rem', marginBottom: '1.5rem', textAlign: 'center' }}>
+                                        <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>✅</div>
+                                        <p style={{ color: '#22c55e', fontWeight: 'bold', marginBottom: '0.25rem' }}>Rezerwacja wysłana!</p>
+                                        <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.85rem' }}>Gabinet potwierdzi Twoją wizytę w ciągu 24h.</p>
+                                    </div>
+                                )}
+
+                                {/* ALWAYS show booking CTA / form */}
                                 {!showBookingForm ? (
-                                    <div style={{
-                                        textAlign: 'center',
-                                        padding: '3rem 2rem',
-                                        background: 'rgba(255, 255, 255, 0.02)',
-                                        borderRadius: '0.75rem',
-                                        border: '1px dashed rgba(255, 255, 255, 0.1)',
-                                    }}>
-                                        <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📆</div>
+                                    <div style={{ textAlign: 'center', padding: '2rem', background: 'rgba(255, 255, 255, 0.02)', borderRadius: '0.75rem', border: '1px dashed rgba(255, 255, 255, 0.1)' }}>
                                         <p style={{ color: 'rgba(255, 255, 255, 0.7)', marginBottom: '1.5rem' }}>
-                                            {pendingBookings.length > 0 ? 'Chcesz umówić kolejną wizytę?' : 'Nie masz zaplanowanych wizyt'}
+                                            {upcomingAppointments.length > 0 ? 'Chcesz umówić kolejną wizytę?' : 'Umów swoją pierwszą wizytę!'}
                                         </p>
                                         <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
                                             <button
                                                 onClick={() => { setShowBookingForm(true); setBookingSuccess(false); }}
-                                                style={{
-                                                    padding: '0.75rem 2rem',
-                                                    background: 'linear-gradient(135deg, #dcb14a, #f0c96c)',
-                                                    border: 'none',
-                                                    borderRadius: '0.5rem',
-                                                    color: '#000',
-                                                    fontSize: '1rem',
-                                                    fontWeight: 'bold',
-                                                    cursor: 'pointer',
-                                                    transition: 'transform 0.2s',
-                                                }}
+                                                style={{ padding: '0.75rem 2rem', background: 'linear-gradient(135deg, #dcb14a, #f0c96c)', border: 'none', borderRadius: '0.5rem', color: '#000', fontSize: '1rem', fontWeight: 'bold', cursor: 'pointer', transition: 'transform 0.2s' }}
                                                 onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
                                                 onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
                                             >
                                                 🗓️ Umów wizytę online
                                             </button>
-                                            <a
-                                                href="tel:570270470"
-                                                style={{
-                                                    padding: '0.75rem 2rem',
-                                                    background: 'transparent',
-                                                    border: '1px solid rgba(220, 177, 74, 0.3)',
-                                                    borderRadius: '0.5rem',
-                                                    color: '#dcb14a',
-                                                    fontSize: '1rem',
-                                                    fontWeight: 'bold',
-                                                    textDecoration: 'none',
-                                                    transition: 'transform 0.2s',
-                                                }}
+                                            <a href="tel:570270470" style={{ padding: '0.75rem 2rem', background: 'transparent', border: '1px solid rgba(220, 177, 74, 0.3)', borderRadius: '0.5rem', color: '#dcb14a', fontSize: '1rem', fontWeight: 'bold', textDecoration: 'none', transition: 'transform 0.2s' }}
                                                 onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
                                                 onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
-                                            >
-                                                📞 570 270 470
-                                            </a>
+                                            >📞 570 270 470</a>
                                         </div>
                                     </div>
                                 ) : (
                                     /* ── Inline booking form ── */
-                                    <div style={{
-                                        padding: '1.5rem',
-                                        background: 'rgba(255, 255, 255, 0.03)',
-                                        borderRadius: '0.75rem',
-                                        border: '1px solid rgba(220, 177, 74, 0.2)',
-                                    }}>
+                                    <div style={{ padding: '1.5rem', background: 'rgba(255, 255, 255, 0.03)', borderRadius: '0.75rem', border: '1px solid rgba(220, 177, 74, 0.2)' }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
                                             <h3 style={{ color: '#dcb14a', fontSize: '1.1rem', fontWeight: 'bold' }}>🗓️ Umów wizytę online</h3>
-                                            <button
-                                                onClick={() => setShowBookingForm(false)}
-                                                style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: '1.2rem', cursor: 'pointer' }}
-                                            >✕</button>
+                                            <button onClick={() => setShowBookingForm(false)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: '1.2rem', cursor: 'pointer' }}>✕</button>
                                         </div>
 
                                         {/* Specialist */}
@@ -850,10 +850,7 @@ export default function PatientDashboard() {
                                             <select
                                                 value={bookingSpecialist}
                                                 onChange={(e) => { setBookingSpecialist(e.target.value); setBookingService(''); setBookingDate(''); setBookingTime(''); }}
-                                                style={{
-                                                    width: '100%', padding: '0.7rem', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)',
-                                                    borderRadius: '0.5rem', color: '#fff', fontSize: '0.9rem', outline: 'none',
-                                                }}
+                                                style={{ width: '100%', padding: '0.7rem', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.5rem', color: '#fff', fontSize: '0.9rem', outline: 'none' }}
                                             >
                                                 <option value="">Wybierz specjalistę</option>
                                                 {SPECIALISTS.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -867,10 +864,7 @@ export default function PatientDashboard() {
                                                 <select
                                                     value={bookingService}
                                                     onChange={(e) => setBookingService(e.target.value)}
-                                                    style={{
-                                                        width: '100%', padding: '0.7rem', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)',
-                                                        borderRadius: '0.5rem', color: '#fff', fontSize: '0.9rem', outline: 'none',
-                                                    }}
+                                                    style={{ width: '100%', padding: '0.7rem', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.5rem', color: '#fff', fontSize: '0.9rem', outline: 'none' }}
                                                 >
                                                     <option value="">Wybierz usługę</option>
                                                     {availableServices.map(s => <option key={s.id} value={s.label}>{s.label}</option>)}
@@ -881,20 +875,13 @@ export default function PatientDashboard() {
                                         {/* Scheduler */}
                                         {selectedSpec && (
                                             <div style={{ marginBottom: '1rem' }}>
-                                                <label style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)' }}>
-                                                    Dostępne terminy *
-                                                </label>
+                                                <label style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)' }}>Dostępne terminy *</label>
                                                 <AppointmentScheduler
                                                     specialistId={selectedSpec.id}
                                                     specialistName={selectedSpec.name}
                                                     onSlotSelect={(slot) => {
-                                                        if (slot) {
-                                                            setBookingDate(slot.date);
-                                                            setBookingTime(slot.time);
-                                                        } else {
-                                                            setBookingDate('');
-                                                            setBookingTime('');
-                                                        }
+                                                        if (slot) { setBookingDate(slot.date); setBookingTime(slot.time); }
+                                                        else { setBookingDate(''); setBookingTime(''); }
                                                     }}
                                                 />
                                                 {bookingDate && bookingTime && (
@@ -913,10 +900,7 @@ export default function PatientDashboard() {
                                                 onChange={(e) => setBookingDescription(e.target.value)}
                                                 placeholder="Opisz powód wizyty..."
                                                 rows={2}
-                                                style={{
-                                                    width: '100%', padding: '0.7rem', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)',
-                                                    borderRadius: '0.5rem', color: '#fff', fontSize: '0.85rem', outline: 'none', resize: 'vertical', fontFamily: 'inherit',
-                                                }}
+                                                style={{ width: '100%', padding: '0.7rem', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.5rem', color: '#fff', fontSize: '0.85rem', outline: 'none', resize: 'vertical', fontFamily: 'inherit' }}
                                             />
                                         </div>
 
@@ -932,8 +916,7 @@ export default function PatientDashboard() {
                                             disabled={isBooking || !bookingSpecialist || !bookingDate || !bookingTime}
                                             style={{
                                                 width: '100%', padding: '0.85rem',
-                                                background: (isBooking || !bookingSpecialist || !bookingDate || !bookingTime)
-                                                    ? 'rgba(220, 177, 74, 0.3)' : 'linear-gradient(135deg, #dcb14a, #f0c96c)',
+                                                background: (isBooking || !bookingSpecialist || !bookingDate || !bookingTime) ? 'rgba(220, 177, 74, 0.3)' : 'linear-gradient(135deg, #dcb14a, #f0c96c)',
                                                 border: 'none', borderRadius: '0.5rem', color: '#000', fontSize: '1rem',
                                                 fontWeight: 'bold', cursor: (isBooking || !bookingSpecialist || !bookingDate || !bookingTime) ? 'not-allowed' : 'pointer',
                                                 opacity: (isBooking || !bookingSpecialist || !bookingDate || !bookingTime) ? 0.5 : 1,
@@ -945,177 +928,6 @@ export default function PatientDashboard() {
                                     </div>
                                 )}
                             </div>
-                        ) : (
-                            (() => {
-                                if (!nextAppointment) return null;
-
-                                const appointmentDate = new Date(nextAppointment.date);
-                                const appointmentEndDate = new Date(nextAppointment.endDate);
-                                const durationMinutes = Math.round((appointmentEndDate.getTime() - appointmentDate.getTime()) / (1000 * 60));
-                                const daysUntil = Math.ceil((appointmentDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-
-                                return (
-                                    <div style={{
-                                        background: 'linear-gradient(135deg, rgba(220, 177, 74, 0.1), rgba(220, 177, 74, 0.05))',
-                                        border: '2px solid rgba(220, 177, 74, 0.3)',
-                                        borderRadius: '1rem',
-                                        padding: '2rem',
-                                        position: 'relative',
-                                        overflow: 'hidden',
-                                    }}>
-                                        {/* Countdown badge */}
-                                        <div style={{
-                                            position: 'absolute',
-                                            top: '1rem',
-                                            right: '1rem',
-                                            background: 'linear-gradient(135deg, #dcb14a, #f0c96c)',
-                                            color: '#000',
-                                            padding: '0.5rem 1rem',
-                                            borderRadius: '99px',
-                                            fontWeight: 'bold',
-                                            fontSize: '0.85rem',
-                                        }}>
-                                            {daysUntil === 0 ? '🔥 Dziś!' : daysUntil === 1 ? '⏰ Jutro' : `Za ${daysUntil} dni`}
-                                        </div>
-
-                                        {/* Date & Time */}
-                                        <div style={{ marginBottom: '1.5rem', paddingRight: '7rem' }}>
-                                            <div style={{
-                                                color: '#dcb14a',
-                                                fontSize: '0.9rem',
-                                                fontWeight: '500',
-                                                marginBottom: '0.5rem',
-                                            }}>
-                                                📅 Data wizyty
-                                            </div>
-                                            <div style={{
-                                                color: '#fff',
-                                                fontSize: '1.75rem',
-                                                fontWeight: 'bold',
-                                                marginBottom: '0.25rem',
-                                            }}>
-                                                {appointmentDate.toLocaleDateString('pl-PL', {
-                                                    weekday: 'long',
-                                                    year: 'numeric',
-                                                    month: 'long',
-                                                    day: 'numeric'
-                                                })}
-                                            </div>
-                                            <div style={{
-                                                color: 'rgba(255, 255, 255, 0.8)',
-                                                fontSize: '1.25rem',
-                                                fontWeight: '600',
-                                            }}>
-                                                🕐 Godzina: {nextAppointment.date.split('T')[1].substring(0, 5)}
-                                            </div>
-                                        </div>
-
-                                        {/* Details Grid */}
-                                        <div style={{
-                                            display: 'grid',
-                                            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                                            gap: '1.5rem',
-                                            marginBottom: '1.5rem',
-                                        }}>
-                                            {/* Doctor */}
-                                            <div style={{
-                                                background: 'rgba(0, 0, 0, 0.2)',
-                                                padding: '1.25rem',
-                                                borderRadius: '0.75rem',
-                                            }}>
-                                                <div style={{
-                                                    color: 'rgba(255, 255, 255, 0.6)',
-                                                    fontSize: '0.85rem',
-                                                    marginBottom: '0.5rem',
-                                                }}>
-                                                    👨‍⚕️ Lekarz
-                                                </div>
-                                                <div style={{
-                                                    color: '#fff',
-                                                    fontSize: '1.1rem',
-                                                    fontWeight: 'bold',
-                                                    marginBottom: '0.25rem',
-                                                }}>
-                                                    {nextAppointment.doctor.name.replace(/\s*\(I\)\s*/g, ' ').trim()}
-                                                </div>
-                                                <div style={{
-                                                    color: '#dcb14a',
-                                                    fontSize: '0.85rem',
-                                                }}>
-                                                    {nextAppointment.doctor.title}
-                                                </div>
-                                            </div>
-
-                                            {/* Duration */}
-                                            <div style={{
-                                                background: 'rgba(0, 0, 0, 0.2)',
-                                                padding: '1.25rem',
-                                                borderRadius: '0.75rem',
-                                            }}>
-                                                <div style={{
-                                                    color: 'rgba(255, 255, 255, 0.6)',
-                                                    fontSize: '0.85rem',
-                                                    marginBottom: '0.5rem',
-                                                }}>
-                                                    ⏱️ Czas trwania
-                                                </div>
-                                                <div style={{
-                                                    color: '#fff',
-                                                    fontSize: '1.5rem',
-                                                    fontWeight: 'bold',
-                                                }}>
-                                                    {durationMinutes} min
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Appointment Actions Dropdown */}
-                                        {appointmentActionId && appointmentStatus && (
-                                            <div style={{ marginTop: '1.5rem' }}>
-                                                <AppointmentActionsDropdown
-                                                    appointmentId={appointmentActionId}
-                                                    appointmentDate={nextAppointment.date}
-                                                    appointmentEndDate={nextAppointment.endDate}
-                                                    currentStatus={appointmentStatus.status}
-                                                    depositPaid={appointmentStatus.depositPaid}
-                                                    attendanceConfirmed={appointmentStatus.attendanceConfirmed}
-                                                    hoursUntilAppointment={appointmentStatus.hoursUntilAppointment}
-                                                    doctorName={nextAppointment.doctor.name.replace(/\s*\(I\)\s*/g, ' ').trim()}
-                                                    authToken={getAuthToken() || ''}
-                                                    patientName={patient ? `${patient.firstName} ${patient.lastName}` : ''}
-                                                    patientEmail={patient?.email || ''}
-                                                    patientPhone={patient?.phone || ''}
-                                                    patientCity={patient?.address?.city || ''}
-                                                    patientZipCode={patient?.address?.postalCode || ''}
-                                                    patientStreet={patient?.address?.street || ''}
-                                                    patientHouseNumber={patient?.address?.houseNumber || ''}
-                                                    patientApartmentNumber={patient?.address?.apartmentNumber || ''}
-                                                    onStatusChange={() => {
-                                                        // Reload appointment status
-                                                        if (appointmentActionId) {
-                                                            loadAppointmentStatus(appointmentActionId);
-                                                        }
-                                                    }}
-                                                />
-                                            </div>
-                                        )}
-
-                                        {/* Info note */}
-                                        <div style={{
-                                            marginTop: '1.5rem',
-                                            padding: '1rem',
-                                            background: 'rgba(59, 130, 246, 0.1)',
-                                            border: '1px solid rgba(59, 130, 246, 0.2)',
-                                            borderRadius: '0.5rem',
-                                            fontSize: '0.85rem',
-                                            color: 'rgba(255, 255, 255, 0.7)',
-                                        }}>
-                                            💡 <strong>Przypomnienie:</strong> Prosimy o przybycie 10 minut przed umówioną godziną.
-                                            W razie potrzeby zmiany terminu, prosimy o kontakt co najmniej 24h wcześniej.
-                                        </div>
-                                    </div>
-                                );
-                            })()
                         )}
                     </div>
                 </div>
