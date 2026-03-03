@@ -23,13 +23,25 @@ export async function GET(request: NextRequest) {
         // Fetch patient data from Supabase
         const { data: patient, error: patientError } = await supabase
             .from('patients')
-            .select('id, first_name, last_name, phone, email, locale, account_status, prodentis_id, created_at, last_login, notification_preferences')
+            .select('id, first_name, last_name, phone, email, locale, account_status, prodentis_id, created_at, last_login')
             .eq('id', payload.userId)
             .single();
 
         if (patientError || !patient) {
+            console.error('[ExportData] Patient fetch error:', patientError, 'userId:', payload.userId);
             return NextResponse.json({ error: 'Nie znaleziono danych' }, { status: 404 });
         }
+
+        // Try to fetch notification_preferences separately (column may not exist yet)
+        let notificationPreferences = null;
+        try {
+            const { data: notifData } = await supabase
+                .from('patients')
+                .select('notification_preferences')
+                .eq('id', payload.userId)
+                .single();
+            if (notifData) notificationPreferences = notifData.notification_preferences;
+        } catch { /* column may not exist */ }
 
         // Fetch chat messages
         const { data: messages } = await supabase
@@ -66,7 +78,7 @@ export async function GET(request: NextRequest) {
                 accountStatus: patient.account_status,
                 createdAt: patient.created_at,
                 lastLogin: patient.last_login,
-                notificationPreferences: patient.notification_preferences,
+                notificationPreferences: notificationPreferences,
             },
             chatMessages: messages || [],
             appointments: appointments || [],
