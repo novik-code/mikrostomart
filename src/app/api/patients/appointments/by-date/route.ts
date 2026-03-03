@@ -39,12 +39,18 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: 'Patient not found' }, { status: 404 });
         }
 
-        // Find appointment action by date
+        // Find appointment action by date (use range to handle format differences)
+        const searchDate = new Date(date);
+        const rangeStart = new Date(searchDate.getTime() - 60000); // 1 min before
+        const rangeEnd = new Date(searchDate.getTime() + 60000);   // 1 min after
+
         const { data: action, error: actionError } = await supabase
             .from('appointment_actions')
             .select('*')
             .eq('patient_id', patient.id)
-            .eq('appointment_date', date)
+            .gte('appointment_date', rangeStart.toISOString())
+            .lt('appointment_date', rangeEnd.toISOString())
+            .limit(1)
             .single();
 
         if (actionError || !action) {
