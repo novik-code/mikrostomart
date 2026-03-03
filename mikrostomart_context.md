@@ -1917,6 +1917,14 @@ NODE_ENV=production
 - 6.2: Migration `064_patient_notification_prefs.sql` + 5 toggle switches in profil + `/me` PATCH extended
 - 6.3: RODO: `/api/patients/export-data` (JSON download) + `/api/patients/delete-account` (soft-delete + PII anonymization) + UI with password confirm
 
+**Phase 6 Bugfix** — commit `861d51f`
+- export-data: fixed NotFound error when `notification_preferences` column doesn't exist (separate fetch with fallback)
+- change-password: added Resend email notification on successful password change
+
+**Phase 7: i18n** — commit pending
+- Added `patientZone` namespace to all 4 language files (`messages/{pl,en,de,ua}/common.json`)
+- 115 translation keys covering: nav, layout, dashboard, history, profile (password, notifications, RODO)
+
 ### March 3, 2026
 **Patient Dashboard — Appointment Management Overhaul + Prodentis v9.1**
 
