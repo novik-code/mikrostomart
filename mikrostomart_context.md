@@ -1,6 +1,6 @@
 # Mikrostomart - Complete Project Context
 
-> **Last Updated:** 2026-02-26  
+> **Last Updated:** 2026-03-03  
 > **Version:** Production (Vercel Deployment)  
 > **Status:** Active Development
 
@@ -52,7 +52,7 @@
 
 ### Backend & Database
 - **Supabase** (PostgreSQL database, authentication, storage)
-  - Database: 57 migrations (003-057: email verification, appointment actions, SMS reminders, user_roles, employee tasks, task history, comments, labels, status fix, google reviews cache, chat, push subscriptions, employee_group, push_notification_config, employee_groups array, news/articles/blog/products i18n, calendar tokens, private tasks + reminders, SMS post-visit/week-after-visit, SMS unique constraint fix, task multi-images, push_notifications_log, google_event_id on employee_tasks, patient_intake_tokens, feature_suggestions, online_bookings, **patient_match_confidence**)
+  - Database: 59 migrations (003-059: email verification, appointment actions, SMS reminders, user_roles, employee tasks, task history, comments, labels, status fix, google reviews cache, chat, push subscriptions, employee_group, push_notification_config, employee_groups array, news/articles/blog/products i18n, calendar tokens, private tasks + reminders, SMS post-visit/week-after-visit, SMS unique constraint fix, task multi-images, push_notifications_log, google_event_id on employee_tasks, patient_intake_tokens, feature_suggestions, online_bookings, **patient_match_confidence**, consent_tokens/patient_consents, staff_signatures)
   - Auth: Email/password, magic links, JWT tokens
   - Storage: Product images, patient documents, task images
 
@@ -1094,19 +1094,40 @@ Features:
 | `/api/intake/verify/[token]` | GET | Verify token validity + return prefill data |
 | `/api/intake/submit` | POST | Submit patient form → Supabase + Prodentis |
 
-### Prodentis Write-Back APIs (external: `83.230.40.14:3000`, API 6.0)
+### Prodentis APIs (external: `83.230.40.14:3000`, API v9.1)
 
-| Endpoint | Method | Auth | Purpose |
-|----------|--------|------|---------|
-| `/api/patients` | POST | X-API-Key | Create new patient |
-| `/api/patients/:id` | PATCH | X-API-Key | Update existing patient |
-| `/api/patients/:id/notes` | POST | X-API-Key | Add medical notes → XML "Uwagi dla lekarza" |
-| `/api/schedule/appointment` | POST | X-API-Key | Create appointment in Prodentis schedule |
-| `/api/schedule/appointment/:id/color` | PUT | X-API-Key | Change appointment color/type |
-| `/api/schedule/appointment/:id/icon` | POST | X-API-Key | Add icon (e.g. "Pacjent potwierdzony") |
-| `/api/schedule/colors` | GET | — | Available appointment colors with RGB |
-| `/api/schedule/icons` | GET | — | Available appointment icons |
-| `/api/doctors` | GET | — | List all doctors with Prodentis IDs |
+**Read Endpoints (no API Key):**
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/slots/free?date=&duration=` | GET | Free time slots for a date |
+| `/api/patient/verify?phone=&firstName=` | GET | Verify patient identity |
+| `/api/patient/:id/details` | GET | Patient details (name, address, notes, warnings) |
+| `/api/patient/:id/appointments` | GET | Visit history |
+| `/api/patient/:id/next-appointment` | GET | Single next appointment |
+| `/api/patient/:id/future-appointments?days=180` | GET | **v9.1** — ALL future appointments (replaces day-by-day scan) |
+| `/api/appointments/by-date?date=` | GET | All appointments for a given date |
+| `/api/patients/search?q=&limit=` | GET | Patient search by name |
+| `/api/appointment/:id/notes` | GET | Appointment notes |
+| `/api/badge-types` | GET | Available badge types |
+| `/api/doctors` | GET | List all doctors with Prodentis IDs |
+| `/api/schedule/colors` | GET | Available appointment colors with RGB |
+| `/api/schedule/icons` | GET | Available appointment icons |
+
+**Write Endpoints (require `X-API-Key: 2c9bd5b4-...`):**
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/patients` | POST | Create new patient |
+| `/api/patients/:id` | PATCH | Update existing patient |
+| `/api/patients/:id/notes` | POST | Add medical notes → XML "Uwagi dla lekarza" |
+| `/api/patients/:id/documents` | POST | Upload document (base64 PDF) to patient file |
+| `/api/schedule/appointment` | POST | Create appointment in Prodentis schedule |
+| `/api/schedule/appointment/:id` | GET | **v9.0** — Appointment details (date, time, status, cancelDate) |
+| `/api/schedule/appointment/:id` | DELETE | **v9.0** — Cancel/delete appointment (optional `{ reason }`) |
+| `/api/schedule/appointment/:id/reschedule` | PUT | **v9.0** — Reschedule appointment `{ newDate, newStartTime }` |
+| `/api/schedule/appointment/:id/color` | PUT | Change appointment color/type |
+| `/api/schedule/appointment/:id/icon` | POST | Add icon (e.g. "Pacjent potwierdzony") |
 
 ### Auth APIs (`/api/auth/*`)
 
@@ -1207,17 +1228,20 @@ Features:
 | `/patients/verify-email` | POST | Verify email token |
 | `/patients/verify` | POST | Verify patient identity (Prodentis match) |
 | `/patients/login` | POST | Patient login (phone or email) |
-| `/patients/me` | GET | Get current patient profile |
+| `/patients/me` | GET, PATCH | Get/update current patient profile |
 | `/patients/me/visits` | GET | Get patient visit history |
-| `/patients/[id]/next-appointment` | GET | Next appointment from Prodentis |
+| `/patients/[id]/next-appointment` | GET | Single next appointment from Prodentis |
+| `/patients/upcoming-appointments` | GET | **NEW** — ALL future appointments via Prodentis v9.1 `future-appointments` |
 | `/patients/reset-password/request` | POST | Initiate password reset |
 | `/patients/reset-password/confirm` | POST | Confirm password reset with token |
-| `/patients/appointments/[id]/confirm-attendance` | POST | Confirm attendance |
-| `/patients/appointments/[id]/cancel` | POST | Cancel appointment |
-| `/patients/appointments/[id]/reschedule` | POST | Request reschedule |
-| `/patients/appointments/[id]/status` | GET | Get appointment action status |
-| `/patients/appointments/create` | POST | Create appointment action record |
-| `/patients/appointments/by-date` | GET | Fetch appointment action by date |
+| `/patients/appointments/[id]/confirm-attendance` | POST | Confirm attendance + add Prodentis icon |
+| `/patients/appointments/[id]/cancel` | POST | Cancel appointment via Prodentis DELETE |
+| `/patients/appointments/[id]/reschedule` | POST | Reschedule via Prodentis PUT |
+| `/patients/appointments/[id]/status` | GET | Get appointment action status (canCancel, canReschedule, etc.) |
+| `/patients/appointments/create` | POST | **ENHANCED** — Create/find/reset action record (DELETE+INSERT for stale statuses) |
+| `/patients/appointments/by-date` | GET | **ENHANCED** — Find by date with ±1min range query |
+| `/patients/appointments/book` | POST | Online booking from patient dashboard |
+| `/patients/appointments/bookings` | GET | Fetch patient's online bookings |
 
 ### Cron Job APIs (`/api/cron/*`)
 
@@ -1236,18 +1260,33 @@ Features:
 ## 🔗 Integrations
 
 ### 1. Prodentis API
-**Purpose:** Appointment calendar synchronization + patient search
+**Purpose:** Appointment calendar synchronization + patient management + appointment management
 
-**Endpoints Used:**
-- `GET /api/patients/search?q=&limit=` — **v5.0** Patient search by name (for manual SMS)
+**Current Version:** v9.1 (as of March 3, 2026)
+
+**Read Endpoints (no auth):**
+- `GET /api/patients/search?q=&limit=` — Patient search by name
 - `GET /api/appointments/by-date?date=` — Appointments by date
 - `GET /api/patient/{id}/details` — Patient details by ID
 - `GET /api/patient/verify?phone=&firstName=&pesel=` — Patient verification
-- `GET /api/patient/{id}/next-appointment` — Next appointment
-- `GET /api/patient/{id}/appointments?page=&limit=` — Appointment history
+- `GET /api/patient/{id}/next-appointment` — Single next appointment
+- `GET /api/patient/{id}/future-appointments?days=180` — **v9.1** All future appointments in one call
+- `GET /api/patient/{id}/appointments?page=&limit=` — Visit history
 - `GET /api/slots/free?date=&duration=` — Free time slots
+- `GET /api/schedule/appointment/{id}` — **v9.0** Appointment details (date, time, status, cancel info)
 
-**Authentication:** Direct API access (no auth key required)
+**Write Endpoints (require `X-API-Key`):**
+- `POST /api/schedule/appointment` — Create appointment
+- `DELETE /api/schedule/appointment/{id}` — **v9.0** Cancel/delete appointment
+- `PUT /api/schedule/appointment/{id}/reschedule` — **v9.0** Reschedule `{ newDate, newStartTime }`
+- `PUT /api/schedule/appointment/{id}/color` — Change appointment color
+- `POST /api/schedule/appointment/{id}/icon` — Add icon to appointment
+- `POST /api/patients` — Create new patient
+- `PATCH /api/patients/{id}` — Update patient
+- `POST /api/patients/{id}/notes` — Add medical notes
+- `POST /api/patients/{id}/documents` — Upload document (base64 PDF)
+
+**Authentication:** Read endpoints: no auth. Write endpoints: `X-API-Key: 2c9bd5b4-5090-4007-8f06-936811bd0947`
 
 **Base URL:** Configured via `PRODENTIS_API_URL` env var (production: `http://83.230.40.14:3000`)
 
@@ -1259,6 +1298,9 @@ Features:
 - `/api/cron/appointment-reminders/route.ts` — SMS draft generation
 - `/api/appointments/by-date/route.ts` — Appointment lookup
 - `/api/employee/schedule/route.ts` — Weekly schedule for Employee Zone
+- `/api/patients/upcoming-appointments/route.ts` — Uses v9.1 `future-appointments` for patient dashboard
+- `/api/patients/appointments/[id]/cancel/route.ts` — Uses v9.0 DELETE for appointment cancellation
+- `/api/patients/appointments/[id]/reschedule/route.ts` — Uses v9.0 PUT reschedule
 
 ---
 
@@ -1775,14 +1817,87 @@ NODE_ENV=production
 
 ## 📝 Recent Changes
 
+### March 3, 2026
+**Patient Dashboard — Appointment Management Overhaul + Prodentis v9.1**
+
+#### Commits:
+- `0533fad` — feat: patient zone appointment management with Prodentis API v9.0
+- `c4517ce` — fix: patient dashboard - multi-appointment, always-visible booking, cancel crash fix, correct prodentis ID
+- `c6ff121` — fix: upcoming-appointments - add Content-Type header, start-of-day cutoff, limit 100
+- `5c793e7` — fix: upcoming-appointments - scan Prodentis schedule by-date
+- `2e92718` — redesign: appointment actions - clean inline buttons replacing ugly dropdown
+- `3dfc62b` — fix: by-date endpoint - use range query instead of exact match for timestamptz
+- `5de1a0e` — fix: use Prodentis v9.1 future-appointments API + check-then-insert for status reset
+- `11c4494` — fix: create endpoint resets terminal statuses when appointment still exists in Prodentis
+- `af8d3f4` — fix: DELETE+INSERT instead of UPDATE for stale status reset
+- `12eeeaf` — fix: escalating cleanup - delete ALL terminal records + detailed error logging
+- `d675a2e` — fix: auto-refresh appointments from Prodentis after cancel/reschedule, sync button also refreshes
+
+#### New Features:
+1. **Prodentis v9.0 Appointment Management**:
+   - Cancel appointment: `DELETE /api/schedule/appointment/:id` via patient dashboard button
+   - Reschedule appointment: `PUT /api/schedule/appointment/:id/reschedule` via dashboard button
+   - Confirm attendance: adds Prodentis "Pacjent potwierdzony" icon
+   - Deposit payment: redirects to `/zadatek` with pre-filled patient data
+
+2. **Prodentis v9.1 Future Appointments**:
+   - **NEW** `GET /api/patient/:id/future-appointments?days=180` — single API call returns ALL future appointments
+   - Replaced 65+ day-by-day API calls with 1 call — dashboard loads instantly
+   - **NEW** `GET /api/patients/upcoming-appointments` — internal endpoint using v9.1 API
+
+3. **Multi-Appointment Display**:
+   - Dashboard shows ALL upcoming appointments (not just one)
+   - Each appointment in its own card with date, time, doctor, duration
+   - Booking form always visible regardless of existing appointments
+
+4. **Appointment Actions Redesign** (`AppointmentActionsDropdown.tsx`):
+   - **Before**: ugly dark dropdown with "Zarządzaj wizytą ▼" toggle, TEST reset button, 611 lines
+   - **After**: clean inline action buttons (💳 Wpłać zadatek, ✓ Potwierdź, 📅 Przełóż, ❌ Odwołaj), 280 lines
+   - Status badge always visible, helpful text for final states (cancelled/rescheduled)
+   - Hover effects, gradient buttons, flex-wrap responsive
+
+5. **Stale Status Auto-Reset**:
+   - When appointment exists in Prodentis but has stale Supabase status (`cancelled`, `cancellation_pending`, etc.)
+   - `create` endpoint uses DELETE+INSERT pattern (Supabase `.update()` was silently failing)
+   - Escalating cleanup: if single delete fails, wipes ALL terminal records for patient
+   - Two-strategy lookup: first by `prodentis_id` (schedule ID), then by date ±2min range
+
+6. **Auto-Refresh After Actions**:
+   - After cancel/reschedule: 1.5s delay → re-fetches all appointments from Prodentis
+   - Cancelled appointments vanish without page reload
+   - Sync button now refreshes both visit history AND upcoming appointments
+
+7. **by-date Endpoint Fix**:
+   - Changed from exact `.eq('appointment_date', date)` to `±1min range` query
+   - Handles Supabase `timestamptz` format differences vs. ISO string input
+
+#### Files changed/created:
+- `src/app/api/patients/upcoming-appointments/route.ts` — **REWRITTEN** to use Prodentis v9.1
+- `src/app/api/patients/appointments/create/route.ts` — **REWRITTEN** with DELETE+INSERT, escalating cleanup
+- `src/app/api/patients/appointments/by-date/route.ts` — range query instead of exact match
+- `src/app/api/patients/appointments/[id]/cancel/route.ts` — **NEW** Prodentis DELETE integration
+- `src/app/api/patients/appointments/[id]/reschedule/route.ts` — **NEW** Prodentis PUT reschedule
+- `src/app/api/patients/appointments/[id]/confirm-attendance/route.ts` — **NEW** with Prodentis icon
+- `src/components/AppointmentActionsDropdown.tsx` — **REWRITTEN** from dropdown to inline buttons
+- `src/components/modals/CancelAppointmentModal.tsx` — **NEW** modal
+- `src/components/modals/ConfirmAttendanceModal.tsx` — **NEW** modal
+- `src/components/modals/RescheduleAppointmentModal.tsx` — **NEW** modal
+- `src/app/strefa-pacjenta/dashboard/page.tsx` — multi-appointment loop, auto-refresh, booking always visible
+
+---
+
 ### March 2, 2026
-**Task System + E-Karta + Patient Zone Booking**
+**Task System + E-Karta + Patient Zone Booking + Phone Fix + Birthday Cron**
 
 #### Commits:
 - `908e8ab` — feat(tasks): multi-category filter, kanban edit button, patient search from DB
 - `6b21c19` — ui(tasks): replace filter chips with dropdown checklist multi-select
 - `4fbcb19` — fix(e-karta): sanitize Polish diacritics from PDF filename — fixes Supabase 'Invalid key' error
 - `3cf3033` — feat(patient-zone): online booking from dashboard — uses existing prodentis_id
+- `5db7ee2` — docs: add patient zone online booking to changelog
+- `05c1609` — feat(confirm-attendance): add Prodentis 'Pacjent potwierdzony' icon on patient zone confirmation
+- `4860d67` — feat: phone normalization fix, employee patient search tab, birthday wishes cron
+- `19aa5e5` — feat(blog): add image for usmiech-w-rytmie-natury
 
 #### Changes:
 1. **Multi-category task filter**: Dropdown multi-select with checkmarks (✓). Click "Typ: Wszystkie" → opens list → toggle categories (OR logic). State: `filterType: string` → `filterTypes: string[]`
@@ -1799,6 +1914,9 @@ NODE_ENV=production
    - Dashboard: inline booking form (specialist → service → AppointmentScheduler → submit)
    - Pending booking status cards with "Oczekuje na potwierdzenie" indicator
    - Saves to `online_bookings` with pre-matched patient → admin approves → auto-schedules in Prodentis
+6. **Phone normalization**: Fixed `+48` prefix handling in patient search and login
+7. **Birthday wishes cron**: Auto-sends birthday greetings to patients
+8. **Confirm attendance icon**: Adds Prodentis 'Pacjent potwierdzony' icon (0000000010) on patient zone confirmation
 
 #### Files changed:
 - `src/app/pracownik/page.tsx` — frontend (filters, modals, Kanban edit button)
