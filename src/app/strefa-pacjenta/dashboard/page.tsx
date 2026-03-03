@@ -184,120 +184,94 @@ export default function PatientDashboard() {
     }, [router]);
 
     // Fetch ALL upcoming appointments from Prodentis + create/fetch action records for each
-    useEffect(() => {
-        const loadUpcomingAppointments = async () => {
-            if (!patient) return;
+    const loadUpcomingAppointments = async () => {
+        if (!patient) return;
 
-            try {
-                setIsLoadingAppointment(true);
-                const token = getAuthToken();
+        try {
+            setIsLoadingAppointment(true);
+            const token = getAuthToken();
 
-                const response = await fetch('/api/patients/upcoming-appointments', {
-                    headers: { 'Authorization': `Bearer ${token}` },
-                });
+            const response = await fetch('/api/patients/upcoming-appointments', {
+                headers: { 'Authorization': `Bearer ${token}` },
+            });
 
-                if (!response.ok) {
-                    console.error('Failed to fetch upcoming appointments');
-                    setUpcomingAppointments([]);
-                    return;
-                }
-
-                const data = await response.json();
-                const appointments: UpcomingAppointment[] = data.appointments || [];
-                setUpcomingAppointments(appointments);
-
-                // Create/fetch action records for each appointment
-                const actionsMap: Record<string, AppointmentActionInfo> = {};
-                for (const apt of appointments) {
-                    try {
-                        // Try to create appointment action
-                        const createRes = await fetch('/api/patients/appointments/create', {
-                            method: 'POST',
-                            headers: {
-                                'Authorization': `Bearer ${token}`,
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({
-                                prodentis_id: patient.id,
-                                appointment_date: apt.date,
-                                appointment_end_date: apt.endDate,
-                                doctor_id: apt.doctor.id,
-                                doctor_name: apt.doctor.name?.replace(/\s*\(I\)\s*/g, ' ').trim(),
-                                schedule_appointment_id: apt.scheduleId,
-                            })
-                        });
-
-                        let actionId: string | null = null;
-
-                        if (createRes.ok) {
-                            const createData = await createRes.json();
-                            actionId = createData.id;
-                            console.log('[Dashboard] Created action for', apt.date, 'id:', actionId);
-                        } else {
-                            console.log('[Dashboard] Create returned', createRes.status, 'for', apt.date, '- trying by-date lookup');
-                            // Already exists, fetch it by date
-                            const fetchRes = await fetch(
-                                `/api/patients/appointments/by-date?date=${encodeURIComponent(apt.date)}`,
-                                { headers: { 'Authorization': `Bearer ${token}` } }
-                            );
-                            if (fetchRes.ok) {
-                                const fetchData = await fetchRes.json();
-                                actionId = fetchData.id;
-                                console.log('[Dashboard] Found existing action for', apt.date, 'id:', actionId);
-                            } else {
-                                console.warn('[Dashboard] by-date lookup failed for', apt.date, ':', fetchRes.status);
-                            }
-                        }
-
-                        if (!actionId) {
-                            console.warn('[Dashboard] No actionId obtained for', apt.date);
-                            continue;
-                        }
-
-                        // Fetch status
-                        const statusRes = await fetch(`/api/patients/appointments/${actionId}/status`, {
-                            headers: { 'Authorization': `Bearer ${token}` }
-                        });
-                        if (statusRes.ok) {
-                            const statusData = await statusRes.json();
-                            actionsMap[apt.date] = { actionId, status: statusData };
-                            console.log('[Dashboard] Got status for', apt.date, ':', statusData.status);
-                        } else {
-                            console.warn('[Dashboard] Status fetch failed for', actionId, ':', statusRes.status);
-                        }
-                    } catch (e) {
-                        console.error('[Dashboard] Error processing appointment:', apt.date, e);
-                    }
-                }
-                setAppointmentActionsMap(actionsMap);
-            } catch (error) {
-                console.error('Error loading upcoming appointments:', error);
+            if (!response.ok) {
+                console.error('Failed to fetch upcoming appointments');
                 setUpcomingAppointments([]);
-            } finally {
-                setIsLoadingAppointment(false);
+                return;
             }
-        };
 
+            const data = await response.json();
+            const appointments: UpcomingAppointment[] = data.appointments || [];
+            setUpcomingAppointments(appointments);
+
+            // Create/fetch action records for each appointment
+            const actionsMap: Record<string, AppointmentActionInfo> = {};
+            for (const apt of appointments) {
+                try {
+                    const createRes = await fetch('/api/patients/appointments/create', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            prodentis_id: patient.id,
+                            appointment_date: apt.date,
+                            appointment_end_date: apt.endDate,
+                            doctor_id: apt.doctor.id,
+                            doctor_name: apt.doctor.name?.replace(/\s*\(I\)\s*/g, ' ').trim(),
+                            schedule_appointment_id: apt.scheduleId,
+                        })
+                    });
+
+                    let actionId: string | null = null;
+
+                    if (createRes.ok) {
+                        const createData = await createRes.json();
+                        actionId = createData.id;
+                    } else {
+                        const fetchRes = await fetch(
+                            `/api/patients/appointments/by-date?date=${encodeURIComponent(apt.date)}`,
+                            { headers: { 'Authorization': `Bearer ${token}` } }
+                        );
+                        if (fetchRes.ok) {
+                            const fetchData = await fetchRes.json();
+                            actionId = fetchData.id;
+                        }
+                    }
+
+                    if (!actionId) continue;
+
+                    const statusRes = await fetch(`/api/patients/appointments/${actionId}/status`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    if (statusRes.ok) {
+                        const statusData = await statusRes.json();
+                        actionsMap[apt.date] = { actionId, status: statusData };
+                    }
+                } catch (e) {
+                    console.error('[Dashboard] Error processing appointment:', apt.date, e);
+                }
+            }
+            setAppointmentActionsMap(actionsMap);
+        } catch (error) {
+            console.error('Error loading upcoming appointments:', error);
+            setUpcomingAppointments([]);
+        } finally {
+            setIsLoadingAppointment(false);
+        }
+    };
+
+    useEffect(() => {
         loadUpcomingAppointments();
     }, [patient]);
 
-    // Reload status for a specific appointment by date
-    const reloadAppointmentStatus = async (aptDate: string, actionId: string) => {
-        try {
-            const token = getAuthToken();
-            const statusRes = await fetch(`/api/patients/appointments/${actionId}/status`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (statusRes.ok) {
-                const statusData = await statusRes.json();
-                setAppointmentActionsMap(prev => ({
-                    ...prev,
-                    [aptDate]: { actionId, status: statusData }
-                }));
-            }
-        } catch (error) {
-            console.error('Error reloading appointment status:', error);
-        }
+    // After cancel/reschedule: wait a moment for Prodentis to process, then re-fetch everything
+    const refreshAfterAction = async () => {
+        // Short delay to let Prodentis process the cancellation/reschedule
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        await loadUpcomingAppointments();
     };
 
 
@@ -378,17 +352,15 @@ export default function PatientDashboard() {
         const token = getAuthToken();
 
         try {
+            // Refresh visit history
             const visitsRes = await fetch('/api/patients/me/visits?limit=50', {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
+                headers: { 'Authorization': `Bearer ${token}` },
             });
 
             if (visitsRes.ok) {
                 const visitsData = await visitsRes.json();
                 setVisits(visitsData.appointments?.slice(0, 5) || []);
 
-                // Recalculate stats
                 const allVisits = visitsData.appointments || [];
                 const totalCost = allVisits.reduce((sum: number, v: Visit) => sum + (v.cost || 0), 0);
                 const totalPaid = allVisits.reduce((sum: number, v: Visit) => sum + (v.paid || 0), 0);
@@ -400,12 +372,15 @@ export default function PatientDashboard() {
                     totalPaid: totalPaid.toFixed(2),
                     balance: balance.toFixed(2),
                 });
-
-                alert('✅ Historia wizyt została zaktualizowana!');
             }
+
+            // Also refresh upcoming appointments from Prodentis
+            await loadUpcomingAppointments();
+
+            alert('✅ Dane zostały zaktualizowane!');
         } catch (err) {
             console.error('Sync failed:', err);
-            alert('❌ Nie udało się zsynchronizować historii');
+            alert('❌ Nie udało się zsynchronizować danych');
         } finally {
             setIsSyncing(false);
         }
@@ -775,7 +750,7 @@ export default function PatientDashboard() {
                                                             patientStreet={patient?.address?.street || ''}
                                                             patientHouseNumber={patient?.address?.houseNumber || ''}
                                                             patientApartmentNumber={patient?.address?.apartmentNumber || ''}
-                                                            onStatusChange={() => reloadAppointmentStatus(apt.date, actionInfo.actionId)}
+                                                            onStatusChange={refreshAfterAction}
                                                         />
                                                     )}
                                                     <div style={{ marginTop: '1rem', padding: '0.75rem', background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.2)', borderRadius: '0.5rem', fontSize: '0.85rem', color: 'rgba(255, 255, 255, 0.7)' }}>
