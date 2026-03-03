@@ -20,7 +20,7 @@ const PRODENTIS_API_KEY = process.env.PRODENTIS_API_KEY || '2c9bd5b4-5090-4007-8
  */
 export async function POST(req: NextRequest) {
     try {
-        const { token, consentType, signedPdfBase64, signatureDataUrl } = await req.json();
+        const { token, consentType, signedPdfBase64, signatureDataUrl, biometricData } = await req.json();
 
         if (!token || !consentType || !signedPdfBase64) {
             return NextResponse.json({ error: 'token, consentType, signedPdfBase64 required' }, { status: 400 });
@@ -138,6 +138,7 @@ export async function POST(req: NextRequest) {
                 file_url: fileUrl,
                 file_name: fileName,
                 signature_data: signatureDataUrl || null,
+                biometric_data: biometricData || null,
                 created_by: tokenRow.created_by || null,
                 prodentis_synced: prodentisSynced,
                 metadata: {},

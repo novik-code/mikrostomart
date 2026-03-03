@@ -33,6 +33,39 @@ interface PatientDetails {
 
 type Phase = 'loading' | 'error' | 'list' | 'preparing' | 'viewing' | 'signing' | 'done';
 
+// ── Biometric signature types ──
+interface BiometricPoint {
+    x: number;   // canvas X (px)
+    y: number;   // canvas Y (px)
+    t: number;   // relative timestamp (ms)
+    p: number;   // pressure (0-1)
+    tx: number;  // tiltX (-90 to 90)
+    ty: number;  // tiltY (-90 to 90)
+}
+
+interface BiometricStroke {
+    points: BiometricPoint[];
+    startTime: number;
+    endTime: number;
+}
+
+interface BiometricSignatureData {
+    strokes: BiometricStroke[];
+    deviceInfo: {
+        pointerType: string;
+        userAgent: string;
+        screenWidth: number;
+        screenHeight: number;
+        canvasWidth: number;
+        canvasHeight: number;
+    };
+    totalDuration: number;
+    avgPressure: number;
+    maxPressure: number;
+    pointCount: number;
+    signedAt: string;
+}
+
 export default function ConsentSigningPage() {
     const params = useParams();
     const token = params.token as string;
@@ -63,6 +96,13 @@ export default function ConsentSigningPage() {
     const [isDrawing, setIsDrawing] = useState(false);
     const [hasDrawn, setHasDrawn] = useState(false);
     const lastPointRef = useRef<{ x: number; y: number } | null>(null);
+
+    // Biometric data collection
+    const biometricStrokesRef = useRef<BiometricStroke[]>([]);
+    const currentStrokeRef = useRef<BiometricPoint[]>([]);
+    const strokeStartTimeRef = useRef<number>(0);
+    const sigStartTimeRef = useRef<number>(0);
+    const detectedPointerTypeRef = useRef<string>('unknown');
 
     // Verify token on mount
     useEffect(() => {
@@ -136,43 +176,85 @@ export default function ConsentSigningPage() {
         }
     }, [phase, resizeCanvas]);
 
-    // Drawing handlers
-    const getPos = (e: React.TouchEvent | React.MouseEvent) => {
+    // ── Drawing handlers (Pointer Events — biometric capture) ──
+    const getPos = (e: React.PointerEvent) => {
         const canvas = canvasRef.current;
         if (!canvas) return { x: 0, y: 0 };
         const rect = canvas.getBoundingClientRect();
-        if ('touches' in e) {
-            return {
-                x: e.touches[0].clientX - rect.left,
-                y: e.touches[0].clientY - rect.top,
-            };
-        }
-        return { x: (e as React.MouseEvent).clientX - rect.left, y: (e as React.MouseEvent).clientY - rect.top };
+        return {
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top,
+        };
     };
 
-    const startDraw = (e: React.TouchEvent | React.MouseEvent) => {
+    const startDraw = (e: React.PointerEvent) => {
         e.preventDefault();
+        // Capture the pointer so we get events even if finger moves outside canvas
+        (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+
         setIsDrawing(true);
         setHasDrawn(true);
         const pos = getPos(e);
         lastPointRef.current = pos;
+
+        // Track pointer type (pen/touch/mouse)
+        detectedPointerTypeRef.current = e.pointerType || 'unknown';
+
+        // Start timing on first stroke
+        if (biometricStrokesRef.current.length === 0) {
+            sigStartTimeRef.current = performance.now();
+        }
+
+        // Start new stroke
+        strokeStartTimeRef.current = performance.now();
+        currentStrokeRef.current = [{
+            x: pos.x,
+            y: pos.y,
+            t: Math.round(performance.now() - sigStartTimeRef.current),
+            p: e.pressure ?? 0.5,
+            tx: e.tiltX ?? 0,
+            ty: e.tiltY ?? 0,
+        }];
     };
 
-    const draw = (e: React.TouchEvent | React.MouseEvent) => {
+    const draw = (e: React.PointerEvent) => {
         if (!isDrawing) return;
         e.preventDefault();
         const canvas = canvasRef.current;
         const ctx = canvas?.getContext('2d');
         if (!ctx || !lastPointRef.current) return;
         const pos = getPos(e);
+
+        // Dynamic line width based on pressure (1-5px)
+        const pressure = e.pressure ?? 0.5;
+        ctx.lineWidth = 1 + pressure * 4;
+
         ctx.beginPath();
         ctx.moveTo(lastPointRef.current.x, lastPointRef.current.y);
         ctx.lineTo(pos.x, pos.y);
         ctx.stroke();
         lastPointRef.current = pos;
+
+        // Record biometric point
+        currentStrokeRef.current.push({
+            x: Math.round(pos.x * 10) / 10,
+            y: Math.round(pos.y * 10) / 10,
+            t: Math.round(performance.now() - sigStartTimeRef.current),
+            p: Math.round(pressure * 1000) / 1000,
+            tx: Math.round(e.tiltX ?? 0),
+            ty: Math.round(e.tiltY ?? 0),
+        });
     };
 
-    const stopDraw = () => {
+    const stopDraw = (e?: React.PointerEvent) => {
+        if (isDrawing && currentStrokeRef.current.length > 0) {
+            biometricStrokesRef.current.push({
+                points: [...currentStrokeRef.current],
+                startTime: Math.round(strokeStartTimeRef.current - sigStartTimeRef.current),
+                endTime: Math.round(performance.now() - sigStartTimeRef.current),
+            });
+            currentStrokeRef.current = [];
+        }
         setIsDrawing(false);
         lastPointRef.current = null;
     };
@@ -184,6 +266,41 @@ export default function ConsentSigningPage() {
         if (!ctx) return;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         setHasDrawn(false);
+        // Reset biometric data
+        biometricStrokesRef.current = [];
+        currentStrokeRef.current = [];
+        sigStartTimeRef.current = 0;
+    };
+
+    /** Build the final biometric signature JSON */
+    const buildBiometricData = (): BiometricSignatureData => {
+        const strokes = biometricStrokesRef.current;
+        const allPoints = strokes.flatMap(s => s.points);
+        const pressures = allPoints.map(p => p.p).filter(p => p > 0);
+        const canvas = canvasRef.current;
+
+        return {
+            strokes,
+            deviceInfo: {
+                pointerType: detectedPointerTypeRef.current,
+                userAgent: navigator.userAgent,
+                screenWidth: window.screen.width,
+                screenHeight: window.screen.height,
+                canvasWidth: canvas?.width ?? 0,
+                canvasHeight: canvas?.height ?? 0,
+            },
+            totalDuration: strokes.length > 0
+                ? strokes[strokes.length - 1].endTime - strokes[0].startTime
+                : 0,
+            avgPressure: pressures.length > 0
+                ? Math.round((pressures.reduce((a, b) => a + b, 0) / pressures.length) * 1000) / 1000
+                : 0,
+            maxPressure: pressures.length > 0
+                ? Math.round(Math.max(...pressures) * 1000) / 1000
+                : 0,
+            pointCount: allPoints.length,
+            signedAt: new Date().toISOString(),
+        };
     };
 
     /**
@@ -516,6 +633,9 @@ export default function ConsentSigningPage() {
             }
             const signedPdfBase64 = btoa(binary);
 
+            // Build biometric data before sending
+            const biometricData = buildBiometricData();
+
             const res = await fetch('/api/consents/sign', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -524,6 +644,7 @@ export default function ConsentSigningPage() {
                     consentType: currentConsent.type,
                     signedPdfBase64,
                     signatureDataUrl,
+                    biometricData,
                 }),
             });
 
@@ -697,13 +818,11 @@ export default function ConsentSigningPage() {
                     }}>
                         <canvas
                             ref={canvasRef}
-                            onMouseDown={startDraw}
-                            onMouseMove={draw}
-                            onMouseUp={stopDraw}
-                            onMouseLeave={stopDraw}
-                            onTouchStart={startDraw}
-                            onTouchMove={draw}
-                            onTouchEnd={stopDraw}
+                            onPointerDown={startDraw}
+                            onPointerMove={draw}
+                            onPointerUp={stopDraw}
+                            onPointerLeave={stopDraw}
+                            onPointerCancel={stopDraw}
                             style={{ cursor: 'crosshair', touchAction: 'none' }}
                         />
                         {!hasDrawn && (
