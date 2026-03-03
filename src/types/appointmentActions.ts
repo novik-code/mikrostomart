@@ -4,8 +4,10 @@ export type AppointmentStatus =
     | 'unpaid_reservation'      // No deposit paid yet
     | 'deposit_paid'            // Deposit confirmed via Stripe
     | 'attendance_confirmed'    // Patient confirmed attendance <24h before
-    | 'cancellation_pending'    // Patient requested cancellation
-    | 'reschedule_pending';     // Patient requested reschedule
+    | 'cancellation_pending'    // Patient requested cancellation (legacy)
+    | 'cancelled'               // Appointment cancelled + deleted from Prodentis
+    | 'reschedule_pending'      // Patient requested reschedule (legacy)
+    | 'rescheduled';            // Appointment rescheduled in Prodentis
 
 export interface AppointmentAction {
     id: string;
@@ -79,6 +81,8 @@ export interface CancelAppointmentRequest {
 
 export interface RescheduleAppointmentRequest {
     reason?: string;
+    newDate: string;      // YYYY-MM-DD
+    newStartTime: string; // HH:MM
 }
 
 export interface AppointmentActionResponse {

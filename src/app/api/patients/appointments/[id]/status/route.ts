@@ -78,8 +78,8 @@ export async function GET(
             actions: {
                 canPayDeposit: !appointmentAction.deposit_paid && hoursUntil > 0,
                 canConfirmAttendance,
-                canCancel: hoursUntil > 0 && !appointmentAction.cancellation_requested,
-                canReschedule: hoursUntil > 0 && !appointmentAction.reschedule_requested
+                canCancel: hoursUntil > 0 && !appointmentAction.attendance_confirmed && !appointmentAction.cancellation_requested,
+                canReschedule: hoursUntil > 0 && !appointmentAction.attendance_confirmed && !appointmentAction.reschedule_requested
             }
         };
 

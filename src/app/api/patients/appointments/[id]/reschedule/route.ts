@@ -4,6 +4,7 @@ import { Resend } from 'resend';
 import { verifyToken } from '@/lib/jwt';
 import { sendTelegramNotification } from '@/lib/telegram';
 import { broadcastPush } from '@/lib/webpush';
+import { sendSMS } from '@/lib/smsService';
 import type { RescheduleAppointmentRequest, AppointmentActionResponse, AppointmentAction } from '@/types/appointmentActions';
 
 const supabase = createClient(
@@ -12,6 +13,8 @@ const supabase = createClient(
 );
 
 const resend = new Resend(process.env.RESEND_API_KEY!);
+const PRODENTIS_API = process.env.PRODENTIS_API_URL || 'http://83.230.40.14:3000';
+const PRODENTIS_KEY = process.env.PRODENTIS_API_KEY || '';
 
 export async function POST(
     request: NextRequest,
@@ -27,6 +30,14 @@ export async function POST(
 
         if (!payload) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        // Validate required fields
+        if (!body.newDate || !body.newStartTime) {
+            return NextResponse.json(
+                { error: 'Wymagane pola: newDate i newStartTime' },
+                { status: 400 }
+            );
         }
 
         // Get patient
@@ -54,6 +65,14 @@ export async function POST(
 
         const appointmentAction = action as AppointmentAction;
 
+        // ── Block if attendance confirmed ──
+        if (appointmentAction.attendance_confirmed) {
+            return NextResponse.json(
+                { error: 'Nie można przełożyć wizyty po potwierdzeniu obecności' },
+                { status: 400 }
+            );
+        }
+
         // Validate appointment hasn't passed
         const appointmentDate = new Date(appointmentAction.appointment_date);
         const now = new Date();
@@ -67,19 +86,90 @@ export async function POST(
 
         if (appointmentAction.reschedule_requested) {
             return NextResponse.json(
-                { error: 'Prośba o przełożenie już została wysłana' },
+                { error: 'Wizyta została już przełożona' },
                 { status: 400 }
             );
         }
 
-        // Update appointment action
+        // ── PUT reschedule in Prodentis ──
+        let prodentisRescheduled = false;
+        let newEndTime = '';
+        const prodentisAptId = appointmentAction.prodentis_id;
+
+        if (prodentisAptId && PRODENTIS_KEY) {
+            try {
+                const rescheduleRes = await fetch(`${PRODENTIS_API}/api/schedule/appointment/${prodentisAptId}/reschedule`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': PRODENTIS_KEY,
+                    },
+                    body: JSON.stringify({
+                        newDate: body.newDate,
+                        newStartTime: body.newStartTime,
+                        reason: body.reason || 'Przełożone przez pacjenta z portalu',
+                    }),
+                    signal: AbortSignal.timeout(15000),
+                });
+
+                if (rescheduleRes.ok) {
+                    const rescheduleData = await rescheduleRes.json();
+                    prodentisRescheduled = true;
+                    newEndTime = rescheduleData.newEndTime || '';
+                    console.log(`[RESCHEDULE] Prodentis success: ${prodentisAptId} → ${body.newDate} ${body.newStartTime}`);
+                } else {
+                    const errData = await rescheduleRes.json().catch(() => ({}));
+                    console.error(`[RESCHEDULE] Prodentis failed (${rescheduleRes.status}):`, errData);
+
+                    if (rescheduleRes.status === 409) {
+                        return NextResponse.json(
+                            { error: 'Wybrany termin jest już zajęty. Wybierz inny termin.' },
+                            { status: 409 }
+                        );
+                    }
+                    if (rescheduleRes.status === 404) {
+                        return NextResponse.json(
+                            { error: 'Wizyta nie została znaleziona w systemie Prodentis.' },
+                            { status: 404 }
+                        );
+                    }
+
+                    return NextResponse.json(
+                        { error: 'Nie udało się przełożyć wizyty w systemie. Spróbuj ponownie.' },
+                        { status: 500 }
+                    );
+                }
+            } catch (prodErr) {
+                console.error('[RESCHEDULE] Prodentis error:', prodErr);
+                return NextResponse.json(
+                    { error: 'Błąd połączenia z systemem rezerwacji. Spróbuj ponownie.' },
+                    { status: 500 }
+                );
+            }
+        } else {
+            console.warn('[RESCHEDULE] No prodentis_id or API key');
+            return NextResponse.json(
+                { error: 'Brak konfiguracji API Prodentis' },
+                { status: 500 }
+            );
+        }
+
+        // ── Build new appointment date ──
+        const newAppointmentDate = new Date(`${body.newDate}T${body.newStartTime}:00`);
+        const newAppointmentEndDate = newEndTime
+            ? new Date(`${body.newDate}T${newEndTime}:00`)
+            : new Date(newAppointmentDate.getTime() + 30 * 60000); // default 30 min
+
+        // ── Update appointment action ──
         const { error: updateError } = await supabase
             .from('appointment_actions')
             .update({
                 reschedule_requested: true,
                 reschedule_requested_at: new Date().toISOString(),
                 reschedule_reason: body.reason || null,
-                status: 'reschedule_pending',
+                appointment_date: newAppointmentDate.toISOString(),
+                appointment_end_date: newAppointmentEndDate.toISOString(),
+                status: 'rescheduled',
                 updated_at: new Date().toISOString()
             })
             .eq('id', appointmentId);
@@ -88,103 +178,111 @@ export async function POST(
             throw updateError;
         }
 
-        // Format dates
-        const appointmentDateFormatted = appointmentDate.toLocaleDateString('pl-PL', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
+        // Format old dates
+        const oldDateFormatted = appointmentDate.toLocaleDateString('pl-PL', {
+            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
         });
-        const appointmentTime = appointmentDate.toLocaleTimeString('pl-PL', {
-            hour: '2-digit',
-            minute: '2-digit'
+        const oldTimeFormatted = appointmentDate.toLocaleTimeString('pl-PL', {
+            hour: '2-digit', minute: '2-digit'
         });
 
-        // Send email to clinic
-        const emailHtml = `
-            <h2>📅 Pacjent prosi o przełożenie wizyty</h2>
-            
-            <p>Dzień dobry,</p>
-            
-            <p>Pacjent <strong>PROSI O PRZEŁOŻENIE</strong> wizyty:</p>
-            
-            <ul>
-                <li><strong>📅 Obecna data:</strong> ${appointmentDateFormatted}</li>
-                <li><strong>🕐 Godzina:</strong> ${appointmentTime}</li>
-                <li><strong>👤 Pacjent:</strong> ${patient.phone}</li>
-                <li><strong>👨‍⚕️ Lekarz:</strong> ${appointmentAction.doctor_name || 'Nie podano'}</li>
-                <li><strong>📱 Telefon:</strong> ${patient.phone}</li>
-            </ul>
-            
-            ${body.reason ? `
-            <p><strong>Powód:</strong><br>
-            ${body.reason}</p>
-            ` : '<p><strong>Powód:</strong> Nie podano</p>'}
-            
-            <hr>
-            
-            <p>⚠️ <strong>Wymagane działanie:</strong><br>
-            Wizyta wymaga <strong>ręcznego przełożenia</strong> w systemie Prodentis.</p>
-            
-            <p>Pacjent został przekierowany do systemu rezerwacji online aby wybrać nowy termin.</p>
-            
-            <p><em>Uwaga: Prośba zostanie przetworzona w ciągu 24h.</em></p>
-            
-            <hr>
-            <p style="color: #666; font-size: 12px;">
-                Wiadomość wysłana automatycznie z systemu Strefa Pacjenta<br>
-                Mikrostomart - Dentysta Opole
-            </p>
-        `;
+        // Format new dates
+        const newDateFormatted = newAppointmentDate.toLocaleDateString('pl-PL', {
+            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+        });
+        const newTimeFormatted = body.newStartTime;
 
+        // ── Get patient name ──
+        let patientName = '';
+        try {
+            const detRes = await fetch(`${PRODENTIS_API}/api/patient/${patient.prodentis_id}/details`, {
+                signal: AbortSignal.timeout(5000),
+            });
+            if (detRes.ok) {
+                const det = await detRes.json();
+                patientName = `${det.firstName || ''} ${det.lastName || ''}`.trim();
+            }
+        } catch (e) {
+            console.warn('[RESCHEDULE] Failed to fetch patient name:', e);
+        }
+
+        // ── Send email ──
         let emailSent = false;
         try {
+            const emailHtml = `
+                <h2>📅 Wizyta przełożona przez pacjenta</h2>
+                <p>Pacjent <strong>PRZEŁOŻYŁ</strong> wizytę (automatycznie zaktualizowana w Prodentis):</p>
+                <ul>
+                    <li><strong>📅 Stary termin:</strong> ${oldDateFormatted}, ${oldTimeFormatted}</li>
+                    <li><strong>📅 Nowy termin:</strong> ${newDateFormatted}, ${newTimeFormatted}</li>
+                    <li><strong>👤 Pacjent:</strong> ${patientName || patient.phone}</li>
+                    <li><strong>👨‍⚕️ Lekarz:</strong> ${appointmentAction.doctor_name || 'Nie podano'}</li>
+                    <li><strong>📱 Telefon:</strong> ${patient.phone}</li>
+                </ul>
+                ${body.reason ? `<p><strong>Powód:</strong><br>${body.reason}</p>` : ''}
+                <hr>
+                <p>✅ Termin został <strong>automatycznie zaktualizowany</strong> w grafiku Prodentis.</p>
+                <hr>
+                <p style="color: #666; font-size: 12px;">
+                    Wiadomość wysłana automatycznie z systemu Strefa Pacjenta<br>
+                    Mikrostomart - Dentysta Opole
+                </p>
+            `;
+
             await resend.emails.send({
                 from: 'Strefa Pacjenta <noreply@mikrostomart.pl>',
                 to: ['gabinet@mikrostomart.pl'],
-                subject: '📅 Pacjent prosi o przełożenie wizyty',
+                subject: '📅 Wizyta przełożona przez pacjenta',
                 html: emailHtml
             });
             emailSent = true;
         } catch (emailError) {
             console.error('[RESCHEDULE] Failed to send email:', emailError);
-            console.error('[RESCHEDULE] Email error details:', {
-                message: emailError instanceof Error ? emailError.message : 'Unknown error',
-                stack: emailError instanceof Error ? emailError.stack : undefined,
-                fullError: JSON.stringify(emailError, Object.getOwnPropertyNames(emailError))
-            });
         }
 
-        // Send Telegram notification
-        let telegramSent = false;
+        // ── Telegram ──
         try {
-            const telegramMessage = `📅 <b>PROŚBA O PRZEŁOŻENIE WIZYTY</b>\n\n` +
-                `📆 <b>Obecny termin:</b> ${appointmentDateFormatted}, ${appointmentTime}\n` +
+            const telegramMessage = `📅 <b>WIZYTA PRZEŁOŻONA PRZEZ PACJENTA</b>\n\n` +
+                `📆 <b>Stary termin:</b> ${oldDateFormatted}, ${oldTimeFormatted}\n` +
+                `📆 <b>Nowy termin:</b> ${newDateFormatted}, ${newTimeFormatted}\n` +
                 `🩺 <b>Lekarz:</b> ${appointmentAction.doctor_name || 'Nie podano'}\n` +
-                `📞 <b>Telefon pacjenta:</b> <a href="tel:${patient.phone}">${patient.phone}</a>\n\n` +
-                `💬 <b>Powód:</b> ${body.reason || 'Nie podano'}`;
+                `👤 <b>Pacjent:</b> ${patientName || patient.phone}\n` +
+                `📞 <b>Telefon:</b> <a href="tel:${patient.phone}">${patient.phone}</a>\n\n` +
+                `💬 <b>Powód:</b> ${body.reason || 'Nie podano'}\n\n` +
+                `✅ Zaktualizowano w grafiku Prodentis`;
 
-            telegramSent = await sendTelegramNotification(telegramMessage, 'appointments');
+            await sendTelegramNotification(telegramMessage, 'appointments');
         } catch (telegramError) {
             console.error('[RESCHEDULE] Failed to send telegram:', telegramError);
         }
 
-        // Push notification to admins and employees
+        // ── Push notifications ──
         const pushParams = {
-            patient: patient.phone || 'Pacjent',
-            date: appointmentDateFormatted,
-            time: appointmentTime,
+            patient: patientName || patient.phone || 'Pacjent',
+            date: newDateFormatted,
+            time: newTimeFormatted,
             doctor: appointmentAction.doctor_name || '',
             reason: body.reason || 'Nie podano',
         };
         broadcastPush('admin', 'appointment_rescheduled', pushParams, '/admin').catch(console.error);
         broadcastPush('employee', 'appointment_rescheduled', pushParams, '/pracownik').catch(console.error);
 
+        // ── SMS to patient ──
+        if (patient.phone) {
+            try {
+                await sendSMS({
+                    to: patient.phone,
+                    message: `Twoja wizyta została przełożona na ${newDateFormatted} o godz. ${newTimeFormatted}. Szczegóły w strefie pacjenta. Mikrostomart`,
+                });
+            } catch (smsErr) {
+                console.error('[RESCHEDULE] SMS to patient failed:', smsErr);
+            }
+        }
+
         const response: AppointmentActionResponse = {
             success: true,
-            message: 'Prośba o przełożenie wizyty została wysłana. Możesz wybrać nowy termin.',
+            message: `Wizyta została przełożona na ${newDateFormatted} o godz. ${newTimeFormatted}.`,
             emailSent,
-            redirectUrl: `/rezerwacja?reschedule=true&appointmentId=${appointmentId}`
         };
 
         return NextResponse.json(response);

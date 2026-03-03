@@ -63,7 +63,10 @@ export default function AdminPage() {
     const [products, setProducts] = useState<Product[]>([]);
     const [error, setError] = useState<string | null>(null);
 
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'questions' | 'articles' | 'news' | 'orders' | 'reservations' | 'blog' | 'patients' | 'sms-reminders' | 'sms-post-visit' | 'sms-week-after-visit' | 'appointment-instructions' | 'roles' | 'employees' | 'chat' | 'theme' | 'push' | 'booking-settings' | 'online-bookings'>('dashboard');
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'questions' | 'articles' | 'news' | 'orders' | 'reservations' | 'blog' | 'patients' | 'sms-reminders' | 'sms-post-visit' | 'sms-week-after-visit' | 'appointment-instructions' | 'roles' | 'employees' | 'chat' | 'theme' | 'push' | 'booking-settings' | 'online-bookings' | 'cancelled-appointments'>('dashboard');
+    // Cancelled appointments state
+    const [cancelledAppointments, setCancelledAppointments] = useState<any[]>([]);
+    const [cancelledLoading, setCancelledLoading] = useState(false);
     const [questions, setQuestions] = useState<any[]>([]);
     const [articles, setArticles] = useState<any[]>([]);
     const [blogPosts, setBlogPosts] = useState<any[]>([]); // New Blog Posts state
@@ -4765,6 +4768,7 @@ export default function AdminPage() {
                     <NavItem id="employees" label="Pracownicy" icon={Users} />
                     <NavItem id="roles" label="Uprawnienia" icon={Shield} />
                     <NavItem id="push" label="🔔 Push" icon={Bell} onClick={() => { setActiveTab('push'); fetchPushData(); }} />
+                    <NavItem id="cancelled-appointments" label="❌ Odwołane wizyty" icon={Calendar} />
                     <NavItem id="orders" label="Zamówienia" icon={ShoppingBag} />
                     <NavItem id="products" label="Produkty (Sklep)" icon={Package} />
 
@@ -4860,6 +4864,7 @@ export default function AdminPage() {
                             {activeTab === 'chat' && '💬 Czat z Pacjentami'}
                             {activeTab === 'booking-settings' && '📅 Rezerwacje'}
                             {activeTab === 'online-bookings' && '📅 Wizyty Umówione Online'}
+                            {activeTab === 'cancelled-appointments' && '❌ Odwołane Wizyty'}
                         </h1>
                         <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
                             {/* Header Actions if needed */}
@@ -5093,6 +5098,77 @@ export default function AdminPage() {
                     {activeTab === 'chat' && <AdminChat />}
                     {activeTab === 'theme' && <ThemeEditor />}
                     {activeTab === 'online-bookings' && renderOnlineBookingsTab()}
+                    {activeTab === 'cancelled-appointments' && (() => {
+                        // Fetch on first render
+                        if (!cancelledLoading && cancelledAppointments.length === 0) {
+                            setCancelledLoading(true);
+                            fetch('/api/admin/cancelled-appointments?limit=100')
+                                .then(r => r.json())
+                                .then(d => setCancelledAppointments(d.appointments || []))
+                                .catch(() => { })
+                                .finally(() => setCancelledLoading(false));
+                        }
+                        return (
+                            <div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                                    <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>
+                                        Wizyty odwołane przez pacjentów ze Strefy Pacjenta ({cancelledAppointments.length})
+                                    </p>
+                                    <button
+                                        onClick={() => {
+                                            setCancelledLoading(true);
+                                            fetch('/api/admin/cancelled-appointments?limit=100')
+                                                .then(r => r.json())
+                                                .then(d => setCancelledAppointments(d.appointments || []))
+                                                .catch(() => { })
+                                                .finally(() => setCancelledLoading(false));
+                                        }}
+                                        style={{ padding: '0.5rem 1rem', background: 'var(--color-surface-hover)', border: '1px solid var(--color-border)', borderRadius: '6px', color: 'var(--color-text)', cursor: 'pointer', fontSize: '0.85rem' }}
+                                    >
+                                        🔄 Odśwież
+                                    </button>
+                                </div>
+                                {cancelledLoading ? (
+                                    <p style={{ color: 'var(--color-text-muted)', textAlign: 'center', padding: '2rem' }}>Ładowanie...</p>
+                                ) : cancelledAppointments.length === 0 ? (
+                                    <p style={{ color: 'var(--color-text-muted)', textAlign: 'center', padding: '2rem' }}>Brak odwołanych wizyt</p>
+                                ) : (
+                                    <div style={{ overflowX: 'auto' }}>
+                                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                            <thead>
+                                                <tr style={{ borderBottom: '2px solid var(--color-border)' }}>
+                                                    <th style={{ padding: '0.75rem', textAlign: 'left', fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>Pacjent</th>
+                                                    <th style={{ padding: '0.75rem', textAlign: 'left', fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>Telefon</th>
+                                                    <th style={{ padding: '0.75rem', textAlign: 'left', fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>Data wizyty</th>
+                                                    <th style={{ padding: '0.75rem', textAlign: 'left', fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>Lekarz</th>
+                                                    <th style={{ padding: '0.75rem', textAlign: 'left', fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>Powód</th>
+                                                    <th style={{ padding: '0.75rem', textAlign: 'left', fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>Odwołano</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {cancelledAppointments.map((ca: any) => (
+                                                    <tr key={ca.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                                                        <td style={{ padding: '0.75rem', fontSize: '0.9rem' }}>{ca.patient_name || '—'}</td>
+                                                        <td style={{ padding: '0.75rem', fontSize: '0.9rem' }}>
+                                                            {ca.patient_phone ? <a href={`tel:${ca.patient_phone}`} style={{ color: 'var(--color-primary)' }}>{ca.patient_phone}</a> : '—'}
+                                                        </td>
+                                                        <td style={{ padding: '0.75rem', fontSize: '0.9rem' }}>
+                                                            {ca.appointment_date ? new Date(ca.appointment_date).toLocaleString('pl-PL', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}
+                                                        </td>
+                                                        <td style={{ padding: '0.75rem', fontSize: '0.9rem' }}>{ca.doctor_name || '—'}</td>
+                                                        <td style={{ padding: '0.75rem', fontSize: '0.9rem', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ca.reason || '—'}</td>
+                                                        <td style={{ padding: '0.75rem', fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
+                                                            {ca.cancelled_at ? new Date(ca.cancelled_at).toLocaleString('pl-PL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—'}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })()}
                     {activeTab === 'booking-settings' && (
                         <div style={{ padding: '2rem', maxWidth: 540 }}>
                             <h2 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: '0.5rem' }}>📅 Ustawienia Rezerwacji Online</h2>

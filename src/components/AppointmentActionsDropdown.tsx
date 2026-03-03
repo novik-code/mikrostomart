@@ -74,8 +74,8 @@ export default function AppointmentActionsDropdown({
     // Determine if actions are available
     const canConfirmAttendance = hoursUntilAppointment > 0 && hoursUntilAppointment <= 24 && !attendanceConfirmed;
     const canPayDeposit = !depositPaid && hoursUntilAppointment > 0;
-    const canCancel = hoursUntilAppointment > 0 && currentStatus !== 'cancellation_pending';
-    const canReschedule = hoursUntilAppointment > 0 && currentStatus !== 'reschedule_pending';
+    const canCancel = hoursUntilAppointment > 0 && !attendanceConfirmed && currentStatus !== 'cancellation_pending' && currentStatus !== 'cancelled';
+    const canReschedule = hoursUntilAppointment > 0 && !attendanceConfirmed && currentStatus !== 'reschedule_pending' && currentStatus !== 'rescheduled' && currentStatus !== 'cancelled';
 
     // DEBUG: Log all conditions
     console.log('[AppointmentActionsDropdown] Conditions:', {
@@ -126,6 +126,20 @@ export default function AppointmentActionsDropdown({
                     text: 'Oczekuje na przełożenie (do 24h)',
                     color: '#ff9800',
                     bgColor: '#fff3e0'
+                };
+            case 'cancelled':
+                return {
+                    icon: '❌',
+                    text: 'Wizyta odwołana',
+                    color: '#f44336',
+                    bgColor: '#ffebee'
+                };
+            case 'rescheduled':
+                return {
+                    icon: '📅',
+                    text: 'Wizyta przełożona',
+                    color: '#9c27b0',
+                    bgColor: '#f3e5f5'
                 };
         }
     };
@@ -365,6 +379,21 @@ export default function AppointmentActionsDropdown({
                             </div>
                         )}
 
+                        {/* Cancel — blocked message when confirmed */}
+                        {!canCancel && attendanceConfirmed && hoursUntilAppointment > 0 && (
+                            <div style={{
+                                padding: '0.875rem 1rem',
+                                background: 'rgba(239, 68, 68, 0.05)',
+                                color: '#999',
+                                borderBottom: '1px solid rgba(128,128,128,0.1)',
+                                fontSize: '0.8rem',
+                                display: 'flex', alignItems: 'center', gap: '0.75rem'
+                            }}>
+                                <span style={{ fontSize: '1.2rem' }}>🔒</span>
+                                <span>Odwołanie i przełożenie niedostępne po potwierdzeniu obecności</span>
+                            </div>
+                        )}
+
                         {/* Cancel Appointment */}
                         {canCancel && (
                             <button
@@ -512,7 +541,7 @@ export default function AppointmentActionsDropdown({
             <RescheduleAppointmentModal
                 isOpen={showRescheduleModal}
                 onClose={() => setShowRescheduleModal(false)}
-                onConfirm={async (reason) => {
+                onConfirm={async (reason, newDate, newStartTime) => {
                     const token = authToken;
                     const response = await fetch(`/api/patients/appointments/${appointmentId}/reschedule`, {
                         method: 'POST',
@@ -520,7 +549,7 @@ export default function AppointmentActionsDropdown({
                             'Authorization': `Bearer ${token}`,
                             'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify({ reason })
+                        body: JSON.stringify({ reason, newDate, newStartTime })
                     });
 
                     if (!response.ok) {
@@ -530,9 +559,6 @@ export default function AppointmentActionsDropdown({
 
                     const result = await response.json();
                     console.log('[Reschedule] Response:', result);
-                    if (!result.emailSent) {
-                        console.warn('[Reschedule] Email was NOT sent!');
-                    }
                     onStatusChange();
                     return result;
                 }}
@@ -545,6 +571,7 @@ export default function AppointmentActionsDropdown({
                     hour: '2-digit',
                     minute: '2-digit'
                 })}
+                authToken={authToken}
             />
 
             <style jsx>{`

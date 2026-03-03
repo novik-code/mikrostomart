@@ -74,15 +74,15 @@ export default function CancelAppointmentModal({
                 {success ? (
                     // Success State
                     <div style={{ textAlign: 'center' }}>
-                        <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>📧</div>
-                        <h3 style={{ color: '#ff9800', marginBottom: '0.5rem', fontSize: '1.5rem' }}>
-                            Prośba wysłana
+                        <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>✅</div>
+                        <h3 style={{ color: '#4caf50', marginBottom: '0.5rem', fontSize: '1.5rem' }}>
+                            Wizyta odwołana
                         </h3>
                         <p style={{ color: '#aaa', marginBottom: '0.5rem' }}>
-                            Gabinet skontaktuje się w ciągu 24h.
+                            Wizyta została usunięta z grafiku.
                         </p>
                         <p style={{ color: '#777', fontSize: '0.85rem' }}>
-                            Możesz zamknąć to okno
+                            Potwierdzenie SMS zostało wysłane
                         </p>
                     </div>
                 ) : (
