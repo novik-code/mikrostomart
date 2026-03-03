@@ -1903,6 +1903,12 @@ NODE_ENV=production
 - Public pages (login, register, reset-password) bypass check
 - Early return before Supabase auth for performance
 
+**Phase 5: Skeletons + CSS Module** — commit pending
+- Created `src/app/strefa-pacjenta/patient.module.css` — glassmorphism cards, buttons, forms, `@keyframes shimmer`, responsive breakpoints
+- Created `src/components/PatientSkeleton.tsx` — reusable skeleton variants (card, line, circle) + DashboardSkeleton, ProfileSkeleton, HistorySkeleton presets
+- Layout.tsx skeleton uses CSS Module shimmer classes
+- Dashboard loading state uses `DashboardSkeleton`
+
 ### March 3, 2026
 **Patient Dashboard — Appointment Management Overhaul + Prodentis v9.1**
 

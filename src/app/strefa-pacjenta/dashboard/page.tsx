@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import AppointmentActionsDropdown from '@/components/AppointmentActionsDropdown';
+import { DashboardSkeleton } from '@/components/PatientSkeleton';
 import { usePatientAuth } from '@/hooks/usePatientAuth';
 import type { PatientData } from '@/hooks/usePatientAuth';
 import type { AppointmentStatusResponse } from '@/types/appointmentActions';
@@ -348,16 +349,7 @@ export default function PatientDashboard() {
     };
 
     if (isAuthLoading || isLoading || !patient) {
-        return <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '4rem 2rem',
-            color: 'rgba(255,255,255,0.6)',
-            fontSize: '0.9rem',
-        }}>
-            Ładowanie danych...
-        </div>;
+        return <DashboardSkeleton />;
     }
 
     return (

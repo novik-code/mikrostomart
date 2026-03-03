@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
+import styles from './patient.module.css';
 
 // Pages that don't need the authenticated layout shell
 const PUBLIC_PATHS = [
@@ -95,10 +96,10 @@ function AuthenticatedLayout({ children, pathname }: { children: React.ReactNode
                         alignItems: 'center',
                     }}>
                         <div>
-                            <div style={{ width: '160px', height: '24px', background: 'rgba(255,255,255,0.08)', borderRadius: '6px', marginBottom: '8px' }} />
-                            <div style={{ width: '120px', height: '16px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px' }} />
+                            <div className={styles.skeleton} style={{ width: '160px', height: '24px', marginBottom: '8px' }} />
+                            <div className={styles.skeleton} style={{ width: '120px', height: '16px' }} />
                         </div>
-                        <div style={{ width: '80px', height: '40px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }} />
+                        <div className={styles.skeleton} style={{ width: '80px', height: '40px' }} />
                     </div>
                     {/* Skeleton nav */}
                     <div style={{
@@ -109,7 +110,7 @@ function AuthenticatedLayout({ children, pathname }: { children: React.ReactNode
                         gap: '1rem',
                     }}>
                         {[120, 100, 80, 110, 80].map((w, i) => (
-                            <div key={i} style={{ width: `${w}px`, height: '40px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }} />
+                            <div key={i} className={styles.skeleton} style={{ width: `${w}px`, height: '40px' }} />
                         ))}
                     </div>
                 </div>
