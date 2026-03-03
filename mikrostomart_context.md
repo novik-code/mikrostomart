@@ -52,7 +52,7 @@
 
 ### Backend & Database
 - **Supabase** (PostgreSQL database, authentication, storage)
-  - Database: 63 migrations (003-063: email verification, appointment actions, SMS reminders, user_roles, employee tasks, task history, comments, labels, status fix, google reviews cache, chat, push subscriptions, employee_group, push_notification_config, employee_groups array, news/articles/blog/products i18n, calendar tokens, private tasks + reminders, SMS post-visit/week-after-visit, SMS unique constraint fix, task multi-images, push_notifications_log, google_event_id on employee_tasks, patient_intake_tokens, feature_suggestions, online_bookings, patient_match_confidence, consent_tokens/patient_consents, staff_signatures, **intake_pdf_url, birthday_wishes, cancelled_appointments, login_attempts**)
+  - Database: 64 migrations (003-064: email verification, appointment actions, SMS reminders, user_roles, employee tasks, task history, comments, labels, status fix, google reviews cache, chat, push subscriptions, employee_group, push_notification_config, employee_groups array, news/articles/blog/products i18n, calendar tokens, private tasks + reminders, SMS post-visit/week-after-visit, SMS unique constraint fix, task multi-images, push_notifications_log, google_event_id on employee_tasks, patient_intake_tokens, feature_suggestions, online_bookings, patient_match_confidence, consent_tokens/patient_consents, staff_signatures, **intake_pdf_url, birthday_wishes, cancelled_appointments, login_attempts, patient_notification_prefs**)
   - Auth: Email/password, magic links, JWT tokens
   - Storage: Product images, patient documents, task images
 
@@ -1296,6 +1296,9 @@ Features:
 | `/patients/appointments/[id]/reset-status` | POST | Dev/debug: reset appointment status |
 | `/patients/chat` | GET, POST | Patient ↔ reception chat messages |
 | `/patients/logout` | POST | **NEW** — Server-side logout (clears httpOnly JWT cookie) |
+| `/patients/change-password` | POST | **NEW** — Change password (verify current, hash new, update DB) |
+| `/patients/export-data` | GET | **NEW** — RODO: Download all patient data as JSON |
+| `/patients/delete-account` | POST | **NEW** — RODO: Soft-delete (anonymize PII, set status=deleted) |
 
 ### Cron Job APIs (`/api/cron/*`)
 
@@ -1908,6 +1911,11 @@ NODE_ENV=production
 - Created `src/components/PatientSkeleton.tsx` — reusable skeleton variants (card, line, circle) + DashboardSkeleton, ProfileSkeleton, HistorySkeleton presets
 - Layout.tsx skeleton uses CSS Module shimmer classes
 - Dashboard loading state uses `DashboardSkeleton`
+
+**Phase 6: New Features** — commit pending
+- 6.1: `/api/patients/change-password` endpoint (bcrypt verify + hash) + UI section in profil page
+- 6.2: Migration `064_patient_notification_prefs.sql` + 5 toggle switches in profil + `/me` PATCH extended
+- 6.3: RODO: `/api/patients/export-data` (JSON download) + `/api/patients/delete-account` (soft-delete + PII anonymization) + UI with password confirm
 
 ### March 3, 2026
 **Patient Dashboard — Appointment Management Overhaul + Prodentis v9.1**

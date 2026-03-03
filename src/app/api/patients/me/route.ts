@@ -82,7 +82,7 @@ export async function PATCH(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { email, phone, locale } = body;
+        const { email, phone, locale, notification_preferences } = body;
 
         // Build update object (only update provided fields)
         const updates: any = {};
@@ -112,6 +112,10 @@ export async function PATCH(request: NextRequest) {
                 );
             }
             updates.locale = locale;
+        }
+
+        if (notification_preferences !== undefined) {
+            updates.notification_preferences = notification_preferences;
         }
 
         // Update in Supabase
