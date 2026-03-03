@@ -160,10 +160,13 @@ export default function AssistantTeaser() {
         <>
             {/* === SUBTLE FLOATING ICON (when chat is closed) === */}
             {!isChatOpen && (
-                <button
+                <div
                     onClick={openChat}
                     onMouseEnter={() => setIsHovered(true)}
                     onMouseLeave={() => setIsHovered(false)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openChat(); } }}
                     aria-label={t('ariaOpenAssistant')}
                     style={{
                         position: 'fixed',
@@ -245,7 +248,7 @@ export default function AssistantTeaser() {
                     >
                         ×
                     </button>
-                </button>
+                </div>
             )}
 
             {/* === CHAT MODAL (when chat is open) === */}
