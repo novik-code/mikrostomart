@@ -52,7 +52,7 @@
 
 ### Backend & Database
 - **Supabase** (PostgreSQL database, authentication, storage)
-  - Database: 62 migrations (003-062: email verification, appointment actions, SMS reminders, user_roles, employee tasks, task history, comments, labels, status fix, google reviews cache, chat, push subscriptions, employee_group, push_notification_config, employee_groups array, news/articles/blog/products i18n, calendar tokens, private tasks + reminders, SMS post-visit/week-after-visit, SMS unique constraint fix, task multi-images, push_notifications_log, google_event_id on employee_tasks, patient_intake_tokens, feature_suggestions, online_bookings, patient_match_confidence, consent_tokens/patient_consents, staff_signatures, **intake_pdf_url, birthday_wishes, cancelled_appointments**)
+  - Database: 63 migrations (003-063: email verification, appointment actions, SMS reminders, user_roles, employee tasks, task history, comments, labels, status fix, google reviews cache, chat, push subscriptions, employee_group, push_notification_config, employee_groups array, news/articles/blog/products i18n, calendar tokens, private tasks + reminders, SMS post-visit/week-after-visit, SMS unique constraint fix, task multi-images, push_notifications_log, google_event_id on employee_tasks, patient_intake_tokens, feature_suggestions, online_bookings, patient_match_confidence, consent_tokens/patient_consents, staff_signatures, **intake_pdf_url, birthday_wishes, cancelled_appointments, login_attempts**)
   - Auth: Email/password, magic links, JWT tokens
   - Storage: Product images, patient documents, task images
 
@@ -1295,6 +1295,7 @@ Features:
 | `/patients/appointments/bookings` | GET | Fetch patient's online bookings |
 | `/patients/appointments/[id]/reset-status` | POST | Dev/debug: reset appointment status |
 | `/patients/chat` | GET, POST | Patient ↔ reception chat messages |
+| `/patients/logout` | POST | **NEW** — Server-side logout (clears httpOnly JWT cookie) |
 
 ### Cron Job APIs (`/api/cron/*`)
 
@@ -1877,6 +1878,24 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### March 3, 2026 (Patient Zone Security Refactoring)
+**Phase 4: Shared Layout + Auth Hook** — `6f75105`
+- Created `src/hooks/usePatientAuth.ts` — centralized auth state, patient data, logout
+- Created `src/app/strefa-pacjenta/layout.tsx` — shared header, nav, status banners, loading skeleton
+- Refactored 5 patient pages (dashboard, historia, profil, wiadomosci, ocen-nas) — removed ~600 LOC duplication
+
+**Phase 1: httpOnly JWT Security** — `7a2f83a`
+- Login endpoint sets `Set-Cookie: HttpOnly; Secure; SameSite=Strict` (7-day expiry)
+- Created `/api/patients/logout` endpoint (server-side httpOnly cookie clear)
+- Added `verifyTokenFromRequest()` to `src/lib/jwt.ts` (checks Authorization header → httpOnly cookie fallback)
+- Updated all 14 patient API routes from `verifyToken(authHeader)` → `verifyTokenFromRequest(request)`
+- Updated `usePatientAuth` hook + layout for server-side logout
+
+**Phase 2: DB-backed Rate Limiting** — commit pending
+- Migration `063_login_attempts.sql` — `login_attempts` table (identifier, ip_address, success, attempted_at)
+- Replaced in-memory Map with DB queries: 5 attempts/identifier/15min, 20/IP/15min
+- Records all login attempts (fail+success), auto-cleanup >24h
 
 ### March 3, 2026
 **Patient Dashboard — Appointment Management Overhaul + Prodentis v9.1**

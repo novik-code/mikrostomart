@@ -10,24 +10,59 @@ const supabase = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-// Simple in-memory rate limiting (for production use Redis or similar)
-const loginAttempts = new Map<string, { count: number; resetAt: number }>();
+// DB-backed rate limiting — persists across deployments and cold starts
+const RATE_LIMIT_WINDOW_MINUTES = 15;
+const MAX_ATTEMPTS_PER_IDENTIFIER = 5;
+const MAX_ATTEMPTS_PER_IP = 20;
 
-function checkRateLimit(phone: string): boolean {
-    const now = Date.now();
-    const attempt = loginAttempts.get(phone);
+async function checkRateLimit(identifier: string, ip: string | null): Promise<{ allowed: boolean; retryAfterSeconds?: number }> {
+    const windowStart = new Date(Date.now() - RATE_LIMIT_WINDOW_MINUTES * 60 * 1000).toISOString();
 
-    if (!attempt || now > attempt.resetAt) {
-        loginAttempts.set(phone, { count: 1, resetAt: now + 60000 }); // 1 minute window
-        return true;
+    // Check by identifier (phone/email)
+    const { count: identifierCount } = await supabase
+        .from('login_attempts')
+        .select('*', { count: 'exact', head: true })
+        .eq('identifier', identifier)
+        .gte('attempted_at', windowStart);
+
+    if ((identifierCount ?? 0) >= MAX_ATTEMPTS_PER_IDENTIFIER) {
+        return { allowed: false, retryAfterSeconds: RATE_LIMIT_WINDOW_MINUTES * 60 };
     }
 
-    if (attempt.count >= 5) {
-        return false; // Too many attempts
+    // Check by IP (if available)
+    if (ip) {
+        const { count: ipCount } = await supabase
+            .from('login_attempts')
+            .select('*', { count: 'exact', head: true })
+            .eq('ip_address', ip)
+            .gte('attempted_at', windowStart);
+
+        if ((ipCount ?? 0) >= MAX_ATTEMPTS_PER_IP) {
+            return { allowed: false, retryAfterSeconds: RATE_LIMIT_WINDOW_MINUTES * 60 };
+        }
     }
 
-    attempt.count++;
-    return true;
+    return { allowed: true };
+}
+
+async function recordLoginAttempt(identifier: string, ip: string | null, success: boolean) {
+    await supabase.from('login_attempts').insert({
+        identifier,
+        ip_address: ip,
+        success,
+    });
+
+    // Cleanup: delete attempts older than 24h (non-blocking)
+    void (async () => {
+        try {
+            await supabase
+                .from('login_attempts')
+                .delete()
+                .lt('attempted_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+        } catch (e) {
+            console.error('[RateLimit] Cleanup error:', e);
+        }
+    })();
 }
 
 export async function POST(request: Request) {
@@ -47,10 +82,16 @@ export async function POST(request: Request) {
         const isEmail = phone.includes('@');
         const loginIdentifier = isEmail ? phone.trim().toLowerCase() : phone.replace(/[\s-]/g, '');
 
-        // Rate limiting
-        if (!checkRateLimit(loginIdentifier)) {
+        // Extract IP address from request headers
+        const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+            || request.headers.get('x-real-ip')
+            || null;
+
+        // Rate limiting (DB-backed)
+        const rateLimit = await checkRateLimit(loginIdentifier, ip);
+        if (!rateLimit.allowed) {
             return NextResponse.json(
-                { error: 'Zbyt wiele prób logowania. Spróbuj za chwilę.' },
+                { error: 'Zbyt wiele prób logowania. Spróbuj za ' + Math.ceil((rateLimit.retryAfterSeconds || 900) / 60) + ' minut.' },
                 { status: 429 }
             );
         }
@@ -66,6 +107,7 @@ export async function POST(request: Request) {
 
         if (error || !patient) {
             console.log('[Login] Patient not found:', loginIdentifier);
+            await recordLoginAttempt(loginIdentifier, ip, false);
             return NextResponse.json(
                 { error: 'Nieprawidłowy numer telefonu lub hasło' },
                 { status: 401 }
@@ -77,6 +119,7 @@ export async function POST(request: Request) {
 
         if (!valid) {
             console.log('[Login] Invalid password for:', loginIdentifier);
+            await recordLoginAttempt(loginIdentifier, ip, false);
             return NextResponse.json(
                 { error: 'Nieprawidłowy numer telefonu lub hasło' },
                 { status: 401 }
@@ -122,6 +165,7 @@ export async function POST(request: Request) {
             .eq('id', patient.id);
 
         console.log('[Login] Success:', patient.prodentis_id);
+        await recordLoginAttempt(loginIdentifier, ip, true);
 
         const response = NextResponse.json({
             success: true,
