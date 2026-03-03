@@ -227,19 +227,31 @@ export default function PatientDashboard() {
                             })
                         });
 
-                        let actionId: string;
+                        let actionId: string | null = null;
+
                         if (createRes.ok) {
                             const createData = await createRes.json();
                             actionId = createData.id;
+                            console.log('[Dashboard] Created action for', apt.date, 'id:', actionId);
                         } else {
+                            console.log('[Dashboard] Create returned', createRes.status, 'for', apt.date, '- trying by-date lookup');
                             // Already exists, fetch it by date
                             const fetchRes = await fetch(
                                 `/api/patients/appointments/by-date?date=${encodeURIComponent(apt.date)}`,
                                 { headers: { 'Authorization': `Bearer ${token}` } }
                             );
-                            if (!fetchRes.ok) continue;
-                            const fetchData = await fetchRes.json();
-                            actionId = fetchData.id;
+                            if (fetchRes.ok) {
+                                const fetchData = await fetchRes.json();
+                                actionId = fetchData.id;
+                                console.log('[Dashboard] Found existing action for', apt.date, 'id:', actionId);
+                            } else {
+                                console.warn('[Dashboard] by-date lookup failed for', apt.date, ':', fetchRes.status);
+                            }
+                        }
+
+                        if (!actionId) {
+                            console.warn('[Dashboard] No actionId obtained for', apt.date);
+                            continue;
                         }
 
                         // Fetch status
@@ -249,9 +261,12 @@ export default function PatientDashboard() {
                         if (statusRes.ok) {
                             const statusData = await statusRes.json();
                             actionsMap[apt.date] = { actionId, status: statusData };
+                            console.log('[Dashboard] Got status for', apt.date, ':', statusData.status);
+                        } else {
+                            console.warn('[Dashboard] Status fetch failed for', actionId, ':', statusRes.status);
                         }
                     } catch (e) {
-                        console.error('Error creating action for appointment:', apt.date, e);
+                        console.error('[Dashboard] Error processing appointment:', apt.date, e);
                     }
                 }
                 setAppointmentActionsMap(actionsMap);
