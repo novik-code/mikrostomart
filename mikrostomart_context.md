@@ -52,7 +52,7 @@
 
 ### Backend & Database
 - **Supabase** (PostgreSQL database, authentication, storage)
-  - Database: 59 migrations (003-059: email verification, appointment actions, SMS reminders, user_roles, employee tasks, task history, comments, labels, status fix, google reviews cache, chat, push subscriptions, employee_group, push_notification_config, employee_groups array, news/articles/blog/products i18n, calendar tokens, private tasks + reminders, SMS post-visit/week-after-visit, SMS unique constraint fix, task multi-images, push_notifications_log, google_event_id on employee_tasks, patient_intake_tokens, feature_suggestions, online_bookings, **patient_match_confidence**, consent_tokens/patient_consents, staff_signatures)
+  - Database: 62 migrations (003-062: email verification, appointment actions, SMS reminders, user_roles, employee tasks, task history, comments, labels, status fix, google reviews cache, chat, push subscriptions, employee_group, push_notification_config, employee_groups array, news/articles/blog/products i18n, calendar tokens, private tasks + reminders, SMS post-visit/week-after-visit, SMS unique constraint fix, task multi-images, push_notifications_log, google_event_id on employee_tasks, patient_intake_tokens, feature_suggestions, online_bookings, patient_match_confidence, consent_tokens/patient_consents, staff_signatures, **intake_pdf_url, birthday_wishes, cancelled_appointments**)
   - Auth: Email/password, magic links, JWT tokens
   - Storage: Product images, patient documents, task images
 
@@ -625,6 +625,49 @@ Indexes: `schedule_status`, `appointment_date`, partial on `reported_in_digest W
 **Patient Matching (migration 057):**
 - `match_confidence` (INTEGER) — score 0-100. ≥85 auto-match, 60-84 needs_review, <60 new patient
 - `match_candidates` (JSONB) — array of `{id, firstName, lastName, score, method}`
+
+#### 28. **patient_intake_submissions** additional column (migration 060)
+```sql
+- pdf_url (text) -- URL to generated PDF in Supabase Storage
+```
+
+#### 29. **patients** additional column (migration 061)
+```sql
+- birth_date (date) -- cached from Prodentis to avoid daily API calls
+```
+Index: `idx_patients_birth_date ON patients(birth_date)`
+
+#### 30. **birthday_wishes** (migration 061)
+Tracks birthday SMS sent per year to avoid duplicates.
+```sql
+- id (uuid, PK)
+- patient_id (uuid, FK → patients)
+- prodentis_id (text, NOT NULL)
+- patient_name (text)
+- patient_phone (text)
+- sent_at (timestamptz)
+- sms_sent (boolean, DEFAULT false)
+- sms_error (text)
+- year (integer, DEFAULT current year)
+- UNIQUE(prodentis_id, year)
+```
+Index: `idx_birthday_wishes_year ON birthday_wishes(year)`
+
+#### 31. **cancelled_appointments** (migration 062)
+Audit log of all appointments cancelled by patients from the patient zone.
+```sql
+- id (uuid, PK)
+- prodentis_appointment_id (text)
+- patient_name (text)
+- patient_phone (text)
+- patient_prodentis_id (text)
+- appointment_date (timestamptz)
+- doctor_name (text)
+- reason (text)
+- cancelled_at (timestamptz, DEFAULT NOW())
+- cancelled_by (text, DEFAULT 'patient') -- 'patient' or 'admin'
+```
+Indexes: `idx_cancelled_appointments_date ON cancelled_at DESC`, `idx_cancelled_appointments_patient ON patient_prodentis_id`
 
 
 ## ✨ Feature Catalog
