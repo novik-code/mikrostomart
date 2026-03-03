@@ -1897,6 +1897,12 @@ NODE_ENV=production
 - Replaced in-memory Map with DB queries: 5 attempts/identifier/15min, 20/IP/15min
 - Records all login attempts (fail+success), auto-cleanup >24h
 
+**Phase 3: Middleware Protection** — commit pending
+- Added patient zone protection to `src/middleware.ts`
+- Protected routes (`/strefa-pacjenta/dashboard`, `historia`, `profil`, `wiadomosci`, `ocen-nas`) require `patient_token` cookie
+- Public pages (login, register, reset-password) bypass check
+- Early return before Supabase auth for performance
+
 ### March 3, 2026
 **Patient Dashboard — Appointment Management Overhaul + Prodentis v9.1**
 

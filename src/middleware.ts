@@ -4,7 +4,31 @@ import { NextResponse, type NextRequest } from "next/server";
 export async function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl;
 
-    // ─── Supabase auth for protected routes ──────────────────────────────
+    // ─── Patient zone protection (JWT cookie check) ──────────────────────
+    // Patient auth uses custom JWT cookies, not Supabase auth.
+    // This is a fast server-side guard; full JWT verification happens in API routes.
+    if (pathname.startsWith('/strefa-pacjenta')) {
+        const PUBLIC_PATIENT_PATHS = [
+            '/strefa-pacjenta/login',
+            '/strefa-pacjenta/register',
+            '/strefa-pacjenta/reset-password',
+        ];
+
+        const isPublicPatientPage = PUBLIC_PATIENT_PATHS.some(p => pathname.startsWith(p))
+            || pathname === '/strefa-pacjenta';
+
+        if (!isPublicPatientPage) {
+            const token = request.cookies.get('patient_token')?.value;
+            if (!token) {
+                return NextResponse.redirect(new URL('/strefa-pacjenta/login', request.url));
+            }
+        }
+
+        // Patient zone doesn't need Supabase auth — return early
+        return NextResponse.next();
+    }
+
+    // ─── Supabase auth for admin/employee routes ──────────────────────────
     return handleSupabaseAuth(request);
 }
 
