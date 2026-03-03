@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
+import { usePatientAuth } from '@/hooks/usePatientAuth';
 
 interface Visit {
     date: string;
@@ -35,41 +35,19 @@ interface Visit {
 }
 
 export default function VisitHistory() {
+    const { patient, isLoading: isAuthLoading, accountStatus, getAuthToken } = usePatientAuth();
     const [visits, setVisits] = useState<Visit[]>([]);
     const [total, setTotal] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
     const [filter, setFilter] = useState<'all' | 'paid' | 'unpaid'>('all');
-    const [accountStatus, setAccountStatus] = useState<string | null>(null);
     const router = useRouter();
 
-    const getAuthToken = () => {
-        const cookies = document.cookie.split('; ');
-        const tokenCookie = cookies.find(c => c.startsWith('patient_token='));
-        return tokenCookie ? tokenCookie.split('=')[1] : null;
-    };
-
     useEffect(() => {
+        if (isAuthLoading) return;
         const loadVisits = async () => {
             const token = getAuthToken();
 
-            if (!token) {
-                router.push('/strefa-pacjenta/login');
-                return;
-            }
-
             try {
-                // Fetch account status
-                const patientRes = await fetch('/api/patients/me', {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                    },
-                });
-
-                if (patientRes.ok) {
-                    const patientData = await patientRes.json();
-                    setAccountStatus(patientData.account_status || null);
-                }
-
                 const res = await fetch('/api/patients/me/visits?limit=100', {
                     headers: {
                         'Authorization': `Bearer ${token}`,
@@ -85,20 +63,13 @@ export default function VisitHistory() {
                 setTotal(data.total || 0);
             } catch (err) {
                 console.error('Failed to load visits:', err);
-                router.push('/strefa-pacjenta/login');
             } finally {
                 setIsLoading(false);
             }
         };
 
         loadVisits();
-    }, [router]);
-
-    const handleLogout = () => {
-        document.cookie = 'patient_token=; path=/; max-age=0';
-        localStorage.removeItem('patient_data');
-        router.push('/strefa-pacjenta/login');
-    };
+    }, [isAuthLoading, router, getAuthToken]);
 
     const filteredVisits = visits.filter(v => {
         if (filter === 'paid') return v.balance === 0;
@@ -106,98 +77,21 @@ export default function VisitHistory() {
         return true;
     });
 
-    if (isLoading) {
+    if (isAuthLoading || isLoading) {
         return <div style={{
-            minHeight: '100vh',
-            background: 'transparent',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: '#fff'
+            padding: '4rem 2rem',
+            color: 'rgba(255,255,255,0.6)',
+            fontSize: '0.9rem',
         }}>
-            Ładowanie...
+            Ładowanie danych...
         </div>;
     }
 
     return (
-        <div style={{
-            minHeight: '100vh',
-            background: 'transparent',
-        }}>
-            {/* Header */}
-            <div style={{
-                background: 'rgba(0, 0, 0, 0.5)',
-                borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-                padding: '1.5rem 2rem',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-            }}>
-                <div>
-                    <h1 style={{
-                        fontSize: '1.5rem',
-                        fontWeight: 'bold',
-                        color: '#fff',
-                        marginBottom: '0.25rem',
-                    }}>
-                        Strefa Pacjenta
-                    </h1>
-                    <p style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '0.9rem' }}>
-                        Historia wizyt
-                    </p>
-                </div>
-                <button
-                    onClick={handleLogout}
-                    style={{
-                        padding: '0.75rem 1.5rem',
-                        background: 'rgba(239, 68, 68, 0.1)',
-                        border: '1px solid rgba(239, 68, 68, 0.3)',
-                        borderRadius: '0.5rem',
-                        color: '#ef4444',
-                        fontWeight: 'bold',
-                        cursor: 'pointer',
-                    }}
-                >
-                    Wyloguj
-                </button>
-            </div>
-
-            {/* Navigation */}
-            <div style={{
-                background: 'rgba(0, 0, 0, 0.3)',
-                borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
-                padding: '1rem 2rem',
-                display: 'flex',
-                gap: '1rem',
-                overflowX: 'auto',
-            }}>
-                {[
-                    { href: '/strefa-pacjenta/dashboard', label: 'Panel główny', active: false },
-                    { href: '/strefa-pacjenta/historia', label: 'Historia wizyt', active: true },
-                    { href: '/strefa-pacjenta/profil', label: 'Mój profil', active: false },
-                    { href: '/strefa-pacjenta/wiadomosci', label: '💬 Wiadomości', active: false },
-                    { href: '/strefa-pacjenta/ocen-nas', label: '⭐ Oceń nas', active: false },
-                ].map(link => (
-                    <Link
-                        key={link.href}
-                        href={link.href}
-                        style={{
-                            padding: '0.75rem 1.5rem',
-                            background: link.active ? 'rgba(220, 177, 74, 0.15)' : 'transparent',
-                            border: link.active ? '1px solid rgba(220, 177, 74, 0.3)' : '1px solid transparent',
-                            borderRadius: '0.5rem',
-                            color: link.active ? '#dcb14a' : 'rgba(255, 255, 255, 0.7)',
-                            textDecoration: 'none',
-                            whiteSpace: 'nowrap',
-                            fontWeight: link.active ? 'bold' : 'normal',
-                            transition: 'all 0.2s',
-                        }}
-                    >
-                        {link.label}
-                    </Link>
-                ))}
-            </div>
-
+        <>
             {/* Main Content */}
             {accountStatus === null || accountStatus === 'active' ? (
                 <div style={{
@@ -429,6 +323,6 @@ export default function VisitHistory() {
                     </p>
                 </div>
             )}
-        </div>
+        </>
     );
 }

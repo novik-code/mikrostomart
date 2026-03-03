@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
+import { usePatientAuth } from '@/hooks/usePatientAuth';
 
 interface PatientData {
     id: string;
@@ -21,62 +21,20 @@ interface PatientData {
 }
 
 export default function PatientProfile() {
-    const [patient, setPatient] = useState<PatientData | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
+    const { patient, isLoading, accountStatus, logout, getAuthToken } = usePatientAuth();
     const [isSaving, setIsSaving] = useState(false);
     const [email, setEmail] = useState('');
     const [locale, setLocale] = useState('pl');
     const [message, setMessage] = useState('');
-    const [accountStatus, setAccountStatus] = useState<string | null>(null);
+    const [emailLoaded, setEmailLoaded] = useState(false);
     const router = useRouter();
 
-    const getAuthToken = () => {
-        const cookies = document.cookie.split('; ');
-        const tokenCookie = cookies.find(c => c.startsWith('patient_token='));
-        return tokenCookie ? tokenCookie.split('=')[1] : null;
-    };
-
-    useEffect(() => {
-        const loadPatient = async () => {
-            const token = getAuthToken();
-
-            if (!token) {
-                router.push('/strefa-pacjenta/login');
-                return;
-            }
-
-            try {
-                const res = await fetch('/api/patients/me', {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                    },
-                });
-
-                if (!res.ok) {
-                    throw new Error('Unauthorized');
-                }
-
-                const data = await res.json();
-                setPatient(data);
-                setEmail(data.email || '');
-                setLocale(data.locale || 'pl');
-                setAccountStatus(data.account_status || null);
-            } catch (err) {
-                console.error('Failed to load patient:', err);
-                router.push('/strefa-pacjenta/login');
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        loadPatient();
-    }, [router]);
-
-    const handleLogout = () => {
-        document.cookie = 'patient_token=; path=/; max-age=0';
-        localStorage.removeItem('patient_data');
-        router.push('/strefa-pacjenta/login');
-    };
+    // Sync email/locale from patient data once loaded
+    if (patient && !emailLoaded) {
+        setEmail(patient.email || '');
+        setLocale(patient.locale || 'pl');
+        setEmailLoaded(true);
+    }
 
     const handleSaveEmail = async () => {
         setIsSaving(true);
@@ -84,17 +42,11 @@ export default function PatientProfile() {
 
         try {
             const token = getAuthToken();
-
-            if (!token) {
-                router.push('/strefa-pacjenta/login');
-                return;
-            }
-
             const res = await fetch('/api/patients/me', {
                 method: 'PATCH',
                 headers: {
-                    'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json',
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
                 },
                 body: JSON.stringify({ email, locale }),
             });
@@ -107,11 +59,6 @@ export default function PatientProfile() {
             }
 
             setMessage('✅ Email został zaktualizowany!');
-
-            // Update patient data
-            if (patient) {
-                setPatient({ ...patient, email });
-            }
         } catch (err) {
             console.error('Failed to update email:', err);
             setMessage('❌ Wystąpił błąd podczas zapisywania');
@@ -122,95 +69,19 @@ export default function PatientProfile() {
 
     if (isLoading || !patient) {
         return <div style={{
-            minHeight: '100vh',
-            background: 'transparent',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: '#fff'
+            padding: '4rem 2rem',
+            color: 'rgba(255,255,255,0.6)',
+            fontSize: '0.9rem',
         }}>
-            Ładowanie...
+            Ładowanie danych...
         </div>;
     }
 
     return (
-        <div style={{
-            minHeight: '100vh',
-            background: 'transparent',
-        }}>
-            {/* Header */}
-            <div style={{
-                background: 'rgba(0, 0, 0, 0.5)',
-                borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-                padding: '1.5rem 2rem',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-            }}>
-                <div>
-                    <h1 style={{
-                        fontSize: '1.5rem',
-                        fontWeight: 'bold',
-                        color: '#fff',
-                        marginBottom: '0.25rem',
-                    }}>
-                        Strefa Pacjenta
-                    </h1>
-                    <p style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '0.9rem' }}>
-                        Mój profil
-                    </p>
-                </div>
-                <button
-                    onClick={handleLogout}
-                    style={{
-                        padding: '0.75rem 1.5rem',
-                        background: 'rgba(239, 68, 68, 0.1)',
-                        border: '1px solid rgba(239, 68, 68, 0.3)',
-                        borderRadius: '0.5rem',
-                        color: '#ef4444',
-                        fontWeight: 'bold',
-                        cursor: 'pointer',
-                    }}
-                >
-                    Wyloguj
-                </button>
-            </div>
-
-            {/* Navigation */}
-            <div style={{
-                background: 'rgba(0, 0, 0, 0.3)',
-                borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
-                padding: '1rem 2rem',
-                display: 'flex',
-                gap: '1rem',
-                overflowX: 'auto',
-            }}>
-                {[
-                    { href: '/strefa-pacjenta/dashboard', label: 'Panel główny', active: false },
-                    { href: '/strefa-pacjenta/historia', label: 'Historia wizyt', active: false },
-                    { href: '/strefa-pacjenta/profil', label: 'Mój profil', active: true },
-                    { href: '/strefa-pacjenta/wiadomosci', label: '💬 Wiadomości', active: false },
-                    { href: '/strefa-pacjenta/ocen-nas', label: '⭐ Oceń nas', active: false },
-                ].map(link => (
-                    <Link
-                        key={link.href}
-                        href={link.href}
-                        style={{
-                            padding: '0.75rem 1.5rem',
-                            background: link.active ? 'rgba(220, 177, 74, 0.15)' : 'transparent',
-                            border: link.active ? '1px solid rgba(220, 177, 74, 0.3)' : '1px solid transparent',
-                            borderRadius: '0.5rem',
-                            color: link.active ? '#dcb14a' : 'rgba(255, 255, 255, 0.7)',
-                            textDecoration: 'none',
-                            whiteSpace: 'nowrap',
-                            fontWeight: link.active ? 'bold' : 'normal',
-                            transition: 'all 0.2s',
-                        }}
-                    >
-                        {link.label}
-                    </Link>
-                ))}
-            </div>
+        <>
 
             {/* Main Content */}
             {accountStatus === null || accountStatus === 'active' ? (
@@ -436,6 +307,6 @@ export default function PatientProfile() {
                     </p>
                 </div>
             )}
-        </div>
+        </>
     );
 }

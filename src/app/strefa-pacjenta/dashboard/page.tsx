@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import AppointmentActionsDropdown from '@/components/AppointmentActionsDropdown';
+import { usePatientAuth } from '@/hooks/usePatientAuth';
+import type { PatientData } from '@/hooks/usePatientAuth';
 import type { AppointmentStatusResponse } from '@/types/appointmentActions';
 
 const AppointmentScheduler = dynamic(() => import('@/components/scheduler/AppointmentScheduler'), { ssr: false });
@@ -42,20 +43,7 @@ interface OnlineBooking {
     created_at: string;
 }
 
-interface PatientData {
-    id: string;
-    firstName: string;
-    lastName: string;
-    phone: string;
-    email: string | null;
-    address?: {
-        street?: string;
-        houseNumber?: string;
-        apartmentNumber?: string;
-        postalCode?: string;
-        city?: string;
-    };
-}
+// PatientData imported from usePatientAuth
 
 interface Visit {
     date: string;
@@ -90,12 +78,11 @@ interface AppointmentActionInfo {
 }
 
 export default function PatientDashboard() {
-    const [patient, setPatient] = useState<PatientData | null>(null);
+    const { patient, isLoading: isAuthLoading, accountStatus, getAuthToken } = usePatientAuth();
     const [visits, setVisits] = useState<Visit[]>([]);
     const [stats, setStats] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isSyncing, setIsSyncing] = useState(false);
-    const [accountStatus, setAccountStatus] = useState<string | null>(null);
     const [upcomingAppointments, setUpcomingAppointments] = useState<UpcomingAppointment[]>([]);
     const [isLoadingAppointment, setIsLoadingAppointment] = useState(true);
     // Map: appointment date string → { actionId, status }
@@ -116,36 +103,14 @@ export default function PatientDashboard() {
     const selectedSpec = SPECIALISTS.find(s => s.id === bookingSpecialist);
     const availableServices = selectedSpec ? (SERVICE_IDS[selectedSpec.role] || []) : [];
 
-    const getAuthToken = () => {
-        const cookies = document.cookie.split('; ');
-        const tokenCookie = cookies.find(c => c.startsWith('patient_token='));
-        return tokenCookie ? tokenCookie.split('=')[1] : null;
-    };
-
     useEffect(() => {
+        if (isAuthLoading || !patient) return;
         const loadData = async () => {
             const token = getAuthToken();
 
-            if (!token) {
-                router.push('/strefa-pacjenta/login');
-                return;
-            }
-
             try {
-                // Fetch patient details
-                const patientRes = await fetch('/api/patients/me', {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                    },
-                });
-
-                if (!patientRes.ok) {
-                    throw new Error('Unauthorized');
-                }
-
-                const patientData = await patientRes.json();
-                setPatient(patientData);
-                setAccountStatus(patientData.account_status || null);
+                // Patient data already loaded by usePatientAuth hook
+                const patientData = patient;
 
                 // Fetch visit history
                 const visitsRes = await fetch('/api/patients/me/visits?limit=5', {
@@ -181,7 +146,7 @@ export default function PatientDashboard() {
         };
 
         loadData();
-    }, [router]);
+    }, [isAuthLoading, patient, router, getAuthToken]);
 
     // Fetch ALL upcoming appointments from Prodentis + create/fetch action records for each
     const loadUpcomingAppointments = async () => {
@@ -341,11 +306,7 @@ export default function PatientDashboard() {
         }
     };
 
-    const handleLogout = () => {
-        document.cookie = 'patient_token=; path=/; max-age=0';
-        localStorage.removeItem('patient_data');
-        router.push('/strefa-pacjenta/login');
-    };
+    // Logout handled by shared layout
 
     const handleSyncHistory = async () => {
         setIsSyncing(true);
@@ -386,198 +347,21 @@ export default function PatientDashboard() {
         }
     };
 
-    if (isLoading || !patient) {
+    if (isAuthLoading || isLoading || !patient) {
         return <div style={{
-            minHeight: '100vh',
-            background: 'transparent',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: '#fff'
+            padding: '4rem 2rem',
+            color: 'rgba(255,255,255,0.6)',
+            fontSize: '0.9rem',
         }}>
-            Ładowanie...
+            Ładowanie danych...
         </div>;
     }
 
     return (
-        <div style={{
-            minHeight: '100vh',
-            background: 'transparent',
-        }}>
-            {/* Header */}
-            <div style={{
-                background: 'rgba(0, 0, 0, 0.5)',
-                borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-                padding: '1.5rem 2rem',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-            }}>
-                <div>
-                    <h1 style={{
-                        fontSize: '1.5rem',
-                        fontWeight: 'bold',
-                        color: '#fff',
-                        marginBottom: '0.25rem',
-                    }}>
-                        Strefa Pacjenta
-                    </h1>
-                    <p style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '0.9rem' }}>
-                        Witaj, {patient.firstName}! 👋
-                    </p>
-                </div>
-                <button
-                    onClick={handleLogout}
-                    style={{
-                        padding: '0.75rem 1.5rem',
-                        background: 'rgba(239, 68, 68, 0.1)',
-                        border: '1px solid rgba(239, 68, 68, 0.3)',
-                        borderRadius: '0.5rem',
-                        color: '#ef4444',
-                        fontWeight: 'bold',
-                        cursor: 'pointer',
-                    }}
-                >
-                    Wyloguj
-                </button>
-            </div>
-
-            {/* Pending Approval Banner */}
-            {accountStatus === 'pending_admin_approval' && (
-                <div style={{
-                    background: 'linear-gradient(135deg, rgba(220, 177, 74, 0.15), rgba(220, 177, 74, 0.05))',
-                    border: '2px solid rgba(220, 177, 74, 0.4)',
-                    borderLeft: '6px solid #dcb14a',
-                    padding: '1.5rem 2rem',
-                    margin: '0',
-                }}>
-                    <div style={{
-                        display: 'flex',
-                        alignItems: 'start',
-                        gap: '1rem',
-                    }}>
-                        <div style={{
-                            fontSize: '2rem',
-                            lineHeight: 1,
-                        }}>
-                            ⏳
-                        </div>
-                        <div style={{ flex: 1 }}>
-                            <h3 style={{
-                                color: '#dcb14a',
-                                fontSize: '1.2rem',
-                                marginBottom: '0.5rem',
-                                fontWeight: 'bold',
-                            }}>
-                                Konto w trakcie weryfikacji
-                            </h3>
-                            <p style={{
-                                color: 'rgba(255, 255, 255, 0.9)',
-                                fontSize: '1rem',
-                                lineHeight: '1.6',
-                                marginBottom: '0.75rem',
-                            }}>
-                                Twoje konto oczekuje na zatwierdzenie przez administratora.<br />
-                                Weryfikacja potrwa do <strong>48 godzin</strong>.
-                            </p>
-                            <p style={{
-                                color: 'rgba(255, 255, 255, 0.7)',
-                                fontSize: '0.9rem',
-                                lineHeight: '1.6',
-                            }}>
-                                Otrzymasz powiadomienie email po zatwierdzeniu konta.<br />
-                                W razie pytań: 📞 <strong>570 270 470</strong> lub 📧 <strong>gabinet@mikrostomart.pl</strong>
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Rejected Account Banner */}
-            {accountStatus === 'rejected' && (
-                <div style={{
-                    background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(239, 68, 68, 0.05))',
-                    border: '2px solid rgba(239, 68, 68, 0.4)',
-                    borderLeft: '6px solid #ef4444',
-                    padding: '1.5rem 2rem',
-                    margin: '0',
-                }}>
-                    <div style={{
-                        display: 'flex',
-                        alignItems: 'start',
-                        gap: '1rem',
-                    }}>
-                        <div style={{
-                            fontSize: '2rem',
-                            lineHeight: 1,
-                        }}>
-                            ❌
-                        </div>
-                        <div style={{ flex: 1 }}>
-                            <h3 style={{
-                                color: '#ef4444',
-                                fontSize: '1.2rem',
-                                marginBottom: '0.5rem',
-                                fontWeight: 'bold',
-                            }}>
-                                Rejestracja odrzucona
-                            </h3>
-                            <p style={{
-                                color: 'rgba(255, 255, 255, 0.9)',
-                                fontSize: '1rem',
-                                lineHeight: '1.6',
-                                marginBottom: '0.75rem',
-                            }}>
-                                Niestety nie mogliśmy zatwierdzić Twojej rejestracji.
-                            </p>
-                            <p style={{
-                                color: 'rgba(255, 255, 255, 0.7)',
-                                fontSize: '0.9rem',
-                                lineHeight: '1.6',
-                            }}>
-                                Skontaktuj się z recepcją: 📞 <strong>570 270 470</strong>
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Navigation */}
-            <div style={{
-                background: 'rgba(0, 0, 0, 0.3)',
-                borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
-                padding: '1rem 2rem',
-                display: 'flex',
-                gap: '1rem',
-                overflowX: 'auto',
-            }}>
-                {[
-                    { href: '/strefa-pacjenta/dashboard', label: 'Panel główny', active: true },
-                    { href: '/strefa-pacjenta/historia', label: 'Historia wizyt', active: false },
-                    { href: '/strefa-pacjenta/profil', label: 'Mój profil', active: false },
-                    { href: '/strefa-pacjenta/wiadomosci', label: '💬 Wiadomości', active: false },
-                    { href: '/strefa-pacjenta/ocen-nas', label: '⭐ Oceń nas', active: false },
-                ].map(link => (
-                    <Link
-                        key={link.href}
-                        href={link.href}
-                        style={{
-                            padding: '0.75rem 1.5rem',
-                            background: link.active ? 'rgba(220, 177, 74, 0.15)' : 'transparent',
-                            border: link.active ? '1px solid rgba(220, 177, 74, 0.3)' : '1px solid transparent',
-                            borderRadius: '0.5rem',
-                            color: link.active ? '#dcb14a' : 'rgba(255, 255, 255, 0.7)',
-                            textDecoration: 'none',
-                            whiteSpace: 'nowrap',
-                            fontWeight: link.active ? 'bold' : 'normal',
-                            transition: 'all 0.2s',
-                        }}
-                    >
-                        {link.label}
-                    </Link>
-                ))}
-            </div>
-
+        <>
             {/* Main Content */}
             {accountStatus === null || accountStatus === 'active' ? (
                 <div style={{
@@ -952,6 +736,6 @@ export default function PatientDashboard() {
                     </p>
                 </div>
             )}
-        </div>
+        </>
     );
 }

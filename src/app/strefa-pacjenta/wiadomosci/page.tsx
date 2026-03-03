@@ -2,10 +2,10 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { createClient } from '@supabase/supabase-js';
 import { useTranslations, useLocale } from 'next-intl';
 import PushNotificationPrompt from '@/components/PushNotificationPrompt';
+import { usePatientAuth } from '@/hooks/usePatientAuth';
 
 interface Message {
     id: string;
@@ -21,23 +21,19 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
 export default function PatientChat() {
+    const { patient, isLoading: isAuthLoading, getAuthToken } = usePatientAuth();
     const [messages, setMessages] = useState<Message[]>([]);
     const [conversationId, setConversationId] = useState<string | null>(null);
     const [newMessage, setNewMessage] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const [isSending, setIsSending] = useState(false);
-    const [patientName, setPatientName] = useState('');
-    const [patientId, setPatientId] = useState('');
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const router = useRouter();
     const t = useTranslations('chat');
     const locale = useLocale();
 
-    const getAuthToken = () => {
-        const cookies = document.cookie.split('; ');
-        const tokenCookie = cookies.find(c => c.startsWith('patient_token='));
-        return tokenCookie ? tokenCookie.split('=')[1] : null;
-    };
+    const patientName = patient ? `${patient.firstName || ''} ${patient.lastName || ''}`.trim() : '';
+    const patientId = patient?.supabaseId || patient?.id || '';
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -45,10 +41,7 @@ export default function PatientChat() {
 
     const loadMessages = useCallback(async () => {
         const token = getAuthToken();
-        if (!token) {
-            router.push('/strefa-pacjenta/login');
-            return;
-        }
+        if (!token) return;
 
         try {
             const res = await fetch('/api/patients/chat', {
@@ -65,21 +58,12 @@ export default function PatientChat() {
         } finally {
             setIsLoading(false);
         }
-    }, [router]);
+    }, [getAuthToken]);
 
-    // Load patient name from localStorage
     useEffect(() => {
-        const stored = localStorage.getItem('patient_data');
-        if (stored) {
-            try {
-                const data = JSON.parse(stored);
-                setPatientName(`${data.firstName || ''} ${data.lastName || ''}`.trim());
-                // Use supabaseId (Supabase UUID) for push subscriptions — matches chat_conversations.patient_id
-                setPatientId(data.supabaseId || data.id || data.prodentisId || '');
-            } catch { /* ignore */ }
-        }
+        if (isAuthLoading) return;
         loadMessages();
-    }, [loadMessages]);
+    }, [isAuthLoading, loadMessages]);
 
     useEffect(() => {
         scrollToBottom();
@@ -180,15 +164,15 @@ export default function PatientChat() {
         return `${d.toLocaleDateString(locale === 'ua' ? 'uk-UA' : locale === 'pl' ? 'pl-PL' : locale === 'de' ? 'de-DE' : 'en-US', { day: '2-digit', month: '2-digit' })} ${time}`;
     };
 
-    if (isLoading) {
+    if (isAuthLoading || isLoading) {
         return (
             <div style={{
-                minHeight: '100vh',
-                background: 'transparent',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#fff',
+                padding: '4rem 2rem',
+                color: 'rgba(255,255,255,0.6)',
+                fontSize: '0.9rem',
             }}>
                 {t('loading')}
             </div>
@@ -204,89 +188,10 @@ export default function PatientChat() {
 
     return (
         <div style={{
-            minHeight: '100vh',
-            background: 'transparent',
             display: 'flex',
             flexDirection: 'column',
+            minHeight: 'calc(100vh - 200px)',
         }}>
-            {/* Header */}
-            <div style={{
-                background: 'rgba(0, 0, 0, 0.5)',
-                borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-                padding: '1.5rem 2rem',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-            }}>
-                <div>
-                    <h1 style={{
-                        fontSize: '1.5rem',
-                        fontWeight: 'bold',
-                        color: '#fff',
-                        marginBottom: '0.25rem',
-                    }}>
-                        {t('patientPortal')}
-                    </h1>
-                    <p style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '0.9rem' }}>
-                        {t('welcome', { name: patientName })}
-                    </p>
-                </div>
-                <button
-                    onClick={() => {
-                        document.cookie = 'patient_token=; path=/; max-age=0';
-                        localStorage.removeItem('patient_data');
-                        router.push('/strefa-pacjenta/login');
-                    }}
-                    style={{
-                        padding: '0.75rem 1.5rem',
-                        background: 'rgba(239, 68, 68, 0.1)',
-                        border: '1px solid rgba(239, 68, 68, 0.3)',
-                        borderRadius: '0.5rem',
-                        color: '#ef4444',
-                        fontWeight: 'bold',
-                        cursor: 'pointer',
-                    }}
-                >
-                    {t('logout')}
-                </button>
-            </div>
-
-            {/* Navigation */}
-            <div style={{
-                background: 'rgba(0, 0, 0, 0.3)',
-                borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
-                padding: '1rem 2rem',
-                display: 'flex',
-                gap: '1rem',
-                overflowX: 'auto',
-            }}>
-                {[
-                    { href: '/strefa-pacjenta/dashboard', label: t('dashboard'), active: false },
-                    { href: '/strefa-pacjenta/historia', label: t('history'), active: false },
-                    { href: '/strefa-pacjenta/profil', label: t('profile'), active: false },
-                    { href: '/strefa-pacjenta/wiadomosci', label: t('messages'), active: true },
-                    { href: '/strefa-pacjenta/ocen-nas', label: t('rateUs'), active: false },
-                ].map(link => (
-                    <Link
-                        key={link.href}
-                        href={link.href}
-                        style={{
-                            padding: '0.75rem 1.5rem',
-                            background: link.active ? 'rgba(220, 177, 74, 0.15)' : 'transparent',
-                            border: link.active ? '1px solid rgba(220, 177, 74, 0.3)' : '1px solid transparent',
-                            borderRadius: '0.5rem',
-                            color: link.active ? '#dcb14a' : 'rgba(255, 255, 255, 0.7)',
-                            textDecoration: 'none',
-                            whiteSpace: 'nowrap',
-                            fontWeight: link.active ? 'bold' : 'normal',
-                            transition: 'all 0.2s',
-                        }}
-                    >
-                        {link.label}
-                    </Link>
-                ))}
-            </div>
-
             {/* Push Notification Prompt */}
             {patientId && (
                 <PushNotificationPrompt
