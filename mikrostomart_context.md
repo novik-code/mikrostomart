@@ -1932,6 +1932,8 @@ NODE_ENV=production
 - `zgody/[token]/page.tsx`: switched Touch/Mouse → Pointer Events API; captures pressure, tiltX, tiltY, timestamps per point; dynamic lineWidth from pressure
 - `065_biometric_signature.sql`: new `biometric_data JSONB` column in `patient_consents`
 - `consents/sign/route.ts`: accepts and stores `biometricData` alongside signature image
+- `admin/biometric-signatures/page.tsx`: [NEW] viewer with consent list, PNG display, pressure/tilt chart, signature replay animation, device info
+- `api/admin/patient-consents/route.ts`: [NEW] admin API for consent details with biometric data
 
 ### March 3, 2026
 **Patient Dashboard — Appointment Management Overhaul + Prodentis v9.1**
