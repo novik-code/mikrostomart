@@ -147,6 +147,22 @@ const PRODENTIS_COLORS: Record<string, { bg: string; border: string; text: strin
 
 const DEFAULT_COLOR = { bg: '#14b8a6', border: '#0d9488', text: '#fff', label: 'Inne' };
 
+// ─── Task Type Color Map (for kanban/list visual differentiation) ─────
+const TASK_TYPE_COLORS: Record<string, string> = {
+    'modele_archiwalne': '#8B5CF6',
+    'modele_analityczne': '#6366F1',
+    'korona_zab': '#0EA5E9',
+    'korona_implant': '#14B8A6',
+    'chirurgia': '#EF4444',
+    'ortodoncja': '#F97316',
+    'plan_leczenia': '#22C55E',
+    'inne': '#64748B',
+};
+const getTaskTypeColor = (taskType: string | null): string => {
+    if (!taskType) return '#64748B';
+    return TASK_TYPE_COLORS[taskType] || '#64748B';
+};
+
 // ─── Task Type Templates (dynamic from DB, fallback hardcoded) ───────
 interface TaskTypeTemplate {
     id: string;
@@ -362,7 +378,9 @@ export default function EmployeePage() {
     const [taskViewMode, setTaskViewMode] = useState<'list' | 'kanban' | 'calendar'>('kanban');
     const [taskSearchQuery, setTaskSearchQuery] = useState('');
     const [filterAssignee, setFilterAssignee] = useState('');
+    const [filterAssigneeOpen, setFilterAssigneeOpen] = useState(false);
     const [filterTypes, setFilterTypes] = useState<string[]>([]);
+    const [filterTypesOpen, setFilterTypesOpen] = useState(false);
     const [filterPriority, setFilterPriority] = useState('');
     const [taskComments, setTaskComments] = useState<Record<string, any[]>>({});
     const [commentInput, setCommentInput] = useState('');
@@ -1149,13 +1167,7 @@ export default function EmployeePage() {
             if (!res.ok) throw new Error('Failed');
             setCommentInput('');
             fetchComments(taskId);
-            // Browser notification for others
-            if (notifPermission === 'granted') {
-                const task = tasks.find(t => t.id === taskId);
-                if (task) {
-                    new Notification('Nowy komentarz', { body: `${authorName}: ${commentInput.substring(0, 80)}`, icon: '/favicon.ico' });
-                }
-            }
+            // Push notifications to assigned users handled server-side
         } catch (err) {
             console.error('[Comments] Post error:', err);
         } finally {
@@ -1205,6 +1217,16 @@ export default function EmployeePage() {
                 Notification.requestPermission().then(p => setNotifPermission(p));
             }
         }
+    }, []);
+
+    // ─── Close filter dropdowns on outside click ──────────
+    useEffect(() => {
+        const handleGlobalClick = () => {
+            setFilterAssigneeOpen(false);
+            setFilterTypesOpen(false);
+        };
+        window.addEventListener('click', handleGlobalClick);
+        return () => window.removeEventListener('click', handleGlobalClick);
     }, []);
 
     // ─── Enhanced: Kanban Drag & Drop ──────────────────────
@@ -1724,44 +1746,119 @@ export default function EmployeePage() {
                     <div style={{
                         padding: '1rem',
                     }}>
-                        {/* Statistics bar */}
-                        <div style={{
-                            display: 'flex',
-                            gap: '1.5rem',
-                            marginBottom: '1rem',
-                            flexWrap: 'wrap',
-                        }}>
-                            <div style={{
-                                background: 'rgba(56, 189, 248, 0.08)',
-                                border: '1px solid rgba(56, 189, 248, 0.15)',
-                                borderRadius: '0.75rem',
-                                padding: '0.75rem 1.25rem',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.5rem',
-                            }}>
-                                <span style={{ fontSize: '1.2rem' }}>👨‍⚕️</span>
-                                <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.85rem' }}>
-                                    Operatorzy: <strong style={{ color: '#38bdf8' }}>{doctors.length}</strong>
-                                </span>
-                            </div>
-                            <div style={{
-                                background: 'rgba(34, 197, 94, 0.08)',
-                                border: '1px solid rgba(34, 197, 94, 0.15)',
-                                borderRadius: '0.75rem',
-                                padding: '0.75rem 1.25rem',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.5rem',
-                            }}>
-                                <span style={{ fontSize: '1.2rem' }}>📋</span>
-                                <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.85rem' }}>
-                                    Wizyt w tygodniu: <strong style={{ color: '#22c55e' }}>
-                                        {scheduleData.days.reduce((sum, d) => sum + d.appointments.length, 0)}
-                                    </strong>
-                                </span>
-                            </div>
-                        </div>
+                        {/* ═══ DAILY DASHBOARD ═══ */}
+                        {(() => {
+                            const todayStr = new Date().toISOString().split('T')[0];
+                            const todayDay = scheduleData.days.find(d => d.date === todayStr);
+                            const todayAppointments = todayDay?.appointments || [];
+                            const totalWeek = scheduleData.days.reduce((sum, d) => sum + d.appointments.length, 0);
+
+                            // Next appointment for today
+                            const nowHHMM = new Date().toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit', hour12: false });
+                            const upcoming = todayAppointments
+                                .filter(a => a.startTime > nowHHMM && !a.isWorkingHour)
+                                .sort((a, b) => a.startTime.localeCompare(b.startTime));
+                            const nextApt = upcoming[0] || null;
+
+                            // Urgent tasks
+                            const urgentTasks = tasks.filter(t => t.priority === 'urgent' && t.status !== 'done' && t.status !== 'archived');
+                            const pendingTasks = tasks.filter(t => t.status === 'todo');
+                            const overdueTasks = tasks.filter(t => t.due_date && new Date(t.due_date) < new Date() && t.status !== 'done' && t.status !== 'archived');
+
+                            return (
+                                <div style={{
+                                    display: 'grid',
+                                    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                                    gap: '0.75rem',
+                                    marginBottom: '1rem',
+                                }}>
+                                    {/* Today's appointments */}
+                                    <div style={{
+                                        background: 'linear-gradient(135deg, rgba(56,189,248,0.08), rgba(56,189,248,0.02))',
+                                        border: '1px solid rgba(56,189,248,0.15)',
+                                        borderRadius: '0.75rem',
+                                        padding: '0.85rem 1rem',
+                                    }}>
+                                        <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.3rem' }}>📋 Wizyty dziś</div>
+                                        <div style={{ fontSize: '1.6rem', fontWeight: 'bold', color: '#38bdf8' }}>
+                                            {todayAppointments.filter(a => !a.isWorkingHour).length}
+                                        </div>
+                                        <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', marginTop: '0.15rem' }}>
+                                            z {totalWeek} w całym tygodniu
+                                        </div>
+                                    </div>
+
+                                    {/* Next patient */}
+                                    <div style={{
+                                        background: nextApt
+                                            ? 'linear-gradient(135deg, rgba(34,197,94,0.08), rgba(34,197,94,0.02))'
+                                            : 'linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01))',
+                                        border: `1px solid ${nextApt ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.08)'}`,
+                                        borderRadius: '0.75rem',
+                                        padding: '0.85rem 1rem',
+                                    }}>
+                                        <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.3rem' }}>⏰ Następny pacjent</div>
+                                        {nextApt ? (
+                                            <>
+                                                <div style={{ fontSize: '0.95rem', fontWeight: '600', color: '#22c55e', marginBottom: '0.15rem' }}>
+                                                    {nextApt.startTime} — {nextApt.patientName}
+                                                </div>
+                                                <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)' }}>
+                                                    {nextApt.appointmentType} • {nextApt.doctorName?.split(' ').slice(0, 2).join(' ')}
+                                                    {nextApt.patientPhone && (
+                                                        <a href={`tel:${nextApt.patientPhone}`} onClick={e => e.stopPropagation()} style={{ color: '#38bdf8', textDecoration: 'none', marginLeft: '0.5rem' }}>
+                                                            📞
+                                                        </a>
+                                                    )}
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <div style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.3)' }}>
+                                                {todayAppointments.length > 0 ? 'Brak więcej wizyt na dziś' : 'Brak wizyt na dziś'}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Operators today */}
+                                    <div style={{
+                                        background: 'linear-gradient(135deg, rgba(168,85,247,0.08), rgba(168,85,247,0.02))',
+                                        border: '1px solid rgba(168,85,247,0.15)',
+                                        borderRadius: '0.75rem',
+                                        padding: '0.85rem 1rem',
+                                    }}>
+                                        <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.3rem' }}>👨‍⚕️ Operatorzy</div>
+                                        <div style={{ fontSize: '1.6rem', fontWeight: 'bold', color: '#c084fc' }}>
+                                            {doctors.length}
+                                        </div>
+                                        <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', marginTop: '0.15rem' }}>
+                                            aktywnych w tym tygodniu
+                                        </div>
+                                    </div>
+
+                                    {/* Tasks overview */}
+                                    <div style={{
+                                        background: urgentTasks.length > 0 || overdueTasks.length > 0
+                                            ? 'linear-gradient(135deg, rgba(239,68,68,0.08), rgba(239,68,68,0.02))'
+                                            : 'linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01))',
+                                        border: `1px solid ${urgentTasks.length > 0 || overdueTasks.length > 0 ? 'rgba(239,68,68,0.15)' : 'rgba(255,255,255,0.08)'}`,
+                                        borderRadius: '0.75rem',
+                                        padding: '0.85rem 1rem',
+                                    }}>
+                                        <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.3rem' }}>✅ Zadania</div>
+                                        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'baseline' }}>
+                                            <span style={{ fontSize: '1.6rem', fontWeight: 'bold', color: urgentTasks.length > 0 ? '#ef4444' : pendingTasks.length > 0 ? '#f59e0b' : '#22c55e' }}>
+                                                {pendingTasks.length}
+                                            </span>
+                                            <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>do zrobienia</span>
+                                        </div>
+                                        <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', marginTop: '0.15rem', display: 'flex', gap: '0.75rem' }}>
+                                            {urgentTasks.length > 0 && <span style={{ color: '#ef4444' }}>⚡ {urgentTasks.length} pilnych</span>}
+                                            {overdueTasks.length > 0 && <span style={{ color: '#f59e0b' }}>⏰ {overdueTasks.length} po terminie</span>}
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })()}
 
                         {/* Day-of-week toggle bar */}
                         <div style={{
@@ -2023,7 +2120,8 @@ export default function EmployeePage() {
                                                         const isStart = apt && apt.startTime === slotTime;
                                                         // If appointment continues from above, skip rendering
                                                         if (apt && !isStart) {
-                                                            return null; // will be covered by rowSpan
+                                                            // Firefox fix: hidden td instead of null for proper rowSpan rendering
+                                                            return <td key={`${day.date}-${doctor}-${slotTime}`} style={{ display: 'none', padding: 0, border: 'none', height: 0, overflow: 'hidden' }} />;
                                                         }
 
                                                         const rowSpan = isStart ? getAppointmentRowSpan(apt) : 1;
@@ -2399,9 +2497,9 @@ export default function EmployeePage() {
                                 📋 {hoveredAppointment.appointmentType}
                             </div>
                             {hoveredAppointment.patientPhone && (
-                                <div style={{ color: 'rgba(255,255,255,0.7)' }}>
+                                <a href={`tel:${hoveredAppointment.patientPhone}`} onClick={e => e.stopPropagation()} style={{ color: '#38bdf8', textDecoration: 'none', display: 'block' }}>
                                     📞 {hoveredAppointment.patientPhone}
-                                </div>
+                                </a>
                             )}
                         </div>
                     </div>
@@ -3490,15 +3588,69 @@ export default function EmployeePage() {
                                 outline: 'none',
                             }}
                         />
-                        <select
-                            value={filterAssignee}
-                            onChange={e => setFilterAssignee(e.target.value)}
-                            style={{ padding: '0.4rem 0.5rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.5rem', color: filterAssignee ? '#38bdf8' : 'rgba(255,255,255,0.5)', fontSize: '0.75rem', cursor: 'pointer' }}
-                        >
-                            <option value="">Wszyscy</option>
-                            {staffList.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                        </select>
-                        {/* Type filter dropdown (multi-select with checkmarks) */}
+                        {/* Assignee filter — custom dropdown (Firefox-compatible) */}
+                        <div style={{ position: 'relative' }}>
+                            <button
+                                onClick={(e) => { e.stopPropagation(); setFilterAssigneeOpen(p => !p); setFilterTypesOpen(false); }}
+                                style={{
+                                    padding: '0.4rem 0.5rem',
+                                    background: 'rgba(255,255,255,0.05)',
+                                    border: `1px solid ${filterAssignee ? 'rgba(56,189,248,0.4)' : 'rgba(255,255,255,0.1)'}`,
+                                    borderRadius: '0.5rem',
+                                    color: filterAssignee ? '#38bdf8' : 'rgba(255,255,255,0.5)',
+                                    fontSize: '0.75rem',
+                                    cursor: 'pointer',
+                                    whiteSpace: 'nowrap',
+                                    display: 'flex', alignItems: 'center', gap: '0.3rem',
+                                }}
+                            >
+                                {filterAssignee ? (staffList.find(s => s.id === filterAssignee)?.name || 'Wybrany') : 'Wszyscy'}
+                                <span style={{ fontSize: '0.6rem', opacity: 0.6 }}>▾</span>
+                            </button>
+                            {filterAssigneeOpen && (
+                                <div
+                                    style={{
+                                        position: 'absolute', top: '100%', left: 0, zIndex: 50,
+                                        marginTop: '0.25rem', minWidth: '180px', maxHeight: '200px', overflowY: 'auto',
+                                        background: '#1a1a2e', border: '1px solid rgba(56,189,248,0.2)',
+                                        borderRadius: '0.5rem', boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+                                        overflow: 'hidden',
+                                    }}
+                                    onClick={e => e.stopPropagation()}
+                                >
+                                    <button
+                                        onClick={() => { setFilterAssignee(''); setFilterAssigneeOpen(false); }}
+                                        style={{
+                                            width: '100%', padding: '0.5rem 0.75rem',
+                                            background: !filterAssignee ? 'rgba(56,189,248,0.1)' : 'transparent',
+                                            border: 'none', borderBottom: '1px solid rgba(255,255,255,0.05)',
+                                            color: !filterAssignee ? '#38bdf8' : 'rgba(255,255,255,0.6)',
+                                            fontSize: '0.78rem', cursor: 'pointer', textAlign: 'left',
+                                        }}
+                                    >
+                                        Wszyscy
+                                    </button>
+                                    {staffList.map(s => (
+                                        <button
+                                            key={s.id}
+                                            onClick={() => { setFilterAssignee(s.id); setFilterAssigneeOpen(false); }}
+                                            style={{
+                                                width: '100%', padding: '0.5rem 0.75rem',
+                                                background: filterAssignee === s.id ? 'rgba(56,189,248,0.1)' : 'transparent',
+                                                border: 'none', borderBottom: '1px solid rgba(255,255,255,0.05)',
+                                                color: filterAssignee === s.id ? '#38bdf8' : 'rgba(255,255,255,0.6)',
+                                                fontSize: '0.78rem', cursor: 'pointer', textAlign: 'left',
+                                            }}
+                                            onMouseEnter={e => { if (filterAssignee !== s.id) e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
+                                            onMouseLeave={e => { e.currentTarget.style.background = filterAssignee === s.id ? 'rgba(56,189,248,0.1)' : 'transparent'; }}
+                                        >
+                                            {s.name}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                        {/* Type filter dropdown (multi-select with checkmarks) — state-based for auto-close */}
                         {(() => {
                             const allTypeOptions = [{ key: '__private__', icon: '🔒', label: 'Prywatne' }, ...Object.entries(TASK_TYPE_CHECKLISTS).map(([k, v]) => ({ key: k, icon: v.icon, label: v.label }))];
                             const selectedLabels = allTypeOptions.filter(o => filterTypes.includes(o.key));
@@ -3507,8 +3659,8 @@ export default function EmployeePage() {
                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation();
-                                            const dropdown = e.currentTarget.nextElementSibling as HTMLElement;
-                                            if (dropdown) dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+                                            setFilterTypesOpen(p => !p);
+                                            setFilterAssigneeOpen(false);
                                         }}
                                         style={{
                                             padding: '0.4rem 0.5rem',
@@ -3527,53 +3679,64 @@ export default function EmployeePage() {
                                             : 'Typ: Wszystkie'}
                                         <span style={{ fontSize: '0.6rem', opacity: 0.6 }}>▾</span>
                                     </button>
-                                    <div
-                                        style={{
-                                            display: 'none',
-                                            position: 'absolute', top: '100%', left: 0, zIndex: 50,
-                                            marginTop: '0.25rem', minWidth: '180px',
-                                            background: '#1a1a2e', border: '1px solid rgba(168,85,247,0.2)',
-                                            borderRadius: '0.5rem', boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
-                                            overflow: 'hidden',
-                                        }}
-                                        onClick={e => e.stopPropagation()}
-                                    >
-                                        {allTypeOptions.map(item => {
-                                            const checked = filterTypes.includes(item.key);
-                                            return (
-                                                <button
-                                                    key={item.key}
-                                                    onClick={() => setFilterTypes(prev => checked ? prev.filter(x => x !== item.key) : [...prev, item.key])}
-                                                    style={{
-                                                        width: '100%', padding: '0.5rem 0.75rem',
-                                                        background: checked ? 'rgba(168,85,247,0.1)' : 'transparent',
-                                                        border: 'none', borderBottom: '1px solid rgba(255,255,255,0.05)',
-                                                        color: checked ? '#c084fc' : 'rgba(255,255,255,0.6)',
-                                                        fontSize: '0.78rem', cursor: 'pointer', textAlign: 'left',
-                                                        display: 'flex', alignItems: 'center', gap: '0.5rem',
-                                                    }}
-                                                    onMouseEnter={e => { if (!checked) e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
-                                                    onMouseLeave={e => { e.currentTarget.style.background = checked ? 'rgba(168,85,247,0.1)' : 'transparent'; }}
-                                                >
-                                                    <span style={{ width: '1.1rem', textAlign: 'center', fontSize: '0.7rem' }}>{checked ? '✓' : ''}</span>
-                                                    <span>{item.icon} {item.label}</span>
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
+                                    {filterTypesOpen && (
+                                        <div
+                                            style={{
+                                                position: 'absolute', top: '100%', left: 0, zIndex: 50,
+                                                marginTop: '0.25rem', minWidth: '180px',
+                                                background: '#1a1a2e', border: '1px solid rgba(168,85,247,0.2)',
+                                                borderRadius: '0.5rem', boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+                                                overflow: 'hidden',
+                                            }}
+                                            onClick={e => e.stopPropagation()}
+                                        >
+                                            {allTypeOptions.map(item => {
+                                                const checked = filterTypes.includes(item.key);
+                                                return (
+                                                    <button
+                                                        key={item.key}
+                                                        onClick={() => setFilterTypes(prev => checked ? prev.filter(x => x !== item.key) : [...prev, item.key])}
+                                                        style={{
+                                                            width: '100%', padding: '0.5rem 0.75rem',
+                                                            background: checked ? 'rgba(168,85,247,0.1)' : 'transparent',
+                                                            border: 'none', borderBottom: '1px solid rgba(255,255,255,0.05)',
+                                                            color: checked ? '#c084fc' : 'rgba(255,255,255,0.6)',
+                                                            fontSize: '0.78rem', cursor: 'pointer', textAlign: 'left',
+                                                            display: 'flex', alignItems: 'center', gap: '0.5rem',
+                                                        }}
+                                                        onMouseEnter={e => { if (!checked) e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
+                                                        onMouseLeave={e => { e.currentTarget.style.background = checked ? 'rgba(168,85,247,0.1)' : 'transparent'; }}
+                                                    >
+                                                        <span style={{ width: '1.1rem', textAlign: 'center', fontSize: '0.7rem' }}>{checked ? '✓' : ''}</span>
+                                                        <span>{item.icon} {item.label}</span>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
                                 </div>
                             );
                         })()}
-                        <select
-                            value={filterPriority}
-                            onChange={e => setFilterPriority(e.target.value)}
-                            style={{ padding: '0.4rem 0.5rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.5rem', color: filterPriority ? getPriorityColor(filterPriority) : 'rgba(255,255,255,0.5)', fontSize: '0.75rem', cursor: 'pointer' }}
+                        {/* Priority filter — custom dropdown (Firefox-compatible) */}
+                        <button
+                            onClick={() => {
+                                const priorities = ['', 'urgent', 'normal', 'low'];
+                                const currentIdx = priorities.indexOf(filterPriority);
+                                setFilterPriority(priorities[(currentIdx + 1) % priorities.length]);
+                            }}
+                            style={{
+                                padding: '0.4rem 0.5rem',
+                                background: 'rgba(255,255,255,0.05)',
+                                border: `1px solid ${filterPriority ? `${getPriorityColor(filterPriority)}44` : 'rgba(255,255,255,0.1)'}`,
+                                borderRadius: '0.5rem',
+                                color: filterPriority ? getPriorityColor(filterPriority) : 'rgba(255,255,255,0.5)',
+                                fontSize: '0.75rem',
+                                cursor: 'pointer',
+                                whiteSpace: 'nowrap',
+                            }}
                         >
-                            <option value="">Priorytet: Wszystkie</option>
-                            <option value="urgent">⚡ Pilne</option>
-                            <option value="normal">Normalny</option>
-                            <option value="low">Niski</option>
-                        </select>
+                            {filterPriority === 'urgent' ? '⚡ Pilne' : filterPriority === 'normal' ? 'Normalny' : filterPriority === 'low' ? 'Niski' : 'Priorytet: Wszystkie'}
+                        </button>
                         {(taskSearchQuery || filterAssignee || filterTypes.length > 0 || filterPriority) && (
                             <button
                                 onClick={() => { setTaskSearchQuery(''); setFilterAssignee(''); setFilterTypes([]); setFilterPriority(''); }}
@@ -3664,7 +3827,7 @@ export default function EmployeePage() {
                                         <div key={task.id} style={{
                                             background: mine ? 'rgba(56, 189, 248, 0.04)' : 'rgba(255,255,255,0.03)',
                                             border: `1px solid ${task.status === 'done' ? 'rgba(34, 197, 94, 0.15)' : mine ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255,255,255,0.08)'}`,
-                                            borderLeft: mine ? '3px solid #38bdf8' : undefined,
+                                            borderLeft: `3px solid ${mine ? '#38bdf8' : getTaskTypeColor(task.task_type)}`,
                                             borderRadius: '0.75rem',
                                             overflow: 'hidden',
                                             opacity: task.status === 'done' ? 0.7 : 1,
@@ -4257,6 +4420,7 @@ export default function EmployeePage() {
                                                         style={{
                                                             background: draggedTaskId === task.id ? 'rgba(56,189,248,0.1)' : 'rgba(255,255,255,0.04)',
                                                             border: '1px solid rgba(255,255,255,0.08)',
+                                                            borderLeft: `3px solid ${getTaskTypeColor(task.task_type)}`,
                                                             borderRadius: '0.5rem',
                                                             padding: '0.6rem 0.75rem',
                                                             cursor: draggedTaskId ? 'grabbing' : 'pointer',
@@ -4266,6 +4430,7 @@ export default function EmployeePage() {
                                                     >
                                                         <div style={{ fontSize: '0.8rem', fontWeight: '500', color: '#fff', marginBottom: '0.2rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                                             {task.priority === 'urgent' && <span style={{ color: '#ef4444', marginRight: '0.3rem' }}>⚡</span>}
+                                                            {task.task_type && TASK_TYPE_CHECKLISTS[task.task_type] && <span style={{ marginRight: '0.3rem' }}>{TASK_TYPE_CHECKLISTS[task.task_type].icon}</span>}
                                                             {task.title}
                                                         </div>
                                                         {task.patient_name && <div style={{ fontSize: '0.6rem', color: '#38bdf8', marginBottom: '0.15rem' }}>👤 {task.patient_name}</div>}
@@ -6665,7 +6830,7 @@ export default function EmployeePage() {
                                             {p.firstName} {p.lastName}
                                         </div>
                                         <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-                                            {p.phone && <span>📞 {p.phone}</span>}
+                                            {p.phone && <a href={`tel:${p.phone}`} onClick={e => e.stopPropagation()} style={{ color: '#38bdf8', textDecoration: 'none' }}>📞 {p.phone}</a>}
                                             {p.pesel && <span>ID: ...{p.pesel.slice(-4)}</span>}
                                         </div>
                                     </div>
