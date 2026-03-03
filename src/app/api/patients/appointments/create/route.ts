@@ -31,19 +31,70 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Patient not found' }, { status: 404 });
         }
 
-        // Create appointment action record
-        // prodentis_id stores the SCHEDULE APPOINTMENT ID (for DELETE/PUT operations)
-        // NOT the patient's prodentis_id
+        // First, check if an action already exists for this patient + appointment date
+        // Use a broad range to handle timestamp format differences
+        const searchDate = new Date(appointment_date);
+        const rangeStart = new Date(searchDate.getTime() - 120000); // 2 min before
+        const rangeEnd = new Date(searchDate.getTime() + 120000);   // 2 min after
+
+        const { data: existing } = await supabase
+            .from('appointment_actions')
+            .select('*')
+            .eq('patient_id', patient.id)
+            .gte('appointment_date', rangeStart.toISOString())
+            .lt('appointment_date', rangeEnd.toISOString())
+            .limit(1)
+            .maybeSingle();
+
+        if (existing) {
+            const terminalStatuses = ['cancelled', 'rescheduled', 'cancellation_pending', 'reschedule_pending'];
+
+            if (terminalStatuses.includes(existing.status)) {
+                // Appointment still exists in Prodentis schedule → reset status
+                console.log('[Create] Resetting terminal status', existing.status, '→ unpaid_reservation for', appointment_date);
+                const { data: updated } = await supabase
+                    .from('appointment_actions')
+                    .update({
+                        status: 'unpaid_reservation',
+                        cancellation_requested: false,
+                        reschedule_requested: false,
+                        prodentis_id: schedule_appointment_id || existing.prodentis_id,
+                        appointment_date,
+                        appointment_end_date: appointment_end_date || existing.appointment_end_date,
+                        doctor_id: doctor_id || existing.doctor_id,
+                        doctor_name: doctor_name || existing.doctor_name,
+                    })
+                    .eq('id', existing.id)
+                    .select()
+                    .single();
+
+                return NextResponse.json({
+                    id: updated?.id || existing.id,
+                    status: updated?.status || 'unpaid_reservation',
+                    wasReset: true,
+                });
+            }
+
+            // Non-terminal status — return existing record as-is
+            console.log('[Create] Existing action found for', appointment_date, 'status:', existing.status);
+            return NextResponse.json({
+                id: existing.id,
+                status: existing.status,
+            });
+        }
+
+        // No existing record — create new one
+        const schedId = schedule_appointment_id || prodentis_id || patient.prodentis_id;
         const { data: action, error: createError } = await supabase
             .from('appointment_actions')
             .insert({
                 patient_id: patient.id,
-                prodentis_id: schedule_appointment_id || prodentis_id || patient.prodentis_id,
+                prodentis_id: schedId,
                 appointment_date,
                 appointment_end_date,
                 doctor_id,
                 doctor_name,
-                status: 'unpaid_reservation', // Default status
+                status: 'unpaid_reservation',
                 deposit_paid: false,
                 attendance_confirmed: false,
                 cancellation_requested: false,
@@ -53,67 +104,30 @@ export async function POST(request: NextRequest) {
             .single();
 
         if (createError) {
-            // Unique constraint violation — record already exists
+            // If insert still fails (race condition), try to find and return existing
             if (createError.code === '23505') {
-                // Look up the existing record
-                const searchDate = new Date(appointment_date);
-                const rangeStart = new Date(searchDate.getTime() - 60000);
-                const rangeEnd = new Date(searchDate.getTime() + 60000);
-
-                const { data: existing } = await supabase
+                console.log('[Create] Race condition — record created between check and insert for', appointment_date);
+                const { data: raceExisting } = await supabase
                     .from('appointment_actions')
-                    .select('*')
+                    .select('id, status')
                     .eq('patient_id', patient.id)
                     .gte('appointment_date', rangeStart.toISOString())
                     .lt('appointment_date', rangeEnd.toISOString())
                     .limit(1)
-                    .single();
+                    .maybeSingle();
 
-                if (existing) {
-                    const terminalStatuses = ['cancelled', 'rescheduled', 'cancellation_pending', 'reschedule_pending'];
-
-                    if (terminalStatuses.includes(existing.status)) {
-                        // Appointment still exists in Prodentis schedule → reset status
-                        console.log('[Create] Resetting terminal status', existing.status, '→ unpaid_reservation for', appointment_date);
-                        const { data: updated } = await supabase
-                            .from('appointment_actions')
-                            .update({
-                                status: 'unpaid_reservation',
-                                cancellation_requested: false,
-                                reschedule_requested: false,
-                                prodentis_id: schedule_appointment_id || existing.prodentis_id,
-                            })
-                            .eq('id', existing.id)
-                            .select()
-                            .single();
-
-                        return NextResponse.json({
-                            id: updated?.id || existing.id,
-                            status: updated?.status || 'unpaid_reservation',
-                            wasReset: true,
-                        });
-                    }
-
-                    // Non-terminal status — return existing record as-is
-                    return NextResponse.json({
-                        id: existing.id,
-                        status: existing.status,
-                    });
+                if (raceExisting) {
+                    return NextResponse.json({ id: raceExisting.id, status: raceExisting.status });
                 }
-
-                // Fallback: can't find existing
-                return NextResponse.json(
-                    { error: 'Appointment action already exists' },
-                    { status: 409 }
-                );
             }
             throw createError;
         }
 
+        console.log('[Create] New action created for', appointment_date, 'id:', action.id);
         return NextResponse.json({ id: action.id, status: action.status });
 
     } catch (error) {
-        console.error('Error creating appointment action:', error);
+        console.error('[Create] Error:', error);
         return NextResponse.json(
             { error: 'Internal server error' },
             { status: 500 }

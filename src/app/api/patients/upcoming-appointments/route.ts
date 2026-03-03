@@ -9,8 +9,7 @@ const PRODENTIS_API = process.env.PRODENTIS_API_URL || 'http://localhost:3000';
  * GET /api/patients/upcoming-appointments
  * 
  * Returns all FUTURE appointments for the authenticated patient.
- * Scans the Prodentis schedule day-by-day for the next 90 days,
- * filtering by the patient's prodentisId.
+ * Uses the new Prodentis v9.1 endpoint: GET /api/patient/:id/future-appointments
  */
 export async function GET(request: Request) {
     try {
@@ -21,68 +20,29 @@ export async function GET(request: Request) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const patientId = payload.prodentisId;
-        console.log('[UpcomingAppointments] Scanning schedule for patient:', patientId);
+        const url = `${PRODENTIS_API}/api/patient/${payload.prodentisId}/future-appointments?days=180`;
+        console.log('[UpcomingAppointments] Fetching:', url);
 
-        // Scan the next 90 days of the schedule
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        const response = await fetch(url, {
+            headers: { 'Content-Type': 'application/json' },
+            cache: 'no-store',
+        });
 
-        const allFuture: any[] = [];
-        const daysToScan = 90;
-        const batchSize = 7; // Fetch 7 days at a time
-
-        // Process in weekly batches to reduce API calls
-        for (let dayOffset = 0; dayOffset < daysToScan; dayOffset += batchSize) {
-            const batchPromises: Promise<any>[] = [];
-
-            for (let d = dayOffset; d < Math.min(dayOffset + batchSize, daysToScan); d++) {
-                const scanDate = new Date(today);
-                scanDate.setDate(scanDate.getDate() + d);
-
-                // Skip weekends (Sat=6, Sun=0)
-                const dow = scanDate.getDay();
-                if (dow === 0 || dow === 6) continue;
-
-                const dateStr = scanDate.toISOString().split('T')[0];
-                batchPromises.push(
-                    fetch(`${PRODENTIS_API}/api/appointments/by-date?date=${dateStr}`, {
-                        headers: { 'Content-Type': 'application/json' },
-                        cache: 'no-store',
-                    })
-                        .then(res => res.ok ? res.json() : { appointments: [] })
-                        .then(data => {
-                            const apts = data.appointments || [];
-                            // Filter only THIS patient's appointments
-                            return apts.filter((a: any) => a.patientId === patientId);
-                        })
-                        .catch(() => [])
-                );
-            }
-
-            const batchResults = await Promise.all(batchPromises);
-            for (const result of batchResults) {
-                allFuture.push(...result);
-            }
-
-            // Early stop: if we found appointments, keep scanning
-            // but if no results after 4 weeks, stop early
-            if (dayOffset >= 28 && allFuture.length === 0) {
-                break;
-            }
+        if (!response.ok) {
+            console.error('[UpcomingAppointments] Prodentis error:', response.status);
+            return NextResponse.json({ appointments: [] });
         }
 
-        // Sort by date ascending
-        allFuture.sort((a, b) =>
-            new Date(a.date).getTime() - new Date(b.date).getTime()
-        );
+        const data = await response.json();
+        const appointments = data.appointments || [];
 
-        // Map to the expected format
-        const mapped = allFuture.map((apt: any) => ({
-            scheduleId: apt.id || null,
+        console.log('[UpcomingAppointments] Found', appointments.length, 'future appointment(s)');
+
+        // Map to the expected format (already sorted by date from API)
+        const mapped = appointments.map((apt: any) => ({
+            scheduleId: apt.id,
             date: apt.date,
-            endDate: apt.endDate || (() => {
-                // Calculate endDate from duration if available
+            endDate: (() => {
                 const start = new Date(apt.date);
                 start.setMinutes(start.getMinutes() + (apt.duration || 30));
                 return start.toISOString();
@@ -90,8 +50,6 @@ export async function GET(request: Request) {
             doctor: apt.doctor || {},
             duration: apt.duration || 30,
         }));
-
-        console.log('[UpcomingAppointments] Found', mapped.length, 'appointment(s) for patient', patientId);
 
         return NextResponse.json({ appointments: mapped });
 
