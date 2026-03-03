@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyTokenFromRequest } from '@/lib/jwt';
 
 // Prodentis API base URL
 const PRODENTIS_API_URL = process.env.PRODENTIS_API_URL || 'http://localhost:3000';
@@ -8,7 +9,18 @@ export async function GET(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        // ── Auth check ──
+        const payload = verifyTokenFromRequest(request);
+        if (!payload) {
+            return NextResponse.json({ error: 'Brak autoryzacji' }, { status: 401 });
+        }
+
         const { id: prodentisId } = await params;
+
+        // ── Security: verify the requested ID matches the authenticated patient ──
+        if (payload.prodentisId !== prodentisId) {
+            return NextResponse.json({ error: 'Brak dostępu' }, { status: 403 });
+        }
 
         // Call Prodentis API
         const response = await fetch(
@@ -41,3 +53,4 @@ export async function GET(
         );
     }
 }
+

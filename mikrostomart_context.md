@@ -1925,6 +1925,9 @@ NODE_ENV=production
 - Added `patientZone` namespace to all 4 language files (`messages/{pl,en,de,ua}/common.json`)
 - 115 translation keys covering: nav, layout, dashboard, history, profile (password, notifications, RODO)
 
+**Security Fix** — commit pending
+- `[id]/next-appointment/route.ts`: added JWT auth + prodentisId ownership verification (was previously an open proxy)
+
 ### March 3, 2026
 **Patient Dashboard — Appointment Management Overhaul + Prodentis v9.1**
 
