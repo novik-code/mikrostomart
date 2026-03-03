@@ -53,8 +53,55 @@ export async function POST(request: NextRequest) {
             .single();
 
         if (createError) {
-            // Check if it's a unique constraint violation (record already exists)
+            // Unique constraint violation — record already exists
             if (createError.code === '23505') {
+                // Look up the existing record
+                const searchDate = new Date(appointment_date);
+                const rangeStart = new Date(searchDate.getTime() - 60000);
+                const rangeEnd = new Date(searchDate.getTime() + 60000);
+
+                const { data: existing } = await supabase
+                    .from('appointment_actions')
+                    .select('*')
+                    .eq('patient_id', patient.id)
+                    .gte('appointment_date', rangeStart.toISOString())
+                    .lt('appointment_date', rangeEnd.toISOString())
+                    .limit(1)
+                    .single();
+
+                if (existing) {
+                    const terminalStatuses = ['cancelled', 'rescheduled', 'cancellation_pending', 'reschedule_pending'];
+
+                    if (terminalStatuses.includes(existing.status)) {
+                        // Appointment still exists in Prodentis schedule → reset status
+                        console.log('[Create] Resetting terminal status', existing.status, '→ unpaid_reservation for', appointment_date);
+                        const { data: updated } = await supabase
+                            .from('appointment_actions')
+                            .update({
+                                status: 'unpaid_reservation',
+                                cancellation_requested: false,
+                                reschedule_requested: false,
+                                prodentis_id: schedule_appointment_id || existing.prodentis_id,
+                            })
+                            .eq('id', existing.id)
+                            .select()
+                            .single();
+
+                        return NextResponse.json({
+                            id: updated?.id || existing.id,
+                            status: updated?.status || 'unpaid_reservation',
+                            wasReset: true,
+                        });
+                    }
+
+                    // Non-terminal status — return existing record as-is
+                    return NextResponse.json({
+                        id: existing.id,
+                        status: existing.status,
+                    });
+                }
+
+                // Fallback: can't find existing
                 return NextResponse.json(
                     { error: 'Appointment action already exists' },
                     { status: 409 }
