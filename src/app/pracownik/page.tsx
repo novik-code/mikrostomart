@@ -3219,7 +3219,9 @@ export default function EmployeePage() {
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                                     {patientConsents.map((c: any) => {
                                         const bio = c.biometric_data;
-                                        const hasBio = bio && (bio.hasData || bio.pointCount > 0 || bio.strokes?.length > 0);
+                                        const hasBio = bio && (bio.pointCount > 0 || bio.strokes?.length > 0);
+                                        const pType = bio?.deviceInfo?.pointerType || bio?.pointerType || 'unknown';
+                                        const pts = bio?.pointCount || bio?.strokes?.reduce((s: number, st: any) => s + st.points.length, 0) || 0;
                                         const isPopoverOpen = biometricPopoverId === c.id;
                                         return (
                                             <div key={c.id} style={{ position: 'relative' }}>
@@ -3243,17 +3245,17 @@ export default function EmployeePage() {
                                                                 style={{
                                                                     padding: '0.15rem 0.4rem',
                                                                     fontSize: '0.6rem',
-                                                                    background: bio.pointerType === 'pen' ? 'rgba(56,189,248,0.12)' : bio.pointerType === 'touch' ? 'rgba(168,85,247,0.12)' : 'rgba(255,255,255,0.06)',
-                                                                    border: `1px solid ${bio.pointerType === 'pen' ? 'rgba(56,189,248,0.25)' : bio.pointerType === 'touch' ? 'rgba(168,85,247,0.25)' : 'rgba(255,255,255,0.12)'}`,
+                                                                    background: pType === 'pen' ? 'rgba(56,189,248,0.12)' : pType === 'touch' ? 'rgba(168,85,247,0.12)' : 'rgba(255,255,255,0.06)',
+                                                                    border: `1px solid ${pType === 'pen' ? 'rgba(56,189,248,0.25)' : pType === 'touch' ? 'rgba(168,85,247,0.25)' : 'rgba(255,255,255,0.12)'}`,
                                                                     borderRadius: '0.3rem',
-                                                                    color: bio.pointerType === 'pen' ? '#38bdf8' : bio.pointerType === 'touch' ? '#c084fc' : 'rgba(255,255,255,0.5)',
+                                                                    color: pType === 'pen' ? '#38bdf8' : pType === 'touch' ? '#c084fc' : 'rgba(255,255,255,0.5)',
                                                                     cursor: 'pointer',
                                                                     whiteSpace: 'nowrap',
                                                                 }}
                                                                 title="Dane biometryczne podpisu"
                                                             >
-                                                                {bio.pointerType === 'pen' ? '🖊️' : bio.pointerType === 'touch' ? '👆' : '🖱️'}
-                                                                {' '}{bio.pointCount || bio.strokes?.reduce((s: number, st: any) => s + st.points.length, 0) || '?'} pts
+                                                                {pType === 'pen' ? '🖊️' : pType === 'touch' ? '👆' : '🖱️'}
+                                                                {' '}{pts} pts
                                                             </button>
                                                         )}
                                                         <span style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.35)' }}>
@@ -3282,14 +3284,12 @@ export default function EmployeePage() {
                                                             <div style={{ padding: '0.3rem', background: 'rgba(255,255,255,0.03)', borderRadius: '0.3rem' }}>
                                                                 <div style={{ color: 'rgba(255,255,255,0.4)' }}>Urządzenie</div>
                                                                 <div style={{ color: '#fff', fontWeight: '600' }}>
-                                                                    {bio.pointerType === 'pen' ? '🖊️ Rysik' : bio.pointerType === 'touch' ? '👆 Palec' : '🖱️ Mysz'}
+                                                                    {pType === 'pen' ? '🖊️ Rysik' : pType === 'touch' ? '👆 Palec' : '🖱️ Mysz'}
                                                                 </div>
                                                             </div>
                                                             <div style={{ padding: '0.3rem', background: 'rgba(255,255,255,0.03)', borderRadius: '0.3rem' }}>
                                                                 <div style={{ color: 'rgba(255,255,255,0.4)' }}>Punkty</div>
-                                                                <div style={{ color: '#fff', fontWeight: '600' }}>
-                                                                    {bio.pointCount || bio.strokes?.reduce((s: number, st: any) => s + st.points.length, 0) || '—'}
-                                                                </div>
+                                                                <div style={{ color: '#fff', fontWeight: '600' }}>{pts}</div>
                                                             </div>
                                                             <div style={{ padding: '0.3rem', background: 'rgba(255,255,255,0.03)', borderRadius: '0.3rem' }}>
                                                                 <div style={{ color: 'rgba(255,255,255,0.4)' }}>Śr. nacisk</div>
