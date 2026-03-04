@@ -434,6 +434,7 @@ export default function EmployeePage() {
     const [patientPdfUrl, setPatientPdfUrl] = useState<string | null>(null);
     const [intakeSubmissionId, setIntakeSubmissionId] = useState<string | null>(null);
     const [pdfGenerating, setPdfGenerating] = useState(false);
+    const [sessionTimeoutWarning, setSessionTimeoutWarning] = useState(false);
 
     const router = useRouter();
     const { userId: currentUserId, email: currentUserEmail, isAdmin } = useUserRoles();
@@ -455,6 +456,35 @@ export default function EmployeePage() {
             }
         };
         checkAuth();
+    }, []);
+
+    // ─── Session Timeout: 30 min idle → auto-logout, 25 min → warning ────────
+    useEffect(() => {
+        const TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+        const WARNING_MS = 25 * 60 * 1000; // 25 minutes
+        let timeoutId: ReturnType<typeof setTimeout>;
+        let warningId: ReturnType<typeof setTimeout>;
+
+        const resetTimers = () => {
+            setSessionTimeoutWarning(false);
+            clearTimeout(timeoutId);
+            clearTimeout(warningId);
+            warningId = setTimeout(() => setSessionTimeoutWarning(true), WARNING_MS);
+            timeoutId = setTimeout(async () => {
+                await supabase.auth.signOut();
+                window.location.href = '/pracownik/login?reason=timeout';
+            }, TIMEOUT_MS);
+        };
+
+        const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
+        events.forEach(e => window.addEventListener(e, resetTimers, { passive: true }));
+        resetTimers();
+
+        return () => {
+            clearTimeout(timeoutId);
+            clearTimeout(warningId);
+            events.forEach(e => window.removeEventListener(e, resetTimers));
+        };
     }, []);
 
     // Fetch schedule
@@ -3258,6 +3288,16 @@ export default function EmployeePage() {
                                                                 {' '}{pts} pts
                                                             </button>
                                                         )}
+                                                        {(() => {
+                                                            const meta = c.metadata || {};
+                                                            const autoExported = meta.biometric_auto_exported;
+                                                            const manualExported = meta.biometric_exported_at && !autoExported;
+                                                            const exportFailed = meta.biometric_export_results?.errors?.length > 0 && !meta.biometric_export_results?.signatureExported && !meta.biometric_export_results?.biometricExported;
+                                                            if (exportFailed) return <span title="Eksport nieudany" style={{ fontSize: '0.55rem', color: '#ef4444' }}>❌</span>;
+                                                            if (autoExported) return <span title={`Auto-eksport: ${meta.biometric_exported_at}`} style={{ fontSize: '0.55rem', color: '#22c55e' }}>✅</span>;
+                                                            if (manualExported) return <span title={`Eksportowano: ${meta.biometric_exported_at}`} style={{ fontSize: '0.55rem', color: '#38bdf8' }}>📤</span>;
+                                                            return null;
+                                                        })()}
                                                         <span style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.35)' }}>
                                                             {new Date(c.signed_at).toLocaleDateString('pl-PL')}
                                                         </span>
@@ -6985,6 +7025,49 @@ export default function EmployeePage() {
                             </p>
                         </div>
                     )}
+                </div>
+            )}
+
+            {/* Session Timeout Warning */}
+            {sessionTimeoutWarning && (
+                <div style={{
+                    position: 'fixed', inset: 0, zIndex: 9999,
+                    background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                    <div style={{
+                        background: 'rgba(15,15,30,0.97)',
+                        border: '1px solid rgba(239,68,68,0.3)',
+                        borderRadius: '1rem',
+                        padding: '2rem',
+                        maxWidth: '360px',
+                        textAlign: 'center',
+                        boxShadow: '0 12px 48px rgba(239,68,68,0.2)',
+                    }}>
+                        <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>⏳</div>
+                        <div style={{ fontSize: '1rem', fontWeight: 'bold', color: '#ef4444', marginBottom: '0.5rem' }}>
+                            Sesja wygasa
+                        </div>
+                        <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.7)', marginBottom: '1.5rem', lineHeight: 1.5 }}>
+                            Ze względów bezpieczeństwa zostaniesz wylogowany za <strong style={{ color: '#ef4444' }}>5 minut</strong> braku aktywności.<br />
+                            Kliknij poniżej aby kontynuować.
+                        </p>
+                        <button
+                            onClick={() => setSessionTimeoutWarning(false)}
+                            style={{
+                                padding: '0.6rem 2rem',
+                                background: 'linear-gradient(135deg, #38bdf8, #818cf8)',
+                                border: 'none',
+                                borderRadius: '0.5rem',
+                                color: '#fff',
+                                fontWeight: 'bold',
+                                fontSize: '0.9rem',
+                                cursor: 'pointer',
+                            }}
+                        >
+                            ✅ Kontynuuj sesję
+                        </button>
+                    </div>
                 </div>
             )}
 

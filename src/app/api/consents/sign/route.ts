@@ -148,12 +148,83 @@ export async function POST(req: NextRequest) {
 
         if (insertErr) throw insertErr;
 
+        // Auto-export signature + biometric data to Prodentis
+        let bioExportResults: any = null;
+        if (tokenRow.prodentis_patient_id && (signatureDataUrl || biometricData)) {
+            bioExportResults = { signatureExported: false, biometricExported: false, errors: [] as string[] };
+
+            // Export signature PNG
+            if (signatureDataUrl) {
+                try {
+                    const base64Match = signatureDataUrl.match(/^data:image\/\w+;base64,(.+)$/);
+                    const pngBase64 = base64Match ? base64Match[1] : signatureDataUrl;
+                    const sigFileName = `Podpis_${safeLabel}_${safeName}_${date}.png`;
+
+                    const sigRes = await fetch(
+                        `${PRODENTIS_API}/api/patients/${tokenRow.prodentis_patient_id}/documents`,
+                        {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'X-API-Key': PRODENTIS_API_KEY },
+                            body: JSON.stringify({ fileBase64: pngBase64, fileName: sigFileName, description: `Podpis biometryczny — ${consentInfo.label} (${date})` }),
+                        }
+                    );
+                    if (sigRes.ok) {
+                        bioExportResults.signatureExported = true;
+                        console.log(`[ConsentSign] Auto-exported signature PNG for consent ${consent.id}`);
+                    } else {
+                        bioExportResults.errors.push(`Signature: ${await sigRes.text()}`);
+                    }
+                } catch (e: any) {
+                    bioExportResults.errors.push(`Signature: ${e.message}`);
+                }
+            }
+
+            // Export biometric JSON
+            if (biometricData) {
+                try {
+                    const bioJson = JSON.stringify(biometricData, null, 2);
+                    const bioBase64 = Buffer.from(bioJson, 'utf-8').toString('base64');
+                    const bioFileName = `Biometria_${safeLabel}_${safeName}_${date}.json`;
+
+                    const bioRes = await fetch(
+                        `${PRODENTIS_API}/api/patients/${tokenRow.prodentis_patient_id}/documents`,
+                        {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'X-API-Key': PRODENTIS_API_KEY },
+                            body: JSON.stringify({ fileBase64: bioBase64, fileName: bioFileName, description: `Dane biometryczne podpisu — ${consentInfo.label} (${date})` }),
+                        }
+                    );
+                    if (bioRes.ok) {
+                        bioExportResults.biometricExported = true;
+                        console.log(`[ConsentSign] Auto-exported biometric JSON for consent ${consent.id}`);
+                    } else {
+                        bioExportResults.errors.push(`Biometric: ${await bioRes.text()}`);
+                    }
+                } catch (e: any) {
+                    bioExportResults.errors.push(`Biometric: ${e.message}`);
+                }
+            }
+
+            // Update consent metadata with export results
+            await supabase
+                .from('patient_consents')
+                .update({
+                    metadata: {
+                        biometric_auto_exported: true,
+                        biometric_exported_at: new Date().toISOString(),
+                        biometric_export_results: bioExportResults,
+                    },
+                })
+                .eq('id', consent.id);
+        }
+
         return NextResponse.json({
             success: true,
             consentId: consent.id,
             fileName,
             fileUrl,
             prodentisSynced,
+            bioExport: bioExportResults,
         });
     } catch (err: any) {
         console.error('[ConsentSign] Error:', err);

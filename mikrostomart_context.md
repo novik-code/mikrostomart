@@ -52,7 +52,7 @@
 
 ### Backend & Database
 - **Supabase** (PostgreSQL database, authentication, storage)
-  - Database: 65 migrations (003-065: email verification, appointment actions, SMS reminders, user_roles, employee tasks, task history, comments, labels, status fix, google reviews cache, chat, push subscriptions, employee_group, push_notification_config, employee_groups array, news/articles/blog/products i18n, calendar tokens, private tasks + reminders, SMS post-visit/week-after-visit, SMS unique constraint fix, task multi-images, push_notifications_log, google_event_id on employee_tasks, patient_intake_tokens, feature_suggestions, online_bookings, patient_match_confidence, consent_tokens/patient_consents, staff_signatures, **intake_pdf_url, birthday_wishes, cancelled_appointments, login_attempts, patient_notification_prefs, biometric_signature**)
+  - Database: 66 migrations (003-066: email verification, appointment actions, SMS reminders, user_roles, employee tasks, task history, comments, labels, status fix, google reviews cache, chat, push subscriptions, employee_group, push_notification_config, employee_groups array, news/articles/blog/products i18n, calendar tokens, private tasks + reminders, SMS post-visit/week-after-visit, SMS unique constraint fix, task multi-images, push_notifications_log, google_event_id on employee_tasks, patient_intake_tokens, feature_suggestions, online_bookings, patient_match_confidence, consent_tokens/patient_consents, staff_signatures, **intake_pdf_url, birthday_wishes, cancelled_appointments, login_attempts, patient_notification_prefs, biometric_signature, employee_audit_log**)
   - Auth: Email/password, magic links, JWT tokens
   - Storage: Product images, patient documents, task images
 
@@ -211,6 +211,7 @@ mikrostomart/
 │   │   ├── appointmentTypeMapper.ts  # Maps Prodentis appointment types
 │   │   ├── auth.ts             # Authentication helpers (verifyAdmin)
 │   │   ├── jwt.ts              # JWT token utilities
+│   │   ├── auditLog.ts         # GDPR audit logging + password strength validation
 │   │   └── supabaseClient.ts   # Browser Supabase client
 │   ├── data/                   # Static data
 │   │   ├── articles.ts         # Knowledge base articles
@@ -1905,6 +1906,36 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### March 4, 2026 (Security Hardening + Employee Zone Improvements)
+**Security: Auth Guards on 5 Unprotected Endpoints** — CRITICAL
+- Added `verifyAdmin() + hasRole('employee'/'admin')` to: `patient-consents`, `export-biometric`, `consent-tokens`, `patient-intake`, `patient-details`
+- All 5 previously allowed unauthenticated access to sensitive patient data (signatures, biometric data, PESEL, medical records)
+
+**Auto-Export Biometrics on Consent Sign**
+- `POST /api/consents/sign` now automatically exports signature PNG + biometric JSON to Prodentis documents API immediately after consent is signed
+- Export results stored in `metadata.biometric_auto_exported` + `biometric_exported_at`
+- No longer requires manual "Export" button click
+
+**Export Status Indicators in Consent List**
+- Each consent shows export status pill: ✅ (auto-exported) | 📤 (manually exported) | ❌ (export failed)
+- Uses `metadata` from `patient_consents` table
+
+**Session Timeout (GDPR)**
+- 30-minute idle auto-logout with 25-minute warning popup
+- Tracks activity: mousemove, keydown, click, scroll, touchstart
+- Glassmorphic warning dialog with “Kontynuuj sesję” button
+
+**GDPR Audit Log**
+- Migration `066_employee_audit_log.sql` — tracks employee access to patient data
+- `src/lib/auditLog.ts` — `logAudit()` utility (non-blocking, IP + User-Agent capture)
+- Integrated into: `patient-consents`, `export-biometric`, `patient-details`, `patient-intake`
+- `validatePasswordStrength()` utility for employee password enforcement
+
+**Documentation Audit**
+- Added 9 missing API endpoints to Employee API table
+- Added 18 missing commits to Recent Changes
+- Added 7 new Employee Zone features
 
 ### March 4, 2026 (Employee Zone Biometric + Audit)
 **Biometric Badge in Consent List** — `2047e57`, `fa2b35c`

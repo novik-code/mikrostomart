@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { verifyAdmin } from '@/lib/auth';
+import { hasRole } from '@/lib/roles';
+import { logAudit } from '@/lib/auditLog';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -9,8 +12,15 @@ const supabase = createClient(
 /**
  * GET /api/employee/patient-intake?prodentisId=X
  * Returns e-karta submission data including signature.
+ * Auth: employee or admin role required.
  */
 export async function GET(req: NextRequest) {
+    const user = await verifyAdmin();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const isEmployee = await hasRole(user.id, 'employee');
+    const isAdmin = await hasRole(user.id, 'admin');
+    if (!isEmployee && !isAdmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
     const prodentisId = req.nextUrl.searchParams.get('prodentisId');
 
     if (!prodentisId) {
@@ -51,6 +61,15 @@ export async function GET(req: NextRequest) {
         }
 
         const intake = submissions[0] || null;
+
+        // GDPR audit log
+        logAudit({
+            userId: user.id, userEmail: user.email || '',
+            action: 'view_intake', resourceType: 'intake',
+            resourceId: prodentisId || undefined,
+            patientName: intake ? `${intake.first_name} ${intake.last_name}` : undefined,
+            request: req,
+        });
 
         return NextResponse.json({
             intake: intake ? {

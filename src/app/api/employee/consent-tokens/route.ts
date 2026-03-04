@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { randomBytes } from 'crypto';
 import { CONSENT_TYPES } from '@/lib/consentTypes';
+import { verifyAdmin } from '@/lib/auth';
+import { hasRole } from '@/lib/roles';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -11,10 +13,17 @@ const supabase = createClient(
 /**
  * POST /api/employee/consent-tokens
  * Creates a token for tablet consent signing.
+ * Auth: employee or admin role required.
  * Body: { patientName, prodentisPatientId?, consentTypes: string[] }
  */
 export async function POST(req: NextRequest) {
     try {
+        const user = await verifyAdmin();
+        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        const isEmployee = await hasRole(user.id, 'employee');
+        const isAdmin = await hasRole(user.id, 'admin');
+        if (!isEmployee && !isAdmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
         const { patientName, prodentisPatientId, consentTypes } = await req.json();
 
         if (!patientName || !consentTypes?.length) {
@@ -62,9 +71,16 @@ export async function POST(req: NextRequest) {
 /**
  * GET /api/employee/consent-tokens
  * Lists recent consent tokens.
+ * Auth: employee or admin role required.
  */
 export async function GET() {
     try {
+        const user = await verifyAdmin();
+        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        const isEmployee = await hasRole(user.id, 'employee');
+        const isAdmin = await hasRole(user.id, 'admin');
+        if (!isEmployee && !isAdmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
         const { data, error } = await supabase
             .from('consent_tokens')
             .select('*')

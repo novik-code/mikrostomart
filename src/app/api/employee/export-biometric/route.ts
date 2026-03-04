@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { verifyAdmin } from '@/lib/auth';
+import { hasRole } from '@/lib/roles';
+import { logAudit } from '@/lib/auditLog';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -22,10 +25,17 @@ const polishToAscii = (str: string) => str
 /**
  * POST /api/employee/export-biometric
  * Exports signature PNG + biometric JSON to Prodentis documents API.
+ * Auth: employee or admin role required.
  * Body: { consentId }
  */
 export async function POST(req: NextRequest) {
     try {
+        const user = await verifyAdmin();
+        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        const isEmployee = await hasRole(user.id, 'employee');
+        const isAdmin = await hasRole(user.id, 'admin');
+        if (!isEmployee && !isAdmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
         const { consentId } = await req.json();
 
         if (!consentId) {
@@ -147,6 +157,16 @@ export async function POST(req: NextRequest) {
                 },
             })
             .eq('id', consentId);
+
+        // GDPR audit log
+        logAudit({
+            userId: user.id, userEmail: user.email || '',
+            action: 'export_biometric', resourceType: 'biometric',
+            resourceId: consentId,
+            patientName: consent.patient_name,
+            metadata: { ...results },
+            request: req,
+        });
 
         return NextResponse.json({
             success: results.signatureExported || results.biometricExported,
