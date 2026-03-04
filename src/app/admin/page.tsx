@@ -4806,6 +4806,15 @@ export default function AdminPage() {
                         <Settings size={18} />
                         🗺️ Mapper PDF
                     </a>
+                    <a href="/admin/biometric-signatures" target="_blank" style={{
+                        display: "flex", alignItems: "center", gap: "0.8rem", width: "100%",
+                        padding: "0.8rem 1rem", background: "transparent", color: "var(--color-text-muted)",
+                        border: "none", borderRadius: "var(--radius-md)", cursor: "pointer",
+                        transition: "all 0.2s", textAlign: "left", textDecoration: "none", fontSize: "0.9rem"
+                    }}>
+                        <FileText size={18} />
+                        🖊️ Biometria podpisów
+                    </a>
                 </nav>
 
                 <div style={{ marginTop: "auto", borderTop: "1px solid var(--color-surface-hover)", paddingTop: "1rem" }}>
