@@ -15,14 +15,23 @@ description: MANDATORY start-of-session: read entire context and check project s
 ## Steps
 
 ### 1. Read the full context file — ALL sections
+
+**First**, check total line count:
+```bash
+wc -l mikrostomart/mikrostomart_context.md
+```
+
+**Then**, read the ENTIRE file in 800-line chunks. Start at line 1 and keep reading until you've covered all lines. Example for a 4100-line file — adjust the last chunk to the actual line count:
 ```
 view_file: mikrostomart/mikrostomart_context.md lines 1-800
-view_file: mikrostomart/mikrostomart_context.md lines 800-1600
-view_file: mikrostomart/mikrostomart_context.md lines 1600-2400
-view_file: mikrostomart/mikrostomart_context.md lines 2400-3200
-view_file: mikrostomart/mikrostomart_context.md lines 3200-4200
+view_file: mikrostomart/mikrostomart_context.md lines 801-1600
+view_file: mikrostomart/mikrostomart_context.md lines 1601-2400
+view_file: mikrostomart/mikrostomart_context.md lines 2401-3200
+view_file: mikrostomart/mikrostomart_context.md lines 3201-4000
+view_file: mikrostomart/mikrostomart_context.md lines 4001-<TOTAL>
 ```
-(Read Recent Changes — last 30 days — to know current state)
+
+⚠️ **IMPORTANT**: Do NOT stop early. Always read ALL chunks until you reach the total line count from `wc -l`. The file grows with every feature — skipping the end means missing Recent Changes, architecture, and key files.
 
 ### 2. Check ACTUAL migration files (never assume numbering)
 ```bash
