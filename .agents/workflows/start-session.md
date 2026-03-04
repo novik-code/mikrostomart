@@ -16,11 +16,11 @@ description: MANDATORY start-of-session: read entire context and check project s
 
 ### 1. Read the full context file — ALL sections
 ```
-view_file: mikrostomart/mikrostomart_context.md lines 1-400
-view_file: mikrostomart/mikrostomart_context.md lines 400-800
-view_file: mikrostomart/mikrostomart_context.md lines 800-1200
-view_file: mikrostomart/mikrostomart_context.md lines 1200-1600
-view_file: mikrostomart/mikrostomart_context.md lines 1600-2030
+view_file: mikrostomart/mikrostomart_context.md lines 1-800
+view_file: mikrostomart/mikrostomart_context.md lines 800-1600
+view_file: mikrostomart/mikrostomart_context.md lines 1600-2400
+view_file: mikrostomart/mikrostomart_context.md lines 2400-3200
+view_file: mikrostomart/mikrostomart_context.md lines 3200-4200
 ```
 (Read Recent Changes — last 30 days — to know current state)
 
