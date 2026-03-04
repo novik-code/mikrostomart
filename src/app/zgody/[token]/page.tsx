@@ -137,7 +137,7 @@ export default function ConsentSigningPage() {
 
     // Fetch staff signatures for doctor selection
     useEffect(() => {
-        fetch('/api/admin/staff-signatures')
+        fetch('/api/staff-signatures')
             .then(r => r.ok ? r.json() : [])
             .then(data => {
                 const sigs = Array.isArray(data) ? data : (data?.signatures || []);
