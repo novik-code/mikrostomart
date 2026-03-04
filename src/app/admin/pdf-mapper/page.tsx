@@ -367,6 +367,28 @@ export default function PdfMapperPage() {
         setHasChanges(true);
     };
 
+    // ── Duplicate field (add another instance) ─────────────────
+    const duplicateField = (key: string) => {
+        const existing = placedFields.find(f => f.key === key);
+        if (!existing) return;
+        const baseKey = getBaseKey(key);
+        let nextNum = 2;
+        while (placedFields.some(f => f.key === `${baseKey}_${nextNum}`)) nextNum++;
+        const newKey = `${baseKey}_${nextNum}`;
+        const baseLabel = BUILTIN_FIELDS[baseKey]?.label || existing.label.replace(/ #\d+$/, '');
+        setPlacedFields(prev => [...prev, {
+            ...existing,
+            key: newKey,
+            label: `${baseLabel} #${nextNum}`,
+            // Offset slightly so it's visible
+            nx: Math.min(existing.nx + 0.02, 0.98),
+            ny: Math.min(existing.ny + 0.02, 0.98),
+            pdfX: Math.round((Math.min(existing.nx + 0.02, 0.98)) * pdfSize.w * 10) / 10,
+            pdfY: Math.round((1 - Math.min(existing.ny + 0.02, 0.98)) * pdfSize.h * 10) / 10,
+        }]);
+        setHasChanges(true);
+    };
+
     // ── Add custom field ───────────────────────────────────────
     const handleAddCustomField = () => {
         const sanitizedKey = newFieldKey.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
@@ -730,16 +752,22 @@ export default function PdfMapperPage() {
                                             <div style={{ fontSize: '0.67rem', color: f.color, fontWeight: 'bold' }}>
                                                 {f.icon} {f.label}
                                                 {f.fieldType === 'checkbox' && <span style={{ fontSize: '0.55rem', marginLeft: '0.3rem', color: 'rgba(255,255,255,0.4)' }}>(checkbox)</span>}
-                                                {!BUILTIN_FIELDS[f.key] && <span style={{ fontSize: '0.55rem', marginLeft: '0.3rem', color: 'rgba(255,255,255,0.3)' }}>(custom)</span>}
+                                                {f.key !== getBaseKey(f.key) && <span style={{ fontSize: '0.55rem', marginLeft: '0.3rem', color: 'rgba(255,255,255,0.3)' }}>(kopia)</span>}
                                             </div>
                                             <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)', fontFamily: 'monospace' }}>
                                                 s.{f.page} x={f.pdfX} y={f.pdfY}
                                             </div>
                                         </div>
-                                        <button onClick={() => removeField(f.key)}
-                                            style={{ background: 'rgba(239,68,68,0.12)', border: 'none', color: '#ef4444', cursor: 'pointer', borderRadius: '0.25rem', padding: '0.15rem 0.35rem', fontSize: '0.6rem' }}>
-                                            ✕
-                                        </button>
+                                        <div style={{ display: 'flex', gap: '0.2rem' }}>
+                                            <button onClick={() => duplicateField(f.key)} title="Zwielokrotnij pole (dodaj kolejną kopię)"
+                                                style={{ background: 'rgba(56,189,248,0.12)', border: 'none', color: '#38bdf8', cursor: 'pointer', borderRadius: '0.25rem', padding: '0.15rem 0.35rem', fontSize: '0.6rem' }}>
+                                                📋+
+                                            </button>
+                                            <button onClick={() => removeField(f.key)}
+                                                style={{ background: 'rgba(239,68,68,0.12)', border: 'none', color: '#ef4444', cursor: 'pointer', borderRadius: '0.25rem', padding: '0.15rem 0.35rem', fontSize: '0.6rem' }}>
+                                                ✕
+                                            </button>
+                                        </div>
                                     </div>
                                 ))}
                             </div>
@@ -769,10 +797,10 @@ export default function PdfMapperPage() {
                         <ul style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)', margin: 0, paddingLeft: '1rem', lineHeight: '1.6' }}>
                             <li>Wybierz typ pola na górze</li>
                             <li>Kliknij na PDF w miejscu pola</li>
-                            <li>Kliknij ponownie aby przesunąć</li>
-                            <li>✕ w sidebarze usuwa pole</li>
+                            <li>Kliknij ponownie → tworzy <strong>nową kopię</strong> (np. podpis #2)</li>
+                            <li><strong>📋+</strong> w sidebarze = zwielokrotnij pole</li>
+                            <li>✕ w sidebarze = usuń pole</li>
                             <li><strong>➕ Dodaj nowe pole</strong> — tekst lub checkbox</li>
-                            <li>Checkboxy mają kwadratowe markery ☑️</li>
                             <li>&quot;Zapisz&quot; = natychmiast w bazie, bez deploymentu</li>
                         </ul>
                     </div>
