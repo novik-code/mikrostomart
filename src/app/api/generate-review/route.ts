@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
+import { checkRateLimit, getClientIP } from '@/lib/rateLimit';
 
 interface SurveyAnswers {
     isPatient: string;
@@ -13,6 +14,12 @@ interface SurveyAnswers {
 }
 
 export async function POST(request: Request) {
+    const ip = getClientIP(request);
+    const rl = checkRateLimit(`review:${ip}`, 10);
+    if (!rl.allowed) {
+        return NextResponse.json({ error: 'Zbyt wiele zapytań.' }, { status: 429 });
+    }
+
     try {
         const { answers } = (await request.json()) as { answers: SurveyAnswers };
 

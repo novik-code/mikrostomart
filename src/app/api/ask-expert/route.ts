@@ -1,10 +1,17 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import OpenAI from "openai";
+import { checkRateLimit, getClientIP } from '@/lib/rateLimit';
 
 export const runtime = 'nodejs';
 
 export async function POST(req: Request) {
+    const ip = getClientIP(req);
+    const rl = checkRateLimit(`expert:${ip}`, 10);
+    if (!rl.allowed) {
+        return NextResponse.json({ error: 'Zbyt wiele zapytań.' }, { status: 429 });
+    }
+
     try {
         const body = await req.json();
         const { question, honeypot } = body;

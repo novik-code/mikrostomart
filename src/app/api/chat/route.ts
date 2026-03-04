@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { KNOWLEDGE_BASE } from '@/lib/knowledgeBase';
+import { checkRateLimit, getClientIP } from '@/lib/rateLimit';
 import fs from 'fs';
 import path from 'path';
 
@@ -46,6 +47,12 @@ const tools = [
 ];
 
 export async function POST(req: Request) {
+    const ip = getClientIP(req);
+    const rl = checkRateLimit(`chat:${ip}`, 20);
+    if (!rl.allowed) {
+        return NextResponse.json({ error: 'Zbyt wiele zapytań. Spróbuj za chwilę.' }, { status: 429 });
+    }
+
     try {
         const openai = new OpenAI({
             apiKey: process.env.OPENAI_API_KEY,

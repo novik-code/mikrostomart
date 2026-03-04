@@ -11,6 +11,9 @@ const supabase = createClient(
 
 const resend = new Resend(process.env.RESEND_API_KEY!);
 
+const MAX_RESET_ATTEMPTS = 3;
+const WINDOW_MINUTES = 15;
+
 export async function POST(request: NextRequest) {
     try {
         const { phone } = await request.json();
@@ -21,6 +24,30 @@ export async function POST(request: NextRequest) {
                 { status: 400 }
             );
         }
+
+        const normalizedPhone = phone.replace(/\s/g, '');
+
+        // Rate limiting — max 3 reset requests per 15 min per phone
+        const windowStart = new Date(Date.now() - WINDOW_MINUTES * 60 * 1000).toISOString();
+        const { count } = await supabase
+            .from('login_attempts')
+            .select('*', { count: 'exact', head: true })
+            .eq('identifier', `reset:${normalizedPhone}`)
+            .gte('attempted_at', windowStart);
+
+        if ((count || 0) >= MAX_RESET_ATTEMPTS) {
+            return NextResponse.json(
+                { success: false, error: `Zbyt wiele prób. Spróbuj ponownie za ${WINDOW_MINUTES} minut.` },
+                { status: 429 }
+            );
+        }
+
+        // Log this attempt
+        await supabase.from('login_attempts').insert({
+            identifier: `reset:${normalizedPhone}`,
+            ip_address: request.headers.get('x-forwarded-for') || 'unknown',
+            success: true,
+        });
 
         // Find patient by phone (only select fields that exist in Supabase)
         const { data: patient, error: patientError } = await supabase

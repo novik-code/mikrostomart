@@ -42,6 +42,17 @@ export async function POST(req: Request) {
 
         await supabase.from('sms_reminders').update(updateData).eq('id', id);
 
+        // GDPR audit log
+        await logAudit({
+            userId: user.id,
+            userEmail: user.email || '',
+            action: result.success ? 'sms_sent' : 'sms_send_failed',
+            resourceType: 'sms',
+            resourceId: id,
+            metadata: { phone, messageLength: message.length, messageId: result.messageId },
+            request: req,
+        });
+
         return NextResponse.json({ success: result.success, messageId: result.messageId, error: result.error });
     } catch (err: any) {
         return NextResponse.json({ success: false, error: err.message }, { status: 500 });

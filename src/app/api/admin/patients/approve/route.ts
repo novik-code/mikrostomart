@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 import { verifyAdmin } from '@/lib/auth';
+import { logAudit } from '@/lib/auditLog';
 
 export const dynamic = 'force-dynamic';
 
@@ -95,6 +96,16 @@ export async function POST(request: Request) {
                 // Don't fail the whole request if email fails
             }
         }
+
+        // GDPR audit log
+        await logAudit({
+            userId: user.id,
+            userEmail: user.email || '',
+            action: 'patient_approved',
+            resourceType: 'patient',
+            resourceId: patient_id,
+            request,
+        });
 
         return NextResponse.json({ success: true });
 

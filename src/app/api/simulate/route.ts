@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Replicate from "replicate";
+import { checkRateLimit, getClientIP } from '@/lib/rateLimit';
 
 export const runtime = 'nodejs';
 
@@ -35,6 +36,12 @@ export async function GET(req: NextRequest) {
 
 // --- POST: Start Prediction ---
 export async function POST(req: NextRequest) {
+    const ip = getClientIP(req);
+    const rl = checkRateLimit(`simulate:${ip}`, 5);
+    if (!rl.allowed) {
+        return NextResponse.json({ error: 'Zbyt wiele prób. Spróbuj za minutę.' }, { status: 429 });
+    }
+
     try {
         const replicateKey = process.env.REPLICATE_API_TOKEN;
         if (!replicateKey) {

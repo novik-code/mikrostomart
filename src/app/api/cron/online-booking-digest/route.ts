@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sendTelegramNotification } from '@/lib/telegram';
 
@@ -8,8 +8,16 @@ export const dynamic = 'force-dynamic';
  * Daily Telegram Digest of Online Bookings
  * Runs via Vercel CRON at 8:15 AM Warsaw time
  * Sends a summary of all unreported online bookings
+ * Auth: CRON_SECRET required.
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
+    // Verify cron secret
+    const authHeader = request.headers.get('authorization');
+    const isCronAuth = authHeader === `Bearer ${process.env.CRON_SECRET}`;
+    if (!isCronAuth) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     try {
         const supabase = createClient(
             process.env.NEXT_PUBLIC_SUPABASE_URL!,

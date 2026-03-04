@@ -1,10 +1,17 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { verifyAdmin } from '@/lib/auth';
 
 export const runtime = 'nodejs';
 
+/**
+ * GET /api/fix-db-images — admin-only one-time migration endpoint.
+ * Auth: admin required. Uses service-role key.
+ */
 export async function GET() {
     try {
+        const user = await verifyAdmin();
+        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
         const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY!;
 
