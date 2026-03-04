@@ -1923,13 +1923,16 @@ NODE_ENV=production
 ## 📝 Recent Changes
 
 ### March 4, 2026 (PDF Mapper Rework — No-code Consent Field Editor)
-**DB-backed Consent Field Mappings** — `b7306d7`, `afba9be`
+**DB-backed Consent Field Mappings** — `b7306d7`, `afba9be`, `ac9ae61`, `e7dcab5`, `6c8ddf3`
 - Migration `067_consent_field_mappings.sql` — new table storing consent type definitions + PDF field coordinates in DB
 - Seeded with all 10 existing consent types (higienizacja, znieczulenie, chirurgiczne, protetyczne, endodontyczne, zachowawcze, protetyka_implant, rtg, implantacja, wizerunek)
 - `/api/admin/consent-mappings` — full CRUD API (GET public, POST/PUT/DELETE admin-only)
 - `/api/admin/consent-pdf-upload` — upload new consent PDFs to Supabase Storage
 - `getConsentTypesFromDB()` in `consentTypes.ts` — server-side DB loading with hardcoded fallback
 - Rewritten `/admin/pdf-mapper/page.tsx` — loads from DB, saves to DB, create new consent types + PDF upload
+- Custom fields: ➕ Dodaj nowe pole — text or checkbox, with dynamic key/label
+- Multi-instance fields: 📋+ duplicate button in sidebar, auto-suffix keys (`_2`, `_3`), `sourceField` metadata
+- Instruction popup: detailed guide on first launch, localStorage "don’t show again", ❓ button to reopen
 - Updated 5 consumers: `consents/sign`, `consents/verify`, `employee/consent-tokens`, `zgody/[token]`, `pracownik` — all now use DB data with fallback
 
 ### March 4, 2026 (Security Audit Fixes)

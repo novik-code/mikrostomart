@@ -198,6 +198,20 @@ export default function PdfMapperPage() {
     const [newFile, setNewFile] = useState<File | null>(null);
     const [uploading, setUploading] = useState(false);
 
+    // State: instruction popup
+    const [showGuide, setShowGuide] = useState(false);
+
+    // Show guide on first visit (localStorage)
+    useEffect(() => {
+        const dismissed = localStorage.getItem('pdf-mapper-guide-dismissed');
+        if (!dismissed) setShowGuide(true);
+    }, []);
+
+    const dismissGuide = (dontShowAgain: boolean) => {
+        if (dontShowAgain) localStorage.setItem('pdf-mapper-guide-dismissed', '1');
+        setShowGuide(false);
+    };
+
     // Refs
     const overlayRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -510,6 +524,82 @@ export default function PdfMapperPage() {
 
     return (
         <div style={{ minHeight: '100vh', background: '#0a0a1a', color: '#fff', fontFamily: "'Inter', sans-serif" }}>
+
+            {/* ═══ INSTRUCTION POPUP ═══ */}
+            {showGuide && (
+                <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
+                    onClick={(e) => { if (e.target === e.currentTarget) dismissGuide(false); }}>
+                    <div style={{ background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)', borderRadius: '1rem', border: '1px solid rgba(56,189,248,0.25)', maxWidth: '640px', width: '100%', maxHeight: '85vh', overflowY: 'auto', boxShadow: '0 25px 60px rgba(0,0,0,0.5)', padding: '1.5rem 2rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                            <h2 style={{ margin: 0, fontSize: '1.25rem', color: '#38bdf8' }}>🗺️ Instrukcja — Edytor Mapowania Zgód</h2>
+                            <button onClick={() => dismissGuide(false)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: '1.5rem', cursor: 'pointer', padding: 0 }}>✕</button>
+                        </div>
+
+                        <div style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.8)', lineHeight: '1.7' }}>
+                            <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.75rem', marginTop: 0 }}>
+                                Ten edytor pozwala Ci wizualnie mapować pola formularzy zgód na dokumentach PDF.<br />
+                                Wszystkie zmiany zapisują się <strong style={{ color: '#22c55e' }}>bezpośrednio do bazy danych</strong> — bez konieczności zmian w kodzie czy wdrożenia.
+                            </p>
+
+                            <h3 style={{ color: '#fbbf24', fontSize: '0.9rem', marginBottom: '0.4rem' }}>📋 Podstawowe użycie</h3>
+                            <ol style={{ paddingLeft: '1.2rem', margin: '0 0 1rem' }}>
+                                <li><strong>Wybierz typ zgody</strong> — kliknij przycisk zgody na górze (np. &quot;Zgoda na higienizację&quot;)</li>
+                                <li><strong>Wybierz pole</strong> — kliknij typ pola w sekcji &quot;Pola automatyczne&quot; (np. Imię, PESEL, Data)</li>
+                                <li><strong>Kliknij na PDF</strong> — w miejscu gdzie pole ma być wstawione. Pojawi się kolorowy marker.</li>
+                                <li><strong>Zapisz</strong> — kliknij zielony przycisk &quot;💾 Zapisz do bazy&quot;</li>
+                            </ol>
+
+                            <h3 style={{ color: '#a855f7', fontSize: '0.9rem', marginBottom: '0.4rem' }}>📋+ Zwielokrotnianie pól</h3>
+                            <p style={{ margin: '0 0 0.5rem' }}>Gdy potrzebujesz tego samego pola w kilku miejscach (np. podpis na stronie 1 i 3):</p>
+                            <ul style={{ paddingLeft: '1.2rem', margin: '0 0 1rem' }}>
+                                <li><strong>Sposób 1:</strong> Kliknij <span style={{ background: 'rgba(56,189,248,0.2)', padding: '1px 6px', borderRadius: '3px', color: '#38bdf8', fontWeight: 'bold' }}>📋+</span> obok pola w panelu po prawej — tworzy kopię lekko przesuniętą</li>
+                                <li><strong>Sposób 2:</strong> Wybierz pole na górze i kliknij ponownie na PDF — automatycznie tworzy kolejną instancję (#2, #3...)</li>
+                                <li>Kopie oznaczone są tagiem <span style={{ color: 'rgba(255,255,255,0.4)' }}>(kopia)</span> w panelu</li>
+                                <li>Każda kopia zostanie wypełniona tymi samymi danymi pacjenta</li>
+                            </ul>
+
+                            <h3 style={{ color: '#22c55e', fontSize: '0.9rem', marginBottom: '0.4rem' }}>➕ Dodawanie własnych pól</h3>
+                            <p style={{ margin: '0 0 0.5rem' }}>Jeśli potrzebujesz pola którego nie ma w zestawie automatycznych:</p>
+                            <ul style={{ paddingLeft: '1.2rem', margin: '0 0 1rem' }}>
+                                <li>Kliknij żółty przycisk <strong>➕ Dodaj nowe pole</strong></li>
+                                <li>Wybierz typ: <strong>📝 Tekst</strong> lub <strong>☑️ Checkbox</strong></li>
+                                <li>Wpisz klucz (identyfikator) i etykietę (opis)</li>
+                                <li>Pole pojawi się na środku PDF — przeciągnij na właściwe miejsce klikając ponownie</li>
+                            </ul>
+
+                            <h3 style={{ color: '#f97316', fontSize: '0.9rem', marginBottom: '0.4rem' }}>🆕 Tworzenie nowego typu zgody</h3>
+                            <ul style={{ paddingLeft: '1.2rem', margin: '0 0 1rem' }}>
+                                <li>Kliknij <strong>➕ Nowy typ zgody</strong> na górze</li>
+                                <li>Podaj klucz (np. <code style={{ background: 'rgba(255,255,255,0.1)', padding: '1px 4px', borderRadius: '3px' }}>ortodontyczne</code>), nazwę i wgraj plik PDF</li>
+                                <li>Po utworzeniu — mapuj pola jak zwykle</li>
+                            </ul>
+
+                            <h3 style={{ color: '#ef4444', fontSize: '0.9rem', marginBottom: '0.4rem' }}>🗑️ Usuwanie i edycja</h3>
+                            <ul style={{ paddingLeft: '1.2rem', margin: '0 0 1rem' }}>
+                                <li><strong>✕</strong> — usuwa pole z mapowania</li>
+                                <li><strong>Przesunięcie</strong> — kliknij ponownie w inne miejsce (gdy pole jest jednoinstancyjne)</li>
+                                <li>Pola wielostronicowe — użyj nawigacji stron aby przechodzić między stronami PDF</li>
+                            </ul>
+
+                            <div style={{ padding: '0.6rem', background: 'rgba(34,197,94,0.08)', borderRadius: '0.5rem', border: '1px solid rgba(34,197,94,0.2)', marginBottom: '0.75rem' }}>
+                                <strong style={{ color: '#22c55e' }}>💡 Wskazówka:</strong> Pola automatyczne (Imię, PESEL, Data, Adres itp.) są wypełniane automatycznie danymi pacjenta przy podpisywaniu zgody. Pola własne (custom) wymagają ręcznego wypełnienia.
+                            </div>
+                        </div>
+
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                            <button onClick={() => dismissGuide(true)}
+                                style={{ padding: '0.4rem 0.8rem', background: 'transparent', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '0.4rem', color: 'rgba(255,255,255,0.45)', fontSize: '0.72rem', cursor: 'pointer' }}>
+                                Nie pokazuj ponownie
+                            </button>
+                            <button onClick={() => dismissGuide(false)}
+                                style={{ padding: '0.5rem 1.5rem', background: 'linear-gradient(135deg, #38bdf8, #3b82f6)', border: 'none', borderRadius: '0.5rem', color: '#fff', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer' }}>
+                                Rozumiem, zaczynamy! 🚀
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* ═══ HEADER ═══ */}
             <div style={{
                 padding: '0.75rem 1.25rem',
@@ -520,6 +610,10 @@ export default function PdfMapperPage() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                     <h1 style={{ fontSize: '1.1rem', margin: 0 }}>🗺️ Edytor Mapowania Zgód</h1>
                     <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                        <button onClick={() => setShowGuide(true)}
+                            style={{ padding: '0.3rem 0.6rem', background: 'rgba(251,191,36,0.15)', border: '1px solid rgba(251,191,36,0.3)', borderRadius: '0.4rem', color: '#fbbf24', fontSize: '0.75rem', cursor: 'pointer', fontWeight: 'bold' }}>
+                            ❓ Instrukcja
+                        </button>
                         {saveMsg && <span style={{ fontSize: '0.75rem' }}>{saveMsg}</span>}
                         <button onClick={handleSave} disabled={!hasChanges || saving}
                             style={{
