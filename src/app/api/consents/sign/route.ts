@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { CONSENT_TYPES } from '@/lib/consentTypes';
+import { getConsentTypesFromDB } from '@/lib/consentTypes';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -45,6 +45,7 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Consent type not in token' }, { status: 400 });
         }
 
+        const CONSENT_TYPES = await getConsentTypesFromDB();
         const consentInfo = CONSENT_TYPES[consentType];
         if (!consentInfo) {
             return NextResponse.json({ error: 'Unknown consent type' }, { status: 400 });

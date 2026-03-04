@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { PDFDocument, rgb } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
-import { CONSENT_TYPES } from '@/lib/consentTypes';
+import { CONSENT_TYPES as HARDCODED_CONSENT_TYPES, ConsentType } from '@/lib/consentTypes';
 
 /** Cache for the Inter font bytes so we only fetch it once */
 let cachedFontBytes: ArrayBuffer | null = null;
@@ -82,6 +82,9 @@ export default function ConsentSigningPage() {
     const [prefillOk, setPrefillOk] = useState(true);
     const [prefillError, setPrefillError] = useState<string | null>(null);
 
+    // Consent types: loaded from DB (API), fallback to hardcoded
+    const [CONSENT_TYPES, setConsentTypes] = useState<Record<string, ConsentType>>(HARDCODED_CONSENT_TYPES);
+
     // Doctor & procedure selection
     const [staffSignatures, setStaffSignatures] = useState<any[]>([]);
     const [selectedDoctorIdx, setSelectedDoctorIdx] = useState(0);
@@ -103,6 +106,26 @@ export default function ConsentSigningPage() {
     const strokeStartTimeRef = useRef<number>(0);
     const sigStartTimeRef = useRef<number>(0);
     const detectedPointerTypeRef = useRef<string>('unknown');
+
+    // Load consent types from DB on mount
+    useEffect(() => {
+        fetch('/api/admin/consent-mappings')
+            .then(r => r.json())
+            .then(data => {
+                if (Array.isArray(data) && data.length > 0) {
+                    const mapped: Record<string, ConsentType> = {};
+                    for (const row of data) {
+                        mapped[row.consent_key] = {
+                            label: row.label,
+                            file: row.pdf_file,
+                            fields: row.fields,
+                        };
+                    }
+                    setConsentTypes(mapped);
+                }
+            })
+            .catch(() => { /* keep hardcoded fallback */ });
+    }, []);
 
     // Verify token on mount
     useEffect(() => {

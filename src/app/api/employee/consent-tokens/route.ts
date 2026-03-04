@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { randomBytes } from 'crypto';
-import { CONSENT_TYPES } from '@/lib/consentTypes';
+import { getConsentTypesFromDB } from '@/lib/consentTypes';
 import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
 
@@ -30,7 +30,8 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'patientName and consentTypes required' }, { status: 400 });
         }
 
-        // Validate consent types
+        // Validate consent types from DB
+        const CONSENT_TYPES = await getConsentTypesFromDB();
         const invalid = consentTypes.filter((ct: string) => !CONSENT_TYPES[ct]);
         if (invalid.length) {
             return NextResponse.json({ error: `Invalid consent types: ${invalid.join(', ')}` }, { status: 400 });

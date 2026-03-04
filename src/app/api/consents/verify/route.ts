@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { CONSENT_TYPES } from '@/lib/consentTypes';
+import { getConsentTypesFromDB } from '@/lib/consentTypes';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -45,13 +45,14 @@ export async function POST(req: NextRequest) {
 
         const signedTypes = new Set((signed || []).map((s: any) => s.consent_type));
 
-        // Build consent list
+        // Build consent list from DB
+        const CONSENT_TYPES = await getConsentTypesFromDB();
         const consents = tokenRow.consent_types
             .filter((ct: string) => CONSENT_TYPES[ct])
             .map((ct: string) => ({
                 type: ct,
                 label: CONSENT_TYPES[ct].label,
-                file: `/zgody/${CONSENT_TYPES[ct].file}`,
+                file: CONSENT_TYPES[ct].file.startsWith('http') ? CONSENT_TYPES[ct].file : `/zgody/${CONSENT_TYPES[ct].file}`,
                 signed: signedTypes.has(ct),
             }));
 

@@ -8,7 +8,7 @@ import VoiceAssistant from "@/components/VoiceAssistant";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import PushNotificationPrompt from "@/components/PushNotificationPrompt";
 import { QRCodeSVG } from "qrcode.react";
-import { CONSENT_TYPES } from "@/lib/consentTypes";
+import { CONSENT_TYPES as HARDCODED_CONSENT_TYPES } from "@/lib/consentTypes";
 
 // ─── Types ───────────────────────────────────────────────────────
 interface Badge {
@@ -436,6 +436,9 @@ export default function EmployeePage() {
     const [pdfGenerating, setPdfGenerating] = useState(false);
     const [sessionTimeoutWarning, setSessionTimeoutWarning] = useState(false);
 
+    // Consent types: loaded from DB (API), fallback to hardcoded
+    const [CONSENT_TYPES, setConsentTypes] = useState(HARDCODED_CONSENT_TYPES);
+
     const router = useRouter();
     const { userId: currentUserId, email: currentUserEmail, isAdmin } = useUserRoles();
 
@@ -456,6 +459,20 @@ export default function EmployeePage() {
             }
         };
         checkAuth();
+
+        // Load consent types from DB
+        fetch('/api/admin/consent-mappings')
+            .then(r => r.json())
+            .then(data => {
+                if (Array.isArray(data) && data.length > 0) {
+                    const mapped: Record<string, { label: string; file: string; fields: any }> = {};
+                    for (const row of data) {
+                        mapped[row.consent_key] = { label: row.label, file: row.pdf_file, fields: row.fields };
+                    }
+                    setConsentTypes(mapped as any);
+                }
+            })
+            .catch(() => { /* keep hardcoded fallback */ });
     }, []);
 
     // ─── Session Timeout: 30 min idle → auto-logout, 25 min → warning ────────

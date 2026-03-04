@@ -234,3 +234,42 @@ export const CONSENT_TYPES: Record<string, ConsentType> = {
 };
 
 export const CONSENT_TYPE_KEYS = Object.keys(CONSENT_TYPES);
+
+/**
+ * Load consent types from Supabase DB (consent_field_mappings table).
+ * Falls back to hardcoded CONSENT_TYPES if DB is unavailable.
+ * Use this on server-side endpoints for live data.
+ */
+export async function getConsentTypesFromDB(): Promise<Record<string, ConsentType>> {
+    try {
+        const { createClient } = await import('@supabase/supabase-js');
+        const supabase = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!
+        );
+
+        const { data, error } = await supabase
+            .from('consent_field_mappings')
+            .select('consent_key, label, pdf_file, fields')
+            .eq('is_active', true);
+
+        if (error || !data || data.length === 0) {
+            console.warn('[ConsentTypes] DB load failed, using hardcoded fallback:', error?.message);
+            return CONSENT_TYPES;
+        }
+
+        const result: Record<string, ConsentType> = {};
+        for (const row of data) {
+            result[row.consent_key] = {
+                label: row.label,
+                file: row.pdf_file,
+                fields: row.fields as ConsentFieldMap,
+            };
+        }
+        return result;
+    } catch (err) {
+        console.warn('[ConsentTypes] DB load exception, using hardcoded fallback:', err);
+        return CONSENT_TYPES;
+    }
+}
+
