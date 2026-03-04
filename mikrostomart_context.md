@@ -967,8 +967,23 @@ Features:
 9. **Push deep links** — all push notifications now send `url: /pracownik?tab=zadania&taskId={id}`. On load, `useSearchParams` reads `?tab=` and `?taskId=` params: auto-switches active tab and opens task modal after tasks load.
     - **Task reminders cron**: daily Telegram + push notification for tasks without due dates (`/api/cron/task-reminders`)
     - **DB Migrations**: 019 (task_type + checklists), 020 (image_url), 021 (task_history), 022 (multi_assign), 023 (task_comments), 024 (task_labels), 025 (push_subscriptions), 026 (chat_messages), 027 (notification_history), 028 (task_reminders)
-10. **Role check**: `hasRole(userId, 'employee') || hasRole(userId, 'admin')`
-11. **Middleware protection**: unauthenticated → redirect to `/pracownik/login`
+10. **Daily Dashboard** ← NEW (March 2026): dashboard panel on the Grafik tab showing:
+    - Today's appointments count, upcoming patients, active operators
+    - Task summary (todo, in-progress, overdue counts)
+    - Uses localized date (`toLocaleDateString('sv-SE')`) for timezone-correct comparisons
+    - Tasks fetched on component mount to ensure accurate counts across tabs
+11. **Patient Consent Management**: modal showing patient's signed consents with:
+    - Link to signed PDF in Supabase Storage
+    - **Biometric badge** ← NEW: colored badge showing pointer type (🖊️ Rysik / 👆 Palec / 🖱️ Mysz) + point count
+    - **Biometric popover**: click badge → inline popover with device info, avg/max pressure, stroke count, duration, signature PNG preview
+    - **Export button**: 📤 sends signature PNG + biometric JSON to Prodentis documents API via `POST /api/employee/export-biometric`
+    - Data from `biometric_data` JSONB column: `{ strokes, deviceInfo: { pointerType }, avgPressure, maxPressure, pointCount, totalDuration }`
+12. **Firefox Bug Fixes** (March 2026): Fixed `rowSpan` rendering, replaced native `<select>` with custom dropdowns for assignee/priority, implemented click-outside handler for type filter dropdown
+13. **Task Type Color-Coding** (March 2026): Task cards display colored badges + icons per task type
+14. **Click-to-Call**: phone numbers in schedule cells are now clickable `tel:` links
+15. **Patient History Modal Fix**: modal moved outside Grafik tab fragment so it's accessible from all tabs
+16. **Role check**: `hasRole(userId, 'employee') || hasRole(userId, 'admin')`
+17. **Middleware protection**: unauthenticated → redirect to `/pracownik/login`
 
 ### 🛡 Admin Panel (`/admin`)
 
@@ -1246,6 +1261,15 @@ Features:
 | `/employee/assistant` | POST | AI Voice Assistant (GPT-4o function-calling). System prompt: **proactive** — acts immediately, suggests improvements after. Supports: createTask, addCalendarEvent, addReminder, dictateDocumentation, searchPatient, checkSchedule. |
 | `/employee/tasks/[id]/push` | POST | Send push notification about a specific task |
 | `/employee/task-types` | GET | List available task type categories |
+| `/employee/consent-tokens` | GET, POST | Consent token CRUD — generate/list consent signing links for patients |
+| `/employee/patient-consents` | GET | Signed consents list for a patient (`?prodentisId=`). Returns biometric_data + signature_data |
+| `/employee/patient-intake` | GET | E-karta data with signature for a patient (`?patientId=`) |
+| `/employee/export-biometric` | POST | **NEW** — Export signature PNG + biometric JSON to Prodentis documents API (`{ consentId }`) |
+| `/employee/push/send` | POST | Send manual push notification to employee groups |
+| `/employee/calendar` | GET, POST | Google Calendar integration for employee events |
+| `/employee/calendar/auth` | GET | Google OAuth flow initiation |
+| `/employee/calendar/auth/callback` | GET | Google OAuth callback handler |
+| `/employee/assistant/memory` | GET, POST, DELETE | AI assistant conversation memory CRUD |
 
 ### Push Notification APIs (`/api/push/*`)
 
@@ -1882,6 +1906,70 @@ NODE_ENV=production
 
 ## 📝 Recent Changes
 
+### March 4, 2026 (Employee Zone Biometric + Audit)
+**Biometric Badge in Consent List** — `2047e57`, `fa2b35c`
+- `patient-consents` API now returns `biometric_data` + `signature_data`
+- Each consent in employee zone shows biometric badge (🖊️ Rysik / 👆 Palec / 🖱️ Mysz + point count)
+- Click badge → popover with full biometric stats (pressure, strokes, duration) + signature PNG preview
+- Export button sends signature PNG + biometric JSON to Prodentis documents API
+- `POST /api/employee/export-biometric`: [NEW] endpoint for Prodentis export
+- Fix: `pointerType` extracted from `bio.deviceInfo?.pointerType` (was incorrectly reading `bio.pointerType`)
+
+**Employee Zone Bug Fixes** — `36d9166`, `de29b8b`
+- Firefox: fixed `rowSpan` rendering in schedule grid
+- Firefox: replaced native `<select>` with custom dropdowns for assignee/priority
+- Type filter dropdown: click-outside auto-close handler
+- Self-notification on comments: removed client-side browser notifications for comment authors
+- Patient history modal: moved outside Grafik tab fragment — accessible from all tabs
+- Dashboard zero data: localized date comparison (`toLocaleDateString('sv-SE')`), tasks fetched on mount
+- Admin sidebar: added link to `/admin/biometric-signatures` page
+
+**Employee Zone UX** — `36d9166`
+- Task type color-coding: colored badges + icons per task type on cards
+- Click-to-call: phone numbers in schedule cells are `tel:` links
+- Daily dashboard: appointments, upcoming patients, operators, task summary on Grafik tab
+
+**Context Doc Update** — `94003f8`
+- Updated Last Updated date to 2026-03-04
+
+### March 3, 2026 (Biometric Signatures + Blog)
+**Biometric Signature Capture** — `bc7d002`, `c975fb8`
+- `zgody/[token]/page.tsx`: switched Touch/Mouse → Pointer Events API; captures pressure, tiltX, tiltY, timestamps per point; dynamic lineWidth from pressure
+- `065_biometric_signature.sql`: new `biometric_data JSONB` column in `patient_consents`
+- `consents/sign/route.ts`: accepts and stores `biometricData` alongside signature image
+- `admin/biometric-signatures/page.tsx`: [NEW] viewer with consent list, PNG display, pressure/tilt chart, signature replay animation, device info
+- `api/admin/patient-consents/route.ts`: [NEW] admin API for consent details with biometric data
+
+**Blog Image** — `a4f5039`
+- Added image for blog post "5-zaskakujacych-produktow-z-kuchni-zdrowie-zebow"
+
+**AssistantTeaser Fix** — `6a15e0e`
+- Hydration error fix: changed button-in-button → `div[role=button]`
+
+**Security** — `335757b`
+- `[id]/next-appointment/route.ts`: added JWT auth + prodentisId ownership verification
+
+**Patient Zone i18n** — `694e7c7`
+- Added `patientZone` namespace to all 4 language files (115 keys)
+- Phase 6 bugfixes: export-data, password change email
+
+**Patient Zone Features** — `dd7bac2`
+- Change password endpoint + UI
+- Migration `064_patient_notification_prefs.sql` + 5 toggle switches
+- RODO export-data + delete-account
+
+**Patient Zone CSS Module** — `c008a65`
+- `patient.module.css` + `PatientSkeleton.tsx` with shimmer animation
+
+**Middleware Protection** — `fea9707`
+- Patient zone routes require `patient_token` cookie
+
+**DB Rate Limiting** — `6e328a8`
+- Migration `063_login_attempts.sql` — 5 attempts/15min per identifier
+
+**Audit Script** — `0f84bfe`
+- `scripts/audit-context.sh` — automated doc cross-reference check
+
 ### March 3, 2026 (Patient Zone Security Refactoring)
 **Phase 4: Shared Layout + Auth Hook** — `6f75105`
 - Created `src/hooks/usePatientAuth.ts` — centralized auth state, patient data, logout
@@ -1894,46 +1982,6 @@ NODE_ENV=production
 - Added `verifyTokenFromRequest()` to `src/lib/jwt.ts` (checks Authorization header → httpOnly cookie fallback)
 - Updated all 14 patient API routes from `verifyToken(authHeader)` → `verifyTokenFromRequest(request)`
 - Updated `usePatientAuth` hook + layout for server-side logout
-
-**Phase 2: DB-backed Rate Limiting** — commit pending
-- Migration `063_login_attempts.sql` — `login_attempts` table (identifier, ip_address, success, attempted_at)
-- Replaced in-memory Map with DB queries: 5 attempts/identifier/15min, 20/IP/15min
-- Records all login attempts (fail+success), auto-cleanup >24h
-
-**Phase 3: Middleware Protection** — commit pending
-- Added patient zone protection to `src/middleware.ts`
-- Protected routes (`/strefa-pacjenta/dashboard`, `historia`, `profil`, `wiadomosci`, `ocen-nas`) require `patient_token` cookie
-- Public pages (login, register, reset-password) bypass check
-- Early return before Supabase auth for performance
-
-**Phase 5: Skeletons + CSS Module** — commit pending
-- Created `src/app/strefa-pacjenta/patient.module.css` — glassmorphism cards, buttons, forms, `@keyframes shimmer`, responsive breakpoints
-- Created `src/components/PatientSkeleton.tsx` — reusable skeleton variants (card, line, circle) + DashboardSkeleton, ProfileSkeleton, HistorySkeleton presets
-- Layout.tsx skeleton uses CSS Module shimmer classes
-- Dashboard loading state uses `DashboardSkeleton`
-
-**Phase 6: New Features** — commit pending
-- 6.1: `/api/patients/change-password` endpoint (bcrypt verify + hash) + UI section in profil page
-- 6.2: Migration `064_patient_notification_prefs.sql` + 5 toggle switches in profil + `/me` PATCH extended
-- 6.3: RODO: `/api/patients/export-data` (JSON download) + `/api/patients/delete-account` (soft-delete + PII anonymization) + UI with password confirm
-
-**Phase 6 Bugfix** — commit `861d51f`
-- export-data: fixed NotFound error when `notification_preferences` column doesn't exist (separate fetch with fallback)
-- change-password: added Resend email notification on successful password change
-
-**Phase 7: i18n** — commit pending
-- Added `patientZone` namespace to all 4 language files (`messages/{pl,en,de,ua}/common.json`)
-- 115 translation keys covering: nav, layout, dashboard, history, profile (password, notifications, RODO)
-
-**Security Fix** — commit pending
-- `[id]/next-appointment/route.ts`: added JWT auth + prodentisId ownership verification (was previously an open proxy)
-
-**Biometric Signature** — commit pending
-- `zgody/[token]/page.tsx`: switched Touch/Mouse → Pointer Events API; captures pressure, tiltX, tiltY, timestamps per point; dynamic lineWidth from pressure
-- `065_biometric_signature.sql`: new `biometric_data JSONB` column in `patient_consents`
-- `consents/sign/route.ts`: accepts and stores `biometricData` alongside signature image
-- `admin/biometric-signatures/page.tsx`: [NEW] viewer with consent list, PNG display, pressure/tilt chart, signature replay animation, device info
-- `api/admin/patient-consents/route.ts`: [NEW] admin API for consent details with biometric data
 
 ### March 3, 2026
 **Patient Dashboard — Appointment Management Overhaul + Prodentis v9.1**
