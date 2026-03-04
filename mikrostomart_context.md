@@ -52,7 +52,7 @@
 
 ### Backend & Database
 - **Supabase** (PostgreSQL database, authentication, storage)
-  - Database: 66 migrations (003-066: email verification, appointment actions, SMS reminders, user_roles, employee tasks, task history, comments, labels, status fix, google reviews cache, chat, push subscriptions, employee_group, push_notification_config, employee_groups array, news/articles/blog/products i18n, calendar tokens, private tasks + reminders, SMS post-visit/week-after-visit, SMS unique constraint fix, task multi-images, push_notifications_log, google_event_id on employee_tasks, patient_intake_tokens, feature_suggestions, online_bookings, patient_match_confidence, consent_tokens/patient_consents, staff_signatures, **intake_pdf_url, birthday_wishes, cancelled_appointments, login_attempts, patient_notification_prefs, biometric_signature, employee_audit_log**)
+  - Database: 67 migrations (003-067: email verification, appointment actions, SMS reminders, user_roles, employee tasks, task history, comments, labels, status fix, google reviews cache, chat, push subscriptions, employee_group, push_notification_config, employee_groups array, news/articles/blog/products i18n, calendar tokens, private tasks + reminders, SMS post-visit/week-after-visit, SMS unique constraint fix, task multi-images, push_notifications_log, google_event_id on employee_tasks, patient_intake_tokens, feature_suggestions, online_bookings, patient_match_confidence, consent_tokens/patient_consents, staff_signatures, **intake_pdf_url, birthday_wishes, cancelled_appointments, login_attempts, patient_notification_prefs, biometric_signature, employee_audit_log, consent_field_mappings**)
   - Auth: Email/password, magic links, JWT tokens
   - Storage: Product images, patient documents, task images
 
@@ -670,6 +670,19 @@ Audit log of all appointments cancelled by patients from the patient zone.
 ```
 Indexes: `idx_cancelled_appointments_date ON cancelled_at DESC`, `idx_cancelled_appointments_patient ON patient_prodentis_id`
 
+#### 32. **consent_field_mappings** (migration 067)
+Stores consent type definitions and PDF field coordinates in DB (editable via `/admin/pdf-mapper` without code changes).
+```sql
+- consent_key (text, PK) -- e.g. 'higienizacja', 'rtg'
+- label (text, NOT NULL) -- e.g. 'Zgoda na higienizację'
+- pdf_file (text, NOT NULL) -- filename in /public/zgody/ or Supabase Storage URL
+- fields (JSONB, DEFAULT '{}') -- field positions (x, y, page, fontSize, boxWidth)
+- is_active (boolean, DEFAULT true)
+- created_at, updated_at (timestamptz)
+- updated_by (text) -- email of last editor
+```
+RLS: Public read (consent signing page needs it). Seeded with 10 existing consent types from code.
+
 
 ## ✨ Feature Catalog
 
@@ -1239,6 +1252,8 @@ Features:
 | `/admin/push/config` | PATCH | Update groups/enabled for a notification type |
 | `/admin/employees/position` | PATCH | Set employee push groups `{ userId, groups: string[] }` (updates employees + push_subscriptions) |
 | `/admin/cancelled-appointments` | GET | Fetch cancelled appointments log from `cancelled_appointments` table |
+| `/admin/consent-mappings` | GET, POST, PUT, DELETE | **NEW** — Consent field mappings CRUD. GET: public read (consent page). POST/PUT/DELETE: admin only. Stores PDF field coordinates in DB. |
+| `/admin/consent-pdf-upload` | POST | **NEW** — Upload new consent PDF templates to Supabase Storage (`consent-pdfs` bucket). Admin only. |
 
 ### Employee APIs (`/api/employee/*`)
 
@@ -1907,6 +1922,25 @@ NODE_ENV=production
 
 ## 📝 Recent Changes
 
+### March 4, 2026 (PDF Mapper Rework — No-code Consent Field Editor)
+**DB-backed Consent Field Mappings** — `b7306d7`, `afba9be`
+- Migration `067_consent_field_mappings.sql` — new table storing consent type definitions + PDF field coordinates in DB
+- Seeded with all 10 existing consent types (higienizacja, znieczulenie, chirurgiczne, protetyczne, endodontyczne, zachowawcze, protetyka_implant, rtg, implantacja, wizerunek)
+- `/api/admin/consent-mappings` — full CRUD API (GET public, POST/PUT/DELETE admin-only)
+- `/api/admin/consent-pdf-upload` — upload new consent PDFs to Supabase Storage
+- `getConsentTypesFromDB()` in `consentTypes.ts` — server-side DB loading with hardcoded fallback
+- Rewritten `/admin/pdf-mapper/page.tsx` — loads from DB, saves to DB, create new consent types + PDF upload
+- Updated 5 consumers: `consents/sign`, `consents/verify`, `employee/consent-tokens`, `zgody/[token]`, `pracownik` — all now use DB data with fallback
+
+### March 4, 2026 (Security Audit Fixes)
+**Auth Guards + Rate Limiting + Security Headers + Audit Logging** — `eed3b14`, `0b53432`, `89cc3d7`, `7855a36`, `a2b8810`
+- Secured 19 unprotected admin endpoints with `verifyAdmin()`
+- Rate limiting: login (5/15min), reset-password (3/15min), AI endpoints (IP-based)
+- Security headers: `X-Frame-Options: SAMEORIGIN`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `Permissions-Policy`
+- GDPR audit logging (`logAudit()`) on SMS send, patient approve/reject
+- `CRON_SECRET` validation on all cron endpoints
+- Public `/api/staff-signatures` endpoint (fix for consent page regression)
+
 ### March 4, 2026 (Admin Panel Security Hardening — CRITICAL)
 **Auth Guards on 19 Unprotected Admin Endpoints**
 - Added `verifyAdmin()` to ALL 19 previously unprotected admin API endpoints
@@ -2177,7 +2211,7 @@ NODE_ENV=production
 9. **Schedule Color/Icon Management**: Right-click (desktop) or long-press 500ms (mobile) any future appointment in employee grafik → context menu with color picker and icon buttons. Past appointments blocked.
 10. **Auto-Icon on Patient Confirmation**: When patient confirms via SMS landing page, system auto-adds 'Pacjent potwierdzony' icon (0000000010) in Prodentis. Email notifications removed from both confirm and cancel endpoints (spam reduction). Telegram + Push kept.
 11. **Consent Signing System**: Employee generates consent token → QR code on tablet → patient views PDF pre-filled with name/PESEL/date/address from Prodentis, signs on canvas → pdf-lib merges data+signature into PDF → uploads to Supabase Storage + auto-uploads to Prodentis v8.0. Employee panel: 📝 Zgody button, consent type checkboxes, QR code, signed consents list, e-karta signature viewer.
-12. **Staff Signature System**: Admin tool `/admin/staff-signatures` — canvas drawing to capture doctor/hygienist signatures → stored in `staff_signatures` table → used for doctor signature field in consent PDFs. Visual PDF coordinate mapper `/admin/pdf-mapper` — iframe overlay for precise field placement. Filenames sanitized to ASCII for Prodentis compatibility.
+12. **Staff Signature System**: Admin tool `/admin/staff-signatures` — canvas drawing to capture doctor/hygienist signatures → stored in `staff_signatures` table → used for doctor signature field in consent PDFs. **No-code PDF Field Mapper** `/admin/pdf-mapper` — visual editor that loads consent types from DB (`consent_field_mappings` table), allows clicking on PDF to place fields (name, PESEL, date, address, signatures, etc.), and saves positions directly to DB — no code changes or deployment needed. Supports creating new consent types with PDF upload to Supabase Storage. Filenames sanitized to ASCII for Prodentis compatibility.
 
 #### Database:
 - Migration 056: `online_bookings` table with RLS + indexes
