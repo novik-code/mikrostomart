@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { verifyAdmin } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -7,11 +8,14 @@ const PRODENTIS_KEY = process.env.PRODENTIS_API_KEY || '';
 
 /**
  * PUT /api/admin/prodentis-schedule/color
+ * Auth: admin required.
  * Proxy → Prodentis PUT /api/schedule/appointment/:id/color
- * Body: { appointmentId, colorId }
  */
 export async function PUT(request: Request) {
     try {
+        const user = await verifyAdmin();
+        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
         const { appointmentId, colorId } = await request.json();
 
         if (!appointmentId || !colorId) {

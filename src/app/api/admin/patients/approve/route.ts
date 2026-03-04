@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
+import { verifyAdmin } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,18 +12,10 @@ const supabase = createClient(
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-// Simple admin auth check
-function isAdmin(request: Request): boolean {
-    const authHeader = request.headers.get('Authorization');
-    return authHeader?.includes('admin') || true; // TODO: Implement proper admin auth
-}
-
 export async function POST(request: Request) {
     try {
-        // Check admin auth
-        if (!isAdmin(request)) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
+        const user = await verifyAdmin();
+        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
         const body = await request.json();
         const { patient_id } = body;

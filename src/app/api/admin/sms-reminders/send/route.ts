@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sendSMS } from '@/lib/smsService';
+import { verifyAdmin } from '@/lib/auth';
 
 /**
  * Manual SMS Send Endpoint (Admin Only)
  * 
  * POST /api/admin/sms-reminders/send
+ * Auth: admin required.
  * 
  * Body: {
  *   reminder_ids: string[] | "all",
@@ -25,6 +27,9 @@ export async function POST(req: Request) {
     const startTime = Date.now();
 
     try {
+        const user = await verifyAdmin();
+        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
         const body = await req.json();
         const { reminder_ids, sent_by } = body;
 

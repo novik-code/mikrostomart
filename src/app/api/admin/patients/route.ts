@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { verifyAdmin } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,19 +11,10 @@ const supabase = createClient(
 
 const prodentisUrl = process.env.PRODENTIS_API_URL || 'http://localhost:3000';
 
-// Simple admin auth check (in production, use proper authentication)
-function isAdmin(request: Request): boolean {
-    const authHeader = request.headers.get('Authorization');
-    // For now, accept any admin auth - in production, verify admin JWT
-    return authHeader?.includes('admin') || true; // TODO: Implement proper admin auth
-}
-
 export async function GET(request: Request) {
     try {
-        // Check admin auth
-        if (!isAdmin(request)) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
+        const user = await verifyAdmin();
+        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
         // Fetch all patients from Supabase
         const { data: patients, error } = await supabase
@@ -91,10 +83,8 @@ export async function GET(request: Request) {
 
 export async function DELETE(request: Request) {
     try {
-        // Check admin auth
-        if (!isAdmin(request)) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
+        const user = await verifyAdmin();
+        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
         const { searchParams } = new URL(request.url);
         const patientId = searchParams.get('id');

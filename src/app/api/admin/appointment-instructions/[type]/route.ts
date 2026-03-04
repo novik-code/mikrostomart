@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { verifyAdmin } from '@/lib/auth';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -10,15 +11,15 @@ export const dynamic = 'force-dynamic';
 
 /**
  * PUT /api/admin/appointment-instructions/[type]
- * 
- * Update appointment instruction content
+ * Auth: admin required.
  */
 export async function PUT(
     req: Request,
     { params }: { params: Promise<{ type: string }> }
 ) {
     try {
-        // TODO: Add admin authentication check
+        const user = await verifyAdmin();
+        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
         const { type } = await params;
         const body = await req.json();

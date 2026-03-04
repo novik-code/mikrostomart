@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sendSMS } from '@/lib/smsService';
+import { verifyAdmin } from '@/lib/auth';
 
 /**
  * POST /api/admin/sms-reminders/send-manual
+ * Auth: admin required.
  * 
  * Send a manual SMS directly (not from draft).
  * 
@@ -24,6 +26,9 @@ export async function POST(req: Request) {
     console.log('📤 [Manual SMS Direct] Starting...');
 
     try {
+        const user = await verifyAdmin();
+        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
         const body = await req.json();
         const { phone, message, patient_name, sent_by } = body;
 

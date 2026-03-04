@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sendSMS } from '@/lib/smsService';
+import { verifyAdmin } from '@/lib/auth';
+import { logAudit } from '@/lib/auditLog';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -10,10 +12,14 @@ const supabase = createClient(
 /**
  * POST /api/admin/sms-send
  * Immediately send a single draft SMS and update status in DB
+ * Auth: admin required.
  * Body: { id, phone, message }
  */
 export async function POST(req: Request) {
     try {
+        const user = await verifyAdmin();
+        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
         const { id, phone, message } = await req.json();
         if (!id || !phone || !message) {
             return NextResponse.json({ error: 'Missing id, phone, or message' }, { status: 400 });

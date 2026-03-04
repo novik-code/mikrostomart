@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sendSMS } from '@/lib/smsService';
+import { verifyAdmin } from '@/lib/auth';
 
 /**
  * Admin API for SMS Reminders Management
@@ -26,6 +27,9 @@ const supabase = createClient(
  */
 export async function GET(req: Request) {
     try {
+        const user = await verifyAdmin();
+        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
         const url = new URL(req.url);
         const status = url.searchParams.get('status') || 'all';
         const date = url.searchParams.get('date');
@@ -102,6 +106,9 @@ export async function GET(req: Request) {
  */
 export async function PUT(req: Request) {
     try {
+        const user = await verifyAdmin();
+        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
         const body = await req.json();
         const { id, sms_message, edited_by } = body;
 
@@ -156,6 +163,9 @@ export async function PUT(req: Request) {
  */
 export async function DELETE(req: Request) {
     try {
+        const user = await verifyAdmin();
+        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
         const url = new URL(req.url);
         const id = url.searchParams.get('id');
 

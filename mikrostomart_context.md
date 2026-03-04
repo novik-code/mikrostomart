@@ -1907,6 +1907,13 @@ NODE_ENV=production
 
 ## 📝 Recent Changes
 
+### March 4, 2026 (Admin Panel Security Hardening — CRITICAL)
+**Auth Guards on 19 Unprotected Admin Endpoints**
+- Added `verifyAdmin()` to ALL 19 previously unprotected admin API endpoints
+- Removed 3 fake `isAdmin()` stubs that **always returned true** (`patients`, `patients/approve`, `patients/reject`)
+- Specifically: `sms-send`, `sms-reminders` (GET+PUT+DELETE+send+send-manual), `sms-templates` (GET+PUT+POST+DELETE), `patients` (GET+DELETE+approve+reject+search), `patient-consents`, `cancelled-appointments`, `online-bookings` (GET+PUT+DELETE), `staff-signatures` (GET+POST+DELETE), `appointment-instructions` (GET+[type]PUT), `booking-settings` (PUT only — GET intentionally public), `prodentis-schedule` (color PUT, icon POST, colors GET, icons GET)
+- **Result: 40/40 admin endpoints now have authentication (was 21/40)**
+
 ### March 4, 2026 (Security Hardening + Employee Zone Improvements)
 **Security: Auth Guards on 5 Unprotected Endpoints** — CRITICAL
 - Added `verifyAdmin() + hasRole('employee'/'admin')` to: `patient-consents`, `export-biometric`, `consent-tokens`, `patient-intake`, `patient-details`

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { verifyAdmin } from '@/lib/auth';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -10,8 +11,12 @@ const supabase = createClient(
  * GET /api/admin/staff-signatures — list active staff signatures
  * POST /api/admin/staff-signatures — save/update a signature
  * DELETE /api/admin/staff-signatures?id=... — deactivate a signature
+ * Auth: admin required.
  */
 export async function GET() {
+    const user = await verifyAdmin();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     const { data, error } = await supabase
         .from('staff_signatures')
         .select('*')
@@ -23,6 +28,9 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+    const user = await verifyAdmin();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     const { staffName, role, signatureData } = await req.json();
 
     if (!staffName || !signatureData) {
@@ -51,6 +59,9 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+    const user = await verifyAdmin();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
     if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { verifyAdmin } from '@/lib/auth';
 
 /**
  * Admin API for Booking Settings
@@ -23,7 +24,6 @@ export async function GET() {
             .single();
 
         if (error) {
-            // Table may not exist yet (migration not run) — return safe default
             console.warn('[booking-settings] DB error, returning default:', error.message);
             return NextResponse.json({ min_days_ahead: 1 });
         }
@@ -38,6 +38,9 @@ export async function GET() {
 /** PUT /api/admin/booking-settings — admin only, updates setting */
 export async function PUT(req: Request) {
     try {
+        const user = await verifyAdmin();
+        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
         const body = await req.json();
         const { min_days_ahead } = body;
 

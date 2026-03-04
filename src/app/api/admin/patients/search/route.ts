@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { verifyAdmin } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -6,13 +7,14 @@ const PRODENTIS_API_URL = process.env.PRODENTIS_API_URL || 'http://localhost:300
 
 /**
  * GET /api/admin/patients/search?q=searchTerm&limit=10
- * 
+ * Auth: admin required.
  * Proxy to Prodentis API 5.0 patient search endpoint.
- * Searches patients by name directly in the Prodentis database.
- * Normalizes phone numbers (strips + prefix) for SMS compatibility.
  */
 export async function GET(request: Request) {
     try {
+        const user = await verifyAdmin();
+        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
         const { searchParams } = new URL(request.url);
         const query = searchParams.get('q')?.trim();
         const limit = searchParams.get('limit') || '10';

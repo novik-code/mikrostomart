@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { verifyAdmin } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,10 +11,11 @@ const supabase = createClient(
 
 /**
  * GET /api/admin/cancelled-appointments
- * Returns list of cancelled appointments, sorted newest first.
- * Optional query params: ?limit=50&offset=0
+ * Auth: admin required.
  */
 export async function GET(req: NextRequest) {
+    const user = await verifyAdmin();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     try {
         const { searchParams } = new URL(req.url);
         const limit = parseInt(searchParams.get('limit') || '50', 10);

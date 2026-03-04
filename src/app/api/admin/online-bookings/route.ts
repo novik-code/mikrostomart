@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getDoctorInfo } from '@/lib/doctorMapping';
+import { verifyAdmin } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -86,6 +87,9 @@ async function scheduleWithIds(doctorId: string, patientId: string, booking: any
  */
 export async function GET(request: Request) {
     try {
+        const user = await verifyAdmin();
+        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
         const { searchParams } = new URL(request.url);
         const status = searchParams.get('status');
 
@@ -118,6 +122,9 @@ export async function GET(request: Request) {
  */
 export async function PUT(request: Request) {
     try {
+        const user = await verifyAdmin();
+        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
         const body = await request.json();
         const { id, action, approvedBy } = body;
 
@@ -234,6 +241,9 @@ export async function PUT(request: Request) {
  */
 export async function DELETE(request: Request) {
     try {
+        const user = await verifyAdmin();
+        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
         const { searchParams } = new URL(request.url);
         const id = searchParams.get('id');
 
