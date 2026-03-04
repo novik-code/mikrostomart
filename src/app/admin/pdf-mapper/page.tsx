@@ -81,8 +81,27 @@ function inferFieldType(key: string, val: any): 'text' | 'signature' | 'pesel' |
     return val.fieldType || 'text';
 }
 
+// Get base field key (strip _2, _3 suffix for multi-instance fields)
+function getBaseKey(key: string): string {
+    // Match keys like 'patient_signature_2', 'address_3', but NOT 'doctor_signature' (built-in)
+    const match = key.match(/^(.+?)_(\d+)$/);
+    if (match) {
+        const potentialBase = match[1];
+        // Only strip suffix if base is a known built-in or custom prefix
+        if (BUILTIN_FIELDS[potentialBase] || potentialBase.startsWith('custom_') || potentialBase.startsWith('checkbox_')) {
+            return potentialBase;
+        }
+    }
+    return key;
+}
+
 function getFieldMeta(key: string, val: any, idx: number): { label: string; color: string; icon: string } {
-    if (BUILTIN_FIELDS[key]) return BUILTIN_FIELDS[key];
+    const base = getBaseKey(key);
+    if (BUILTIN_FIELDS[base]) {
+        const meta = BUILTIN_FIELDS[base];
+        const suffix = key !== base ? ` #${key.split('_').pop()}` : '';
+        return { label: meta.label + suffix, color: meta.color, icon: meta.icon };
+    }
     const ft = inferFieldType(key, val);
     return {
         label: val.label || key,
@@ -121,19 +140,23 @@ function dbFieldsToPlaced(fields: Record<string, any>, pdfW: number, pdfH: numbe
 function placedToDbFields(placed: PlacedField[]): Record<string, any> {
     const fields: Record<string, any> = {};
     for (const f of placed) {
+        const base = getBaseKey(f.key);
+        const isMultiInstance = f.key !== base;
         if (f.fieldType === 'pesel') {
             fields[f.key] = { startX: f.pdfX, y: f.pdfY, boxWidth: f.boxWidth || 23.5, fontSize: f.fontSize || 9, page: f.page };
+            if (isMultiInstance) fields[f.key].sourceField = base;
         } else if (f.fieldType === 'signature') {
             fields[f.key] = { x: f.pdfX, y: f.pdfY, page: f.page };
+            if (isMultiInstance) fields[f.key].sourceField = base;
         } else if (f.fieldType === 'checkbox') {
             fields[f.key] = { x: f.pdfX, y: f.pdfY, page: f.page, fieldType: 'checkbox', label: f.label, fontSize: f.fontSize || 11 };
         } else {
             const entry: any = { x: f.pdfX, y: f.pdfY, fontSize: f.fontSize || 11, page: f.page };
-            // Save custom label for non-builtin fields
-            if (!BUILTIN_FIELDS[f.key]) {
+            if (!BUILTIN_FIELDS[f.key] && !BUILTIN_FIELDS[base]) {
                 entry.label = f.label;
                 entry.fieldType = 'text';
             }
+            if (isMultiInstance) entry.sourceField = base;
             fields[f.key] = entry;
         }
     }
@@ -289,7 +312,7 @@ export default function PdfMapperPage() {
         await page.render({ canvasContext: ctx, viewport }).promise;
     }
 
-    // ── Click to place field ───────────────────────────────────
+    // ── Click to place field (multi-instance: adds _2, _3 etc.) ──
     const handleClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
         const div = overlayRef.current;
         if (!div) return;
@@ -302,23 +325,38 @@ export default function PdfMapperPage() {
         const activeOption = allFieldOptions.find(o => o.key === activeFieldKey);
         if (!activeOption) return;
 
-        const newField: PlacedField = {
-            key: activeFieldKey,
-            label: activeOption.label,
-            fieldType: activeOption.fieldType as any,
-            page: currentPage, nx, ny, pdfX, pdfY,
-            fontSize: activeOption.fieldType === 'pesel' ? 9 : 11,
-            boxWidth: activeOption.fieldType === 'pesel' ? 23.5 : undefined,
-            color: activeOption.color,
-            icon: activeOption.icon,
-        };
-
         setPlacedFields(prev => {
-            // For built-in fields: replace existing (one per type)
-            // For custom fields: also replace by key (one per key)
-            const updated = prev.filter(f => f.key !== activeFieldKey);
-            updated.push(newField);
-            return updated;
+            // Find existing instances of this base field
+            const baseKey = activeFieldKey;
+            const existingInstances = prev.filter(f => f.key === baseKey || getBaseKey(f.key) === baseKey);
+
+            let finalKey: string;
+            let finalLabel: string;
+
+            if (existingInstances.length === 0) {
+                // First instance — use base key directly
+                finalKey = baseKey;
+                finalLabel = activeOption.label;
+            } else {
+                // Find next available suffix
+                let nextNum = 2;
+                while (prev.some(f => f.key === `${baseKey}_${nextNum}`)) nextNum++;
+                finalKey = `${baseKey}_${nextNum}`;
+                finalLabel = `${activeOption.label} #${nextNum}`;
+            }
+
+            const newField: PlacedField = {
+                key: finalKey,
+                label: finalLabel,
+                fieldType: activeOption.fieldType as any,
+                page: currentPage, nx, ny, pdfX, pdfY,
+                fontSize: activeOption.fieldType === 'pesel' ? 9 : 11,
+                boxWidth: activeOption.fieldType === 'pesel' ? 23.5 : undefined,
+                color: activeOption.color,
+                icon: activeOption.icon,
+            };
+
+            return [...prev, newField];
         });
         setHasChanges(true);
     }, [activeFieldKey, pdfSize, currentPage, allFieldOptions]);
@@ -532,7 +570,7 @@ export default function PdfMapperPage() {
                                 color: o.color, fontSize: '0.67rem', cursor: 'pointer',
                                 fontWeight: activeFieldKey === o.key ? 'bold' : 'normal',
                             }}>
-                            {placedFields.find(f => f.key === o.key) ? '● ' : '○ '}{o.icon} {o.label}
+                            {(() => { const count = placedFields.filter(f => f.key === o.key || getBaseKey(f.key) === o.key).length; return count > 0 ? `●${count > 1 ? count : ''} ` : '○ '; })()}{o.icon} {o.label}
                         </button>
                     ))}
                 </div>
