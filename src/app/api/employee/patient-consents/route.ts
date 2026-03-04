@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
     try {
         let query = supabase
             .from('patient_consents')
-            .select('id, consent_type, consent_label, file_url, file_name, signed_at, prodentis_synced')
+            .select('id, consent_type, consent_label, file_url, file_name, signed_at, prodentis_synced, biometric_data, signature_data')
             .order('signed_at', { ascending: false });
 
         if (prodentisId) {

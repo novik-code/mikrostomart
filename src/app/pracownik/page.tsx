@@ -427,6 +427,8 @@ export default function EmployeePage() {
     const [consentGenerating, setConsentGenerating] = useState(false);
     const [consentUrl, setConsentUrl] = useState('');
     const [patientConsents, setPatientConsents] = useState<any[]>([]);
+    const [biometricPopoverId, setBiometricPopoverId] = useState<string | null>(null);
+    const [bioExporting, setBioExporting] = useState<string | null>(null);
     const [patientSignature, setPatientSignature] = useState<string | null>(null);
     const [showSignature, setShowSignature] = useState(false);
     const [patientPdfUrl, setPatientPdfUrl] = useState<string | null>(null);
@@ -3214,28 +3216,155 @@ export default function EmployeePage() {
                                 <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.7)', marginBottom: '0.5rem', fontWeight: 'bold' }}>
                                     ✅ Podpisane zgody ({patientConsents.length})
                                 </div>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-                                    {patientConsents.map((c: any) => (
-                                        <a
-                                            key={c.id}
-                                            href={c.file_url}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            style={{
-                                                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                                padding: '0.45rem 0.6rem',
-                                                background: 'rgba(34,197,94,0.06)',
-                                                border: '1px solid rgba(34,197,94,0.15)',
-                                                borderRadius: '0.4rem',
-                                                textDecoration: 'none',
-                                            }}
-                                        >
-                                            <span style={{ fontSize: '0.75rem', color: '#fff' }}>📄 {c.consent_label}</span>
-                                            <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)' }}>
-                                                {new Date(c.signed_at).toLocaleDateString('pl-PL')}
-                                            </span>
-                                        </a>
-                                    ))}
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                                    {patientConsents.map((c: any) => {
+                                        const bio = c.biometric_data;
+                                        const hasBio = bio && (bio.hasData || bio.pointCount > 0 || bio.strokes?.length > 0);
+                                        const isPopoverOpen = biometricPopoverId === c.id;
+                                        return (
+                                            <div key={c.id} style={{ position: 'relative' }}>
+                                                <div style={{
+                                                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                                    padding: '0.5rem 0.6rem',
+                                                    background: 'rgba(34,197,94,0.06)',
+                                                    border: '1px solid rgba(34,197,94,0.15)',
+                                                    borderRadius: '0.4rem',
+                                                    gap: '0.5rem',
+                                                }}>
+                                                    <a href={c.file_url} target="_blank" rel="noopener noreferrer"
+                                                        style={{ fontSize: '0.75rem', color: '#fff', textDecoration: 'none', flex: 1, minWidth: 0 }}
+                                                    >
+                                                        📄 {c.consent_label}
+                                                    </a>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexShrink: 0 }}>
+                                                        {hasBio && (
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); setBiometricPopoverId(isPopoverOpen ? null : c.id); }}
+                                                                style={{
+                                                                    padding: '0.15rem 0.4rem',
+                                                                    fontSize: '0.6rem',
+                                                                    background: bio.pointerType === 'pen' ? 'rgba(56,189,248,0.12)' : bio.pointerType === 'touch' ? 'rgba(168,85,247,0.12)' : 'rgba(255,255,255,0.06)',
+                                                                    border: `1px solid ${bio.pointerType === 'pen' ? 'rgba(56,189,248,0.25)' : bio.pointerType === 'touch' ? 'rgba(168,85,247,0.25)' : 'rgba(255,255,255,0.12)'}`,
+                                                                    borderRadius: '0.3rem',
+                                                                    color: bio.pointerType === 'pen' ? '#38bdf8' : bio.pointerType === 'touch' ? '#c084fc' : 'rgba(255,255,255,0.5)',
+                                                                    cursor: 'pointer',
+                                                                    whiteSpace: 'nowrap',
+                                                                }}
+                                                                title="Dane biometryczne podpisu"
+                                                            >
+                                                                {bio.pointerType === 'pen' ? '🖊️' : bio.pointerType === 'touch' ? '👆' : '🖱️'}
+                                                                {' '}{bio.pointCount || bio.strokes?.reduce((s: number, st: any) => s + st.points.length, 0) || '?'} pts
+                                                            </button>
+                                                        )}
+                                                        <span style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.35)' }}>
+                                                            {new Date(c.signed_at).toLocaleDateString('pl-PL')}
+                                                        </span>
+                                                    </div>
+                                                </div>
+
+                                                {/* Biometric Popover */}
+                                                {isPopoverOpen && hasBio && (
+                                                    <div style={{
+                                                        position: 'absolute', top: '100%', right: 0, zIndex: 100,
+                                                        marginTop: '0.3rem',
+                                                        width: '280px',
+                                                        background: 'rgba(15,15,25,0.97)',
+                                                        border: '1px solid rgba(56,189,248,0.2)',
+                                                        borderRadius: '0.6rem',
+                                                        padding: '0.75rem',
+                                                        boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+                                                    }}>
+                                                        <div style={{ fontSize: '0.72rem', fontWeight: 'bold', color: '#38bdf8', marginBottom: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                            <span>🖊️ Dane biometryczne</span>
+                                                            <button onClick={() => setBiometricPopoverId(null)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: '0.8rem' }}>✕</button>
+                                                        </div>
+                                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.3rem', fontSize: '0.65rem' }}>
+                                                            <div style={{ padding: '0.3rem', background: 'rgba(255,255,255,0.03)', borderRadius: '0.3rem' }}>
+                                                                <div style={{ color: 'rgba(255,255,255,0.4)' }}>Urządzenie</div>
+                                                                <div style={{ color: '#fff', fontWeight: '600' }}>
+                                                                    {bio.pointerType === 'pen' ? '🖊️ Rysik' : bio.pointerType === 'touch' ? '👆 Palec' : '🖱️ Mysz'}
+                                                                </div>
+                                                            </div>
+                                                            <div style={{ padding: '0.3rem', background: 'rgba(255,255,255,0.03)', borderRadius: '0.3rem' }}>
+                                                                <div style={{ color: 'rgba(255,255,255,0.4)' }}>Punkty</div>
+                                                                <div style={{ color: '#fff', fontWeight: '600' }}>
+                                                                    {bio.pointCount || bio.strokes?.reduce((s: number, st: any) => s + st.points.length, 0) || '—'}
+                                                                </div>
+                                                            </div>
+                                                            <div style={{ padding: '0.3rem', background: 'rgba(255,255,255,0.03)', borderRadius: '0.3rem' }}>
+                                                                <div style={{ color: 'rgba(255,255,255,0.4)' }}>Śr. nacisk</div>
+                                                                <div style={{ color: '#fff', fontWeight: '600' }}>
+                                                                    {bio.avgPressure != null ? bio.avgPressure.toFixed(3) : '—'}
+                                                                </div>
+                                                            </div>
+                                                            <div style={{ padding: '0.3rem', background: 'rgba(255,255,255,0.03)', borderRadius: '0.3rem' }}>
+                                                                <div style={{ color: 'rgba(255,255,255,0.4)' }}>Max nacisk</div>
+                                                                <div style={{ color: '#fff', fontWeight: '600' }}>
+                                                                    {bio.maxPressure != null ? bio.maxPressure.toFixed(3) : '—'}
+                                                                </div>
+                                                            </div>
+                                                            <div style={{ padding: '0.3rem', background: 'rgba(255,255,255,0.03)', borderRadius: '0.3rem' }}>
+                                                                <div style={{ color: 'rgba(255,255,255,0.4)' }}>Kreski</div>
+                                                                <div style={{ color: '#fff', fontWeight: '600' }}>
+                                                                    {bio.strokeCount || bio.strokes?.length || '—'}
+                                                                </div>
+                                                            </div>
+                                                            <div style={{ padding: '0.3rem', background: 'rgba(255,255,255,0.03)', borderRadius: '0.3rem' }}>
+                                                                <div style={{ color: 'rgba(255,255,255,0.4)' }}>Czas</div>
+                                                                <div style={{ color: '#fff', fontWeight: '600' }}>
+                                                                    {bio.totalDuration != null ? `${(bio.totalDuration / 1000).toFixed(1)}s` : '—'}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        {/* Signature preview */}
+                                                        {c.signature_data && (
+                                                            <div style={{ marginTop: '0.5rem', background: 'rgba(255,255,255,0.05)', borderRadius: '0.3rem', padding: '0.3rem', textAlign: 'center' }}>
+                                                                <img src={c.signature_data} alt="Podpis" style={{ maxWidth: '100%', maxHeight: '60px' }} />
+                                                            </div>
+                                                        )}
+                                                        {/* Export button */}
+                                                        <button
+                                                            onClick={async (e) => {
+                                                                e.stopPropagation();
+                                                                setBioExporting(c.id);
+                                                                try {
+                                                                    const res = await fetch('/api/employee/export-biometric', {
+                                                                        method: 'POST',
+                                                                        headers: { 'Content-Type': 'application/json' },
+                                                                        body: JSON.stringify({ consentId: c.id }),
+                                                                    });
+                                                                    const data = await res.json();
+                                                                    if (data.success) {
+                                                                        alert(`✅ Eksport zakończony!\n${data.signatureExported ? '✅ Podpis PNG' : '❌ Podpis'}\n${data.biometricExported ? '✅ Biometria JSON' : '❌ Biometria'}`);
+                                                                    } else {
+                                                                        alert(`❌ Błąd eksportu: ${data.error || data.errors?.join(', ')}`);
+                                                                    }
+                                                                } catch (err: any) {
+                                                                    alert(`❌ Błąd: ${err.message}`);
+                                                                } finally {
+                                                                    setBioExporting(null);
+                                                                }
+                                                            }}
+                                                            disabled={bioExporting === c.id}
+                                                            style={{
+                                                                width: '100%', marginTop: '0.5rem',
+                                                                padding: '0.4rem',
+                                                                background: bioExporting === c.id ? 'rgba(255,255,255,0.05)' : 'rgba(56,189,248,0.1)',
+                                                                border: '1px solid rgba(56,189,248,0.2)',
+                                                                borderRadius: '0.3rem',
+                                                                color: '#38bdf8',
+                                                                fontSize: '0.68rem',
+                                                                fontWeight: '600',
+                                                                cursor: bioExporting === c.id ? 'wait' : 'pointer',
+                                                            }}
+                                                        >
+                                                            {bioExporting === c.id ? '⏳ Eksportowanie...' : '📤 Eksportuj na serwer Prodentis'}
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         )}
