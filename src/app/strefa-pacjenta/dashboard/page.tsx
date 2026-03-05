@@ -9,6 +9,15 @@ import { usePatientAuth } from '@/hooks/usePatientAuth';
 import type { PatientData } from '@/hooks/usePatientAuth';
 import type { AppointmentStatusResponse } from '@/types/appointmentActions';
 
+interface PatientDocument {
+    id: string;
+    type: 'consent' | 'ekarta';
+    label: string;
+    fileUrl: string | null;
+    fileName: string | null;
+    date: string;
+}
+
 const AppointmentScheduler = dynamic(() => import('@/components/scheduler/AppointmentScheduler'), { ssr: false });
 
 // ── Specialist & service data (mirrored from ReservationForm) ──
@@ -99,6 +108,7 @@ export default function PatientDashboard() {
     const [bookingSuccess, setBookingSuccess] = useState(false);
     const [bookingError, setBookingError] = useState<string | null>(null);
     const [pendingBookings, setPendingBookings] = useState<OnlineBooking[]>([]);
+    const [patientDocs, setPatientDocs] = useState<PatientDocument[]>([]);
     const router = useRouter();
 
     const selectedSpec = SPECIALISTS.find(s => s.id === bookingSpecialist);
@@ -137,6 +147,19 @@ export default function PatientDashboard() {
                         totalPaid: totalPaid.toFixed(2),
                         balance: balance.toFixed(2),
                     });
+                }
+
+                // Fetch patient documents
+                try {
+                    const docsRes = await fetch('/api/patients/documents', {
+                        headers: { 'Authorization': `Bearer ${token}` },
+                    });
+                    if (docsRes.ok) {
+                        const docsData = await docsRes.json();
+                        setPatientDocs(docsData.documents || []);
+                    }
+                } catch (e) {
+                    console.error('Failed to load documents:', e);
                 }
             } catch (err) {
                 console.error('Failed to load data:', err);
@@ -696,6 +719,112 @@ export default function PatientDashboard() {
                             </div>
                         )}
                     </div>
+
+                    {/* ── Moje Dokumenty ── */}
+                    {patientDocs.length > 0 && (
+                        <div style={{
+                            background: 'rgba(255, 255, 255, 0.03)',
+                            backdropFilter: 'blur(10px)',
+                            border: '1px solid rgba(255, 255, 255, 0.1)',
+                            borderRadius: '1rem',
+                            padding: '2rem',
+                            marginTop: '2rem',
+                        }}>
+                            <div style={{ marginBottom: '1.5rem' }}>
+                                <h2 style={{ color: '#fff', fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>
+                                    📄 Moje dokumenty
+                                </h2>
+                                <p style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '0.9rem' }}>
+                                    Podpisane zgody i dokumenty medyczne
+                                </p>
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                {patientDocs.map((doc) => {
+                                    const docDate = doc.date ? new Date(doc.date).toLocaleDateString('pl-PL', {
+                                        day: 'numeric', month: 'long', year: 'numeric'
+                                    }) : '';
+                                    return (
+                                        <div key={doc.id} style={{
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center',
+                                            padding: '1rem 1.25rem',
+                                            background: 'rgba(255, 255, 255, 0.02)',
+                                            border: '1px solid rgba(255, 255, 255, 0.08)',
+                                            borderRadius: '0.75rem',
+                                            flexWrap: 'wrap',
+                                            gap: '0.75rem',
+                                        }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
+                                                <div style={{
+                                                    width: '36px', height: '36px',
+                                                    borderRadius: '0.5rem',
+                                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                    fontSize: '1.2rem',
+                                                    background: doc.type === 'consent'
+                                                        ? 'rgba(59, 130, 246, 0.15)'
+                                                        : 'rgba(34, 197, 94, 0.15)',
+                                                    flexShrink: 0,
+                                                }}>
+                                                    {doc.type === 'consent' ? '📋' : '🏥'}
+                                                </div>
+                                                <div style={{ minWidth: 0 }}>
+                                                    <div style={{
+                                                        color: '#fff',
+                                                        fontSize: '0.95rem',
+                                                        fontWeight: '600',
+                                                        overflow: 'hidden',
+                                                        textOverflow: 'ellipsis',
+                                                        whiteSpace: 'nowrap',
+                                                    }}>
+                                                        {doc.label}
+                                                    </div>
+                                                    <div style={{ color: 'rgba(255, 255, 255, 0.5)', fontSize: '0.8rem' }}>
+                                                        {doc.type === 'consent' ? 'Zgoda' : 'E-Karta'} • {docDate}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {doc.fileUrl ? (
+                                                <a
+                                                    href={doc.fileUrl}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    style={{
+                                                        padding: '0.4rem 1rem',
+                                                        background: 'rgba(220, 177, 74, 0.15)',
+                                                        border: '1px solid rgba(220, 177, 74, 0.3)',
+                                                        borderRadius: '0.5rem',
+                                                        color: '#dcb14a',
+                                                        fontSize: '0.8rem',
+                                                        fontWeight: '600',
+                                                        textDecoration: 'none',
+                                                        whiteSpace: 'nowrap',
+                                                        transition: 'all 0.2s',
+                                                    }}
+                                                    onMouseEnter={(e) => {
+                                                        e.currentTarget.style.background = 'rgba(220, 177, 74, 0.25)';
+                                                    }}
+                                                    onMouseLeave={(e) => {
+                                                        e.currentTarget.style.background = 'rgba(220, 177, 74, 0.15)';
+                                                    }}
+                                                >
+                                                    📥 Pobierz PDF
+                                                </a>
+                                            ) : (
+                                                <span style={{
+                                                    padding: '0.4rem 1rem',
+                                                    color: 'rgba(255, 255, 255, 0.3)',
+                                                    fontSize: '0.8rem',
+                                                }}>
+                                                    Brak pliku
+                                                </span>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
                 </div>
             ) : (
                 // Pending or Rejected - Show restricted access message
