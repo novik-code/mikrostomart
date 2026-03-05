@@ -63,6 +63,10 @@
         {
             "path": "/api/cron/deposit-reminder",
             "schedule": "0 7 * * *"
+        },
+        {
+            "path": "/api/cron/noshow-followup",
+            "schedule": "0 8 * * *"
         }
     ]
 }
