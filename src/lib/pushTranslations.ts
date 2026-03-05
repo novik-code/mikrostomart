@@ -13,6 +13,8 @@ export type PushNotificationType =
     | 'appointment_confirmed'
     | 'appointment_cancelled'
     | 'appointment_rescheduled'
+    | 'booking_confirmed'
+    | 'booking_rejected'
     | 'new_blog_post'
     | 'order_status_update'
     | 'task_new'
@@ -114,6 +116,14 @@ const translations: Record<string, Record<PushNotificationType, PushTemplate>> =
             title: '🧮 Kalkulator leczenia — nowy lead',
             body: '{name} — {service}',
         },
+        booking_confirmed: {
+            title: '✅ Twoja wizyta została potwierdzona!',
+            body: '{specialist} — {date} o godz. {time}',
+        },
+        booking_rejected: {
+            title: '❌ Rezerwacja nie mogła zostać potwierdzona',
+            body: 'Prosimy o kontakt w celu ustalenia nowego terminu.',
+        },
     },
     en: {
         chat_patient_to_admin: {
@@ -195,6 +205,14 @@ const translations: Record<string, Record<PushNotificationType, PushTemplate>> =
         new_treatment_lead: {
             title: '🧮 Treatment calculator — new lead',
             body: '{name} — {service}',
+        },
+        booking_confirmed: {
+            title: '✅ Your appointment has been confirmed!',
+            body: '{specialist} — {date} at {time}',
+        },
+        booking_rejected: {
+            title: '❌ Your booking could not be confirmed',
+            body: 'Please contact us to schedule a new appointment.',
         },
     },
     de: {
@@ -278,6 +296,14 @@ const translations: Record<string, Record<PushNotificationType, PushTemplate>> =
             title: '🧮 Behandlungsrechner — neuer Lead',
             body: '{name} — {service}',
         },
+        booking_confirmed: {
+            title: '✅ Ihr Termin wurde bestätigt!',
+            body: '{specialist} — {date} um {time}',
+        },
+        booking_rejected: {
+            title: '❌ Ihre Buchung konnte nicht bestätigt werden',
+            body: 'Bitte kontaktieren Sie uns, um einen neuen Termin zu vereinbaren.',
+        },
     },
     ua: {
         chat_patient_to_admin: {
@@ -359,6 +385,14 @@ const translations: Record<string, Record<PushNotificationType, PushTemplate>> =
         new_treatment_lead: {
             title: '🧮 Калькулятор лікування — новий лід',
             body: '{name} — {service}',
+        },
+        booking_confirmed: {
+            title: '✅ Ваш візит підтверджено!',
+            body: '{specialist} — {date} о {time}',
+        },
+        booking_rejected: {
+            title: '❌ Бронювання не було підтверджено',
+            body: 'Будь ласка, зверніться до нас для запису на новий термін.',
         },
     },
 };

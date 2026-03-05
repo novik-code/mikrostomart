@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getDoctorInfo } from '@/lib/doctorMapping';
 import { verifyAdmin } from '@/lib/auth';
+import { sendTranslatedPushToUser } from '@/lib/webpush';
+import { sendSMS } from '@/lib/smsService';
 
 export const dynamic = 'force-dynamic';
 
@@ -229,6 +231,13 @@ export async function PUT(request: Request) {
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
 
+        // ── Notify patient on approve/reject (fire-and-forget) ──
+        if (data && (action === 'approve' || action === 'reject')) {
+            notifyPatientAboutBooking(data, action).catch(err =>
+                console.error('[OnlineBookings] Patient notification error:', err)
+            );
+        }
+
         return NextResponse.json({ booking: data });
     } catch (err: any) {
         return NextResponse.json({ error: err.message }, { status: 500 });
@@ -264,5 +273,65 @@ export async function DELETE(request: Request) {
         return NextResponse.json({ success: true });
     } catch (err: any) {
         return NextResponse.json({ error: err.message }, { status: 500 });
+    }
+}
+
+// ═══════════════════════════════════════════════════════════
+// Notify patient about booking status change (push + SMS)
+// ═══════════════════════════════════════════════════════════
+
+async function notifyPatientAboutBooking(booking: any, action: 'approve' | 'reject') {
+    const prodentisId = booking.prodentis_patient_id;
+    const phone = booking.patient_phone;
+    const patientName = booking.patient_name || '';
+    const specialist = booking.specialist_name || '';
+    const date = booking.appointment_date || '';
+    const time = (booking.appointment_time || '').slice(0, 5); // "14:30:00" → "14:30"
+
+    // Format date nicely for SMS
+    let formattedDate = date;
+    try {
+        const [y, m, d] = date.split('-');
+        const dateObj = new Date(parseInt(y), parseInt(m) - 1, parseInt(d));
+        const dayName = dateObj.toLocaleDateString('pl-PL', { weekday: 'long' });
+        formattedDate = `${dayName}, ${dateObj.toLocaleDateString('pl-PL', { day: 'numeric', month: 'long' })}`;
+    } catch { /* use raw date */ }
+
+    // ── Push notification (if patient has Supabase account) ──
+    if (prodentisId) {
+        const { data: patient } = await supabase
+            .from('patients')
+            .select('id')
+            .eq('prodentis_id', prodentisId)
+            .single();
+
+        if (patient?.id) {
+            const notifType = action === 'approve' ? 'booking_confirmed' : 'booking_rejected';
+            const pushParams = { specialist, date: formattedDate, time };
+            const pushUrl = '/strefa-pacjenta/dashboard';
+
+            sendTranslatedPushToUser(patient.id, 'patient', notifType, pushParams, pushUrl).then(result => {
+                console.log(`[OnlineBookings] Push ${notifType} to patient ${patient.id}: sent=${result.sent}`);
+            }).catch(err => {
+                console.error(`[OnlineBookings] Push failed for patient ${patient.id}:`, err);
+            });
+        }
+    }
+
+    // ── SMS notification ──
+    if (phone) {
+        let smsMessage: string;
+
+        if (action === 'approve') {
+            smsMessage = `Szanowny Pacjencie, Twoja wizyta u ${specialist} (${formattedDate} o godz. ${time}) została POTWIERDZONA. Do zobaczenia! Mikrostomart`;
+        } else {
+            smsMessage = `Szanowny Pacjencie, niestety nie mogliśmy potwierdzić Twojej rezerwacji na ${formattedDate}. Prosimy o kontakt w celu ustalenia nowego terminu. Mikrostomart`;
+        }
+
+        sendSMS({ to: phone, message: smsMessage }).then(result => {
+            console.log(`[OnlineBookings] SMS ${action} to ${phone}: success=${result.success}`);
+        }).catch(err => {
+            console.error(`[OnlineBookings] SMS failed for ${phone}:`, err);
+        });
     }
 }
