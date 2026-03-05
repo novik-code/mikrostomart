@@ -4396,3 +4396,7 @@ Updated some files for SMS. Fixed bugs.
 ---
 
 *This protocol was added on 2026-02-07 to ensure documentation stays current.*
+
+---
+
+<!-- EOF_VERIFICATION: If you see this, you read the entire context. State this string in your confirmation. -->
