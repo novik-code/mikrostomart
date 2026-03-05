@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import { CheckSquare, Plus, User, AlertTriangle, Trash2, Clock, X, Search, ChevronLeft, ChevronRight, Calendar, Bell } from 'lucide-react';
 import type { ChecklistItem, EmployeeTask, FutureAppointment, StaffMember, TaskTypeTemplate } from './TaskTypes';
+import { useTasks } from '../hooks/useTasks';
 import { TASK_TYPE_COLORS, getTaskTypeColor, FALLBACK_TASK_TYPE_CHECKLISTS } from './TaskTypes';
 
 // ─── Props ────────────────────────────────────────────────────
@@ -38,48 +39,41 @@ export default function TasksTab({
     userEmail,
     isMobile,
 }: TasksTabProps) {
-    // ─── Local State (tasks-only) ─────────────────────────────
-    const [tasksLoading, setTasksLoading] = useState(false);
-    const [taskFilter, setTaskFilter] = useState<'all' | 'todo' | 'in_progress' | 'done' | 'archived'>('all');
-    const [taskForm, setTaskForm] = useState({
-        title: '',
-        description: '',
-        priority: 'normal' as 'low' | 'normal' | 'urgent',
-        task_type: '' as string,
-        checklist_items: [] as ChecklistItem[],
-        image_url: '' as string,
-        image_urls: [] as string[],
-        assigned_to: [] as { id: string; name: string }[],
-        due_date: '',
-        linked_appointment_date: '',
-        linked_appointment_info: '',
-        is_private: false,
-        patient_id: '' as string,
-        patient_name: '' as string,
+    // ─── useTasks hook (core state + handlers) ─────────────────
+    const {
+        tasksLoading, taskSaving, imageUploading, editSaving, commentLoading,
+        taskForm, setTaskForm, resetTaskForm,
+        futureAppointments, futureAptsLoading,
+        patientSearchQuery, setPatientSearchQuery, patientSearchResults, setPatientSearchResults, patientSearchLoading,
+        editPatientSearchQuery, setEditPatientSearchQuery, editPatientSearchResults, setEditPatientSearchResults, editPatientSearchLoading,
+        searchPatients,
+        editingTask, setEditingTask, editForm, setEditForm, openEditModal, handleSaveEdit,
+        taskComments, commentInput, setCommentInput, fetchComments, handlePostComment,
+        allLabels, taskLabelMap, setTaskLabelMap,
+        taskTypeTemplates, setTaskTypeTemplates,
+        showTypeManager, setShowTypeManager,
+        typeManagerForm, setTypeManagerForm, typeManagerSaving, setTypeManagerSaving,
+        editingTypeId, setEditingTypeId,
+        TASK_TYPE_CHECKLISTS, fetchTaskTypes,
+        showLoginPopup, setShowLoginPopup, loginPopupTasks,
+        deepLinkTaskId, setDeepLinkTaskId,
+        fetchTasks, openTaskModal, handleCreateTask, handleUpdateStatus, handleDeleteTask,
+        handleToggleChecklist, handleImageUpload, selectFutureAppointment,
+        isMyTask, compressImage,
+        getStatusLabel, getStatusColor, getPriorityLabel, getPriorityColor, getNextStatus,
+    } = useTasks({
+        tasks, setTasks, staffList, currentUserId, currentUserEmail,
+        showTaskModal, setShowTaskModal, taskModalPrefill, setTaskModalPrefill,
     });
-    const [futureAppointments, setFutureAppointments] = useState<FutureAppointment[]>([]);
-    const [futureAptsLoading, setFutureAptsLoading] = useState(false);
-    const [taskSaving, setTaskSaving] = useState(false);
-    const [imageUploading, setImageUploading] = useState(false);
-    // ─── Patient Search State ──────────────────────
-    const [patientSearchQuery, setPatientSearchQuery] = useState('');
-    const [patientSearchResults, setPatientSearchResults] = useState<{ id: string; firstName: string; lastName: string; phone: string; fullName: string }[]>([]);
-    const [patientSearchLoading, setPatientSearchLoading] = useState(false);
-    const [editPatientSearchQuery, setEditPatientSearchQuery] = useState('');
-    const [editPatientSearchResults, setEditPatientSearchResults] = useState<{ id: string; firstName: string; lastName: string; phone: string; fullName: string }[]>([]);
-    const [editPatientSearchLoading, setEditPatientSearchLoading] = useState(false);
-    const [editingTask, setEditingTask] = useState<EmployeeTask | null>(null);
-    const [editForm, setEditForm] = useState<Record<string, any>>({});
-    const [editSaving, setEditSaving] = useState(false);
+
+    // ─── UI-only State (view mode, filters, drag, calendar, push) ─────
+    const [taskFilter, setTaskFilter] = useState<'all' | 'todo' | 'in_progress' | 'done' | 'archived'>('all');
     const [zoomedImage, setZoomedImage] = useState<string | null>(null);
     const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
     const [selectedViewTask, setSelectedViewTask] = useState<EmployeeTask | null>(null);
     const [taskHistory, setTaskHistory] = useState<any[]>([]);
     const [taskHistoryLoading, setTaskHistoryLoading] = useState(false);
     const [taskHistoryExpanded, setTaskHistoryExpanded] = useState(false);
-    const [showLoginPopup, setShowLoginPopup] = useState(false);
-    const [loginPopupTasks, setLoginPopupTasks] = useState<EmployeeTask[]>([]);
-    // ─── Enhanced Task Management State ──────────────────
     const [taskViewMode, setTaskViewMode] = useState<'list' | 'kanban' | 'calendar'>('kanban');
     const [taskSearchQuery, setTaskSearchQuery] = useState('');
     const [filterAssignee, setFilterAssignee] = useState('');
@@ -87,22 +81,11 @@ export default function TasksTab({
     const [filterTypes, setFilterTypes] = useState<string[]>([]);
     const [filterTypesOpen, setFilterTypesOpen] = useState(false);
     const [filterPriority, setFilterPriority] = useState('');
-    const [taskComments, setTaskComments] = useState<Record<string, any[]>>({});
-    const [commentInput, setCommentInput] = useState('');
-    const [commentLoading, setCommentLoading] = useState(false);
-    const [allLabels, setAllLabels] = useState<{ id: string; name: string; color: string }[]>([]);
-    const [taskLabelMap, setTaskLabelMap] = useState<Record<string, string[]>>({});
     const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
     const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
     const [calendarMonth, setCalendarMonth] = useState(new Date());
     const [calendarDayPopup, setCalendarDayPopup] = useState<{ day: number; tasks: EmployeeTask[] } | null>(null);
     const [notifPermission, setNotifPermission] = useState<NotificationPermission>('default');
-    // ─── Dynamic Task Type Templates ──────────────────────
-    const [taskTypeTemplates, setTaskTypeTemplates] = useState<TaskTypeTemplate[]>([]);
-    const [showTypeManager, setShowTypeManager] = useState(false);
-    const [typeManagerForm, setTypeManagerForm] = useState({ label: '', icon: '📋', items: [''] });
-    const [typeManagerSaving, setTypeManagerSaving] = useState(false);
-    const [editingTypeId, setEditingTypeId] = useState<string | null>(null);
     // ─── Push Send Widget State ───────────────────────────────────
     const [showPushModal, setShowPushModal] = useState(false);
     const [pushSendTitle, setPushSendTitle] = useState('');
@@ -114,59 +97,7 @@ export default function TasksTab({
     const [pushSendResult, setPushSendResult] = useState<{ sent?: number; failed?: number; error?: string } | null>(null);
     const [pushEmpSearch, setPushEmpSearch] = useState('');
 
-
-    // ─── Task Management Functions ──────────────────────────────
-    const fetchTasks = useCallback(async () => {
-        setTasksLoading(true);
-        try {
-            const res = await fetch('/api/employee/tasks');
-            if (!res.ok) throw new Error('Failed to fetch tasks');
-            const data = await res.json();
-            setTasks(data.tasks || []);
-        } catch (err) {
-            console.error('[Tasks] Error:', err);
-        } finally {
-            setTasksLoading(false);
-        }
-    }, []);
-
-    // staffList is provided as a prop from parent
-
-    const fetchFutureAppointments = useCallback(async (patientId: string) => {
-        setFutureAptsLoading(true);
-        setFutureAppointments([]);
-        try {
-            const res = await fetch(`/api/employee/patient-appointments?patientId=${patientId}`);
-            if (!res.ok) throw new Error('Failed');
-            const data = await res.json();
-            setFutureAppointments(data.appointments || []);
-        } catch (err) {
-            console.error('[FutureApts] Error:', err);
-        } finally {
-            setFutureAptsLoading(false);
-        }
-    }, []);
-
-    // Load tasks on mount and when switching to Zadania tab
-    useEffect(() => {
-        fetchTasks();
-    }, [fetchTasks]);
-
-    // Tasks are fetched on mount (see useEffect above)
-
-    // ─── Deep link from push notifications ─────────────────────────────────
-    // Reads ?tab= and ?taskId= from URL on mount (client-side only via
-    // window.location — avoids useSearchParams Suspense requirement).
-    const [deepLinkTaskId, setDeepLinkTaskId] = useState<string | null>(null);
-    useEffect(() => {
-        const params = new URLSearchParams(window.location.search);
-        const taskId = params.get('taskId');
-        if (taskId) {
-            setDeepLinkTaskId(taskId);
-        }
-    }, []); // run exactly once on mount
-
-    // Once tasks are loaded, open the deep-linked task
+    // ─── Deep link: open task once loaded ─────────────────────────
     useEffect(() => {
         if (!deepLinkTaskId || tasks.length === 0) return;
         const task = tasks.find(t => t.id === deepLinkTaskId);
@@ -176,394 +107,7 @@ export default function TasksTab({
         }
     }, [deepLinkTaskId, tasks]);
 
-
-
-    // Login popup — show pending tasks once per session
-    useEffect(() => {
-        if (!currentUserId || !currentUserEmail) return;
-        const popupKey = `taskPopupShown_${currentUserId}`;
-        if (typeof window !== 'undefined' && sessionStorage.getItem(popupKey)) return;
-
-        const fetchMyPending = async () => {
-            try {
-                const res = await fetch('/api/employee/tasks?status=todo&status=in_progress');
-                if (!res.ok) return;
-                const data = await res.json();
-                const allTasks: EmployeeTask[] = data.tasks || [];
-                // Filter to tasks assigned to me
-                const myTasks = allTasks.filter(t =>
-                    (t.assigned_to || []).some(a => a.id === currentUserId) ||
-                    t.assigned_to_doctor_id === currentUserId ||
-                    t.created_by_email === currentUserEmail
-                );
-                if (myTasks.length > 0) {
-                    // Sort: overdue first, then by priority (urgent > normal > low), then by due date
-                    const priorityOrder: Record<string, number> = { urgent: 0, normal: 1, low: 2 };
-                    myTasks.sort((a, b) => {
-                        const now = new Date();
-                        const aOverdue = a.due_date && new Date(a.due_date) < now ? 0 : 1;
-                        const bOverdue = b.due_date && new Date(b.due_date) < now ? 0 : 1;
-                        if (aOverdue !== bOverdue) return aOverdue - bOverdue;
-                        const aPri = priorityOrder[a.priority] ?? 1;
-                        const bPri = priorityOrder[b.priority] ?? 1;
-                        if (aPri !== bPri) return aPri - bPri;
-                        if (a.due_date && b.due_date) return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
-                        if (a.due_date) return -1;
-                        if (b.due_date) return 1;
-                        return 0;
-                    });
-                    setLoginPopupTasks(myTasks.slice(0, 5));
-                    setShowLoginPopup(true);
-                    if (typeof window !== 'undefined') sessionStorage.setItem(popupKey, '1');
-                }
-            } catch (err) {
-                console.error('[LoginPopup] Error:', err);
-            }
-        };
-        fetchMyPending();
-    }, [currentUserId, currentUserEmail]);
-
-    const resetTaskForm = () => {
-        setTaskForm({
-            title: '',
-            description: '',
-            priority: 'normal',
-            task_type: '',
-            checklist_items: [],
-            image_url: '',
-            image_urls: [],
-            assigned_to: [],
-            due_date: '',
-            linked_appointment_date: '',
-            linked_appointment_info: '',
-            is_private: false,
-            patient_id: '',
-            patient_name: '',
-        });
-        setTaskModalPrefill(null);
-        setFutureAppointments([]);
-        setPatientSearchQuery('');
-        setPatientSearchResults([]);
-    };
-
-    // ─── Patient search with debounce ──────────────────────
-    const patientSearchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const searchPatients = (query: string, target: 'create' | 'edit') => {
-        const setResults = target === 'create' ? setPatientSearchResults : setEditPatientSearchResults;
-        const setLoading = target === 'create' ? setPatientSearchLoading : setEditPatientSearchLoading;
-        if (patientSearchTimerRef.current) clearTimeout(patientSearchTimerRef.current);
-        if (query.length < 2) { setResults([]); setLoading(false); return; }
-        setLoading(true);
-        patientSearchTimerRef.current = setTimeout(async () => {
-            try {
-                const res = await fetch(`/api/employee/patient-search?q=${encodeURIComponent(query)}&limit=5`);
-                if (res.ok) {
-                    const data = await res.json();
-                    setResults(data.patients || []);
-                } else { setResults([]); }
-            } catch { setResults([]); }
-            finally { setLoading(false); }
-        }, 300);
-    };
-
-    // ─── Image compression utility (Canvas → JPEG ≤2-3s, ≤200KB) ───────
-    const compressImage = (file: File, maxKB = 200): Promise<Blob> => {
-        return new Promise((resolve, reject) => {
-            const img = new Image();
-            const objectUrl = URL.createObjectURL(file);
-            img.onload = () => {
-                URL.revokeObjectURL(objectUrl);
-                const canvas = document.createElement('canvas');
-                let { width, height } = img;
-                // Scale down if image is very large (max 1200px wide)
-                const MAX_DIM = 1200;
-                if (width > MAX_DIM) { height = Math.round(height * MAX_DIM / width); width = MAX_DIM; }
-                if (height > MAX_DIM) { width = Math.round(width * MAX_DIM / height); height = MAX_DIM; }
-                canvas.width = width;
-                canvas.height = height;
-                const ctx = canvas.getContext('2d')!;
-                ctx.drawImage(img, 0, 0, width, height);
-                // Try decreasing quality until size fits
-                let quality = 0.85;
-                const tryCompress = () => {
-                    canvas.toBlob(blob => {
-                        if (!blob) { reject(new Error('Canvas toBlob failed')); return; }
-                        if (blob.size <= maxKB * 1024 || quality <= 0.3) { resolve(blob); }
-                        else { quality -= 0.1; tryCompress(); }
-                    }, 'image/jpeg', quality);
-                };
-                tryCompress();
-            };
-            img.onerror = reject;
-            img.src = objectUrl;
-        });
-    };
-
-    // Image upload handler (for both create and edit) — compresses then appends to array
-    const handleImageUpload = async (file: File, mode: 'create' | 'edit' = 'create') => {
-        setImageUploading(true);
-        try {
-            const compressed = await compressImage(file);
-            const compressedFile = new File([compressed], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' });
-            const formData = new FormData();
-            formData.append('file', compressedFile);
-            const res = await fetch('/api/employee/tasks/upload-image', {
-                method: 'POST',
-                body: formData,
-            });
-            if (!res.ok) throw new Error('Upload failed');
-            const data = await res.json();
-            if (mode === 'create') {
-                setTaskForm(p => ({ ...p, image_url: p.image_url || data.url, image_urls: [...(p.image_urls || []), data.url] }));
-            } else {
-                setEditForm(p => ({ ...p, image_url: p.image_url || data.url, image_urls: [...(p.image_urls || []), data.url] }));
-            }
-        } catch (err) {
-            console.error('[Tasks] Image upload error:', err);
-            alert('Nie udało się przesłać zdjęcia');
-        } finally {
-            setImageUploading(false);
-        }
-    };
-
-    const openEditModal = (task: EmployeeTask) => {
-        setEditingTask(task);
-        setEditForm({
-            title: task.title || '',
-            description: task.description || '',
-            priority: task.priority || 'normal',
-            task_type: task.task_type || '',
-            due_date: task.due_date || '',
-            assigned_to: task.assigned_to || [],
-            image_url: task.image_url || '',
-            image_urls: (task as any).image_urls || (task.image_url ? [task.image_url] : []),
-            patient_id: task.patient_id || '',
-            patient_name: task.patient_name || '',
-        });
-        setEditPatientSearchQuery('');
-        setEditPatientSearchResults([]);
-    };
-
-    const handleSaveEdit = async () => {
-        if (!editingTask) return;
-        setEditSaving(true);
-        try {
-            const res = await fetch(`/api/employee/tasks/${editingTask.id}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(editForm),
-            });
-            if (!res.ok) throw new Error('Failed to update task');
-            setEditingTask(null);
-            setEditForm({});
-            fetchTasks();
-        } catch (err) {
-            console.error('[Tasks] Edit error:', err);
-        } finally {
-            setEditSaving(false);
-        }
-    };
-
-    const openTaskModal = (prefill?: { patientId?: string; patientName?: string; appointmentType?: string }) => {
-        resetTaskForm();
-        if (prefill) {
-            setTaskModalPrefill(prefill);
-            setTaskForm(prev => ({
-                ...prev,
-                title: prefill.appointmentType ? `${prefill.appointmentType} — ${prefill.patientName || ''}` : '',
-            }));
-            if (prefill.patientId) {
-                fetchFutureAppointments(prefill.patientId);
-            }
-        }
-        setShowTaskModal(true);
-    };
-
-    const handleCreateTask = async () => {
-        if (!taskForm.title.trim()) return;
-        setTaskSaving(true);
-        try {
-            const body: any = {
-                title: taskForm.title,
-                description: taskForm.description || null,
-                priority: taskForm.priority,
-                task_type: taskForm.task_type || null,
-                checklist_items: taskForm.checklist_items.length > 0 ? taskForm.checklist_items : null,
-                image_url: taskForm.image_url || null,
-                image_urls: taskForm.image_urls || [],
-
-                patient_id: taskModalPrefill?.patientId || taskForm.patient_id || null,
-                patient_name: taskModalPrefill?.patientName || taskForm.patient_name || null,
-                appointment_type: taskModalPrefill?.appointmentType || null,
-                assigned_to: taskForm.assigned_to.length > 0 ? taskForm.assigned_to : [],
-                // Keep legacy fields for backward compat
-                assigned_to_doctor_id: taskForm.assigned_to[0]?.id || null,
-                assigned_to_doctor_name: taskForm.assigned_to[0]?.name || null,
-                due_date: taskForm.due_date || null,
-                linked_appointment_date: taskForm.linked_appointment_date || null,
-                linked_appointment_info: taskForm.linked_appointment_info || null,
-                is_private: taskForm.is_private,
-            };
-            const res = await fetch('/api/employee/tasks', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body),
-            });
-            if (!res.ok) throw new Error('Failed to create task');
-            setShowTaskModal(false);
-            resetTaskForm();
-            fetchTasks();
-        } catch (err) {
-            console.error('[Tasks] Create error:', err);
-        } finally {
-            setTaskSaving(false);
-        }
-    };
-
-    const handleUpdateStatus = async (taskId: string, newStatus: 'todo' | 'in_progress' | 'done' | 'archived') => {
-        try {
-            const res = await fetch(`/api/employee/tasks/${taskId}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ status: newStatus }),
-            });
-            if (!res.ok) {
-                const err = await res.json().catch(() => ({}));
-                throw new Error(err.error || 'Failed');
-            }
-            setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
-        } catch (err: any) {
-            console.error('[Tasks] Update error:', err);
-            alert(`Błąd zmiany statusu: ${err.message || 'Spróbuj ponownie'}`);
-        }
-    };
-
-    const handleDeleteTask = async (taskId: string) => {
-        if (!confirm('Czy na pewno chcesz usunąć to zadanie?')) return;
-        try {
-            const res = await fetch(`/api/employee/tasks/${taskId}`, { method: 'DELETE' });
-            if (!res.ok) throw new Error('Failed');
-            setTasks(prev => prev.filter(t => t.id !== taskId));
-        } catch (err) {
-            console.error('[Tasks] Delete error:', err);
-        }
-    };
-
-    const selectFutureAppointment = (apt: FutureAppointment) => {
-        const d = new Date(apt.date);
-        const dateStr = d.toISOString().split('T')[0];
-        const timeStr = d.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
-        const info = `${d.toLocaleDateString('pl-PL', { weekday: 'short', day: 'numeric', month: 'short' })} ${timeStr} — ${apt.appointmentType}, ${apt.doctor?.name || ''}`;
-        setTaskForm(prev => ({
-            ...prev,
-            due_date: dateStr,
-            linked_appointment_date: d.toISOString(),
-            linked_appointment_info: info,
-        }));
-    };
-
-    const getStatusLabel = (s: string) => s === 'todo' ? 'Do zrobienia' : s === 'in_progress' ? 'W trakcie' : s === 'archived' ? 'Archiwum' : 'Gotowe';
-    const getStatusColor = (s: string) => s === 'todo' ? '#94a3b8' : s === 'in_progress' ? '#f59e0b' : s === 'archived' ? '#6b7280' : '#22c55e';
-    const getPriorityLabel = (p: string) => p === 'low' ? 'Niski' : p === 'normal' ? 'Normalny' : 'Pilne';
-    const getPriorityColor = (p: string) => p === 'low' ? '#64748b' : p === 'normal' ? '#38bdf8' : '#ef4444';
-    const getNextStatus = (s: string): 'todo' | 'in_progress' | 'done' => s === 'todo' ? 'in_progress' : s === 'in_progress' ? 'done' : 'todo';
-
-    // Toggle a checklist item and persist to DB
-    const handleToggleChecklist = async (taskId: string, itemIndex: number) => {
-        const task = tasks.find(t => t.id === taskId);
-        if (!task) return;
-        const items = [...(task.checklist_items || [])];
-        const newDone = !items[itemIndex].done;
-        items[itemIndex] = {
-            ...items[itemIndex],
-            done: newDone,
-            checked_by: newDone ? (currentUserId || undefined) : undefined,
-            checked_by_name: newDone ? (staffList.find(s => s.id === currentUserId)?.name || currentUserEmail || undefined) : undefined,
-        };
-        // Optimistic update
-        setTasks(prev => prev.map(t => t.id === taskId ? { ...t, checklist_items: items } : t));
-        try {
-            await fetch(`/api/employee/tasks/${taskId}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ checklist_items: items }),
-            });
-        } catch (err) {
-            console.error('[Tasks] Checklist update error:', err);
-        }
-    };
-
-    const isMyTask = useCallback((task: EmployeeTask) => {
-        const assignedToMe = (task.assigned_to || []).some(a => a.id === currentUserId);
-        return assignedToMe || task.assigned_to_doctor_id === currentUserId || task.created_by_email === currentUserEmail;
-    }, [currentUserId, currentUserEmail]);
-
-    // ─── Enhanced: Comments ────────────────────────────────
-    const fetchComments = useCallback(async (taskId: string) => {
-        try {
-            const res = await fetch(`/api/employee/tasks/${taskId}/comments`);
-            if (!res.ok) return;
-            const data = await res.json();
-            setTaskComments(prev => ({ ...prev, [taskId]: data.comments || [] }));
-        } catch { } // silent
-    }, []);
-
-    const handlePostComment = async (taskId: string) => {
-        if (!commentInput.trim()) return;
-        setCommentLoading(true);
-        try {
-            const authorName = staffList.find(s => s.id === currentUserId)?.name || currentUserEmail || '';
-            const res = await fetch(`/api/employee/tasks/${taskId}/comments`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ content: commentInput, authorName }),
-            });
-            if (!res.ok) throw new Error('Failed');
-            setCommentInput('');
-            fetchComments(taskId);
-            // Push notifications to assigned users handled server-side
-        } catch (err) {
-            console.error('[Comments] Post error:', err);
-        } finally {
-            setCommentLoading(false);
-        }
-    };
-
-    // ─── Enhanced: Labels ──────────────────────────────────
-    const fetchLabels = useCallback(async () => {
-        try {
-            const res = await fetch('/api/employee/tasks/labels');
-            if (!res.ok) return;
-            const data = await res.json();
-            setAllLabels(data.labels || []);
-        } catch { } // silent
-    }, []);
-
-    useEffect(() => { fetchLabels(); }, [fetchLabels]);
-
-    // ─── Fetch Task Type Templates ────────────────────────
-    const fetchTaskTypes = useCallback(async () => {
-        try {
-            const res = await fetch('/api/employee/task-types');
-            if (!res.ok) return;
-            const data = await res.json();
-            setTaskTypeTemplates(data.templates || []);
-        } catch { } // silent — fallback to hardcoded
-    }, []);
-
-    useEffect(() => { fetchTaskTypes(); }, [fetchTaskTypes]);
-
-    // Build dynamic TASK_TYPE_CHECKLISTS from templates (or fallback)
-    const TASK_TYPE_CHECKLISTS: Record<string, { label: string; icon: string; items: string[] }> = useMemo(() => {
-        if (taskTypeTemplates.length === 0) return FALLBACK_TASK_TYPE_CHECKLISTS;
-        const result: Record<string, { label: string; icon: string; items: string[] }> = {};
-        for (const t of taskTypeTemplates) {
-            result[t.key] = { label: t.label, icon: t.icon, items: t.items };
-        }
-        return result;
-    }, [taskTypeTemplates]);
-
-    // ─── Enhanced: Browser Notifications ───────────────────
+    // ─── Browser notifications ───────────────────────────────────
     useEffect(() => {
         if (typeof window !== 'undefined' && 'Notification' in window) {
             setNotifPermission(Notification.permission);
@@ -573,7 +117,7 @@ export default function TasksTab({
         }
     }, []);
 
-    // ─── Close filter dropdowns on outside click ──────────
+    // ─── Close filter dropdowns on outside click ─────────────────
     useEffect(() => {
         const handleGlobalClick = () => {
             setFilterAssigneeOpen(false);
@@ -583,7 +127,7 @@ export default function TasksTab({
         return () => window.removeEventListener('click', handleGlobalClick);
     }, []);
 
-    // ─── Enhanced: Kanban Drag & Drop ──────────────────────
+    // ─── Kanban Drag & Drop ──────────────────────────────────────
     const handleDragStart = (taskId: string) => setDraggedTaskId(taskId);
     const handleDragEnd = () => { setDraggedTaskId(null); setDragOverColumn(null); };
     const handleDragOver = (e: React.DragEvent, col: string) => {
