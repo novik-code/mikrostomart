@@ -1,8 +1,8 @@
 # PROJECT STATUS - Mikrostomart
 
-> **Last Updated:** March 5, 2026, 11:38  
+> **Last Updated:** March 5, 2026, 21:10  
 > **Build Status:** ✅ Production (Vercel)  
-> **Latest Commit:** `664e76c` - 4.2a+4.5: extract AdminTypes.ts + create withAuth middleware wrapper
+> **Latest Commit:** `e38a073` - fix: restore fetchEmployees to populate staffList for task assignment
 
 ---
 
@@ -102,12 +102,14 @@
 - [x] Patient documents API
 - [x] Email status change notifications
 
-#### Architecture Refactoring (Etap 4 — in progress)
+#### Architecture Refactoring (Etap 4 — Employee Zone ✅ complete, Admin pending)
 - [x] Type extraction from monolith (ScheduleTypes, TaskTypes, AdminTypes)
 - [x] withAuth middleware wrapper
-- [ ] Component splitting (pracownik/page.tsx, admin/page.tsx)
-- [ ] Custom hooks (useSchedule, useTasks)
-- [ ] Type index re-exports (src/types/)
+- [x] Component splitting — Employee Zone (`pracownik/page.tsx` 6300→778 LOC)
+- [x] Custom hooks (useSchedule, useTasks)
+- [x] Central type re-exports (`src/types/index.ts`)
+- [ ] Component splitting — Admin Panel (`admin/page.tsx` still ~3700 LOC)
+- [ ] Migrate existing routes to `withAuth` wrapper
 
 #### Automation
 - [x] Cron job: Generate SMS reminders (daily 5AM UTC)
@@ -142,46 +144,27 @@
 
 ## 🚀 Latest Changes (Mar 5, 2026)
 
-### Etap 4 — Architecture & Refactoring (sesja 1)
-- `87fc414` - Extract employee types (ScheduleTypes.ts, TaskTypes.ts)
-- `664e76c` - Extract AdminTypes.ts + create withAuth middleware wrapper
-- Extracted 230 lines of inline types from monoliths
-- Created reusable `withAuth()` auth middleware (replaces 70+ boilerplate patterns)
-- `tsc --noEmit` → 0 errors
+### Etap 3 — Notifications & Patient Features (3.1–3.6)
+- `59331d7` - 3.1: Push + SMS + email to patient on booking approve/reject
+- `814d6b4` - 3.2: Daily morning report on Telegram
+- `18c34a0` - 3.3: Deposit reminder SMS + push 48h before appointment
+- `7bf6695` - 3.4: No-show detection + follow-up SMS
+- `fbfe7d5` - 3.5: Patient documents portal (download consents & e-karta)
+- `4e82dfe` - 3.6: Centralized emailService.ts
+- 3 new cron jobs, 5 new files
 
-### SMS History Management System
+### Etap 4 — Architecture Refactoring (Employee Zone complete)
+- `87fc414` through `8bd9bd8` - 8 commits for full component extraction
+- **Result:** `pracownik/page.tsx` reduced from 6300 to 778 LOC
+- 12 new files: 5 components + 2 hooks + 2 type files + type index + AdminTypes + withAuth
 
-**Commits:**
-- `ca17b1a` - Fixed fetch to load ALL SMS statuses
-- `8987b90` - Fixed SMS filter logic with proper parentheses
-- `dd9c9ea` - Added SMS history with Wysłane tab
-- `9648030` - Removed unsupported encoding parameter
-- `164c1b8` - SMS ASCII encoding + skip link detection
+### Post-Refactor Bug Fixes (4 fixes)
+- `4ea9fbb` - Restore lost modals (task detail + patient data)
+- `0a19e15` - Auto-switch tab on cross-tab actions
+- `bb46b92` - Restore E-Karta QR modal
+- `e38a073` - Restore fetchEmployees for staffList
 
-**Features:**
-1. **Wysłane Tab in Admin SMS Panel**
-   - Preserves sent/failed SMS in database (no auto-delete)
-   - Manual delete button for cleanup
-   - Filter tabs: "Szkice" (drafts) vs "Wysłane" (sent/failed)
- 
-2. **SMS Encoding Fixes**
-   - Removed Polish characters from templates (prevented "krzaki")
-   - ASCII-only templates in `smsTemplates.json`
-   - Removed unsupported `encoding: 'gsm'` parameter
-
-3. **Email & Telegram Improvements**
-   - Added patient name and phone to Telegram notifications
-   - Removed "(Landing Page)" text
-   - Added appointment instructions to confirmation emails
-   - Simplified email footers
-
-**Files Modified:**
-- `src/app/admin/page.tsx`
-- `src/app/api/admin/sms-reminders/route.ts`
-- `src/lib/smsService.ts`
-- `smsTemplates.json`
-- `src/app/api/appointments/confirm/route.ts`
-- `src/app/api/appointments/cancel/route.ts`
+**Total: 20 commits, 17 new files**
 
 ### Desktop Navigation Redesign (Evening)
 
@@ -255,10 +238,10 @@ npm run build
 ## 📚 Documentation
 
 **Main Documentation:** [`mikrostomart_context.md`](./mikrostomart_context.md)  
-- 650+ lines comprehensive documentation
+- 4300+ lines comprehensive documentation
 - Complete feature catalog
-- API documentation
-- Database schema
+- API documentation (17 cron jobs, 80+ endpoints)
+- Database schema (69 migrations)
 - Integration guides
 - Troubleshooting
 
@@ -332,7 +315,8 @@ git push origin main
 7. ✅ **DONE:** Etap 1 — Security hardening (auth guards, rate limiting, CSP)
 8. ✅ **DONE:** Etap 2 — Monitoring (Sentry)
 9. ✅ **DONE:** Etap 3 — New features (PDF Mapper, booking notifications, Telegram digest)
-10. 🔄 **IN PROGRESS:** Etap 4 — Architecture refactoring (type extraction done, components next)
+6. ✅ **DONE:** Etap 4 — Employee Zone refactoring (6300→778 LOC, 5 components, 2 hooks, type index)
+7. 🔄 **NEXT:** Etap 4 — Admin Panel refactoring (admin/page.tsx still ~3700 LOC)
 
 ### Short-term (This Month)
 - Test full patient journey (registration → booking → confirmation)

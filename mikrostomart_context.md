@@ -52,7 +52,7 @@
 
 ### Backend & Database
 - **Supabase** (PostgreSQL database, authentication, storage)
-  - Database: 67 migrations (003-067: email verification, appointment actions, SMS reminders, user_roles, employee tasks, task history, comments, labels, status fix, google reviews cache, chat, push subscriptions, employee_group, push_notification_config, employee_groups array, news/articles/blog/products i18n, calendar tokens, private tasks + reminders, SMS post-visit/week-after-visit, SMS unique constraint fix, task multi-images, push_notifications_log, google_event_id on employee_tasks, patient_intake_tokens, feature_suggestions, online_bookings, patient_match_confidence, consent_tokens/patient_consents, staff_signatures, **intake_pdf_url, birthday_wishes, cancelled_appointments, login_attempts, patient_notification_prefs, biometric_signature, employee_audit_log, consent_field_mappings**)
+  - Database: 69 migrations (003-069: email verification, appointment actions, SMS reminders, user_roles, employee tasks, task history, comments, labels, status fix, google reviews cache, chat, push subscriptions, employee_group, push_notification_config, employee_groups array, news/articles/blog/products i18n, calendar tokens, private tasks + reminders, SMS post-visit/week-after-visit, SMS unique constraint fix, task multi-images, push_notifications_log, google_event_id on employee_tasks, patient_intake_tokens, feature_suggestions, online_bookings, patient_match_confidence, consent_tokens/patient_consents, staff_signatures, intake_pdf_url, birthday_wishes, cancelled_appointments, login_attempts, patient_notification_prefs, biometric_signature, employee_audit_log, consent_field_mappings, **rate_limit_table, cron_heartbeats**)
   - Auth: Email/password, magic links, JWT tokens
   - Storage: Product images, patient documents, task images
 
@@ -148,9 +148,20 @@ mikrostomart/
 │   │   │   ├── update-password/ # Password reset landing page (verifyOtp flow)
 │   │   │   └── page.tsx        # Main admin panel (186KB, 3311 lines, 14 tabs)
 │   │   ├── pracownik/          # Employee Zone (schedule grid + task management)
+│   │   │   ├── components/     # Extracted tab components (7 files)
+│   │   │   │   ├── ScheduleTab.tsx    # Weekly schedule grid (2033 LOC)
+│   │   │   │   ├── TasksTab.tsx       # Trello-style task management (2951 LOC)
+│   │   │   │   ├── NotificationsTab.tsx # Push notification history (176 LOC)
+│   │   │   │   ├── SuggestionsTab.tsx  # Feature suggestions system (363 LOC)
+│   │   │   │   ├── PatientsTab.tsx     # Patient search + data view (140 LOC)
+│   │   │   │   ├── ScheduleTypes.ts   # Schedule types & color maps (144 LOC)
+│   │   │   │   └── TaskTypes.ts       # Task types & helpers (91 LOC)
+│   │   │   ├── hooks/          # Custom hooks
+│   │   │   │   ├── useSchedule.ts     # Schedule data fetching (291 LOC)
+│   │   │   │   └── useTasks.ts        # Task CRUD & state management (554 LOC)
 │   │   │   ├── login/          # Employee login page
 │   │   │   ├── reset-haslo/    # Employee password reset page
-│   │   │   └── page.tsx        # Weekly schedule grid + task management (~220KB)
+│   │   │   └── page.tsx        # Thin orchestrator — tabs + state wiring (778 LOC)
 │   │   ├── strefa-pacjenta/    # Patient portal
 │   │   │   ├── login/          # Patient login (phone or email)
 │   │   │   ├── register/       # Registration flow (confirm, password, verify, verify-email)
@@ -210,12 +221,17 @@ mikrostomart/
 │   │   ├── telegram.ts         # Telegram multi-bot notification routing
 │   │   ├── appointmentTypeMapper.ts  # Maps Prodentis appointment types
 │   │   ├── auth.ts             # Authentication helpers (verifyAdmin)
+│   │   ├── emailService.ts     # Centralized patient email service (booking confirm/reject, chat reply, status change)
+│   │   ├── cronHeartbeat.ts    # Cron heartbeat logging to Supabase
 │   │   ├── jwt.ts              # JWT token utilities
 │   │   ├── auditLog.ts         # GDPR audit logging + password strength validation
 │   │   └── supabaseClient.ts   # Browser Supabase client
 │   ├── data/                   # Static data
 │   │   ├── articles.ts         # Knowledge base articles
 │   │   └── reviews.ts          # Google reviews fallback data
+│   ├── types/                  # Central type re-exports
+│   │   ├── index.ts            # Re-exports from ScheduleTypes, TaskTypes, AdminTypes, consentTypes, comparatorTypes
+│   │   └── appointmentActions.ts # Appointment action types
 │   ├── hooks/                  # Custom React hooks
 │   │   └── useUserRoles.ts     # Fetch user roles from API
 │   ├── helpers/                # Helper utilities
@@ -225,10 +241,10 @@ mikrostomart/
 │   ├── en/common.json          # English
 │   ├── de/common.json          # German
 │   └── ua/common.json          # Ukrainian
-├── supabase_migrations/        # Database migrations (40 files: 003-043, some gaps)
+├── supabase_migrations/        # Database migrations (69 files: 003-069, some gaps)
 ├── public/                     # Static assets (incl. qr-ocen-nas.png)
 ├── scripts/                    # Utility scripts (13 files)
-└── vercel.json                 # Deployment configuration (14 cron jobs: see Cron section)
+└── vercel.json                 # Deployment configuration (17 cron jobs: see Cron section)
 ```
 
 ### Request Flow
@@ -929,11 +945,22 @@ Features:
 **Features:**
 1. **Login** (`/pracownik/login`) — Supabase email/password login + "Zapomniałem hasła" link
 2. **Password Reset** (`/pracownik/reset-haslo`) — sends reset email via `/api/auth/reset-password`
-3. **Tab Navigation** — responsive: **top bar on desktop (≥768px)** | **fixed bottom nav on mobile (<768px)**
-   - 4 tabs: 📅 Grafik | ✅ Zadania | 🤖 AI (Asystent AI) | 🔔 Alerty (Powiadomienia)
+3. **Tab Navigation** — responsive: **top bar on desktop (≥0768px)** | **fixed bottom nav on mobile (<768px)**
+   - 6 tabs: 📅 Grafik | ✅ Zadania | 🤖 AI (Asystent AI) | 🔔 Alerty (Powiadomienia) | 💡 Sugestie | 👤 Pacjenci
    - CSS class `.pw-tab-bar` / `.pw-tab-btn` — no inline styles, media query driven
    - Bottom bar: equal-width flex columns, icon stack, env(safe-area-inset-bottom) iPhone support
-4. **Weekly Schedule Grid** (Grafik tab, `/pracownik/page.tsx` — ~220KB, 3500+ lines)
+4. **Component Architecture** (← **Refactored March 5, 2026**)
+   - `page.tsx` (778 LOC) — thin orchestrator: tab state, auth, shared state, renders extracted components
+   - `components/ScheduleTab.tsx` (2033 LOC) — weekly schedule grid
+   - `components/TasksTab.tsx` (2951 LOC) — full task management (Kanban, Calendar, Comments, search/filters)
+   - `components/NotificationsTab.tsx` (176 LOC) — push notification history
+   - `components/SuggestionsTab.tsx` (363 LOC) — feature suggestions system
+   - `components/PatientsTab.tsx` (140 LOC) — patient search + data view
+   - `hooks/useSchedule.ts` (291 LOC) — schedule data & state
+   - `hooks/useTasks.ts` (554 LOC) — task CRUD, filtering, state management
+   - `components/ScheduleTypes.ts` (144 LOC) — Badge, ScheduleAppointment, color maps
+   - `components/TaskTypes.ts` (91 LOC) — EmployeeTask, ChecklistItem, type colors
+5. **Weekly Schedule Grid** (Grafik tab)
    - **Time slots**: 15-minute intervals, 7:00–20:00
    - **Multi-doctor columns**: one column per operator/doctor
    - **Operator toggle buttons**: show/hide individual doctors, "Pokaż wszystkich" / "Ukryj wszystkich"
@@ -1335,10 +1362,11 @@ Features:
 | `/patients/appointments/bookings` | GET | Fetch patient's online bookings |
 | `/patients/appointments/[id]/reset-status` | POST | Dev/debug: reset appointment status |
 | `/patients/chat` | GET, POST | Patient ↔ reception chat messages |
-| `/patients/logout` | POST | **NEW** — Server-side logout (clears httpOnly JWT cookie) |
-| `/patients/change-password` | POST | **NEW** — Change password (verify current, hash new, update DB) |
-| `/patients/export-data` | GET | **NEW** — RODO: Download all patient data as JSON |
-| `/patients/delete-account` | POST | **NEW** — RODO: Soft-delete (anonymize PII, set status=deleted) |
+| `/patients/documents` | GET | **NEW** — Signed consents + e-karta PDFs for authenticated patient (JWT) |
+| `/patients/logout` | POST | Server-side logout (clears httpOnly JWT cookie) |
+| `/patients/change-password` | POST | Change password (verify current, hash new, update DB) |
+| `/patients/export-data` | GET | RODO: Download all patient data as JSON |
+| `/patients/delete-account` | POST | RODO: Soft-delete (anonymize PII, set status=deleted) |
 
 ### Cron Job APIs (`/api/cron/*`)
 
@@ -1358,6 +1386,9 @@ Features:
 | `/cron/post-visit-auto-send?sms_type=week_after_visit` | Auto-send week-after-visit SMS | Daily 10:00 UTC |
 | `/cron/online-booking-digest` | Telegram digest of unreported online bookings | Daily 6:15 UTC |
 | `/cron/push-cleanup` | Delete `push_notifications_log` entries older than 7 days | Daily 3:15 UTC |
+| `/cron/daily-report` | **NEW** — Morning digest to Telegram: today's appointments, pending bookings, overdue tasks, birthdays | Daily 5:30 UTC |
+| `/cron/deposit-reminder` | **NEW** — SMS + push reminder for unpaid deposits ~48h before appointment | Daily 7:00 UTC |
+| `/cron/noshow-followup` | **NEW** — Detect no-shows from yesterday, send follow-up SMS offering rescheduling | Daily 8:00 UTC |
 
 
 ---
@@ -1460,12 +1491,24 @@ Features:
 4. **Appointment Cancellation** (patient cancels)
 5. **Order Confirmation** (product purchases)
 6. **Pre-Appointment Instructions** (day before appointment)
+7. **Booking Confirmed** ← NEW (via `emailService.ts`) — sent to patient when admin approves online booking
+8. **Booking Rejected** ← NEW (via `emailService.ts`) — sent to patient when admin rejects online booking
+9. **Chat Reply** ← NEW (via `emailService.ts`) — sent to patient when admin responds to chat message
+10. **Status Change** ← NEW (via `emailService.ts`) — generic appointment status change
 
 **Email Features:**
-- HTML templates
+- HTML templates with Mikrostomart branding
 - Personalization (patient name, appointment details)
 - Embedded appointment instructions
 - Professional footer with clinic info
+
+**Centralized Email Service** (`src/lib/emailService.ts`) ← NEW:
+- `sendBookingConfirmedEmail()` — booking approved notification
+- `sendBookingRejectedEmail()` — booking rejected notification
+- `sendChatReplyEmail()` — chat reply notification
+- `sendStatusChangeEmail()` — generic status change
+- `sendEmail()` — core send function via Resend
+- `makeHtml()` — wraps content in branded HTML template
 
 **Integration Files:**
 - `/api/appointments/confirm/route.ts` (lines 168-186)
@@ -1794,7 +1837,18 @@ This ensures Saturday and Monday templates don't mix in the admin panel.
     { "path": "/api/cron/sms-auto-send", "schedule": "0 8 * * *" },
     { "path": "/api/cron/appointment-reminders?targetDate=monday", "schedule": "15 8 * * 5" },
     { "path": "/api/cron/sms-auto-send?targetDate=monday", "schedule": "0 9 * * 5" },
-    { "path": "/api/cron/task-reminders", "schedule": "30 8 * * *" }
+    { "path": "/api/cron/task-reminders", "schedule": "30 8 * * *" },
+    { "path": "/api/cron/push-appointment-1h", "schedule": "*/15 * * * *" },
+    { "path": "/api/cron/post-visit-sms", "schedule": "0 18 * * *" },
+    { "path": "/api/cron/post-visit-auto-send", "schedule": "0 19 * * *" },
+    { "path": "/api/cron/week-after-visit-sms", "schedule": "0 9 * * *" },
+    { "path": "/api/cron/post-visit-auto-send?sms_type=week_after_visit", "schedule": "0 10 * * *" },
+    { "path": "/api/cron/online-booking-digest", "schedule": "15 6 * * *" },
+    { "path": "/api/cron/push-cleanup", "schedule": "15 3 * * *" },
+    { "path": "/api/cron/birthday-wishes", "schedule": "0 8 * * *" },
+    { "path": "/api/cron/daily-report", "schedule": "30 5 * * *" },
+    { "path": "/api/cron/deposit-reminder", "schedule": "0 7 * * *" },
+    { "path": "/api/cron/noshow-followup", "schedule": "0 8 * * *" }
   ]
 }
 ```
@@ -1924,57 +1978,146 @@ NODE_ENV=production
 
 ## 📝 Recent Changes
 
-### March 5, 2026 (Bug Fix — Restore Lost Modals)
-**Commit:** `4ea9fbb`
+### March 5, 2026 (Full day — Etap 3 + Etap 4 + Bug Fixes)
 
-Two modals were lost during the TasksTab component extraction from `page.tsx`:
+**20 commits** across 3 major work areas: **Etap 3** new features (3.1–3.6), **Etap 4** architecture refactoring, and post-refactor bug fixes.
 
-1. **Task Detail View Modal** (244 lines) — restored in `TasksTab.tsx`
-   - Full-screen overlay showing task details when clicking a task card
-   - Features: status toggle, priority badges, description, checklist with checkboxes, comments with input, collapsible edit history, action buttons (edit, status change, delete)
-   - Root cause: `{selectedViewTask && (...)}` rendering block was in `page.tsx` at L3110-3354 but not included when TasksTab was extracted as a separate component
+---
 
-2. **Patient Data Modal** (128 lines) — restored in `page.tsx`
-   - Fixed-position overlay showing Prodentis patient data (personal info, contact, notes, warnings)
-   - Triggered by `setPatientDataModal()` from ScheduleTab
-   - Root cause: `{patientDataModal && (...)}` rendering block was at L2981-3108 in original `page.tsx` but removed during extraction
+#### Etap 3 — New Features (3.1–3.6)
 
-**Files Modified:**
-- `src/app/pracownik/components/TasksTab.tsx` — added task detail view modal before closing fragment
-- `src/app/pracownik/page.tsx` — added patient data modal before style tag
+**3.1: Push + SMS notification to patient on booking approve/reject** — `59331d7`
+- Admin approves/rejects online booking → SMS + push notification sent to patient
+- `POST /api/admin/online-bookings` action handler now sends SMS (approve → appointment details, reject → apology)
+- Push notification via `sendTranslatedPushToUser()` to patient
+- `src/lib/pushTranslations.ts` — added `booking_confirmed` and `booking_rejected` push types (4 locales)
 
-### March 5, 2026 (Etap 4 — Architecture & Refactoring, sesja 1)
-**Type Extraction + Auth Middleware Wrapper** — `87fc414`, `664e76c`
+**3.2: Daily morning report on Telegram** — `814d6b4`
+- **NEW** `/api/cron/daily-report` — comprehensive morning digest sent to Telegram
+- Content: today's appointments from Prodentis, pending online bookings count, overdue/undated tasks, today's patient birthdays
+- Vercel Cron: `30 5 * * *` (6:30 AM Warsaw time)
+- Uses `logCronHeartbeat()` for execution tracking
 
-#### Type Extraction from Monolith Components
-- Extracted **230 lines** of inline types from `pracownik/page.tsx` (7100→6875 LOC)
-- Created `src/app/pracownik/components/ScheduleTypes.ts` (130 LOC): `Badge`, `ScheduleAppointment`, `Visit`, `ScheduleDay`, `ScheduleData`, Prodentis color maps, badge letters, time helpers
-- Created `src/app/pracownik/components/TaskTypes.ts` (95 LOC): `ChecklistItem`, `EmployeeTask`, `FutureAppointment`, `StaffMember`, `TaskTypeTemplate`, task type colors, fallback checklists
+**3.3: Deposit reminder SMS + push 48h before appointment** — `18c34a0`
+- **NEW** `/api/cron/deposit-reminder` — finds appointments with unpaid deposits in 24-72h window
+- Sends personalized SMS with deposit payment link (`https://mikrostomart.pl/zadatek`)
+- Push notification to patient
+- Telegram summary of all reminders sent
+- Vercel Cron: `0 7 * * *` (8:00 AM Warsaw time)
+
+**3.4: No-show detection + follow-up SMS** — `7bf6695`
+- **NEW** `/api/cron/noshow-followup` — detects no-shows from yesterday's appointments
+- Logic: fetches yesterday's appointments → checks if reminder SMS was sent → checks if post-visit SMS was sent (= they showed up) → remaining = likely no-shows
+- Sends follow-up SMS offering easy rescheduling via Strefa Pacjenta
+- Telegram summary to admin
+- Vercel Cron: `0 8 * * *` (9:00 AM Warsaw time)
+
+**3.5: Patient documents in portal — download signed consents & e-karta** — `fbfe7d5`
+- **NEW** `GET /api/patients/documents` — JWT authenticated endpoint returning signed consent PDFs + e-karta submissions
+- Patient dashboard (`strefa-pacjenta/dashboard/page.tsx`) — new "📄 Dokumenty" section with downloadable file list
+- Shows consent type label, signed date, and download link for each document
+
+**3.6: Email notifications on booking status + chat reply** — `4e82dfe`
+- **NEW** `src/lib/emailService.ts` — centralized email service with branded HTML templates
+- 4 email functions: `sendBookingConfirmedEmail()`, `sendBookingRejectedEmail()`, `sendChatReplyEmail()`, `sendStatusChangeEmail()`
+- `POST /api/admin/online-bookings` — sends booking confirmed/rejected emails to patients
+- `POST /api/admin/chat/messages` — sends chat reply email notification to patient
+
+#### Files Created (Etap 3):
+- `src/app/api/cron/daily-report/route.ts` (228 LOC)
+- `src/app/api/cron/deposit-reminder/route.ts` (178 LOC)
+- `src/app/api/cron/noshow-followup/route.ts` (210 LOC)
+- `src/app/api/patients/documents/route.ts` (93 LOC)
+- `src/lib/emailService.ts` (199 LOC)
+
+#### Files Modified (Etap 3):
+- `src/app/api/admin/online-bookings/route.ts` — SMS + push + email on approve/reject
+- `src/app/api/admin/chat/messages/route.ts` — email on chat reply
+- `src/lib/pushTranslations.ts` — 2 new push types (booking_confirmed, booking_rejected)
+- `src/app/strefa-pacjenta/dashboard/page.tsx` — documents section
+- `vercel.json` — 3 new cron entries (daily-report, deposit-reminder, noshow-followup)
+
+---
+
+#### Etap 4 — Architecture & Refactoring (Complete Employee Zone Split)
+
+**4.1a: Extract employee types** — `87fc414`
+- Extracted **230 lines** of inline types from `pracownik/page.tsx`
+- Created `components/ScheduleTypes.ts` (144 LOC): `Badge`, `ScheduleAppointment`, `Visit`, `ScheduleDay`, `ScheduleData`, Prodentis color maps, badge letters, time helpers
+- Created `components/TaskTypes.ts` (91 LOC): `ChecklistItem`, `EmployeeTask`, `FutureAppointment`, `StaffMember`, `TaskTypeTemplate`, task type colors, fallback checklists
+
+**4.2a+4.5: Extract AdminTypes.ts + withAuth middleware** — `664e76c`
 - Created `src/app/admin/components/AdminTypes.ts`: `Product` type extracted from `admin/page.tsx`
-- All imports wired up, `tsc --noEmit` passes with 0 errors
+- Created `src/lib/withAuth.ts` — HoF wrapping API handlers with auth + RBAC (eliminates 4-line boilerplate across 70+ routes)
 
-#### Auth Middleware Wrapper (`withAuth`)
-- Created `src/lib/withAuth.ts` — higher-order function wrapping API route handlers
-- Pattern: `export const GET = withAuth(async (req, user) => { ... }, { roles: ['admin'] })`
-- Uses `UserRole` type from `roles.ts` for type-safe role checking
-- Eliminates 4-line boilerplate (`verifyAdmin() + if !user + hasRole() + if !role`) repeated across 70+ routes
-- **Not migrated** to existing routes yet (safety) — available for new routes
+**4.1b-e: Extract 3 tabs from pracownik monolith** — `47f0d16`
+- Created `components/NotificationsTab.tsx` (176 LOC) — push notification history
+- Created `components/SuggestionsTab.tsx` (363 LOC) — feature suggestions system
+- Created `components/PatientsTab.tsx` (140 LOC) — patient search + data view
 
-#### Files Modified:
-- `src/app/pracownik/page.tsx` — replaced 230 inline type lines with 4 import lines
-- `src/app/admin/page.tsx` — replaced inline `Product` type with import
+**4.1b-f: Fix ScheduleTab extraction** — `bd7dd4b`
+- Fixed bracket mismatch in ScheduleTab extraction
+- Restored `supabase`, `router`, `useUserRoles` imports
+- Added `createBrowserClient` import
 
-#### Files Created:
-- `src/app/pracownik/components/ScheduleTypes.ts`
-- `src/app/pracownik/components/TaskTypes.ts`
-- `src/app/admin/components/AdminTypes.ts`
-- `src/lib/withAuth.ts`
+**Extract TasksTab component** — `ececbbb`
+- Created `components/TasksTab.tsx` (2951 LOC) — complete Trello-style task management
+- Full Kanban board, calendar view, comments, labels, history, drag-and-drop
 
-#### Remaining (planned for next sessions):
-- Split `pracownik/page.tsx` JSX into `PatientHistoryModal`, `TasksTab`, `ScheduleTab`, `NotificationsTab`, `AIAssistantTab`
-- Split `admin/page.tsx` JSX into `OnlineBookingsTab`, `SmsTab`, `PatientsTab`, `EmployeesTab`, `PushTab`, `ContentTab`, `AdminSidebar`
-- Custom hooks: `useSchedule`, `useTasks`, `useSmsReminders`
-- Re-export types from `src/types/`
+**Central type re-exports** — `026bad3`
+- Created `src/types/index.ts` (24 LOC) — re-exports from ScheduleTypes, TaskTypes, AdminTypes, consentTypes, comparatorTypes
+
+**Extract useTasks hook** — `9dfe85b`
+- Created `hooks/useTasks.ts` (554 LOC) — task CRUD, filtering, state management extracted from TasksTab
+
+**Extract useSchedule hook** — `8bd9bd8`
+- Created `hooks/useSchedule.ts` (291 LOC) — schedule data fetching and state management extracted from ScheduleTab
+
+#### Architecture Result:
+- `pracownik/page.tsx`: **6300 LOC → 778 LOC** (thin orchestrator: tab state, auth, shared state, renders components)
+- Total extracted: 5 components + 2 hooks + 2 type files + 1 type index = **4721 LOC** in extracted modules
+
+#### Files Created (Etap 4):
+- `src/app/pracownik/components/ScheduleTab.tsx` (2033 LOC)
+- `src/app/pracownik/components/TasksTab.tsx` (2951 LOC)
+- `src/app/pracownik/components/NotificationsTab.tsx` (176 LOC)
+- `src/app/pracownik/components/SuggestionsTab.tsx` (363 LOC)
+- `src/app/pracownik/components/PatientsTab.tsx` (140 LOC)
+- `src/app/pracownik/components/ScheduleTypes.ts` (144 LOC)
+- `src/app/pracownik/components/TaskTypes.ts` (91 LOC)
+- `src/app/pracownik/hooks/useSchedule.ts` (291 LOC)
+- `src/app/pracownik/hooks/useTasks.ts` (554 LOC)
+- `src/types/index.ts` (24 LOC)
+- `src/app/admin/components/AdminTypes.ts` (13 LOC)
+- `src/lib/withAuth.ts` (55 LOC)
+
+---
+
+#### Post-Refactor Bug Fixes
+
+**Restore lost task detail + patient data modals** — `4ea9fbb`
+- Task Detail View Modal (244 lines) — restored in `TasksTab.tsx` (was lost during extraction)
+- Patient Data Modal (128 lines) — restored in `page.tsx` (triggered from ScheduleTab)
+
+**Auto-switch tab on cross-tab actions** — `0a19e15`
+- Adding task from Grafik tab now auto-switches to Zadania tab
+- Patient search from Grafik/Pacjenci tab now works across tab boundaries
+
+**Restore E-Karta QR modal + remove orphaned state** — `bb46b92`
+- E-Karta QR code generation modal was lost during ScheduleTab extraction — restored
+- Cleaned up orphaned state variables that were in page.tsx but belonged to extracted components
+
+**Restore fetchEmployees to populate staffList** — `e38a073`
+- `fetchEmployees()` was lost during extraction — task assignment dropdown had empty staff list
+- Restored in `page.tsx` with `useEffect` to populate on mount
+
+**Documentation updates** — `481f1af`, `a7a8fe6`
+- Updated `mikrostomart_context.md` and `PROJECT_STATUS.md` with Etap 1-4 changes and bug fix entries
+
+#### Files Modified (Bug Fixes):
+- `src/app/pracownik/page.tsx` — modals, state, fetchEmployees, tab switching
+- `src/app/pracownik/components/TasksTab.tsx` — task detail modal, E-Karta QR
+- `src/app/pracownik/components/ScheduleTab.tsx` — patient data triggers
 
 ### March 4, 2026 (PDF Mapper Rework — No-code Consent Field Editor)
 **DB-backed Consent Field Mappings** — `b7306d7`, `afba9be`, `ac9ae61`, `e7dcab5`, `6c8ddf3`
@@ -3810,15 +3953,15 @@ OpenAI gpt-image-1 regenerates the entire masked area from scratch (+ forces 102
 - [x] Public website (all pages)
 - [x] E-commerce (products, cart, payments)
 - [x] Admin panel (all sections)
-- [x] Patient portal (registration, login, dashboard, historia, profil, oceń nas)
-- [x] Email notifications (all types)
-- [x] Telegram notifications (3-bot architecture)
+- [x] Patient portal (registration, login, dashboard, historia, profil, oceń nas, dokumenty)
+- [x] Email notifications (all types — including emailService.ts for booking/chat/status)
+- [x] Telegram notifications (3-bot architecture + daily morning digest)
 - [x] SMS reminder system (generation, editing, sending)
 - [x] SMS history management (Wysłane tab)
 - [x] Appointment confirmation/cancellation workflow
 - [x] Short link system
 - [x] Appointment instructions
-- [x] Cron jobs (SMS generation, article publishing, task reminders)
+- [x] Cron jobs (17 total — SMS, article, task reminders, push, booking digest, birthday, daily-report, deposit-reminder, noshow-followup)
 - [x] Prodentis API integration
 - [x] YouTube feed
 - [x] AI assistant
@@ -3846,11 +3989,17 @@ OpenAI gpt-image-1 regenerates the entire masked area from scratch (+ forces 102
 - [x] PWA login fix — service worker exclusions + full page navigation
 - [x] Task archiving fix — DB CHECK constraint updated
 - [x] SMS Friday→Monday date fix — actual date instead of "jutro"
+- [x] **Booking notifications** — SMS + push + email to patient on booking approve/reject
+- [x] **Daily morning report** — comprehensive Telegram digest (appointments, bookings, tasks, birthdays)
+- [x] **Deposit reminder** — SMS + push 48h before appointment with unpaid deposit
+- [x] **No-show follow-up** — auto-detect no-shows + follow-up SMS offering rescheduling
+- [x] **Patient documents** — download signed consents & e-karta PDFs from patient portal
+- [x] **Centralized email service** — emailService.ts with 4 branded email templates
+- [x] **Employee Zone component split** — 6300→778 LOC page.tsx, 5 extracted components, 2 hooks, central type re-exports
 
 ### ⚠️ Partial/Pending
-- [ ] Task comments + labels require running migrations 023 + 024 in Supabase
-- [ ] Google reviews require running migration 027 in Supabase + adding `GOOGLE_PLACES_API_KEY` env var in Vercel
-- [ ] Task archiving requires running migration 026 in Supabase
+- [ ] Admin panel component split (`admin/page.tsx` — still monolithic at ~3700 LOC)
+- [ ] `withAuth` middleware migration to existing routes (wrapper created, not yet applied)
 - [ ] Comprehensive testing of all workflows
 - [ ] Performance optimization
 - [ ] SEO optimization

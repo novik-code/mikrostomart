@@ -101,6 +101,55 @@ export default function Footer() {
                 </div>
 
             </div>
+
+            {/* ── SEO Site Navigation ── */}
+            <nav aria-label="Mapa strony" className="container" style={{
+                marginTop: 'var(--spacing-lg)',
+                paddingTop: 'var(--spacing-md)',
+                borderTop: '1px solid var(--color-surface-hover)',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+                gap: 'var(--spacing-md)',
+                position: 'relative',
+                zIndex: 1,
+            }}>
+                <div>
+                    <h4 style={{ color: 'var(--color-text-main)', marginBottom: '0.75rem', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('contact')}</h4>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                        <Link href="/o-nas" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">O nas</Link>
+                        <Link href="/zespol" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">Zespół</Link>
+                        <Link href="/kontakt" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">Kontakt</Link>
+                        <Link href="/rezerwacja" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">Rezerwacja</Link>
+                    </div>
+                </div>
+                <div>
+                    <h4 style={{ color: 'var(--color-text-main)', marginBottom: '0.75rem', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Usługi</h4>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                        <Link href="/oferta" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">Oferta</Link>
+                        <Link href="/oferta/implantologia" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">Implantologia</Link>
+                        <Link href="/cennik" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">Cennik</Link>
+                        <Link href="/metamorfozy" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">Metamorfozy</Link>
+                    </div>
+                </div>
+                <div>
+                    <h4 style={{ color: 'var(--color-text-main)', marginBottom: '0.75rem', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Narzędzia</h4>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                        <Link href="/mapa-bolu" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">Mapa bólu</Link>
+                        <Link href="/kalkulator-leczenia" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">Kalkulator leczenia</Link>
+                        <Link href="/porownywarka" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">Porównywarka</Link>
+                        <Link href="/aplikacja" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">Aplikacja</Link>
+                    </div>
+                </div>
+                <div>
+                    <h4 style={{ color: 'var(--color-text-main)', marginBottom: '0.75rem', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Wiedza</h4>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                        <Link href="/aktualnosci" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">Aktualności</Link>
+                        <Link href="/baza-wiedzy" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">Baza wiedzy</Link>
+                        <Link href="/nowosielski" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">Blog</Link>
+                        <Link href="/sklep" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">Sklep</Link>
+                    </div>
+                </div>
+            </nav>
             <div className="container" style={{
                 marginTop: 'var(--spacing-lg)',
                 paddingTop: 'var(--spacing-md)',

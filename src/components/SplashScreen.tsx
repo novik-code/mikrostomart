@@ -38,7 +38,8 @@ const particles = Array.from({ length: 80 }, (_, i) => {
 type Phase = 'idle' | 'particles' | 'logo-center' | 'logo-fly' | 'reveal' | 'done';
 
 export default function SplashScreen({ children }: { children: React.ReactNode }) {
-    const [phase, setPhase] = useState<Phase>('idle');
+    // Default to 'done' so SSR output shows content (opacity: 1) for Googlebot / noscript
+    const [phase, setPhase] = useState<Phase>('done');
     const [shouldShow, setShouldShow] = useState(false);
     const [mounted, setMounted] = useState(false);
 
@@ -47,12 +48,13 @@ export default function SplashScreen({ children }: { children: React.ReactNode }
         if (typeof window !== 'undefined') {
             const seen = sessionStorage.getItem('splash-seen');
             if (!seen) {
+                // Reset phase to 'idle' to start splash animation
+                setPhase('idle');
                 setShouldShow(true);
                 sessionStorage.setItem('splash-seen', '1');
                 document.body.style.overflow = 'hidden';
-            } else {
-                setPhase('done');
             }
+            // If already seen, stay in 'done' (initial state)
         }
     }, []);
 

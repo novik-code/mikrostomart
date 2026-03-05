@@ -5,7 +5,14 @@ export default function robots(): MetadataRoute.Robots {
         rules: {
             userAgent: '*',
             allow: '/',
-            disallow: ['/admin/', '/api/'],
+            disallow: [
+                '/api/',
+                '/admin/',
+                '/pracownik/',
+                '/strefa-pacjenta/',
+                '/ekarta/',
+                '/mapa-bolu/editor',
+            ],
         },
         sitemap: 'https://mikrostomart.pl/sitemap.xml',
     };

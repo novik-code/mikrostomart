@@ -2,6 +2,17 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 /**
+ * Known search engine bot user-agent patterns.
+ * When detected, skip Supabase auth to reduce latency for crawlers.
+ */
+const BOT_UA_PATTERNS = /googlebot|bingbot|yandex|baiduspider|duckduckbot|slurp|facebot|ia_archiver|semrushbot|ahrefsbot|mj12bot|dotbot/i;
+
+function isBot(request: NextRequest): boolean {
+    const ua = request.headers.get('user-agent') || '';
+    return BOT_UA_PATTERNS.test(ua);
+}
+
+/**
  * Apply security headers to response.
  */
 function addSecurityHeaders(response: NextResponse): NextResponse {
@@ -29,6 +40,11 @@ function addSecurityHeaders(response: NextResponse): NextResponse {
 
 export async function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl;
+
+    // ─── Fast path for bots: skip auth, just apply security headers ─────
+    if (isBot(request)) {
+        return addSecurityHeaders(NextResponse.next());
+    }
 
     // ─── Block /mapa-bolu/editor in production (debug tool) ───────────────
     if (pathname === '/mapa-bolu/editor') {
