@@ -44,7 +44,6 @@ export default function EmployeePage() {
     const [currentUser, setCurrentUser] = useState<string>('');
     const [historyLoading, setHistoryLoading] = useState(false);
     const [historyError, setHistoryError] = useState<string | null>(null);
-    const [qrModal, setQrModal] = useState<{ url: string; expiresAt: string } | null>(null);
     const [sessionTimeoutWarning, setSessionTimeoutWarning] = useState(false);
     const { userId: currentUserId, email: currentUserEmail, isAdmin } = useUserRoles();
     const [activeTab, setActiveTab] = useState<'grafik' | 'zadania' | 'asystent' | 'powiadomienia' | 'sugestie' | 'pacjenci'>('grafik');

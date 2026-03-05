@@ -1986,5 +1986,48 @@ export default function ScheduleTab({
                     </div>
                 </div>
             )}
+        {/* ═══ E-KARTA QR CODE MODAL ═══ */}
+        {qrModal && (
+            <div
+                onClick={() => setQrModal(null)}
+                style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 4000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
+            >
+                <div onClick={e => e.stopPropagation()} style={{ background: 'linear-gradient(135deg, #0d1b2a, #1b2838)', border: '1px solid rgba(74,222,128,0.3)', borderRadius: '1rem', padding: '2rem', maxWidth: 360, width: '100%', textAlign: 'center', boxShadow: '0 20px 60px rgba(0,0,0,0.7)' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>E-Karta Pacjenta</div>
+                    <h3 style={{ margin: '0 0 1.25rem', color: '#4ade80', fontSize: '1.1rem' }}>
+                        {selectedAppointment?.patientName}
+                    </h3>
+                    {/* QR Code */}
+                    <div style={{ background: '#fff', display: 'inline-block', padding: '12px', borderRadius: '0.75rem', marginBottom: '1rem' }}>
+                        <QRCodeSVG
+                            value={qrModal.url}
+                            size={200}
+                            level="M"
+                            includeMargin={false}
+                        />
+                    </div>
+                    <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.85rem', marginBottom: '0.5rem' }}>
+                        Pacjent skanuje kod swoim telefonem i wypełnia dane
+                    </p>
+                    <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.75rem', marginBottom: '1.25rem' }}>
+                        Ważny do: {new Date(qrModal.expiresAt).toLocaleString('pl-PL', { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                    <div style={{ display: 'flex', gap: '0.75rem' }}>
+                        <button
+                            onClick={() => navigator.clipboard?.writeText(qrModal.url)}
+                            style={{ flex: 1, padding: '0.6rem', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '0.5rem', color: '#e2e8f0', cursor: 'pointer', fontSize: '0.8rem' }}
+                        >
+                            📋 Kopiuj link
+                        </button>
+                        <button
+                            onClick={() => setQrModal(null)}
+                            style={{ flex: 1, padding: '0.6rem', background: 'linear-gradient(135deg, #4ade80, #22c55e)', border: 'none', borderRadius: '0.5rem', color: '#fff', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}
+                        >
+                            ✓ Gotowe
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
     </div>);
 }
