@@ -27,17 +27,7 @@ import {
     Bell,
     Trash2
 } from "lucide-react";
-
-type Product = {
-    id: string;
-    name: string;
-    price: number;
-    description: string;
-    category: string;
-    image: string;
-    gallery?: string[];
-    isVisible?: boolean;
-};
+import { Product } from './components/AdminTypes';
 
 export default function AdminPage() {
     const [loading, setLoading] = useState(false);
