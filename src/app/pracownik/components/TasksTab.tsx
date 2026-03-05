@@ -2703,5 +2703,249 @@ export default function TasksTab({
                     </div>
                 )
             }
+            {/* ═══ TASK DETAIL VIEW MODAL ═══ */}
+            {selectedViewTask && (
+                <div
+                    onClick={() => setSelectedViewTask(null)}
+                    style={{
+                        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)',
+                        zIndex: 3000, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        padding: '1rem',
+                    }}
+                >
+                    <div
+                        onClick={e => e.stopPropagation()}
+                        style={{
+                            background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+                            border: '1px solid rgba(255,255,255,0.1)',
+                            borderRadius: '1rem',
+                            width: '100%',
+                            maxWidth: '560px',
+                            maxHeight: '90vh',
+                            overflowY: 'auto',
+                            padding: '1.5rem',
+                            boxShadow: '0 25px 50px rgba(0,0,0,0.7)',
+                        }}
+                    >
+                        {/* Header */}
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', marginBottom: '1rem' }}>
+                            <button
+                                onClick={() => {
+                                    handleUpdateStatus(selectedViewTask.id, getNextStatus(selectedViewTask.status));
+                                    setSelectedViewTask(prev => prev ? { ...prev, status: getNextStatus(prev.status) } : null);
+                                }}
+                                title={`Zmień na: ${getStatusLabel(getNextStatus(selectedViewTask.status))}`}
+                                style={{
+                                    width: '28px', height: '28px', borderRadius: '50%', flexShrink: 0, marginTop: '2px',
+                                    border: `2px solid ${getStatusColor(selectedViewTask.status)}`,
+                                    background: selectedViewTask.status === 'done' ? getStatusColor(selectedViewTask.status) : 'transparent',
+                                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff',
+                                }}
+                            >
+                                {selectedViewTask.status === 'done' && '✓'}
+                            </button>
+                            <div style={{ flex: 1 }}>
+                                <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: '700', color: '#fff', lineHeight: 1.3 }}>
+                                    {selectedViewTask.priority === 'urgent' && <span style={{ color: '#ef4444', marginRight: '0.3rem' }}>⚡</span>}
+                                    {selectedViewTask.title}
+                                </h3>
+                                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.4rem', alignItems: 'center' }}>
+                                    <span style={{ fontSize: '0.7rem', padding: '0.15rem 0.5rem', borderRadius: '1rem', background: `${getStatusColor(selectedViewTask.status)}22`, color: getStatusColor(selectedViewTask.status), border: `1px solid ${getStatusColor(selectedViewTask.status)}44` }}>
+                                        {getStatusLabel(selectedViewTask.status)}
+                                    </span>
+                                    <span style={{ fontSize: '0.7rem', padding: '0.15rem 0.5rem', borderRadius: '1rem', background: `${getPriorityColor(selectedViewTask.priority)}22`, color: getPriorityColor(selectedViewTask.priority), border: `1px solid ${getPriorityColor(selectedViewTask.priority)}44` }}>
+                                        {getPriorityLabel(selectedViewTask.priority)}
+                                    </span>
+                                    {selectedViewTask.is_private && <span style={{ fontSize: '0.7rem', color: '#a78bfa' }}>🔒 Prywatne</span>}
+                                    {selectedViewTask.task_type && <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)' }}>{selectedViewTask.task_type}</span>}
+                                </div>
+                            </div>
+                            <button onClick={() => setSelectedViewTask(null)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: '1.2rem', padding: '0', flexShrink: 0 }}>✕</button>
+                        </div>
+
+                        {/* Meta info row */}
+                        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1rem', fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)' }}>
+                            {selectedViewTask.due_date && (
+                                <span style={{ color: new Date(selectedViewTask.due_date) < new Date() && selectedViewTask.status !== 'done' ? '#ef4444' : 'rgba(255,255,255,0.5)' }}>
+                                    📅 {new Date(selectedViewTask.due_date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                    {(selectedViewTask as any).due_time && ` o ${(selectedViewTask as any).due_time}`}
+                                </span>
+                            )}
+                            {selectedViewTask.patient_name && <span>👤 {selectedViewTask.patient_name}</span>}
+                            {selectedViewTask.assigned_to && selectedViewTask.assigned_to.length > 0 && (
+                                <span>👥 {selectedViewTask.assigned_to.map((a: any) => a.name || a).join(', ')}</span>
+                            )}
+                        </div>
+
+                        {/* Description */}
+                        {selectedViewTask.description && (
+                            <div style={{ marginBottom: '1rem', padding: '0.75rem 1rem', background: 'rgba(255,255,255,0.04)', borderRadius: '0.5rem', fontSize: '0.82rem', color: 'rgba(255,255,255,0.75)', lineHeight: 1.6 }}>
+                                {selectedViewTask.description}
+                            </div>
+                        )}
+
+                        {/* Checklist */}
+                        {selectedViewTask.checklist_items && selectedViewTask.checklist_items.length > 0 && (
+                            <div style={{ marginBottom: '1rem' }}>
+                                <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.4rem', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                    Lista kontrolna ({selectedViewTask.checklist_items.filter(ci => ci.done).length}/{selectedViewTask.checklist_items.length})
+                                </div>
+                                {/* Progress bar */}
+                                <div style={{ height: '3px', background: 'rgba(255,255,255,0.08)', borderRadius: '2px', overflow: 'hidden', marginBottom: '0.5rem' }}>
+                                    <div style={{ width: `${(selectedViewTask.checklist_items.filter(ci => ci.done).length / selectedViewTask.checklist_items.length) * 100}%`, height: '100%', background: selectedViewTask.checklist_items.every(ci => ci.done) ? '#22c55e' : '#38bdf8', transition: 'width 0.3s' }} />
+                                </div>
+                                {selectedViewTask.checklist_items.map((ci, idx) => (
+                                    <label key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.3rem 0', cursor: 'pointer' }}>
+                                        <input
+                                            type="checkbox" checked={ci.done}
+                                            onChange={() => {
+                                                handleToggleChecklist(selectedViewTask.id, idx);
+                                                setSelectedViewTask(prev => {
+                                                    if (!prev) return null;
+                                                    const newItems = prev.checklist_items!.map((item, i) => i === idx ? { ...item, done: !item.done } : item);
+                                                    return { ...prev, checklist_items: newItems };
+                                                });
+                                            }}
+                                            style={{ accentColor: '#38bdf8', width: '14px', height: '14px' }}
+                                        />
+                                        <span style={{ fontSize: '0.82rem', color: ci.done ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.8)', textDecoration: ci.done ? 'line-through' : 'none' }}>{ci.label}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* 💬 Comments */}
+                        <div style={{ marginBottom: '1rem' }}>
+                            <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.4rem', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                💬 Komentarze ({(taskComments[selectedViewTask.id] || []).length})
+                            </div>
+                            {(taskComments[selectedViewTask.id] || []).map((c: any) => (
+                                <div key={c.id} style={{ padding: '0.4rem 0.6rem', background: 'rgba(255,255,255,0.04)', borderRadius: '0.4rem', marginBottom: '0.3rem', fontSize: '0.78rem' }}>
+                                    <span style={{ color: '#38bdf8', fontWeight: '600', fontSize: '0.7rem' }}>{c.author_name || c.author_email?.split('@')[0]}</span>
+                                    <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.65rem', marginLeft: '0.4rem' }}>{new Date(c.created_at).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                                    <div style={{ color: 'rgba(255,255,255,0.7)', marginTop: '0.15rem' }}>{c.content}</div>
+                                </div>
+                            ))}
+                            {/* Comment input */}
+                            <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.4rem' }}>
+                                <input
+                                    type="text"
+                                    placeholder="Napisz komentarz..."
+                                    value={commentInput}
+                                    onChange={e => setCommentInput(e.target.value)}
+                                    onKeyDown={e => { if (e.key === 'Enter') handlePostComment(selectedViewTask.id); }}
+                                    style={{ flex: 1, padding: '0.45rem 0.7rem', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '0.5rem', color: '#fff', fontSize: '0.8rem', outline: 'none' }}
+                                />
+                                <button
+                                    onClick={() => handlePostComment(selectedViewTask.id)}
+                                    disabled={commentLoading || !commentInput.trim()}
+                                    style={{ padding: '0.45rem 0.85rem', background: commentInput.trim() ? 'rgba(56,189,248,0.2)' : 'rgba(255,255,255,0.05)', border: `1px solid ${commentInput.trim() ? 'rgba(56,189,248,0.4)' : 'rgba(255,255,255,0.1)'}`, borderRadius: '0.5rem', color: commentInput.trim() ? '#38bdf8' : 'rgba(255,255,255,0.3)', cursor: commentInput.trim() ? 'pointer' : 'default', fontSize: '0.8rem', fontWeight: '600', whiteSpace: 'nowrap' }}
+                                >
+                                    {commentLoading ? '...' : 'Wyślij'}
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* 📜 Edit history */}
+                        {taskHistoryLoading && <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.3)', marginBottom: '0.75rem' }}>Ładowanie historii...</div>}
+                        {!taskHistoryLoading && (
+                            <div style={{ marginBottom: '1rem' }}>
+                                <button
+                                    onClick={() => setTaskHistoryExpanded(!taskHistoryExpanded)}
+                                    style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.35)', fontSize: '0.72rem', cursor: 'pointer', padding: '0.2rem 0', display: 'flex', alignItems: 'center', gap: '0.3rem', fontWeight: taskHistory.length > 0 ? '600' : '400' }}
+                                >
+                                    📜 Historia zmian {taskHistory.length > 0 ? `(${taskHistory.length})` : '(brak)'}
+                                    <span style={{ fontSize: '0.6rem' }}>{taskHistoryExpanded ? '▲' : '▼'}</span>
+                                </button>
+                                {taskHistoryExpanded && (
+                                    <div style={{ marginTop: '0.35rem', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '0.5rem', padding: '0.5rem', maxHeight: '250px', overflowY: 'auto' }}>
+                                        {taskHistory.length === 0 ? (
+                                            <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', textAlign: 'center', padding: '0.5rem' }}>Brak historii zmian</div>
+                                        ) : (
+                                            taskHistory.map((h: any, idx: number) => {
+                                                const changedByName = staffList.find(s => s.email === h.changed_by)?.name || h.changed_by;
+                                                const dateStr = new Date(h.changed_at).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+                                                const fieldLabels: Record<string, string> = {
+                                                    title: 'Tytuł', description: 'Opis', status: 'Status', priority: 'Priorytet',
+                                                    task_type: 'Typ', due_date: 'Termin', assigned_to_doctor_name: 'Przypisano do', image_url: 'Zdjęcie',
+                                                };
+                                                const statusLabels: Record<string, string> = { todo: 'Do zrobienia', in_progress: 'W trakcie', done: 'Wykonane', archived: 'Archiwum' };
+                                                const priorityLabels: Record<string, string> = { low: 'Niski', normal: 'Normalny', urgent: 'Pilny' };
+                                                return (
+                                                    <div key={idx} style={{ padding: '0.35rem 0', borderBottom: idx < taskHistory.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
+                                                        <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.1rem' }}>
+                                                            {h.change_type === 'status' ? '🔄' : h.change_type === 'checklist' ? '☑️' : '✏️'} <strong>{changedByName}</strong> • {dateStr}
+                                                        </div>
+                                                        <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.55)' }}>
+                                                            {Object.entries(h.changes || {}).map(([key, val]: [string, any]) => {
+                                                                if (h.change_type === 'checklist') return <div key={key}>{val.done ? '✅' : '⬜'} {val.item}</div>;
+                                                                if (key === 'assigned_to_doctor_id' || key === 'patient_id' || key === 'linked_appointment_info') return null;
+                                                                const label = fieldLabels[key] || key;
+                                                                const toStr = (v: any): string => {
+                                                                    if (v === null || v === undefined) return '—';
+                                                                    if (Array.isArray(v)) {
+                                                                        if (key === 'image_urls' || key === 'image_url') return v.length > 0 ? `📷 ×${v.length}` : '—';
+                                                                        return v.length > 0 ? `[${v.length} elem.]` : '—';
+                                                                    }
+                                                                    if (typeof v === 'object') return JSON.stringify(v).substring(0, 60);
+                                                                    return String(v) || '—';
+                                                                };
+                                                                let oldDisplay: string = toStr(val.old);
+                                                                let newDisplay: string = toStr(val.new);
+                                                                if (key === 'status') { oldDisplay = statusLabels[val.old] || val.old || '—'; newDisplay = statusLabels[val.new] || val.new || '—'; }
+                                                                else if (key === 'priority') { oldDisplay = priorityLabels[val.old] || val.old || '—'; newDisplay = priorityLabels[val.new] || val.new || '—'; }
+                                                                else if (key === 'image_url' || key === 'image_urls') {
+                                                                    oldDisplay = Array.isArray(val.old) ? (val.old.length > 0 ? `📷 ×${val.old.length}` : '—') : (val.old ? '📷' : '—');
+                                                                    newDisplay = Array.isArray(val.new) ? (val.new.length > 0 ? `📷 ×${val.new.length}` : '—') : (val.new ? '📷' : '—');
+                                                                }
+                                                                else if (key === 'due_date') { oldDisplay = val.old ? new Date(val.old).toLocaleDateString('pl-PL') : '—'; newDisplay = val.new ? new Date(val.new).toLocaleDateString('pl-PL') : '—'; }
+                                                                return <div key={key}>{label}: {oldDisplay} → {newDisplay}</div>;
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Action buttons */}
+                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', paddingTop: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+                            <button
+                                onClick={() => {
+                                    const task = selectedViewTask;
+                                    setSelectedViewTask(null);
+                                    openEditModal(task);
+                                }}
+                                style={{ flex: 1, padding: '0.6rem 1rem', background: 'rgba(56,189,248,0.15)', border: '1px solid rgba(56,189,248,0.3)', borderRadius: '0.5rem', color: '#38bdf8', cursor: 'pointer', fontSize: '0.82rem', fontWeight: '600' }}
+                            >
+                                ✏️ Edytuj zadanie
+                            </button>
+                            {(['todo', 'in_progress', 'done'] as const).map(s => s !== selectedViewTask.status && (
+                                <button
+                                    key={s}
+                                    onClick={() => {
+                                        handleUpdateStatus(selectedViewTask.id, s);
+                                        setSelectedViewTask(prev => prev ? { ...prev, status: s } : null);
+                                    }}
+                                    style={{ padding: '0.6rem 0.75rem', background: `${getStatusColor(s)}15`, border: `1px solid ${getStatusColor(s)}44`, borderRadius: '0.5rem', color: getStatusColor(s), cursor: 'pointer', fontSize: '0.75rem' }}
+                                >
+                                    → {getStatusLabel(s)}
+                                </button>
+                            ))}
+                            {isAdmin && (
+                                <button
+                                    onClick={() => { handleDeleteTask(selectedViewTask.id); setSelectedViewTask(null); }}
+                                    style={{ padding: '0.6rem 0.75rem', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: '0.5rem', color: '#ef4444', cursor: 'pointer', fontSize: '0.75rem' }}
+                                >
+                                    🗑️ Usuń
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </>);
 }
