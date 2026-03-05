@@ -38,6 +38,7 @@ interface PlacedField {
     boxWidth?: number;  // for PESEL boxes
     color: string;
     icon: string;
+    mutexGroup?: string; // for checkboxes: group name — only one in group can be checked
 }
 
 interface ConsentMapping {
@@ -131,6 +132,7 @@ function dbFieldsToPlaced(fields: Record<string, any>, pdfW: number, pdfH: numbe
             boxWidth: val.boxWidth,
             color: meta.color,
             icon: meta.icon,
+            ...(val.mutexGroup ? { mutexGroup: val.mutexGroup } : {}),
         });
         idx++;
     }
@@ -149,7 +151,9 @@ function placedToDbFields(placed: PlacedField[]): Record<string, any> {
             fields[f.key] = { x: f.pdfX, y: f.pdfY, page: f.page };
             if (isMultiInstance) fields[f.key].sourceField = base;
         } else if (f.fieldType === 'checkbox') {
-            fields[f.key] = { x: f.pdfX, y: f.pdfY, page: f.page, fieldType: 'checkbox', label: f.label, fontSize: f.fontSize || 11 };
+            const cbEntry: any = { x: f.pdfX, y: f.pdfY, page: f.page, fieldType: 'checkbox', label: f.label, fontSize: f.fontSize || 11 };
+            if (f.mutexGroup) cbEntry.mutexGroup = f.mutexGroup;
+            fields[f.key] = cbEntry;
         } else {
             const entry: any = { x: f.pdfX, y: f.pdfY, fontSize: f.fontSize || 11, page: f.page };
             if (!BUILTIN_FIELDS[f.key] && !BUILTIN_FIELDS[base]) {
@@ -190,6 +194,11 @@ export default function PdfMapperPage() {
     const [newFieldKey, setNewFieldKey] = useState('');
     const [newFieldLabel, setNewFieldLabel] = useState('');
     const [newFieldType, setNewFieldType] = useState<'text' | 'checkbox'>('text');
+    const [newFieldMutexGroup, setNewFieldMutexGroup] = useState('');
+
+    // State: drag-to-move
+    const [dragging, setDragging] = useState<{ key: string; startX: number; startY: number } | null>(null);
+    const isDraggingRef = useRef(false);
 
     // State: new consent creation
     const [showNewForm, setShowNewForm] = useState(false);
@@ -326,8 +335,50 @@ export default function PdfMapperPage() {
         await page.render({ canvasContext: ctx, viewport }).promise;
     }
 
+    // ── Drag-to-move handlers ──────────────────────────────────
+    const handleMarkerMouseDown = useCallback((e: React.MouseEvent, fieldKey: string) => {
+        e.preventDefault();
+        e.stopPropagation();
+        isDraggingRef.current = false;
+        setDragging({ key: fieldKey, startX: e.clientX, startY: e.clientY });
+    }, []);
+
+    const handleOverlayMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+        if (!dragging) return;
+        const div = overlayRef.current;
+        if (!div) return;
+
+        // Only start actual drag after 3px movement (prevents accidental drags)
+        const dx = Math.abs(e.clientX - dragging.startX);
+        const dy = Math.abs(e.clientY - dragging.startY);
+        if (dx < 3 && dy < 3) return;
+
+        isDraggingRef.current = true;
+        const rect = div.getBoundingClientRect();
+        const nx = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+        const ny = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
+        const pdfX = Math.round(nx * pdfSize.w * 10) / 10;
+        const pdfY = Math.round((1 - ny) * pdfSize.h * 10) / 10;
+
+        setPlacedFields(prev => prev.map(f =>
+            f.key === dragging.key ? { ...f, nx, ny, pdfX, pdfY } : f
+        ));
+    }, [dragging, pdfSize]);
+
+    const handleOverlayMouseUp = useCallback(() => {
+        if (dragging && isDraggingRef.current) {
+            setHasChanges(true);
+        }
+        setDragging(null);
+        // Reset after a tick so handleClick doesn't fire
+        setTimeout(() => { isDraggingRef.current = false; }, 50);
+    }, [dragging]);
+
     // ── Click to place field (multi-instance: adds _2, _3 etc.) ──
     const handleClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+        // Don't place new field if we just finished dragging
+        if (isDraggingRef.current) return;
+
         const div = overlayRef.current;
         if (!div) return;
         const rect = div.getBoundingClientRect();
@@ -419,8 +470,11 @@ export default function PdfMapperPage() {
         // Add to placed fields with a temporary position (user will click to place)
         setActiveFieldKey(finalKey);
         setShowAddField(false);
+        const capturedLabel = newFieldLabel;
+        const capturedMutexGroup = newFieldType === 'checkbox' ? newFieldMutexGroup.trim() : '';
         setNewFieldKey('');
         setNewFieldLabel('');
+        setNewFieldMutexGroup('');
 
         // Pre-register the custom field in placed so it appears in the field list
         // But without position — user needs to click on PDF to place it
@@ -431,7 +485,7 @@ export default function PdfMapperPage() {
         // Add a "pending" field — it will be placed when user clicks
         setPlacedFields(prev => [...prev, {
             key: finalKey,
-            label: newFieldLabel,
+            label: capturedLabel,
             fieldType: newFieldType,
             page: currentPage,
             nx: 0.5, ny: 0.5, // center temporarily
@@ -439,6 +493,7 @@ export default function PdfMapperPage() {
             pdfY: Math.round(pdfSize.h / 2 * 10) / 10,
             fontSize: 11,
             color, icon,
+            ...(capturedMutexGroup ? { mutexGroup: capturedMutexGroup } : {}),
         }]);
         setHasChanges(true);
     };
@@ -549,6 +604,13 @@ export default function PdfMapperPage() {
                                 <li><strong>Zapisz</strong> — kliknij zielony przycisk &quot;💾 Zapisz do bazy&quot;</li>
                             </ol>
 
+                            <h3 style={{ color: '#38bdf8', fontSize: '0.9rem', marginBottom: '0.4rem' }}>🖱️ Przesuwanie pól (drag &amp; drop)</h3>
+                            <ul style={{ paddingLeft: '1.2rem', margin: '0 0 1rem' }}>
+                                <li><strong>Złap marker</strong> na PDF (kolorowe kółko/kwadrat) i <strong>przeciągnij</strong> w nowe miejsce</li>
+                                <li>Kliknięcie w puste miejsce nadal stawia <strong>nowe pole</strong></li>
+                                <li>Pozycja aktualizuje się w czasie rzeczywistym — koordynaty widać w panelu po prawej</li>
+                            </ul>
+
                             <h3 style={{ color: '#a855f7', fontSize: '0.9rem', marginBottom: '0.4rem' }}>📋+ Zwielokrotnianie pól</h3>
                             <p style={{ margin: '0 0 0.5rem' }}>Gdy potrzebujesz tego samego pola w kilku miejscach (np. podpis na stronie 1 i 3):</p>
                             <ul style={{ paddingLeft: '1.2rem', margin: '0 0 1rem' }}>
@@ -563,8 +625,17 @@ export default function PdfMapperPage() {
                             <ul style={{ paddingLeft: '1.2rem', margin: '0 0 1rem' }}>
                                 <li>Kliknij żółty przycisk <strong>➕ Dodaj nowe pole</strong></li>
                                 <li>Wybierz typ: <strong>📝 Tekst</strong> lub <strong>☑️ Checkbox</strong></li>
-                                <li>Wpisz klucz (identyfikator) i etykietę (opis)</li>
-                                <li>Pole pojawi się na środku PDF — przeciągnij na właściwe miejsce klikając ponownie</li>
+                                <li><strong>Klucz</strong> = wewnętrzny identyfikator w bazie danych (np. <code style={{ background: 'rgba(255,255,255,0.1)', padding: '1px 4px', borderRadius: '3px' }}>nieletni</code>). Musi być unikalny, nie zmienia się po utworzeniu.</li>
+                                <li><strong>Etykieta</strong> = tekst widoczny dla pracownika i pacjenta (np. &quot;Pacjent nieletni&quot;). To jest opis pola.</li>
+                                <li>Pole pojawi się na środku PDF — <strong>złap i przeciągnij</strong> na właściwe miejsce</li>
+                            </ul>
+
+                            <h3 style={{ color: '#d946ef', fontSize: '0.9rem', marginBottom: '0.4rem' }}>☑️ Checkboxy z grupą mutex</h3>
+                            <p style={{ margin: '0 0 0.5rem' }}>Jeśli na formularzu jest &quot;TAK / NIE&quot; — mogą być zaznaczone wzajemnie wykluczająco:</p>
+                            <ul style={{ paddingLeft: '1.2rem', margin: '0 0 1rem' }}>
+                                <li>Przy dodawaniu checkboxa wpisz <strong>Grupę mutex</strong> (np. &quot;zgoda&quot;)</li>
+                                <li>Wszystkie checkboxy z tą samą grupą działają jak radio — zaznaczenie jednego odznacza resztę</li>
+                                <li>Jeśli grupa jest pusta — checkbox jest niezależny</li>
                             </ul>
 
                             <h3 style={{ color: '#f97316', fontSize: '0.9rem', marginBottom: '0.4rem' }}>🆕 Tworzenie nowego typu zgody</h3>
@@ -574,10 +645,9 @@ export default function PdfMapperPage() {
                                 <li>Po utworzeniu — mapuj pola jak zwykle</li>
                             </ul>
 
-                            <h3 style={{ color: '#ef4444', fontSize: '0.9rem', marginBottom: '0.4rem' }}>🗑️ Usuwanie i edycja</h3>
+                            <h3 style={{ color: '#ef4444', fontSize: '0.9rem', marginBottom: '0.4rem' }}>🗑️ Usuwanie</h3>
                             <ul style={{ paddingLeft: '1.2rem', margin: '0 0 1rem' }}>
                                 <li><strong>✕</strong> — usuwa pole z mapowania</li>
-                                <li><strong>Przesunięcie</strong> — kliknij ponownie w inne miejsce (gdy pole jest jednoinstancyjne)</li>
                                 <li>Pola wielostronicowe — użyj nawigacji stron aby przechodzić między stronami PDF</li>
                             </ul>
 
@@ -746,10 +816,17 @@ export default function PdfMapperPage() {
                                 style={{ padding: '0.3rem 0.5rem', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '0.3rem', color: '#fff', fontSize: '0.75rem', width: '140px' }} />
                         </div>
                         <div>
-                            <label style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: '0.2rem' }}>Etykieta</label>
+                            <label style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: '0.2rem' }}>Etykieta (widoczna nazwa)</label>
                             <input value={newFieldLabel} onChange={e => setNewFieldLabel(e.target.value)} placeholder="np. Pacjent nieletni"
                                 style={{ padding: '0.3rem 0.5rem', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '0.3rem', color: '#fff', fontSize: '0.75rem', width: '200px' }} />
                         </div>
+                        {newFieldType === 'checkbox' && (
+                            <div>
+                                <label style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: '0.2rem' }}>Grupa mutex <span style={{ color: 'rgba(255,255,255,0.3)' }}>(opcj.)</span></label>
+                                <input value={newFieldMutexGroup} onChange={e => setNewFieldMutexGroup(e.target.value)} placeholder="np. zgoda"
+                                    style={{ padding: '0.3rem 0.5rem', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '0.3rem', color: '#fff', fontSize: '0.75rem', width: '100px' }} />
+                            </div>
+                        )}
                         <button onClick={handleAddCustomField} disabled={!newFieldKey || !newFieldLabel}
                             style={{
                                 padding: '0.35rem 0.8rem',
@@ -793,19 +870,32 @@ export default function PdfMapperPage() {
                                 </span>
                             </div>
                         )}
-                        {/* Click overlay */}
-                        <div ref={overlayRef} onClick={handleClick} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', cursor: 'crosshair', zIndex: 10 }}>
+                        {/* Click overlay + drag-to-move */}
+                        <div ref={overlayRef}
+                            onClick={handleClick}
+                            onMouseMove={handleOverlayMouseMove}
+                            onMouseUp={handleOverlayMouseUp}
+                            onMouseLeave={handleOverlayMouseUp}
+                            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', cursor: dragging ? 'grabbing' : 'crosshair', zIndex: 10 }}>
                             {fieldsOnPage.map(f => (
-                                <div key={f.key} style={{ position: 'absolute', left: `${f.nx * 100}%`, top: `${f.ny * 100}%`, transform: 'translate(-6px, -6px)', pointerEvents: 'none' }}>
+                                <div key={f.key}
+                                    onMouseDown={(e) => handleMarkerMouseDown(e, f.key)}
+                                    style={{
+                                        position: 'absolute', left: `${f.nx * 100}%`, top: `${f.ny * 100}%`,
+                                        transform: 'translate(-8px, -8px)',
+                                        pointerEvents: 'auto', cursor: dragging?.key === f.key ? 'grabbing' : 'grab',
+                                        zIndex: dragging?.key === f.key ? 20 : 11,
+                                    }}>
                                     <div style={{
                                         width: f.fieldType === 'checkbox' ? '16px' : '14px',
                                         height: f.fieldType === 'checkbox' ? '16px' : '14px',
                                         borderRadius: f.fieldType === 'checkbox' ? '3px' : '50%',
                                         background: f.color,
-                                        border: '2px solid #fff',
-                                        boxShadow: `0 0 10px ${f.color}80`,
+                                        border: dragging?.key === f.key ? '3px solid #fff' : '2px solid #fff',
+                                        boxShadow: dragging?.key === f.key ? `0 0 20px ${f.color}` : `0 0 10px ${f.color}80`,
+                                        transition: dragging ? 'none' : 'box-shadow 0.2s',
                                     }} />
-                                    <div style={{ position: 'absolute', left: '20px', top: '-3px', fontSize: '0.6rem', color: '#fff', fontWeight: 'bold', whiteSpace: 'nowrap', background: f.color, padding: '2px 6px', borderRadius: '3px', boxShadow: '0 1px 4px rgba(0,0,0,0.4)' }}>
+                                    <div style={{ position: 'absolute', left: '20px', top: '-3px', fontSize: '0.6rem', color: '#fff', fontWeight: 'bold', whiteSpace: 'nowrap', background: f.color, padding: '2px 6px', borderRadius: '3px', boxShadow: '0 1px 4px rgba(0,0,0,0.4)', pointerEvents: 'none' }}>
                                         {f.icon} {f.label} ({f.pdfX}, {f.pdfY})
                                     </div>
                                 </div>
@@ -845,7 +935,7 @@ export default function PdfMapperPage() {
                                         <div>
                                             <div style={{ fontSize: '0.67rem', color: f.color, fontWeight: 'bold' }}>
                                                 {f.icon} {f.label}
-                                                {f.fieldType === 'checkbox' && <span style={{ fontSize: '0.55rem', marginLeft: '0.3rem', color: 'rgba(255,255,255,0.4)' }}>(checkbox)</span>}
+                                                {f.fieldType === 'checkbox' && <span style={{ fontSize: '0.55rem', marginLeft: '0.3rem', color: 'rgba(255,255,255,0.4)' }}>(checkbox{f.mutexGroup ? ` · grupa: ${f.mutexGroup}` : ''})</span>}
                                                 {f.key !== getBaseKey(f.key) && <span style={{ fontSize: '0.55rem', marginLeft: '0.3rem', color: 'rgba(255,255,255,0.3)' }}>(kopia)</span>}
                                             </div>
                                             <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)', fontFamily: 'monospace' }}>
