@@ -1,8 +1,8 @@
 # PROJECT STATUS - Mikrostomart
 
-> **Last Updated:** February 8, 2026, 07:30  
+> **Last Updated:** March 5, 2026, 11:38  
 > **Build Status:** ✅ Production (Vercel)  
-> **Latest Commit:** `ee433c1` - Smile simulator: Flux Fill Dev with improved prompt
+> **Latest Commit:** `664e76c` - 4.2a+4.5: extract AdminTypes.ts + create withAuth middleware wrapper
 
 ---
 
@@ -78,6 +78,36 @@
   - Appointment instructions
   - Short links
   - Patient contact fields
+  - User roles (RBAC)
+  - Consent field mappings
+  - 60+ total migrations
+
+#### Security (Etap 1 — complete)
+- [x] Auth guards on all 40+ admin/employee endpoints
+- [x] Rate limiting (login, reset-password, AI endpoints)
+- [x] Security headers (X-Frame-Options, CSP)
+- [x] GDPR audit logging
+- [x] CRON_SECRET validation
+
+#### Monitoring (Etap 2 — complete)
+- [x] Sentry error tracking integration
+- [x] Vercel deployment verified
+
+#### New Features (Etap 3 — complete)
+- [x] PDF Mapper rework (no-code consent field editor)
+- [x] Booking notifications (email on approve/reject)
+- [x] Telegram daily digest
+- [x] Deposit reminders
+- [x] No-show follow-up detection
+- [x] Patient documents API
+- [x] Email status change notifications
+
+#### Architecture Refactoring (Etap 4 — in progress)
+- [x] Type extraction from monolith (ScheduleTypes, TaskTypes, AdminTypes)
+- [x] withAuth middleware wrapper
+- [ ] Component splitting (pracownik/page.tsx, admin/page.tsx)
+- [ ] Custom hooks (useSchedule, useTasks)
+- [ ] Type index re-exports (src/types/)
 
 #### Automation
 - [x] Cron job: Generate SMS reminders (daily 5AM UTC)
@@ -110,7 +140,14 @@
 
 ---
 
-## 🚀 Latest Changes (Feb 7, 2026)
+## 🚀 Latest Changes (Mar 5, 2026)
+
+### Etap 4 — Architecture & Refactoring (sesja 1)
+- `87fc414` - Extract employee types (ScheduleTypes.ts, TaskTypes.ts)
+- `664e76c` - Extract AdminTypes.ts + create withAuth middleware wrapper
+- Extracted 230 lines of inline types from monoliths
+- Created reusable `withAuth()` auth middleware (replaces 70+ boilerplate patterns)
+- `tsc --noEmit` → 0 errors
 
 ### SMS History Management System
 
@@ -292,6 +329,10 @@ git push origin main
 4. ✅ **DONE:** Desktop navigation redesign (animated hamburger)
 5. ✅ **DONE:** Novik Code credit with fullscreen takeover animation
 6. ✅ **DONE:** Smile simulator AI pipeline redesign (OpenAI gpt-image-1)
+7. ✅ **DONE:** Etap 1 — Security hardening (auth guards, rate limiting, CSP)
+8. ✅ **DONE:** Etap 2 — Monitoring (Sentry)
+9. ✅ **DONE:** Etap 3 — New features (PDF Mapper, booking notifications, Telegram digest)
+10. 🔄 **IN PROGRESS:** Etap 4 — Architecture refactoring (type extraction done, components next)
 
 ### Short-term (This Month)
 - Test full patient journey (registration → booking → confirmation)

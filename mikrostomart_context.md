@@ -1,6 +1,6 @@
 # Mikrostomart - Complete Project Context
 
-> **Last Updated:** 2026-03-04  
+> **Last Updated:** 2026-03-05  
 > **Version:** Production (Vercel Deployment)  
 > **Status:** Active Development
 
@@ -1819,6 +1819,7 @@ This ensures Saturday and Monday templates don't mix in the admin panel.
 **Files:**
 - `src/lib/jwt.ts` - JWT token utilities
 - `src/lib/auth.ts` - Auth helpers (verifyAdmin)
+- `src/lib/withAuth.ts` - Higher-order auth middleware wrapper (eliminates boilerplate in API routes)
 - `supabase_migrations/003_email_verification_system.sql`
 
 ---
@@ -1850,7 +1851,8 @@ This ensures Saturday and Monday templates don't mix in the admin panel.
 **RBAC System:**
 - 3 Roles: `admin`, `employee`, `patient`
 - Database: `user_roles` table (Supabase)
-- Library: `src/lib/roles.ts` — `getUserRoles()`, `hasRole()`, `grantRole()`, `revokeRole()`
+- Library: `src/lib/roles.ts` — `getUserRoles()`, `hasRole()`, `grantRole()`, `revokeRole()`, `UserRole` type
+- Middleware: `src/lib/withAuth.ts` — `withAuth(handler, { roles: ['admin'] })` — wraps route handlers with auth + RBAC
 - Hook: `src/hooks/useUserRoles.ts` — client-side role fetching
 - Migrations: `015_user_roles.sql`, `016_promotion_dismissed.sql`
 
@@ -1921,6 +1923,39 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### March 5, 2026 (Etap 4 — Architecture & Refactoring, sesja 1)
+**Type Extraction + Auth Middleware Wrapper** — `87fc414`, `664e76c`
+
+#### Type Extraction from Monolith Components
+- Extracted **230 lines** of inline types from `pracownik/page.tsx` (7100→6875 LOC)
+- Created `src/app/pracownik/components/ScheduleTypes.ts` (130 LOC): `Badge`, `ScheduleAppointment`, `Visit`, `ScheduleDay`, `ScheduleData`, Prodentis color maps, badge letters, time helpers
+- Created `src/app/pracownik/components/TaskTypes.ts` (95 LOC): `ChecklistItem`, `EmployeeTask`, `FutureAppointment`, `StaffMember`, `TaskTypeTemplate`, task type colors, fallback checklists
+- Created `src/app/admin/components/AdminTypes.ts`: `Product` type extracted from `admin/page.tsx`
+- All imports wired up, `tsc --noEmit` passes with 0 errors
+
+#### Auth Middleware Wrapper (`withAuth`)
+- Created `src/lib/withAuth.ts` — higher-order function wrapping API route handlers
+- Pattern: `export const GET = withAuth(async (req, user) => { ... }, { roles: ['admin'] })`
+- Uses `UserRole` type from `roles.ts` for type-safe role checking
+- Eliminates 4-line boilerplate (`verifyAdmin() + if !user + hasRole() + if !role`) repeated across 70+ routes
+- **Not migrated** to existing routes yet (safety) — available for new routes
+
+#### Files Modified:
+- `src/app/pracownik/page.tsx` — replaced 230 inline type lines with 4 import lines
+- `src/app/admin/page.tsx` — replaced inline `Product` type with import
+
+#### Files Created:
+- `src/app/pracownik/components/ScheduleTypes.ts`
+- `src/app/pracownik/components/TaskTypes.ts`
+- `src/app/admin/components/AdminTypes.ts`
+- `src/lib/withAuth.ts`
+
+#### Remaining (planned for next sessions):
+- Split `pracownik/page.tsx` JSX into `PatientHistoryModal`, `TasksTab`, `ScheduleTab`, `NotificationsTab`, `AIAssistantTab`
+- Split `admin/page.tsx` JSX into `OnlineBookingsTab`, `SmsTab`, `PatientsTab`, `EmployeesTab`, `PushTab`, `ContentTab`, `AdminSidebar`
+- Custom hooks: `useSchedule`, `useTasks`, `useSmsReminders`
+- Re-export types from `src/types/`
 
 ### March 4, 2026 (PDF Mapper Rework — No-code Consent Field Editor)
 **DB-backed Consent Field Mappings** — `b7306d7`, `afba9be`, `ac9ae61`, `e7dcab5`, `6c8ddf3`
