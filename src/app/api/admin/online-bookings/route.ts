@@ -4,6 +4,7 @@ import { getDoctorInfo } from '@/lib/doctorMapping';
 import { verifyAdmin } from '@/lib/auth';
 import { sendTranslatedPushToUser } from '@/lib/webpush';
 import { sendSMS } from '@/lib/smsService';
+import { sendBookingConfirmedEmail, sendBookingRejectedEmail } from '@/lib/emailService';
 
 export const dynamic = 'force-dynamic';
 
@@ -333,5 +334,23 @@ async function notifyPatientAboutBooking(booking: any, action: 'approve' | 'reje
         }).catch(err => {
             console.error(`[OnlineBookings] SMS failed for ${phone}:`, err);
         });
+    }
+
+    // ── Email notification ──
+    const email = booking.patient_email;
+    if (email) {
+        if (action === 'approve') {
+            sendBookingConfirmedEmail(email, patientName, specialist, formattedDate, time).then(result => {
+                console.log(`[OnlineBookings] Email confirmed to ${email}: success=${result.success}`);
+            }).catch(err => {
+                console.error(`[OnlineBookings] Email failed for ${email}:`, err);
+            });
+        } else {
+            sendBookingRejectedEmail(email, patientName, formattedDate).then(result => {
+                console.log(`[OnlineBookings] Email rejected to ${email}: success=${result.success}`);
+            }).catch(err => {
+                console.error(`[OnlineBookings] Email failed for ${email}:`, err);
+            });
+        }
     }
 }

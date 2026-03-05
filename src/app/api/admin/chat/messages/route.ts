@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
 import { sendTranslatedPushToUser } from '@/lib/webpush';
+import { sendChatReplyEmail } from '@/lib/emailService';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -120,6 +121,32 @@ export async function POST(request: NextRequest) {
                 { message: content.trim().substring(0, 100) },
                 '/strefa-pacjenta/wiadomosci'
             ).catch(console.error);
+
+            // Email notification to patient (fire-and-forget)
+            (async () => {
+                try {
+                    const { data: patientRec } = await supabase
+                        .from('patients')
+                        .select('prodentis_id')
+                        .eq('id', conv.patient_id)
+                        .single();
+
+                    if (!patientRec?.prodentis_id) return;
+
+                    const PRODENTIS_API = process.env.PRODENTIS_API_URL || 'http://83.230.40.14:3000';
+                    const detRes = await fetch(`${PRODENTIS_API}/api/patient/${patientRec.prodentis_id}/details`, {
+                        signal: AbortSignal.timeout(5000),
+                    });
+                    if (detRes.ok) {
+                        const det = await detRes.json();
+                        const email = det.email;
+                        const name = `${det.firstName || ''} ${det.lastName || ''}`.trim() || 'Pacjent';
+                        if (email) {
+                            await sendChatReplyEmail(email, name, content.trim());
+                        }
+                    }
+                } catch { /* non-critical */ }
+            })();
         }
 
         return NextResponse.json({ message });
