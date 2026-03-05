@@ -210,6 +210,28 @@ export default function EmployeePage() {
         setActiveTab('zadania');
     };
 
+    // Fetch employee list for task assignment dropdowns
+    const fetchEmployees = useCallback(async () => {
+        try {
+            const res = await fetch('/api/employee/staff');
+            if (!res.ok) return;
+            const data = await res.json();
+            const allStaff: StaffMember[] = (data.staff || []).map((s: any) => ({
+                id: s.id,
+                name: s.name || s.email,
+                email: s.email,
+            }));
+            setStaffList(allStaff);
+        } catch (err) {
+            console.error('[Staff] Error:', err);
+        }
+    }, []);
+
+    // Load employee list on mount
+    useEffect(() => {
+        fetchEmployees();
+    }, [fetchEmployees]);
+
     return (
         <div
             className="pw-content-area"
