@@ -175,6 +175,8 @@ export default function EmployeePage() {
         setPatientHistory(null);
         setHistoryError(null);
         setHistoryLoading(true);
+        // Auto-switch to grafik tab (patient history modal renders inside ScheduleTab)
+        setActiveTab('grafik');
         // Tooltips are now managed inside ScheduleTab
         try {
             const res = await fetch(`/api/employee/patient-history?patientId=${apt.patientId}&limit=50`);
@@ -205,6 +207,8 @@ export default function EmployeePage() {
             setTaskModalPrefill(prefill);
         }
         setShowTaskModal(true);
+        // Auto-switch to zadania tab (task modal renders inside TasksTab)
+        setActiveTab('zadania');
     };
 
     return (
