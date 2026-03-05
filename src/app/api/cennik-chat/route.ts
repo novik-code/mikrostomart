@@ -30,7 +30,7 @@ PRZYKŁADOWE INTERAKCJE:
 
 export async function POST(req: Request) {
     const ip = getClientIP(req);
-    const rl = checkRateLimit(`cennik:${ip}`, 20);
+    const rl = await checkRateLimit(`cennik:${ip}`, 20);
     if (!rl.allowed) {
         return NextResponse.json({ error: 'Zbyt wiele zapytań. Spróbuj za chwilę.' }, { status: 429 });
     }

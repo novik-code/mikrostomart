@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { sendSMS, getSMSTemplate, formatSMSMessage } from '@/lib/smsService';
 import { mapAppointmentTypeToSlug } from '@/lib/appointmentTypeMapper';
 import { sendTranslatedPushToUser } from '@/lib/webpush';
+import { logCronHeartbeat } from '@/lib/cronHeartbeat';
 import { randomUUID } from 'crypto';
 import { nanoid } from 'nanoid';
 
@@ -553,6 +554,8 @@ export async function GET(req: Request) {
             console.error(`\n❌ [SMS Reminders] Errors:`, errors);
         }
 
+        await logCronHeartbeat('appointment-reminders', 'ok', `Drafts: ${draftsCreated}, Skipped: ${skippedCount}`, Date.now() - startTime);
+
         return NextResponse.json({
             success: true,
             processed: processedCount,
@@ -566,6 +569,7 @@ export async function GET(req: Request) {
 
     } catch (error: any) {
         console.error('💥 [SMS Reminders] Fatal error:', error);
+        await logCronHeartbeat('appointment-reminders', 'error', error.message, Date.now() - startTime);
         return NextResponse.json({
             success: false,
             error: error.message,

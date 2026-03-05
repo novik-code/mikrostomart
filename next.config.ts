@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 import withPWAInit from "@ducanh2912/next-pwa";
 import createNextIntlPlugin from 'next-intl/plugin';
+import { withSentryConfig } from "@sentry/nextjs";
 
 const withPWA = withPWAInit({
   dest: "public",
@@ -84,4 +85,29 @@ const nextConfig: NextConfig = {
 
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
-export default withNextIntl(withPWA(nextConfig));
+// Wrap with Sentry for error tracking and source maps
+export default withSentryConfig(
+  withNextIntl(withPWA(nextConfig)),
+  {
+    // Sentry org and project (set via SENTRY_ORG and SENTRY_PROJECT env vars)
+    org: process.env.SENTRY_ORG,
+    project: process.env.SENTRY_PROJECT,
+
+    // Silence source map upload logs during build
+    silent: !process.env.CI,
+
+    // Upload source maps for better error stack traces
+    widenClientFileUpload: true,
+
+    // Hide source maps from users (delete after upload)
+    sourcemaps: {
+      deleteSourcemapsAfterUpload: true,
+    },
+
+    // Disable Sentry telemetry
+    disableLogger: true,
+
+    // Only upload if token is available
+    authToken: process.env.SENTRY_AUTH_TOKEN,
+  }
+);

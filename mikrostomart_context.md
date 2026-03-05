@@ -1391,7 +1391,7 @@ Features:
 - `POST /api/patients/{id}/notes` — Add medical notes
 - `POST /api/patients/{id}/documents` — Upload document (base64 PDF)
 
-**Authentication:** Read endpoints: no auth. Write endpoints: `X-API-Key: 2c9bd5b4-5090-4007-8f06-936811bd0947`
+**Authentication:** Read endpoints: no auth. Write endpoints: `X-API-Key: ${PRODENTIS_API_KEY}` (env var)
 
 **Base URL:** Configured via `PRODENTIS_API_URL` env var (production: `http://83.230.40.14:3000`)
 
@@ -2668,7 +2668,7 @@ NODE_ENV=production
 - **Endpoints:** POST /api/patients (create), PATCH /api/patients/:id (update), POST /api/patients/:id/notes (medical notes → "Uwagi dla lekarza" in Prodentis XML)
 - **Flow:** submit → POST patient → 409 PESEL exists → PATCH + POST notes → status=sent
 - **Fix:** fire-and-forget async → synchronous (Vercel kills async), all 5 routes updated 192.168.1.5 → 83.230.40.14
-- **⚠️ Action:** `PRODENTIS_API_KEY=2c9bd5b4-5090-4007-8f06-936811bd0947` in Vercel ✅
+- **⚠️ Action:** `PRODENTIS_API_KEY` configured in Vercel env vars ✅
 
 **`30e743d` — Full Medical Survey (Feb 25):**
 - Form rewritten with ALL fields from paper card (KARTA DOROSŁY 1 czesc.docx):

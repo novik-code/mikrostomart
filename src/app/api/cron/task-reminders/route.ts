@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sendTelegramNotification } from '@/lib/telegram';
 import { sendPushToGroups, sendPushToSpecificUsers, type PushGroup } from '@/lib/webpush';
+import { logCronHeartbeat } from '@/lib/cronHeartbeat';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
@@ -183,10 +184,12 @@ export async function GET(req: Request) {
             console.error('[TaskReminders] Personal reminders error:', personalErr);
         }
 
+        await logCronHeartbeat('task-reminders', 'ok', `Reminded: ${totalReminded}, Personal: ${personalSent}`);
         return NextResponse.json({ success: true, reminded: totalReminded, personalSent, telegramSent });
 
     } catch (error: any) {
         console.error('[TaskReminders] Fatal error:', error);
+        await logCronHeartbeat('task-reminders', 'error', error.message);
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }

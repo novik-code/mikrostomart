@@ -48,7 +48,7 @@ const tools = [
 
 export async function POST(req: Request) {
     const ip = getClientIP(req);
-    const rl = checkRateLimit(`chat:${ip}`, 20);
+    const rl = await checkRateLimit(`chat:${ip}`, 20);
     if (!rl.allowed) {
         return NextResponse.json({ error: 'Zbyt wiele zapytań. Spróbuj za chwilę.' }, { status: 429 });
     }

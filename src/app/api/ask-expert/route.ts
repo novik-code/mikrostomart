@@ -7,7 +7,7 @@ export const runtime = 'nodejs';
 
 export async function POST(req: Request) {
     const ip = getClientIP(req);
-    const rl = checkRateLimit(`expert:${ip}`, 10);
+    const rl = await checkRateLimit(`expert:${ip}`, 10);
     if (!rl.allowed) {
         return NextResponse.json({ error: 'Zbyt wiele zapytań.' }, { status: 429 });
     }

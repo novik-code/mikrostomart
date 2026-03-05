@@ -9,26 +9,7 @@ const supabase = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-// Simple in-memory rate limiting: 3 requests per email per 5 minutes
-const resetAttempts = new Map<string, { count: number; resetAt: number }>();
-
-function checkRateLimit(email: string): boolean {
-    const now = Date.now();
-    const key = email.toLowerCase();
-    const attempt = resetAttempts.get(key);
-
-    if (!attempt || now > attempt.resetAt) {
-        resetAttempts.set(key, { count: 1, resetAt: now + 5 * 60 * 1000 });
-        return true;
-    }
-
-    if (attempt.count >= 3) {
-        return false;
-    }
-
-    attempt.count++;
-    return true;
-}
+import { checkRateLimit } from '@/lib/rateLimit';
 
 /**
  * POST /api/auth/reset-password
@@ -49,7 +30,8 @@ export async function POST(request: NextRequest) {
 
         const normalizedEmail = email.trim().toLowerCase();
 
-        if (!checkRateLimit(normalizedEmail)) {
+        const rl = await checkRateLimit(`reset:${normalizedEmail}`, 3, 5 * 60 * 1000);
+        if (!rl.allowed) {
             return NextResponse.json(
                 { error: 'Zbyt wiele prób. Spróbuj ponownie za kilka minut.' },
                 { status: 429 }

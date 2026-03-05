@@ -1,8 +1,54 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+/**
+ * Apply security headers to response.
+ */
+function addSecurityHeaders(response: NextResponse): NextResponse {
+    // Content Security Policy — restrictive but allows needed sources
+    // Report-Only mode: logs violations to browser console without blocking
+    // After verifying no issues, change to 'Content-Security-Policy' to enforce
+    response.headers.set('Content-Security-Policy-Report-Only', [
+        "default-src 'self'",
+        "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://maps.googleapis.com https://www.googletagmanager.com",
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+        "img-src 'self' data: blob: https: http:",
+        "font-src 'self' https://fonts.gstatic.com",
+        "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.openai.com https://api.smsapi.pl https://api.stripe.com https://maps.googleapis.com http://83.230.40.14:3000",
+        "frame-src 'self' https://www.google.com https://www.youtube.com",
+        "media-src 'self' blob:",
+        "worker-src 'self' blob:",
+    ].join('; '));
+
+    // Additional security headers (supplements existing ones in API routes)
+    response.headers.set('X-DNS-Prefetch-Control', 'on');
+    response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+
+    return response;
+}
+
 export async function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl;
+
+    // ─── Block /mapa-bolu/editor in production (debug tool) ───────────────
+    if (pathname === '/mapa-bolu/editor') {
+        // Only allow if user has Supabase auth session (admin/employee)
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+        if (supabaseUrl && supabaseKey) {
+            const supabase = createServerClient(supabaseUrl, supabaseKey, {
+                cookies: {
+                    getAll() { return request.cookies.getAll(); },
+                    setAll() { /* read-only check */ },
+                },
+            });
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) {
+                return NextResponse.redirect(new URL('/', request.url));
+            }
+        }
+        return addSecurityHeaders(NextResponse.next());
+    }
 
     // ─── Patient zone protection (JWT cookie check) ──────────────────────
     // Patient auth uses custom JWT cookies, not Supabase auth.
@@ -25,7 +71,7 @@ export async function middleware(request: NextRequest) {
         }
 
         // Patient zone doesn't need Supabase auth — return early
-        return NextResponse.next();
+        return addSecurityHeaders(NextResponse.next());
     }
 
     // ─── Supabase auth for admin/employee routes ──────────────────────────
@@ -72,19 +118,19 @@ async function handleSupabaseAuth(request: NextRequest) {
     if (pathname.startsWith("/admin")) {
         if (pathname === "/admin/login") {
             if (user) {
-                return NextResponse.redirect(new URL("/admin", request.url));
+                return addSecurityHeaders(NextResponse.redirect(new URL("/admin", request.url)));
             }
-            return response;
+            return addSecurityHeaders(response);
         }
 
         if (pathname === "/admin/update-password") {
-            return response;
+            return addSecurityHeaders(response);
         }
 
         if (!user) {
-            return NextResponse.redirect(
+            return addSecurityHeaders(NextResponse.redirect(
                 new URL("/admin/login", request.url)
-            );
+            ));
         }
     }
 
@@ -95,21 +141,21 @@ async function handleSupabaseAuth(request: NextRequest) {
             pathname === "/pracownik/reset-haslo"
         ) {
             if (user) {
-                return NextResponse.redirect(
+                return addSecurityHeaders(NextResponse.redirect(
                     new URL("/pracownik", request.url)
-                );
+                ));
             }
-            return response;
+            return addSecurityHeaders(response);
         }
 
         if (!user) {
-            return NextResponse.redirect(
+            return addSecurityHeaders(NextResponse.redirect(
                 new URL("/pracownik/login", request.url)
-            );
+            ));
         }
     }
 
-    return response;
+    return addSecurityHeaders(response);
 }
 
 export const config = {
@@ -123,3 +169,4 @@ export const config = {
         "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
     ],
 };
+

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { formatSMSMessage } from '@/lib/smsService';
 import { sendPushToUser } from '@/lib/webpush';
+import { logCronHeartbeat } from '@/lib/cronHeartbeat';
 import { randomUUID } from 'crypto';
 
 export const maxDuration = 120;
@@ -319,6 +320,8 @@ export async function GET(req: Request) {
         const duration = ((Date.now() - startTime) / 1000).toFixed(2);
         console.log(`📊 Done: drafts=${draftsCreated} skipped=${skippedCount} errors=${errors.length} (${duration}s)`);
 
+        await logCronHeartbeat('post-visit-sms', 'ok', `Drafts: ${draftsCreated}, Skipped: ${skippedCount}`, Date.now() - startTime);
+
         return NextResponse.json({
             success: true,
             targetDate: targetDateStr,
@@ -332,6 +335,7 @@ export async function GET(req: Request) {
 
     } catch (error: any) {
         console.error('💥 [Post-Visit SMS] Fatal error:', error.message);
+        await logCronHeartbeat('post-visit-sms', 'error', error.message, Date.now() - startTime);
         return NextResponse.json({ success: false, error: error.message, draftsCreated }, { status: 500 });
     }
 }

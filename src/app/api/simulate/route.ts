@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
 // --- POST: Start Prediction ---
 export async function POST(req: NextRequest) {
     const ip = getClientIP(req);
-    const rl = checkRateLimit(`simulate:${ip}`, 5);
+    const rl = await checkRateLimit(`simulate:${ip}`, 5);
     if (!rl.allowed) {
         return NextResponse.json({ error: 'Zbyt wiele prób. Spróbuj za minutę.' }, { status: 429 });
     }

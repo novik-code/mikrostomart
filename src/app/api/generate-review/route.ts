@@ -15,7 +15,7 @@ interface SurveyAnswers {
 
 export async function POST(request: Request) {
     const ip = getClientIP(request);
-    const rl = checkRateLimit(`review:${ip}`, 10);
+    const rl = await checkRateLimit(`review:${ip}`, 10);
     if (!rl.allowed) {
         return NextResponse.json({ error: 'Zbyt wiele zapytań.' }, { status: 429 });
     }
