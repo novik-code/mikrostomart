@@ -1924,6 +1924,25 @@ NODE_ENV=production
 
 ## 📝 Recent Changes
 
+### March 5, 2026 (Bug Fix — Restore Lost Modals)
+**Commit:** `4ea9fbb`
+
+Two modals were lost during the TasksTab component extraction from `page.tsx`:
+
+1. **Task Detail View Modal** (244 lines) — restored in `TasksTab.tsx`
+   - Full-screen overlay showing task details when clicking a task card
+   - Features: status toggle, priority badges, description, checklist with checkboxes, comments with input, collapsible edit history, action buttons (edit, status change, delete)
+   - Root cause: `{selectedViewTask && (...)}` rendering block was in `page.tsx` at L3110-3354 but not included when TasksTab was extracted as a separate component
+
+2. **Patient Data Modal** (128 lines) — restored in `page.tsx`
+   - Fixed-position overlay showing Prodentis patient data (personal info, contact, notes, warnings)
+   - Triggered by `setPatientDataModal()` from ScheduleTab
+   - Root cause: `{patientDataModal && (...)}` rendering block was at L2981-3108 in original `page.tsx` but removed during extraction
+
+**Files Modified:**
+- `src/app/pracownik/components/TasksTab.tsx` — added task detail view modal before closing fragment
+- `src/app/pracownik/page.tsx` — added patient data modal before style tag
+
 ### March 5, 2026 (Etap 4 — Architecture & Refactoring, sesja 1)
 **Type Extraction + Auth Middleware Wrapper** — `87fc414`, `664e76c`
 
