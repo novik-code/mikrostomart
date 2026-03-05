@@ -4073,6 +4073,67 @@ npm start
 
 ---
 
+# 🔍 SEO Architecture & Mandatory Protocols
+
+> **⚠️ CRITICAL: Follow these rules when adding/modifying pages or navigation**
+
+## Current SEO Setup (as of March 5, 2026)
+
+### robots.txt (`src/app/robots.ts`)
+- Allows crawling of all public pages
+- Disallows: `/api/`, `/admin/`, `/pracownik/`, `/strefa-pacjenta/`, `/ekarta/`, `/mapa-bolu/editor`
+- Points to sitemap: `https://mikrostomart.pl/sitemap.xml`
+
+### Sitemap (`src/app/sitemap.ts`)
+- **24 static pages** organized by priority tier:
+  - Priority 1.0: Homepage
+  - Priority 0.9: Main pages (o-nas, zespol, oferta, cennik, kontakt, rezerwacja)
+  - Priority 0.8: Content pages (aktualnosci, baza-wiedzy, metamorfozy, sklep, faq, nowosielski)
+  - Priority 0.7: Tool pages (mapa-bolu, kalkulator-leczenia, porownywarka, selfie, symulator, aplikacja, zadatek)
+  - Priority 0.3: Legal pages (regulamin, polityka-cookies, polityka-prywatnosci, rodo)
+- **Dynamic pages**: news articles from `data/articles`, knowledge base from Supabase `articles` table
+
+### Canonical URLs
+- `metadataBase: new URL('https://mikrostomart.pl')` in global `layout.tsx`
+- `alternates.canonical: './'` — auto-generates canonical URL per page
+
+### Google Search Console Verification
+- File: `public/google1c781c50dedec38d.html`
+
+### Page Metadata
+- Each page has its own `layout.tsx` with `export const metadata: Metadata` (title, description, keywords)
+
+### SSR Safety
+- **SplashScreen**: Initial `phase='done'` → SSR HTML shows content (opacity:1). Client-side `useEffect` resets to 'idle' for first-time animation.
+- **Middleware**: Bot user-agents (Googlebot, Bingbot, etc.) detected via `BOT_UA_PATTERNS` regex → skip `supabase.auth.getUser()` → faster TTFB for crawlers.
+
+### Footer SEO Navigation
+- `Footer.tsx` contains a `<nav aria-label="Mapa strony">` with 16 plain `<Link>` elements in 4 columns
+- This ensures Googlebot can discover all pages regardless of JavaScript rendering or Navbar hover state
+
+## ⚠️ MANDATORY: New Page SEO Checklist
+**When creating ANY new page, you MUST:**
+1. Create `layout.tsx` with `export const metadata` (title, description, keywords)
+2. Add route to `src/app/sitemap.ts` in the correct priority tier
+3. Add `<Link>` to `src/components/Footer.tsx` SEO navigation grid (if public page)
+4. Ensure content is visible in initial HTML (no hidden-by-default via useState)
+
+**When modifying navigation:**
+1. Footer nav must contain plain `<Link>` elements to ALL public pages
+2. Never rely solely on JS-rendered menus (hover, click) for internal linking
+3. Test: `curl -s URL | grep "<a href"` should show navigation links
+
+## ❌ Past SEO Mistakes (DO NOT REPEAT)
+| Mistake | Impact | Prevention |
+|---------|--------|------------|
+| Pages created without sitemap entry | Google didn't know pages existed | Always add to sitemap.ts |
+| Pages without layout.tsx metadata | No title/description in search results | Always create layout.tsx |
+| Desktop nav links only rendered on hover | Googlebot saw zero internal links | Footer has permanent crawlable links |
+| SplashScreen initial state opacity:0 | SSR HTML had invisible content | Initial phase='done' (visible) |
+| Middleware auth on every request | Slow TTFB for crawlers | Bot UA bypass added |
+
+---
+
 # 🚨 CRITICAL: AI Documentation Update Protocol
 
 > **MANDATORY FOR ALL AI ASSISTANTS**  

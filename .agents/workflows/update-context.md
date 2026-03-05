@@ -120,6 +120,19 @@ git push
 
 ---
 
+## Step 12 — SEO Verification (if new pages or navigation changed)
+Check EVERY item below if you created a new page or changed navigation:
+
+1. **Sitemap** — is the new page in `src/app/sitemap.ts`?
+2. **Metadata** — does the new page have a `layout.tsx` with `export const metadata`?
+3. **Footer nav** — is the new page linked in `Footer.tsx` SEO navigation grid?
+4. **robots.ts** — should this page be crawlable? If private (admin/employee), add to disallow.
+5. **SSR visibility** — does the page content render in HTML without JavaScript? 
+   - Check: `curl -s https://mikrostomart.pl/<page> | grep "<h1"` — should return content
+   - Content behind `useState` + conditional rendering = invisible to Google
+
+---
+
 ## ✅ Checklist (tick each before finishing)
 - [ ] Last Updated date changed
 - [ ] Migration count updated (if applicable)
@@ -129,6 +142,9 @@ git push
 - [ ] New env vars added (if applicable)
 - [ ] Known Issues updated (if applicable)
 - [ ] Recent Changes entry added (ALWAYS)
+- [ ] **SEO: New page added to sitemap.ts** (if new page created)
+- [ ] **SEO: New page has layout.tsx with metadata** (if new page created)
+- [ ] **SEO: New page linked in Footer.tsx** (if new public page)
 - [ ] Committed and pushed
 
 ---
@@ -142,3 +158,8 @@ git push
 | Creating migration 028 without checking | Always `ls supabase_migrations/ \| sort \| tail -5` first |
 | Skipping context update entirely | Context update = mandatory last step of every task |
 | Leaving fixed bugs in Known Issues | Remove them when resolved |
+| **Creating page without sitemap entry** | **ALWAYS add to sitemap.ts** |
+| **Creating page without layout.tsx metadata** | **ALWAYS create layout.tsx with title + description** |
+| **Hiding nav links behind JS hover/click** | **Footer must have plain crawlable `<Link>` elements** |
+| **Using `'use client'` for pages with static content** | **Server Components by default — `'use client'` only when needed** |
+
