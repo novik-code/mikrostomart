@@ -87,8 +87,8 @@ interface LabelDef {
 }
 
 const EMAIL_LABELS: LabelDef[] = [
-    { id: 'all', label: 'Wszystkie', icon: <Inbox size={14} />, color: '#38bdf8', shortLabel: 'Wszystkie' },
-    { id: 'powiadomienia', label: 'Powiadomienia', icon: <Bell size={14} />, color: '#f59e0b', shortLabel: 'Powiad.' },
+    { id: 'all', label: 'Główne', icon: <Inbox size={14} />, color: '#38bdf8', shortLabel: 'Główne' },
+    { id: 'powiadomienia', label: 'Powiadomienia', icon: <Bell size={14} />, color: '#f59e0b', shortLabel: 'Powiadom.' },
     { id: 'strona', label: 'Strona & Formularze', icon: <Globe size={14} />, color: '#34d399', shortLabel: 'Strona' },
     { id: 'chat', label: 'Chat & Wiadomości', icon: <MessageCircle size={14} />, color: '#818cf8', shortLabel: 'Chat' },
     { id: 'pozostale', label: 'Pozostałe', icon: <Archive size={14} />, color: '#94a3b8', shortLabel: 'Inne' },
@@ -620,64 +620,6 @@ export default function EmailTab() {
                     );
                 })}
 
-                {/* ─── Label Filters ─────────────────────────── */}
-                {currentFolder === 'INBOX' && (
-                    <>
-                        <div style={{
-                            margin: '0.75rem 0 0.25rem',
-                            padding: '0 0.25rem',
-                            fontSize: '0.65rem',
-                            fontWeight: 600,
-                            color: 'rgba(255,255,255,0.3)',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.06em',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.35rem',
-                        }}>
-                            <Tag size={11} />
-                            Etykiety
-                        </div>
-                        {EMAIL_LABELS.map(lbl => {
-                            const isActive = activeLabel === lbl.id;
-                            const count = labelCounts[lbl.id];
-                            return (
-                                <button
-                                    key={lbl.id}
-                                    onClick={() => { setActiveLabel(lbl.id); setShowSidebar(false); }}
-                                    style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '0.5rem',
-                                        padding: '0.4rem 0.65rem',
-                                        background: isActive ? `${lbl.color}18` : 'transparent',
-                                        border: 'none',
-                                        borderRadius: '0.4rem',
-                                        color: isActive ? lbl.color : 'rgba(255,255,255,0.5)',
-                                        fontSize: '0.78rem',
-                                        fontWeight: isActive ? 600 : 400,
-                                        cursor: 'pointer',
-                                        textAlign: 'left',
-                                        transition: 'all 0.15s',
-                                    }}
-                                    onMouseEnter={e => !isActive && (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
-                                    onMouseLeave={e => !isActive && (e.currentTarget.style.background = 'transparent')}
-                                >
-                                    {lbl.icon}
-                                    <span style={{ flex: 1 }}>{isMobileView ? lbl.label : lbl.shortLabel}</span>
-                                    {count > 0 && (
-                                        <span style={{
-                                            fontSize: '0.65rem',
-                                            color: isActive ? lbl.color : 'rgba(255,255,255,0.25)',
-                                            fontWeight: 500,
-                                        }}>{count}</span>
-                                    )}
-                                </button>
-                            );
-                        })}
-                    </>
-                )}
-
                 {isMobileView && (
                     <button
                         onClick={() => setShowSidebar(false)}
@@ -790,31 +732,74 @@ export default function EmailTab() {
                     <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)' }}>
                         {getFolderLabel(currentFolder, currentFolder)} ({activeLabel === 'all' ? total : filteredEmails.length})
                     </span>
-
-                    {/* Active label chip */}
-                    {activeLabel !== 'all' && (
-                        <button
-                            onClick={() => setActiveLabel('all')}
-                            style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.3rem',
-                                padding: '0.2rem 0.6rem',
-                                background: `${getLabelDef(activeLabel).color}18`,
-                                border: `1px solid ${getLabelDef(activeLabel).color}40`,
-                                borderRadius: '1rem',
-                                color: getLabelDef(activeLabel).color,
-                                fontSize: '0.72rem',
-                                fontWeight: 500,
-                                cursor: 'pointer',
-                            }}
-                        >
-                            {getLabelDef(activeLabel).icon}
-                            {getLabelDef(activeLabel).shortLabel}
-                            <X size={11} />
-                        </button>
-                    )}
                 </div>
+
+                {/* ─── Gmail-style Category Tabs ──────────────── */}
+                {currentFolder === 'INBOX' && !selectedEmail && (
+                    <div style={{
+                        display: 'flex',
+                        borderBottom: '1px solid rgba(255,255,255,0.06)',
+                        background: 'rgba(0,0,0,0.05)',
+                        overflowX: 'auto',
+                        scrollbarWidth: 'none',
+                    }}>
+                        {EMAIL_LABELS.map(lbl => {
+                            const isActive = activeLabel === lbl.id;
+                            const count = labelCounts[lbl.id];
+                            const hasUnread = lbl.id !== 'all' && emails.some(e => !e.isRead && classifyEmail(e) === lbl.id);
+                            return (
+                                <button
+                                    key={lbl.id}
+                                    onClick={() => setActiveLabel(lbl.id)}
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.4rem',
+                                        padding: '0.65rem 1rem',
+                                        background: 'transparent',
+                                        border: 'none',
+                                        borderBottom: isActive ? `2px solid ${lbl.color}` : '2px solid transparent',
+                                        color: isActive ? lbl.color : 'rgba(255,255,255,0.45)',
+                                        fontSize: '0.8rem',
+                                        fontWeight: isActive ? 600 : 400,
+                                        cursor: 'pointer',
+                                        whiteSpace: 'nowrap',
+                                        transition: 'all 0.2s',
+                                        position: 'relative',
+                                        flexShrink: 0,
+                                    }}
+                                    onMouseEnter={e => !isActive && (e.currentTarget.style.color = 'rgba(255,255,255,0.7)')}
+                                    onMouseLeave={e => !isActive && (e.currentTarget.style.color = 'rgba(255,255,255,0.45)')}
+                                >
+                                    {lbl.icon}
+                                    <span>{isMobileView ? lbl.shortLabel : lbl.label}</span>
+                                    {count > 0 && lbl.id !== 'all' && (
+                                        <span style={{
+                                            fontSize: '0.65rem',
+                                            padding: '0.05rem 0.35rem',
+                                            borderRadius: '1rem',
+                                            background: isActive ? `${lbl.color}20` : 'rgba(255,255,255,0.06)',
+                                            color: isActive ? lbl.color : 'rgba(255,255,255,0.3)',
+                                            fontWeight: 500,
+                                            lineHeight: 1.4,
+                                        }}>{count}</span>
+                                    )}
+                                    {hasUnread && !isActive && (
+                                        <span style={{
+                                            width: 6,
+                                            height: 6,
+                                            borderRadius: '50%',
+                                            background: lbl.color,
+                                            position: 'absolute',
+                                            top: 8,
+                                            right: 4,
+                                        }} />
+                                    )}
+                                </button>
+                            );
+                        })}
+                    </div>
+                )}
 
                 {/* Content: Email List OR Email Reader */}
                 <div style={{ flex: 1, overflow: 'auto' }}>
