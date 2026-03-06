@@ -83,9 +83,35 @@ export async function GET(req: NextRequest) {
     console.log('[Email AI Drafts] Cron started');
 
     try {
-        // 1. Fetch recent inbox emails
-        const { emails: inboxEmails } = await listEmails('INBOX', 1, 50);
-        console.log(`[Email AI Drafts] Fetched ${inboxEmails.length} inbox emails`);
+        // 1. Fetch inbox emails from the last 30 days (paginated)
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+        const PAGE_SIZE = 50;
+        let page = 1;
+        let inboxEmails: Awaited<ReturnType<typeof listEmails>>['emails'] = [];
+        let reachedOldEmails = false;
+
+        while (!reachedOldEmails) {
+            const { emails: batch, total } = await listEmails('INBOX', page, PAGE_SIZE);
+
+            if (batch.length === 0) break;
+
+            for (const email of batch) {
+                const emailDate = new Date(email.date);
+                if (emailDate < thirtyDaysAgo) {
+                    reachedOldEmails = true;
+                    break;
+                }
+                inboxEmails.push(email);
+            }
+
+            // If we got fewer than PAGE_SIZE, there are no more pages
+            if (batch.length < PAGE_SIZE || page * PAGE_SIZE >= total) break;
+            page++;
+        }
+
+        console.log(`[Email AI Drafts] Fetched ${inboxEmails.length} inbox emails from last 30 days (${page} pages)`);
 
         // 2. Get already-processed UIDs from DB
         const { data: existingDrafts } = await supabase
