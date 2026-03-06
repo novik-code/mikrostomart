@@ -333,6 +333,8 @@ export default function EmailTab() {
     const [composeReferences, setComposeReferences] = useState<string[]>([]);
     const [sending, setSending] = useState(false);
     const [sendResult, setSendResult] = useState<{ success?: boolean; error?: string } | null>(null);
+    const [composeAiGenerating, setComposeAiGenerating] = useState(false);
+    const [composeAiDraftHtml, setComposeAiDraftHtml] = useState('');
 
     // Unread count
     const [unreadCount, setUnreadCount] = useState(0);
@@ -791,6 +793,57 @@ export default function EmailTab() {
         setComposeInReplyTo('');
         setComposeReferences([]);
         setSendResult(null);
+        setComposeAiDraftHtml('');
+    };
+
+    // ─── AI Generate Reply ──────────────────────────────────
+
+    const generateAiReply = async () => {
+        setComposeAiGenerating(true);
+        setComposeAiDraftHtml('');
+        try {
+            const res = await fetch('/api/employee/email-generate-reply', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    subject: composeSubject,
+                    emailBody: composeBody,
+                    from: composeTo,
+                }),
+            });
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || 'Błąd generowania');
+            }
+            const data = await res.json();
+            if (data.draft_html) {
+                setComposeAiDraftHtml(data.draft_html);
+                // Convert HTML to plain text and prepend to compose body
+                const plainText = data.draft_html
+                    .replace(/<br\s*\/?>/gi, '\n')
+                    .replace(/<\/p>\s*<p>/gi, '\n\n')
+                    .replace(/<[^>]*>/g, '')
+                    .replace(/&nbsp;/g, ' ')
+                    .replace(/&amp;/g, '&')
+                    .replace(/&lt;/g, '<')
+                    .replace(/&gt;/g, '>')
+                    .replace(/&quot;/g, '"')
+                    .trim();
+                // Find the original message separator and insert AI text before it
+                const separatorIdx = composeBody.indexOf('--- Oryginalna wiadomość ---');
+                if (separatorIdx > 0) {
+                    setComposeBody(plainText + '\n\n' + composeBody.substring(separatorIdx));
+                } else {
+                    setComposeBody(plainText + (composeBody ? '\n\n' + composeBody : ''));
+                }
+                setDraftToast('✅ AI wygenerowało propozycję odpowiedzi!');
+            }
+        } catch (err: any) {
+            setDraftToast(`❌ ${err.message || 'Nie udało się wygenerować odpowiedzi'}`);
+        } finally {
+            setComposeAiGenerating(false);
+            setTimeout(() => setDraftToast(null), 4000);
+        }
     };
 
     // ─── Reply ───────────────────────────────────────────────
@@ -1813,47 +1866,83 @@ export default function EmailTab() {
                             padding: '0.75rem 1.25rem',
                             borderTop: '1px solid rgba(255,255,255,0.08)',
                             display: 'flex',
-                            justifyContent: 'flex-end',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
                             gap: '0.5rem',
                         }}>
-                            <button
-                                onClick={() => { setShowCompose(false); resetCompose(); }}
-                                style={{
-                                    padding: '0.5rem 1rem',
-                                    background: 'rgba(255,255,255,0.05)',
-                                    border: '1px solid rgba(255,255,255,0.1)',
-                                    borderRadius: '0.5rem',
-                                    color: 'rgba(255,255,255,0.6)',
-                                    cursor: 'pointer',
-                                    fontSize: '0.82rem',
-                                }}
-                            >Anuluj</button>
-                            <button
-                                onClick={handleSend}
-                                disabled={sending || !composeTo || !composeSubject}
-                                style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.4rem',
-                                    padding: '0.5rem 1.25rem',
-                                    background: (sending || !composeTo || !composeSubject)
-                                        ? 'rgba(56,189,248,0.2)'
-                                        : 'linear-gradient(135deg, #38bdf8, #0ea5e9)',
-                                    border: 'none',
-                                    borderRadius: '0.5rem',
-                                    color: '#fff',
-                                    cursor: (sending || !composeTo || !composeSubject) ? 'not-allowed' : 'pointer',
-                                    fontSize: '0.85rem',
-                                    fontWeight: 600,
-                                }}
-                            >
-                                {sending ? (
-                                    <RefreshCw size={14} style={{ animation: 'spin 1s linear infinite' }} />
-                                ) : (
-                                    <Send size={14} />
+                            {/* AI Generate button — left side */}
+                            <div>
+                                {composeInReplyTo && (
+                                    <button
+                                        onClick={generateAiReply}
+                                        disabled={composeAiGenerating}
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.4rem',
+                                            padding: '0.5rem 1rem',
+                                            background: composeAiGenerating
+                                                ? 'rgba(168,85,247,0.15)'
+                                                : 'rgba(168,85,247,0.1)',
+                                            border: '1px solid rgba(168,85,247,0.25)',
+                                            borderRadius: '0.5rem',
+                                            color: '#a855f7',
+                                            cursor: composeAiGenerating ? 'not-allowed' : 'pointer',
+                                            fontSize: '0.82rem',
+                                            fontWeight: 600,
+                                            transition: 'all 0.15s',
+                                        }}
+                                    >
+                                        {composeAiGenerating ? (
+                                            <RefreshCw size={14} style={{ animation: 'spin 1s linear infinite' }} />
+                                        ) : (
+                                            <span>🤖</span>
+                                        )}
+                                        {composeAiGenerating ? 'Generuję...' : 'Wygeneruj odpowiedź AI'}
+                                    </button>
                                 )}
-                                {sending ? 'Wysyłanie...' : 'Wyślij'}
-                            </button>
+                            </div>
+                            {/* Right side buttons */}
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                <button
+                                    onClick={() => { setShowCompose(false); resetCompose(); }}
+                                    style={{
+                                        padding: '0.5rem 1rem',
+                                        background: 'rgba(255,255,255,0.05)',
+                                        border: '1px solid rgba(255,255,255,0.1)',
+                                        borderRadius: '0.5rem',
+                                        color: 'rgba(255,255,255,0.6)',
+                                        cursor: 'pointer',
+                                        fontSize: '0.82rem',
+                                    }}
+                                >Anuluj</button>
+                                <button
+                                    onClick={handleSend}
+                                    disabled={sending || !composeTo || !composeSubject}
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.4rem',
+                                        padding: '0.5rem 1.25rem',
+                                        background: (sending || !composeTo || !composeSubject)
+                                            ? 'rgba(56,189,248,0.2)'
+                                            : 'linear-gradient(135deg, #38bdf8, #0ea5e9)',
+                                        border: 'none',
+                                        borderRadius: '0.5rem',
+                                        color: '#fff',
+                                        cursor: (sending || !composeTo || !composeSubject) ? 'not-allowed' : 'pointer',
+                                        fontSize: '0.85rem',
+                                        fontWeight: 600,
+                                    }}
+                                >
+                                    {sending ? (
+                                        <RefreshCw size={14} style={{ animation: 'spin 1s linear infinite' }} />
+                                    ) : (
+                                        <Send size={14} />
+                                    )}
+                                    {sending ? 'Wysyłanie...' : 'Wyślij'}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
