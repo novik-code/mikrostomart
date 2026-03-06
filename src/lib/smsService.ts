@@ -18,6 +18,52 @@ export interface SMSResponse {
 }
 
 /**
+ * Transliterate Polish diacritics and strip non-GSM-7 characters.
+ * GSM-7 encoding allows 160 chars/SMS vs UCS-2's 70 chars/SMS.
+ * This ensures every SMS is always counted as 1 part = 0.17 PLN.
+ *
+ * Polish: ą→a, ć→c, ę→e, ł→l, ń→n, ó→o, ś→s, ź→z, ż→z, etc.
+ * Also removes emoji and other Unicode characters outside GSM-7.
+ */
+export function toGSM7(text: string): string {
+    const POLISH_MAP: Record<string, string> = {
+        'ą': 'a', 'ć': 'c', 'ę': 'e', 'ł': 'l', 'ń': 'n', 'ó': 'o', 'ś': 's', 'ź': 'z', 'ż': 'z',
+        'Ą': 'A', 'Ć': 'C', 'Ę': 'E', 'Ł': 'L', 'Ń': 'N', 'Ó': 'O', 'Ś': 'S', 'Ź': 'Z', 'Ż': 'Z',
+        // Common accented chars that may appear in names
+        'à': 'a', 'á': 'a', 'â': 'a', 'ã': 'a', 'ä': 'a',
+        'è': 'e', 'é': 'e', 'ê': 'e', 'ë': 'e',
+        'ì': 'i', 'í': 'i', 'î': 'i', 'ï': 'i',
+        'ò': 'o', 'ô': 'o', 'õ': 'o', 'ö': 'o',
+        'ù': 'u', 'ú': 'u', 'û': 'u', 'ü': 'u',
+        'ý': 'y', 'ÿ': 'y', 'ñ': 'n',
+        '\u2013': '-', '\u2014': '-', '\u2018': "'", '\u2019': "'", '\u201c': '"', '\u201d': '"',
+    };
+
+    let result = '';
+    for (const char of text) {
+        if (POLISH_MAP[char]) {
+            result += POLISH_MAP[char];
+        } else if (char.charCodeAt(0) <= 127) {
+            // Standard ASCII — always GSM-7 safe
+            result += char;
+        } else {
+            // Skip emoji and other non-GSM-7 characters
+            // (surrogate pairs, emoji, CJK, etc.)
+        }
+    }
+
+    // Collapse multiple spaces (from removed emoji)
+    result = result.replace(/  +/g, ' ').trim();
+
+    // Truncate to 160 chars (single SMS limit in GSM-7)
+    if (result.length > 160) {
+        result = result.substring(0, 157) + '...';
+    }
+
+    return result;
+}
+
+/**
  * Send SMS via configured provider
  * 
  * @example
@@ -63,17 +109,16 @@ export async function sendSMS(options: SMSOptions): Promise<SMSResponse> {
     }
 
     try {
-        console.log(`[SMS] Sending to: ${normalizedPhone}, message length: ${message.length} chars`);
+        // Transliterate Polish diacritics → ASCII for GSM-7 encoding (1 SMS = 160 chars)
+        const gsm7Message = toGSM7(message);
+        console.log(`[SMS] Sending to: ${normalizedPhone}, original: ${message.length} chars, GSM-7: ${gsm7Message.length} chars`);
 
         // SMSAPI.pl integration
         // Note: 'from' field omitted - SMSAPI will use default sender ID from account settings
-        // To use custom sender, it must be registered in SMSAPI.pl dashboard first
-        // encoding: 'utf-8' is REQUIRED when message contains non-ASCII / Polish characters / emoji
-        // Without this, SMSAPI returns error 11: "Invalid content encoding! Windows-1250 expected"
+        // GSM-7 encoding (default) — 160 chars/SMS, no Polish diacritics needed
         const requestBody = {
             to: normalizedPhone,
-            message: message,
-            encoding: 'utf-8' as const,  // ← CRITICAL: prevents error 11 for Unicode messages
+            message: gsm7Message,
             format: 'json',
             skip_link_detection: 1  // Allow sending links (bypass error 94)
         };

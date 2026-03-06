@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sendSMS } from '@/lib/smsService';
 import { sendTelegramNotification } from '@/lib/telegram';
+import { isSmsTypeEnabled } from '@/lib/smsSettings';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -29,6 +30,13 @@ export async function GET(req: NextRequest) {
         const authHeader = req.headers.get('authorization');
         if (authHeader !== `Bearer ${process.env.CRON_SECRET}` && process.env.NODE_ENV === 'production') {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        // Check if birthday SMS is enabled
+        const enabled = await isSmsTypeEnabled('birthday');
+        if (!enabled) {
+            console.log('[Birthday] SMS type disabled via admin settings');
+            return NextResponse.json({ success: true, skipped: true, reason: 'SMS type disabled' });
         }
 
         const now = new Date();
@@ -134,7 +142,7 @@ export async function GET(req: NextRequest) {
             const firstName = patientName.split(' ')[0] || 'Pacjencie';
 
             // Birthday message
-            const smsMessage = `Szanowny/a ${firstName}, z okazji Twoich urodzin życzymy Ci dużo zdrowia i pięknego uśmiechu! 🎂🦷 Zespół Mikrostomart`;
+            const smsMessage = `${firstName}, z okazji urodzin zyczymy duzo zdrowia i pieknego usmiechu! Zespol Mikrostomart`;
 
             let smsSuccess = false;
             let smsError = '';

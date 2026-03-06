@@ -12,8 +12,9 @@ const supabase = createClient(
 
 /**
  * GET /api/employee/staff
- * Returns only registered employees from user_roles table (not Prodentis scan).
- * Fast, lightweight, returns current system users with 'employee' or 'admin' role.
+ * Returns ALL active employees — merges user_roles (registered accounts)
+ * with the employees table (all active team members, including those without accounts).
+ * Used for task assignment dropdowns and filter dropdowns in Zadania tab.
  */
 export async function GET() {
     const user = await verifyAdmin();
@@ -28,7 +29,7 @@ export async function GET() {
     }
 
     try {
-        // Get all users with 'employee' or 'admin' role
+        // Source 1: users with 'employee' or 'admin' role (registered accounts)
         const { data: roles, error } = await supabase
             .from('user_roles')
             .select('user_id, email, role, granted_at')
@@ -40,24 +41,24 @@ export async function GET() {
             return NextResponse.json({ error: 'Database error' }, { status: 500 });
         }
 
-        // Get names from employees table
+        // Source 2: ALL active employees from employees table
         const { data: employeesData } = await supabase
             .from('employees')
-            .select('email, name')
+            .select('id, email, name')
             .eq('is_active', true);
 
-        const nameMap = new Map((employeesData || []).map(e => [e.email, e.name]));
+        const employeesList = employeesData || [];
+        const nameMap = new Map(employeesList.map(e => [e.email, e.name]));
 
-        // Deduplicate by user_id (a user can have both 'employee' and 'admin' roles)
-        const userMap = new Map<string, { id: string; email: string; name: string; roles: string[] }>();
+        // Build map from user_roles (deduplicate by user_id)
+        const staffByEmail = new Map<string, { id: string; email: string; name: string; roles: string[] }>();
         for (const r of (roles || [])) {
-            const existing = userMap.get(r.user_id);
+            const existing = staffByEmail.get(r.email);
             if (existing) {
-                existing.roles.push(r.role);
+                if (!existing.roles.includes(r.role)) existing.roles.push(r.role);
             } else {
-                // Look up real name from employees table
                 const realName = nameMap.get(r.email);
-                userMap.set(r.user_id, {
+                staffByEmail.set(r.email, {
                     id: r.user_id,
                     email: r.email,
                     name: realName && realName !== r.email ? realName : r.email,
@@ -66,12 +67,38 @@ export async function GET() {
             }
         }
 
-        const staff = Array.from(userMap.values()).map(u => ({
-            id: u.id,
-            name: u.name,
-            email: u.email,
-            roles: u.roles,
-        }));
+        // Merge employees from employees table who are NOT already in staffByEmail
+        for (const emp of employeesList) {
+            if (emp.email && !staffByEmail.has(emp.email)) {
+                staffByEmail.set(emp.email, {
+                    id: `emp-${emp.id}`,  // Prefix to distinguish from auth user IDs
+                    email: emp.email,
+                    name: emp.name && emp.name !== emp.email ? emp.name : emp.email,
+                    roles: [],
+                });
+            }
+            // Also add employees without email but with a name (manual entries)
+            if (!emp.email && emp.name) {
+                const key = `emp-name-${emp.id}`;
+                if (!staffByEmail.has(key)) {
+                    staffByEmail.set(key, {
+                        id: `emp-${emp.id}`,
+                        email: '',
+                        name: emp.name,
+                        roles: [],
+                    });
+                }
+            }
+        }
+
+        const staff = Array.from(staffByEmail.values())
+            .sort((a, b) => a.name.localeCompare(b.name, 'pl'))
+            .map(u => ({
+                id: u.id,
+                name: u.name,
+                email: u.email,
+                roles: u.roles,
+            }));
 
         return NextResponse.json({ staff });
     } catch (error) {

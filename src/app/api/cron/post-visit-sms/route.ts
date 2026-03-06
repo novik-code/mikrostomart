@@ -4,6 +4,7 @@ import { formatSMSMessage } from '@/lib/smsService';
 import { sendPushToUser } from '@/lib/webpush';
 import { logCronHeartbeat } from '@/lib/cronHeartbeat';
 import { randomUUID } from 'crypto';
+import { isSmsTypeEnabled } from '@/lib/smsSettings';
 
 export const maxDuration = 120;
 
@@ -71,20 +72,9 @@ function patientAlreadyReviewed(patientName: string, reviewerNames: string[]): b
     });
 }
 
-const FUN_FACTS: string[] = [
-    'Czy wiesz, ze zeby sa jak odciski palcow - kazdy czlowiek ma unikalny uklad uzebienia?',
-    'Ciekawostka: szkliwo to najtwardszy material w ludzkim ciele - twardszy nawet niz kosc!',
-    'Regularne wizyty co 6 miesiecy to najlepsza inwestycja w usmiech.',
-    'Zelenina jak marchew i seler naturalnie czyszcza zeby podczas gryenia!',
-    'Przecietny czlowiek spedza ok. 38 dni zycia na myciu zebow. Warto!',
-    'Slina to superplyn: neutralizuje kwasy, niszczy bakterie i remineralizuje szkliwo.',
-    'Pasta do zebow istnieje od starozytnego Egiptu. Tamta receptura: popiol, pumeks i wino.',
-    'Profilaktyka jest tansza niz leczenie - lepiej zapobiegac niz leczyc.',
-];
-
-// Default templates (ASCII-safe for GSM-7 encoding)
-const FALLBACK_TEMPLATE_REVIEW = `Dziekujemy za wizyte, {salutation}! Cenimy kazda opinie - czy mozemy prosic o chwile na ocene naszego gabinetu? {surveyUrl}`;
-const FALLBACK_TEMPLATE_REVIEWED = `Dziekujemy za wizyte, {salutation}! {funFact} Do zobaczenia na kolejnej wizycie - Mikrostomart`;
+// Default templates (ASCII-safe for GSM-7 encoding, ≤160 chars)
+const FALLBACK_TEMPLATE_REVIEW = `Dziekujemy za wizyte, {salutation}! Prosimy o krotka ocene: {surveyUrl} Mikrostomart`;
+const FALLBACK_TEMPLATE_REVIEWED = `Dziekujemy za wizyte, {salutation}! Do zobaczenia na kolejnej wizycie. Mikrostomart`;
 
 /**
  * POST-VISIT SMS Cron — Stage 1: Generate DRAFTS
@@ -101,8 +91,15 @@ const FALLBACK_TEMPLATE_REVIEWED = `Dziekujemy za wizyte, {salutation}! {funFact
  * Returns: {draftsCreated, skipped, skippedDetails[], errors[]}
  */
 export async function GET(req: Request) {
-    console.log('📱 [Post-Visit SMS] Starting draft generation...');
+    console.log('[Post-Visit SMS] Starting draft generation...');
     const startTime = Date.now();
+
+    // Check if post-visit SMS is enabled
+    const smsEnabled = await isSmsTypeEnabled('post_visit');
+    if (!smsEnabled) {
+        console.log('[Post-Visit SMS] Disabled via admin settings');
+        return NextResponse.json({ success: true, skipped: true, reason: 'SMS type disabled' });
+    }
 
     const authHeader = req.headers.get('authorization');
     const isCronAuth = authHeader === `Bearer ${process.env.CRON_SECRET}`;
@@ -235,7 +232,6 @@ export async function GET(req: Request) {
                 const patientFirstName = patientName.split(' ').find((p: string) => p.length > 1) || patientName.split(' ')[0];
                 const salutation = buildSalutation(patientFirstName);
                 const alreadyReviewed = patientAlreadyReviewed(patientName, reviewerNames);
-                const funFact = FUN_FACTS[Math.floor(Math.random() * FUN_FACTS.length)];
 
                 const smsTemplate = alreadyReviewed ? templateReviewed : templateReview;
                 const message = formatSMSMessage(smsTemplate, {
@@ -245,7 +241,6 @@ export async function GET(req: Request) {
                     doctor: doctorName,
                     doctorName,
                     surveyUrl: SURVEY_URL,
-                    funFact,
                 });
 
                 // Patient ID lookup

@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { formatSMSMessage } from '@/lib/smsService';
 import { sendPushToUser } from '@/lib/webpush';
 import { randomUUID } from 'crypto';
+import { isSmsTypeEnabled } from '@/lib/smsSettings';
 
 export const maxDuration = 120;
 
@@ -48,7 +49,7 @@ function isDoctorInList(apiDoctorName: string, doctorList: string[]): boolean {
     });
 }
 
-const FALLBACK_TEMPLATE = `Dziekujemy za wizyte, {salutation}! Miej Mikrostomart zawsze przy sobie - pobierz aplikacje: {appUrl}`;
+const FALLBACK_TEMPLATE = `Dziekujemy ze jestes naszym pacjentem! Pobierz nasza aplikacje: {appUrl} Mikrostomart`;
 
 /**
  * WEEK-AFTER-VISIT SMS Cron — Stage 1: Generate DRAFTS
@@ -64,8 +65,15 @@ const FALLBACK_TEMPLATE = `Dziekujemy za wizyte, {salutation}! Miej Mikrostomart
  * Returns: {draftsCreated, skipped, skippedDetails[], errors[]}
  */
 export async function GET(req: Request) {
-    console.log('📱 [Week-After-Visit SMS] Starting draft generation...');
+    console.log('[Week-After SMS] Starting draft generation...');
     const startTime = Date.now();
+
+    // Check if week-after-visit SMS is enabled
+    const smsEnabled = await isSmsTypeEnabled('week_after_visit');
+    if (!smsEnabled) {
+        console.log('[Week-After SMS] Disabled via admin settings');
+        return NextResponse.json({ success: true, skipped: true, reason: 'SMS type disabled' });
+    }
 
     const authHeader = req.headers.get('authorization');
     const isCronAuth = authHeader === `Bearer ${process.env.CRON_SECRET}`;

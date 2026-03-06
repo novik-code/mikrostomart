@@ -4,6 +4,7 @@ import { sendSMS } from '@/lib/smsService';
 import { sendTranslatedPushToUser } from '@/lib/webpush';
 import { sendTelegramNotification } from '@/lib/telegram';
 import { logCronHeartbeat } from '@/lib/cronHeartbeat';
+import { isSmsTypeEnabled } from '@/lib/smsSettings';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -32,6 +33,13 @@ export async function GET(req: NextRequest) {
     }
 
     try {
+        // Check if deposit reminder SMS is enabled
+        const enabled = await isSmsTypeEnabled('deposit_reminder');
+        if (!enabled) {
+            console.log('[DepositReminder] SMS type disabled via admin settings');
+            return NextResponse.json({ success: true, skipped: true, reason: 'SMS type disabled' });
+        }
+
         const now = new Date();
         const warsaw = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/Warsaw' }));
 
@@ -105,10 +113,7 @@ export async function GET(req: NextRequest) {
             const doctor = action.doctor_name || 'lekarz';
 
             // ── Send SMS ──
-            const smsMessage = `Szanowny Pacjencie${firstName ? ` ${firstName}` : ''}, ` +
-                `przypominamy o zbliżającej się wizycie (${dayName}, ${dateStr} o ${timeStr} u ${doctor}). ` +
-                `Prosimy o wpłatę zadatku przed wizytą: https://mikrostomart.pl/zadatek ` +
-                `Mikrostomart`;
+            const smsMessage = `Przypominamy o wplacie zadatku przed wizyta (${dayName} ${dateStr} o ${timeStr}). Wiecej: https://mikrostomart.pl/zadatek Mikrostomart`;
 
             try {
                 const smsResult = await sendSMS({ to: patient.phone, message: smsMessage });

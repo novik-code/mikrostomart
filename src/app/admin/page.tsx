@@ -138,6 +138,9 @@ export default function AdminPage() {
     const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
     const [editingTemplateText, setEditingTemplateText] = useState('');
     const [showTemplateEditor, setShowTemplateEditor] = useState(false);
+    const [smsSettings, setSmsSettings] = useState<any[]>([]);
+    const [showSmsSettings, setShowSmsSettings] = useState(false);
+    const [togglingType, setTogglingType] = useState<string | null>(null);
 
     // Appointment Instructions state
     const [appointmentInstructions, setAppointmentInstructions] = useState<any[]>([]);
@@ -2538,6 +2541,116 @@ export default function AdminPage() {
                 </div>
             </div>
 
+            {/* SMS Settings (Toggle Types) */}
+            <button
+                onClick={() => {
+                    setShowSmsSettings(!showSmsSettings);
+                    if (!showSmsSettings && smsSettings.length === 0) {
+                        fetch('/api/admin/sms-settings')
+                            .then(r => r.json())
+                            .then(d => setSmsSettings(d.settings || []))
+                            .catch(() => { });
+                    }
+                }}
+                style={{
+                    width: "100%",
+                    padding: "0.75rem 1rem",
+                    background: showSmsSettings ? "rgba(239, 68, 68, 0.1)" : "var(--color-surface)",
+                    border: showSmsSettings ? "2px solid #ef4444" : "1px solid var(--color-border)",
+                    borderRadius: "var(--radius-md)",
+                    color: showSmsSettings ? "#ef4444" : "var(--color-text-muted)",
+                    cursor: "pointer",
+                    fontWeight: "600",
+                    fontSize: "0.95rem",
+                    textAlign: "left" as const,
+                    marginBottom: "0.5rem"
+                }}
+            >
+                {showSmsSettings ? '▼' : '▶'} ⚙️ Ustawienia SMS (wlacz/wylacz typy)
+            </button>
+
+            {showSmsSettings && (
+                <div style={{
+                    background: "var(--color-surface)",
+                    padding: "1.5rem",
+                    borderRadius: "var(--radius-md)",
+                    marginBottom: "1rem",
+                    border: "1px solid rgba(239, 68, 68, 0.2)"
+                }}>
+                    <div style={{ marginBottom: "1rem" }}>
+                        <h3 style={{ margin: 0, marginBottom: "0.25rem" }}>Typy automatycznych SMS</h3>
+                        <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--color-text-muted)" }}>
+                            Przypomnienia o wizytach sa zawsze wlaczone. Ponizej mozesz wylaczyc pozostale typy SMS aby zaoszczedzic koszty.
+                        </p>
+                    </div>
+
+                    {smsSettings.length === 0 ? (
+                        <p style={{ color: "var(--color-text-muted)", textAlign: "center", padding: "1rem" }}>Ladowanie...</p>
+                    ) : (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+                            {smsSettings.map(setting => (
+                                <div key={setting.id} style={{
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    alignItems: "center",
+                                    padding: "0.75rem 1rem",
+                                    background: "var(--color-background)",
+                                    borderRadius: "6px",
+                                    border: setting.enabled ? "1px solid rgba(34, 197, 94, 0.3)" : "1px solid rgba(239, 68, 68, 0.3)"
+                                }}>
+                                    <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                                        <span style={{ fontSize: "1.2rem" }}>{setting.icon}</span>
+                                        <div>
+                                            <strong style={{ fontSize: "0.9rem" }}>{setting.label}</strong>
+                                            {setting.updated_by && (
+                                                <div style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", marginTop: "0.15rem" }}>
+                                                    Zmieniono przez: {setting.updated_by}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={async () => {
+                                            setTogglingType(setting.id);
+                                            try {
+                                                const res = await fetch('/api/admin/sms-settings', {
+                                                    method: 'PATCH',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({ id: setting.id, enabled: !setting.enabled })
+                                                });
+                                                if (res.ok) {
+                                                    setSmsSettings(prev => prev.map(s => s.id === setting.id ? { ...s, enabled: !setting.enabled } : s));
+                                                } else {
+                                                    alert('Blad zapisu ustawienia');
+                                                }
+                                            } catch {
+                                                alert('Blad sieci');
+                                            } finally {
+                                                setTogglingType(null);
+                                            }
+                                        }}
+                                        disabled={togglingType === setting.id}
+                                        style={{
+                                            padding: "0.4rem 1.2rem",
+                                            background: setting.enabled ? "rgba(34, 197, 94, 0.2)" : "rgba(239, 68, 68, 0.2)",
+                                            border: setting.enabled ? "2px solid #22c55e" : "2px solid #ef4444",
+                                            borderRadius: "20px",
+                                            color: setting.enabled ? "#22c55e" : "#ef4444",
+                                            cursor: togglingType === setting.id ? "wait" : "pointer",
+                                            fontWeight: "bold",
+                                            fontSize: "0.85rem",
+                                            minWidth: "100px",
+                                            transition: "all 0.2s"
+                                        }}
+                                    >
+                                        {togglingType === setting.id ? '...' : (setting.enabled ? 'WLACZONY' : 'WYLACZONY')}
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* Manual Trigger Button */}
             <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>

@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { sendSMS } from '@/lib/smsService';
 import { sendTelegramNotification } from '@/lib/telegram';
 import { logCronHeartbeat } from '@/lib/cronHeartbeat';
+import { isSmsTypeEnabled } from '@/lib/smsSettings';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -39,6 +40,13 @@ export async function GET(req: NextRequest) {
     }
 
     try {
+        // ── Check if noshow SMS is enabled ──
+        const enabled = await isSmsTypeEnabled('noshow_followup');
+        if (!enabled) {
+            console.log('[NoShow] SMS type disabled via admin settings');
+            return NextResponse.json({ success: true, skipped: true, reason: 'SMS type disabled' });
+        }
+
         const now = new Date();
         const warsaw = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/Warsaw' }));
 
@@ -138,10 +146,7 @@ export async function GET(req: NextRequest) {
             // Get first name for personalized SMS
             const firstName = patientName.split(' ')[0] || 'Pacjencie';
 
-            const smsMessage = `Szanowny/a ${firstName}, zauważyliśmy, że nie udało się Państwu dotrzeć na wczorajszą wizytę. ` +
-                `Chętnie pomożemy umówić nowy termin — zapraszamy do kontaktu lub rezerwacji online: ` +
-                `https://mikrostomart.pl/strefa-pacjenta ` +
-                `Pozdrawiamy, Mikrostomart`;
+            const smsMessage = `${firstName}, nie udalo sie dotrzec na wizyte? Chetnie pomozemy umowic nowy termin: https://mikrostomart.pl/strefa-pacjenta Mikrostomart`;
 
             try {
                 const result = await sendSMS({ to: phone, message: smsMessage });
