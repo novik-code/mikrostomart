@@ -18,7 +18,10 @@ export const metadata: Metadata = {
     alternates: {
         canonical: './',
     },
-    title: "Dentysta Opole - Mikrostomart | Implanty i Stomatologia Mikroskopowa",
+    title: {
+        default: 'Dentysta Opole - Mikrostomart | Implanty i Stomatologia Mikroskopowa',
+        template: '%s | Mikrostomart - Dentysta Opole',
+    },
     description: "Szukasz dentysty w Opolu? Mikrostomart to nowoczesny gabinet stomatologiczny. Specjalizujemy się w implantach, leczeniu kanałowym i estetyce. Umów wizytę w Opolu (Chmielowice).",
     keywords: "dentysta opole, stomatolog opole, implanty opole, leczenie kanałowe opole, mikrostomart, stomatologia mikroskopowa",
     manifest: "/manifest.json",
@@ -28,6 +31,18 @@ export const metadata: Metadata = {
         apple: '/icon-512x512.png',
     },
     openGraph: {
+        type: 'website',
+        locale: 'pl_PL',
+        siteName: 'Mikrostomart - Dentysta Opole',
+        images: [{
+            url: '/opengraph-image.png',
+            width: 1200,
+            height: 630,
+            alt: 'Mikrostomart - Mikroskopowa Stomatologia Artystyczna w Opolu',
+        }],
+    },
+    twitter: {
+        card: 'summary_large_image',
         images: ['/opengraph-image.png'],
     },
     other: {
@@ -54,22 +69,28 @@ export default async function RootLayout({
     return (
         <html lang={locale}>
             <body className={`${inter.variable} ${playfair.variable}`}>
+                {/* Dentist / LocalBusiness schema */}
                 <script
                     type="application/ld+json"
                     dangerouslySetInnerHTML={{
                         __html: JSON.stringify({
                             "@context": "https://schema.org",
-                            "@type": "Dentist",
+                            "@type": ["Dentist", "MedicalBusiness"],
                             "name": "Mikrostomart - Mikroskopowa Stomatologia Artystyczna",
+                            "alternateName": "Mikrostomart Gabinet Stomatologiczny",
+                            "description": "Nowoczesny gabinet stomatologiczny w Opolu specjalizujący się w implantologii, stomatologii mikroskopowej, leczeniu kanałowym i estetyce. Zaawansowana technologia, indywidualne podejście.",
                             "image": "https://mikrostomart.pl/logo-transparent.png",
                             "@id": "https://mikrostomart.pl",
                             "url": "https://mikrostomart.pl",
-                            "telephone": "570270470",
+                            "telephone": "+48570270470",
                             "priceRange": "$$",
+                            "currenciesAccepted": "PLN",
+                            "paymentAccepted": "Cash, Credit Card",
                             "address": {
                                 "@type": "PostalAddress",
                                 "streetAddress": "ul. Centralna 33a",
                                 "addressLocality": "Opole",
+                                "addressRegion": "opolskie",
                                 "postalCode": "45-940",
                                 "addressCountry": "PL"
                             },
@@ -78,6 +99,26 @@ export default async function RootLayout({
                                 "latitude": 50.677682,
                                 "longitude": 17.866163
                             },
+                            "hasMap": "https://www.google.com/maps/search/?api=1&query=Mikrostomart+Opole+ul.+Centralna+33a",
+                            "sameAs": [
+                                "https://www.facebook.com/mikrostomart"
+                            ],
+                            "medicalSpecialty": [
+                                "Dentistry",
+                                "Endodontics",
+                                "Prosthodontics",
+                                "Orthodontics",
+                                "DentalHygiene"
+                            ],
+                            "availableService": [
+                                { "@type": "MedicalProcedure", "name": "Implanty zębów", "url": "https://mikrostomart.pl/oferta/implantologia" },
+                                { "@type": "MedicalProcedure", "name": "Leczenie kanałowe pod mikroskopem" },
+                                { "@type": "MedicalProcedure", "name": "Stomatologia estetyczna" },
+                                { "@type": "MedicalProcedure", "name": "Ortodoncja" },
+                                { "@type": "MedicalProcedure", "name": "Protetyka" },
+                                { "@type": "MedicalProcedure", "name": "Chirurgia stomatologiczna" },
+                                { "@type": "MedicalProcedure", "name": "Higienizacja i profilaktyka" }
+                            ],
                             "openingHoursSpecification": [
                                 {
                                     "@type": "OpeningHoursSpecification",
@@ -92,6 +133,23 @@ export default async function RootLayout({
                                     "closes": "16:00"
                                 }
                             ]
+                        })
+                    }}
+                />
+                {/* WebSite schema — enables sitelinks search in Google */}
+                <script
+                    type="application/ld+json"
+                    dangerouslySetInnerHTML={{
+                        __html: JSON.stringify({
+                            "@context": "https://schema.org",
+                            "@type": "WebSite",
+                            "name": "Mikrostomart",
+                            "url": "https://mikrostomart.pl",
+                            "potentialAction": {
+                                "@type": "SearchAction",
+                                "target": "https://mikrostomart.pl/baza-wiedzy?q={search_term_string}",
+                                "query-input": "required name=search_term_string"
+                            }
                         })
                     }}
                 />
