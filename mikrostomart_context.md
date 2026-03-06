@@ -1993,6 +1993,7 @@ NODE_ENV=production
 
 #### Commits:
 - `eec5ccc` — feat: AI email assistant training system — sender rules, instructions, feedback/learning, ratings, tags
+- `4c527fe` — feat: add employee guide tab + editable knowledge base tab in AI settings modal
 
 #### New Features:
 1. **Sender Rules** — Admin controls which email addresses trigger AI draft generation:
