@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Mail, Send, Inbox, Star, Trash2, Search, RefreshCw, ChevronLeft, Paperclip, X, ArrowLeft, Reply, Forward, FileText, Tag, Bell, Globe, MessageCircle, Archive } from 'lucide-react';
+import { Mail, Send, Inbox, Star, Trash2, Search, RefreshCw, ChevronLeft, Paperclip, X, ArrowLeft, Reply, Forward, FileText, Tag, Bell, Globe, MessageCircle, Archive, Sparkles, Zap } from 'lucide-react';
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -76,7 +76,7 @@ function getFolderLabel(path: string, name: string) {
 
 // ─── Email Labels / Categories ──────────────────────────────
 
-type EmailLabel = 'all' | 'powiadomienia' | 'strona' | 'chat' | 'pozostale';
+type EmailLabel = 'all' | 'wazne' | 'powiadomienia' | 'strona' | 'chat' | 'pozostale';
 
 interface LabelDef {
     id: EmailLabel;
@@ -88,11 +88,34 @@ interface LabelDef {
 
 const EMAIL_LABELS: LabelDef[] = [
     { id: 'all', label: 'Główne', icon: <Inbox size={14} />, color: '#38bdf8', shortLabel: 'Główne' },
+    { id: 'wazne', label: '⭐ Ważne', icon: <Zap size={14} />, color: '#ef4444', shortLabel: 'Ważne' },
     { id: 'powiadomienia', label: 'Powiadomienia', icon: <Bell size={14} />, color: '#f59e0b', shortLabel: 'Powiadom.' },
     { id: 'strona', label: 'Strona & Formularze', icon: <Globe size={14} />, color: '#34d399', shortLabel: 'Strona' },
     { id: 'chat', label: 'Chat & Wiadomości', icon: <MessageCircle size={14} />, color: '#818cf8', shortLabel: 'Chat' },
     { id: 'pozostale', label: 'Pozostałe', icon: <Archive size={14} />, color: '#94a3b8', shortLabel: 'Inne' },
 ];
+
+// ─── AI Draft types ─────────────────────────────────────────
+
+interface AiDraft {
+    id: string;
+    email_uid: number;
+    email_folder: string;
+    email_subject: string;
+    email_from_address: string;
+    email_from_name: string;
+    email_date: string;
+    email_snippet: string;
+    draft_subject: string;
+    draft_html: string;
+    status: 'pending' | 'approved' | 'sent' | 'rejected';
+    admin_notes: string | null;
+    ai_reasoning: string | null;
+    created_at: string;
+    reviewed_at: string | null;
+    sent_at: string | null;
+    reviewed_by: string | null;
+}
 
 /**
  * Classify an email into a label based on sender address and subject.
@@ -145,6 +168,47 @@ function classifyEmail(email: { from: { address: string; name: string }; subject
     // ── Cron / system reports
     if (subj.includes('cron') || subj.includes('raport') || subj.includes('report') || subj.includes('sms') || subj.includes('[system]')) {
         return 'powiadomienia';
+    }
+
+    // ── Important patient correspondence ("Ważne")
+    const importantPatterns = [
+        'wizyt', 'umówi', 'umowi', 'termin', 'rejestr',
+        'ból', 'bol', 'zęb', 'zeb', 'implant', 'protet',
+        'leczeni', 'kanałow', 'kanalowo', 'wybielani', 'higienizacj',
+        'cennik', 'cena', 'cen ', 'koszt', 'ile kosztuje', 'wycen',
+        'reklamacj', 'roszczen', 'skargi', 'zwrot', 'gwarancj', 'rękojmi',
+        'dziecko', 'dziec', 'adaptacyj',
+        'rtg', 'zdjęci', 'zdjecii', 'tomografi', 'cbct',
+        'ósemk', 'osemk', 'chirug', 'usunięci', 'usunieci',
+        'licówk', 'licowk', 'korona ', 'most ', 'bonding',
+        'alignery', 'ortodoncj', 'nakładk',
+        'skaling', 'piaskowan', 'fluoryzacj',
+        'recepta', 'lekarz', 'doktor', 'dr ', 'marcin', 'nowosielski',
+        'pytanie', 'pytani', 'konsultacj', 'porad',
+    ];
+
+    const isNotBusiness = !(
+        subj.includes('oferta') || subj.includes('newsletter') || subj.includes('unsubscribe')
+        || subj.includes('marketing') || subj.includes('promocj') || subj.includes('faktur')
+        || subj.includes('invoice') || subj.includes('współprac') || subj.includes('wspolprac')
+        || subj.includes('b2b') || subj.includes('sprzeda') || subj.includes('handlow')
+        || addr.includes('newsletter') || addr.includes('marketing') || addr.includes('promo')
+        || addr.includes('info@') || addr.includes('biuro@') || addr.includes('kontakt@')
+        || addr.includes('handlowy') || addr.includes('sales@')
+    );
+
+    if (isNotBusiness && importantPatterns.some(p => subj.includes(p))) {
+        return 'wazne';
+    }
+
+    // Personal email senders (gmail, wp, onet, etc.) likely patients
+    const isPersonalEmail = addr.includes('gmail.') || addr.includes('wp.pl')
+        || addr.includes('onet.pl') || addr.includes('o2.pl') || addr.includes('interia.')
+        || addr.includes('yahoo.') || addr.includes('outlook.') || addr.includes('hotmail.')
+        || addr.includes('icloud.') || addr.includes('tlen.pl') || addr.includes('poczta.');
+
+    if (isPersonalEmail && isNotBusiness && subj.length < 100) {
+        return 'wazne';
     }
 
     return 'pozostale';
@@ -232,6 +296,14 @@ export default function EmailTab() {
     // Unread count
     const [unreadCount, setUnreadCount] = useState(0);
 
+    // AI Drafts
+    const [aiDrafts, setAiDrafts] = useState<AiDraft[]>([]);
+    const [showDraftsPanel, setShowDraftsPanel] = useState(false);
+    const [editingDraftId, setEditingDraftId] = useState<string | null>(null);
+    const [editingDraftHtml, setEditingDraftHtml] = useState('');
+    const [draftSending, setDraftSending] = useState<string | null>(null);
+    const [draftToast, setDraftToast] = useState<string | null>(null);
+
     // Mobile
     const [showSidebar, setShowSidebar] = useState(false);
     const [isMobileView, setIsMobileView] = useState(false);
@@ -303,6 +375,25 @@ export default function EmailTab() {
         }
     }, []);
 
+    // ─── Fetch AI drafts ──────────────────────────────────────
+
+    const fetchDrafts = useCallback(async () => {
+        try {
+            const res = await fetch('/api/employee/email-drafts?status=all');
+            if (!res.ok) return;
+            const data = await res.json();
+            setAiDrafts(data.drafts || []);
+        } catch {
+            // Ignore
+        }
+    }, []);
+
+    const draftUidSet = new Set(
+        aiDrafts.filter(d => d.status === 'pending').map(d => d.email_uid)
+    );
+    const allDraftUidSet = new Set(aiDrafts.map(d => d.email_uid));
+    const pendingDraftsCount = aiDrafts.filter(d => d.status === 'pending').length;
+
     // Initial load
     useEffect(() => {
         fetchEmails();
@@ -311,6 +402,7 @@ export default function EmailTab() {
     useEffect(() => {
         fetchFolders();
         fetchUnread();
+        fetchDrafts();
     }, []);
 
     // Auto-refresh every 60s
@@ -318,11 +410,64 @@ export default function EmailTab() {
         refreshIntervalRef.current = setInterval(() => {
             fetchEmails(true);
             fetchUnread();
+            fetchDrafts();
         }, 60000);
         return () => {
             if (refreshIntervalRef.current) clearInterval(refreshIntervalRef.current);
         };
-    }, [fetchEmails, fetchUnread]);
+    }, [fetchEmails, fetchUnread, fetchDrafts]);
+
+    // ─── AI Draft handlers ───────────────────────────────────
+
+    const handleDraftAction = async (draftId: string, action: 'send' | 'reject') => {
+        setDraftSending(draftId);
+        try {
+            if (action === 'send') {
+                const res = await fetch('/api/employee/email-drafts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: draftId }),
+                });
+                if (!res.ok) {
+                    const data = await res.json();
+                    throw new Error(data.error || 'Błąd wysyłki');
+                }
+                setDraftToast('✅ Mail wysłany!');
+            } else {
+                const res = await fetch('/api/employee/email-drafts', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: draftId, status: 'rejected' }),
+                });
+                if (!res.ok) throw new Error('Błąd odrzucenia');
+                setDraftToast('Draft odrzucony');
+            }
+            await fetchDrafts();
+        } catch (err: any) {
+            setDraftToast(`❌ ${err.message}`);
+        } finally {
+            setDraftSending(null);
+            setTimeout(() => setDraftToast(null), 3000);
+        }
+    };
+
+    const handleDraftSave = async (draftId: string) => {
+        try {
+            const res = await fetch('/api/employee/email-drafts', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: draftId, draft_html: editingDraftHtml }),
+            });
+            if (!res.ok) throw new Error('Błąd zapisu');
+            setEditingDraftId(null);
+            setDraftToast('✅ Zapisano zmiany');
+            await fetchDrafts();
+        } catch (err: any) {
+            setDraftToast(`❌ ${err.message}`);
+        } finally {
+            setTimeout(() => setDraftToast(null), 3000);
+        }
+    };
 
     // ─── Open email ──────────────────────────────────────────
 
@@ -516,6 +661,7 @@ export default function EmailTab() {
     // Count per label
     const labelCounts: Record<EmailLabel, number> = {
         all: emails.length,
+        wazne: 0,
         powiadomienia: 0,
         strona: 0,
         chat: 0,
@@ -726,6 +872,42 @@ export default function EmailTab() {
                         title="Odśwież"
                     >
                         <RefreshCw size={14} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
+                    </button>
+
+                    {/* AI Drafts button */}
+                    <button
+                        onClick={() => setShowDraftsPanel(true)}
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.35rem',
+                            padding: '0.35rem 0.7rem',
+                            background: pendingDraftsCount > 0 ? 'rgba(168,85,247,0.15)' : 'rgba(255,255,255,0.05)',
+                            border: pendingDraftsCount > 0 ? '1px solid rgba(168,85,247,0.3)' : '1px solid rgba(255,255,255,0.1)',
+                            borderRadius: '0.4rem',
+                            color: pendingDraftsCount > 0 ? '#a855f7' : 'rgba(255,255,255,0.5)',
+                            cursor: 'pointer',
+                            fontSize: '0.78rem',
+                            fontWeight: pendingDraftsCount > 0 ? 600 : 400,
+                            transition: 'all 0.2s',
+                        }}
+                        title="Drafty AI"
+                    >
+                        <Sparkles size={13} />
+                        <span>{isMobileView ? 'AI' : 'Drafty AI'}</span>
+                        {pendingDraftsCount > 0 && (
+                            <span style={{
+                                fontSize: '0.6rem',
+                                padding: '0.05rem 0.35rem',
+                                borderRadius: '1rem',
+                                background: '#a855f7',
+                                color: '#fff',
+                                fontWeight: 700,
+                                minWidth: 16,
+                                textAlign: 'center' as const,
+                                lineHeight: 1.4,
+                            }}>{pendingDraftsCount}</span>
+                        )}
                     </button>
 
                     {/* Folder name */}
@@ -1167,6 +1349,51 @@ export default function EmailTab() {
                                             </div>
                                         </div>
 
+                                        {/* AI Draft indicator */}
+                                        {draftUidSet.has(email.uid) && (
+                                            <span
+                                                title="AI wygenerował draft odpowiedzi"
+                                                style={{
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center',
+                                                    gap: '0.2rem',
+                                                    padding: '0.1rem 0.35rem',
+                                                    borderRadius: '0.25rem',
+                                                    fontSize: '0.58rem',
+                                                    fontWeight: 600,
+                                                    background: 'rgba(168,85,247,0.15)',
+                                                    color: '#a855f7',
+                                                    flexShrink: 0,
+                                                    lineHeight: 1.3,
+                                                    border: '1px solid rgba(168,85,247,0.2)',
+                                                }}
+                                            >
+                                                <Sparkles size={9} />
+                                                AI
+                                            </span>
+                                        )}
+                                        {allDraftUidSet.has(email.uid) && !draftUidSet.has(email.uid) && (
+                                            <span
+                                                title={`Draft ${aiDrafts.find(d => d.email_uid === email.uid)?.status === 'sent' ? 'wysłany' : 'przetworzony'}`}
+                                                style={{
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center',
+                                                    gap: '0.15rem',
+                                                    padding: '0.1rem 0.3rem',
+                                                    borderRadius: '0.25rem',
+                                                    fontSize: '0.55rem',
+                                                    fontWeight: 500,
+                                                    background: 'rgba(74,222,128,0.1)',
+                                                    color: 'rgba(74,222,128,0.6)',
+                                                    flexShrink: 0,
+                                                    lineHeight: 1.3,
+                                                }}
+                                            >
+                                                <Sparkles size={8} />
+                                                ✓
+                                            </span>
+                                        )}
+
                                         {/* Attachment icon */}
                                         {email.hasAttachments && (
                                             <Paperclip size={13} style={{ color: 'rgba(255,255,255,0.25)', flexShrink: 0 }} />
@@ -1419,6 +1646,325 @@ export default function EmailTab() {
                                 )}
                                 {sending ? 'Wysyłanie...' : 'Wyślij'}
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ─── AI DRAFTS PANEL MODAL ──────────────────────── */}
+            {showDraftsPanel && (
+                <div style={{
+                    position: 'fixed',
+                    inset: 0,
+                    background: 'rgba(0,0,0,0.75)',
+                    backdropFilter: 'blur(8px)',
+                    zIndex: 5000,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '1rem',
+                }}>
+                    <div style={{
+                        background: 'linear-gradient(135deg, #0d1b2a, #1b2838)',
+                        border: '1px solid rgba(168,85,247,0.2)',
+                        borderRadius: '1rem',
+                        width: '100%',
+                        maxWidth: 800,
+                        maxHeight: '90vh',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
+                    }}>
+                        {/* Header */}
+                        <div style={{
+                            padding: '1rem 1.25rem',
+                            borderBottom: '1px solid rgba(255,255,255,0.08)',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <Sparkles size={18} style={{ color: '#a855f7' }} />
+                                <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, color: '#a855f7' }}>
+                                    Drafty AI
+                                </h3>
+                                {pendingDraftsCount > 0 && (
+                                    <span style={{
+                                        fontSize: '0.7rem',
+                                        padding: '0.15rem 0.5rem',
+                                        borderRadius: '1rem',
+                                        background: '#a855f7',
+                                        color: '#fff',
+                                        fontWeight: 700,
+                                    }}>{pendingDraftsCount} oczekuje</span>
+                                )}
+                            </div>
+                            <button
+                                onClick={() => setShowDraftsPanel(false)}
+                                style={{
+                                    background: 'rgba(255,255,255,0.08)',
+                                    border: '1px solid rgba(255,255,255,0.15)',
+                                    borderRadius: '0.4rem',
+                                    width: 28,
+                                    height: 28,
+                                    color: '#fff',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: '0.85rem',
+                                }}
+                            >✕</button>
+                        </div>
+
+                        {/* Toast */}
+                        {draftToast && (
+                            <div style={{
+                                margin: '0.5rem 1.25rem 0',
+                                padding: '0.5rem 0.75rem',
+                                borderRadius: '0.4rem',
+                                fontSize: '0.82rem',
+                                background: draftToast.includes('❌') ? 'rgba(239,68,68,0.1)' : 'rgba(74,222,128,0.1)',
+                                color: draftToast.includes('❌') ? '#ef4444' : '#4ade80',
+                                border: `1px solid ${draftToast.includes('❌') ? 'rgba(239,68,68,0.2)' : 'rgba(74,222,128,0.2)'}`,
+                            }}>{draftToast}</div>
+                        )}
+
+                        {/* Draft list */}
+                        <div style={{ flex: 1, overflow: 'auto', padding: '0.75rem 1.25rem' }}>
+                            {aiDrafts.length === 0 ? (
+                                <div style={{ padding: '3rem 2rem', textAlign: 'center' }}>
+                                    <Sparkles size={32} style={{ color: 'rgba(168,85,247,0.3)', marginBottom: '0.75rem' }} />
+                                    <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.9rem' }}>Brak draftów AI</p>
+                                    <p style={{ color: 'rgba(255,255,255,0.25)', fontSize: '0.78rem' }}>Asystent AI automatycznie analizuje nowe maile i generuje propozycje odpowiedzi.</p>
+                                </div>
+                            ) : (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                    {aiDrafts.map(draft => {
+                                        const isPending = draft.status === 'pending';
+                                        const isSent = draft.status === 'sent';
+                                        const isEditing = editingDraftId === draft.id;
+                                        const statusColors: Record<string, string> = {
+                                            pending: '#a855f7',
+                                            approved: '#38bdf8',
+                                            sent: '#4ade80',
+                                            rejected: '#ef4444',
+                                        };
+                                        const statusLabels: Record<string, string> = {
+                                            pending: '⏳ Oczekuje',
+                                            approved: '✅ Zatwierdzony',
+                                            sent: '📤 Wysłany',
+                                            rejected: '❌ Odrzucony',
+                                        };
+
+                                        return (
+                                            <div key={draft.id} style={{
+                                                border: `1px solid ${isPending ? 'rgba(168,85,247,0.2)' : 'rgba(255,255,255,0.06)'}`,
+                                                borderRadius: '0.75rem',
+                                                background: isPending ? 'rgba(168,85,247,0.04)' : 'rgba(255,255,255,0.02)',
+                                                overflow: 'hidden',
+                                            }}>
+                                                {/* Original email info */}
+                                                <div style={{
+                                                    padding: '0.75rem 1rem',
+                                                    borderBottom: '1px solid rgba(255,255,255,0.06)',
+                                                    display: 'flex',
+                                                    justifyContent: 'space-between',
+                                                    alignItems: 'flex-start',
+                                                    gap: '0.5rem',
+                                                    flexWrap: 'wrap',
+                                                }}>
+                                                    <div style={{ flex: 1, minWidth: 200 }}>
+                                                        <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.35)', marginBottom: '0.25rem' }}>Oryginalny email:</div>
+                                                        <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#fff' }}>{draft.email_subject}</div>
+                                                        <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.45)', marginTop: '0.15rem' }}>
+                                                            Od: {draft.email_from_name || draft.email_from_address} &lt;{draft.email_from_address}&gt;
+                                                        </div>
+                                                        {draft.email_snippet && (
+                                                            <div style={{ fontSize: '0.73rem', color: 'rgba(255,255,255,0.3)', marginTop: '0.35rem', fontStyle: 'italic' }}>
+                                                                „{draft.email_snippet.substring(0, 150)}...”
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                        <span style={{
+                                                            fontSize: '0.68rem',
+                                                            padding: '0.15rem 0.5rem',
+                                                            borderRadius: '1rem',
+                                                            background: `${statusColors[draft.status]}15`,
+                                                            color: statusColors[draft.status],
+                                                            fontWeight: 600,
+                                                        }}>{statusLabels[draft.status]}</span>
+                                                        <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.25)' }}>
+                                                            {formatDate(draft.created_at)}
+                                                        </span>
+                                                    </div>
+                                                </div>
+
+                                                {/* AI reasoning */}
+                                                {draft.ai_reasoning && (
+                                                    <div style={{
+                                                        padding: '0.5rem 1rem',
+                                                        fontSize: '0.73rem',
+                                                        color: 'rgba(168,85,247,0.7)',
+                                                        background: 'rgba(168,85,247,0.04)',
+                                                        borderBottom: '1px solid rgba(255,255,255,0.04)',
+                                                    }}>
+                                                        <Sparkles size={10} style={{ marginRight: '0.3rem', verticalAlign: 'middle' }} />
+                                                        {draft.ai_reasoning}
+                                                    </div>
+                                                )}
+
+                                                {/* Draft content */}
+                                                <div style={{ padding: '0.75rem 1rem' }}>
+                                                    <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.35)', marginBottom: '0.3rem' }}>Temat odpowiedzi: <strong style={{ color: 'rgba(255,255,255,0.6)' }}>{draft.draft_subject}</strong></div>
+                                                    {isEditing ? (
+                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                                            <textarea
+                                                                value={editingDraftHtml}
+                                                                onChange={e => setEditingDraftHtml(e.target.value)}
+                                                                rows={8}
+                                                                style={{
+                                                                    background: 'rgba(255,255,255,0.05)',
+                                                                    border: '1px solid rgba(168,85,247,0.2)',
+                                                                    borderRadius: '0.5rem',
+                                                                    padding: '0.75rem',
+                                                                    color: '#fff',
+                                                                    fontSize: '0.82rem',
+                                                                    resize: 'vertical',
+                                                                    outline: 'none',
+                                                                    minHeight: 120,
+                                                                    lineHeight: 1.6,
+                                                                    fontFamily: 'inherit',
+                                                                }}
+                                                            />
+                                                            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                                                                <button
+                                                                    onClick={() => setEditingDraftId(null)}
+                                                                    style={{
+                                                                        padding: '0.4rem 0.8rem',
+                                                                        background: 'rgba(255,255,255,0.05)',
+                                                                        border: '1px solid rgba(255,255,255,0.1)',
+                                                                        borderRadius: '0.4rem',
+                                                                        color: 'rgba(255,255,255,0.5)',
+                                                                        cursor: 'pointer',
+                                                                        fontSize: '0.78rem',
+                                                                    }}
+                                                                >Anuluj</button>
+                                                                <button
+                                                                    onClick={() => handleDraftSave(draft.id)}
+                                                                    style={{
+                                                                        padding: '0.4rem 0.8rem',
+                                                                        background: 'rgba(168,85,247,0.15)',
+                                                                        border: '1px solid rgba(168,85,247,0.3)',
+                                                                        borderRadius: '0.4rem',
+                                                                        color: '#a855f7',
+                                                                        cursor: 'pointer',
+                                                                        fontSize: '0.78rem',
+                                                                        fontWeight: 600,
+                                                                    }}
+                                                                >💾 Zapisz</button>
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <div
+                                                            dangerouslySetInnerHTML={{ __html: sanitizeHtml(draft.draft_html) }}
+                                                            style={{
+                                                                fontSize: '0.82rem',
+                                                                color: 'rgba(255,255,255,0.7)',
+                                                                lineHeight: 1.6,
+                                                                padding: '0.5rem',
+                                                                background: 'rgba(255,255,255,0.02)',
+                                                                borderRadius: '0.4rem',
+                                                                border: '1px solid rgba(255,255,255,0.04)',
+                                                                maxHeight: 200,
+                                                                overflow: 'auto',
+                                                            }}
+                                                        />
+                                                    )}
+                                                </div>
+
+                                                {/* Actions */}
+                                                {isPending && !isEditing && (
+                                                    <div style={{
+                                                        padding: '0.5rem 1rem 0.75rem',
+                                                        display: 'flex',
+                                                        gap: '0.5rem',
+                                                        justifyContent: 'flex-end',
+                                                        flexWrap: 'wrap',
+                                                    }}>
+                                                        <button
+                                                            onClick={() => handleDraftAction(draft.id, 'reject')}
+                                                            disabled={draftSending === draft.id}
+                                                            style={{
+                                                                padding: '0.4rem 0.8rem',
+                                                                background: 'rgba(239,68,68,0.08)',
+                                                                border: '1px solid rgba(239,68,68,0.2)',
+                                                                borderRadius: '0.4rem',
+                                                                color: '#ef4444',
+                                                                cursor: 'pointer',
+                                                                fontSize: '0.78rem',
+                                                            }}
+                                                        >❌ Odrzuć</button>
+                                                        <button
+                                                            onClick={() => {
+                                                                setEditingDraftId(draft.id);
+                                                                setEditingDraftHtml(draft.draft_html);
+                                                            }}
+                                                            style={{
+                                                                padding: '0.4rem 0.8rem',
+                                                                background: 'rgba(255,255,255,0.05)',
+                                                                border: '1px solid rgba(255,255,255,0.1)',
+                                                                borderRadius: '0.4rem',
+                                                                color: 'rgba(255,255,255,0.6)',
+                                                                cursor: 'pointer',
+                                                                fontSize: '0.78rem',
+                                                            }}
+                                                        >✏️ Edytuj</button>
+                                                        <button
+                                                            onClick={() => handleDraftAction(draft.id, 'send')}
+                                                            disabled={draftSending === draft.id}
+                                                            style={{
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                gap: '0.3rem',
+                                                                padding: '0.4rem 1rem',
+                                                                background: draftSending === draft.id
+                                                                    ? 'rgba(74,222,128,0.15)'
+                                                                    : 'linear-gradient(135deg, #4ade80, #22c55e)',
+                                                                border: 'none',
+                                                                borderRadius: '0.4rem',
+                                                                color: '#fff',
+                                                                cursor: draftSending === draft.id ? 'not-allowed' : 'pointer',
+                                                                fontSize: '0.78rem',
+                                                                fontWeight: 600,
+                                                            }}
+                                                        >
+                                                            {draftSending === draft.id ? (
+                                                                <RefreshCw size={12} style={{ animation: 'spin 1s linear infinite' }} />
+                                                            ) : (
+                                                                <Send size={12} />
+                                                            )}
+                                                            {draftSending === draft.id ? 'Wysyłanie...' : 'Zatwierdź i wyślij'}
+                                                        </button>
+                                                    </div>
+                                                )}
+
+                                                {/* Sent info */}
+                                                {isSent && draft.sent_at && (
+                                                    <div style={{
+                                                        padding: '0.4rem 1rem 0.6rem',
+                                                        fontSize: '0.7rem',
+                                                        color: 'rgba(74,222,128,0.5)',
+                                                    }}>
+                                                        Wysłano: {formatFullDate(draft.sent_at)}{draft.reviewed_by ? ` przez ${draft.reviewed_by}` : ''}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

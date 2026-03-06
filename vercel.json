@@ -67,6 +67,18 @@
         {
             "path": "/api/cron/noshow-followup",
             "schedule": "0 8 * * *"
+        },
+        {
+            "path": "/api/cron/email-ai-drafts",
+            "schedule": "30 6 * * *"
+        },
+        {
+            "path": "/api/cron/email-ai-drafts",
+            "schedule": "30 10 * * *"
+        },
+        {
+            "path": "/api/cron/email-ai-drafts",
+            "schedule": "30 14 * * *"
         }
     ]
 }
