@@ -90,7 +90,7 @@ export async function GET() {
             .from('site_settings')
             .select('value')
             .eq('key', 'ai_knowledge_base')
-            .single();
+            .maybeSingle();
 
         const knowledgeBase = kbRow?.value || KNOWLEDGE_BASE;
 

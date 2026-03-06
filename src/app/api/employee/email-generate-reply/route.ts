@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
                 .select('ai_analysis, feedback_note')
                 .order('created_at', { ascending: false })
                 .limit(10),
-            supabase.from('site_settings').select('value').eq('key', 'ai_knowledge_base').single(),
+            supabase.from('site_settings').select('value').eq('key', 'ai_knowledge_base').maybeSingle(),
         ]);
 
         const activeInstructions = instructionsRes.data || [];

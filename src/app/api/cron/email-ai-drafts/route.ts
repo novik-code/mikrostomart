@@ -127,7 +127,7 @@ export async function GET(req: NextRequest) {
             supabase.from('email_ai_sender_rules').select('*'),
             supabase.from('email_ai_instructions').select('*').eq('is_active', true),
             supabase.from('email_ai_feedback').select('original_draft_html, corrected_draft_html, ai_analysis, feedback_note').order('created_at', { ascending: false }).limit(10),
-            supabase.from('site_settings').select('value').eq('key', 'ai_knowledge_base').single(),
+            supabase.from('site_settings').select('value').eq('key', 'ai_knowledge_base').maybeSingle(),
         ]);
 
         const senderRules = senderRulesRes.data || [];
