@@ -122,13 +122,60 @@ export async function GET(req: NextRequest) {
             (existingDrafts || []).map((d: { email_uid: number }) => d.email_uid)
         );
 
-        // 3. Filter: only "pozostale" (external/potentially important) + not yet processed
+        // 2b. Load AI training config from DB
+        const [senderRulesRes, instructionsRes, feedbackRes] = await Promise.all([
+            supabase.from('email_ai_sender_rules').select('*'),
+            supabase.from('email_ai_instructions').select('*').eq('is_active', true),
+            supabase.from('email_ai_feedback').select('original_draft_html, corrected_draft_html, ai_analysis, feedback_note').order('created_at', { ascending: false }).limit(10),
+        ]);
+
+        const senderRules = senderRulesRes.data || [];
+        const activeInstructions = instructionsRes.data || [];
+        const recentFeedback = feedbackRes.data || [];
+
+        // Helper: check if email matches a sender rule pattern
+        function matchesSenderPattern(emailAddr: string, pattern: string): boolean {
+            const addr = emailAddr.toLowerCase();
+            const pat = pattern.toLowerCase();
+            if (pat.startsWith('*@')) {
+                // Domain wildcard: *@gmail.com matches anything@gmail.com
+                return addr.endsWith(pat.slice(1));
+            }
+            if (pat.includes('*')) {
+                // Generic glob: convert to regex
+                const regex = new RegExp('^' + pat.replace(/\*/g, '.*') + '$');
+                return regex.test(addr);
+            }
+            return addr === pat;
+        }
+
+        // Separate include and exclude rules
+        const includeRules = senderRules.filter((r: any) => r.rule_type === 'include');
+        const excludeRules = senderRules.filter((r: any) => r.rule_type === 'exclude');
+
+        console.log(`[Email AI Drafts] Training config: ${senderRules.length} sender rules, ${activeInstructions.length} instructions, ${recentFeedback.length} feedback entries`);
+
+        // 3. Filter: only "pozostale" + not yet processed + respect sender rules
         const candidates = inboxEmails.filter(email => {
             if (processedUids.has(email.uid)) return false;
-            return classifyEmailServer(email) === 'pozostale';
+            if (classifyEmailServer(email) !== 'pozostale') return false;
+
+            const addr = email.from.address.toLowerCase();
+
+            // If there are include rules, email MUST match at least one
+            if (includeRules.length > 0) {
+                const matchesInclude = includeRules.some((r: any) => matchesSenderPattern(addr, r.email_pattern));
+                if (!matchesInclude) return false;
+            }
+
+            // If email matches any exclude rule, skip it
+            const matchesExclude = excludeRules.some((r: any) => matchesSenderPattern(addr, r.email_pattern));
+            if (matchesExclude) return false;
+
+            return true;
         });
 
-        console.log(`[Email AI Drafts] ${candidates.length} new unprocessed "pozostale" emails`);
+        console.log(`[Email AI Drafts] ${candidates.length} new unprocessed candidates after sender rules`);
 
         if (candidates.length === 0) {
             await logCronHeartbeat('email-ai-drafts', 'ok', 'No new candidates');
@@ -161,6 +208,21 @@ export async function GET(req: NextRequest) {
 
         const styleContext = sentEmailTexts.length > 0
             ? `\n\n## STYL WCZEŚNIEJSZYCH ODPOWIEDZI KLINIKI\nPoniżej znajdują się przykłady wcześniejszych odpowiedzi wysłanych przez pracowników kliniki. Naśladuj ich styl, ton i sposób zwracania się do pacjentów:\n\n${sentEmailTexts.join('\n')}`
+            : '';
+
+        // Build training context from admin instructions
+        const instructionsContext = activeInstructions.length > 0
+            ? `\n\n## INSTRUKCJE OD ADMINA (OBOWIĄZKOWE)\nPoniższe instrukcje zostały dodane przez administratora kliniki. MUSISZ ich bezwzględnie przestrzegać:\n\n${activeInstructions.map((i: any, idx: number) => `${idx + 1}. [${(i.category || 'other').toUpperCase()}] ${i.instruction}`).join('\n')}`
+            : '';
+
+        // Build learning context from recent corrections
+        const feedbackContext = recentFeedback.length > 0
+            ? `\n\n## WNIOSKI Z POPRZEDNICH POPRAWEK\nPoniżej znajdują się wnioski z wcześniejszych poprawek dokonanych przez admina na Twoich draftach. Ucz się z nich i unikaj tych samych błędów:\n\n${recentFeedback.map((f: any, idx: number) => {
+                let entry = `${idx + 1}. `;
+                if (f.ai_analysis) entry += f.ai_analysis;
+                if (f.feedback_note) entry += ` (Uwaga admina: ${f.feedback_note})`;
+                return entry;
+            }).join('\n')}`
             : '';
 
         // 5. Process each candidate with GPT-4o-mini
@@ -205,7 +267,7 @@ TWOJE ZADANIE:
 
 BAZA WIEDZY KLINIKI:
 ${KNOWLEDGE_BASE}
-${styleContext}
+${styleContext}${instructionsContext}${feedbackContext}
 
 ODPOWIEDZ W FORMACIE JSON:
 {

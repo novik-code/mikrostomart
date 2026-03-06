@@ -70,16 +70,106 @@ export async function PUT(req: NextRequest) {
 
     try {
         const body = await req.json();
-        const { id, draft_subject, draft_html, status, admin_notes } = body;
+        const { id, draft_subject, draft_html, status, admin_notes, admin_rating, admin_tags, action } = body;
 
         if (!id) {
             return NextResponse.json({ error: 'Missing draft id' }, { status: 400 });
         }
 
+        // ─── Action: Return for learning ───────────────────
+        if (action === 'return_for_learning') {
+            // Fetch original draft
+            const { data: draft, error: fetchErr } = await supabase
+                .from('email_ai_drafts')
+                .select('*')
+                .eq('id', id)
+                .single();
+
+            if (fetchErr || !draft) {
+                return NextResponse.json({ error: 'Draft not found' }, { status: 404 });
+            }
+
+            const correctedHtml = draft_html || draft.draft_html;
+            const feedbackNote = admin_notes || '';
+
+            // Ask GPT to analyze the corrections
+            let aiAnalysis = '';
+            try {
+                const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+                    },
+                    body: JSON.stringify({
+                        model: 'gpt-4o-mini',
+                        temperature: 0.2,
+                        max_tokens: 500,
+                        messages: [
+                            {
+                                role: 'system',
+                                content: `Jesteś analitykiem jakości AI. Porównaj ORYGINALNY draft (napisany przez AI) z POPRAWIONYM draftem (wyedytowanym przez pracownika kliniki). Wyciągnij WNIOSKI co było źle i jak poprawić odpowiedzi w przyszłości.
+
+Odpowiedz w 2-4 zdaniach PO POLSKU. Skup się na: zmianach w tonie, brakujących informacjach, nieprawidłowych danych, zbyt formany/nieformalny styl, etc.`,
+                            },
+                            {
+                                role: 'user',
+                                content: `ORYGINALNY (AI):
+${draft.draft_html}
+
+POPRAWIONY (pracownik):
+${correctedHtml}
+
+${feedbackNote ? `UWAGA OD PRACOWNIKA: ${feedbackNote}` : ''}`,
+                            },
+                        ],
+                    }),
+                });
+
+                if (aiResponse.ok) {
+                    const aiData = await aiResponse.json();
+                    aiAnalysis = aiData.choices?.[0]?.message?.content || '';
+                }
+            } catch (err) {
+                console.error('[Email Drafts] AI analysis error:', err);
+                aiAnalysis = 'Nie udało się wygenerować analizy.';
+            }
+
+            // Save feedback
+            await supabase.from('email_ai_feedback').insert({
+                draft_id: id,
+                original_draft_html: draft.draft_html,
+                corrected_draft_html: correctedHtml,
+                feedback_note: feedbackNote,
+                ai_analysis: aiAnalysis,
+                created_by: admin.email,
+            });
+
+            // Update draft status
+            await supabase
+                .from('email_ai_drafts')
+                .update({
+                    status: 'learned',
+                    draft_html: correctedHtml,
+                    admin_notes: feedbackNote,
+                    reviewed_at: new Date().toISOString(),
+                    reviewed_by: admin.email,
+                })
+                .eq('id', id);
+
+            return NextResponse.json({
+                success: true,
+                ai_analysis: aiAnalysis,
+            });
+        }
+
+        // ─── Standard update ──────────────────────────────
         const updates: Record<string, any> = {};
         if (draft_subject !== undefined) updates.draft_subject = draft_subject;
         if (draft_html !== undefined) updates.draft_html = draft_html;
         if (admin_notes !== undefined) updates.admin_notes = admin_notes;
+        if (admin_rating !== undefined) updates.admin_rating = admin_rating;
+        if (admin_tags !== undefined) updates.admin_tags = admin_tags;
         if (status !== undefined) {
             updates.status = status;
             if (status === 'approved' || status === 'rejected') {

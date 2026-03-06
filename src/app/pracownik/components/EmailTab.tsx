@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Mail, Send, Inbox, Star, Trash2, Search, RefreshCw, ChevronLeft, Paperclip, X, ArrowLeft, Reply, Forward, FileText, Tag, Bell, Globe, MessageCircle, Archive, Sparkles, Zap } from 'lucide-react';
+import { Mail, Send, Inbox, Star, Trash2, Search, RefreshCw, ChevronLeft, Paperclip, X, ArrowLeft, Reply, Forward, FileText, Tag, Bell, Globe, MessageCircle, Archive, Sparkles, Zap, Settings, BookOpen, GraduationCap, Plus, ToggleLeft, ToggleRight, Brain, ThumbsUp, ThumbsDown } from 'lucide-react';
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -108,13 +108,54 @@ interface AiDraft {
     email_snippet: string;
     draft_subject: string;
     draft_html: string;
-    status: 'pending' | 'approved' | 'sent' | 'rejected';
+    status: 'pending' | 'approved' | 'sent' | 'rejected' | 'learned';
     admin_notes: string | null;
     ai_reasoning: string | null;
     created_at: string;
     reviewed_at: string | null;
     sent_at: string | null;
     reviewed_by: string | null;
+    admin_rating: number | null;
+    admin_tags: string[] | null;
+}
+
+interface SenderRule {
+    id: string;
+    email_pattern: string;
+    rule_type: 'include' | 'exclude';
+    note: string | null;
+    created_by: string;
+    created_at: string;
+}
+
+interface AiInstruction {
+    id: string;
+    instruction: string;
+    category: 'tone' | 'content' | 'rules' | 'style' | 'other';
+    is_active: boolean;
+    created_by: string;
+    created_at: string;
+}
+
+interface AiFeedback {
+    id: string;
+    draft_id: string | null;
+    original_draft_html: string;
+    corrected_draft_html: string;
+    feedback_note: string | null;
+    ai_analysis: string | null;
+    created_by: string;
+    created_at: string;
+}
+
+interface AiStats {
+    total: number;
+    pending: number;
+    approved: number;
+    sent: number;
+    rejected: number;
+    learned: number;
+    avgRating: number | null;
 }
 
 /**
@@ -304,6 +345,22 @@ export default function EmailTab() {
     const [draftSending, setDraftSending] = useState<string | null>(null);
     const [draftToast, setDraftToast] = useState<string | null>(null);
 
+    // AI Settings / Training
+    const [showAiSettings, setShowAiSettings] = useState(false);
+    const [aiSettingsTab, setAiSettingsTab] = useState<'rules' | 'instructions' | 'learning'>('rules');
+    const [senderRules, setSenderRules] = useState<SenderRule[]>([]);
+    const [aiInstructions, setAiInstructions] = useState<AiInstruction[]>([]);
+    const [aiFeedback, setAiFeedback] = useState<AiFeedback[]>([]);
+    const [aiStats, setAiStats] = useState<AiStats | null>(null);
+    const [newRulePattern, setNewRulePattern] = useState('');
+    const [newRuleType, setNewRuleType] = useState<'include' | 'exclude'>('exclude');
+    const [newRuleNote, setNewRuleNote] = useState('');
+    const [newInstruction, setNewInstruction] = useState('');
+    const [newInstrCategory, setNewInstrCategory] = useState<'tone' | 'content' | 'rules' | 'style' | 'other'>('rules');
+    const [aiConfigLoading, setAiConfigLoading] = useState(false);
+    const [learningDraftId, setLearningDraftId] = useState<string | null>(null);
+    const [learningNote, setLearningNote] = useState('');
+
     // Mobile
     const [showSidebar, setShowSidebar] = useState(false);
     const [isMobileView, setIsMobileView] = useState(false);
@@ -467,6 +524,134 @@ export default function EmailTab() {
         } finally {
             setTimeout(() => setDraftToast(null), 3000);
         }
+    };
+
+    // ─── AI Config handlers ──────────────────────────────────
+
+    const fetchAiConfig = useCallback(async () => {
+        setAiConfigLoading(true);
+        try {
+            const res = await fetch('/api/employee/email-ai-config');
+            if (!res.ok) return;
+            const data = await res.json();
+            setSenderRules(data.rules || []);
+            setAiInstructions(data.instructions || []);
+            setAiFeedback(data.feedback || []);
+            setAiStats(data.stats || null);
+        } catch { /* ignore */ } finally {
+            setAiConfigLoading(false);
+        }
+    }, []);
+
+    const addSenderRule = async () => {
+        if (!newRulePattern.trim()) return;
+        try {
+            const res = await fetch('/api/employee/email-ai-config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: 'rule', email_pattern: newRulePattern, rule_type: newRuleType, note: newRuleNote || null }),
+            });
+            if (!res.ok) throw new Error('Błąd');
+            setNewRulePattern('');
+            setNewRuleNote('');
+            await fetchAiConfig();
+        } catch { setDraftToast('❌ Nie udało się dodać reguły'); setTimeout(() => setDraftToast(null), 3000); }
+    };
+
+    const deleteSenderRule = async (id: string) => {
+        try {
+            await fetch(`/api/employee/email-ai-config?type=rule&id=${id}`, { method: 'DELETE' });
+            await fetchAiConfig();
+        } catch { /* ignore */ }
+    };
+
+    const addInstruction = async () => {
+        if (!newInstruction.trim()) return;
+        try {
+            const res = await fetch('/api/employee/email-ai-config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: 'instruction', instruction: newInstruction, category: newInstrCategory }),
+            });
+            if (!res.ok) throw new Error('Błąd');
+            setNewInstruction('');
+            await fetchAiConfig();
+        } catch { setDraftToast('❌ Nie udało się dodać instrukcji'); setTimeout(() => setDraftToast(null), 3000); }
+    };
+
+    const toggleInstruction = async (id: string, currentActive: boolean) => {
+        try {
+            await fetch('/api/employee/email-ai-config', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: 'instruction', id, is_active: !currentActive }),
+            });
+            await fetchAiConfig();
+        } catch { /* ignore */ }
+    };
+
+    const deleteInstruction = async (id: string) => {
+        try {
+            await fetch(`/api/employee/email-ai-config?type=instruction&id=${id}`, { method: 'DELETE' });
+            await fetchAiConfig();
+        } catch { /* ignore */ }
+    };
+
+    const handleReturnForLearning = async (draftId: string) => {
+        setLearningDraftId(draftId);
+        try {
+            const draft = aiDrafts.find(d => d.id === draftId);
+            const res = await fetch('/api/employee/email-drafts', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: draftId,
+                    action: 'return_for_learning',
+                    draft_html: editingDraftHtml || draft?.draft_html,
+                    admin_notes: learningNote,
+                }),
+            });
+            if (!res.ok) throw new Error('Błąd');
+            const data = await res.json();
+            setDraftToast(`🧠 AI przeanalizowało poprawki!`);
+            setEditingDraftId(null);
+            setLearningNote('');
+            await fetchDrafts();
+        } catch (err: any) {
+            setDraftToast(`❌ ${err.message}`);
+        } finally {
+            setLearningDraftId(null);
+            setTimeout(() => setDraftToast(null), 4000);
+        }
+    };
+
+    const handleRateDraft = async (draftId: string, rating: number) => {
+        try {
+            await fetch('/api/employee/email-drafts', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: draftId, admin_rating: rating }),
+            });
+            await fetchDrafts();
+        } catch { /* ignore */ }
+    };
+
+    const QUICK_TAGS = ['Za długi', 'Za formalny', 'Za krótki', 'Brak cennika', 'Złe dane', 'Idealny'];
+
+    const handleTagDraft = async (draftId: string, tag: string) => {
+        const draft = aiDrafts.find(d => d.id === draftId);
+        const currentTags = draft?.admin_tags || [];
+        const newTags = currentTags.includes(tag)
+            ? currentTags.filter(t => t !== tag)
+            : [...currentTags, tag];
+        try {
+            await fetch('/api/employee/email-drafts', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: draftId, admin_tags: newTags }),
+            });
+            await fetchDrafts();
+        } catch { /* ignore */ }
     };
 
     // ─── Open email ──────────────────────────────────────────
@@ -1699,22 +1884,44 @@ export default function EmailTab() {
                                     }}>{pendingDraftsCount} oczekuje</span>
                                 )}
                             </div>
-                            <button
-                                onClick={() => setShowDraftsPanel(false)}
-                                style={{
-                                    background: 'rgba(255,255,255,0.08)',
-                                    border: '1px solid rgba(255,255,255,0.15)',
-                                    borderRadius: '0.4rem',
-                                    width: 28,
-                                    height: 28,
-                                    color: '#fff',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    fontSize: '0.85rem',
-                                }}
-                            >✕</button>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                <button
+                                    onClick={() => { setShowAiSettings(true); fetchAiConfig(); }}
+                                    style={{
+                                        background: 'rgba(255,255,255,0.08)',
+                                        border: '1px solid rgba(255,255,255,0.15)',
+                                        borderRadius: '0.4rem',
+                                        padding: '0.3rem 0.6rem',
+                                        color: 'rgba(255,255,255,0.6)',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.3rem',
+                                        fontSize: '0.72rem',
+                                        transition: 'all 0.2s',
+                                    }}
+                                    title="AI Ustawienia"
+                                >
+                                    <Settings size={13} />
+                                    {!isMobileView && 'Ustawienia'}
+                                </button>
+                                <button
+                                    onClick={() => setShowDraftsPanel(false)}
+                                    style={{
+                                        background: 'rgba(255,255,255,0.08)',
+                                        border: '1px solid rgba(255,255,255,0.15)',
+                                        borderRadius: '0.4rem',
+                                        width: 28,
+                                        height: 28,
+                                        color: '#fff',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        fontSize: '0.85rem',
+                                    }}
+                                >✕</button>
+                            </div>
                         </div>
 
                         {/* Toast */}
@@ -1744,17 +1951,20 @@ export default function EmailTab() {
                                         const isPending = draft.status === 'pending';
                                         const isSent = draft.status === 'sent';
                                         const isEditing = editingDraftId === draft.id;
+                                        const isLearned = draft.status === 'learned';
                                         const statusColors: Record<string, string> = {
                                             pending: '#a855f7',
                                             approved: '#38bdf8',
                                             sent: '#4ade80',
                                             rejected: '#ef4444',
+                                            learned: '#f59e0b',
                                         };
                                         const statusLabels: Record<string, string> = {
                                             pending: '⏳ Oczekuje',
                                             approved: '✅ Zatwierdzony',
                                             sent: '📤 Wysłany',
                                             rejected: '❌ Odrzucony',
+                                            learned: '🧠 Nauczone',
                                         };
 
                                         return (
@@ -1838,7 +2048,23 @@ export default function EmailTab() {
                                                                     fontFamily: 'inherit',
                                                                 }}
                                                             />
-                                                            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                                                            {/* Learning note */}
+                                                            <input
+                                                                type="text"
+                                                                value={learningNote}
+                                                                onChange={e => setLearningNote(e.target.value)}
+                                                                placeholder="Co było źle? (opcjonalnie)"
+                                                                style={{
+                                                                    background: 'rgba(255,255,255,0.04)',
+                                                                    border: '1px solid rgba(245,158,11,0.2)',
+                                                                    borderRadius: '0.4rem',
+                                                                    padding: '0.4rem 0.6rem',
+                                                                    color: 'rgba(255,255,255,0.6)',
+                                                                    fontSize: '0.75rem',
+                                                                    outline: 'none',
+                                                                }}
+                                                            />
+                                                            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
                                                                 <button
                                                                     onClick={() => setEditingDraftId(null)}
                                                                     style={{
@@ -1851,6 +2077,27 @@ export default function EmailTab() {
                                                                         fontSize: '0.78rem',
                                                                     }}
                                                                 >Anuluj</button>
+                                                                <button
+                                                                    onClick={() => handleReturnForLearning(draft.id)}
+                                                                    disabled={learningDraftId === draft.id}
+                                                                    style={{
+                                                                        padding: '0.4rem 0.8rem',
+                                                                        background: 'rgba(245,158,11,0.12)',
+                                                                        border: '1px solid rgba(245,158,11,0.3)',
+                                                                        borderRadius: '0.4rem',
+                                                                        color: '#f59e0b',
+                                                                        cursor: learningDraftId === draft.id ? 'not-allowed' : 'pointer',
+                                                                        fontSize: '0.78rem',
+                                                                        fontWeight: 600,
+                                                                        display: 'flex',
+                                                                        alignItems: 'center',
+                                                                        gap: '0.25rem',
+                                                                    }}
+                                                                    title="Zapisz poprawki i wyślij do AI celem nauki"
+                                                                >
+                                                                    {learningDraftId === draft.id ? <RefreshCw size={11} style={{ animation: 'spin 1s linear infinite' }} /> : <Brain size={11} />}
+                                                                    {learningDraftId === draft.id ? 'Analizuję...' : '🧠 Ucz AI'}
+                                                                </button>
                                                                 <button
                                                                     onClick={() => handleDraftSave(draft.id)}
                                                                     style={{
@@ -1950,19 +2197,422 @@ export default function EmailTab() {
                                                     </div>
                                                 )}
 
-                                                {/* Sent info */}
-                                                {isSent && draft.sent_at && (
+                                                {/* Rating + Tags (for sent/rejected/learned drafts) */}
+                                                {(isSent || draft.status === 'rejected' || isLearned) && (
                                                     <div style={{
-                                                        padding: '0.4rem 1rem 0.6rem',
-                                                        fontSize: '0.7rem',
-                                                        color: 'rgba(74,222,128,0.5)',
+                                                        padding: '0.5rem 1rem',
+                                                        borderTop: '1px solid rgba(255,255,255,0.04)',
+                                                        display: 'flex',
+                                                        flexDirection: 'column',
+                                                        gap: '0.4rem',
                                                     }}>
-                                                        Wysłano: {formatFullDate(draft.sent_at)}{draft.reviewed_by ? ` przez ${draft.reviewed_by}` : ''}
+                                                        {/* Star rating */}
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                                            <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.35)', marginRight: '0.3rem' }}>Ocena:</span>
+                                                            {[1, 2, 3, 4, 5].map(star => (
+                                                                <button
+                                                                    key={star}
+                                                                    onClick={() => handleRateDraft(draft.id, star)}
+                                                                    style={{
+                                                                        background: 'none',
+                                                                        border: 'none',
+                                                                        cursor: 'pointer',
+                                                                        fontSize: '0.9rem',
+                                                                        padding: '0 0.05rem',
+                                                                        opacity: (draft.admin_rating || 0) >= star ? 1 : 0.25,
+                                                                        transition: 'opacity 0.15s',
+                                                                    }}
+                                                                    title={`Ocena ${star}/5`}
+                                                                >⭐</button>
+                                                            ))}
+                                                        </div>
+                                                        {/* Quick tags */}
+                                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
+                                                            {QUICK_TAGS.map(tag => {
+                                                                const isActive = (draft.admin_tags || []).includes(tag);
+                                                                return (
+                                                                    <button
+                                                                        key={tag}
+                                                                        onClick={() => handleTagDraft(draft.id, tag)}
+                                                                        style={{
+                                                                            padding: '0.15rem 0.5rem',
+                                                                            fontSize: '0.65rem',
+                                                                            borderRadius: '1rem',
+                                                                            border: `1px solid ${isActive ? 'rgba(168,85,247,0.4)' : 'rgba(255,255,255,0.08)'}`,
+                                                                            background: isActive ? 'rgba(168,85,247,0.12)' : 'rgba(255,255,255,0.03)',
+                                                                            color: isActive ? '#a855f7' : 'rgba(255,255,255,0.35)',
+                                                                            cursor: 'pointer',
+                                                                            transition: 'all 0.15s',
+                                                                        }}
+                                                                    >{tag}</button>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                        {/* Sent info */}
+                                                        {isSent && draft.sent_at && (
+                                                            <div style={{ fontSize: '0.68rem', color: 'rgba(74,222,128,0.5)', marginTop: '0.15rem' }}>
+                                                                Wysłano: {formatFullDate(draft.sent_at)}{draft.reviewed_by ? ` przez ${draft.reviewed_by}` : ''}
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 )}
                                             </div>
                                         );
                                     })}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ─── AI SETTINGS MODAL ──────────────────────────── */}
+            {showAiSettings && (
+                <div style={{
+                    position: 'fixed',
+                    inset: 0,
+                    background: 'rgba(0,0,0,0.8)',
+                    backdropFilter: 'blur(10px)',
+                    zIndex: 6000,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '1rem',
+                }}>
+                    <div style={{
+                        background: 'linear-gradient(135deg, #0d1b2a, #1b2838)',
+                        border: '1px solid rgba(168,85,247,0.25)',
+                        borderRadius: '1rem',
+                        width: '100%',
+                        maxWidth: 700,
+                        maxHeight: '85vh',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        boxShadow: '0 20px 60px rgba(0,0,0,0.7)',
+                    }}>
+                        {/* Header */}
+                        <div style={{
+                            padding: '1rem 1.25rem',
+                            borderBottom: '1px solid rgba(255,255,255,0.08)',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <GraduationCap size={18} style={{ color: '#f59e0b' }} />
+                                <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, color: '#f59e0b' }}>Szkolenie AI</h3>
+                            </div>
+                            <button onClick={() => setShowAiSettings(false)} style={{
+                                background: 'rgba(255,255,255,0.08)',
+                                border: '1px solid rgba(255,255,255,0.15)',
+                                borderRadius: '0.4rem',
+                                width: 28, height: 28,
+                                color: '#fff', cursor: 'pointer',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                fontSize: '0.85rem',
+                            }}>✕</button>
+                        </div>
+
+                        {/* Stats bar */}
+                        {aiStats && (
+                            <div style={{
+                                padding: '0.5rem 1.25rem',
+                                borderBottom: '1px solid rgba(255,255,255,0.06)',
+                                display: 'flex',
+                                gap: '1rem',
+                                flexWrap: 'wrap',
+                                fontSize: '0.72rem',
+                                color: 'rgba(255,255,255,0.4)',
+                            }}>
+                                <span>📊 Razem: <strong style={{ color: '#fff' }}>{aiStats.total}</strong></span>
+                                <span>⏳ Oczekuje: <strong style={{ color: '#a855f7' }}>{aiStats.pending}</strong></span>
+                                <span>📤 Wysłane: <strong style={{ color: '#4ade80' }}>{aiStats.sent}</strong></span>
+                                <span>❌ Odrzucone: <strong style={{ color: '#ef4444' }}>{aiStats.rejected}</strong></span>
+                                <span>🧠 Nauczone: <strong style={{ color: '#f59e0b' }}>{aiStats.learned}</strong></span>
+                                {aiStats.avgRating && <span>⭐ Średnia: <strong style={{ color: '#fbbf24' }}>{aiStats.avgRating}/5</strong></span>}
+                            </div>
+                        )}
+
+                        {/* Tabs */}
+                        <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                            {([['rules', '📋 Reguły nadawców'], ['instructions', '📝 Instrukcje'], ['learning', '🧠 Nauka']] as const).map(([tab, label]) => (
+                                <button
+                                    key={tab}
+                                    onClick={() => setAiSettingsTab(tab)}
+                                    style={{
+                                        flex: 1,
+                                        padding: '0.6rem',
+                                        background: aiSettingsTab === tab ? 'rgba(245,158,11,0.08)' : 'transparent',
+                                        border: 'none',
+                                        borderBottom: aiSettingsTab === tab ? '2px solid #f59e0b' : '2px solid transparent',
+                                        color: aiSettingsTab === tab ? '#f59e0b' : 'rgba(255,255,255,0.4)',
+                                        cursor: 'pointer',
+                                        fontSize: '0.78rem',
+                                        fontWeight: aiSettingsTab === tab ? 600 : 400,
+                                        transition: 'all 0.2s',
+                                    }}
+                                >{label}</button>
+                            ))}
+                        </div>
+
+                        {/* Content */}
+                        <div style={{ flex: 1, overflow: 'auto', padding: '1rem 1.25rem' }}>
+                            {aiConfigLoading ? (
+                                <div style={{ textAlign: 'center', padding: '2rem', color: 'rgba(255,255,255,0.3)' }}>
+                                    <RefreshCw size={20} style={{ animation: 'spin 1s linear infinite' }} />
+                                </div>
+                            ) : aiSettingsTab === 'rules' ? (
+                                /* ─── RULES TAB ─── */
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                    <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)', margin: 0 }}>
+                                        Określ, dla których adresów AI ma generować odpowiedzi (include) lub je pomijać (exclude). Używaj wzorców np. <code style={{ color: '#a855f7' }}>*@firma.pl</code>
+                                    </p>
+
+                                    {/* Add rule form */}
+                                    <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                                        <input
+                                            value={newRulePattern}
+                                            onChange={e => setNewRulePattern(e.target.value)}
+                                            placeholder="np. *@gmail.com"
+                                            style={{
+                                                flex: 1, minWidth: 150,
+                                                background: 'rgba(255,255,255,0.05)',
+                                                border: '1px solid rgba(255,255,255,0.1)',
+                                                borderRadius: '0.4rem',
+                                                padding: '0.4rem 0.6rem',
+                                                color: '#fff',
+                                                fontSize: '0.78rem',
+                                                outline: 'none',
+                                            }}
+                                        />
+                                        <select
+                                            value={newRuleType}
+                                            onChange={e => setNewRuleType(e.target.value as 'include' | 'exclude')}
+                                            style={{
+                                                background: 'rgba(255,255,255,0.05)',
+                                                border: '1px solid rgba(255,255,255,0.1)',
+                                                borderRadius: '0.4rem',
+                                                padding: '0.4rem 0.5rem',
+                                                color: '#fff',
+                                                fontSize: '0.78rem',
+                                            }}
+                                        >
+                                            <option value="exclude">🚫 Pomijaj</option>
+                                            <option value="include">✅ Generuj</option>
+                                        </select>
+                                        <input
+                                            value={newRuleNote}
+                                            onChange={e => setNewRuleNote(e.target.value)}
+                                            placeholder="Notatka..."
+                                            style={{
+                                                width: 100,
+                                                background: 'rgba(255,255,255,0.05)',
+                                                border: '1px solid rgba(255,255,255,0.1)',
+                                                borderRadius: '0.4rem',
+                                                padding: '0.4rem 0.5rem',
+                                                color: '#fff',
+                                                fontSize: '0.78rem',
+                                                outline: 'none',
+                                            }}
+                                        />
+                                        <button
+                                            onClick={addSenderRule}
+                                            disabled={!newRulePattern.trim()}
+                                            style={{
+                                                padding: '0.4rem 0.7rem',
+                                                background: 'rgba(74,222,128,0.12)',
+                                                border: '1px solid rgba(74,222,128,0.25)',
+                                                borderRadius: '0.4rem',
+                                                color: '#4ade80',
+                                                cursor: 'pointer',
+                                                fontSize: '0.78rem',
+                                                fontWeight: 600,
+                                                display: 'flex', alignItems: 'center', gap: '0.2rem',
+                                            }}
+                                        ><Plus size={12} /> Dodaj</button>
+                                    </div>
+
+                                    {/* Rules list */}
+                                    {senderRules.length === 0 ? (
+                                        <p style={{ color: 'rgba(255,255,255,0.25)', textAlign: 'center', fontSize: '0.78rem', padding: '1rem' }}>Brak reguł — AI analizuje wszystkie maile.</p>
+                                    ) : (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                                            {senderRules.map(rule => (
+                                                <div key={rule.id} style={{
+                                                    display: 'flex', alignItems: 'center', gap: '0.5rem',
+                                                    padding: '0.4rem 0.6rem',
+                                                    background: 'rgba(255,255,255,0.03)',
+                                                    border: '1px solid rgba(255,255,255,0.06)',
+                                                    borderRadius: '0.4rem',
+                                                }}>
+                                                    <span style={{
+                                                        fontSize: '0.65rem',
+                                                        padding: '0.1rem 0.4rem',
+                                                        borderRadius: '0.3rem',
+                                                        background: rule.rule_type === 'include' ? 'rgba(74,222,128,0.12)' : 'rgba(239,68,68,0.12)',
+                                                        color: rule.rule_type === 'include' ? '#4ade80' : '#ef4444',
+                                                        fontWeight: 600,
+                                                    }}>{rule.rule_type === 'include' ? '✅' : '🚫'}</span>
+                                                    <code style={{ flex: 1, fontSize: '0.78rem', color: '#fff' }}>{rule.email_pattern}</code>
+                                                    {rule.note && <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.3)' }}>{rule.note}</span>}
+                                                    <button
+                                                        onClick={() => deleteSenderRule(rule.id)}
+                                                        style={{
+                                                            background: 'none', border: 'none',
+                                                            color: 'rgba(239,68,68,0.5)', cursor: 'pointer',
+                                                            fontSize: '0.85rem', padding: '0.1rem',
+                                                        }}
+                                                    >✕</button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            ) : aiSettingsTab === 'instructions' ? (
+                                /* ─── INSTRUCTIONS TAB ─── */
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                    <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)', margin: 0 }}>
+                                        Wpisz instrukcje, które AI będzie bezwzględnie przestrzegać podczas generowania odpowiedzi.
+                                    </p>
+
+                                    {/* Add instruction form */}
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                                        <textarea
+                                            value={newInstruction}
+                                            onChange={e => setNewInstruction(e.target.value)}
+                                            placeholder='np. "Zawsze proponuj termin wizyty", "Nie podawaj cen bez konsultacji"'
+                                            rows={2}
+                                            style={{
+                                                background: 'rgba(255,255,255,0.05)',
+                                                border: '1px solid rgba(255,255,255,0.1)',
+                                                borderRadius: '0.4rem',
+                                                padding: '0.5rem 0.6rem',
+                                                color: '#fff',
+                                                fontSize: '0.78rem',
+                                                outline: 'none',
+                                                resize: 'vertical',
+                                                minHeight: 50,
+                                                fontFamily: 'inherit',
+                                            }}
+                                        />
+                                        <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                                            <select
+                                                value={newInstrCategory}
+                                                onChange={e => setNewInstrCategory(e.target.value as any)}
+                                                style={{
+                                                    background: 'rgba(255,255,255,0.05)',
+                                                    border: '1px solid rgba(255,255,255,0.1)',
+                                                    borderRadius: '0.4rem',
+                                                    padding: '0.35rem 0.5rem',
+                                                    color: '#fff',
+                                                    fontSize: '0.75rem',
+                                                }}
+                                            >
+                                                <option value="rules">📏 Zasady</option>
+                                                <option value="tone">🎭 Ton</option>
+                                                <option value="content">📄 Treść</option>
+                                                <option value="style">✍️ Styl</option>
+                                                <option value="other">📎 Inne</option>
+                                            </select>
+                                            <button
+                                                onClick={addInstruction}
+                                                disabled={!newInstruction.trim()}
+                                                style={{
+                                                    padding: '0.35rem 0.7rem',
+                                                    background: 'rgba(74,222,128,0.12)',
+                                                    border: '1px solid rgba(74,222,128,0.25)',
+                                                    borderRadius: '0.4rem',
+                                                    color: '#4ade80',
+                                                    cursor: 'pointer',
+                                                    fontSize: '0.78rem',
+                                                    fontWeight: 600,
+                                                    display: 'flex', alignItems: 'center', gap: '0.2rem',
+                                                }}
+                                            ><Plus size={12} /> Dodaj</button>
+                                        </div>
+                                    </div>
+
+                                    {/* Instructions list */}
+                                    {aiInstructions.length === 0 ? (
+                                        <p style={{ color: 'rgba(255,255,255,0.25)', textAlign: 'center', fontSize: '0.78rem', padding: '1rem' }}>Brak instrukcji — AI korzysta z domyślnych ustawień.</p>
+                                    ) : (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                                            {aiInstructions.map(instr => {
+                                                const catIcons: Record<string, string> = { tone: '🎭', content: '📄', rules: '📏', style: '✍️', other: '📎' };
+                                                return (
+                                                    <div key={instr.id} style={{
+                                                        display: 'flex', alignItems: 'flex-start', gap: '0.5rem',
+                                                        padding: '0.5rem 0.6rem',
+                                                        background: 'rgba(255,255,255,0.03)',
+                                                        border: '1px solid rgba(255,255,255,0.06)',
+                                                        borderRadius: '0.4rem',
+                                                        opacity: instr.is_active ? 1 : 0.4,
+                                                        transition: 'opacity 0.2s',
+                                                    }}>
+                                                        <span style={{ fontSize: '0.75rem' }}>{catIcons[instr.category] || '📎'}</span>
+                                                        <span style={{ flex: 1, fontSize: '0.78rem', color: '#fff', lineHeight: 1.4 }}>{instr.instruction}</span>
+                                                        <button
+                                                            onClick={() => toggleInstruction(instr.id, instr.is_active)}
+                                                            style={{
+                                                                background: 'none', border: 'none',
+                                                                cursor: 'pointer', padding: '0.1rem',
+                                                                color: instr.is_active ? '#4ade80' : 'rgba(255,255,255,0.2)',
+                                                                fontSize: '1rem',
+                                                            }}
+                                                            title={instr.is_active ? 'Wyłącz' : 'Włącz'}
+                                                        >{instr.is_active ? '✅' : '⬜'}</button>
+                                                        <button
+                                                            onClick={() => deleteInstruction(instr.id)}
+                                                            style={{
+                                                                background: 'none', border: 'none',
+                                                                color: 'rgba(239,68,68,0.5)', cursor: 'pointer',
+                                                                fontSize: '0.85rem', padding: '0.1rem',
+                                                            }}
+                                                        >✕</button>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                /* ─── LEARNING TAB ─── */
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                    <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)', margin: 0 }}>
+                                        Historia poprawek i analiz AI. Każda korekta uczy asystenta na przyszłość.
+                                    </p>
+
+                                    {aiFeedback.length === 0 ? (
+                                        <div style={{ textAlign: 'center', padding: '2rem' }}>
+                                            <Brain size={28} style={{ color: 'rgba(245,158,11,0.25)', marginBottom: '0.5rem' }} />
+                                            <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.8rem' }}>Brak historii nauki</p>
+                                            <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: '0.72rem' }}>Edytuj draft i kliknij "🧠 Ucz AI" aby dodać wpis.</p>
+                                        </div>
+                                    ) : (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                            {aiFeedback.map(fb => (
+                                                <div key={fb.id} style={{
+                                                    border: '1px solid rgba(245,158,11,0.15)',
+                                                    borderRadius: '0.5rem',
+                                                    background: 'rgba(245,158,11,0.03)',
+                                                    overflow: 'hidden',
+                                                }}>
+                                                    <div style={{ padding: '0.5rem 0.75rem', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.68rem', color: 'rgba(255,255,255,0.3)' }}>
+                                                            <span>🧠 Analiza AI</span>
+                                                            <span>{formatDate(fb.created_at)}</span>
+                                                        </div>
+                                                        {fb.ai_analysis && (
+                                                            <p style={{ margin: '0.4rem 0 0', fontSize: '0.78rem', color: 'rgba(245,158,11,0.8)', lineHeight: 1.5 }}>{fb.ai_analysis}</p>
+                                                        )}
+                                                        {fb.feedback_note && (
+                                                            <p style={{ margin: '0.3rem 0 0', fontSize: '0.72rem', color: 'rgba(255,255,255,0.35)', fontStyle: 'italic' }}>Uwaga: {fb.feedback_note}</p>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
