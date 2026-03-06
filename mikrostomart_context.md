@@ -1989,6 +1989,47 @@ NODE_ENV=production
 
 ## 📝 Recent Changes
 
+### March 6, 2026 — AI Email Assistant Training System
+
+#### Commits:
+- `eec5ccc` — feat: AI email assistant training system — sender rules, instructions, feedback/learning, ratings, tags
+
+#### New Features:
+1. **Sender Rules** — Admin controls which email addresses trigger AI draft generation:
+   - Include rules: only generate drafts for matching patterns (e.g. `*@gmail.com`)
+   - Exclude rules: skip matching addresses (e.g. `*@newsletter.firma.pl`)
+   - Glob pattern matching with domain wildcards
+2. **Training Instructions** — Free-text instructions that AI must follow:
+   - Categories: Ton (🎭), Treść (📄), Zasady (📏), Styl (✍️), Inne (📎)
+   - Toggle on/off without deleting
+   - Injected as mandatory instructions in GPT system prompt
+3. **Feedback/Learning System** — Admin edits draft → clicks "🧠 Ucz AI":
+   - Original and corrected drafts saved to `email_ai_feedback` table
+   - GPT-4o-mini analyzes differences and generates 2-4 sentence analysis
+   - Last 10 analyses injected into future GPT prompts as learning context
+   - Draft status changes to 'learned' (amber color)
+4. **Star Ratings** — 1-5 star rating on sent/rejected/learned drafts
+5. **Quick Feedback Tags** — Toggle tags: "Za długi", "Za formalny", "Za krótki", "Brak cennika", "Złe dane", "Idealny"
+6. **Stats Dashboard** — Draft counts by status + average rating in settings modal header
+
+#### Database:
+- Migration 072: `email_ai_sender_rules`, `email_ai_instructions`, `email_ai_feedback` tables (RLS service-only)
+- Added `admin_rating INTEGER CHECK(1-5)`, `admin_tags TEXT[]` to `email_ai_drafts`
+- Updated status CHECK to include `'learned'`
+
+#### New Files:
+- `supabase_migrations/072_email_ai_config.sql` — 3 new tables + 2 new columns
+- `src/app/api/employee/email-ai-config/route.ts` — CRUD for rules, instructions (GET/POST/PUT/DELETE) + stats
+
+#### Modified Files:
+- `src/app/api/cron/email-ai-drafts/route.ts` — Loads sender rules (include/exclude filtering), active instructions, and recent feedback into GPT prompt
+- `src/app/api/employee/email-drafts/route.ts` — New `action: 'return_for_learning'` in PUT + admin_rating/admin_tags support
+- `src/app/pracownik/components/EmailTab.tsx` — Settings modal (⚙️ → 3 tabs), 🧠 Ucz AI button, ⭐ ratings, quick tags, stats bar
+
+> ⚠️ **REQUIRES**: Run migration 072 in Supabase SQL editor before testing on production.
+
+---
+
 ### March 6, 2026 — Advanced SEO Improvements
 
 **4 commits** — service landing pages, enriched structured data, hreflang, FAQ rich snippets.
