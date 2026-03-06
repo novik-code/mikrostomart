@@ -17,6 +17,13 @@ export const metadata: Metadata = {
     metadataBase: new URL('https://mikrostomart.pl'),
     alternates: {
         canonical: './',
+        languages: {
+            'pl': './',
+            'en': './',
+            'de': './',
+            'uk': './',
+            'x-default': './',
+        },
     },
     title: {
         default: 'Dentysta Opole - Mikrostomart | Implanty i Stomatologia Mikroskopowa',
