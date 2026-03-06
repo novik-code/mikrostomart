@@ -347,7 +347,7 @@ export default function EmailTab() {
 
     // AI Settings / Training
     const [showAiSettings, setShowAiSettings] = useState(false);
-    const [aiSettingsTab, setAiSettingsTab] = useState<'rules' | 'instructions' | 'learning'>('rules');
+    const [aiSettingsTab, setAiSettingsTab] = useState<'rules' | 'instructions' | 'learning' | 'guide' | 'knowledgebase'>('guide');
     const [senderRules, setSenderRules] = useState<SenderRule[]>([]);
     const [aiInstructions, setAiInstructions] = useState<AiInstruction[]>([]);
     const [aiFeedback, setAiFeedback] = useState<AiFeedback[]>([]);
@@ -360,6 +360,9 @@ export default function EmailTab() {
     const [aiConfigLoading, setAiConfigLoading] = useState(false);
     const [learningDraftId, setLearningDraftId] = useState<string | null>(null);
     const [learningNote, setLearningNote] = useState('');
+    const [knowledgeBase, setKnowledgeBase] = useState('');
+    const [knowledgeBaseEditing, setKnowledgeBaseEditing] = useState(false);
+    const [knowledgeBaseSaving, setKnowledgeBaseSaving] = useState(false);
 
     // Mobile
     const [showSidebar, setShowSidebar] = useState(false);
@@ -538,6 +541,7 @@ export default function EmailTab() {
             setAiInstructions(data.instructions || []);
             setAiFeedback(data.feedback || []);
             setAiStats(data.stats || null);
+            if (data.knowledgeBase) setKnowledgeBase(data.knowledgeBase);
         } catch { /* ignore */ } finally {
             setAiConfigLoading(false);
         }
@@ -595,6 +599,25 @@ export default function EmailTab() {
             await fetch(`/api/employee/email-ai-config?type=instruction&id=${id}`, { method: 'DELETE' });
             await fetchAiConfig();
         } catch { /* ignore */ }
+    };
+
+    const saveKnowledgeBase = async () => {
+        setKnowledgeBaseSaving(true);
+        try {
+            const res = await fetch('/api/employee/email-ai-config', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: 'knowledge_base', content: knowledgeBase }),
+            });
+            if (!res.ok) throw new Error('error');
+            setDraftToast('✅ Baza wiedzy zapisana!');
+            setKnowledgeBaseEditing(false);
+        } catch {
+            setDraftToast('❌ Nie udało się zapisać bazy wiedzy');
+        } finally {
+            setKnowledgeBaseSaving(false);
+            setTimeout(() => setDraftToast(null), 3000);
+        }
     };
 
     const handleReturnForLearning = async (draftId: string) => {
@@ -2334,8 +2357,8 @@ export default function EmailTab() {
                         )}
 
                         {/* Tabs */}
-                        <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                            {([['rules', '📋 Reguły nadawców'], ['instructions', '📝 Instrukcje'], ['learning', '🧠 Nauka']] as const).map(([tab, label]) => (
+                        <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.06)', overflowX: 'auto' as const }}>
+                            {([['guide', '📖 Poradnik'], ['knowledgebase', '📚 Baza wiedzy'], ['rules', '📋 Reguły'], ['instructions', '📝 Instrukcje'], ['learning', '🧠 Nauka']] as const).map(([tab, label]) => (
                                 <button
                                     key={tab}
                                     onClick={() => setAiSettingsTab(tab)}
@@ -2575,7 +2598,7 @@ export default function EmailTab() {
                                         </div>
                                     )}
                                 </div>
-                            ) : (
+                            ) : aiSettingsTab === 'learning' ? (
                                 /* ─── LEARNING TAB ─── */
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                                     <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)', margin: 0 }}>
@@ -2586,7 +2609,7 @@ export default function EmailTab() {
                                         <div style={{ textAlign: 'center', padding: '2rem' }}>
                                             <Brain size={28} style={{ color: 'rgba(245,158,11,0.25)', marginBottom: '0.5rem' }} />
                                             <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.8rem' }}>Brak historii nauki</p>
-                                            <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: '0.72rem' }}>Edytuj draft i kliknij "🧠 Ucz AI" aby dodać wpis.</p>
+                                            <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: '0.72rem' }}>Edytuj draft i kliknij &quot;🧠 Ucz AI&quot; aby dodać wpis.</p>
                                         </div>
                                     ) : (
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -2613,6 +2636,65 @@ export default function EmailTab() {
                                             ))}
                                         </div>
                                     )}
+                                </div>
+                            ) : aiSettingsTab === 'guide' ? (
+                                /* ─── GUIDE TAB ─── */
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)', lineHeight: 1.7 }}>
+                                    <div style={{ background: 'rgba(56,189,248,0.06)', border: '1px solid rgba(56,189,248,0.15)', borderRadius: '0.6rem', padding: '0.75rem 1rem' }}>
+                                        <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#38bdf8', marginBottom: '0.4rem' }}>🤖 Jak działa Asystent AI?</div>
+                                        <p style={{ margin: 0 }}>AI automatycznie analizuje każdy nowy email od pacjentów i generuje propozycję odpowiedzi. Jako pracownik możesz przeglądać, edytować i zatwierdzać drafty. Twoje poprawki uczą AI na przyszłość!</p>
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                                        <div style={{ fontWeight: 600, color: '#f59e0b', fontSize: '0.85rem' }}>📋 Krok po kroku:</div>
+                                        {[
+                                            { icon: '📨', title: 'Przychodzi email', desc: 'AI analizuje każdy nowy mail od pacjenta w kategorii Pozostałe. Powiadomienia, wiadomości ze strony i chatu są pomijane.' },
+                                            { icon: '✨', title: 'AI generuje draft', desc: 'Na podstawie bazy wiedzy kliniki, instrukcji treningowych i wcześniejszych poprawek AI pisze propozycję odpowiedzi.' },
+                                            { icon: '👁️', title: 'Przeglądasz w panelu Drafty AI', desc: 'Kliknij Drafty AI na górze listy emaili. Drafty ze statusem Oczekuje czekają na Twoją decyzję.' },
+                                            { icon: '✅', title: 'Zatwierdzasz lub edytujesz', desc: 'Zatwierdź i wyślij (idealna odpowiedź), Edytuj (popraw treść), Odrzuć (nietrafiony draft).' },
+                                            { icon: '🧠', title: 'Uczysz AI', desc: 'Po edycji kliknij Ucz AI — AI porówna oryginał z Twoją poprawioną wersją i wyciągnie wnioski. Następnym razem napisze lepiej!' },
+                                            { icon: '⭐', title: 'Oceniasz jakość', desc: 'Na wysłanych/odrzuconych draftach daj ocenę 1-5 gwiazdek i szybkie tagi (np. Za długi, Brak cennika).' },
+                                        ].map((item, idx) => (
+                                            <div key={idx} style={{ display: 'flex', gap: '0.6rem', alignItems: 'flex-start', padding: '0.5rem 0.6rem', background: 'rgba(255,255,255,0.02)', borderRadius: '0.5rem', border: '1px solid rgba(255,255,255,0.04)' }}>
+                                                <span style={{ fontSize: '1.2rem', minWidth: '1.8rem', textAlign: 'center' }}>{item.icon}</span>
+                                                <div>
+                                                    <div style={{ fontWeight: 600, color: '#fff', fontSize: '0.8rem', marginBottom: '0.15rem' }}>{item.title}</div>
+                                                    <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)' }}>{item.desc}</div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.15)', borderRadius: '0.6rem', padding: '0.75rem 1rem' }}>
+                                        <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#f59e0b', marginBottom: '0.3rem' }}>⚙️ Pozostałe zakładki:</div>
+                                        <ul style={{ margin: 0, paddingLeft: '1.2rem', fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)' }}>
+                                            <li><strong>📚 Baza wiedzy</strong> — podgląd i edycja pełnej bazy z której AI korzysta (cennik, zespół, FAQ)</li>
+                                            <li><strong>📋 Reguły</strong> — wybierz adresy email dla których AI generuje odpowiedzi</li>
+                                            <li><strong>📝 Instrukcje</strong> — wpisz zasady których AI musi przestrzegać</li>
+                                            <li><strong>🧠 Nauka</strong> — historia Twoich poprawek i analiz AI</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            ) : (
+                                /* ─── KNOWLEDGE BASE TAB ─── */
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                    <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)', margin: 0 }}>To jest pełna baza wiedzy którą AI wykorzystuje do generowania odpowiedzi. Możesz ją przeglądać i edytować.</p>
+                                    <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'flex-end' }}>
+                                        {!knowledgeBaseEditing ? (
+                                            <button onClick={() => setKnowledgeBaseEditing(true)} style={{ padding: '0.35rem 0.7rem', background: 'rgba(168,85,247,0.12)', border: '1px solid rgba(168,85,247,0.25)', borderRadius: '0.4rem', color: '#a855f7', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600 }}>✏️ Edytuj bazę</button>
+                                        ) : (
+                                            <>
+                                                <button onClick={() => { setKnowledgeBaseEditing(false); fetchAiConfig(); }} style={{ padding: '0.35rem 0.7rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.4rem', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: '0.75rem' }}>Anuluj</button>
+                                                <button onClick={saveKnowledgeBase} disabled={knowledgeBaseSaving} style={{ padding: '0.35rem 0.7rem', background: 'rgba(74,222,128,0.12)', border: '1px solid rgba(74,222,128,0.25)', borderRadius: '0.4rem', color: '#4ade80', cursor: knowledgeBaseSaving ? 'not-allowed' : 'pointer', fontSize: '0.75rem', fontWeight: 600 }}>{knowledgeBaseSaving ? 'Zapisuję...' : '💾 Zapisz zmiany'}</button>
+                                            </>
+                                        )}
+                                    </div>
+                                    {knowledgeBaseEditing ? (
+                                        <textarea value={knowledgeBase} onChange={e => setKnowledgeBase(e.target.value)} style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(168,85,247,0.2)', borderRadius: '0.5rem', padding: '0.75rem', color: '#fff', fontSize: '0.72rem', fontFamily: 'monospace', lineHeight: 1.5, minHeight: 400, resize: 'vertical', outline: 'none', whiteSpace: 'pre-wrap' }} />
+                                    ) : (
+                                        <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '0.5rem', padding: '0.75rem', maxHeight: 500, overflow: 'auto' }}>
+                                            <pre style={{ margin: 0, fontSize: '0.7rem', color: 'rgba(255,255,255,0.55)', fontFamily: 'monospace', lineHeight: 1.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{knowledgeBase}</pre>
+                                        </div>
+                                    )}
+                                    <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.25)', fontStyle: 'italic' }}>ℹ️ Baza zawiera: zespół, ofertę, cennik, FAQ, dane kontaktowe. Zmiany wchodzą w życie przy następnym uruchomieniu AI (co godzinę).</div>
                                 </div>
                             )}
                         </div>

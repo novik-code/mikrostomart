@@ -14,6 +14,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
+import { KNOWLEDGE_BASE } from '@/lib/knowledgeBase';
 
 export const dynamic = 'force-dynamic';
 
@@ -84,11 +85,21 @@ export async function GET() {
             })(),
         };
 
+        // Fetch knowledge base (DB override or static file)
+        const { data: kbRow } = await supabase
+            .from('site_settings')
+            .select('value')
+            .eq('key', 'ai_knowledge_base')
+            .single();
+
+        const knowledgeBase = kbRow?.value || KNOWLEDGE_BASE;
+
         return NextResponse.json({
             rules: rules || [],
             instructions: instructions || [],
             feedback: feedback || [],
             stats: draftStats,
+            knowledgeBase,
         });
     } catch (err: any) {
         console.error('[Email AI Config] GET error:', err);
@@ -207,7 +218,34 @@ export async function PUT(req: NextRequest) {
             return NextResponse.json({ instruction: data });
         }
 
-        return NextResponse.json({ error: 'Invalid type — use "rule" or "instruction"' }, { status: 400 });
+        if (type === 'knowledge_base') {
+            const { content } = body;
+            if (!content || typeof content !== 'string') {
+                return NextResponse.json({ error: 'Missing content' }, { status: 400 });
+            }
+
+            // Upsert into site_settings
+            const { data: existing } = await supabase
+                .from('site_settings')
+                .select('key')
+                .eq('key', 'ai_knowledge_base')
+                .single();
+
+            if (existing) {
+                await supabase
+                    .from('site_settings')
+                    .update({ value: content, updated_at: new Date().toISOString() })
+                    .eq('key', 'ai_knowledge_base');
+            } else {
+                await supabase
+                    .from('site_settings')
+                    .insert({ key: 'ai_knowledge_base', value: content });
+            }
+
+            return NextResponse.json({ success: true });
+        }
+
+        return NextResponse.json({ error: 'Invalid type — use "rule", "instruction", or "knowledge_base"' }, { status: 400 });
     } catch (err: any) {
         console.error('[Email AI Config] PUT error:', err);
         return NextResponse.json({ error: err.message }, { status: 500 });

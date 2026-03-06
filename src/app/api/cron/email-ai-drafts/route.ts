@@ -123,15 +123,17 @@ export async function GET(req: NextRequest) {
         );
 
         // 2b. Load AI training config from DB
-        const [senderRulesRes, instructionsRes, feedbackRes] = await Promise.all([
+        const [senderRulesRes, instructionsRes, feedbackRes, kbOverrideRes] = await Promise.all([
             supabase.from('email_ai_sender_rules').select('*'),
             supabase.from('email_ai_instructions').select('*').eq('is_active', true),
             supabase.from('email_ai_feedback').select('original_draft_html, corrected_draft_html, ai_analysis, feedback_note').order('created_at', { ascending: false }).limit(10),
+            supabase.from('site_settings').select('value').eq('key', 'ai_knowledge_base').single(),
         ]);
 
         const senderRules = senderRulesRes.data || [];
         const activeInstructions = instructionsRes.data || [];
         const recentFeedback = feedbackRes.data || [];
+        const effectiveKnowledgeBase = kbOverrideRes.data?.value || KNOWLEDGE_BASE;
 
         // Helper: check if email matches a sender rule pattern
         function matchesSenderPattern(emailAddr: string, pattern: string): boolean {
@@ -266,7 +268,7 @@ TWOJE ZADANIE:
 3. Jeśli wiadomość jest NIEWAŻNA — odpowiedz "SKIP".
 
 BAZA WIEDZY KLINIKI:
-${KNOWLEDGE_BASE}
+${effectiveKnowledgeBase}
 ${styleContext}${instructionsContext}${feedbackContext}
 
 ODPOWIEDZ W FORMACIE JSON:
