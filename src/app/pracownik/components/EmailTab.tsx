@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Mail, Send, Inbox, Star, Trash2, Search, RefreshCw, ChevronLeft, Paperclip, X, ArrowLeft, Reply, Forward, FileText } from 'lucide-react';
+import { Mail, Send, Inbox, Star, Trash2, Search, RefreshCw, ChevronLeft, Paperclip, X, ArrowLeft, Reply, Forward, FileText, Tag, Bell, Globe, MessageCircle, Archive } from 'lucide-react';
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -74,6 +74,86 @@ function getFolderLabel(path: string, name: string) {
     return FOLDER_LABELS[path] || name;
 }
 
+// ─── Email Labels / Categories ──────────────────────────────
+
+type EmailLabel = 'all' | 'powiadomienia' | 'strona' | 'chat' | 'pozostale';
+
+interface LabelDef {
+    id: EmailLabel;
+    label: string;
+    icon: React.ReactNode;
+    color: string;
+    shortLabel: string;
+}
+
+const EMAIL_LABELS: LabelDef[] = [
+    { id: 'all', label: 'Wszystkie', icon: <Inbox size={14} />, color: '#38bdf8', shortLabel: 'Wszystkie' },
+    { id: 'powiadomienia', label: 'Powiadomienia', icon: <Bell size={14} />, color: '#f59e0b', shortLabel: 'Powiad.' },
+    { id: 'strona', label: 'Strona & Formularze', icon: <Globe size={14} />, color: '#34d399', shortLabel: 'Strona' },
+    { id: 'chat', label: 'Chat & Wiadomości', icon: <MessageCircle size={14} />, color: '#818cf8', shortLabel: 'Chat' },
+    { id: 'pozostale', label: 'Pozostałe', icon: <Archive size={14} />, color: '#94a3b8', shortLabel: 'Inne' },
+];
+
+/**
+ * Classify an email into a label based on sender address and subject.
+ * 
+ * - powiadomienia: system notifications (appointments, SMS reports, cron jobs, status changes)
+ * - strona: website forms (contact, treatment leads, orders, reservations)
+ * - chat: chat replies and patient messages
+ * - pozostale: everything else (real external mail)
+ */
+function classifyEmail(email: { from: { address: string; name: string }; subject: string }): EmailLabel {
+    const addr = email.from.address.toLowerCase();
+    const name = email.from.name.toLowerCase();
+    const subj = email.subject.toLowerCase();
+
+    // ── Notifications: app-generated (from noreply@ or system senders)
+    const isAppSender = addr.includes('noreply@mikrostomart')
+        || addr.includes('noreply@')
+        || name.includes('mikrostomart')
+        || name.includes('strefa pacjenta');
+
+    if (isAppSender) {
+        // Chat messages
+        if (subj.includes('czat') || subj.includes('chat') || subj.includes('odpowied') || subj.includes('wiadomoś') || subj.includes('wiadomosc') || subj.includes('💬')) {
+            return 'chat';
+        }
+
+        // Website forms & contact
+        if (subj.includes('formularz') || subj.includes('kontakt') || subj.includes('zapytanie')
+            || subj.includes('zamówieni') || subj.includes('zamowieni')
+            || subj.includes('lead') || subj.includes('leczeni')
+            || subj.includes('rezerwacj')
+            || subj.includes('order') || subj.includes('reservation')) {
+            return 'strona';
+        }
+
+        // Everything else from app = notification
+        return 'powiadomienia';
+    }
+
+    // ── External form submissions (might come from different senders)
+    if (subj.includes('formularz kontakt') || subj.includes('nowe zapytanie') || subj.includes('nowy lead')) {
+        return 'strona';
+    }
+
+    // ── Mailer-daemon, postmaster, bounce notifications
+    if (addr.includes('mailer-daemon') || addr.includes('postmaster') || subj.includes('delivery') || subj.includes('undeliverable') || subj.includes('bounce')) {
+        return 'powiadomienia';
+    }
+
+    // ── Cron / system reports
+    if (subj.includes('cron') || subj.includes('raport') || subj.includes('report') || subj.includes('sms') || subj.includes('[system]')) {
+        return 'powiadomienia';
+    }
+
+    return 'pozostale';
+}
+
+function getLabelDef(label: EmailLabel): LabelDef {
+    return EMAIL_LABELS.find(l => l.id === label) || EMAIL_LABELS[EMAIL_LABELS.length - 1];
+}
+
 // ─── Helpers ─────────────────────────────────────────────────
 
 function formatDate(dateStr: string): string {
@@ -132,6 +212,7 @@ export default function EmailTab() {
     const [page, setPage] = useState(1);
     const [searchQuery, setSearchQuery] = useState('');
     const [searchInput, setSearchInput] = useState('');
+    const [activeLabel, setActiveLabel] = useState<EmailLabel>('all');
 
     // Selected email
     const [selectedEmail, setSelectedEmail] = useState<EmailFull | null>(null);
@@ -394,6 +475,7 @@ export default function EmailTab() {
         setSearchInput('');
         setSelectedEmail(null);
         setShowSidebar(false);
+        setActiveLabel('all');
     };
 
     // ─── Download attachment ─────────────────────────────────
@@ -423,6 +505,25 @@ export default function EmailTab() {
     // Ensure at least INBOX
     if (relevantFolders.length === 0) {
         relevantFolders.push({ path: 'INBOX', name: 'INBOX', totalMessages: 0, unseenMessages: unreadCount });
+    }
+
+    // ─── Label filtering (client-side) ───────────────────────
+
+    const filteredEmails = activeLabel === 'all'
+        ? emails
+        : emails.filter(e => classifyEmail(e) === activeLabel);
+
+    // Count per label
+    const labelCounts: Record<EmailLabel, number> = {
+        all: emails.length,
+        powiadomienia: 0,
+        strona: 0,
+        chat: 0,
+        pozostale: 0,
+    };
+    for (const e of emails) {
+        const lbl = classifyEmail(e);
+        labelCounts[lbl]++;
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -518,6 +619,64 @@ export default function EmailTab() {
                         </button>
                     );
                 })}
+
+                {/* ─── Label Filters ─────────────────────────── */}
+                {currentFolder === 'INBOX' && (
+                    <>
+                        <div style={{
+                            margin: '0.75rem 0 0.25rem',
+                            padding: '0 0.25rem',
+                            fontSize: '0.65rem',
+                            fontWeight: 600,
+                            color: 'rgba(255,255,255,0.3)',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.06em',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.35rem',
+                        }}>
+                            <Tag size={11} />
+                            Etykiety
+                        </div>
+                        {EMAIL_LABELS.map(lbl => {
+                            const isActive = activeLabel === lbl.id;
+                            const count = labelCounts[lbl.id];
+                            return (
+                                <button
+                                    key={lbl.id}
+                                    onClick={() => { setActiveLabel(lbl.id); setShowSidebar(false); }}
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.5rem',
+                                        padding: '0.4rem 0.65rem',
+                                        background: isActive ? `${lbl.color}18` : 'transparent',
+                                        border: 'none',
+                                        borderRadius: '0.4rem',
+                                        color: isActive ? lbl.color : 'rgba(255,255,255,0.5)',
+                                        fontSize: '0.78rem',
+                                        fontWeight: isActive ? 600 : 400,
+                                        cursor: 'pointer',
+                                        textAlign: 'left',
+                                        transition: 'all 0.15s',
+                                    }}
+                                    onMouseEnter={e => !isActive && (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
+                                    onMouseLeave={e => !isActive && (e.currentTarget.style.background = 'transparent')}
+                                >
+                                    {lbl.icon}
+                                    <span style={{ flex: 1 }}>{isMobileView ? lbl.label : lbl.shortLabel}</span>
+                                    {count > 0 && (
+                                        <span style={{
+                                            fontSize: '0.65rem',
+                                            color: isActive ? lbl.color : 'rgba(255,255,255,0.25)',
+                                            fontWeight: 500,
+                                        }}>{count}</span>
+                                    )}
+                                </button>
+                            );
+                        })}
+                    </>
+                )}
 
                 {isMobileView && (
                     <button
@@ -629,8 +788,32 @@ export default function EmailTab() {
 
                     {/* Folder name */}
                     <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)' }}>
-                        {getFolderLabel(currentFolder, currentFolder)} ({total})
+                        {getFolderLabel(currentFolder, currentFolder)} ({activeLabel === 'all' ? total : filteredEmails.length})
                     </span>
+
+                    {/* Active label chip */}
+                    {activeLabel !== 'all' && (
+                        <button
+                            onClick={() => setActiveLabel('all')}
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.3rem',
+                                padding: '0.2rem 0.6rem',
+                                background: `${getLabelDef(activeLabel).color}18`,
+                                border: `1px solid ${getLabelDef(activeLabel).color}40`,
+                                borderRadius: '1rem',
+                                color: getLabelDef(activeLabel).color,
+                                fontSize: '0.72rem',
+                                fontWeight: 500,
+                                cursor: 'pointer',
+                            }}
+                        >
+                            {getLabelDef(activeLabel).icon}
+                            {getLabelDef(activeLabel).shortLabel}
+                            <X size={11} />
+                        </button>
+                    )}
                 </div>
 
                 {/* Content: Email List OR Email Reader */}
@@ -893,127 +1076,149 @@ export default function EmailTab() {
                     ) : (
                         /* ─── EMAIL LIST ──────────────────────────── */
                         <>
-                            {emails.map(email => (
-                                <div
-                                    key={email.uid}
-                                    onClick={() => openEmail(email.uid)}
-                                    style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '0.6rem',
-                                        padding: '0.65rem 1rem',
-                                        cursor: 'pointer',
-                                        background: email.isRead ? 'transparent' : 'rgba(56,189,248,0.03)',
-                                        borderBottom: '1px solid rgba(255,255,255,0.04)',
-                                        transition: 'background 0.15s',
-                                    }}
-                                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
-                                    onMouseLeave={e => e.currentTarget.style.background = email.isRead ? 'transparent' : 'rgba(56,189,248,0.03)'}
-                                >
-                                    {/* Unread dot */}
-                                    <div style={{
-                                        width: 8,
-                                        height: 8,
-                                        borderRadius: '50%',
-                                        background: email.isRead ? 'transparent' : '#38bdf8',
-                                        flexShrink: 0,
-                                    }} />
-
-                                    {/* Star */}
-                                    <button
-                                        onClick={e => { e.stopPropagation(); toggleStar(email.uid, email.isStarred); }}
+                            {filteredEmails.map(email => {
+                                const emailLabel = classifyEmail(email);
+                                const labelDef = getLabelDef(emailLabel);
+                                return (
+                                    <div
+                                        key={email.uid}
+                                        onClick={() => openEmail(email.uid)}
                                         style={{
-                                            background: 'none',
-                                            border: 'none',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.6rem',
+                                            padding: '0.65rem 1rem',
                                             cursor: 'pointer',
-                                            padding: '0.15rem',
-                                            color: email.isStarred ? '#f59e0b' : 'rgba(255,255,255,0.15)',
-                                            fontSize: '1rem',
-                                            flexShrink: 0,
-                                            transition: 'color 0.15s',
+                                            background: email.isRead ? 'transparent' : 'rgba(56,189,248,0.03)',
+                                            borderBottom: '1px solid rgba(255,255,255,0.04)',
+                                            transition: 'background 0.15s',
                                         }}
+                                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                                        onMouseLeave={e => e.currentTarget.style.background = email.isRead ? 'transparent' : 'rgba(56,189,248,0.03)'}
                                     >
-                                        <Star size={15} fill={email.isStarred ? '#f59e0b' : 'none'} />
-                                    </button>
-
-                                    {/* Avatar */}
-                                    <div style={{
-                                        width: 32,
-                                        height: 32,
-                                        borderRadius: '50%',
-                                        background: email.isRead
-                                            ? 'rgba(255,255,255,0.08)'
-                                            : 'linear-gradient(135deg, #38bdf8, #818cf8)',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        fontSize: '0.75rem',
-                                        fontWeight: 700,
-                                        color: '#fff',
-                                        flexShrink: 0,
-                                    }}>
-                                        {senderDisplay(email.from)[0]?.toUpperCase() || '?'}
-                                    </div>
-
-                                    {/* Sender + Subject */}
-                                    <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+                                        {/* Unread dot */}
                                         <div style={{
-                                            fontSize: '0.82rem',
+                                            width: 8,
+                                            height: 8,
+                                            borderRadius: '50%',
+                                            background: email.isRead ? 'transparent' : '#38bdf8',
+                                            flexShrink: 0,
+                                        }} />
+
+                                        {/* Star */}
+                                        <button
+                                            onClick={e => { e.stopPropagation(); toggleStar(email.uid, email.isStarred); }}
+                                            style={{
+                                                background: 'none',
+                                                border: 'none',
+                                                cursor: 'pointer',
+                                                padding: '0.15rem',
+                                                color: email.isStarred ? '#f59e0b' : 'rgba(255,255,255,0.15)',
+                                                fontSize: '1rem',
+                                                flexShrink: 0,
+                                                transition: 'color 0.15s',
+                                            }}
+                                        >
+                                            <Star size={15} fill={email.isStarred ? '#f59e0b' : 'none'} />
+                                        </button>
+
+                                        {/* Avatar */}
+                                        <div style={{
+                                            width: 32,
+                                            height: 32,
+                                            borderRadius: '50%',
+                                            background: email.isRead
+                                                ? 'rgba(255,255,255,0.08)'
+                                                : 'linear-gradient(135deg, #38bdf8, #818cf8)',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            fontSize: '0.75rem',
+                                            fontWeight: 700,
+                                            color: '#fff',
+                                            flexShrink: 0,
+                                        }}>
+                                            {senderDisplay(email.from)[0]?.toUpperCase() || '?'}
+                                        </div>
+
+                                        {/* Label badge */}
+                                        <span
+                                            title={labelDef.label}
+                                            style={{
+                                                padding: '0.1rem 0.35rem',
+                                                borderRadius: '0.25rem',
+                                                fontSize: '0.6rem',
+                                                fontWeight: 600,
+                                                background: `${labelDef.color}15`,
+                                                color: labelDef.color,
+                                                whiteSpace: 'nowrap',
+                                                flexShrink: 0,
+                                                lineHeight: 1.3,
+                                            }}
+                                        >
+                                            {labelDef.shortLabel}
+                                        </span>
+
+                                        {/* Sender + Subject */}
+                                        <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+                                            <div style={{
+                                                fontSize: '0.82rem',
+                                                fontWeight: email.isRead ? 400 : 600,
+                                                color: email.isRead ? 'rgba(255,255,255,0.6)' : '#fff',
+                                                whiteSpace: 'nowrap',
+                                                overflow: 'hidden',
+                                                textOverflow: 'ellipsis',
+                                            }}>
+                                                {senderDisplay(email.from)}
+                                            </div>
+                                            <div style={{
+                                                fontSize: '0.78rem',
+                                                color: email.isRead ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.55)',
+                                                whiteSpace: 'nowrap',
+                                                overflow: 'hidden',
+                                                textOverflow: 'ellipsis',
+                                            }}>
+                                                {email.subject}
+                                            </div>
+                                        </div>
+
+                                        {/* Attachment icon */}
+                                        {email.hasAttachments && (
+                                            <Paperclip size={13} style={{ color: 'rgba(255,255,255,0.25)', flexShrink: 0 }} />
+                                        )}
+
+                                        {/* Date */}
+                                        <span style={{
+                                            fontSize: '0.72rem',
+                                            color: email.isRead ? 'rgba(255,255,255,0.3)' : '#38bdf8',
                                             fontWeight: email.isRead ? 400 : 600,
-                                            color: email.isRead ? 'rgba(255,255,255,0.6)' : '#fff',
                                             whiteSpace: 'nowrap',
-                                            overflow: 'hidden',
-                                            textOverflow: 'ellipsis',
-                                        }}>
-                                            {senderDisplay(email.from)}
-                                        </div>
-                                        <div style={{
-                                            fontSize: '0.78rem',
-                                            color: email.isRead ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.55)',
-                                            whiteSpace: 'nowrap',
-                                            overflow: 'hidden',
-                                            textOverflow: 'ellipsis',
-                                        }}>
-                                            {email.subject}
-                                        </div>
-                                    </div>
-
-                                    {/* Attachment icon */}
-                                    {email.hasAttachments && (
-                                        <Paperclip size={13} style={{ color: 'rgba(255,255,255,0.25)', flexShrink: 0 }} />
-                                    )}
-
-                                    {/* Date */}
-                                    <span style={{
-                                        fontSize: '0.72rem',
-                                        color: email.isRead ? 'rgba(255,255,255,0.3)' : '#38bdf8',
-                                        fontWeight: email.isRead ? 400 : 600,
-                                        whiteSpace: 'nowrap',
-                                        flexShrink: 0,
-                                    }}>
-                                        {formatDate(email.date)}
-                                    </span>
-
-                                    {/* Trash button */}
-                                    <button
-                                        onClick={e => { e.stopPropagation(); trashEmail(email.uid); }}
-                                        style={{
-                                            background: 'none',
-                                            border: 'none',
-                                            cursor: 'pointer',
-                                            padding: '0.2rem',
-                                            color: 'rgba(255,255,255,0.15)',
                                             flexShrink: 0,
-                                            transition: 'color 0.15s',
-                                        }}
-                                        onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
-                                        onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.15)'}
-                                        title="Usuń"
-                                    >
-                                        <Trash2 size={14} />
-                                    </button>
-                                </div>
-                            ))}
+                                        }}>
+                                            {formatDate(email.date)}
+                                        </span>
+
+                                        {/* Trash button */}
+                                        <button
+                                            onClick={e => { e.stopPropagation(); trashEmail(email.uid); }}
+                                            style={{
+                                                background: 'none',
+                                                border: 'none',
+                                                cursor: 'pointer',
+                                                padding: '0.2rem',
+                                                color: 'rgba(255,255,255,0.15)',
+                                                flexShrink: 0,
+                                                transition: 'color 0.15s',
+                                            }}
+                                            onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
+                                            onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.15)'}
+                                            title="Usuń"
+                                        >
+                                            <Trash2 size={14} />
+                                        </button>
+                                    </div>
+                                );
+                            })}
 
                             {/* Pagination */}
                             {total > emails.length && (
