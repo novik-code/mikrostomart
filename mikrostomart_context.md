@@ -1,6 +1,6 @@
 # Mikrostomart - Complete Project Context
 
-> **Last Updated:** 2026-03-05  
+> **Last Updated:** 2026-03-06  
 > **Version:** Production (Vercel Deployment)  
 > **Status:** Active Development
 
@@ -187,7 +187,12 @@ mikrostomart/
 │   │   ├── porownywarka/       # Solution Comparator (7 categories, 73 methods)
 │   │   ├── kalkulator-leczenia/ # Treatment Time Calculator (5 paths)
 │   │   ├── oferta/             # Services
-│   │   │   └── implantologia/  # Implantology subpage with pricing
+│   │   │   ├── implantologia/  # Implantology subpage with pricing
+│   │   │   ├── leczenie-kanalowe/  # Root canal / microscopic endodontics
+│   │   │   ├── stomatologia-estetyczna/  # Aesthetic dentistry (veneers, whitening)
+│   │   │   ├── ortodoncja/     # Orthodontics (Clear Correct aligners)
+│   │   │   ├── chirurgia/      # Oral surgery (extractions, wisdom teeth, PRF)
+│   │   │   └── protetyka/      # Prosthetics (crowns, bridges, dentures)
 │   │   ├── selfie/             # Selfie Booth page
 │   │   ├── symulator/          # Smile Simulator page
 │   │   ├── sklep/              # E-commerce shop
@@ -722,7 +727,13 @@ RLS: Public read (consent signing page needs it). Seeded with 10 existing consen
   - Higienizacja (Dental hygiene)
   - Endodoncja (Endodontics)
   - LASER
-- **Implantology subpage** (`/oferta/implantologia`) — dedicated implant page with pricing, SEO-optimized
+- **Service Landing Pages** (each with FAQ schema, BreadcrumbList, metadata):
+  - `/oferta/implantologia` — digital implants, guided surgery, pricing
+  - `/oferta/leczenie-kanalowe` — microscopic endodontics, The Wand anaesthesia, Re-Endo
+  - `/oferta/stomatologia-estetyczna` — veneers, whitening, bonding, DSD
+  - `/oferta/ortodoncja` — Clear Correct aligners, 3D simulation
+  - `/oferta/chirurgia` — extractions, wisdom teeth, PRF technology
+  - `/oferta/protetyka` — crowns (E.max, zirconia), bridges, digital scanning
 
 #### Metamorphoses (`/metamorfozy`)
 - Before/after image gallery
@@ -1978,7 +1989,52 @@ NODE_ENV=production
 
 ## 📝 Recent Changes
 
-### March 5, 2026 (Full day — Etap 3 + Etap 4 + Bug Fixes)
+### March 6, 2026 — Advanced SEO Improvements
+
+**4 commits** — service landing pages, enriched structured data, hreflang, FAQ rich snippets.
+
+**5 new service landing pages** — `9b2be79`
+- Created `/oferta/leczenie-kanalowe`, `/oferta/stomatologia-estetyczna`, `/oferta/ortodoncja`, `/oferta/chirurgia`, `/oferta/protetyka`
+- Each page has: `page.tsx` (content with RevealOnScroll), `layout.tsx` (metadata + FAQ schema + BreadcrumbList)
+- Added 167 translation keys to `messages/pl/pages.json`
+- Updated `sitemap.ts` with 5 new routes (priority 0.9)
+- Updated `Footer.tsx` with 5 new links in "Usługi" column
+
+**Advanced SEO schemas** — `1ccc221`
+- Enriched Dentist JSON-LD: `@type: ["Dentist", "MedicalBusiness"]`, description, sameAs, medicalSpecialty (5), availableService (7 MedicalProcedure entries), hasMap, currenciesAccepted, paymentAccepted
+- New WebSite schema (sitelinks search box potential)
+- OpenGraph expanded: type, locale, siteName, image dimensions + alt
+- Twitter card: `summary_large_image`
+- Title template: `%s | Mikrostomart - Dentysta Opole`
+- FAQ schema on `/oferta/implantologia` (5 Q&A) + MedicalWebPage/MedicalProcedure
+- FAQ schema on `/faq` (10 curated Q&A from all categories)
+
+**Hreflang tags** — `9b2be79`
+- Added `alternates.languages` to global metadata: pl, en, de, uk, x-default
+
+**Start-session workflow rewrite** — `0784e05`
+- Forces full context reading via `wc -l` + chunk calculation
+- EOF_VERIFICATION marker at bottom of context file
+- 5-point confirmation required before coding
+
+**SEO documentation** — `e29cbc6`
+- New workflow `.agents/workflows/add-page.md` with mandatory SEO checklist
+- Updated `update-context.md` with SEO verification step
+- Added SEO Architecture section to this file
+
+---
+
+### March 5, 2026 (Full day — SEO Fixes + Etap 3 + Etap 4 + Bug Fixes)
+
+**Critical SEO overhaul** — `95fbb84`
+- Expanded `robots.ts` (disallow admin/pracownik/ekarta/strefa-pacjenta)
+- Expanded `sitemap.ts` from ~10 to 24 pages, organized by priority tiers
+- Footer SEO navigation: 16 links in 4 columns (SSR-visible)
+- Canonical URLs via `metadataBase` + `alternates.canonical`
+- SplashScreen SSR-safe (initial phase='done')
+- Middleware bot user-agent bypass
+- 13 new `layout.tsx` metadata files for key pages
+- Google Search Console verification file added
 
 **20 commits** across 3 major work areas: **Etap 3** new features (3.1–3.6), **Etap 4** architecture refactoring, and post-refactor bug fixes.
 
@@ -4077,7 +4133,7 @@ npm start
 
 > **⚠️ CRITICAL: Follow these rules when adding/modifying pages or navigation**
 
-## Current SEO Setup (as of March 5, 2026)
+## Current SEO Setup (as of March 6, 2026)
 
 ### robots.txt (`src/app/robots.ts`)
 - Allows crawling of all public pages
@@ -4085,38 +4141,63 @@ npm start
 - Points to sitemap: `https://mikrostomart.pl/sitemap.xml`
 
 ### Sitemap (`src/app/sitemap.ts`)
-- **24 static pages** organized by priority tier:
+- **29 static pages** organized by priority tier:
   - Priority 1.0: Homepage
-  - Priority 0.9: Main pages (o-nas, zespol, oferta, cennik, kontakt, rezerwacja)
+  - Priority 0.9: Main pages (o-nas, zespol, oferta, oferta/implantologia, oferta/leczenie-kanalowe, oferta/stomatologia-estetyczna, oferta/ortodoncja, oferta/chirurgia, oferta/protetyka, cennik, kontakt, rezerwacja)
   - Priority 0.8: Content pages (aktualnosci, baza-wiedzy, metamorfozy, sklep, faq, nowosielski)
   - Priority 0.7: Tool pages (mapa-bolu, kalkulator-leczenia, porownywarka, selfie, symulator, aplikacja, zadatek)
   - Priority 0.3: Legal pages (regulamin, polityka-cookies, polityka-prywatnosci, rodo)
 - **Dynamic pages**: news articles from `data/articles`, knowledge base from Supabase `articles` table
 
-### Canonical URLs
+### Structured Data (JSON-LD)
+- **Global** (`layout.tsx`):
+  - `Dentist` + `MedicalBusiness` — name, description, address, geo, sameAs, medicalSpecialty (5), availableService (7 MedicalProcedure), openingHours, hasMap, currenciesAccepted
+  - `WebSite` — name, url, potentialAction (SearchAction → sitelinks search box)
+- **Service pages** (`/oferta/*`):
+  - Each has `FAQPage` schema (4-5 Q&A) → Google rich snippets
+  - Each has `BreadcrumbList` schema (Strona główna > Oferta > [Usługa])
+  - `/oferta/implantologia` also has `MedicalWebPage` + `MedicalProcedure` schema
+- **FAQ page** (`/faq`):
+  - `FAQPage` schema with 10 curated Q&A from across all categories
+
+### Canonical URLs & Hreflang
 - `metadataBase: new URL('https://mikrostomart.pl')` in global `layout.tsx`
 - `alternates.canonical: './'` — auto-generates canonical URL per page
+- `alternates.languages`: `pl`, `en`, `de`, `uk`, `x-default` — prevents Google treating language versions as duplicates
+
+### Title Template
+- Global: `{ default: '...', template: '%s | Mikrostomart - Dentysta Opole' }`
+- Subpages automatically get suffix, e.g. "Cennik | Mikrostomart - Dentysta Opole"
+
+### OpenGraph & Twitter
+- OpenGraph: type='website', locale='pl_PL', siteName, image with dimensions (1200×630) + alt
+- Twitter: card='summary_large_image'
 
 ### Google Search Console Verification
 - File: `public/google1c781c50dedec38d.html`
 
 ### Page Metadata
 - Each page has its own `layout.tsx` with `export const metadata: Metadata` (title, description, keywords)
+- 6 service pages under `/oferta/` each with specialized metadata targeting local keywords ("[service] opole")
 
 ### SSR Safety
 - **SplashScreen**: Initial `phase='done'` → SSR HTML shows content (opacity:1). Client-side `useEffect` resets to 'idle' for first-time animation.
 - **Middleware**: Bot user-agents (Googlebot, Bingbot, etc.) detected via `BOT_UA_PATTERNS` regex → skip `supabase.auth.getUser()` → faster TTFB for crawlers.
 
 ### Footer SEO Navigation
-- `Footer.tsx` contains a `<nav aria-label="Mapa strony">` with 16 plain `<Link>` elements in 4 columns
+- `Footer.tsx` contains a `<nav aria-label="Mapa strony">` with **21 plain `<Link>` elements** in 4 columns
+- "Usługi" column contains all 6 service landing pages + Oferta + Cennik + Metamorfozy
 - This ensures Googlebot can discover all pages regardless of JavaScript rendering or Navbar hover state
 
 ## ⚠️ MANDATORY: New Page SEO Checklist
 **When creating ANY new page, you MUST:**
 1. Create `layout.tsx` with `export const metadata` (title, description, keywords)
-2. Add route to `src/app/sitemap.ts` in the correct priority tier
-3. Add `<Link>` to `src/components/Footer.tsx` SEO navigation grid (if public page)
-4. Ensure content is visible in initial HTML (no hidden-by-default via useState)
+2. Add `FAQPage` JSON-LD schema if page has Q&A content
+3. Add `BreadcrumbList` JSON-LD schema for pages under `/oferta/`
+4. Add route to `src/app/sitemap.ts` in the correct priority tier
+5. Add `<Link>` to `src/components/Footer.tsx` SEO navigation grid (if public page)
+6. Ensure content is visible in initial HTML (no hidden-by-default via useState)
+7. Add translation keys to `messages/pl/pages.json` (minimum PL, other locales fallback)
 
 **When modifying navigation:**
 1. Footer nav must contain plain `<Link>` elements to ALL public pages
@@ -4131,6 +4212,8 @@ npm start
 | Desktop nav links only rendered on hover | Googlebot saw zero internal links | Footer has permanent crawlable links |
 | SplashScreen initial state opacity:0 | SSR HTML had invisible content | Initial phase='done' (visible) |
 | Middleware auth on every request | Slow TTFB for crawlers | Bot UA bypass added |
+| No FAQ schema on content-rich pages | Missed rich snippet opportunities | Add FAQPage JSON-LD |
+| No hreflang for multilingual pages | Google treated translations as duplicates | alternates.languages in layout.tsx |
 
 ---
 
