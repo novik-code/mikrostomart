@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 import { useRouter } from "next/navigation";
-import { LogOut, ChevronLeft, ChevronRight, Calendar, RefreshCw, CheckSquare, Plus, User, AlertTriangle, Trash2, Clock, X, Bell, Bot, Lightbulb, ThumbsUp, MessageSquare, Send, Menu, Search } from "lucide-react";
+import { LogOut, ChevronLeft, ChevronRight, Calendar, RefreshCw, CheckSquare, Plus, User, AlertTriangle, Trash2, Clock, X, Bell, Bot, Lightbulb, ThumbsUp, MessageSquare, Send, Menu, Search, Mail } from "lucide-react";
 import VoiceAssistant from "@/components/VoiceAssistant";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import PushNotificationPrompt from "@/components/PushNotificationPrompt";
@@ -20,6 +20,7 @@ import SuggestionsTab from './components/SuggestionsTab';
 import PatientsTab from './components/PatientsTab';
 import ScheduleTab from './components/ScheduleTab';
 import TasksTab from './components/TasksTab';
+import EmailTab from './components/EmailTab';
 
 // ─── Main Component ─────────────────────────────────────────────
 export default function EmployeePage() {
@@ -46,7 +47,7 @@ export default function EmployeePage() {
     const [historyError, setHistoryError] = useState<string | null>(null);
     const [sessionTimeoutWarning, setSessionTimeoutWarning] = useState(false);
     const { userId: currentUserId, email: currentUserEmail, isAdmin } = useUserRoles();
-    const [activeTab, setActiveTab] = useState<'grafik' | 'zadania' | 'asystent' | 'powiadomienia' | 'sugestie' | 'pacjenci'>('grafik');
+    const [activeTab, setActiveTab] = useState<'grafik' | 'zadania' | 'asystent' | 'powiadomienia' | 'sugestie' | 'pacjenci' | 'poczta'>('grafik');
 
     // ─── Feature suggestions state (shared — list loaded on tab switch) ───
     const [suggestions, setSuggestions] = useState<any[]>([]);
@@ -360,6 +361,7 @@ export default function EmployeePage() {
                             { id: 'powiadomienia' as const, label: 'Alerty', icon: <Bell size={20} />, color: '#f59e0b' },
                             { id: 'sugestie' as const, label: 'Sugestie', icon: <Lightbulb size={20} />, color: '#fb923c' },
                             { id: 'pacjenci' as const, label: 'Pacjenci', icon: <Search size={20} />, color: '#e879f9' },
+                            ...(isAdmin ? [{ id: 'poczta' as const, label: 'Poczta', icon: <Mail size={20} />, color: '#34d399' }] : []),
                         ].map((tab, i, arr) => {
                             const isActive = activeTab === tab.id;
                             const delay = (arr.length - 1 - i) * 50;
@@ -474,6 +476,7 @@ export default function EmployeePage() {
                         { id: 'powiadomienia' as const, label: 'Alerty', icon: <Bell size={18} /> },
                         { id: 'sugestie' as const, label: 'Sugestie', icon: <Lightbulb size={18} /> },
                         { id: 'pacjenci' as const, label: 'Pacjenci', icon: <Search size={18} /> },
+                        ...(isAdmin ? [{ id: 'poczta' as const, label: '📧 Poczta', icon: <Mail size={18} /> }] : []),
                     ].map(tab => {
                         const isActive = activeTab === tab.id;
                         return (
@@ -590,6 +593,11 @@ export default function EmployeePage() {
 
             {activeTab === 'pacjenci' && (
                 <PatientsTab openPatientHistory={openPatientHistory} />
+            )}
+
+            {/* ═══ POCZTA TAB (admin only) ═══ */}
+            {activeTab === 'poczta' && isAdmin && (
+                <EmailTab />
             )}
 
 
