@@ -40,37 +40,33 @@ export async function GET() {
     }
 
     try {
-        const [
-            { data: rules, error: rulesErr },
-            { data: instructions, error: instrErr },
-            { data: feedback, error: fbErr },
-            { data: stats, error: statsErr },
-        ] = await Promise.all([
-            supabase
-                .from('email_ai_sender_rules')
-                .select('*')
-                .order('created_at', { ascending: false }),
-            supabase
-                .from('email_ai_instructions')
-                .select('*')
-                .order('created_at', { ascending: false }),
-            supabase
-                .from('email_ai_feedback')
-                .select('*')
-                .order('created_at', { ascending: false })
-                .limit(20),
-            // Stats: count drafts by status
-            supabase
-                .from('email_ai_drafts')
-                .select('status, admin_rating'),
-        ]);
+        // Each query individually try/caught so KB loads even if training tables missing
+        let rules: any[] = [];
+        let instructions: any[] = [];
+        let feedback: any[] = [];
+        let allDrafts: any[] = [];
 
-        if (rulesErr) throw rulesErr;
-        if (instrErr) throw instrErr;
-        if (fbErr) throw fbErr;
+        try {
+            const { data } = await supabase.from('email_ai_sender_rules').select('*').order('created_at', { ascending: false });
+            rules = data || [];
+        } catch { /* table may not exist yet */ }
+
+        try {
+            const { data } = await supabase.from('email_ai_instructions').select('*').order('created_at', { ascending: false });
+            instructions = data || [];
+        } catch { /* table may not exist yet */ }
+
+        try {
+            const { data } = await supabase.from('email_ai_feedback').select('*').order('created_at', { ascending: false }).limit(20);
+            feedback = data || [];
+        } catch { /* table may not exist yet */ }
+
+        try {
+            const { data } = await supabase.from('email_ai_drafts').select('status, admin_rating');
+            allDrafts = data || [];
+        } catch { /* table may not exist yet */ }
 
         // Compute stats
-        const allDrafts = stats || [];
         const draftStats = {
             total: allDrafts.length,
             pending: allDrafts.filter((d: any) => d.status === 'pending').length,
@@ -85,25 +81,34 @@ export async function GET() {
             })(),
         };
 
-        // Fetch knowledge base (DB override or static file)
-        const { data: kbRow } = await supabase
-            .from('site_settings')
-            .select('value')
-            .eq('key', 'ai_knowledge_base')
-            .maybeSingle();
-
-        const knowledgeBase = kbRow?.value || KNOWLEDGE_BASE;
+        // Fetch knowledge base (DB override or static file) — always works
+        let knowledgeBase = KNOWLEDGE_BASE;
+        try {
+            const { data: kbRow } = await supabase
+                .from('site_settings')
+                .select('value')
+                .eq('key', 'ai_knowledge_base')
+                .maybeSingle();
+            if (kbRow?.value) knowledgeBase = kbRow.value;
+        } catch { /* fallback to static */ }
 
         return NextResponse.json({
-            rules: rules || [],
-            instructions: instructions || [],
-            feedback: feedback || [],
+            rules,
+            instructions,
+            feedback,
             stats: draftStats,
             knowledgeBase,
         });
     } catch (err: any) {
         console.error('[Email AI Config] GET error:', err);
-        return NextResponse.json({ error: err.message }, { status: 500 });
+        // Even on total failure, return KB
+        return NextResponse.json({
+            rules: [],
+            instructions: [],
+            feedback: [],
+            stats: null,
+            knowledgeBase: KNOWLEDGE_BASE,
+        });
     }
 }
 

@@ -391,7 +391,7 @@ export default function EmailTab() {
             const params = new URLSearchParams({
                 action: 'list',
                 folder: currentFolder,
-                page: String(page),
+                page: '1',
                 pageSize: '30',
             });
             if (searchQuery) params.set('search', searchQuery);
@@ -402,14 +402,57 @@ export default function EmailTab() {
                 throw new Error(data.error || `HTTP ${res.status}`);
             }
             const data = await res.json();
-            setEmails(data.emails || []);
+            const newEmails: EmailListItem[] = data.emails || [];
             setTotal(data.total || 0);
+
+            // Merge new emails into existing list (keep loaded history)
+            setEmails(prev => {
+                if (prev.length === 0 || !silent) {
+                    // First load or manual refresh: just set
+                    return newEmails;
+                }
+                // Auto-refresh: merge page 1 into existing (add new, update existing)
+                const existingMap = new Map(prev.map(e => [e.uid, e]));
+                for (const email of newEmails) {
+                    existingMap.set(email.uid, email);
+                }
+                const merged = Array.from(existingMap.values());
+                merged.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+                return merged;
+            });
         } catch (err: any) {
             setError(err.message || 'Błąd połączenia');
         } finally {
             setLoading(false);
         }
-    }, [currentFolder, page, searchQuery]);
+    }, [currentFolder, searchQuery]);
+
+    // ─── Load more emails (append next page) ────────────────
+
+    const loadMoreEmails = useCallback(async () => {
+        const nextPage = Math.floor(emails.length / 30) + 1;
+        try {
+            const params = new URLSearchParams({
+                action: 'list',
+                folder: currentFolder,
+                page: String(nextPage),
+                pageSize: '30',
+            });
+            if (searchQuery) params.set('search', searchQuery);
+
+            const res = await fetch(`/api/employee/email?${params}`);
+            if (!res.ok) return;
+            const data = await res.json();
+            const newEmails: EmailListItem[] = data.emails || [];
+            setTotal(data.total || 0);
+
+            setEmails(prev => {
+                const existingUids = new Set(prev.map(e => e.uid));
+                const unique = newEmails.filter(e => !existingUids.has(e.uid));
+                return [...prev, ...unique];
+            });
+        } catch { /* ignore load-more errors */ }
+    }, [currentFolder, searchQuery, emails.length]);
 
     // ─── Fetch folders ───────────────────────────────────────
 
@@ -1693,11 +1736,11 @@ export default function EmailTab() {
                                 );
                             })}
 
-                            {/* Pagination */}
+                            {/* Load more */}
                             {total > emails.length && (
                                 <div style={{ padding: '1rem', textAlign: 'center' }}>
                                     <button
-                                        onClick={() => setPage(p => p + 1)}
+                                        onClick={loadMoreEmails}
                                         style={{
                                             padding: '0.5rem 1.5rem',
                                             background: 'rgba(56,189,248,0.1)',
@@ -1708,7 +1751,7 @@ export default function EmailTab() {
                                             fontSize: '0.82rem',
                                         }}
                                     >
-                                        Załaduj więcej ({total - page * 30 > 0 ? `pozostało ${total - page * 30}` : ''})
+                                        Załaduj więcej ({total - emails.length > 0 ? `pozostało ${total - emails.length}` : ''})
                                     </button>
                                 </div>
                             )}

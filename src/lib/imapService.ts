@@ -225,6 +225,9 @@ export async function listEmails(
                 });
             }
 
+            // Sort by date descending (newest first) — client.fetch doesn't preserve UID order
+            emails.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
             return { emails, total: sortedUids.length };
         } finally {
             lock.release();
