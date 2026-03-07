@@ -122,18 +122,31 @@ export async function GET(req: NextRequest) {
             (existingDrafts || []).map((d: { email_uid: number }) => d.email_uid)
         );
 
-        // 2b. Load AI training config from DB
-        const [senderRulesRes, instructionsRes, feedbackRes, kbOverrideRes] = await Promise.all([
-            supabase.from('email_ai_sender_rules').select('*'),
-            supabase.from('email_ai_instructions').select('*').eq('is_active', true),
-            supabase.from('email_ai_feedback').select('original_draft_html, corrected_draft_html, ai_analysis, feedback_note').order('created_at', { ascending: false }).limit(10),
-            supabase.from('site_settings').select('value').eq('key', 'ai_knowledge_base').maybeSingle(),
-        ]);
+        // 2b. Load AI training config from DB (resilient — works even if tables missing)
+        let senderRules: any[] = [];
+        let activeInstructions: any[] = [];
+        let recentFeedback: any[] = [];
+        let effectiveKnowledgeBase = KNOWLEDGE_BASE;
 
-        const senderRules = senderRulesRes.data || [];
-        const activeInstructions = instructionsRes.data || [];
-        const recentFeedback = feedbackRes.data || [];
-        const effectiveKnowledgeBase = kbOverrideRes.data?.value || KNOWLEDGE_BASE;
+        try {
+            const { data } = await supabase.from('email_ai_sender_rules').select('*');
+            senderRules = data || [];
+        } catch { /* table may not exist */ }
+
+        try {
+            const { data } = await supabase.from('email_ai_instructions').select('*').eq('is_active', true);
+            activeInstructions = data || [];
+        } catch { /* table may not exist */ }
+
+        try {
+            const { data } = await supabase.from('email_ai_feedback').select('original_draft_html, corrected_draft_html, ai_analysis, feedback_note').order('created_at', { ascending: false }).limit(10);
+            recentFeedback = data || [];
+        } catch { /* table may not exist */ }
+
+        try {
+            const { data: kbRow } = await supabase.from('site_settings').select('value').eq('key', 'ai_knowledge_base').maybeSingle();
+            if (kbRow?.value) effectiveKnowledgeBase = kbRow.value;
+        } catch { /* fallback to static */ }
 
         // Helper: check if email matches a sender rule pattern
         function matchesSenderPattern(emailAddr: string, pattern: string): boolean {

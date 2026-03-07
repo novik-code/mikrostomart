@@ -1915,7 +1915,7 @@ export default function EmailTab() {
                         }}>
                             {/* AI Generate button — left side */}
                             <div>
-                                {composeInReplyTo && (
+                                {(composeSubject || composeBody) && (
                                     <button
                                         onClick={generateAiReply}
                                         disabled={composeAiGenerating}
