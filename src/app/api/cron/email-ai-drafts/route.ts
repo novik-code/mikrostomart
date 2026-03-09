@@ -299,6 +299,7 @@ export async function GET(req: NextRequest) {
         let draftsCreated = 0;
         let emailsSkipped = 0;
         const newDraftSubjects: string[] = [];
+        const processedDetails: { uid: number; from: string; subject: string; result: string; reasoning?: string }[] = [];
 
         for (const candidate of candidatesToProcess) {
             // Check time budget before processing each candidate
@@ -311,10 +312,16 @@ export async function GET(req: NextRequest) {
             try {
                 // Get full email content
                 const fullEmail = await getEmail(candidate.uid, 'INBOX', false);
-                if (!fullEmail) continue;
+                if (!fullEmail) {
+                    processedDetails.push({ uid: candidate.uid, from: candidate.from.address, subject: candidate.subject, result: 'error', reasoning: 'Nie udało się pobrać pełnej treści emaila' });
+                    continue;
+                }
 
                 const emailContent = fullEmail.text || fullEmail.html?.replace(/<[^>]*>/g, '') || '';
-                if (emailContent.trim().length < 10) continue; // Skip near-empty emails
+                if (emailContent.trim().length < 10) {
+                    processedDetails.push({ uid: candidate.uid, from: candidate.from.address, subject: candidate.subject, result: 'skipped', reasoning: 'Email prawie pusty (< 10 znaków)' });
+                    continue;
+                }
 
                 // Ask AI to classify + draft
                 const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -420,10 +427,12 @@ ${emailContent.substring(0, 3000)}`
 
                     if (insertError) {
                         console.error(`[Email AI Drafts] DB insert error for UID ${candidate.uid}:`, insertError);
+                        processedDetails.push({ uid: candidate.uid, from: fullEmail.from.address, subject: fullEmail.subject, result: 'error', reasoning: `Błąd zapisu: ${insertError.message}` });
                     } else {
                         draftsCreated++;
                         newDraftSubjects.push(fullEmail.subject);
                         console.log(`[Email AI Drafts] Created draft for: "${fullEmail.subject}" from ${fullEmail.from.address}`);
+                        processedDetails.push({ uid: candidate.uid, from: fullEmail.from.address, subject: fullEmail.subject, result: 'drafted', reasoning: parsed.reasoning });
                     }
                 } else {
                     // Record as skipped so we don't re-analyze next time
@@ -444,9 +453,11 @@ ${emailContent.substring(0, 3000)}`
                         emailsSkipped++;
                     }
                     console.log(`[Email AI Drafts] Skipped (not important): "${fullEmail.subject}" — ${parsed.reasoning}`);
+                    processedDetails.push({ uid: candidate.uid, from: fullEmail.from.address, subject: fullEmail.subject, result: 'skipped', reasoning: parsed.reasoning });
                 }
-            } catch (err) {
+            } catch (err: any) {
                 console.error(`[Email AI Drafts] Error processing UID ${candidate.uid}:`, err);
+                processedDetails.push({ uid: candidate.uid, from: candidate.from.address, subject: candidate.subject, result: 'error', reasoning: err.message || 'Unknown error' });
             }
         }
 
@@ -479,6 +490,7 @@ ${emailContent.substring(0, 3000)}`
             emailsSkipped,
             candidatesProcessed: candidatesToProcess.length,
             candidatesDeferred: skippedForNextRun,
+            processedDetails,
             elapsed: `${elapsed}ms`,
         });
     } catch (err: any) {

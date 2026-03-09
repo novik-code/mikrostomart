@@ -3113,7 +3113,18 @@ export default function EmailTab() {
                                         if (!res.ok) {
                                             throw new Error(data.error || `HTTP ${res.status}`);
                                         }
-                                        setCronRunResult(`✅ ${data.message || 'Gotowe'} — Wygenerowano: ${data.draftsCreated ?? 0}`);
+                                        // Build rich result with per-candidate details
+                                        let resultMsg = `✅ ${data.message || 'Gotowe'} (${data.elapsed || ''})`;
+                                        if (data.processedDetails && data.processedDetails.length > 0) {
+                                            resultMsg += '\n' + data.processedDetails.map((d: any) => {
+                                                const icon = d.result === 'drafted' ? '📝' : d.result === 'skipped' ? '⏭️' : '❌';
+                                                return `${icon} ${d.from} — ${d.subject}\n   → ${d.reasoning || ''}`;
+                                            }).join('\n');
+                                        }
+                                        if (data.candidatesDeferred > 0) {
+                                            resultMsg += `\n⏳ ${data.candidatesDeferred} emaili odłożone na następne uruchomienie`;
+                                        }
+                                        setCronRunResult(resultMsg);
                                         // Refresh drafts list
                                         try {
                                             const dr = await fetch('/api/employee/email-drafts?status=all');
@@ -3151,9 +3162,13 @@ export default function EmailTab() {
                             <div style={{
                                 padding: '0.5rem 1.25rem',
                                 borderBottom: '1px solid rgba(255,255,255,0.06)',
-                                fontSize: '0.78rem',
+                                fontSize: '0.75rem',
                                 color: cronRunResult.startsWith('✅') ? '#4ade80' : '#ef4444',
                                 background: cronRunResult.startsWith('✅') ? 'rgba(74,222,128,0.06)' : 'rgba(239,68,68,0.06)',
+                                whiteSpace: 'pre-wrap',
+                                lineHeight: 1.5,
+                                maxHeight: 200,
+                                overflow: 'auto',
                             }}>
                                 {cronRunResult}
                             </div>
