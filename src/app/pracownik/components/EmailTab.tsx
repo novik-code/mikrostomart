@@ -3078,7 +3078,16 @@ export default function EmailTab() {
                                     setCronDebugResult(null);
                                     try {
                                         const res = await fetch('/api/cron/email-ai-drafts?manual=true');
-                                        const data = await res.json();
+                                        const text = await res.text();
+                                        let data: any;
+                                        try {
+                                            data = JSON.parse(text);
+                                        } catch {
+                                            throw new Error(res.ok ? 'Serwer zwrócił nieprawidłową odpowiedź' : `HTTP ${res.status}: ${text.substring(0, 200)}`);
+                                        }
+                                        if (!res.ok) {
+                                            throw new Error(data.error || `HTTP ${res.status}`);
+                                        }
                                         setCronRunResult(`✅ ${data.message || 'Gotowe'} — Wygenerowano: ${data.draftsCreated ?? 0}`);
                                         // Refresh drafts list
                                         try {
