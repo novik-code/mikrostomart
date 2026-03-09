@@ -205,6 +205,11 @@ export async function GET(req: NextRequest) {
                     includeMatch = match ? `✅ matches "${match.email_pattern}"` : '❌ no match';
                 }
                 const excludeMatch = excludeRules.find((r: any) => matchesSenderPattern(addr, r.email_pattern));
+                // Check include rules
+                let passesInclude = true;
+                if (includeRules.length > 0) {
+                    passesInclude = includeRules.some((r: any) => matchesSenderPattern(addr, r.email_pattern));
+                }
                 return {
                     uid: email.uid,
                     from: email.from.address,
@@ -214,7 +219,7 @@ export async function GET(req: NextRequest) {
                     isProcessed,
                     includeRuleResult: includeMatch,
                     excludeRuleResult: excludeMatch ? `❌ excluded by "${excludeMatch.email_pattern}"` : '✅ not excluded',
-                    wouldProcess: label === 'pozostale' && !isProcessed,
+                    wouldProcess: label === 'pozostale' && !isProcessed && !excludeMatch && passesInclude,
                 };
             });
 
