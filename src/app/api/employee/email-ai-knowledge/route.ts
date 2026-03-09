@@ -101,7 +101,9 @@ export async function POST(req: NextRequest) {
         if (isPdf) {
             const buffer = Buffer.from(await file.arrayBuffer());
             try {
-                const pdfParse = (await import('pdf-parse')).default;
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const pdfModule = await import('pdf-parse') as any;
+                const pdfParse = pdfModule.default ?? pdfModule;
                 const pdfData = await pdfParse(buffer);
                 contentText = pdfData.text || '';
             } catch (pdfErr: any) {
