@@ -151,6 +151,22 @@ export async function GET(req: NextRequest) {
             if (kbRow?.value) effectiveKnowledgeBase = kbRow.value;
         } catch { /* fallback to static */ }
 
+        // Load uploaded knowledge files (PDFs, TXTs)
+        let knowledgeFilesContext = '';
+        try {
+            const { data: kFiles } = await supabase
+                .from('email_ai_knowledge_files')
+                .select('filename, content_text, description')
+                .order('created_at', { ascending: false })
+                .limit(10);
+            if (kFiles && kFiles.length > 0) {
+                knowledgeFilesContext = '\n\n## DODATKOWE MATERIAŁY WIEDZY (WGRANE PLIKI)\n' +
+                    kFiles.map((f: any) =>
+                        `### Plik: ${f.filename}${f.description ? ` — ${f.description}` : ''}\n${f.content_text.substring(0, 5000)}`
+                    ).join('\n\n');
+            }
+        } catch { /* table may not exist yet */ }
+
         // Helper: check if email matches a sender rule pattern
         function matchesSenderPattern(emailAddr: string, pattern: string): boolean {
             const addr = emailAddr.toLowerCase();
@@ -295,6 +311,45 @@ export async function GET(req: NextRequest) {
             }).join('\n')}`
             : '';
 
+        // Fetch available appointment slots from Prodentis (for next 7 days)
+        let appointmentSlotsContext = '';
+        try {
+            const PRODENTIS_API_URL = process.env.PRODENTIS_API_URL || 'http://83.230.40.14:3000';
+            const slotsByDay: string[] = [];
+            for (let dayOffset = 1; dayOffset <= 7; dayOffset++) {
+                const d = new Date();
+                d.setDate(d.getDate() + dayOffset);
+                const dateStr = d.toISOString().split('T')[0];
+                try {
+                    const slotsRes = await fetch(`${PRODENTIS_API_URL}/api/slots/free?date=${dateStr}&duration=30`, {
+                        signal: AbortSignal.timeout(3000),
+                    });
+                    if (slotsRes.ok) {
+                        const slotsData = await slotsRes.json();
+                        if (slotsData.slots && slotsData.slots.length > 0) {
+                            const dayName = d.toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long' });
+                            const doctorSlots = slotsData.slots.reduce((acc: Record<string, string[]>, slot: any) => {
+                                const doc = slot.doctorName || 'Nieprzypisany';
+                                if (!acc[doc]) acc[doc] = [];
+                                acc[doc].push(slot.time || slot.startTime);
+                                return acc;
+                            }, {} as Record<string, string[]>);
+                            const summary = Object.entries(doctorSlots).map(([doc, times]) =>
+                                `  - ${doc}: ${(times as string[]).slice(0, 5).join(', ')}${(times as string[]).length > 5 ? ` (+${(times as string[]).length - 5} więcej)` : ''}`
+                            ).join('\n');
+                            slotsByDay.push(`${dayName}:\n${summary}`);
+                        }
+                    }
+                } catch { /* individual day fetch failed — skip */ }
+            }
+            if (slotsByDay.length > 0) {
+                appointmentSlotsContext = '\n\n## WOLNE TERMINY WIZYT (NAJBLI\u017bSZE 7 DNI)\nPoni\u017cej aktualne wolne terminy. Podawaj je pacjentom gdy pytaj\u0105 o um\u00f3wienie wizyty:\n\n' +
+                    slotsByDay.join('\n');
+            }
+        } catch (slotsErr) {
+            console.log('[Email AI Drafts] Could not fetch Prodentis slots:', slotsErr);
+        }
+
         // 5. Process each candidate with GPT-4o-mini
         let draftsCreated = 0;
         let emailsSkipped = 0;
@@ -344,14 +399,15 @@ TWOJE ZADANIE:
 
 2. Jeśli wiadomość jest WAŻNA — przygotuj DRAFT odpowiedzi po polsku w imieniu recepcji kliniki Mikrostomart. Odpowiedź powinna być:
    - Profesjonalna ale ciepła
-   - Zawierać konkretne informacje z bazy wiedzy kliniki (cennik, godziny, kontakt)
-   - Zakończona zachętą do kontaktu telefonicznego lub wizyty
+   - Zawierać KONKRETNE ceny z cennika kliniki gdy pacjent pyta o koszty (dodaj "ceny orientacyjne, ostateczna wycena po konsultacji")
+   - Gdy pacjent pyta o termin wizyty — sprawdź WOLNE TERMINY poniżej i zaproponuj konkretne daty
+   - Zakończona zachętą do kontaktu telefonicznego (+48 570 270 470) lub rezerwacji online (/rezerwacja)
    - W formacie HTML (proste <p>, <br>, <strong> — bez stylów inline)
 
 3. Jeśli wiadomość jest NIEWAŻNA — odpowiedz "SKIP".
 
 BAZA WIEDZY KLINIKI:
-${effectiveKnowledgeBase}
+${effectiveKnowledgeBase}${knowledgeFilesContext}${appointmentSlotsContext}
 ${styleContext}${instructionsContext}${feedbackContext}
 
 ODPOWIEDZ W FORMACIE JSON:

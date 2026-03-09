@@ -355,7 +355,9 @@ export default function EmailTab() {
 
     // AI Settings / Training
     const [showAiSettings, setShowAiSettings] = useState(false);
-    const [aiSettingsTab, setAiSettingsTab] = useState<'rules' | 'instructions' | 'learning' | 'guide' | 'knowledgebase'>('guide');
+    const [aiSettingsTab, setAiSettingsTab] = useState<'rules' | 'instructions' | 'learning' | 'guide' | 'knowledgebase' | 'files'>('guide');
+    const [knowledgeFiles, setKnowledgeFiles] = useState<any[]>([]);
+    const [knowledgeFileUploading, setKnowledgeFileUploading] = useState(false);
     const [senderRules, setSenderRules] = useState<SenderRule[]>([]);
     const [aiInstructions, setAiInstructions] = useState<AiInstruction[]>([]);
     const [aiFeedback, setAiFeedback] = useState<AiFeedback[]>([]);
@@ -612,6 +614,14 @@ export default function EmailTab() {
         } catch { /* ignore */ } finally {
             setAiConfigLoading(false);
         }
+        // Also fetch knowledge files
+        try {
+            const kfRes = await fetch('/api/employee/email-ai-knowledge');
+            if (kfRes.ok) {
+                const kfData = await kfRes.json();
+                setKnowledgeFiles(kfData.files || []);
+            }
+        } catch { /* ignore */ }
     }, []);
 
     const addSenderRule = async () => {
@@ -3324,7 +3334,7 @@ export default function EmailTab() {
 
                         {/* Tabs */}
                         <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.06)', overflowX: 'auto' as const }}>
-                            {([['guide', '📖 Poradnik'], ['knowledgebase', '📚 Baza wiedzy'], ['rules', '📋 Reguły'], ['instructions', '📝 Instrukcje'], ['learning', '🧠 Nauka']] as const).map(([tab, label]) => (
+                            {([['guide', '📖 Poradnik'], ['knowledgebase', '📚 Baza wiedzy'], ['files', '📄 Pliki'], ['rules', '📋 Reguły'], ['instructions', '📝 Instrukcje'], ['learning', '🧠 Nauka']] as const).map(([tab, label]) => (
                                 <button
                                     key={tab}
                                     onClick={() => setAiSettingsTab(tab)}
@@ -3598,6 +3608,134 @@ export default function EmailTab() {
                                                             <p style={{ margin: '0.3rem 0 0', fontSize: '0.72rem', color: 'rgba(255,255,255,0.35)', fontStyle: 'italic' }}>Uwaga: {fb.feedback_note}</p>
                                                         )}
                                                     </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            ) : aiSettingsTab === 'files' ? (
+                                /* ─── FILES TAB ─── */
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                    <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)', margin: 0 }}>
+                                        Wgraj pliki PDF, TXT lub MD — AI będzie korzystać z ich treści przy generowaniu odpowiedzi.
+                                        Max 10 plików, max 5 MB każdy.
+                                    </p>
+
+                                    {/* Upload form */}
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', padding: '0.6rem', background: 'rgba(168,85,247,0.04)', border: '1px solid rgba(168,85,247,0.15)', borderRadius: '0.5rem' }}>
+                                        <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                                            <input
+                                                type="file"
+                                                accept=".pdf,.txt,.md"
+                                                id="ai-knowledge-file-input"
+                                                style={{ display: 'none' }}
+                                                onChange={async (e) => {
+                                                    const file = e.target.files?.[0];
+                                                    if (!file) return;
+                                                    setKnowledgeFileUploading(true);
+                                                    try {
+                                                        const desc = (document.getElementById('ai-knowledge-file-desc') as HTMLInputElement)?.value || '';
+                                                        const fd = new FormData();
+                                                        fd.append('file', file);
+                                                        fd.append('description', desc);
+                                                        const res = await fetch('/api/employee/email-ai-knowledge', { method: 'POST', body: fd });
+                                                        const data = await res.json();
+                                                        if (data.success) {
+                                                            setDraftToast(`✅ Plik "${file.name}" wgrany (${data.textLength} znaków tekstu)`);
+                                                            // Refresh list
+                                                            const lr = await fetch('/api/employee/email-ai-knowledge');
+                                                            const ld = await lr.json();
+                                                            setKnowledgeFiles(ld.files || []);
+                                                            (document.getElementById('ai-knowledge-file-desc') as HTMLInputElement).value = '';
+                                                        } else {
+                                                            setDraftToast(`❌ ${data.error}`);
+                                                        }
+                                                    } catch (err: any) {
+                                                        setDraftToast(`❌ ${err.message}`);
+                                                    } finally {
+                                                        setKnowledgeFileUploading(false);
+                                                        e.target.value = '';
+                                                    }
+                                                }}
+                                            />
+                                            <button
+                                                disabled={knowledgeFileUploading}
+                                                onClick={() => document.getElementById('ai-knowledge-file-input')?.click()}
+                                                style={{
+                                                    padding: '0.35rem 0.7rem',
+                                                    background: 'rgba(168,85,247,0.15)',
+                                                    border: '1px solid rgba(168,85,247,0.3)',
+                                                    borderRadius: '0.4rem',
+                                                    color: '#a855f7',
+                                                    cursor: knowledgeFileUploading ? 'not-allowed' : 'pointer',
+                                                    fontSize: '0.75rem',
+                                                    fontWeight: 600,
+                                                }}
+                                            >
+                                                {knowledgeFileUploading ? '⏳ Wgrywam...' : '📎 Wybierz plik'}
+                                            </button>
+                                            <input
+                                                id="ai-knowledge-file-desc"
+                                                type="text"
+                                                placeholder="Opis pliku (opcjonalnie)"
+                                                style={{
+                                                    flex: 1,
+                                                    padding: '0.35rem 0.6rem',
+                                                    background: 'rgba(255,255,255,0.04)',
+                                                    border: '1px solid rgba(255,255,255,0.1)',
+                                                    borderRadius: '0.4rem',
+                                                    color: 'rgba(255,255,255,0.8)',
+                                                    fontSize: '0.75rem',
+                                                }}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* File list */}
+                                    {knowledgeFiles.length === 0 ? (
+                                        <div style={{ textAlign: 'center', padding: '2rem' }}>
+                                            <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.8rem' }}>Brak wgranych plików</p>
+                                            <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: '0.72rem' }}>Wgraj PDF, TXT lub MD żeby rozbudować bazę wiedzy AI.</p>
+                                        </div>
+                                    ) : (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                                            {knowledgeFiles.map((f: any) => (
+                                                <div key={f.id} style={{
+                                                    display: 'flex',
+                                                    justifyContent: 'space-between',
+                                                    alignItems: 'center',
+                                                    padding: '0.5rem 0.75rem',
+                                                    border: '1px solid rgba(168,85,247,0.15)',
+                                                    borderRadius: '0.4rem',
+                                                    background: 'rgba(168,85,247,0.03)',
+                                                }}>
+                                                    <div style={{ minWidth: 0 }}>
+                                                        <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.8)', fontWeight: 500 }}>
+                                                            📄 {f.filename}
+                                                        </div>
+                                                        <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.3)', marginTop: '0.15rem' }}>
+                                                            {f.description && <span>{f.description} · </span>}
+                                                            {(f.file_size / 1024).toFixed(0)} KB · {new Date(f.created_at).toLocaleDateString('pl-PL')}
+                                                        </div>
+                                                    </div>
+                                                    <button
+                                                        onClick={async () => {
+                                                            if (!confirm(`Usunąć plik "${f.filename}"?`)) return;
+                                                            await fetch(`/api/employee/email-ai-knowledge?id=${f.id}`, { method: 'DELETE' });
+                                                            setKnowledgeFiles(prev => prev.filter(x => x.id !== f.id));
+                                                            setDraftToast('🗑️ Plik usunięty');
+                                                        }}
+                                                        style={{
+                                                            padding: '0.2rem 0.4rem',
+                                                            background: 'rgba(239,68,68,0.1)',
+                                                            border: '1px solid rgba(239,68,68,0.2)',
+                                                            borderRadius: '0.3rem',
+                                                            color: '#ef4444',
+                                                            cursor: 'pointer',
+                                                            fontSize: '0.65rem',
+                                                            flexShrink: 0,
+                                                        }}
+                                                    >🗑️</button>
                                                 </div>
                                             ))}
                                         </div>
