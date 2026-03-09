@@ -201,7 +201,7 @@ ${(emailBody || '').substring(0, 4000)}`
                     }
 
                     return messages;
-                }),
+                })(),
             }),
         });
 
