@@ -370,6 +370,11 @@ export default function EmailTab() {
     const [knowledgeBase, setKnowledgeBase] = useState('');
     const [knowledgeBaseEditing, setKnowledgeBaseEditing] = useState(false);
     const [knowledgeBaseSaving, setKnowledgeBaseSaving] = useState(false);
+    // Cron debug & manual trigger
+    const [cronDebugLoading, setCronDebugLoading] = useState(false);
+    const [cronDebugResult, setCronDebugResult] = useState<any>(null);
+    const [cronRunLoading, setCronRunLoading] = useState(false);
+    const [cronRunResult, setCronRunResult] = useState<string | null>(null);
 
     // Mobile
     const [showSidebar, setShowSidebar] = useState(false);
@@ -2631,6 +2636,164 @@ export default function EmailTab() {
                                 <span>❌ Odrzucone: <strong style={{ color: '#ef4444' }}>{aiStats.rejected}</strong></span>
                                 <span>🧠 Nauczone: <strong style={{ color: '#f59e0b' }}>{aiStats.learned}</strong></span>
                                 {aiStats.avgRating && <span>⭐ Średnia: <strong style={{ color: '#fbbf24' }}>{aiStats.avgRating}/5</strong></span>}
+                            </div>
+                        )}
+
+                        {/* Action buttons */}
+                        <div style={{
+                            padding: '0.6rem 1.25rem',
+                            borderBottom: '1px solid rgba(255,255,255,0.06)',
+                            display: 'flex',
+                            gap: '0.5rem',
+                            flexWrap: 'wrap',
+                            alignItems: 'center',
+                        }}>
+                            <button
+                                disabled={cronDebugLoading}
+                                onClick={async () => {
+                                    setCronDebugLoading(true);
+                                    setCronDebugResult(null);
+                                    setCronRunResult(null);
+                                    try {
+                                        const res = await fetch('/api/cron/email-ai-drafts?manual=true&debug=true');
+                                        const data = await res.json();
+                                        setCronDebugResult(data);
+                                    } catch (err: any) {
+                                        setCronDebugResult({ error: err.message });
+                                    } finally {
+                                        setCronDebugLoading(false);
+                                    }
+                                }}
+                                style={{
+                                    display: 'flex', alignItems: 'center', gap: '0.3rem',
+                                    padding: '0.4rem 0.75rem',
+                                    background: 'rgba(59,130,246,0.12)',
+                                    border: '1px solid rgba(59,130,246,0.3)',
+                                    borderRadius: '0.4rem',
+                                    color: '#3b82f6',
+                                    cursor: cronDebugLoading ? 'not-allowed' : 'pointer',
+                                    fontSize: '0.78rem', fontWeight: 600,
+                                    transition: 'all 0.15s',
+                                }}
+                            >
+                                {cronDebugLoading ? '⏳' : '🔍'}
+                                {cronDebugLoading ? 'Analizuję...' : 'Debug AI'}
+                            </button>
+                            <button
+                                disabled={cronRunLoading}
+                                onClick={async () => {
+                                    setCronRunLoading(true);
+                                    setCronRunResult(null);
+                                    setCronDebugResult(null);
+                                    try {
+                                        const res = await fetch('/api/cron/email-ai-drafts?manual=true');
+                                        const data = await res.json();
+                                        setCronRunResult(`✅ ${data.message || 'Gotowe'} — Wygenerowano: ${data.draftsCreated ?? 0}`);
+                                        // Refresh drafts list
+                                        try {
+                                            const dr = await fetch('/api/employee/email-drafts?status=all');
+                                            const dd = await dr.json();
+                                            setAiDrafts(dd.drafts || []);
+                                        } catch { }
+                                    } catch (err: any) {
+                                        setCronRunResult(`❌ ${err.message}`);
+                                    } finally {
+                                        setCronRunLoading(false);
+                                    }
+                                }}
+                                style={{
+                                    display: 'flex', alignItems: 'center', gap: '0.3rem',
+                                    padding: '0.4rem 0.75rem',
+                                    background: 'rgba(74,222,128,0.12)',
+                                    border: '1px solid rgba(74,222,128,0.3)',
+                                    borderRadius: '0.4rem',
+                                    color: '#4ade80',
+                                    cursor: cronRunLoading ? 'not-allowed' : 'pointer',
+                                    fontSize: '0.78rem', fontWeight: 600,
+                                    transition: 'all 0.15s',
+                                }}
+                            >
+                                {cronRunLoading ? '⏳' : '🚀'}
+                                {cronRunLoading ? 'Generuję...' : 'Generuj drafty teraz'}
+                            </button>
+                            <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.3)' }}>
+                                Debug = pokaż klasyfikację maili | Generuj = wygeneruj drafty odpowiedzi
+                            </span>
+                        </div>
+
+                        {/* Cron run result */}
+                        {cronRunResult && (
+                            <div style={{
+                                padding: '0.5rem 1.25rem',
+                                borderBottom: '1px solid rgba(255,255,255,0.06)',
+                                fontSize: '0.78rem',
+                                color: cronRunResult.startsWith('✅') ? '#4ade80' : '#ef4444',
+                                background: cronRunResult.startsWith('✅') ? 'rgba(74,222,128,0.06)' : 'rgba(239,68,68,0.06)',
+                            }}>
+                                {cronRunResult}
+                            </div>
+                        )}
+
+                        {/* Debug results panel */}
+                        {cronDebugResult && (
+                            <div style={{
+                                padding: '0.75rem 1.25rem',
+                                borderBottom: '1px solid rgba(255,255,255,0.06)',
+                                background: 'rgba(59,130,246,0.04)',
+                                maxHeight: 300,
+                                overflow: 'auto',
+                            }}>
+                                {cronDebugResult.error ? (
+                                    <div style={{ color: '#ef4444', fontSize: '0.78rem' }}>❌ {cronDebugResult.error}</div>
+                                ) : (
+                                    <>
+                                        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.5rem' }}>
+                                            <span>📬 Emaili w skrzynce: <strong style={{ color: '#fff' }}>{cronDebugResult.totalInboxEmails}</strong></span>
+                                            <span>✅ Już przetworzonych: <strong style={{ color: '#fff' }}>{cronDebugResult.processedUidsCount}</strong></span>
+                                            <span>🎯 Kandydatów: <strong style={{ color: '#4ade80' }}>{cronDebugResult.candidatesCount}</strong></span>
+                                            <span>📏 Reguły: include={cronDebugResult.senderRules?.include}, exclude={cronDebugResult.senderRules?.exclude}</span>
+                                        </div>
+                                        <div style={{ fontSize: '0.7rem', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '0.3rem' }}>Klasyfikacja emaili (ostatnie 20):</div>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                            {(cronDebugResult.emailClassification || []).map((e: any, idx: number) => (
+                                                <div key={idx} style={{
+                                                    padding: '0.35rem 0.6rem',
+                                                    borderRadius: '0.3rem',
+                                                    fontSize: '0.72rem',
+                                                    background: e.wouldProcess ? 'rgba(74,222,128,0.08)' : 'rgba(255,255,255,0.03)',
+                                                    border: `1px solid ${e.wouldProcess ? 'rgba(74,222,128,0.15)' : 'rgba(255,255,255,0.05)'}`,
+                                                    color: e.wouldProcess ? '#4ade80' : 'rgba(255,255,255,0.4)',
+                                                }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.3rem' }}>
+                                                        <span><strong>{e.from}</strong> — {e.subject}</span>
+                                                        <span style={{ whiteSpace: 'nowrap' }}>
+                                                            {e.wouldProcess ? '✅ Do przetworzenia' : '⏭️ Pominięty'}
+                                                        </span>
+                                                    </div>
+                                                    <div style={{ marginTop: '0.15rem', fontSize: '0.65rem', opacity: 0.7 }}>
+                                                        Label: <strong>{e.label}</strong>
+                                                        {' | '}{e.isProcessed ? '🔄 Już przetworzony' : '🆕 Nowy'}
+                                                        {' | '}{e.includeRuleResult}
+                                                        {' | '}{e.excludeRuleResult}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </>
+                                )}
+                                <button
+                                    onClick={() => setCronDebugResult(null)}
+                                    style={{
+                                        marginTop: '0.5rem',
+                                        padding: '0.25rem 0.5rem',
+                                        background: 'rgba(255,255,255,0.06)',
+                                        border: '1px solid rgba(255,255,255,0.1)',
+                                        borderRadius: '0.3rem',
+                                        color: 'rgba(255,255,255,0.4)',
+                                        cursor: 'pointer',
+                                        fontSize: '0.7rem',
+                                    }}
+                                >Zamknij</button>
                             </div>
                         )}
 
