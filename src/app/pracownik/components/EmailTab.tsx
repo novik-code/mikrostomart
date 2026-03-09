@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Mail, Send, Inbox, Star, Trash2, Search, RefreshCw, ChevronLeft, Paperclip, X, ArrowLeft, Reply, Forward, FileText, Tag, Bell, Globe, MessageCircle, Archive, Sparkles, Zap, Settings, BookOpen, GraduationCap, Plus, ToggleLeft, ToggleRight, Brain, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { Mail, MailOpen, Send, Inbox, Star, Trash2, Search, RefreshCw, ChevronLeft, Paperclip, X, ArrowLeft, Reply, Forward, FileText, Tag, Bell, Globe, MessageCircle, Archive, Sparkles, Zap, Settings, BookOpen, GraduationCap, Plus, ToggleLeft, ToggleRight, Brain, ThumbsUp, ThumbsDown, Save, FolderOpen, ChevronDown } from 'lucide-react';
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -375,6 +375,17 @@ export default function EmailTab() {
     const [cronDebugResult, setCronDebugResult] = useState<any>(null);
     const [cronRunLoading, setCronRunLoading] = useState(false);
     const [cronRunResult, setCronRunResult] = useState<string | null>(null);
+
+    // Compose drafts (Robocze)
+    const [composeDrafts, setComposeDrafts] = useState<any[]>([]);
+    const [composeDraftId, setComposeDraftId] = useState<string | null>(null);
+    const [showComposeDraftsList, setShowComposeDraftsList] = useState(false);
+    const composeDraftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const composeDraftSavingRef = useRef(false);
+
+    // Label overrides
+    const [labelOverrides, setLabelOverrides] = useState<Record<number, EmailLabel>>({});
+    const [labelPickerUid, setLabelPickerUid] = useState<number | null>(null);
 
     // Mobile
     const [showSidebar, setShowSidebar] = useState(false);
@@ -824,6 +835,10 @@ export default function EmailTab() {
             const data = await res.json();
             if (data.success) {
                 setSendResult({ success: true });
+                // Delete compose draft if it exists
+                if (composeDraftId) {
+                    deleteComposeDraft(composeDraftId);
+                }
                 setTimeout(() => {
                     setShowCompose(false);
                     resetCompose();
@@ -851,7 +866,140 @@ export default function EmailTab() {
         setComposeAiFeedbackRating(0);
         setComposeAiFeedbackTags([]);
         setComposeAiFeedbackResult(null);
+        setComposeDraftId(null);
     };
+
+    // ─── Compose Drafts (Robocze) ────────────────────────────
+
+    const fetchComposeDrafts = useCallback(async () => {
+        try {
+            const res = await fetch('/api/employee/email-compose-drafts');
+            if (res.ok) {
+                const data = await res.json();
+                setComposeDrafts(data.drafts || []);
+            }
+        } catch { /* silent */ }
+    }, []);
+
+    const saveComposeDraft = useCallback(async () => {
+        if (composeDraftSavingRef.current) return;
+        // Only save if there's meaningful content
+        if (!composeTo && !composeSubject && !composeBody) return;
+        composeDraftSavingRef.current = true;
+        try {
+            const res = await fetch('/api/employee/email-compose-drafts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: composeDraftId || undefined,
+                    to_address: composeTo,
+                    cc_address: composeCc,
+                    subject: composeSubject,
+                    body: composeBody,
+                    in_reply_to: composeInReplyTo,
+                    references: composeReferences,
+                }),
+            });
+            if (res.ok) {
+                const data = await res.json();
+                if (data.draft?.id) setComposeDraftId(data.draft.id);
+                fetchComposeDrafts();
+            }
+        } catch { /* silent */ }
+        composeDraftSavingRef.current = false;
+    }, [composeTo, composeCc, composeSubject, composeBody, composeInReplyTo, composeReferences, composeDraftId, fetchComposeDrafts]);
+
+    const deleteComposeDraft = useCallback(async (id: string) => {
+        try {
+            await fetch(`/api/employee/email-compose-drafts?id=${id}`, { method: 'DELETE' });
+            setComposeDrafts(prev => prev.filter(d => d.id !== id));
+        } catch { /* silent */ }
+    }, []);
+
+    const loadComposeDraft = (draft: any) => {
+        setComposeDraftId(draft.id);
+        setComposeTo(draft.to_address || '');
+        setComposeCc(draft.cc_address || '');
+        setComposeSubject(draft.subject || '');
+        setComposeBody(draft.body || '');
+        setComposeInReplyTo(draft.in_reply_to || '');
+        setComposeReferences(draft.references || []);
+        setSendResult(null);
+        setShowCompose(true);
+        setShowComposeDraftsList(false);
+    };
+
+    // Auto-save compose draft every 5 seconds
+    useEffect(() => {
+        if (!showCompose) return;
+        if (composeDraftTimerRef.current) clearTimeout(composeDraftTimerRef.current);
+        composeDraftTimerRef.current = setTimeout(() => {
+            saveComposeDraft();
+        }, 5000);
+        return () => {
+            if (composeDraftTimerRef.current) clearTimeout(composeDraftTimerRef.current);
+        };
+    }, [showCompose, composeTo, composeCc, composeSubject, composeBody, saveComposeDraft]);
+
+    // Fetch compose drafts on mount
+    useEffect(() => { fetchComposeDrafts(); }, [fetchComposeDrafts]);
+
+    // ─── Label Overrides ─────────────────────────────────────
+
+    const fetchLabelOverrides = useCallback(async () => {
+        try {
+            const res = await fetch('/api/employee/email-label-overrides');
+            if (res.ok) {
+                const data = await res.json();
+                const map: Record<number, EmailLabel> = {};
+                for (const o of (data.overrides || [])) {
+                    map[o.email_uid] = o.label as EmailLabel;
+                }
+                setLabelOverrides(map);
+            }
+        } catch { /* silent */ }
+    }, []);
+
+    const setEmailLabel = useCallback(async (uid: number, label: EmailLabel) => {
+        // Optimistic update
+        setLabelOverrides(prev => ({ ...prev, [uid]: label }));
+        setLabelPickerUid(null);
+        try {
+            await fetch('/api/employee/email-label-overrides', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email_uid: uid, email_folder: currentFolder, label }),
+            });
+        } catch {
+            // Revert on error
+            setLabelOverrides(prev => {
+                const copy = { ...prev };
+                delete copy[uid];
+                return copy;
+            });
+        }
+    }, [currentFolder]);
+
+    const removeEmailLabelOverride = useCallback(async (uid: number) => {
+        setLabelOverrides(prev => {
+            const copy = { ...prev };
+            delete copy[uid];
+            return copy;
+        });
+        setLabelPickerUid(null);
+        try {
+            await fetch(`/api/employee/email-label-overrides?uid=${uid}&folder=${currentFolder}`, { method: 'DELETE' });
+        } catch { /* silent */ }
+    }, [currentFolder]);
+
+    // Fetch label overrides on mount
+    useEffect(() => { fetchLabelOverrides(); }, [fetchLabelOverrides]);
+
+    // Helper: get effective label for an email
+    const getEmailLabel = useCallback((email: { uid: number; from: { address: string; name: string }; subject: string }): EmailLabel => {
+        if (labelOverrides[email.uid]) return labelOverrides[email.uid];
+        return classifyEmail(email);
+    }, [labelOverrides]);
 
     // ─── AI Generate Reply ──────────────────────────────────
 
@@ -975,11 +1123,11 @@ export default function EmailTab() {
         relevantFolders.push({ path: 'INBOX', name: 'INBOX', totalMessages: 0, unseenMessages: unreadCount });
     }
 
-    // ─── Label filtering (client-side) ───────────────────────
+    // ─── Label filtering (client-side, with overrides) ───────
 
     const filteredEmails = activeLabel === 'all'
         ? emails
-        : emails.filter(e => classifyEmail(e) === activeLabel);
+        : emails.filter(e => getEmailLabel(e) === activeLabel);
 
     // Count per label
     const labelCounts: Record<EmailLabel, number> = {
@@ -991,7 +1139,7 @@ export default function EmailTab() {
         pozostale: 0,
     };
     for (const e of emails) {
-        const lbl = classifyEmail(e);
+        const lbl = getEmailLabel(e);
         labelCounts[lbl]++;
     }
 
@@ -1088,6 +1236,93 @@ export default function EmailTab() {
                         </button>
                     );
                 })}
+
+                {/* Robocze (Compose Drafts) */}
+                <button
+                    onClick={() => setShowComposeDraftsList(!showComposeDraftsList)}
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        padding: '0.5rem 0.75rem',
+                        background: showComposeDraftsList ? 'rgba(168,85,247,0.12)' : 'transparent',
+                        border: 'none',
+                        borderRadius: '0.5rem',
+                        color: showComposeDraftsList ? '#a855f7' : 'rgba(255,255,255,0.6)',
+                        fontSize: '0.82rem',
+                        fontWeight: showComposeDraftsList ? 600 : 400,
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        transition: 'all 0.15s',
+                        marginTop: '0.25rem',
+                    }}
+                >
+                    <FileText size={16} />
+                    <span style={{ flex: 1 }}>Robocze</span>
+                    {composeDrafts.length > 0 && (
+                        <span style={{
+                            background: '#a855f7',
+                            color: '#fff',
+                            padding: '0.1rem 0.4rem',
+                            borderRadius: '1rem',
+                            fontSize: '0.7rem',
+                            fontWeight: 700,
+                            minWidth: 18,
+                            textAlign: 'center',
+                        }}>{composeDrafts.length}</span>
+                    )}
+                </button>
+
+                {/* Compose Drafts List */}
+                {showComposeDraftsList && (
+                    <div style={{
+                        padding: '0.25rem 0',
+                        borderTop: '1px solid rgba(255,255,255,0.06)',
+                        marginTop: '0.25rem',
+                    }}>
+                        {composeDrafts.length === 0 ? (
+                            <div style={{ padding: '0.5rem 0.75rem', fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)' }}>
+                                Brak szkiców
+                            </div>
+                        ) : composeDrafts.map(draft => (
+                            <div
+                                key={draft.id}
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.4rem',
+                                    padding: '0.35rem 0.75rem',
+                                    cursor: 'pointer',
+                                    fontSize: '0.75rem',
+                                    color: 'rgba(255,255,255,0.5)',
+                                    borderRadius: '0.3rem',
+                                    transition: 'background 0.15s',
+                                }}
+                                onClick={() => loadComposeDraft(draft)}
+                                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                            >
+                                <FileText size={12} style={{ flexShrink: 0, color: '#a855f7' }} />
+                                <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {draft.subject || draft.to_address || '(bez tematu)'}
+                                </span>
+                                <button
+                                    onClick={e => { e.stopPropagation(); deleteComposeDraft(draft.id); }}
+                                    style={{
+                                        background: 'none', border: 'none', cursor: 'pointer',
+                                        padding: '0.1rem', color: 'rgba(255,255,255,0.2)',
+                                        flexShrink: 0,
+                                    }}
+                                    onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
+                                    onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.2)'}
+                                    title="Usuń szkic"
+                                >
+                                    <Trash2 size={11} />
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                )}
 
                 {isMobileView && (
                     <button
@@ -1506,6 +1741,123 @@ export default function EmailTab() {
                                 >
                                     <Trash2 size={14} /> Usuń
                                 </button>
+                                <button
+                                    onClick={() => toggleRead(selectedEmail.uid, selectedEmail.isRead)}
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.4rem',
+                                        padding: '0.5rem 1rem',
+                                        background: 'rgba(255,255,255,0.05)',
+                                        border: '1px solid rgba(255,255,255,0.1)',
+                                        borderRadius: '0.5rem',
+                                        color: 'rgba(255,255,255,0.6)',
+                                        cursor: 'pointer',
+                                        fontSize: '0.82rem',
+                                    }}
+                                >
+                                    {selectedEmail.isRead ? <Mail size={14} /> : <MailOpen size={14} />}
+                                    {selectedEmail.isRead ? 'Oznacz jako nieprzeczytaną' : 'Oznacz jako przeczytaną'}
+                                </button>
+                                {/* Label picker */}
+                                <div style={{ position: 'relative' }}>
+                                    <button
+                                        onClick={() => setLabelPickerUid(labelPickerUid === selectedEmail.uid ? null : selectedEmail.uid)}
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.4rem',
+                                            padding: '0.5rem 1rem',
+                                            background: 'rgba(255,255,255,0.05)',
+                                            border: '1px solid rgba(255,255,255,0.1)',
+                                            borderRadius: '0.5rem',
+                                            color: 'rgba(255,255,255,0.6)',
+                                            cursor: 'pointer',
+                                            fontSize: '0.82rem',
+                                        }}
+                                    >
+                                        <Tag size={14} />
+                                        Zmień etykietę
+                                        <ChevronDown size={12} />
+                                    </button>
+                                    {labelPickerUid === selectedEmail.uid && (
+                                        <div style={{
+                                            position: 'absolute',
+                                            top: '100%',
+                                            left: 0,
+                                            marginTop: '0.25rem',
+                                            background: '#1e293b',
+                                            border: '1px solid rgba(255,255,255,0.12)',
+                                            borderRadius: '0.5rem',
+                                            boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+                                            zIndex: 50,
+                                            minWidth: 180,
+                                            padding: '0.25rem',
+                                        }}>
+                                            {(['wazne', 'powiadomienia', 'strona', 'chat', 'pozostale'] as EmailLabel[]).map(lbl => {
+                                                const currentLabel = getEmailLabel(selectedEmail);
+                                                const isActive = currentLabel === lbl;
+                                                const labelNames: Record<EmailLabel, string> = {
+                                                    all: 'Wszystkie',
+                                                    wazne: '⭐ Ważne',
+                                                    powiadomienia: '🔔 Powiadomienia',
+                                                    strona: '🌐 Ze strony',
+                                                    chat: '💬 Chat',
+                                                    pozostale: '📁 Pozostałe',
+                                                };
+                                                return (
+                                                    <button
+                                                        key={lbl}
+                                                        onClick={() => setEmailLabel(selectedEmail.uid, lbl)}
+                                                        style={{
+                                                            display: 'block',
+                                                            width: '100%',
+                                                            textAlign: 'left',
+                                                            padding: '0.4rem 0.75rem',
+                                                            background: isActive ? 'rgba(56,189,248,0.12)' : 'transparent',
+                                                            border: 'none',
+                                                            borderRadius: '0.3rem',
+                                                            color: isActive ? '#38bdf8' : 'rgba(255,255,255,0.7)',
+                                                            cursor: 'pointer',
+                                                            fontSize: '0.8rem',
+                                                            fontWeight: isActive ? 600 : 400,
+                                                            transition: 'background 0.15s',
+                                                        }}
+                                                        onMouseEnter={e => !isActive && (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+                                                        onMouseLeave={e => !isActive && (e.currentTarget.style.background = 'transparent')}
+                                                    >
+                                                        {labelNames[lbl]}
+                                                    </button>
+                                                );
+                                            })}
+                                            {labelOverrides[selectedEmail.uid] && (
+                                                <>
+                                                    <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', margin: '0.25rem 0' }} />
+                                                    <button
+                                                        onClick={() => removeEmailLabelOverride(selectedEmail.uid)}
+                                                        style={{
+                                                            display: 'block',
+                                                            width: '100%',
+                                                            textAlign: 'left',
+                                                            padding: '0.4rem 0.75rem',
+                                                            background: 'transparent',
+                                                            border: 'none',
+                                                            borderRadius: '0.3rem',
+                                                            color: 'rgba(255,255,255,0.4)',
+                                                            cursor: 'pointer',
+                                                            fontSize: '0.75rem',
+                                                            fontStyle: 'italic',
+                                                        }}
+                                                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                                                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                                    >
+                                                        ↩️ Przywróć auto-etykietę
+                                                    </button>
+                                                </>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     ) : emailLoading ? (
@@ -1732,6 +2084,25 @@ export default function EmailTab() {
                                         }}>
                                             {formatDate(email.date)}
                                         </span>
+
+                                        {/* Read/Unread toggle */}
+                                        <button
+                                            onClick={e => { e.stopPropagation(); toggleRead(email.uid, email.isRead); }}
+                                            style={{
+                                                background: 'none',
+                                                border: 'none',
+                                                cursor: 'pointer',
+                                                padding: '0.2rem',
+                                                color: 'rgba(255,255,255,0.15)',
+                                                flexShrink: 0,
+                                                transition: 'color 0.15s',
+                                            }}
+                                            onMouseEnter={e => e.currentTarget.style.color = '#38bdf8'}
+                                            onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.15)'}
+                                            title={email.isRead ? 'Oznacz jako nieprzeczytaną' : 'Oznacz jako przeczytaną'}
+                                        >
+                                            {email.isRead ? <Mail size={14} /> : <MailOpen size={14} />}
+                                        </button>
 
                                         {/* Trash button */}
                                         <button
@@ -2135,6 +2506,26 @@ export default function EmailTab() {
                                         <Send size={14} />
                                     )}
                                     {sending ? 'Wysyłanie...' : 'Wyślij'}
+                                </button>
+                                <button
+                                    onClick={() => saveComposeDraft()}
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.4rem',
+                                        padding: '0.5rem 1rem',
+                                        background: 'rgba(168,85,247,0.15)',
+                                        border: '1px solid rgba(168,85,247,0.3)',
+                                        borderRadius: '0.5rem',
+                                        color: '#a855f7',
+                                        cursor: 'pointer',
+                                        fontSize: '0.82rem',
+                                        fontWeight: 500,
+                                    }}
+                                    title="Zapisz jako szkic"
+                                >
+                                    <Save size={14} />
+                                    Zapisz szkic
                                 </button>
                             </div>
                         </div>
