@@ -75,6 +75,21 @@ export async function PUT(req: NextRequest) {
         const body = await req.json();
         const { id, draft_subject, draft_html, status, admin_notes, admin_rating, admin_tags, action } = body;
 
+        // ─── Action: Reset email for reprocessing (by UID) ───
+        if (action === 'reset_by_uid') {
+            const { email_uid } = body;
+            if (!email_uid) {
+                return NextResponse.json({ error: 'Missing email_uid' }, { status: 400 });
+            }
+            const { error: delErr, count } = await supabase
+                .from('email_ai_drafts')
+                .delete()
+                .eq('email_uid', email_uid);
+
+            if (delErr) throw delErr;
+            return NextResponse.json({ success: true, deleted: count || 0 });
+        }
+
         if (!id) {
             return NextResponse.json({ error: 'Missing draft id' }, { status: 400 });
         }

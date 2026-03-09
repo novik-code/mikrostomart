@@ -3236,6 +3236,46 @@ export default function EmailTab() {
                                                                     title={`Dodaj ${e.from} do listy wykluczeń (nie blokuje ręcznego generowania)`}
                                                                 >Pomiń</button>
                                                             )}
+                                                            {e.isProcessed && !e.wouldProcess && (
+                                                                <button
+                                                                    onClick={async (ev) => {
+                                                                        ev.stopPropagation();
+                                                                        const btn = ev.currentTarget;
+                                                                        btn.disabled = true;
+                                                                        btn.textContent = '⏳';
+                                                                        try {
+                                                                            await fetch('/api/employee/email-drafts', {
+                                                                                method: 'PUT',
+                                                                                headers: { 'Content-Type': 'application/json' },
+                                                                                body: JSON.stringify({ action: 'reset_by_uid', email_uid: e.uid }),
+                                                                            });
+                                                                            // Update this item in UI
+                                                                            setCronDebugResult((prev: any) => ({
+                                                                                ...prev,
+                                                                                emailClassification: prev.emailClassification.map((item: any, i: number) =>
+                                                                                    i === idx ? { ...item, isProcessed: false, wouldProcess: item.label === 'pozostale' && !item.excludeRuleResult?.startsWith('❌') } : item
+                                                                                ),
+                                                                                processedUidsCount: Math.max(0, (prev.processedUidsCount || 0) - 1),
+                                                                            }));
+                                                                            btn.textContent = '✅';
+                                                                        } catch {
+                                                                            btn.textContent = '❌';
+                                                                        }
+                                                                    }}
+                                                                    style={{
+                                                                        padding: '0.15rem 0.4rem',
+                                                                        background: 'rgba(56,189,248,0.15)',
+                                                                        border: '1px solid rgba(56,189,248,0.3)',
+                                                                        borderRadius: '0.2rem',
+                                                                        color: '#38bdf8',
+                                                                        cursor: 'pointer',
+                                                                        fontSize: '0.65rem',
+                                                                        fontWeight: 600,
+                                                                        transition: 'all 0.15s',
+                                                                    }}
+                                                                    title="Przywróć do przetworzenia — usuwa wpis z bazy, email zostanie ponownie przeanalizowany"
+                                                                >Przywróć</button>
+                                                            )}
                                                         </span>
                                                     </div>
                                                     <div style={{ marginTop: '0.1rem', fontSize: '0.62rem', opacity: 0.7 }}>
