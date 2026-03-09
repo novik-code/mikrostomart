@@ -1,7 +1,7 @@
 /**
  * On-demand AI reply generation — employee clicks "🤖 Wygeneruj odpowiedź" in compose window
  *
- * POST body: { subject: string, emailBody: string, from: string }
+ * POST body: { subject: string, emailBody: string, from: string, inline_feedback?: { previous_draft: string, rating?: number, tags?: string[], note?: string } }
  * Returns:   { draft_html: string, reasoning: string }
  */
 
@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Admin only' }, { status: 403 });
     }
 
-    const { subject, emailBody, from } = await req.json();
+    const { subject, emailBody, from, inline_feedback } = await req.json();
 
     if (!subject && !emailBody) {
         return NextResponse.json({ error: 'Subject or email body required' }, { status: 400 });
@@ -140,10 +140,11 @@ export async function POST(req: NextRequest) {
                 model: 'gpt-4o-mini',
                 temperature: 0.3,
                 max_tokens: 2000,
-                messages: [
-                    {
-                        role: 'system',
-                        content: `Jesteś asystentem recepcji gabinetu stomatologicznego Mikrostomart w Opolu.
+                messages: (() => {
+                    const messages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [
+                        {
+                            role: 'system',
+                            content: `Jesteś asystentem recepcji gabinetu stomatologicznego Mikrostomart w Opolu.
 
 TWOJE ZADANIE:
 Pracownik kliniki odpowiada na email pacjenta/klienta i poprosił Cię o wygenerowanie propozycji odpowiedzi.
@@ -165,16 +166,42 @@ ODPOWIEDZ W FORMACIE JSON:
   "draft_html": "<p>Treść odpowiedzi w HTML...</p>",
   "reasoning": "Krótkie wyjaśnienie co wziąłeś pod uwagę (1-2 zdania)"
 }`
-                    },
-                    {
-                        role: 'user',
-                        content: `Od: ${from || 'Nieznany nadawca'}
+                        },
+                        {
+                            role: 'user',
+                            content: `Od: ${from || 'Nieznany nadawca'}
 Temat: ${subject}
 
 Treść emaila na który odpowiadamy:
 ${(emailBody || '').substring(0, 4000)}`
+                        }
+                    ];
+
+                    // If regenerating with inline feedback, add the correction context
+                    if (inline_feedback && inline_feedback.previous_draft) {
+                        const corrections: string[] = [];
+                        if (inline_feedback.tags && inline_feedback.tags.length > 0) {
+                            corrections.push(`Problemy z poprzednią wersją: ${inline_feedback.tags.join(', ')}`);
+                        }
+                        if (inline_feedback.rating) {
+                            corrections.push(`Ocena poprzedniej wersji: ${inline_feedback.rating}/5`);
+                        }
+                        if (inline_feedback.note) {
+                            corrections.push(`Uwagi od pracownika: ${inline_feedback.note}`);
+                        }
+
+                        messages.push({
+                            role: 'assistant' as const,
+                            content: JSON.stringify({ draft_html: inline_feedback.previous_draft, reasoning: 'Poprzednia wersja' }),
+                        });
+                        messages.push({
+                            role: 'user' as const,
+                            content: `Poprzednia odpowiedź NIE była satysfakcjonująca. Popraw ją według poniższych wskazówek:\n\n${corrections.join('\n')}\n\nWygeneruj POPRAWIONĄ wersję odpowiedzi w tym samym formacie JSON.`,
+                        });
                     }
-                ],
+
+                    return messages;
+                }),
             }),
         });
 

@@ -2444,8 +2444,88 @@ export default function EmailTab() {
                                         {composeAiFeedbackSending ? '⏳' : '🧠'}
                                         {composeAiFeedbackSending ? 'Zapisuję...' : 'Ucz AI'}
                                     </button>
-                                    <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.35)' }}>
-                                        Wyedytuj tekst powyżej, oceń i kliknij &quot;Ucz AI&quot;
+                                    <button
+                                        disabled={composeAiGenerating}
+                                        onClick={async () => {
+                                            setComposeAiGenerating(true);
+                                            setComposeAiFeedbackResult(null);
+                                            try {
+                                                // Extract original email body (after separator)
+                                                const sep = composeBody.indexOf('--- Oryginalna wiadomość ---');
+                                                const originalEmailBody = sep > 0 ? composeBody.substring(sep) : '';
+                                                const currentDraft = sep > 0 ? composeBody.substring(0, sep).trim() : composeBody.trim();
+
+                                                const res = await fetch('/api/employee/email-generate-reply', {
+                                                    method: 'POST',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({
+                                                        subject: composeSubject,
+                                                        emailBody: originalEmailBody,
+                                                        from: composeTo,
+                                                        inline_feedback: {
+                                                            previous_draft: currentDraft,
+                                                            rating: composeAiFeedbackRating || undefined,
+                                                            tags: composeAiFeedbackTags.length > 0 ? composeAiFeedbackTags : undefined,
+                                                            note: composeAiFeedbackNote.trim() || undefined,
+                                                        },
+                                                    }),
+                                                });
+                                                if (!res.ok) {
+                                                    const err = await res.json();
+                                                    throw new Error(err.error || 'Błąd regenerowania');
+                                                }
+                                                const data = await res.json();
+                                                if (data.draft_html) {
+                                                    const plainText = data.draft_html
+                                                        .replace(/<br\s*\/?>/gi, '\n')
+                                                        .replace(/<\/p>\s*<p>/gi, '\n\n')
+                                                        .replace(/<[^>]*>/g, '')
+                                                        .replace(/&nbsp;/g, ' ')
+                                                        .replace(/&amp;/g, '&')
+                                                        .replace(/&lt;/g, '<')
+                                                        .replace(/&gt;/g, '>')
+                                                        .replace(/&quot;/g, '"')
+                                                        .trim();
+                                                    // Replace compose body with new draft
+                                                    if (sep > 0) {
+                                                        setComposeBody(plainText + '\n\n' + composeBody.substring(sep));
+                                                    } else {
+                                                        setComposeBody(plainText);
+                                                    }
+                                                    // Update original text for next comparison
+                                                    setComposeAiOriginalText(plainText);
+                                                    // Reset feedback for next iteration
+                                                    setComposeAiFeedbackRating(0);
+                                                    setComposeAiFeedbackTags([]);
+                                                    setComposeAiFeedbackNote('');
+                                                    setComposeAiFeedbackResult(`✅ Odpowiedź zregenerowana! ${data.reasoning ? '(' + data.reasoning + ')' : ''}`);
+                                                }
+                                            } catch (err: any) {
+                                                setComposeAiFeedbackResult(`❌ ${err.message}`);
+                                            } finally {
+                                                setComposeAiGenerating(false);
+                                            }
+                                        }}
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.3rem',
+                                            padding: '0.35rem 0.75rem',
+                                            background: composeAiGenerating ? 'rgba(56,189,248,0.1)' : 'rgba(56,189,248,0.15)',
+                                            border: '1px solid rgba(56,189,248,0.3)',
+                                            borderRadius: '0.4rem',
+                                            color: '#38bdf8',
+                                            cursor: composeAiGenerating ? 'not-allowed' : 'pointer',
+                                            fontSize: '0.78rem',
+                                            fontWeight: 600,
+                                            transition: 'all 0.15s',
+                                        }}
+                                    >
+                                        {composeAiGenerating ? '⏳' : '🔄'}
+                                        {composeAiGenerating ? 'Regeneruję...' : 'Regeneruj'}
+                                    </button>
+                                    <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.3)', lineHeight: 1.3 }}>
+                                        Ucz AI = zapisz feedback | Regeneruj = popraw odpowiedź wg uwag
                                     </span>
                                 </div>
 
