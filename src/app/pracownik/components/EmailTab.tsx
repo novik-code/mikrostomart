@@ -900,6 +900,7 @@ export default function EmailTab() {
                     body: composeBody,
                     in_reply_to: composeInReplyTo,
                     references: composeReferences,
+                    ai_original_text: composeAiOriginalText,
                 }),
             });
             if (res.ok) {
@@ -909,7 +910,7 @@ export default function EmailTab() {
             }
         } catch { /* silent */ }
         composeDraftSavingRef.current = false;
-    }, [composeTo, composeCc, composeSubject, composeBody, composeInReplyTo, composeReferences, composeDraftId, fetchComposeDrafts]);
+    }, [composeTo, composeCc, composeSubject, composeBody, composeInReplyTo, composeReferences, composeDraftId, composeAiOriginalText, fetchComposeDrafts]);
 
     const deleteComposeDraft = useCallback(async (id: string) => {
         try {
@@ -928,6 +929,10 @@ export default function EmailTab() {
         setComposeReferences(draft.references || []);
         setSendResult(null);
         setShowCompose(true);
+        // Restore AI learning context if present
+        if (draft.ai_original_text) {
+            setComposeAiOriginalText(draft.ai_original_text);
+        }
         setShowComposeDraftsList(false);
     };
 

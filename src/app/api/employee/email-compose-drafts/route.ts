@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
 
     try {
         const body = await req.json();
-        const { id, to_address, cc_address, subject, body: draftBody, in_reply_to, references } = body;
+        const { id, to_address, cc_address, subject, body: draftBody, in_reply_to, references, ai_original_text } = body;
 
         if (id) {
             // Update existing draft
@@ -72,6 +72,7 @@ export async function POST(req: NextRequest) {
                     body: draftBody || '',
                     in_reply_to: in_reply_to || '',
                     references: references || [],
+                    ai_original_text: ai_original_text || '',
                     updated_at: new Date().toISOString(),
                 })
                 .eq('id', id)
@@ -93,6 +94,7 @@ export async function POST(req: NextRequest) {
                     body: draftBody || '',
                     in_reply_to: in_reply_to || '',
                     references: references || [],
+                    ai_original_text: ai_original_text || '',
                 })
                 .select()
                 .single();
