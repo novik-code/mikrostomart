@@ -47,6 +47,9 @@ export async function GET(req: NextRequest) {
 
         if (status !== 'all') {
             query = query.eq('status', status);
+        } else {
+            // 'all' means all user-visible drafts, not internal 'skipped' records
+            query = query.neq('status', 'skipped');
         }
 
         const { data, error } = await query.limit(100);

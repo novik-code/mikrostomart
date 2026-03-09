@@ -18,6 +18,9 @@ import { logCronHeartbeat } from '@/lib/cronHeartbeat';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
 
+const MAX_CANDIDATES_PER_RUN = 5; // Process at most 5 emails per invocation
+const TIME_BUDGET_MS = 90_000; // Bail out after 90s to avoid Vercel timeout
+
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -192,6 +195,13 @@ export async function GET(req: NextRequest) {
 
         console.log(`[Email AI Drafts] ${candidates.length} new unprocessed candidates after sender rules`);
 
+        // Limit candidates per run to avoid timeout
+        const candidatesToProcess = candidates.slice(0, MAX_CANDIDATES_PER_RUN);
+        const skippedForNextRun = candidates.length - candidatesToProcess.length;
+        if (skippedForNextRun > 0) {
+            console.log(`[Email AI Drafts] Processing ${candidatesToProcess.length}, deferring ${skippedForNextRun} to next run`);
+        }
+
         // ─── Debug mode: return classification details ────
         const isDebug = searchParams.get('debug') === 'true';
         if (isDebug) {
@@ -237,8 +247,8 @@ export async function GET(req: NextRequest) {
             });
         }
 
-        if (candidates.length === 0) {
-            await logCronHeartbeat('email-ai-drafts', 'ok', 'No new candidates');
+        if (candidatesToProcess.length === 0) {
+            await logCronHeartbeat('email-ai-drafts', 'ok', `No new candidates${skippedForNextRun > 0 ? ` (${skippedForNextRun} deferred)` : ''}`);
             return NextResponse.json({ message: 'No new emails to process', draftsCreated: 0 });
         }
 
@@ -287,9 +297,17 @@ export async function GET(req: NextRequest) {
 
         // 5. Process each candidate with GPT-4o-mini
         let draftsCreated = 0;
+        let emailsSkipped = 0;
         const newDraftSubjects: string[] = [];
 
-        for (const candidate of candidates) {
+        for (const candidate of candidatesToProcess) {
+            // Check time budget before processing each candidate
+            const elapsed = Date.now() - startTime;
+            if (elapsed > TIME_BUDGET_MS) {
+                console.log(`[Email AI Drafts] Time budget exceeded (${elapsed}ms), stopping. Remaining candidates deferred.`);
+                break;
+            }
+
             try {
                 // Get full email content
                 const fullEmail = await getEmail(candidate.uid, 'INBOX', false);
@@ -408,6 +426,23 @@ ${emailContent.substring(0, 3000)}`
                         console.log(`[Email AI Drafts] Created draft for: "${fullEmail.subject}" from ${fullEmail.from.address}`);
                     }
                 } else {
+                    // Record as skipped so we don't re-analyze next time
+                    const { error: skipError } = await supabase
+                        .from('email_ai_drafts')
+                        .insert({
+                            email_uid: candidate.uid,
+                            email_folder: 'INBOX',
+                            email_subject: fullEmail.subject,
+                            email_from_address: fullEmail.from.address,
+                            email_from_name: fullEmail.from.name,
+                            email_date: fullEmail.date,
+                            email_snippet: emailContent.substring(0, 200),
+                            ai_reasoning: parsed.reasoning,
+                            status: 'skipped',
+                        });
+                    if (!skipError) {
+                        emailsSkipped++;
+                    }
                     console.log(`[Email AI Drafts] Skipped (not important): "${fullEmail.subject}" — ${parsed.reasoning}`);
                 }
             } catch (err) {
@@ -434,14 +469,16 @@ ${emailContent.substring(0, 3000)}`
         }
 
         const elapsed = Date.now() - startTime;
-        console.log(`[Email AI Drafts] Done in ${elapsed}ms — ${draftsCreated} drafts created from ${candidates.length} candidates`);
+        console.log(`[Email AI Drafts] Done in ${elapsed}ms — ${draftsCreated} drafts, ${emailsSkipped} skipped from ${candidatesToProcess.length} candidates`);
 
-        await logCronHeartbeat('email-ai-drafts', 'ok', `${draftsCreated} drafts from ${candidates.length} candidates in ${elapsed}ms`);
+        await logCronHeartbeat('email-ai-drafts', 'ok', `${draftsCreated} drafts, ${emailsSkipped} skipped from ${candidatesToProcess.length} candidates in ${elapsed}ms`);
 
         return NextResponse.json({
-            message: `Processed ${candidates.length} emails, created ${draftsCreated} drafts`,
+            message: `Przetworzono ${candidatesToProcess.length} emaili, ${draftsCreated} draftów, ${emailsSkipped} pominiętych`,
             draftsCreated,
-            candidatesProcessed: candidates.length,
+            emailsSkipped,
+            candidatesProcessed: candidatesToProcess.length,
+            candidatesDeferred: skippedForNextRun,
             elapsed: `${elapsed}ms`,
         });
     } catch (err: any) {
