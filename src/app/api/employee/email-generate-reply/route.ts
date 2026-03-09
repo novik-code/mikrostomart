@@ -37,19 +37,28 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-        // Load training context (same as cron job)
-        const [instructionsRes, feedbackRes, kbOverrideRes] = await Promise.all([
-            supabase.from('email_ai_instructions').select('*').eq('is_active', true),
-            supabase.from('email_ai_feedback')
+        // Load training context (resilient — works even if migration 072 tables missing)
+        let activeInstructions: any[] = [];
+        let recentFeedback: any[] = [];
+        let effectiveKnowledgeBase = KNOWLEDGE_BASE;
+
+        try {
+            const { data } = await supabase.from('email_ai_instructions').select('*').eq('is_active', true);
+            activeInstructions = data || [];
+        } catch { /* table may not exist */ }
+
+        try {
+            const { data } = await supabase.from('email_ai_feedback')
                 .select('ai_analysis, feedback_note')
                 .order('created_at', { ascending: false })
-                .limit(10),
-            supabase.from('site_settings').select('value').eq('key', 'ai_knowledge_base').maybeSingle(),
-        ]);
+                .limit(10);
+            recentFeedback = data || [];
+        } catch { /* table may not exist */ }
 
-        const activeInstructions = instructionsRes.data || [];
-        const recentFeedback = feedbackRes.data || [];
-        const effectiveKnowledgeBase = kbOverrideRes.data?.value || KNOWLEDGE_BASE;
+        try {
+            const { data: kbRow } = await supabase.from('site_settings').select('value').eq('key', 'ai_knowledge_base').maybeSingle();
+            if (kbRow?.value) effectiveKnowledgeBase = kbRow.value;
+        } catch { /* fallback to static */ }
 
         // Build context strings
         const instructionsContext = activeInstructions.length > 0

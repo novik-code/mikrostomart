@@ -335,6 +335,11 @@ export default function EmailTab() {
     const [sendResult, setSendResult] = useState<{ success?: boolean; error?: string } | null>(null);
     const [composeAiGenerating, setComposeAiGenerating] = useState(false);
     const [composeAiDraftHtml, setComposeAiDraftHtml] = useState('');
+    const [composeAiOriginalText, setComposeAiOriginalText] = useState(''); // original AI-generated plain text (for feedback diff)
+    const [composeAiFeedbackRating, setComposeAiFeedbackRating] = useState(0);
+    const [composeAiFeedbackTags, setComposeAiFeedbackTags] = useState<string[]>([]);
+    const [composeAiFeedbackSending, setComposeAiFeedbackSending] = useState(false);
+    const [composeAiFeedbackResult, setComposeAiFeedbackResult] = useState<string | null>(null);
 
     // Unread count
     const [unreadCount, setUnreadCount] = useState(0);
@@ -837,6 +842,10 @@ export default function EmailTab() {
         setComposeReferences([]);
         setSendResult(null);
         setComposeAiDraftHtml('');
+        setComposeAiOriginalText('');
+        setComposeAiFeedbackRating(0);
+        setComposeAiFeedbackTags([]);
+        setComposeAiFeedbackResult(null);
     };
 
     // ─── AI Generate Reply ──────────────────────────────────
@@ -879,6 +888,11 @@ export default function EmailTab() {
                 } else {
                     setComposeBody(plainText + (composeBody ? '\n\n' + composeBody : ''));
                 }
+                // Save original text for feedback comparison
+                setComposeAiOriginalText(plainText);
+                setComposeAiFeedbackRating(0);
+                setComposeAiFeedbackTags([]);
+                setComposeAiFeedbackResult(null);
                 setDraftToast('✅ AI wygenerowało propozycję odpowiedzi!');
             }
         } catch (err: any) {
@@ -1903,6 +1917,138 @@ export default function EmailTab() {
                                 </div>
                             )}
                         </div>
+
+                        {/* AI Feedback Bar */}
+                        {composeAiOriginalText && (
+                            <div style={{
+                                padding: '0.6rem 1.25rem',
+                                borderTop: '1px solid rgba(168,85,247,0.15)',
+                                background: 'rgba(168,85,247,0.04)',
+                            }}>
+                                {/* Star rating */}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.4rem' }}>
+                                    <span style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)' }}>Oceń AI:</span>
+                                    {[1, 2, 3, 4, 5].map(star => (
+                                        <button
+                                            key={star}
+                                            onClick={() => setComposeAiFeedbackRating(star)}
+                                            style={{
+                                                background: 'none',
+                                                border: 'none',
+                                                cursor: 'pointer',
+                                                fontSize: '1.1rem',
+                                                padding: '0 0.1rem',
+                                                opacity: star <= composeAiFeedbackRating ? 1 : 0.3,
+                                                filter: star <= composeAiFeedbackRating ? 'none' : 'grayscale(1)',
+                                                transition: 'all 0.15s',
+                                            }}
+                                        >⭐</button>
+                                    ))}
+                                </div>
+
+                                {/* Quick tags */}
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', marginBottom: '0.4rem' }}>
+                                    {['Za długi', 'Za formalny', 'Za krótki', 'Brak cennika', 'Złe dane', 'Idealny'].map(tag => {
+                                        const isActive = composeAiFeedbackTags.includes(tag);
+                                        return (
+                                            <button
+                                                key={tag}
+                                                onClick={() => setComposeAiFeedbackTags(prev =>
+                                                    isActive ? prev.filter(t => t !== tag) : [...prev, tag]
+                                                )}
+                                                style={{
+                                                    padding: '0.2rem 0.5rem',
+                                                    borderRadius: '1rem',
+                                                    fontSize: '0.72rem',
+                                                    cursor: 'pointer',
+                                                    border: `1px solid ${isActive ? 'rgba(168,85,247,0.5)' : 'rgba(255,255,255,0.1)'}`,
+                                                    background: isActive ? 'rgba(168,85,247,0.15)' : 'transparent',
+                                                    color: isActive ? '#a855f7' : 'rgba(255,255,255,0.5)',
+                                                    transition: 'all 0.15s',
+                                                }}
+                                            >{tag}</button>
+                                        );
+                                    })}
+                                </div>
+
+                                {/* Learn button */}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <button
+                                        disabled={composeAiFeedbackSending}
+                                        onClick={async () => {
+                                            setComposeAiFeedbackSending(true);
+                                            setComposeAiFeedbackResult(null);
+                                            try {
+                                                // Extract current compose text (before separator)
+                                                const sep = composeBody.indexOf('--- Oryginalna wiadomość ---');
+                                                const currentText = sep > 0 ? composeBody.substring(0, sep).trim() : composeBody.trim();
+                                                const res = await fetch('/api/employee/email-drafts', {
+                                                    method: 'PUT',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({
+                                                        id: 'compose', // dummy — handled by learn_from_compose action
+                                                        action: 'learn_from_compose',
+                                                        original_html: composeAiOriginalText,
+                                                        corrected_html: currentText,
+                                                        rating: composeAiFeedbackRating || undefined,
+                                                        tags: composeAiFeedbackTags.length > 0 ? composeAiFeedbackTags : undefined,
+                                                        feedback_note: [
+                                                            composeAiFeedbackTags.length > 0 ? `Tagi: ${composeAiFeedbackTags.join(', ')}` : '',
+                                                            composeAiFeedbackRating > 0 ? `Ocena: ${composeAiFeedbackRating}/5` : '',
+                                                        ].filter(Boolean).join(' | ') || undefined,
+                                                    }),
+                                                });
+                                                const data = await res.json();
+                                                if (data.success) {
+                                                    setComposeAiFeedbackResult(`✅ Zapisano feedback! ${data.ai_analysis ? 'Analiza: ' + data.ai_analysis.substring(0, 100) + '...' : ''}`);
+                                                } else {
+                                                    setComposeAiFeedbackResult(`❌ ${data.error || 'Błąd zapisu'}`);
+                                                }
+                                            } catch (err: any) {
+                                                setComposeAiFeedbackResult(`❌ ${err.message}`);
+                                            } finally {
+                                                setComposeAiFeedbackSending(false);
+                                            }
+                                        }}
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.3rem',
+                                            padding: '0.35rem 0.75rem',
+                                            background: composeAiFeedbackSending ? 'rgba(168,85,247,0.1)' : 'rgba(168,85,247,0.15)',
+                                            border: '1px solid rgba(168,85,247,0.3)',
+                                            borderRadius: '0.4rem',
+                                            color: '#a855f7',
+                                            cursor: composeAiFeedbackSending ? 'not-allowed' : 'pointer',
+                                            fontSize: '0.78rem',
+                                            fontWeight: 600,
+                                            transition: 'all 0.15s',
+                                        }}
+                                    >
+                                        {composeAiFeedbackSending ? '⏳' : '🧠'}
+                                        {composeAiFeedbackSending ? 'Zapisuję...' : 'Ucz AI'}
+                                    </button>
+                                    <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.35)' }}>
+                                        Wyedytuj tekst powyżej, oceń i kliknij &quot;Ucz AI&quot;
+                                    </span>
+                                </div>
+
+                                {/* Feedback result */}
+                                {composeAiFeedbackResult && (
+                                    <div style={{
+                                        marginTop: '0.4rem',
+                                        padding: '0.35rem 0.6rem',
+                                        borderRadius: '0.3rem',
+                                        fontSize: '0.75rem',
+                                        background: composeAiFeedbackResult.startsWith('✅') ? 'rgba(74,222,128,0.08)' : 'rgba(239,68,68,0.08)',
+                                        color: composeAiFeedbackResult.startsWith('✅') ? '#4ade80' : '#ef4444',
+                                        border: `1px solid ${composeAiFeedbackResult.startsWith('✅') ? 'rgba(74,222,128,0.15)' : 'rgba(239,68,68,0.15)'}`,
+                                    }}>
+                                        {composeAiFeedbackResult}
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         {/* Footer */}
                         <div style={{

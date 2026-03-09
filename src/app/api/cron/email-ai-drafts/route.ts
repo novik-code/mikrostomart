@@ -192,6 +192,46 @@ export async function GET(req: NextRequest) {
 
         console.log(`[Email AI Drafts] ${candidates.length} new unprocessed candidates after sender rules`);
 
+        // ─── Debug mode: return classification details ────
+        const isDebug = searchParams.get('debug') === 'true';
+        if (isDebug) {
+            const debugDetails = inboxEmails.slice(0, 20).map(email => {
+                const label = classifyEmailServer(email);
+                const isProcessed = processedUids.has(email.uid);
+                const addr = email.from.address.toLowerCase();
+                let includeMatch = 'N/A (no include rules)';
+                if (includeRules.length > 0) {
+                    const match = includeRules.find((r: any) => matchesSenderPattern(addr, r.email_pattern));
+                    includeMatch = match ? `✅ matches "${match.email_pattern}"` : '❌ no match';
+                }
+                const excludeMatch = excludeRules.find((r: any) => matchesSenderPattern(addr, r.email_pattern));
+                return {
+                    uid: email.uid,
+                    from: email.from.address,
+                    subject: email.subject.substring(0, 60),
+                    date: email.date,
+                    label,
+                    isProcessed,
+                    includeRuleResult: includeMatch,
+                    excludeRuleResult: excludeMatch ? `❌ excluded by "${excludeMatch.email_pattern}"` : '✅ not excluded',
+                    wouldProcess: label === 'pozostale' && !isProcessed,
+                };
+            });
+
+            return NextResponse.json({
+                debug: true,
+                totalInboxEmails: inboxEmails.length,
+                processedUidsCount: processedUids.size,
+                candidatesCount: candidates.length,
+                senderRules: { include: includeRules.length, exclude: excludeRules.length },
+                trainingConfig: {
+                    instructions: activeInstructions.length,
+                    feedbackEntries: recentFeedback.length,
+                },
+                emailClassification: debugDetails,
+            });
+        }
+
         if (candidates.length === 0) {
             await logCronHeartbeat('email-ai-drafts', 'ok', 'No new candidates');
             return NextResponse.json({ message: 'No new emails to process', draftsCreated: 0 });

@@ -163,6 +163,70 @@ ${feedbackNote ? `UWAGA OD PRACOWNIKA: ${feedbackNote}` : ''}`,
             });
         }
 
+        // ─── Action: Learn from compose-generated AI reply ─
+        if (action === 'learn_from_compose') {
+            const { original_html, corrected_html, feedback_note, rating, tags } = body;
+
+            if (!original_html || !corrected_html) {
+                return NextResponse.json({ error: 'Missing original_html or corrected_html' }, { status: 400 });
+            }
+
+            // Ask GPT to analyze the corrections
+            let aiAnalysis = '';
+            try {
+                const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+                    },
+                    body: JSON.stringify({
+                        model: 'gpt-4o-mini',
+                        temperature: 0.2,
+                        max_tokens: 500,
+                        messages: [
+                            {
+                                role: 'system',
+                                content: `Jesteś analitykiem jakości AI. Porównaj ORYGINALNY draft (napisany przez AI) z POPRAWIONYM draftem (wyedytowanym przez pracownika kliniki). Wyciągnij WNIOSKI co było źle i jak poprawić odpowiedzi w przyszłości.\n\nOdpowiedz w 2-4 zdaniach PO POLSKU. Skup się na: zmianach w tonie, brakujących informacjach, nieprawidłowych danych, zbyt formany/nieformalny styl, etc.`,
+                            },
+                            {
+                                role: 'user',
+                                content: `ORYGINALNY (AI):\n${original_html}\n\nPOPRAWIONY (pracownik):\n${corrected_html}\n\n${feedback_note ? `UWAGA OD PRACOWNIKA: ${feedback_note}` : ''}${tags?.length ? `\nTAGI: ${tags.join(', ')}` : ''}`,
+                            },
+                        ],
+                    }),
+                });
+
+                if (aiResponse.ok) {
+                    const aiData = await aiResponse.json();
+                    aiAnalysis = aiData.choices?.[0]?.message?.content || '';
+                }
+            } catch (err) {
+                console.error('[Email Drafts] AI analysis error (compose):', err);
+                aiAnalysis = 'Nie udało się wygenerować analizy.';
+            }
+
+            // Save feedback (no draft_id — compose-generated)
+            try {
+                await supabase.from('email_ai_feedback').insert({
+                    draft_id: null,
+                    original_draft_html: original_html,
+                    corrected_draft_html: corrected_html,
+                    feedback_note: feedback_note || (tags?.length ? `Tagi: ${tags.join(', ')}` : '') + (rating ? ` | Ocena: ${rating}/5` : ''),
+                    ai_analysis: aiAnalysis,
+                    created_by: admin.email,
+                });
+            } catch (fbErr) {
+                console.error('[Email Drafts] Feedback insert error:', fbErr);
+                // Don't fail the whole request — feedback table might not exist
+            }
+
+            return NextResponse.json({
+                success: true,
+                ai_analysis: aiAnalysis,
+            });
+        }
+
         // ─── Standard update ──────────────────────────────
         const updates: Record<string, any> = {};
         if (draft_subject !== undefined) updates.draft_subject = draft_subject;
