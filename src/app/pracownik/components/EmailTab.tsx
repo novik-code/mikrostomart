@@ -340,6 +340,7 @@ export default function EmailTab() {
     const [composeAiFeedbackTags, setComposeAiFeedbackTags] = useState<string[]>([]);
     const [composeAiFeedbackSending, setComposeAiFeedbackSending] = useState(false);
     const [composeAiFeedbackResult, setComposeAiFeedbackResult] = useState<string | null>(null);
+    const [composeAiFeedbackNote, setComposeAiFeedbackNote] = useState('');
 
     // Unread count
     const [unreadCount, setUnreadCount] = useState(0);
@@ -866,6 +867,7 @@ export default function EmailTab() {
         setComposeAiFeedbackRating(0);
         setComposeAiFeedbackTags([]);
         setComposeAiFeedbackResult(null);
+        setComposeAiFeedbackNote('');
         setComposeDraftId(null);
     };
 
@@ -2347,6 +2349,28 @@ export default function EmailTab() {
                                     })}
                                 </div>
 
+                                {/* Descriptive feedback note */}
+                                <textarea
+                                    value={composeAiFeedbackNote}
+                                    onChange={e => setComposeAiFeedbackNote(e.target.value)}
+                                    placeholder="Opisz co poprawić, np.: za formalny ton, powinien zaproponować wizytę, nie podawać cen..."
+                                    style={{
+                                        width: '100%',
+                                        minHeight: 50,
+                                        maxHeight: 100,
+                                        resize: 'vertical',
+                                        padding: '0.4rem 0.6rem',
+                                        background: 'rgba(255,255,255,0.04)',
+                                        border: '1px solid rgba(255,255,255,0.1)',
+                                        borderRadius: '0.4rem',
+                                        color: 'rgba(255,255,255,0.8)',
+                                        fontSize: '0.78rem',
+                                        lineHeight: 1.4,
+                                        marginBottom: '0.4rem',
+                                        fontFamily: 'inherit',
+                                    }}
+                                />
+
                                 {/* Learn button */}
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                     <button
@@ -2369,6 +2393,7 @@ export default function EmailTab() {
                                                         rating: composeAiFeedbackRating || undefined,
                                                         tags: composeAiFeedbackTags.length > 0 ? composeAiFeedbackTags : undefined,
                                                         feedback_note: [
+                                                            composeAiFeedbackNote.trim() || '',
                                                             composeAiFeedbackTags.length > 0 ? `Tagi: ${composeAiFeedbackTags.join(', ')}` : '',
                                                             composeAiFeedbackRating > 0 ? `Ocena: ${composeAiFeedbackRating}/5` : '',
                                                         ].filter(Boolean).join(' | ') || undefined,
