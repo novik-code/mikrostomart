@@ -2740,41 +2740,81 @@ export default function EmailTab() {
                                 padding: '0.75rem 1.25rem',
                                 borderBottom: '1px solid rgba(255,255,255,0.06)',
                                 background: 'rgba(59,130,246,0.04)',
-                                maxHeight: 300,
+                                maxHeight: 200,
                                 overflow: 'auto',
+                                flexShrink: 0,
                             }}>
                                 {cronDebugResult.error ? (
                                     <div style={{ color: '#ef4444', fontSize: '0.78rem' }}>❌ {cronDebugResult.error}</div>
                                 ) : (
                                     <>
-                                        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.5rem' }}>
-                                            <span>📬 Emaili w skrzynce: <strong style={{ color: '#fff' }}>{cronDebugResult.totalInboxEmails}</strong></span>
-                                            <span>✅ Już przetworzonych: <strong style={{ color: '#fff' }}>{cronDebugResult.processedUidsCount}</strong></span>
-                                            <span>🎯 Kandydatów: <strong style={{ color: '#4ade80' }}>{cronDebugResult.candidatesCount}</strong></span>
-                                            <span>📏 Reguły: include={cronDebugResult.senderRules?.include}, exclude={cronDebugResult.senderRules?.exclude}</span>
+                                        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', fontSize: '0.72rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.4rem' }}>
+                                            <span>📬 Skrzynka: <strong style={{ color: '#fff' }}>{cronDebugResult.totalInboxEmails}</strong></span>
+                                            <span>✅ Przetw.: <strong style={{ color: '#fff' }}>{cronDebugResult.processedUidsCount}</strong></span>
+                                            <span>🎯 Kandydaci: <strong style={{ color: '#4ade80' }}>{cronDebugResult.candidatesCount}</strong></span>
+                                            <span>📏 Reguły: incl={cronDebugResult.senderRules?.include}, excl={cronDebugResult.senderRules?.exclude}</span>
                                         </div>
-                                        <div style={{ fontSize: '0.7rem', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '0.3rem' }}>Klasyfikacja emaili (ostatnie 20):</div>
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                        <div style={{ fontSize: '0.68rem', fontWeight: 600, color: 'rgba(255,255,255,0.5)', marginBottom: '0.25rem' }}>Klasyfikacja (ostatnie 20):</div>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
                                             {(cronDebugResult.emailClassification || []).map((e: any, idx: number) => (
                                                 <div key={idx} style={{
-                                                    padding: '0.35rem 0.6rem',
-                                                    borderRadius: '0.3rem',
-                                                    fontSize: '0.72rem',
+                                                    padding: '0.3rem 0.5rem',
+                                                    borderRadius: '0.25rem',
+                                                    fontSize: '0.68rem',
                                                     background: e.wouldProcess ? 'rgba(74,222,128,0.08)' : 'rgba(255,255,255,0.03)',
                                                     border: `1px solid ${e.wouldProcess ? 'rgba(74,222,128,0.15)' : 'rgba(255,255,255,0.05)'}`,
                                                     color: e.wouldProcess ? '#4ade80' : 'rgba(255,255,255,0.4)',
                                                 }}>
-                                                    <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.3rem' }}>
-                                                        <span><strong>{e.from}</strong> — {e.subject}</span>
-                                                        <span style={{ whiteSpace: 'nowrap' }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.25rem' }}>
+                                                        <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                            <strong>{e.from}</strong> — {e.subject}
+                                                        </span>
+                                                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', whiteSpace: 'nowrap', flexShrink: 0 }}>
                                                             {e.wouldProcess ? '✅ Do przetworzenia' : '⏭️ Pominięty'}
+                                                            {e.wouldProcess && (
+                                                                <button
+                                                                    onClick={async (ev) => {
+                                                                        ev.stopPropagation();
+                                                                        const btn = ev.currentTarget;
+                                                                        btn.disabled = true;
+                                                                        btn.textContent = '⏳';
+                                                                        try {
+                                                                            await fetch('/api/employee/email-ai-config', {
+                                                                                method: 'POST',
+                                                                                headers: { 'Content-Type': 'application/json' },
+                                                                                body: JSON.stringify({ type: 'rule', email_pattern: e.from, rule_type: 'exclude', note: `Pominięty z debug panelu` }),
+                                                                            });
+                                                                            // Update this item in UI
+                                                                            setCronDebugResult((prev: any) => ({
+                                                                                ...prev,
+                                                                                emailClassification: prev.emailClassification.map((item: any, i: number) =>
+                                                                                    i === idx ? { ...item, wouldProcess: false, excludeRuleResult: `❌ excluded by "${e.from}"` } : item
+                                                                                ),
+                                                                                senderRules: { ...prev.senderRules, exclude: (prev.senderRules?.exclude || 0) + 1 },
+                                                                            }));
+                                                                            await fetchAiConfig();
+                                                                        } catch {
+                                                                            btn.textContent = '❌';
+                                                                        }
+                                                                    }}
+                                                                    style={{
+                                                                        padding: '0.15rem 0.4rem',
+                                                                        background: 'rgba(239,68,68,0.15)',
+                                                                        border: '1px solid rgba(239,68,68,0.3)',
+                                                                        borderRadius: '0.2rem',
+                                                                        color: '#ef4444',
+                                                                        cursor: 'pointer',
+                                                                        fontSize: '0.65rem',
+                                                                        fontWeight: 600,
+                                                                        transition: 'all 0.15s',
+                                                                    }}
+                                                                    title={`Dodaj ${e.from} do listy wykluczeń (nie blokuje ręcznego generowania)`}
+                                                                >Pomiń</button>
+                                                            )}
                                                         </span>
                                                     </div>
-                                                    <div style={{ marginTop: '0.15rem', fontSize: '0.65rem', opacity: 0.7 }}>
-                                                        Label: <strong>{e.label}</strong>
-                                                        {' | '}{e.isProcessed ? '🔄 Już przetworzony' : '🆕 Nowy'}
-                                                        {' | '}{e.includeRuleResult}
-                                                        {' | '}{e.excludeRuleResult}
+                                                    <div style={{ marginTop: '0.1rem', fontSize: '0.62rem', opacity: 0.7 }}>
+                                                        {e.label} | {e.isProcessed ? '🔄 Przetworzony' : '🆕 Nowy'} | {e.includeRuleResult} | {e.excludeRuleResult}
                                                     </div>
                                                 </div>
                                             ))}
@@ -2784,14 +2824,14 @@ export default function EmailTab() {
                                 <button
                                     onClick={() => setCronDebugResult(null)}
                                     style={{
-                                        marginTop: '0.5rem',
-                                        padding: '0.25rem 0.5rem',
+                                        marginTop: '0.4rem',
+                                        padding: '0.2rem 0.4rem',
                                         background: 'rgba(255,255,255,0.06)',
                                         border: '1px solid rgba(255,255,255,0.1)',
-                                        borderRadius: '0.3rem',
+                                        borderRadius: '0.25rem',
                                         color: 'rgba(255,255,255,0.4)',
                                         cursor: 'pointer',
-                                        fontSize: '0.7rem',
+                                        fontSize: '0.65rem',
                                     }}
                                 >Zamknij</button>
                             </div>
