@@ -259,18 +259,24 @@ export function formatSMSMessage(
         appUrl?: string;
     }
 ): string {
+    // Sanitize all text variables to GSM-7 (strip Polish diacritics like ł, ć, ó).
+    // Without this, doctor names like "Małgorzata Maćków Huras" would force the
+    // entire SMS into UCS-2 encoding (70 chars/SMS instead of 160 = double cost).
+    // URLs and time/date strings are already ASCII-safe, so only text values need it.
+    const clean = (v: string | undefined) => v ? toGSM7(v) : undefined;
+
     let message = template;
 
     if (variables.time) message = message.replace(/{time}/g, variables.time);
-    if (variables.doctor) message = message.replace(/{doctor}/g, variables.doctor);
-    if (variables.doctorName) message = message.replace(/{doctorName}/g, variables.doctorName);
-    if (variables.patientName) message = message.replace(/{patientName}/g, variables.patientName);
-    if (variables.patientFirstName) message = message.replace(/{patientFirstName}/g, variables.patientFirstName);
-    if (variables.salutation) message = message.replace(/{salutation}/g, variables.salutation);
-    if (variables.appointmentType) message = message.replace(/{appointmentType}/g, variables.appointmentType);
-    if (variables.date) message = message.replace(/{date}/g, variables.date);
+    if (variables.doctor) message = message.replace(/{doctor}/g, clean(variables.doctor)!);
+    if (variables.doctorName) message = message.replace(/{doctorName}/g, clean(variables.doctorName)!);
+    if (variables.patientName) message = message.replace(/{patientName}/g, clean(variables.patientName)!);
+    if (variables.patientFirstName) message = message.replace(/{patientFirstName}/g, clean(variables.patientFirstName)!);
+    if (variables.salutation) message = message.replace(/{salutation}/g, clean(variables.salutation)!);
+    if (variables.appointmentType) message = message.replace(/{appointmentType}/g, clean(variables.appointmentType)!);
+    if (variables.date) message = message.replace(/{date}/g, clean(variables.date)!);
     if (variables.surveyUrl) message = message.replace(/{surveyUrl}/g, variables.surveyUrl);
-    if (variables.funFact !== undefined) message = message.replace(/{funFact}/g, variables.funFact);
+    if (variables.funFact !== undefined) message = message.replace(/{funFact}/g, clean(variables.funFact)!);
     if (variables.appUrl) message = message.replace(/{appUrl}/g, variables.appUrl);
 
     return message;
