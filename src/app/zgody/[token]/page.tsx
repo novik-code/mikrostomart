@@ -393,7 +393,7 @@ export default function ConsentSigningPage() {
     /**
      * Pre-fill a PDF with patient data using pdf-lib.
      */
-    const prefillPdf = async (consent: ConsentItem): Promise<Uint8Array> => {
+    const prefillPdf = async (consent: ConsentItem, overrideDoctorIdx?: number, overrideProcedure?: string): Promise<Uint8Array> => {
         const pdfRes = await fetch(consent.file);
         const pdfBytes = await pdfRes.arrayBuffer();
 
@@ -471,8 +471,8 @@ export default function ConsentSigningPage() {
                 });
             }
 
-            // Doctor name (per-consent)
-            const consentDoctorIdx = doctorPerConsent[consent.type] ?? 0;
+            // Doctor name (per-consent) — use override if provided (avoids stale state)
+            const consentDoctorIdx = overrideDoctorIdx ?? doctorPerConsent[consent.type] ?? 0;
             const selectedDoctor = staffSignatures[consentDoctorIdx];
             if (fields.doctor && selectedDoctor?.staff_name) {
                 getPage(fields.doctor.page).drawText(selectedDoctor.staff_name, {
@@ -481,8 +481,8 @@ export default function ConsentSigningPage() {
                 });
             }
 
-            // Tooth / procedure text (per-consent)
-            const consentProcedure = procedurePerConsent[consent.type] ?? '';
+            // Tooth / procedure text (per-consent) — use override if provided
+            const consentProcedure = overrideProcedure ?? procedurePerConsent[consent.type] ?? '';
             if (fields.tooth && consentProcedure) {
                 getPage(fields.tooth.page).drawText(consentProcedure, {
                     x: fields.tooth.x, y: fields.tooth.y,
@@ -512,13 +512,13 @@ export default function ConsentSigningPage() {
     };
 
     // After doctor is picked, open consent for viewing (with pre-fill)
-    const openConsent = async (consent: ConsentItem) => {
+    const openConsent = async (consent: ConsentItem, overrideDoctorIdx?: number, overrideProcedure?: string) => {
         setPhase('preparing');
         setPrefillOk(true);
         setPrefillError(null);
 
         try {
-            const bytes = await prefillPdf(consent);
+            const bytes = await prefillPdf(consent, overrideDoctorIdx, overrideProcedure);
             setPrefilledPdfBytes(bytes);
             setPrefillOk(true);
             setPhase('viewing');
@@ -824,7 +824,8 @@ export default function ConsentSigningPage() {
                             // Save doctor + procedure for this consent
                             setDoctorPerConsent(prev => ({ ...prev, [currentConsent.type]: pickDoctorIdx }));
                             setProcedurePerConsent(prev => ({ ...prev, [currentConsent.type]: pickProcedure }));
-                            openConsent(currentConsent);
+                            // Pass values directly to avoid React stale-state race
+                            openConsent(currentConsent, pickDoctorIdx, pickProcedure);
                         }}
                         style={{ ...styles.primaryBtn, fontSize: '0.95rem', padding: '0.875rem' }}
                     >
