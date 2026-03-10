@@ -1,6 +1,6 @@
 # Mikrostomart - Complete Project Context
 
-> **Last Updated:** 2026-03-06  
+> **Last Updated:** 2026-03-10  
 > **Version:** Production (Vercel Deployment)  
 > **Status:** Active Development
 
@@ -52,7 +52,7 @@
 
 ### Backend & Database
 - **Supabase** (PostgreSQL database, authentication, storage)
-  - Database: 69 migrations (003-069: email verification, appointment actions, SMS reminders, user_roles, employee tasks, task history, comments, labels, status fix, google reviews cache, chat, push subscriptions, employee_group, push_notification_config, employee_groups array, news/articles/blog/products i18n, calendar tokens, private tasks + reminders, SMS post-visit/week-after-visit, SMS unique constraint fix, task multi-images, push_notifications_log, google_event_id on employee_tasks, patient_intake_tokens, feature_suggestions, online_bookings, patient_match_confidence, consent_tokens/patient_consents, staff_signatures, intake_pdf_url, birthday_wishes, cancelled_appointments, login_attempts, patient_notification_prefs, biometric_signature, employee_audit_log, consent_field_mappings, **rate_limit_table, cron_heartbeats**)
+  - Database: 77 migrations (003-077: email verification, appointment actions, SMS reminders, user_roles, employee tasks, task history, comments, labels, status fix, google reviews cache, chat, push subscriptions, employee_group, push_notification_config, employee_groups array, news/articles/blog/products i18n, calendar tokens, private tasks + reminders, SMS post-visit/week-after-visit, SMS unique constraint fix, task multi-images, push_notifications_log, google_event_id on employee_tasks, patient_intake_tokens, feature_suggestions, online_bookings, patient_match_confidence, consent_tokens/patient_consents, staff_signatures, intake_pdf_url, birthday_wishes, cancelled_appointments, login_attempts, patient_notification_prefs, biometric_signature, employee_audit_log, consent_field_mappings, rate_limit_table, cron_heartbeats, **sms_settings, email_ai_drafts, email_ai_config, email_compose_drafts, email_label_overrides, email_ai_drafts_skipped, compose_drafts_ai_text, email_ai_knowledge_files**)
   - Auth: Email/password, magic links, JWT tokens
   - Storage: Product images, patient documents, task images
 
@@ -246,7 +246,7 @@ mikrostomart/
 │   ├── en/common.json          # English
 │   ├── de/common.json          # German
 │   └── ua/common.json          # Ukrainian
-├── supabase_migrations/        # Database migrations (69 files: 003-069, some gaps)
+├── supabase_migrations/        # Database migrations (77 files: 003-077, some gaps)
 ├── public/                     # Static assets (incl. qr-ocen-nas.png)
 ├── scripts/                    # Utility scripts (13 files)
 └── vercel.json                 # Deployment configuration (17 cron jobs: see Cron section)
@@ -704,6 +704,76 @@ Stores consent type definitions and PDF field coordinates in DB (editable via `/
 ```
 RLS: Public read (consent signing page needs it). Seeded with 10 existing consent types from code.
 
+#### 33. **sms_settings** (migration 070)
+Admin toggles for SMS automation types.
+```sql
+- id (text, PK) -- e.g. 'noshow_followup', 'post_visit', 'birthday'
+- enabled (boolean, NOT NULL, DEFAULT true)
+- updated_at (timestamptz)
+- updated_by (text) -- admin email
+```
+Seeded with 5 types: noshow_followup, post_visit, week_after_visit, birthday, deposit_reminder.
+
+#### 34. **email_ai_drafts** (migration 071)
+AI-generated reply drafts for incoming emails.
+```sql
+- id (uuid, PK)
+- email_uid (integer, NOT NULL)
+- email_folder (text, DEFAULT 'INBOX')
+- email_subject (text)
+- email_from_address (text)
+- email_from_name (text)
+- email_date (timestamptz)
+- email_snippet (text)
+- draft_subject (text) -- nullable (skipped emails have no draft)
+- draft_html (text) -- nullable
+- status (text, DEFAULT 'pending', CHECK IN ('pending','approved','sent','rejected','learned','skipped'))
+- admin_notes (text)
+- admin_rating (integer, CHECK 1-5)
+- admin_tags (text[])
+- ai_reasoning (text)
+- created_at, reviewed_at, sent_at (timestamptz)
+- reviewed_by (text)
+```
+Indexes: `status`, `email_uid`, `created_at DESC`.
+
+#### 35. **email_compose_drafts** (migration 073)
+Persistent compose drafts for the email client.
+```sql
+- id (uuid, PK)
+- user_id (uuid, FK → auth.users ON DELETE CASCADE)
+- to_address, cc_address, subject, body (text)
+- in_reply_to (text)
+- references (text[])
+- ai_original_text (text, DEFAULT '') -- preserves AI text for feedback (migration 076)
+- created_at, updated_at (timestamptz)
+```
+
+#### 36. **email_label_overrides** (migration 074)
+Manual label reassignment for emails (overrides auto-classification).
+```sql
+- id (uuid, PK)
+- email_uid (integer, NOT NULL)
+- email_folder (text, DEFAULT 'INBOX')
+- label (text, NOT NULL)
+- created_by (uuid, FK → auth.users)
+- created_at (timestamptz)
+- UNIQUE(email_uid, email_folder)
+```
+
+#### 37. **email_ai_knowledge_files** (migration 077)
+Uploaded PDF/TXT files parsed for AI knowledge base expansion.
+```sql
+- id (uuid, PK)
+- filename (text, NOT NULL)
+- file_size (integer)
+- content_text (text, NOT NULL) -- extracted text (max 50K chars)
+- description (text)
+- uploaded_by (uuid, FK → auth.users)
+- created_at (timestamptz)
+```
+RLS: service_only (no direct access). Max 10 files, 5MB each.
+
 
 ## ✨ Feature Catalog
 
@@ -1036,6 +1106,19 @@ Features:
 15. **Patient History Modal Fix**: modal moved outside Grafik tab fragment so it's accessible from all tabs
 16. **Role check**: `hasRole(userId, 'employee') || hasRole(userId, 'admin')`
 17. **Middleware protection**: unauthenticated → redirect to `/pracownik/login`
+18. **Gmail-style Email Client** (📧 Email tab, admin-only) — NEW March 2026:
+    - Full IMAP/SMTP email client integrated into Employee Zone
+    - Auto email labels: classifyEmail assigns Powiadomienia, Strona, Chat, Pozostałe, Ważne
+    - Gmail-style horizontal category tabs with unread counts
+    - Compose window with SMTP sending (reply, reply-all, new email)
+    - Compose drafts auto-saved to Supabase (`email_compose_drafts`)
+    - Read/unread toggle, manual label reassignment, load-more pagination
+    - **AI Draft Assistant**: Cron generates AI reply drafts (GPT-4o-mini) hourly
+    - **Regeneruj button**: Iterative refinement — rate, tag, add notes, regenerate improved version
+    - AI training system: ⭐ ratings + tags + 🧠 Ucz AI feedback
+    - **Knowledge Files**: Upload PDF/TXT for AI knowledge base expansion
+    - Debug panel with processing candidate details
+19. **SMS Settings toggles**: Admin can enable/disable SMS automation types via `sms_settings` table
 
 ### 🛡 Admin Panel (`/admin`)
 
@@ -1307,23 +1390,30 @@ Features:
 | `/employee/tasks` | GET, POST, PUT, DELETE | Task CRUD. GET filters private tasks by `owner_user_id`; POST accepts `is_private`, `due_time`; private tasks skip Telegram/push |
 | `/employee/tasks/[id]` | GET, PUT, DELETE | Individual task operations (get details, update, archive) |
 | `/employee/tasks/[id]/comments` | GET, POST | Task comments (list comments, add new comment) |
-| `/employee/tasks/ai-parse` | POST | **NEW** — GPT-4o-mini parses natural-language text → creates private tasks + schedules task_reminders |
+| `/employee/tasks/ai-parse` | POST | GPT-4o-mini parses natural-language text → creates private tasks + schedules task_reminders |
 | `/employee/tasks/labels` | GET, POST | Task labels CRUD (list all labels, create new label) |
 | `/employee/tasks/upload-image` | POST | Upload task image to Supabase Storage (`task-images` bucket) |
-| `/employee/patient-search` | GET | **NEW** — Prodentis patient search proxy for employees. `?q=name&limit=5`. Auth: employee/admin. Used in task create/edit for linking patients from DB. |
-| `/employee/tts` | POST | **NEW** — OpenAI TTS proxy (`tts-1` model). `{ text, voice? }` → returns `audio/mpeg`. Voices: nova (default), alloy, shimmer. Auth: employee/admin only. |
-| `/employee/assistant` | POST | AI Voice Assistant (GPT-4o function-calling). System prompt: **proactive** — acts immediately, suggests improvements after. Supports: createTask, addCalendarEvent, addReminder, dictateDocumentation, searchPatient, checkSchedule. |
+| `/employee/patient-search` | GET | Prodentis patient search proxy for employees. `?q=name&limit=5`. Auth: employee/admin. |
+| `/employee/tts` | POST | OpenAI TTS proxy (`tts-1` model). `{ text, voice? }` → returns `audio/mpeg`. |
+| `/employee/assistant` | POST | AI Voice Assistant (GPT-4o function-calling). Supports: createTask, addCalendarEvent, addReminder, dictateDocumentation, searchPatient, checkSchedule. |
 | `/employee/tasks/[id]/push` | POST | Send push notification about a specific task |
 | `/employee/task-types` | GET | List available task type categories |
 | `/employee/consent-tokens` | GET, POST | Consent token CRUD — generate/list consent signing links for patients |
 | `/employee/patient-consents` | GET | Signed consents list for a patient (`?prodentisId=`). Returns biometric_data + signature_data |
 | `/employee/patient-intake` | GET | E-karta data with signature for a patient (`?patientId=`) |
-| `/employee/export-biometric` | POST | **NEW** — Export signature PNG + biometric JSON to Prodentis documents API (`{ consentId }`) |
+| `/employee/export-biometric` | POST | Export signature PNG + biometric JSON to Prodentis documents API (`{ consentId }`) |
 | `/employee/push/send` | POST | Send manual push notification to employee groups |
 | `/employee/calendar` | GET, POST | Google Calendar integration for employee events |
 | `/employee/calendar/auth` | GET | Google OAuth flow initiation |
 | `/employee/calendar/auth/callback` | GET | Google OAuth callback handler |
 | `/employee/assistant/memory` | GET, POST, DELETE | AI assistant conversation memory CRUD |
+| `/employee/email` | GET, POST | **NEW** — IMAP email client (GET: fetch emails, POST: SMTP send). Admin only. |
+| `/employee/email-drafts` | GET, PUT | **NEW** — AI email drafts CRUD. GET: list by status/email_uid. PUT: approve/reject/send/return_for_learning + rating/tags. |
+| `/employee/email-generate-reply` | POST | **NEW** — On-demand AI reply generation. Accepts `inline_feedback` for iterative Regeneruj refinement. |
+| `/employee/email-ai-config` | GET, POST, PUT, DELETE | **NEW** — AI sender rules, instructions, feedback stats CRUD. |
+| `/employee/email-ai-knowledge` | GET, POST, DELETE | **NEW** — Knowledge files CRUD (PDF/TXT upload+parse, max 10 files, 5MB). |
+| `/employee/email-compose-drafts` | GET, POST, PUT, DELETE | **NEW** — Compose draft persistence (auto-save, resume). |
+| `/employee/email-label-overrides` | GET, POST, DELETE | **NEW** — Manual email label overrides (email_uid → label). |
 
 ### Push Notification APIs (`/api/push/*`)
 
@@ -1397,9 +1487,10 @@ Features:
 | `/cron/post-visit-auto-send?sms_type=week_after_visit` | Auto-send week-after-visit SMS | Daily 10:00 UTC |
 | `/cron/online-booking-digest` | Telegram digest of unreported online bookings | Daily 6:15 UTC |
 | `/cron/push-cleanup` | Delete `push_notifications_log` entries older than 7 days | Daily 3:15 UTC |
-| `/cron/daily-report` | **NEW** — Morning digest to Telegram: today's appointments, pending bookings, overdue tasks, birthdays | Daily 5:30 UTC |
-| `/cron/deposit-reminder` | **NEW** — SMS + push reminder for unpaid deposits ~48h before appointment | Daily 7:00 UTC |
-| `/cron/noshow-followup` | **NEW** — Detect no-shows from yesterday, send follow-up SMS offering rescheduling | Daily 8:00 UTC |
+| `/cron/daily-report` | Morning digest to Telegram: today's appointments, pending bookings, overdue tasks, birthdays | Daily 5:30 UTC |
+| `/cron/deposit-reminder` | SMS + push reminder for unpaid deposits ~48h before appointment | Daily 7:00 UTC |
+| `/cron/noshow-followup` | Detect no-shows from yesterday, send follow-up SMS offering rescheduling | Daily 8:00 UTC |
+| `/cron/email-ai-drafts` | **NEW** — Scan IMAP inbox for new emails, generate AI reply drafts (GPT-4o-mini), classify importance | Hourly 6-18 UTC |
 
 
 ---
@@ -1988,6 +2079,125 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### March 9–10, 2026 — AI Email: Regeneruj Button + Deployment Fixes
+
+#### Commits:
+- `e274514` — feat: implement 3 advanced AI email features
+- `6ffd269` — feat: preserve AI learning context in compose drafts
+- `ecf2030` — feat: show detailed per-candidate results in Generuj drafty output
+- `b1dbf0e` — feat: add Przywróć button to restore skipped/processed emails for re-analysis
+- `f1893b1` — fix: prevent 504 timeout in AI draft generation
+- `1fb498e` — feat: add Regeneruj button for iterative AI draft refinement
+- `d558c4d` — fix: pdf-parse ESM import type error on Vercel build
+- `e1e941e` — fix: IIFE not invoked — messages was a function, not an array
+
+#### New Features:
+1. **Regeneruj button** (🔄) — Iterative AI draft refinement:
+   - Positioned next to "Ucz AI" button in compose feedback bar
+   - Uses current feedback (stars, tags, notes) as `inline_feedback` to regenerate draft
+   - Replaces previous draft in compose body, resets feedback for next iteration
+   - Backend: `email-generate-reply` API builds multi-turn conversation with previous draft + corrections
+2. **Przywróć button** — Restore skipped/processed emails for re-analysis
+3. **Detailed Generuj results** — Shows per-candidate processing results with skip reasons
+4. **AI learning context preserved** — `ai_original_text` column in `email_compose_drafts` (migration 076) keeps original AI text for feedback after reload
+5. **3 advanced features** — inline feedback object, compose draft persistence, candidate result details
+
+#### Bug Fixes:
+- `pdf-parse` ESM import type error on Vercel — used `as any` + nullish coalescing for CJS/ESM compat
+- IIFE not invoked in `email-generate-reply` — `(() => { ... }),` was missing trailing `()` so `messages` was assigned a function instead of array
+- 504 timeout prevention in AI draft generation
+
+#### Database:
+- Migration 076: `email_compose_drafts.ai_original_text TEXT DEFAULT ''`
+
+#### Files Modified:
+- `src/app/pracownik/components/EmailTab.tsx` — Regeneruj button UI + inline_feedback handler
+- `src/app/api/employee/email-generate-reply/route.ts` — inline_feedback multi-turn conversation + IIFE fix
+- `src/app/api/employee/email-ai-knowledge/route.ts` — pdf-parse ESM import fix
+
+---
+
+### March 7–8, 2026 — Gmail-style Email Client + AI Draft System
+
+#### Commits:
+- `5d204c5` — feat: add Gmail-like email client (IMAP/SMTP) in employee zone - admin only
+- `ec7a342` — feat: add auto email labels (Powiadomienia, Strona, Chat, Pozostałe)
+- `42f7d8d` — ui: Gmail-style horizontal category tabs above email list
+- `3f3b5a8` — feat: AI Email Draft Assistant + Ważne label
+- `b23335b` — fix: AI email cron — paginate through last 30 days instead of only 50 newest
+- `e7501c8` — feat: add on-demand AI reply generation in compose window
+- `b6b79dc` — fix: use .maybeSingle() for KB loading — prevents crash when no DB override exists
+- `9291f43` — fix: email client — sort by date, accumulating load-more, resilient KB API
+- `3d054a3` — fix: cron resilience + generate button always visible + hourly cron
+- `98df512` — fix: AI email drafts — resilient DB queries, compose feedback UI, cron debug mode
+- `56a9c55` — feat: add Debug AI + Generate Drafts buttons to AI settings modal
+- `fc44639` — feat: add Pomiń button to debug panel + fix modal layout overflow
+- `b30b3dd` — feat: email client enhancements - compose drafts, read/unread toggle, label reassignment
+- `9b01121` — fix: handle non-JSON responses in Generuj drafty button
+- `55dbbe6` — feat: add descriptive feedback textarea to Ucz AI section
+- `2c7d1a5` — fix: debug mode now respects sender exclude/include rules in wouldProcess
+
+#### New Features:
+1. **Gmail-style Email Client** (📧 Email tab in Employee Zone, admin-only):
+   - Full IMAP integration via `src/lib/imapService.ts` — fetches emails from clinic inbox
+   - SMTP sending via compose window (reply, reply-all, new email)
+   - Auto-classification engine: `Powiadomienia`, `Strona`, `Chat`, `Pozostałe`, `Ważne` labels
+   - Gmail-style horizontal category tabs with unread counts
+   - Read/unread toggle per email
+   - Load-more pagination sorted by date
+   - Manual label override (reassign email to different category)
+2. **AI Email Draft Assistant**:
+   - Cron job `/api/cron/email-ai-drafts` runs hourly (6:00-18:00 UTC)
+   - Scans IMAP inbox for new emails, classifies importance
+   - Generates AI reply drafts using GPT-4o-mini with clinic knowledge base
+   - Drafts stored in `email_ai_drafts` table with status workflow (pending → approved → sent)
+   - Skipped emails (not important) tracked with `status='skipped'`
+   - On-demand reply generation: "🤖 Wygeneruj odpowiedź" button in compose window
+   - Debug panel shows processing candidates with skip/process reasons
+   - "Generuj drafty" button for manual batch generation
+3. **Compose Draft Persistence**:
+   - Auto-saves compose drafts to `email_compose_drafts` table
+   - Resume drafts after navigating away
+   - Preserves AI original text for feedback context
+4. **Knowledge Files Upload**:
+   - Upload PDF/TXT/MD files to expand AI knowledge base
+   - Max 10 files, 5MB each
+   - PDF parsing via `pdf-parse`, text extraction stored in `email_ai_knowledge_files`
+   - Content injected into GPT system prompt alongside clinic knowledge base
+5. **SMS Settings Admin Controls**:
+   - Toggle on/off for SMS automation types (noshow, post-visit, birthday, deposit)
+   - `sms_settings` table (migration 070) with per-type enabled flag
+   - Admin API: `GET/PUT /api/admin/sms-settings`
+
+#### Database:
+- Migration 070: `sms_settings` table — SMS automation type toggles
+- Migration 071: `email_ai_drafts` table — AI-generated reply drafts
+- Migration 073: `email_compose_drafts` table — persistent compose drafts
+- Migration 074: `email_label_overrides` table — manual label reassignment
+- Migration 075: Allow `'skipped'` status in `email_ai_drafts`, make draft fields nullable
+- Migration 077: `email_ai_knowledge_files` table — uploaded knowledge files
+
+#### New Files:
+- `src/app/pracownik/components/EmailTab.tsx` — Full email client component (~3900 LOC)
+- `src/lib/imapService.ts` — IMAP connection and email fetching service
+- `src/app/api/employee/email/route.ts` — IMAP/SMTP email API (GET/POST)
+- `src/app/api/employee/email-drafts/route.ts` — AI drafts CRUD
+- `src/app/api/employee/email-generate-reply/route.ts` — On-demand AI reply generation
+- `src/app/api/employee/email-ai-knowledge/route.ts` — Knowledge files CRUD
+- `src/app/api/employee/email-compose-drafts/route.ts` — Compose draft persistence
+- `src/app/api/employee/email-label-overrides/route.ts` — Label override CRUD
+- `src/app/api/cron/email-ai-drafts/route.ts` — Hourly AI draft generation cron
+- `src/app/api/admin/sms-settings/route.ts` — SMS settings toggle API
+- `supabase_migrations/070_sms_settings.sql` through `077_email_ai_knowledge_files.sql`
+
+#### Environment Variables Required:
+- `IMAP_HOST`, `IMAP_PORT`, `IMAP_USER`, `IMAP_PASS` — IMAP server credentials
+- `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` — SMTP server credentials
+
+> ⚠️ **REQUIRES**: Run migrations 070-077 in Supabase SQL editor.
+
+---
 
 ### March 6, 2026 — AI Email Assistant Training System
 
@@ -4059,7 +4269,7 @@ OpenAI gpt-image-1 regenerates the entire masked area from scratch (+ forces 102
 - [x] Appointment confirmation/cancellation workflow
 - [x] Short link system
 - [x] Appointment instructions
-- [x] Cron jobs (17 total — SMS, article, task reminders, push, booking digest, birthday, daily-report, deposit-reminder, noshow-followup)
+- [x] Cron jobs (18 total — SMS, article, task reminders, push, booking digest, birthday, daily-report, deposit-reminder, noshow-followup, **email-ai-drafts**)
 - [x] Prodentis API integration
 - [x] YouTube feed
 - [x] AI assistant
@@ -4094,13 +4304,17 @@ OpenAI gpt-image-1 regenerates the entire masked area from scratch (+ forces 102
 - [x] **Patient documents** — download signed consents & e-karta PDFs from patient portal
 - [x] **Centralized email service** — emailService.ts with 4 branded email templates
 - [x] **Employee Zone component split** — 6300→778 LOC page.tsx, 5 extracted components, 2 hooks, central type re-exports
+- [x] **Gmail-style Email Client** — Full IMAP/SMTP client in Employee Zone (admin-only), auto-labeling, compose drafts
+- [x] **AI Email Draft Assistant** — Hourly cron generates AI replies, training system (sender rules, instructions, feedback), on-demand reply generation
+- [x] **Regeneruj iterative refinement** — Rate + tag + notes → regenerate improved AI draft
+- [x] **SMS Settings Admin Controls** — Toggle SMS automation types on/off
+- [x] **Knowledge Files Upload** — PDF/TXT files parsed for AI knowledge base
 
 ### ⚠️ Partial/Pending
 - [ ] Admin panel component split (`admin/page.tsx` — still monolithic at ~3700 LOC)
 - [ ] `withAuth` middleware migration to existing routes (wrapper created, not yet applied)
 - [ ] Comprehensive testing of all workflows
 - [ ] Performance optimization
-- [ ] SEO optimization
 
 ### 📋 Future Enhancements (Not Started)
 - [ ] Mobile app (React Native)
