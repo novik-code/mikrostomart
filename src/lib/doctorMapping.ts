@@ -19,8 +19,8 @@ export const DOCTOR_MAPPING: Record<string, DoctorInfo> = {
     },
     elzbieta: {
         prodentisId: '0100000002',
-        name: 'lek. dent. Elżbieta Nowosielska',
-        role: 'doctor',
+        name: 'hig. stom. Elżbieta Nowosielska',
+        role: 'hygienist',
         defaultDuration: 30,
     },
     ilona: {

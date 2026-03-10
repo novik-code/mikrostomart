@@ -12,7 +12,7 @@ interface StaffSignature {
 
 const STAFF_LIST = [
     { name: 'lek. dent. Marcin Nowosielski', role: 'lekarz' },
-    { name: 'lek. dent. Elżbieta Nowosielska', role: 'lekarz' },
+    { name: 'hig. stom. Elżbieta Nowosielska', role: 'higienistka' },
     { name: 'lek. dent. Ilona Piechaczek', role: 'lekarz' },
     { name: 'lek. dent. Aleksandra Modelska-Kępa', role: 'lekarz' },
     { name: 'lek. dent. Katarzyna Hałupczok', role: 'lekarz' },
