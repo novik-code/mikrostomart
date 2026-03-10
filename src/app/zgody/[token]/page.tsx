@@ -31,7 +31,7 @@ interface PatientDetails {
     address: { street: string; houseNumber: string; apartmentNumber: string; postalCode: string; city: string } | null;
 }
 
-type Phase = 'loading' | 'error' | 'list' | 'preparing' | 'viewing' | 'signing' | 'done';
+type Phase = 'loading' | 'error' | 'list' | 'pick_doctor' | 'preparing' | 'viewing' | 'signing' | 'done';
 
 // ── Biometric signature types ──
 interface BiometricPoint {
@@ -85,10 +85,13 @@ export default function ConsentSigningPage() {
     // Consent types: loaded from DB (API), fallback to hardcoded
     const [CONSENT_TYPES, setConsentTypes] = useState<Record<string, ConsentType>>(HARDCODED_CONSENT_TYPES);
 
-    // Doctor & procedure selection
+    // Doctor & procedure selection — per consent (key = consent type)
     const [staffSignatures, setStaffSignatures] = useState<any[]>([]);
-    const [selectedDoctorIdx, setSelectedDoctorIdx] = useState(0);
-    const [procedureText, setProcedureText] = useState('');
+    const [doctorPerConsent, setDoctorPerConsent] = useState<Record<string, number>>({});
+    const [procedurePerConsent, setProcedurePerConsent] = useState<Record<string, string>>({});
+    // Temporary state for the pick_doctor phase
+    const [pickDoctorIdx, setPickDoctorIdx] = useState(0);
+    const [pickProcedure, setPickProcedure] = useState('');
 
     // PDF.js page rendering
     const pdfContainerRef = useRef<HTMLDivElement>(null);
@@ -468,8 +471,9 @@ export default function ConsentSigningPage() {
                 });
             }
 
-            // Doctor name
-            const selectedDoctor = staffSignatures[selectedDoctorIdx];
+            // Doctor name (per-consent)
+            const consentDoctorIdx = doctorPerConsent[consent.type] ?? 0;
+            const selectedDoctor = staffSignatures[consentDoctorIdx];
             if (fields.doctor && selectedDoctor?.staff_name) {
                 getPage(fields.doctor.page).drawText(selectedDoctor.staff_name, {
                     x: fields.doctor.x, y: fields.doctor.y,
@@ -477,9 +481,10 @@ export default function ConsentSigningPage() {
                 });
             }
 
-            // Tooth / procedure text
-            if (fields.tooth && procedureText) {
-                getPage(fields.tooth.page).drawText(procedureText, {
+            // Tooth / procedure text (per-consent)
+            const consentProcedure = procedurePerConsent[consent.type] ?? '';
+            if (fields.tooth && consentProcedure) {
+                getPage(fields.tooth.page).drawText(consentProcedure, {
                     x: fields.tooth.x, y: fields.tooth.y,
                     size: fields.tooth.fontSize || 11, font, color: textColor,
                 });
@@ -497,9 +502,17 @@ export default function ConsentSigningPage() {
         }
     }, [phase, prefilledPdfBytes, renderPdfToCanvases]);
 
-    // Open consent for viewing (with pre-fill)
-    const openConsent = async (consent: ConsentItem) => {
+    // Open consent — first go to doctor picker, then view
+    const startConsentFlow = (consent: ConsentItem) => {
         setCurrentConsent(consent);
+        // Pre-populate from previous selection if exists
+        setPickDoctorIdx(doctorPerConsent[consent.type] ?? 0);
+        setPickProcedure(procedurePerConsent[consent.type] ?? '');
+        setPhase('pick_doctor');
+    };
+
+    // After doctor is picked, open consent for viewing (with pre-fill)
+    const openConsent = async (consent: ConsentItem) => {
         setPhase('preparing');
         setPrefillOk(true);
         setPrefillError(null);
@@ -583,11 +596,13 @@ export default function ConsentSigningPage() {
                 }
                 if (fields2.city && patientDetails?.address?.city) getPage2(fields2.city.page).drawText(patientDetails.address.city, { x: fields2.city.x, y: fields2.city.y, size: fields2.city.fontSize || 11, font: interFont, color: textColor });
                 if (fields2.phone && patientDetails?.phone) getPage2(fields2.phone.page).drawText(patientDetails.phone, { x: fields2.phone.x, y: fields2.phone.y, size: fields2.phone.fontSize || 10, font: interFont, color: textColor });
-                // Doctor name
-                const selDoc = staffSignatures[selectedDoctorIdx];
+                // Doctor name (per-consent)
+                const selDocIdx2 = doctorPerConsent[currentConsent.type] ?? 0;
+                const selDoc = staffSignatures[selDocIdx2];
                 if (fields2.doctor && selDoc?.staff_name) getPage2(fields2.doctor.page).drawText(selDoc.staff_name, { x: fields2.doctor.x, y: fields2.doctor.y, size: fields2.doctor.fontSize || 11, font: interFont, color: textColor });
-                // Tooth / procedure
-                if (fields2.tooth && procedureText) getPage2(fields2.tooth.page).drawText(procedureText, { x: fields2.tooth.x, y: fields2.tooth.y, size: fields2.tooth.fontSize || 11, font: interFont, color: textColor });
+                // Tooth / procedure (per-consent)
+                const procText2 = procedurePerConsent[currentConsent.type] ?? '';
+                if (fields2.tooth && procText2) getPage2(fields2.tooth.page).drawText(procText2, { x: fields2.tooth.x, y: fields2.tooth.y, size: fields2.tooth.fontSize || 11, font: interFont, color: textColor });
             }
 
             const pages = pdfDoc.getPages();
@@ -621,10 +636,10 @@ export default function ConsentSigningPage() {
                 });
             }
 
-            // ── STEP 3: Doctor signature (from selected staff) ──
+            // ── STEP 3: Doctor signature (from per-consent selected staff) ──
             const docSigPos = fields?.doctor_signature;
             if (docSigPos) {
-                const activeSig = staffSignatures[selectedDoctorIdx];
+                const activeSig = staffSignatures[doctorPerConsent[currentConsent.type] ?? 0];
                 if (activeSig?.signature_data) {
                     try {
                         const docSigBytes = await fetch(activeSig.signature_data).then(r => r.arrayBuffer());
@@ -726,6 +741,105 @@ export default function ConsentSigningPage() {
                 <div style={styles.card}>
                     <div style={styles.spinner} />
                     <p style={styles.loadingText}>Przygotowuję dokument...</p>
+                </div>
+            </div>
+        );
+    }
+
+    // ─── PICK DOCTOR phase (per-consent) ─────────
+    if (phase === 'pick_doctor' && currentConsent) {
+        return (
+            <div style={styles.container}>
+                <div style={{ ...styles.card, maxWidth: '550px' }}>
+                    <div style={{ textAlign: 'center', marginBottom: '1rem' }}>
+                        <div style={{ fontSize: '1.5rem', marginBottom: '0.3rem' }}>📋</div>
+                        <h2 style={{ ...styles.title, fontSize: '1.1rem', margin: 0 }}>{currentConsent.label}</h2>
+                    </div>
+
+                    {/* Doctor selection */}
+                    <div style={{
+                        background: 'rgba(255,255,255,0.04)',
+                        borderRadius: '0.75rem',
+                        padding: '0.75rem 1rem',
+                        marginBottom: '0.75rem',
+                        border: '1px solid rgba(255,255,255,0.08)',
+                    }}>
+                        <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.4rem' }}>🩺 Lekarz prowadzący</div>
+                        {staffSignatures.length > 0 ? (
+                            <select
+                                value={pickDoctorIdx}
+                                onChange={e => setPickDoctorIdx(Number(e.target.value))}
+                                style={{
+                                    width: '100%',
+                                    padding: '0.5rem',
+                                    borderRadius: '0.5rem',
+                                    border: '1px solid rgba(56, 189, 248, 0.3)',
+                                    background: 'rgba(20, 20, 35, 0.9)',
+                                    color: '#fff',
+                                    fontSize: '0.9rem',
+                                }}
+                            >
+                                {staffSignatures.map((sig: any, idx: number) => (
+                                    <option key={sig.id || idx} value={idx}>
+                                        {sig.staff_name}{sig.role ? ` (${sig.role})` : ''}
+                                    </option>
+                                ))}
+                            </select>
+                        ) : (
+                            <div style={{ fontSize: '0.75rem', color: 'rgba(255,150,50,0.8)' }}>
+                                Brak zapisanych podpisów lekarzy. Dodaj w panelu admin.
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Procedure / tooth text */}
+                    <div style={{
+                        background: 'rgba(255,255,255,0.04)',
+                        borderRadius: '0.75rem',
+                        padding: '0.75rem 1rem',
+                        marginBottom: '1rem',
+                        border: '1px solid rgba(255,255,255,0.08)',
+                    }}>
+                        <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.4rem' }}>🦷 Procedura / ząb (opcjonalnie)</div>
+                        <input
+                            type="text"
+                            value={pickProcedure}
+                            onChange={e => setPickProcedure(e.target.value)}
+                            placeholder="np. ząb 36, implant, etc."
+                            style={{
+                                width: '100%',
+                                padding: '0.5rem',
+                                borderRadius: '0.5rem',
+                                border: '1px solid rgba(56, 189, 248, 0.3)',
+                                background: 'rgba(20, 20, 35, 0.9)',
+                                color: '#fff',
+                                fontSize: '0.9rem',
+                                boxSizing: 'border-box',
+                            }}
+                        />
+                    </div>
+
+                    <button
+                        onClick={() => {
+                            // Save doctor + procedure for this consent
+                            setDoctorPerConsent(prev => ({ ...prev, [currentConsent.type]: pickDoctorIdx }));
+                            setProcedurePerConsent(prev => ({ ...prev, [currentConsent.type]: pickProcedure }));
+                            openConsent(currentConsent);
+                        }}
+                        style={{ ...styles.primaryBtn, fontSize: '0.95rem', padding: '0.875rem' }}
+                    >
+                        📄 Otwórz dokument →
+                    </button>
+
+                    <button
+                        onClick={() => {
+                            setCurrentConsent(null);
+                            setPhase('list');
+                        }}
+                        style={{ ...styles.secondaryBtn, marginTop: '0.5rem', width: '100%' }}
+                    >
+                        ← Wróć do listy
+                    </button>
                 </div>
             </div>
         );
@@ -918,68 +1032,21 @@ export default function ConsentSigningPage() {
                     )}
                 </div>
 
-                {/* Doctor selection */}
-                <div style={{
-                    background: 'rgba(255,255,255,0.04)',
-                    borderRadius: '0.75rem',
-                    padding: '0.75rem 1rem',
-                    marginBottom: '0.75rem',
-                    border: '1px solid rgba(255,255,255,0.08)',
-                }}>
-                    <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.4rem' }}>🩺 Lekarz prowadzący</div>
-                    {staffSignatures.length > 0 ? (
-                        <select
-                            value={selectedDoctorIdx}
-                            onChange={e => setSelectedDoctorIdx(Number(e.target.value))}
-                            style={{
-                                width: '100%',
-                                padding: '0.5rem',
-                                borderRadius: '0.5rem',
-                                border: '1px solid rgba(56, 189, 248, 0.3)',
-                                background: 'rgba(20, 20, 35, 0.9)',
-                                color: '#fff',
-                                fontSize: '0.9rem',
-                            }}
-                        >
-                            {staffSignatures.map((sig: any, idx: number) => (
-                                <option key={sig.id || idx} value={idx}>
-                                    {sig.staff_name}{sig.role ? ` (${sig.role})` : ''}
-                                </option>
-                            ))}
-                        </select>
-                    ) : (
-                        <div style={{ fontSize: '0.75rem', color: 'rgba(255,150,50,0.8)' }}>
-                            Brak zapisanych podpisów lekarzy. Dodaj w panelu admin.
-                        </div>
-                    )}
-                </div>
-
-                {/* Procedure / tooth text */}
-                <div style={{
-                    background: 'rgba(255,255,255,0.04)',
-                    borderRadius: '0.75rem',
-                    padding: '0.75rem 1rem',
-                    marginBottom: '1rem',
-                    border: '1px solid rgba(255,255,255,0.08)',
-                }}>
-                    <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.4rem' }}>🦷 Procedura / ząb (opcjonalnie)</div>
-                    <input
-                        type="text"
-                        value={procedureText}
-                        onChange={e => setProcedureText(e.target.value)}
-                        placeholder="np. ząb 36, implant, etc."
-                        style={{
-                            width: '100%',
-                            padding: '0.5rem',
-                            borderRadius: '0.5rem',
-                            border: '1px solid rgba(56, 189, 248, 0.3)',
-                            background: 'rgba(20, 20, 35, 0.9)',
-                            color: '#fff',
-                            fontSize: '0.9rem',
-                            boxSizing: 'border-box',
-                        }}
-                    />
-                </div>
+                {/* Per-consent doctor info hint */}
+                {staffSignatures.length > 0 && (
+                    <div style={{
+                        background: 'rgba(56, 189, 248, 0.06)',
+                        borderRadius: '0.75rem',
+                        padding: '0.6rem 1rem',
+                        marginBottom: '0.75rem',
+                        border: '1px solid rgba(56, 189, 248, 0.12)',
+                        fontSize: '0.72rem',
+                        color: 'rgba(255,255,255,0.5)',
+                        textAlign: 'center',
+                    }}>
+                        🩺 Przy każdej zgodzie wybierzesz lekarza prowadzącego
+                    </div>
+                )}
 
                 {allSigned && (
                     <div style={{ textAlign: 'center', padding: '1rem 0', marginBottom: '0.75rem' }}>
@@ -992,7 +1059,7 @@ export default function ConsentSigningPage() {
                     {consents.map(consent => (
                         <button
                             key={consent.type}
-                            onClick={() => openConsent(consent)}
+                            onClick={() => startConsentFlow(consent)}
                             style={{
                                 display: 'flex',
                                 alignItems: 'center',
@@ -1017,6 +1084,12 @@ export default function ConsentSigningPage() {
                                 <div style={{ fontSize: '0.72rem', color: consent.signed ? 'rgba(34,197,94,0.8)' : 'rgba(255,255,255,0.4)' }}>
                                     {consent.signed ? 'Podpisano ✓ (kliknij aby podpisać ponownie)' : 'Wymaga podpisu'}
                                 </div>
+                                {doctorPerConsent[consent.type] !== undefined && staffSignatures[doctorPerConsent[consent.type]] && (
+                                    <div style={{ fontSize: '0.65rem', color: 'rgba(56,189,248,0.7)', marginTop: '0.15rem' }}>
+                                        🩺 {staffSignatures[doctorPerConsent[consent.type]].staff_name}
+                                        {procedurePerConsent[consent.type] ? ` • 🦷 ${procedurePerConsent[consent.type]}` : ''}
+                                    </div>
+                                )}
                             </div>
                             <span style={{ fontSize: '0.75rem', color: 'rgba(56, 189, 248, 0.8)' }}>Otwórz →</span>
                         </button>
