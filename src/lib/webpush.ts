@@ -197,6 +197,7 @@ export async function broadcastPush(
 
     let sent = 0;
     let failed = 0;
+    const loggedUsers = new Set<string>();
 
     const byLocale = new Map<string, typeof subs>();
     for (const sub of subs) {
@@ -204,7 +205,6 @@ export async function broadcastPush(
         if (!byLocale.has(locale)) byLocale.set(locale, []);
         byLocale.get(locale)!.push(sub);
     }
-
     for (const [locale, localeSubs] of byLocale) {
         const { title, body } = getPushTranslation(notificationType, locale, params);
         const payload: PushPayload = { title, body, url };
@@ -219,6 +219,10 @@ export async function broadcastPush(
                     JSON.stringify(payload)
                 );
                 sent++;
+                if (!loggedUsers.has(sub.user_id)) {
+                    loggedUsers.add(sub.user_id);
+                    logPush(sub.user_id, sub.user_type || userType, payload);
+                }
             } catch (error: any) {
                 if (error.statusCode === 404 || error.statusCode === 410) {
                     await supabase.from('push_subscriptions').delete().eq('id', sub.id);
@@ -565,6 +569,7 @@ export async function sendPushToSpecificUsers(
 
     let sent = 0;
     let failed = 0;
+    const loggedUsers = new Set<string>(); // log once per user, not per device
 
     for (const sub of subs) {
         try {
@@ -573,6 +578,11 @@ export async function sendPushToSpecificUsers(
                 JSON.stringify(payload)
             );
             sent++;
+            // Log to push_notifications_log for history tab
+            if (!loggedUsers.has(sub.user_id)) {
+                loggedUsers.add(sub.user_id);
+                logPush(sub.user_id, sub.user_type || 'employee', payload);
+            }
         } catch (error: any) {
             if (error.statusCode === 404 || error.statusCode === 410) {
                 console.log(`[WebPush] Removing stale subscription ${sub.id} (HTTP ${error.statusCode})`);

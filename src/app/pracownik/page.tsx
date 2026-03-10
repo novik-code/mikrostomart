@@ -167,6 +167,24 @@ export default function EmployeePage() {
         fetchSchedule();
     }, [fetchSchedule]);
 
+    // Fetch tasks on mount so ScheduleTab dashboard stats are populated
+    // (useTasks hook only runs inside TasksTab which is conditionally rendered)
+    const fetchTasksForDashboard = useCallback(async () => {
+        try {
+            const res = await fetch('/api/employee/tasks');
+            if (!res.ok) return;
+            const data = await res.json();
+            setTasks(data.tasks || []);
+        } catch (err) {
+            console.error('[Tasks] Dashboard fetch error:', err);
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchTasksForDashboard();
+    }, [fetchTasksForDashboard]);
+
+
 
     // Open patient history modal
     const openPatientHistory = useCallback(async (apt: ScheduleAppointment) => {

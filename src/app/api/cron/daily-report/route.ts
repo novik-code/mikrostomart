@@ -55,12 +55,13 @@ export async function GET(req: NextRequest) {
                 signal: AbortSignal.timeout(10000),
             });
             if (res.ok) {
-                const appointments = await res.json();
+                const data = await res.json();
+                const appointments = data.appointments || data || [];
                 if (Array.isArray(appointments)) {
                     appointmentCount = appointments.length;
                     // Group by doctor
                     for (const apt of appointments) {
-                        const doc = apt.doctorName || apt.doctor || 'Nieznany';
+                        const doc = apt.doctor?.name || apt.doctorName || apt.doctor || 'Nieznany';
                         doctorSummary[doc] = (doctorSummary[doc] || 0) + 1;
                     }
                 }
@@ -109,7 +110,7 @@ export async function GET(req: NextRequest) {
         // 3. OVERDUE & TODAY'S TASKS
         // ═══════════════════════════════════════════════════
         const { data: overdueTasks } = await supabase
-            .from('tasks')
+            .from('employee_tasks')
             .select('id, title, due_date, priority')
             .in('status', ['todo', 'in_progress'])
             .not('due_date', 'is', null)

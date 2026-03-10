@@ -38,6 +38,7 @@ export async function GET(req: Request) {
             .from('employee_tasks')
             .select('id, title, task_type, patient_name, assigned_to_doctor_name, created_by_email, created_at, checklist_items, due_date')
             .neq('status', 'done')
+            .neq('status', 'archived')
             .order('created_at', { ascending: true });
 
         if (error) {
@@ -45,7 +46,11 @@ export async function GET(req: Request) {
             return NextResponse.json({ error: 'DB error' }, { status: 500 });
         }
 
-        const noDateTasks = (allTasks || []).filter(t => t.due_date === null);
+        const maxAgeMs = 30 * 86400000; // 30 days
+        const noDateTasks = (allTasks || []).filter(t =>
+            t.due_date === null &&
+            (Date.now() - new Date(t.created_at).getTime()) < maxAgeMs
+        );
 
         const depositKeywords = ['zadatek', 'wpłac', 'wpłacony', 'wpłata', 'wplata', 'zaliczka', 'przedpłata'];
         const pendingDepositTasks = (allTasks || []).filter(t => {
