@@ -30,7 +30,7 @@ export async function GET(_req: NextRequest) {
         .from('push_notifications_log')
         .select('id, title, body, url, tag, sent_at')
         .eq('user_id', user.id)
-        .gte('sent_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
+        .gte('sent_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
         .order('sent_at', { ascending: false })
         .limit(200);
 

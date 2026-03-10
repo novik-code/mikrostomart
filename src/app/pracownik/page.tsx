@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 import { useRouter } from "next/navigation";
-import { LogOut, ChevronLeft, ChevronRight, Calendar, RefreshCw, CheckSquare, Plus, User, AlertTriangle, Trash2, Clock, X, Bell, Bot, Lightbulb, ThumbsUp, MessageSquare, Send, Menu, Search, Mail } from "lucide-react";
+import { LogOut, ChevronLeft, ChevronRight, Calendar, RefreshCw, CheckSquare, Plus, User, AlertTriangle, Trash2, Clock, X, Bell, Bot, Lightbulb, ThumbsUp, MessageSquare, Send, Menu, Search, Mail, Settings } from "lucide-react";
 import VoiceAssistant from "@/components/VoiceAssistant";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import PushNotificationPrompt from "@/components/PushNotificationPrompt";
@@ -21,6 +21,7 @@ import PatientsTab from './components/PatientsTab';
 import ScheduleTab from './components/ScheduleTab';
 import TasksTab from './components/TasksTab';
 import EmailTab from './components/EmailTab';
+import PreferencesTab from './components/PreferencesTab';
 
 // ─── Main Component ─────────────────────────────────────────────
 export default function EmployeePage() {
@@ -47,7 +48,9 @@ export default function EmployeePage() {
     const [historyError, setHistoryError] = useState<string | null>(null);
     const [sessionTimeoutWarning, setSessionTimeoutWarning] = useState(false);
     const { userId: currentUserId, email: currentUserEmail, isAdmin } = useUserRoles();
-    const [activeTab, setActiveTab] = useState<'grafik' | 'zadania' | 'asystent' | 'powiadomienia' | 'sugestie' | 'pacjenci' | 'poczta'>('grafik');
+    const [activeTab, setActiveTab] = useState<'grafik' | 'zadania' | 'asystent' | 'powiadomienia' | 'sugestie' | 'pacjenci' | 'poczta' | 'preferencje'>('grafik');
+    const [loginPopupTasks, setLoginPopupTasks] = useState<EmployeeTask[]>([]);
+    const [showLoginPopup, setShowLoginPopup] = useState(false);
 
     // ─── Feature suggestions state (shared — list loaded on tab switch) ───
     const [suggestions, setSuggestions] = useState<any[]>([]);
@@ -168,21 +171,41 @@ export default function EmployeePage() {
     }, [fetchSchedule]);
 
     // Fetch tasks on mount so ScheduleTab dashboard stats are populated
-    // (useTasks hook only runs inside TasksTab which is conditionally rendered)
+    // AND trigger login popup showing pending tasks (once per session)
     const fetchTasksForDashboard = useCallback(async () => {
         try {
             const res = await fetch('/api/employee/tasks');
             if (!res.ok) return;
             const data = await res.json();
-            setTasks(data.tasks || []);
+            const allTasks: EmployeeTask[] = data.tasks || [];
+            setTasks(allTasks);
+
+            // Show login popup once per session if user has pending tasks
+            if (currentUserId && currentUserEmail) {
+                const popupKey = `taskPopupShown_${currentUserId}`;
+                if (typeof window !== 'undefined' && !sessionStorage.getItem(popupKey)) {
+                    const mine = allTasks.filter(t =>
+                        (t.status === 'todo' || t.status === 'in_progress') &&
+                        ((t.assigned_to || []).some(a => a.id === currentUserId) ||
+                            t.assigned_to_doctor_id === currentUserId ||
+                            t.created_by_email === currentUserEmail)
+                    );
+                    if (mine.length > 0) {
+                        setLoginPopupTasks(mine);
+                        setShowLoginPopup(true);
+                        sessionStorage.setItem(popupKey, '1');
+                    }
+                }
+            }
         } catch (err) {
             console.error('[Tasks] Dashboard fetch error:', err);
         }
-    }, []);
+    }, [currentUserId, currentUserEmail]);
 
     useEffect(() => {
         fetchTasksForDashboard();
     }, [fetchTasksForDashboard]);
+
 
 
 
@@ -379,6 +402,7 @@ export default function EmployeePage() {
                             { id: 'powiadomienia' as const, label: 'Alerty', icon: <Bell size={20} />, color: '#f59e0b' },
                             { id: 'sugestie' as const, label: 'Sugestie', icon: <Lightbulb size={20} />, color: '#fb923c' },
                             { id: 'pacjenci' as const, label: 'Pacjenci', icon: <Search size={20} />, color: '#e879f9' },
+                            { id: 'preferencje' as const, label: 'Preferencje', icon: <Settings size={20} />, color: '#94a3b8' },
                             ...(isAdmin ? [{ id: 'poczta' as const, label: 'Poczta', icon: <Mail size={20} />, color: '#34d399' }] : []),
                         ].map((tab, i, arr) => {
                             const isActive = activeTab === tab.id;
@@ -494,6 +518,7 @@ export default function EmployeePage() {
                         { id: 'powiadomienia' as const, label: 'Alerty', icon: <Bell size={18} /> },
                         { id: 'sugestie' as const, label: 'Sugestie', icon: <Lightbulb size={18} /> },
                         { id: 'pacjenci' as const, label: 'Pacjenci', icon: <Search size={18} /> },
+                        { id: 'preferencje' as const, label: 'Preferencje', icon: <Settings size={18} /> },
                         ...(isAdmin ? [{ id: 'poczta' as const, label: '📧 Poczta', icon: <Mail size={18} /> }] : []),
                     ].map(tab => {
                         const isActive = activeTab === tab.id;
@@ -613,12 +638,70 @@ export default function EmployeePage() {
                 <PatientsTab openPatientHistory={openPatientHistory} />
             )}
 
+            {/* ═══ PREFERENCJE TAB ═══ */}
+            {activeTab === 'preferencje' && (
+                <PreferencesTab isMobile={isMobile} />
+            )}
+
             {/* ═══ POCZTA TAB (admin only) ═══ */}
             {activeTab === 'poczta' && isAdmin && (
                 <EmailTab />
             )}
 
 
+
+            {/* Login Popup — pending tasks */}
+            {showLoginPopup && loginPopupTasks.length > 0 && (
+                <div style={{
+                    position: 'fixed', inset: 0, zIndex: 9998,
+                    background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    padding: '1rem',
+                }} onClick={() => setShowLoginPopup(false)}>
+                    <div onClick={e => e.stopPropagation()} style={{
+                        background: 'linear-gradient(135deg, #1e293b, #0f172a)',
+                        border: '1px solid rgba(56,189,248,0.2)',
+                        borderRadius: '1rem',
+                        padding: '1.5rem',
+                        maxWidth: '380px',
+                        width: '100%',
+                        boxShadow: '0 8px 40px rgba(0,0,0,0.5)',
+                    }}>
+                        <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem', textAlign: 'center' }}>📋</div>
+                        <div style={{ fontSize: '1rem', fontWeight: 600, color: '#fff', textAlign: 'center', marginBottom: '0.3rem' }}>
+                            Masz {loginPopupTasks.length} {loginPopupTasks.length === 1 ? 'zadanie' : loginPopupTasks.length < 5 ? 'zadania' : 'zadań'} do realizacji
+                        </div>
+                        <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)', textAlign: 'center', marginBottom: '1rem' }}>
+                            {loginPopupTasks.filter(t => t.status === 'todo').length} nowych, {loginPopupTasks.filter(t => t.status === 'in_progress').length} w trakcie
+                        </div>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <button
+                                onClick={() => { setShowLoginPopup(false); setActiveTab('zadania'); }}
+                                style={{
+                                    flex: 1, padding: '0.6rem', borderRadius: '0.5rem',
+                                    background: 'linear-gradient(135deg, #38bdf8, #0ea5e9)',
+                                    border: 'none', color: '#fff', fontWeight: 600,
+                                    cursor: 'pointer', fontSize: '0.85rem',
+                                }}
+                            >
+                                Przejdź do zadań
+                            </button>
+                            <button
+                                onClick={() => setShowLoginPopup(false)}
+                                style={{
+                                    padding: '0.6rem 1rem', borderRadius: '0.5rem',
+                                    background: 'rgba(255,255,255,0.06)',
+                                    border: '1px solid rgba(255,255,255,0.1)',
+                                    color: 'rgba(255,255,255,0.5)',
+                                    cursor: 'pointer', fontSize: '0.85rem',
+                                }}
+                            >
+                                Zamknij
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Session Timeout Warning */}
             {sessionTimeoutWarning && (

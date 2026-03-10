@@ -419,7 +419,14 @@ export async function sendPushByConfig(
         return { sent: 0, failed: 0 };
     }
 
-    // 3. Send to configured groups (with optional user exclusion)
+    // 3. Fetch per-user muted preferences for this config key
+    const { data: mutedPrefs } = await supabase
+        .from('employee_notification_preferences')
+        .select('user_id')
+        .contains('muted_keys', [configKey]);
+    const mutedUserIds = new Set((mutedPrefs || []).map(p => p.user_id));
+
+    // 4. Send to configured groups (with optional user exclusion)
     let totalSent = 0;
     let totalFailed = 0;
 
@@ -437,6 +444,8 @@ export async function sendPushByConfig(
         const deduped = dedupSubsByUser(subs);
         for (const sub of deduped) {
             if (excludeUserId && sub.user_id === excludeUserId) continue;
+            // Skip users who muted this notification type
+            if (mutedUserIds.has(sub.user_id)) continue;
             // Skip endpoints already notified in a previous group iteration
             if (sentEndpoints.has(sub.endpoint)) continue;
             sentEndpoints.add(sub.endpoint);
