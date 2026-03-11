@@ -552,27 +552,23 @@ export async function sendPushToSpecificUsers(
         return { sent: 0, failed: 0 };
     }
 
-    // Deduplicate: keep only the first (most recent) subscription per user.
-    // A user intentionally on 2 devices has 2 different endpoints — both are
-    // considered "most recent" for their respective device, so we keep one
-    // entry per (user_id, endpoint) pair. We limit to max 3 per user to
-    // gracefully support multi-device while preventing mass duplication.
-    const seenByUser = new Map<string, number>(); // user_id → count seen
+    // Deduplicate: keep only the most recent subscription per user.
+    // Ordered by created_at DESC, so first entry per user_id = newest endpoint.
+    const seenUsers = new Set<string>();
     const subs = allSubs.filter(sub => {
-        const count = seenByUser.get(sub.user_id) || 0;
-        if (count >= 3) return false; // safety cap: at most 3 devices per user
-        seenByUser.set(sub.user_id, count + 1);
+        if (seenUsers.has(sub.user_id)) return false;
+        seenUsers.add(sub.user_id);
         return true;
     });
 
     // Debug info
-    console.log(`[WebPush] sendPushToSpecificUsers: userIds=${JSON.stringify(userIds)} found ${allSubs.length} subs (${subs.length} after dedup)`);
+    console.log(`[WebPush] sendPushToSpecificUsers: userIds=${JSON.stringify(userIds)} found ${allSubs.length} subs (${subs.length} after dedup, 1 per user)`);
     for (const uid of userIds) {
         const count = allSubs.filter(s => s.user_id === uid).length;
         if (count === 0) {
             console.warn(`[WebPush]   → user ${uid.slice(0, 8)}... has 0 subscriptions!`);
-        } else {
-            console.log(`[WebPush]   → user ${uid.slice(0, 8)}... has ${count} subscription(s), sending to ${Math.min(count, 3)}`);
+        } else if (count > 1) {
+            console.log(`[WebPush]   → user ${uid.slice(0, 8)}... has ${count} subscription(s), sending to newest only`);
         }
     }
 
