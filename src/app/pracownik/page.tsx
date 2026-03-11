@@ -18,10 +18,13 @@ import { TASK_TYPE_COLORS, getTaskTypeColor, FALLBACK_TASK_TYPE_CHECKLISTS } fro
 import NotificationsTab from './components/NotificationsTab';
 import SuggestionsTab from './components/SuggestionsTab';
 import PatientsTab from './components/PatientsTab';
-import ScheduleTab from './components/ScheduleTab';
-import TasksTab from './components/TasksTab';
-import EmailTab from './components/EmailTab';
 import PreferencesTab from './components/PreferencesTab';
+import dynamic from 'next/dynamic';
+
+// Heavy tabs — code-split so Safari doesn't choke on initial bundle
+const ScheduleTab = dynamic(() => import('./components/ScheduleTab'), { ssr: false });
+const TasksTab = dynamic(() => import('./components/TasksTab'), { ssr: false });
+const EmailTab = dynamic(() => import('./components/EmailTab'), { ssr: false });
 
 // ─── Main Component ─────────────────────────────────────────────
 export default function EmployeePage() {

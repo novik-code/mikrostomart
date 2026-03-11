@@ -302,7 +302,24 @@ export default function AdminPage() {
                     markLoaded('sms-week-after-visit');
                 }
                 break;
-            // push, chat, theme, appointment-instructions, cancelled-appointments
+            case 'push':
+                if (!loadedTabs.has('push')) {
+                    fetchPushData();
+                    markLoaded('push');
+                }
+                break;
+            case 'cancelled-appointments':
+                if (!loadedTabs.has('cancelled-appointments')) {
+                    setCancelledLoading(true);
+                    fetch('/api/admin/cancelled-appointments?limit=100')
+                        .then(r => r.json())
+                        .then(d => setCancelledAppointments(d.appointments || []))
+                        .catch(() => { })
+                        .finally(() => setCancelledLoading(false));
+                    markLoaded('cancelled-appointments');
+                }
+                break;
+            // chat, theme, appointment-instructions
             // are handled by their own components' internal useEffect
         }
     }, [activeTab, authed]);
@@ -4771,9 +4788,9 @@ export default function AdminPage() {
     };
 
 
-    const NavItem = ({ id, label, icon: Icon }: any) => (
+    const NavItem = ({ id, label, icon: Icon, onClick: customOnClick }: any) => (
         <button
-            onClick={() => setActiveTab(id)}
+            onClick={customOnClick || (() => setActiveTab(id))}
             style={{
                 display: "flex",
                 alignItems: "center",
@@ -4919,7 +4936,7 @@ export default function AdminPage() {
                     <NavItem id="appointment-instructions" label="Instrukcje Wizyt" icon={FileText} />
                     <NavItem id="employees" label="Pracownicy" icon={Users} />
                     <NavItem id="roles" label="Uprawnienia" icon={Shield} />
-                    <NavItem id="push" label="🔔 Push" icon={Bell} onClick={() => { setActiveTab('push'); fetchPushData(); }} />
+                    <NavItem id="push" label="🔔 Push" icon={Bell} />
                     <NavItem id="cancelled-appointments" label="❌ Odwołane wizyty" icon={Calendar} />
                     <NavItem id="orders" label="Zamówienia" icon={ShoppingBag} />
                     <NavItem id="products" label="Produkty (Sklep)" icon={Package} />
