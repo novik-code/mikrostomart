@@ -177,31 +177,76 @@ export default function AdminPage() {
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
+    // ── Auth check — only on mount ──────────────────────────────────────
+    const [authed, setAuthed] = useState(false);
     useEffect(() => {
         const checkUser = async () => {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) {
                 router.push("/admin/login");
             } else {
-                fetchProducts();
-                fetchQuestions();
-                fetchArticles();
-                fetchNews();
-                fetchBlogPosts(); // Fetch blog posts
-                fetchOrders();
-                fetchReservations();
-                fetchPatients(); // Fetch patients
-                fetchSmsReminders(); // Fetch SMS reminders
-                if (activeTab === 'roles') fetchRoles(); // Fetch roles on tab switch
-                if (activeTab === 'employees') fetchEmployees(); // Fetch employees on tab switch
+                setAuthed(true);
+            }
+        };
+        checkUser();
+    }, []);
 
-                if (activeTab === 'online-bookings') {
+    // ── Lazy data loading — fetch only what the active tab needs ──────
+    // Track which tabs already loaded their data to avoid re-fetching on tab switch
+    const [loadedTabs, setLoadedTabs] = useState<Set<string>>(new Set());
+
+    useEffect(() => {
+        if (!authed) return;
+
+        const markLoaded = (tab: string) => setLoadedTabs(prev => new Set(prev).add(tab));
+
+        switch (activeTab) {
+            case 'dashboard':
+            case 'products':
+                if (!loadedTabs.has('products')) {
+                    fetchProducts();
+                    markLoaded('products');
+                }
+                break;
+            case 'questions':
+                if (!loadedTabs.has('questions')) { fetchQuestions(); markLoaded('questions'); }
+                break;
+            case 'articles':
+                if (!loadedTabs.has('articles')) { fetchArticles(); markLoaded('articles'); }
+                break;
+            case 'news':
+                if (!loadedTabs.has('news')) { fetchNews(); markLoaded('news'); }
+                break;
+            case 'blog':
+                if (!loadedTabs.has('blog')) { fetchBlogPosts(); markLoaded('blog'); }
+                break;
+            case 'orders':
+                if (!loadedTabs.has('orders')) { fetchOrders(); markLoaded('orders'); }
+                break;
+            case 'reservations':
+                if (!loadedTabs.has('reservations')) { fetchReservations(); markLoaded('reservations'); }
+                break;
+            case 'patients':
+                if (!loadedTabs.has('patients')) { fetchPatients(); markLoaded('patients'); }
+                break;
+            case 'sms-reminders':
+                if (!loadedTabs.has('sms-reminders')) { fetchSmsReminders(); markLoaded('sms-reminders'); }
+                break;
+            case 'roles':
+                if (!loadedTabs.has('roles')) { fetchRoles(); markLoaded('roles'); }
+                break;
+            case 'employees':
+                if (!loadedTabs.has('employees')) { fetchEmployees(); markLoaded('employees'); }
+                break;
+            case 'online-bookings':
+                if (!loadedTabs.has('online-bookings')) {
                     fetchProdentisColors();
                     fetchProdentisIcons();
+                    markLoaded('online-bookings');
                 }
-
-                // Auto-load SMS post-visit data when entering that tab
-                if (activeTab === 'sms-post-visit') {
+                break;
+            case 'sms-post-visit':
+                if (!loadedTabs.has('sms-post-visit')) {
                     (async () => {
                         setPostVisitLoading(true);
                         try {
@@ -222,18 +267,20 @@ export default function AdminPage() {
                         } catch (e) { console.error(e); }
                         setPostVisitLoading(false);
                     })();
+                    markLoaded('sms-post-visit');
                 }
-
-                // Auto-load booking settings when entering that tab
-                if (activeTab === 'booking-settings') {
+                break;
+            case 'booking-settings':
+                if (!loadedTabs.has('booking-settings')) {
                     fetch('/api/admin/booking-settings')
                         .then(r => r.json())
                         .then(d => setMinDaysAhead(typeof d.min_days_ahead === 'number' ? d.min_days_ahead : 1))
                         .catch(() => { });
+                    markLoaded('booking-settings');
                 }
-
-                // Auto-load SMS week-after-visit data when entering that tab
-                if (activeTab === 'sms-week-after-visit') {
+                break;
+            case 'sms-week-after-visit':
+                if (!loadedTabs.has('sms-week-after-visit')) {
                     (async () => {
                         setWeekAfterLoading(true);
                         try {
@@ -252,11 +299,13 @@ export default function AdminPage() {
                         } catch (e) { console.error(e); }
                         setWeekAfterLoading(false);
                     })();
+                    markLoaded('sms-week-after-visit');
                 }
-            }
-        };
-        checkUser();
-    }, [activeTab]);
+                break;
+            // push, chat, theme, appointment-instructions, cancelled-appointments
+            // are handled by their own components' internal useEffect
+        }
+    }, [activeTab, authed]);
 
     // Fetch online bookings when filter changes
     useEffect(() => {
