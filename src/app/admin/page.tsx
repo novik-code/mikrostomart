@@ -25,7 +25,14 @@ import {
     Shield,
     Paintbrush,
     Bell,
-    Trash2
+    Trash2,
+    CalendarCheck,
+    CalendarX,
+    Phone,
+    Pen,
+    Fingerprint,
+    ClipboardList,
+    Send
 } from "lucide-react";
 import { Product } from './components/AdminTypes';
 
@@ -4788,29 +4795,62 @@ export default function AdminPage() {
     };
 
 
-    const NavItem = ({ id, label, icon: Icon, onClick: customOnClick }: any) => (
-        <button
-            onClick={customOnClick || (() => setActiveTab(id))}
-            style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "0.8rem",
-                width: "100%",
-                padding: "0.8rem 1rem",
-                background: activeTab === id ? "var(--color-primary)" : "transparent",
-                color: activeTab === id ? "black" : "var(--color-text-muted)",
-                border: "none",
-                borderRadius: "var(--radius-md)",
-                cursor: "pointer",
-                transition: "all 0.2s",
-                fontWeight: activeTab === id ? "bold" : "normal",
-                textAlign: "left"
-            }}
-        >
-            <Icon size={18} />
-            {label}
-        </button>
+    const NavSection = ({ title }: { title: string }) => (
+        <div style={{ padding: '0 1rem 0.3rem', fontSize: '0.65rem', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: '0.8rem' }}>
+            {title}
+        </div>
     );
+
+    const NavItem = ({ id, label, icon: Icon, badge, onClick: customOnClick, href }: any) => {
+        const isActive = activeTab === id;
+        const content = (
+            <>
+                <Icon size={18} />
+                <span style={{ flex: 1 }}>{label}</span>
+                {badge > 0 && (
+                    <span style={{
+                        background: '#f59e0b',
+                        color: 'black',
+                        borderRadius: '50%',
+                        minWidth: '20px',
+                        height: '20px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '0.7rem',
+                        fontWeight: 'bold'
+                    }}>
+                        {badge}
+                    </span>
+                )}
+            </>
+        );
+        const baseStyle: React.CSSProperties = {
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.8rem',
+            width: '100%',
+            padding: '0.65rem 1rem',
+            background: isActive ? 'var(--color-primary)' : 'transparent',
+            color: isActive ? 'black' : 'var(--color-text-muted)',
+            border: 'none',
+            borderRadius: 'var(--radius-md)',
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+            fontWeight: isActive ? 'bold' : 'normal',
+            textAlign: 'left',
+            fontSize: '0.88rem',
+            textDecoration: 'none',
+        };
+        if (href) {
+            return <a href={href} style={baseStyle}>{content}</a>;
+        }
+        return (
+            <button onClick={customOnClick || (() => setActiveTab(id))} style={baseStyle}>
+                {content}
+            </button>
+        );
+    };
 
     return (
         <div style={{ display: "flex", minHeight: "100vh", background: "#0a0a0a", flexDirection: "column" }}>
@@ -4880,110 +4920,45 @@ export default function AdminPage() {
                     <p style={{ fontSize: "0.7rem", color: "var(--color-text-muted)", marginTop: "0.2rem" }}>Panel Administratora v2.0</p>
                 </div>
 
-                <nav style={{ display: "flex", flexDirection: "column", gap: "0.5rem", flex: 1 }}>
+                <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', flex: 1, overflowY: 'auto' }}>
                     <NavItem id="dashboard" label="Pulpit" icon={LayoutDashboard} />
-                    <NavItem id="reservations" label="Rezerwacje" icon={Calendar} />
-                    <NavItem id="online-bookings" label={
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%' }}>
-                            <span>📅 Wizyty Online</span>
-                            {onlineBookingsPendingCount > 0 && (
-                                <span style={{
-                                    background: '#f59e0b',
-                                    color: 'black',
-                                    borderRadius: '50%',
-                                    width: '20px',
-                                    height: '20px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    fontSize: '0.7rem',
-                                    fontWeight: 'bold'
-                                }}>
-                                    {onlineBookingsPendingCount}
-                                </span>
-                            )}
-                        </div>
-                    } icon={Calendar} />
-                    <NavItem id="patients" label="Pacjenci" icon={Users} />
-                    <NavItem id="sms-reminders" label={
-                        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", width: "100%" }}>
-                            <span>SMS</span>
-                            {smsStats.draft > 0 && (
-                                <span style={{
-                                    background: "#ff4444",
-                                    color: "white",
-                                    borderRadius: "50%",
-                                    width: "20px",
-                                    height: "20px",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    fontSize: "0.7rem",
-                                    fontWeight: "bold"
-                                }}>
-                                    {smsStats.draft}
-                                </span>
-                            )}
-                        </div>
-                    } icon={MessageCircle} />
-                    <NavItem id="sms-post-visit" label="✉️ SMS po wizycie" icon={MessageCircle} />
-                    <NavItem id="sms-week-after-visit" label="📱 SMS tydzień po wizycie" icon={MessageCircle} />
-                    <NavItem id="chat" label={
-                        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", width: "100%" }}>
-                            <span>💬 Czat</span>
-                        </div>
-                    } icon={MessageCircle} />
-                    <NavItem id="appointment-instructions" label="Instrukcje Wizyt" icon={FileText} />
+
+                    <NavSection title="Wizyty" />
+                    <NavItem id="online-bookings" label="Wizyty Online" icon={CalendarCheck} badge={onlineBookingsPendingCount} />
+                    <NavItem id="reservations" label="Rezerwacje (formularz)" icon={Calendar} />
+                    <NavItem id="cancelled-appointments" label="Odwołane wizyty" icon={CalendarX} />
+                    <NavItem id="booking-settings" label="Ustawienia rezerwacji" icon={Settings} />
+                    <NavItem id="appointment-instructions" label="Instrukcje wizyt" icon={ClipboardList} />
+
+                    <NavSection title="Komunikacja" />
+                    <NavItem id="sms-reminders" label="SMS Przypomnienia" icon={Phone} badge={smsStats.draft} />
+                    <NavItem id="sms-post-visit" label="SMS po wizycie" icon={Send} />
+                    <NavItem id="sms-week-after-visit" label="SMS tydzień po" icon={Send} />
+                    <NavItem id="push" label="Powiadomienia Push" icon={Bell} />
+                    <NavItem id="chat" label="Czat z pacjentami" icon={MessageCircle} />
+
+                    <NavSection title="Zespół" />
                     <NavItem id="employees" label="Pracownicy" icon={Users} />
                     <NavItem id="roles" label="Uprawnienia" icon={Shield} />
-                    <NavItem id="push" label="🔔 Push" icon={Bell} />
-                    <NavItem id="cancelled-appointments" label="❌ Odwołane wizyty" icon={Calendar} />
-                    <NavItem id="orders" label="Zamówienia" icon={ShoppingBag} />
-                    <NavItem id="products" label="Produkty (Sklep)" icon={Package} />
+                    <NavItem id="patients" label="Pacjenci" icon={Users} />
 
-                    <div style={{ height: "1px", background: "var(--color-surface-hover)", margin: "1rem 0" }} />
-
+                    <NavSection title="Treści" />
                     <NavItem id="news" label="Aktualności" icon={Newspaper} />
-                    <NavItem id="articles" label="Baza Wiedzy" icon={BookOpen} />
                     <NavItem id="blog" label="Blog" icon={FileText} />
+                    <NavItem id="articles" label="Baza Wiedzy" icon={BookOpen} />
                     <NavItem id="questions" label="Pytania Eksperta" icon={HelpCircle} />
 
-                    <div style={{ height: "1px", background: "var(--color-surface-hover)", margin: "1rem 0" }} />
+                    <NavSection title="Sklep" />
+                    <NavItem id="orders" label="Zamówienia" icon={ShoppingBag} />
+                    <NavItem id="products" label="Produkty" icon={Package} />
 
-                    <NavItem id="booking-settings" label="📅 Rezerwacje" icon={Calendar} />
-                    <NavItem id="theme" label="🎨 Motyw" icon={Paintbrush} />
+                    <NavSection title="Zgody PDF" />
+                    <NavItem id="" label="Podpisy personelu" icon={Pen} href="/admin/staff-signatures" />
+                    <NavItem id="" label="Mapper PDF" icon={Settings} href="/admin/pdf-mapper" />
+                    <NavItem id="" label="Biometria podpisów" icon={Fingerprint} href="/admin/biometric-signatures" />
 
-                    <div style={{ height: "1px", background: "var(--color-surface-hover)", margin: "1rem 0" }} />
-                    <div style={{ padding: "0 1rem 0.3rem", fontSize: "0.65rem", color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                        Narzędzia Zgód
-                    </div>
-                    <a href="/admin/staff-signatures" target="_blank" style={{
-                        display: "flex", alignItems: "center", gap: "0.8rem", width: "100%",
-                        padding: "0.8rem 1rem", background: "transparent", color: "var(--color-text-muted)",
-                        border: "none", borderRadius: "var(--radius-md)", cursor: "pointer",
-                        transition: "all 0.2s", textAlign: "left", textDecoration: "none", fontSize: "0.9rem"
-                    }}>
-                        <FileText size={18} />
-                        ✍️ Podpisy personelu
-                    </a>
-                    <a href="/admin/pdf-mapper" target="_blank" style={{
-                        display: "flex", alignItems: "center", gap: "0.8rem", width: "100%",
-                        padding: "0.8rem 1rem", background: "transparent", color: "var(--color-text-muted)",
-                        border: "none", borderRadius: "var(--radius-md)", cursor: "pointer",
-                        transition: "all 0.2s", textAlign: "left", textDecoration: "none", fontSize: "0.9rem"
-                    }}>
-                        <Settings size={18} />
-                        🗺️ Mapper PDF
-                    </a>
-                    <a href="/admin/biometric-signatures" target="_blank" style={{
-                        display: "flex", alignItems: "center", gap: "0.8rem", width: "100%",
-                        padding: "0.8rem 1rem", background: "transparent", color: "var(--color-text-muted)",
-                        border: "none", borderRadius: "var(--radius-md)", cursor: "pointer",
-                        transition: "all 0.2s", textAlign: "left", textDecoration: "none", fontSize: "0.9rem"
-                    }}>
-                        <FileText size={18} />
-                        🖊️ Biometria podpisów
-                    </a>
+                    <NavSection title="Wygląd" />
+                    <NavItem id="theme" label="Motyw strony" icon={Paintbrush} />
                 </nav>
 
                 <div style={{ marginTop: "auto", borderTop: "1px solid var(--color-surface-hover)", paddingTop: "1rem" }}>
@@ -5051,24 +5026,54 @@ export default function AdminPage() {
 
 
                     {activeTab === 'dashboard' && (
-                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "1.5rem" }}>
-                            <div style={{ background: "var(--color-surface)", padding: "1.5rem", borderRadius: "var(--radius-md)", border: "1px solid var(--color-surface-hover)" }}>
-                                <h3 style={{ color: "var(--color-text-muted)", fontSize: "0.9rem", marginBottom: "0.5rem" }}>Dzisiejsze Wizyty</h3>
-                                <p style={{ fontSize: "2rem", fontWeight: "bold", color: "var(--color-primary)" }}>
-                                    {reservations.filter(r => r.date === new Date().toISOString().split('T')[0]).length}
-                                </p>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                            {/* ── Metric Cards ── */}
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1rem" }}>
+                                {[
+                                    { label: 'Wizyty Online (oczekujące)', value: onlineBookingsPendingCount, color: onlineBookingsPendingCount > 0 ? '#f59e0b' : 'white', tab: 'online-bookings' as const },
+                                    { label: 'Rezerwacje (formularz)', value: reservations.length, color: 'var(--color-primary)', tab: 'reservations' as const },
+                                    { label: 'SMS Robocze', value: smsStats.draft, color: smsStats.draft > 0 ? '#ef4444' : 'white', tab: 'sms-reminders' as const },
+                                    { label: 'Pytania do Eksperta', value: questions.filter(q => q.status === 'pending').length, color: questions.some(q => q.status === 'pending') ? '#ef4444' : 'white', tab: 'questions' as const },
+                                    { label: 'Zamówienia', value: orders.length, color: orders.length > 0 ? '#22c55e' : 'white', tab: 'orders' as const },
+                                    { label: 'Pacjenci', value: patients.length, color: 'white', tab: 'patients' as const },
+                                ].map(card => (
+                                    <button key={card.label} onClick={() => setActiveTab(card.tab)} style={{
+                                        background: 'var(--color-surface)', padding: '1.2rem', borderRadius: 'var(--radius-md)',
+                                        border: '1px solid var(--color-surface-hover)', cursor: 'pointer', textAlign: 'left',
+                                        transition: 'all 0.2s',
+                                    }}>
+                                        <h3 style={{ color: 'var(--color-text-muted)', fontSize: '0.8rem', marginBottom: '0.4rem', fontWeight: 'normal' }}>{card.label}</h3>
+                                        <p style={{ fontSize: '1.8rem', fontWeight: 'bold', color: card.color, margin: 0 }}>{card.value}</p>
+                                    </button>
+                                ))}
                             </div>
-                            <div style={{ background: "var(--color-surface)", padding: "1.5rem", borderRadius: "var(--radius-md)", border: "1px solid var(--color-surface-hover)" }}>
-                                <h3 style={{ color: "var(--color-text-muted)", fontSize: "0.9rem", marginBottom: "0.5rem" }}>Nowe Zamówienia</h3>
-                                <p style={{ fontSize: "2rem", fontWeight: "bold", color: "white" }}>
-                                    {orders.length}
-                                </p>
+
+                            {/* ── Quick Actions ── */}
+                            <div>
+                                <h3 style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.8rem' }}>Szybkie akcje</h3>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
+                                    {[
+                                        { label: 'Wizyty Online', tab: 'online-bookings' as const, icon: '📅' },
+                                        { label: 'SMS Przypomnienia', tab: 'sms-reminders' as const, icon: '📱' },
+                                        { label: 'Pracownicy', tab: 'employees' as const, icon: '👥' },
+                                        { label: 'Aktualności', tab: 'news' as const, icon: '📰' },
+                                        { label: 'Push', tab: 'push' as const, icon: '🔔' },
+                                    ].map(action => (
+                                        <button key={action.label} onClick={() => setActiveTab(action.tab)} style={{
+                                            padding: '0.6rem 1.2rem', background: 'rgba(255,255,255,0.05)',
+                                            border: '1px solid rgba(255,255,255,0.1)', borderRadius: 'var(--radius-md)',
+                                            color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: '0.88rem',
+                                            transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '0.5rem',
+                                        }}>
+                                            <span>{action.icon}</span> {action.label}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
-                            <div style={{ background: "var(--color-surface)", padding: "1.5rem", borderRadius: "var(--radius-md)", border: "1px solid var(--color-surface-hover)" }}>
-                                <h3 style={{ color: "var(--color-text-muted)", fontSize: "0.9rem", marginBottom: "0.5rem" }}>Pytania do Eksperta</h3>
-                                <p style={{ fontSize: "2rem", fontWeight: "bold", color: questions.some(q => q.status === 'pending') ? "var(--color-error)" : "white" }}>
-                                    {questions.filter(q => q.status === 'pending').length}
-                                </p>
+
+                            {/* ── System Info ── */}
+                            <div style={{ padding: '1rem 1.2rem', background: 'rgba(220,177,74,0.04)', border: '1px solid rgba(220,177,74,0.15)', borderRadius: 'var(--radius-md)', fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
+                                <strong style={{ color: '#dcb14a' }}>Mikrostomart Admin v2.1</strong> — Panel zarządzania kliniką stomatologiczną
                             </div>
                         </div>
                     )}
