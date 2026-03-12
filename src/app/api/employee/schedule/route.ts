@@ -1,10 +1,20 @@
 import { NextResponse } from 'next/server';
 import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
+import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
 
 const PRODENTIS_API_URL = process.env.PRODENTIS_API_URL || 'http://localhost:3000';
+const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
+
+/** Normalize a name for fuzzy matching (lowercase, strip accents, collapse whitespace) */
+function normalizeName(n: string): string {
+    return n.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+}
 
 interface ProdentisBadge {
     id: string;
@@ -95,6 +105,14 @@ export async function GET(req: Request) {
     const days: ScheduleDay[] = [];
     const allDoctors = new Set<string>();
 
+    // Fetch deactivated employees to filter them out
+    const { data: deactivated } = await supabase
+        .from('employees')
+        .select('name, prodentis_id')
+        .eq('is_active', false);
+    const deactivatedNames = new Set((deactivated || []).map(e => normalizeName(e.name || '')).filter(Boolean));
+    const deactivatedProdentisIds = new Set((deactivated || []).map(e => e.prodentis_id).filter(Boolean));
+
     // Fetch 7 days of appointments
     for (let i = 0; i < 7; i++) {
         const date = new Date(weekStart);
@@ -151,6 +169,12 @@ export async function GET(req: Request) {
                 if (startHour < 7) continue;
 
                 const doctorName = apt.doctor?.name?.replace(/\s*\(I\)\s*/g, ' ').trim() || 'Nieznany';
+
+                // Skip appointments of deactivated employees
+                const normalizedDoctor = normalizeName(doctorName);
+                if (deactivatedNames.has(normalizedDoctor)) continue;
+                if (apt.doctor?.id && deactivatedProdentisIds.has(apt.doctor.id)) continue;
+
                 allDoctors.add(doctorName);
 
                 parsed.push({
