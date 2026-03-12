@@ -30,6 +30,16 @@ export interface PeselBoxes {
     page?: number;
 }
 
+export interface CheckboxFieldPosition {
+    x: number;
+    y: number;
+    page?: number;
+    fontSize?: number;
+    fieldType: 'checkbox';
+    label: string;
+    mutexGroup?: string;
+}
+
 export interface ConsentFieldMap {
     /** Where to write patient full name (on the dotted line) */
     name?: FieldPosition;
@@ -53,6 +63,8 @@ export interface ConsentFieldMap {
     doctor_signature?: FieldPosition;
     /** Patient signature position (drawn on tablet canvas) */
     patient_signature?: FieldPosition;
+    /** Allow any custom fields (checkboxes etc.) from DB */
+    [key: string]: FieldPosition | PeselBoxes | CheckboxFieldPosition | undefined;
 }
 
 export interface ConsentType {

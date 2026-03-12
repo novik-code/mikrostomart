@@ -191,10 +191,10 @@ export default function PdfMapperPage() {
 
     // State: add custom field
     const [showAddField, setShowAddField] = useState(false);
-    const [newFieldKey, setNewFieldKey] = useState('');
     const [newFieldLabel, setNewFieldLabel] = useState('');
-    const [newFieldType, setNewFieldType] = useState<'text' | 'checkbox'>('text');
-    const [newFieldMutexGroup, setNewFieldMutexGroup] = useState('');
+    const [newFieldType, setNewFieldType] = useState<'text' | 'checkbox'>('checkbox');
+    const [newFieldIsPair, setNewFieldIsPair] = useState(false);
+    const [newFieldPairLabel, setNewFieldPairLabel] = useState('');
 
     // State: drag-to-move
     const [dragging, setDragging] = useState<{ key: string; startX: number; startY: number } | null>(null);
@@ -456,45 +456,87 @@ export default function PdfMapperPage() {
 
     // ── Add custom field ───────────────────────────────────────
     const handleAddCustomField = () => {
-        const sanitizedKey = newFieldKey.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
-        if (!sanitizedKey || !newFieldLabel) return;
+        if (!newFieldLabel) return;
 
-        const finalKey = newFieldType === 'checkbox' ? `checkbox_${sanitizedKey}` : `custom_${sanitizedKey}`;
+        // Auto-generate key from label
+        const autoKey = newFieldLabel
+            .toLowerCase()
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .replace(/ł/g, 'l').replace(/ó/g, 'o').replace(/ź/g, 'z').replace(/ż/g, 'z')
+            .replace(/ą/g, 'a').replace(/ę/g, 'e').replace(/ś/g, 's').replace(/ć/g, 'c').replace(/ń/g, 'n')
+            .replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+        if (!autoKey) return;
 
-        // Check for duplicate
-        if (allFieldOptions.find(o => o.key === finalKey)) {
-            alert(`Pole "${finalKey}" już istnieje!`);
-            return;
+        const capturedLabel = newFieldLabel;
+        const capturedPairLabel = newFieldPairLabel.trim();
+
+        if (newFieldType === 'checkbox' && newFieldIsPair && capturedPairLabel) {
+            // Create a TAK/NIE pair with auto mutex group
+            const groupName = capturedLabel;
+            const key1 = `checkbox_${autoKey}_tak`;
+            const key2Suffix = capturedPairLabel.toLowerCase()
+                .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                .replace(/ł/g, 'l').replace(/ó/g, 'o').replace(/ź/g, 'z').replace(/ż/g, 'z')
+                .replace(/ą/g, 'a').replace(/ę/g, 'e').replace(/ś/g, 's').replace(/ć/g, 'c').replace(/ń/g, 'n')
+                .replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+            const key2 = `checkbox_${autoKey}_${key2Suffix || 'nie'}`;
+
+            if (allFieldOptions.find(o => o.key === key1) || allFieldOptions.find(o => o.key === key2)) {
+                alert(`Pola "${capturedLabel}" już istnieją!`);
+                return;
+            }
+
+            const idx = placedFields.length;
+            const color1 = getCustomColor(idx);
+            const color2 = getCustomColor(idx + 1);
+
+            setPlacedFields(prev => [...prev,
+            {
+                key: key1, label: capturedLabel, fieldType: 'checkbox',
+                page: currentPage, nx: 0.4, ny: 0.5,
+                pdfX: Math.round(pdfSize.w * 0.4 * 10) / 10,
+                pdfY: Math.round(pdfSize.h * 0.5 * 10) / 10,
+                fontSize: 14, color: color1, icon: '☑️',
+                mutexGroup: groupName,
+            },
+            {
+                key: key2, label: capturedPairLabel, fieldType: 'checkbox',
+                page: currentPage, nx: 0.6, ny: 0.5,
+                pdfX: Math.round(pdfSize.w * 0.6 * 10) / 10,
+                pdfY: Math.round(pdfSize.h * 0.5 * 10) / 10,
+                fontSize: 14, color: color2, icon: '☑️',
+                mutexGroup: groupName,
+            },
+            ]);
+            setActiveFieldKey(key1);
+        } else {
+            // Single field (checkbox or text)
+            const finalKey = newFieldType === 'checkbox' ? `checkbox_${autoKey}` : `custom_${autoKey}`;
+
+            if (allFieldOptions.find(o => o.key === finalKey)) {
+                alert(`Pole "${capturedLabel}" już istnieje!`);
+                return;
+            }
+
+            const idx = placedFields.length;
+            const color = getCustomColor(idx);
+            const icon = newFieldType === 'checkbox' ? '☑️' : '📝';
+
+            setPlacedFields(prev => [...prev, {
+                key: finalKey, label: capturedLabel, fieldType: newFieldType,
+                page: currentPage, nx: 0.5, ny: 0.5,
+                pdfX: Math.round(pdfSize.w / 2 * 10) / 10,
+                pdfY: Math.round(pdfSize.h / 2 * 10) / 10,
+                fontSize: newFieldType === 'checkbox' ? 14 : 11,
+                color, icon,
+            }]);
+            setActiveFieldKey(finalKey);
         }
 
-        // Add to placed fields with a temporary position (user will click to place)
-        setActiveFieldKey(finalKey);
         setShowAddField(false);
-        const capturedLabel = newFieldLabel;
-        const capturedMutexGroup = newFieldType === 'checkbox' ? newFieldMutexGroup.trim() : '';
-        setNewFieldKey('');
         setNewFieldLabel('');
-        setNewFieldMutexGroup('');
-
-        // Pre-register the custom field in placed so it appears in the field list
-        // But without position — user needs to click on PDF to place it
-        const idx = placedFields.length;
-        const color = getCustomColor(idx);
-        const icon = newFieldType === 'checkbox' ? '☑️' : '📝';
-
-        // Add a "pending" field — it will be placed when user clicks
-        setPlacedFields(prev => [...prev, {
-            key: finalKey,
-            label: capturedLabel,
-            fieldType: newFieldType,
-            page: currentPage,
-            nx: 0.5, ny: 0.5, // center temporarily
-            pdfX: Math.round(pdfSize.w / 2 * 10) / 10,
-            pdfY: Math.round(pdfSize.h / 2 * 10) / 10,
-            fontSize: 11,
-            color, icon,
-            ...(capturedMutexGroup ? { mutexGroup: capturedMutexGroup } : {}),
-        }]);
+        setNewFieldPairLabel('');
+        setNewFieldIsPair(false);
         setHasChanges(true);
     };
 
@@ -620,22 +662,15 @@ export default function PdfMapperPage() {
                                 <li>Każda kopia zostanie wypełniona tymi samymi danymi pacjenta</li>
                             </ul>
 
-                            <h3 style={{ color: '#22c55e', fontSize: '0.9rem', marginBottom: '0.4rem' }}>➕ Dodawanie własnych pól</h3>
-                            <p style={{ margin: '0 0 0.5rem' }}>Jeśli potrzebujesz pola którego nie ma w zestawie automatycznych:</p>
+                            <h3 style={{ color: '#22c55e', fontSize: '0.9rem', marginBottom: '0.4rem' }}>➕ Dodawanie pól wyboru (TAK/NIE)</h3>
+                            <p style={{ margin: '0 0 0.5rem' }}>Jeśli na formularzu PDF jest pole do zaznaczenia przez pacjenta:</p>
                             <ul style={{ paddingLeft: '1.2rem', margin: '0 0 1rem' }}>
                                 <li>Kliknij żółty przycisk <strong>➕ Dodaj nowe pole</strong></li>
-                                <li>Wybierz typ: <strong>📝 Tekst</strong> lub <strong>☑️ Checkbox</strong></li>
-                                <li><strong>Klucz</strong> = wewnętrzny identyfikator w bazie danych (np. <code style={{ background: 'rgba(255,255,255,0.1)', padding: '1px 4px', borderRadius: '3px' }}>nieletni</code>). Musi być unikalny, nie zmienia się po utworzeniu.</li>
-                                <li><strong>Etykieta</strong> = tekst widoczny dla pracownika i pacjenta (np. &quot;Pacjent nieletni&quot;). To jest opis pola.</li>
-                                <li>Pole pojawi się na środku PDF — <strong>złap i przeciągnij</strong> na właściwe miejsce</li>
-                            </ul>
-
-                            <h3 style={{ color: '#d946ef', fontSize: '0.9rem', marginBottom: '0.4rem' }}>☑️ Checkboxy z grupą mutex</h3>
-                            <p style={{ margin: '0 0 0.5rem' }}>Jeśli na formularzu jest &quot;TAK / NIE&quot; — mogą być zaznaczone wzajemnie wykluczająco:</p>
-                            <ul style={{ paddingLeft: '1.2rem', margin: '0 0 1rem' }}>
-                                <li>Przy dodawaniu checkboxa wpisz <strong>Grupę mutex</strong> (np. &quot;zgoda&quot;)</li>
-                                <li>Wszystkie checkboxy z tą samą grupą działają jak radio — zaznaczenie jednego odznacza resztę</li>
-                                <li>Jeśli grupa jest pusta — checkbox jest niezależny</li>
+                                <li>Wybierz typ: <strong>☑️ Pole wyboru</strong> lub <strong>📝 Pole tekstowe</strong></li>
+                                <li>Wpisz <strong>opis</strong> — to tekst który zobaczy pacjent (np. &quot;TAK&quot;, &quot;Ciąża&quot;)</li>
+                                <li>Jeśli tworzysz parę <strong>TAK / NIE</strong> — zaznacz opcję &quot;Para TAK/NIE&quot; i wpisz oba opisy</li>
+                                <li>Oba pola pojawią się na PDF — <strong>złap i przeciągnij</strong> każde na swoje miejsce</li>
+                                <li>Przy podpisywaniu: pacjent klika odpowiedź → system wstawia ✓ lub ✗ na PDF</li>
                             </ul>
 
                             <h3 style={{ color: '#f97316', fontSize: '0.9rem', marginBottom: '0.4rem' }}>🆕 Tworzenie nowego typu zgody</h3>
@@ -797,42 +832,90 @@ export default function PdfMapperPage() {
 
                 {showAddField && (
                     <div style={{
-                        marginTop: '0.4rem', padding: '0.6rem',
+                        marginTop: '0.4rem', padding: '0.75rem',
                         background: 'rgba(251,191,36,0.08)', borderRadius: '0.5rem',
                         border: '1px solid rgba(251,191,36,0.2)',
-                        display: 'flex', gap: '0.5rem', alignItems: 'flex-end', flexWrap: 'wrap',
                     }}>
-                        <div>
-                            <label style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: '0.2rem' }}>Typ pola</label>
-                            <select value={newFieldType} onChange={e => setNewFieldType(e.target.value as any)}
-                                style={{ padding: '0.3rem 0.5rem', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '0.3rem', color: '#fff', fontSize: '0.75rem' }}>
-                                <option value="text">📝 Tekst</option>
-                                <option value="checkbox">☑️ Checkbox</option>
-                            </select>
+                        {/* Step 1: Choose field type */}
+                        <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '0.6rem' }}>
+                            <button onClick={() => { setNewFieldType('checkbox'); setNewFieldIsPair(false); }}
+                                style={{
+                                    flex: 1, padding: '0.5rem', borderRadius: '0.5rem',
+                                    border: newFieldType === 'checkbox' ? '2px solid #fbbf24' : '1px solid rgba(255,255,255,0.12)',
+                                    background: newFieldType === 'checkbox' ? 'rgba(251,191,36,0.15)' : 'rgba(255,255,255,0.03)',
+                                    color: newFieldType === 'checkbox' ? '#fbbf24' : 'rgba(255,255,255,0.6)',
+                                    fontSize: '0.75rem', cursor: 'pointer', fontWeight: newFieldType === 'checkbox' ? 'bold' : 'normal',
+                                    textAlign: 'center',
+                                }}>
+                                ☑️ Pole wyboru (TAK/NIE)
+                            </button>
+                            <button onClick={() => { setNewFieldType('text'); setNewFieldIsPair(false); }}
+                                style={{
+                                    flex: 1, padding: '0.5rem', borderRadius: '0.5rem',
+                                    border: newFieldType === 'text' ? '2px solid #fbbf24' : '1px solid rgba(255,255,255,0.12)',
+                                    background: newFieldType === 'text' ? 'rgba(251,191,36,0.15)' : 'rgba(255,255,255,0.03)',
+                                    color: newFieldType === 'text' ? '#fbbf24' : 'rgba(255,255,255,0.6)',
+                                    fontSize: '0.75rem', cursor: 'pointer', fontWeight: newFieldType === 'text' ? 'bold' : 'normal',
+                                    textAlign: 'center',
+                                }}>
+                                📝 Pole tekstowe
+                            </button>
                         </div>
-                        <div>
-                            <label style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: '0.2rem' }}>Klucz (identyfikator)</label>
-                            <input value={newFieldKey} onChange={e => setNewFieldKey(e.target.value)} placeholder="np. nieletni"
-                                style={{ padding: '0.3rem 0.5rem', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '0.3rem', color: '#fff', fontSize: '0.75rem', width: '140px' }} />
+
+                        {/* Step 2: Field description */}
+                        <div style={{ marginBottom: '0.5rem' }}>
+                            <label style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.6)', display: 'block', marginBottom: '0.25rem', fontWeight: 'bold' }}>
+                                {newFieldType === 'checkbox' ? '☑️ Opis pola wyboru' : '📝 Opis pola tekstowego'}
+                            </label>
+                            <input
+                                value={newFieldLabel} onChange={e => setNewFieldLabel(e.target.value)}
+                                placeholder={newFieldType === 'checkbox' ? 'np. TAK, Ciąża, Zgadzam się...' : 'np. Uwagi, Numer zęba...'}
+                                style={{ width: '100%', padding: '0.45rem 0.6rem', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '0.4rem', color: '#fff', fontSize: '0.8rem', boxSizing: 'border-box' }}
+                            />
+                            <div style={{ fontSize: '0.58rem', color: 'rgba(255,255,255,0.3)', marginTop: '0.2rem' }}>
+                                Ten opis zobaczy pacjent obok pola do zaznaczenia
+                            </div>
                         </div>
-                        <div>
-                            <label style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: '0.2rem' }}>Etykieta (widoczna nazwa)</label>
-                            <input value={newFieldLabel} onChange={e => setNewFieldLabel(e.target.value)} placeholder="np. Pacjent nieletni"
-                                style={{ padding: '0.3rem 0.5rem', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '0.3rem', color: '#fff', fontSize: '0.75rem', width: '200px' }} />
-                        </div>
+
+                        {/* Step 3: For checkboxes — optional TAK/NIE pair */}
                         {newFieldType === 'checkbox' && (
-                            <div>
-                                <label style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: '0.2rem' }}>Grupa mutex <span style={{ color: 'rgba(255,255,255,0.3)' }}>(opcj.)</span></label>
-                                <input value={newFieldMutexGroup} onChange={e => setNewFieldMutexGroup(e.target.value)} placeholder="np. zgoda"
-                                    style={{ padding: '0.3rem 0.5rem', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '0.3rem', color: '#fff', fontSize: '0.75rem', width: '100px' }} />
+                            <div style={{ marginBottom: '0.5rem' }}>
+                                <label style={{
+                                    display: 'flex', alignItems: 'center', gap: '0.5rem',
+                                    padding: '0.4rem 0.6rem', borderRadius: '0.4rem',
+                                    background: newFieldIsPair ? 'rgba(56,189,248,0.1)' : 'rgba(255,255,255,0.03)',
+                                    border: newFieldIsPair ? '1px solid rgba(56,189,248,0.25)' : '1px solid rgba(255,255,255,0.08)',
+                                    cursor: 'pointer', fontSize: '0.72rem', color: 'rgba(255,255,255,0.7)',
+                                }}>
+                                    <input type="checkbox" checked={newFieldIsPair} onChange={e => setNewFieldIsPair(e.target.checked)}
+                                        style={{ accentColor: '#38bdf8' }} />
+                                    <span>Para <strong>TAK / NIE</strong> — zaznaczenie jednego odznacza drugie</span>
+                                </label>
+                                {newFieldIsPair && (
+                                    <div style={{ marginTop: '0.4rem' }}>
+                                        <label style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: '0.2rem' }}>
+                                            Opis drugiego pola (np. &quot;NIE&quot;)
+                                        </label>
+                                        <input
+                                            value={newFieldPairLabel} onChange={e => setNewFieldPairLabel(e.target.value)}
+                                            placeholder="np. NIE"
+                                            style={{ width: '100%', padding: '0.4rem 0.5rem', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '0.35rem', color: '#fff', fontSize: '0.78rem', boxSizing: 'border-box' }}
+                                        />
+                                        <div style={{ fontSize: '0.55rem', color: 'rgba(56,189,248,0.5)', marginTop: '0.2rem' }}>
+                                            💡 Oba pola pojawią się na PDF — przeciągnij je na odpowiednie miejsca
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )}
-                        <button onClick={handleAddCustomField} disabled={!newFieldKey || !newFieldLabel}
+
+                        <button onClick={handleAddCustomField} disabled={!newFieldLabel || (newFieldIsPair && !newFieldPairLabel)}
                             style={{
-                                padding: '0.35rem 0.8rem',
-                                background: newFieldKey && newFieldLabel ? 'linear-gradient(135deg, #fbbf24, #f59e0b)' : 'rgba(255,255,255,0.05)',
-                                border: 'none', borderRadius: '0.3rem', color: '#000', fontWeight: 'bold', fontSize: '0.75rem',
-                                cursor: newFieldKey && newFieldLabel ? 'pointer' : 'default',
+                                width: '100%', padding: '0.5rem',
+                                background: newFieldLabel ? 'linear-gradient(135deg, #fbbf24, #f59e0b)' : 'rgba(255,255,255,0.05)',
+                                border: 'none', borderRadius: '0.4rem', color: '#000', fontWeight: 'bold', fontSize: '0.8rem',
+                                cursor: newFieldLabel ? 'pointer' : 'default',
+                                opacity: (!newFieldLabel || (newFieldIsPair && !newFieldPairLabel)) ? 0.5 : 1,
                             }}>
                             ✅ Dodaj i umieść na PDF
                         </button>
@@ -935,7 +1018,7 @@ export default function PdfMapperPage() {
                                         <div>
                                             <div style={{ fontSize: '0.67rem', color: f.color, fontWeight: 'bold' }}>
                                                 {f.icon} {f.label}
-                                                {f.fieldType === 'checkbox' && <span style={{ fontSize: '0.55rem', marginLeft: '0.3rem', color: 'rgba(255,255,255,0.4)' }}>(checkbox{f.mutexGroup ? ` · grupa: ${f.mutexGroup}` : ''})</span>}
+                                                {f.fieldType === 'checkbox' && <span style={{ fontSize: '0.55rem', marginLeft: '0.3rem', color: 'rgba(255,255,255,0.4)' }}>(pole wyboru{f.mutexGroup ? ` · powiązane: ${f.mutexGroup}` : ''})</span>}
                                                 {f.key !== getBaseKey(f.key) && <span style={{ fontSize: '0.55rem', marginLeft: '0.3rem', color: 'rgba(255,255,255,0.3)' }}>(kopia)</span>}
                                             </div>
                                             <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)', fontFamily: 'monospace' }}>

@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { PDFDocument, rgb } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
-import { CONSENT_TYPES as HARDCODED_CONSENT_TYPES, ConsentType } from '@/lib/consentTypes';
+import { CONSENT_TYPES as HARDCODED_CONSENT_TYPES, ConsentType, CheckboxFieldPosition } from '@/lib/consentTypes';
 
 /** Cache for the Inter font bytes so we only fetch it once */
 let cachedFontBytes: ArrayBuffer | null = null;
@@ -89,9 +89,12 @@ export default function ConsentSigningPage() {
     const [staffSignatures, setStaffSignatures] = useState<any[]>([]);
     const [doctorPerConsent, setDoctorPerConsent] = useState<Record<string, number>>({});
     const [procedurePerConsent, setProcedurePerConsent] = useState<Record<string, string>>({});
+    // Checkbox values per consent — key = consent_type, value = Record<checkboxKey, boolean>
+    const [checkboxPerConsent, setCheckboxPerConsent] = useState<Record<string, Record<string, boolean>>>({});
     // Temporary state for the pick_doctor phase
     const [pickDoctorIdx, setPickDoctorIdx] = useState(0);
     const [pickProcedure, setPickProcedure] = useState('');
+    const [pickCheckboxes, setPickCheckboxes] = useState<Record<string, boolean>>({});
 
     // PDF.js page rendering
     const pdfContainerRef = useRef<HTMLDivElement>(null);
@@ -393,7 +396,7 @@ export default function ConsentSigningPage() {
     /**
      * Pre-fill a PDF with patient data using pdf-lib.
      */
-    const prefillPdf = async (consent: ConsentItem, overrideDoctorIdx?: number, overrideProcedure?: string): Promise<Uint8Array> => {
+    const prefillPdf = async (consent: ConsentItem, overrideDoctorIdx?: number, overrideProcedure?: string, overrideCheckboxValues?: Record<string, boolean>): Promise<Uint8Array> => {
         const pdfRes = await fetch(consent.file);
         const pdfBytes = await pdfRes.arrayBuffer();
 
@@ -489,6 +492,21 @@ export default function ConsentSigningPage() {
                     size: fields.tooth.fontSize || 11, font, color: textColor,
                 });
             }
+
+            // Checkbox fields — draw ✓ or ✗ based on patient selection
+            const overrideCheckboxes = overrideCheckboxValues ?? checkboxPerConsent[consent.type] ?? {};
+            for (const [fKey, fVal] of Object.entries(fields)) {
+                if (fVal && typeof fVal === 'object' && 'fieldType' in fVal && fVal.fieldType === 'checkbox') {
+                    const cbField = fVal as CheckboxFieldPosition;
+                    const isChecked = overrideCheckboxes[fKey] ?? false;
+                    const mark = isChecked ? '✓' : '✗';
+                    const markColor = isChecked ? rgb(0.05, 0.45, 0.15) : rgb(0.5, 0.1, 0.1);
+                    getPage(cbField.page).drawText(mark, {
+                        x: cbField.x, y: cbField.y,
+                        size: cbField.fontSize || 14, font, color: markColor,
+                    });
+                }
+            }
         }
 
         const modifiedBytes = await pdfDoc.save();
@@ -502,23 +520,37 @@ export default function ConsentSigningPage() {
         }
     }, [phase, prefilledPdfBytes, renderPdfToCanvases]);
 
+    // Helper: extract checkbox fields from consent type definition
+    const getCheckboxFields = (consentType: string): { key: string; field: CheckboxFieldPosition }[] => {
+        const ct = CONSENT_TYPES[consentType];
+        if (!ct?.fields) return [];
+        const result: { key: string; field: CheckboxFieldPosition }[] = [];
+        for (const [fKey, fVal] of Object.entries(ct.fields)) {
+            if (fVal && typeof fVal === 'object' && 'fieldType' in fVal && fVal.fieldType === 'checkbox') {
+                result.push({ key: fKey, field: fVal as CheckboxFieldPosition });
+            }
+        }
+        return result;
+    };
+
     // Open consent — first go to doctor picker, then view
     const startConsentFlow = (consent: ConsentItem) => {
         setCurrentConsent(consent);
         // Pre-populate from previous selection if exists
         setPickDoctorIdx(doctorPerConsent[consent.type] ?? 0);
         setPickProcedure(procedurePerConsent[consent.type] ?? '');
+        setPickCheckboxes(checkboxPerConsent[consent.type] ?? {});
         setPhase('pick_doctor');
     };
 
     // After doctor is picked, open consent for viewing (with pre-fill)
-    const openConsent = async (consent: ConsentItem, overrideDoctorIdx?: number, overrideProcedure?: string) => {
+    const openConsent = async (consent: ConsentItem, overrideDoctorIdx?: number, overrideProcedure?: string, overrideCheckboxValues?: Record<string, boolean>) => {
         setPhase('preparing');
         setPrefillOk(true);
         setPrefillError(null);
 
         try {
-            const bytes = await prefillPdf(consent, overrideDoctorIdx, overrideProcedure);
+            const bytes = await prefillPdf(consent, overrideDoctorIdx, overrideProcedure, overrideCheckboxValues);
             setPrefilledPdfBytes(bytes);
             setPrefillOk(true);
             setPhase('viewing');
@@ -603,6 +635,20 @@ export default function ConsentSigningPage() {
                 // Tooth / procedure (per-consent)
                 const procText2 = procedurePerConsent[currentConsent.type] ?? '';
                 if (fields2.tooth && procText2) getPage2(fields2.tooth.page).drawText(procText2, { x: fields2.tooth.x, y: fields2.tooth.y, size: fields2.tooth.fontSize || 11, font: interFont, color: textColor });
+                // Checkbox fields (re-apply from saved state)
+                const savedCheckboxes2 = checkboxPerConsent[currentConsent.type] ?? {};
+                for (const [fKey2, fVal2] of Object.entries(fields2)) {
+                    if (fVal2 && typeof fVal2 === 'object' && 'fieldType' in fVal2 && fVal2.fieldType === 'checkbox') {
+                        const cbField2 = fVal2 as CheckboxFieldPosition;
+                        const isChecked2 = savedCheckboxes2[fKey2] ?? false;
+                        const mark2 = isChecked2 ? '✓' : '✗';
+                        const markColor2 = isChecked2 ? rgb(0.05, 0.45, 0.15) : rgb(0.5, 0.1, 0.1);
+                        getPage2(cbField2.page).drawText(mark2, {
+                            x: cbField2.x, y: cbField2.y,
+                            size: cbField2.fontSize || 14, font: interFont, color: markColor2,
+                        });
+                    }
+                }
             }
 
             const pages = pdfDoc.getPages();
@@ -819,13 +865,119 @@ export default function ConsentSigningPage() {
                         />
                     </div>
 
+                    {/* Checkbox fields (TAK / NIE) */}
+                    {currentConsent && (() => {
+                        const cbFields = getCheckboxFields(currentConsent.type);
+                        if (cbFields.length === 0) return null;
+                        // Group by mutexGroup
+                        const groups: Record<string, typeof cbFields> = {};
+                        const standalone: typeof cbFields = [];
+                        for (const cb of cbFields) {
+                            if (cb.field.mutexGroup) {
+                                if (!groups[cb.field.mutexGroup]) groups[cb.field.mutexGroup] = [];
+                                groups[cb.field.mutexGroup].push(cb);
+                            } else {
+                                standalone.push(cb);
+                            }
+                        }
+                        return (
+                            <div style={{
+                                background: 'rgba(255,255,255,0.04)',
+                                borderRadius: '0.75rem',
+                                padding: '0.75rem 1rem',
+                                marginBottom: '1rem',
+                                border: '1px solid rgba(255,255,255,0.08)',
+                            }}>
+                                <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.5rem' }}>☑️ Ankieta — zaznacz odpowiedzi</div>
+                                {/* Mutex groups (radio-like) */}
+                                {Object.entries(groups).map(([groupName, groupCbs]) => (
+                                    <div key={groupName} style={{ marginBottom: '0.5rem' }}>
+                                        <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.35)', marginBottom: '0.3rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                            {groupName}
+                                        </div>
+                                        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                                            {groupCbs.map(cb => {
+                                                const isChecked = pickCheckboxes[cb.key] ?? false;
+                                                return (
+                                                    <button
+                                                        key={cb.key}
+                                                        onClick={() => {
+                                                            setPickCheckboxes(prev => {
+                                                                const next = { ...prev };
+                                                                // Uncheck others in same group
+                                                                for (const other of groupCbs) {
+                                                                    next[other.key] = false;
+                                                                }
+                                                                next[cb.key] = true;
+                                                                return next;
+                                                            });
+                                                        }}
+                                                        style={{
+                                                            padding: '0.45rem 0.85rem',
+                                                            borderRadius: '0.5rem',
+                                                            border: isChecked ? '2px solid #38bdf8' : '1px solid rgba(255,255,255,0.15)',
+                                                            background: isChecked ? 'rgba(56,189,248,0.15)' : 'rgba(255,255,255,0.03)',
+                                                            color: isChecked ? '#38bdf8' : 'rgba(255,255,255,0.7)',
+                                                            fontSize: '0.82rem',
+                                                            fontWeight: isChecked ? 'bold' : 'normal',
+                                                            cursor: 'pointer',
+                                                            transition: 'all 0.15s',
+                                                        }}
+                                                    >
+                                                        {isChecked ? '✓ ' : '○ '}{cb.field.label}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                ))}
+                                {/* Standalone checkboxes */}
+                                {standalone.map(cb => {
+                                    const isChecked = pickCheckboxes[cb.key] ?? false;
+                                    return (
+                                        <button
+                                            key={cb.key}
+                                            onClick={() => {
+                                                setPickCheckboxes(prev => ({
+                                                    ...prev,
+                                                    [cb.key]: !prev[cb.key],
+                                                }));
+                                            }}
+                                            style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '0.5rem',
+                                                padding: '0.45rem 0.85rem',
+                                                borderRadius: '0.5rem',
+                                                border: isChecked ? '2px solid #22c55e' : '1px solid rgba(255,255,255,0.15)',
+                                                background: isChecked ? 'rgba(34,197,94,0.1)' : 'rgba(255,255,255,0.03)',
+                                                color: isChecked ? '#22c55e' : 'rgba(255,255,255,0.7)',
+                                                fontSize: '0.82rem',
+                                                fontWeight: isChecked ? 'bold' : 'normal',
+                                                cursor: 'pointer',
+                                                marginBottom: '0.3rem',
+                                                width: '100%',
+                                                textAlign: 'left',
+                                                transition: 'all 0.15s',
+                                            }}
+                                        >
+                                            <span style={{ fontSize: '1rem' }}>{isChecked ? '☑️' : '☐'}</span>
+                                            {cb.field.label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        );
+                    })()}
+
                     <button
                         onClick={() => {
-                            // Save doctor + procedure for this consent
+                            // Save doctor + procedure + checkboxes for this consent
                             setDoctorPerConsent(prev => ({ ...prev, [currentConsent.type]: pickDoctorIdx }));
                             setProcedurePerConsent(prev => ({ ...prev, [currentConsent.type]: pickProcedure }));
+                            setCheckboxPerConsent(prev => ({ ...prev, [currentConsent.type]: pickCheckboxes }));
                             // Pass values directly to avoid React stale-state race
-                            openConsent(currentConsent, pickDoctorIdx, pickProcedure);
+                            openConsent(currentConsent, pickDoctorIdx, pickProcedure, pickCheckboxes);
                         }}
                         style={{ ...styles.primaryBtn, fontSize: '0.95rem', padding: '0.875rem' }}
                     >
