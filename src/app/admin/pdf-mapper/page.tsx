@@ -466,26 +466,57 @@ export default function PdfMapperPage() {
         if (!autoKey) return;
 
         const capturedLabel = newFieldLabel;
-        const finalKey = newFieldType === 'checkbox' ? `checkbox_${autoKey}` : `custom_${autoKey}`;
 
-        if (allFieldOptions.find(o => o.key === finalKey)) {
-            alert(`Pole "${capturedLabel}" już istnieje!`);
-            return;
+        if (newFieldType === 'checkbox') {
+            // Always create a TAK + NIE pair linked by mutexGroup = question text
+            const keyTak = `checkbox_${autoKey}_tak`;
+            const keyNie = `checkbox_${autoKey}_nie`;
+
+            if (allFieldOptions.find(o => o.key === keyTak) || allFieldOptions.find(o => o.key === keyNie)) {
+                alert(`Pytanie "${capturedLabel}" już istnieje!`);
+                return;
+            }
+
+            const idx = placedFields.length;
+            const colorTak = '#22c55e'; // green for TAK
+            const colorNie = '#ef4444'; // red for NIE
+
+            setPlacedFields(prev => [...prev,
+            {
+                key: keyTak, label: 'TAK', fieldType: 'checkbox',
+                page: currentPage, nx: 0.4, ny: 0.5,
+                pdfX: Math.round(pdfSize.w * 0.4 * 10) / 10,
+                pdfY: Math.round(pdfSize.h * 0.5 * 10) / 10,
+                fontSize: 14, color: colorTak, icon: '✅',
+                mutexGroup: capturedLabel,
+            },
+            {
+                key: keyNie, label: 'NIE', fieldType: 'checkbox',
+                page: currentPage, nx: 0.6, ny: 0.5,
+                pdfX: Math.round(pdfSize.w * 0.6 * 10) / 10,
+                pdfY: Math.round(pdfSize.h * 0.5 * 10) / 10,
+                fontSize: 14, color: colorNie, icon: '❌',
+                mutexGroup: capturedLabel,
+            },
+            ]);
+            setActiveFieldKey(keyTak);
+        } else {
+            // Text field — single
+            const finalKey = `custom_${autoKey}`;
+            if (allFieldOptions.find(o => o.key === finalKey)) {
+                alert(`Pole "${capturedLabel}" już istnieje!`);
+                return;
+            }
+            const idx = placedFields.length;
+            setPlacedFields(prev => [...prev, {
+                key: finalKey, label: capturedLabel, fieldType: 'text',
+                page: currentPage, nx: 0.5, ny: 0.5,
+                pdfX: Math.round(pdfSize.w / 2 * 10) / 10,
+                pdfY: Math.round(pdfSize.h / 2 * 10) / 10,
+                fontSize: 11, color: getCustomColor(idx), icon: '📝',
+            }]);
+            setActiveFieldKey(finalKey);
         }
-
-        const idx = placedFields.length;
-        const color = getCustomColor(idx);
-        const icon = newFieldType === 'checkbox' ? '☑️' : '📝';
-
-        setPlacedFields(prev => [...prev, {
-            key: finalKey, label: capturedLabel, fieldType: newFieldType,
-            page: currentPage, nx: 0.5, ny: 0.5,
-            pdfX: Math.round(pdfSize.w / 2 * 10) / 10,
-            pdfY: Math.round(pdfSize.h / 2 * 10) / 10,
-            fontSize: newFieldType === 'checkbox' ? 14 : 11,
-            color, icon,
-        }]);
-        setActiveFieldKey(finalKey);
 
         setShowAddField(false);
         setNewFieldLabel('');
@@ -621,15 +652,16 @@ export default function PdfMapperPage() {
                                 <li>Każda kopia zostanie wypełniona tymi samymi danymi pacjenta</li>
                             </ul>
 
-                            <h3 style={{ color: '#22c55e', fontSize: '0.9rem', marginBottom: '0.4rem' }}>➕ Dodawanie pól wyboru (TAK/NIE)</h3>
-                            <p style={{ margin: '0 0 0.5rem' }}>Jeśli na formularzu PDF jest pole do zaznaczenia przez pacjenta:</p>
+                            <h3 style={{ color: '#22c55e', fontSize: '0.9rem', marginBottom: '0.4rem' }}>➕ Dodawanie pytań TAK/NIE</h3>
+                            <p style={{ margin: '0 0 0.5rem' }}>Jeśli na formularzu PDF jest pytanie z kratkami TAK / NIE:</p>
                             <ul style={{ paddingLeft: '1.2rem', margin: '0 0 1rem' }}>
                                 <li>Kliknij żółty przycisk <strong>➕ Dodaj nowe pole</strong></li>
-                                <li>Wybierz typ: <strong>☑️ Pole wyboru</strong> lub <strong>📝 Pole tekstowe</strong></li>
-                                <li>Wpisz <strong>opis</strong> — to tekst który zobaczy pacjent (np. &quot;TAK&quot;, &quot;Ciąża&quot;)</li>
-                                <li>Jeśli tworzysz parę <strong>TAK / NIE</strong> — zaznacz opcję &quot;Para TAK/NIE&quot; i wpisz oba opisy</li>
-                                <li>Oba pola pojawią się na PDF — <strong>złap i przeciągnij</strong> każde na swoje miejsce</li>
-                                <li>Przy podpisywaniu: pacjent klika odpowiedź → system wstawia ✓ lub ✗ na PDF</li>
+                                <li>Wybierz <strong>☑️ Pytanie TAK/NIE</strong></li>
+                                <li>Wpisz <strong>treść pytania</strong> (np. &quot;Czy jest Pani w ciąży?&quot;)</li>
+                                <li>System utworzy <strong style={{ color: '#22c55e' }}>zielone pole TAK</strong> i <strong style={{ color: '#ef4444' }}>czerwone pole NIE</strong></li>
+                                <li>Przeciągnij <strong>każde pole osobno</strong> na odpowiednią kratkę na formularzu PDF</li>
+                                <li>Pacjent zobaczy pytanie z przyciskami TAK / NIE — <strong>może wybrać tylko jedno</strong></li>
+                                <li>Na PDF pojawi się ✓ przy wybranej odpowiedzi i ✗ przy drugiej</li>
                             </ul>
 
                             <h3 style={{ color: '#f97316', fontSize: '0.9rem', marginBottom: '0.4rem' }}>🆕 Tworzenie nowego typu zgody</h3>
@@ -806,7 +838,7 @@ export default function PdfMapperPage() {
                                     fontSize: '0.75rem', cursor: 'pointer', fontWeight: newFieldType === 'checkbox' ? 'bold' : 'normal',
                                     textAlign: 'center',
                                 }}>
-                                ☑️ Pole wyboru
+                                ☑️ Pytanie TAK/NIE
                             </button>
                             <button onClick={() => setNewFieldType('text')}
                                 style={{
@@ -824,17 +856,18 @@ export default function PdfMapperPage() {
                         {/* Step 2: Field description */}
                         <div style={{ marginBottom: '0.6rem' }}>
                             <label style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.6)', display: 'block', marginBottom: '0.25rem', fontWeight: 'bold' }}>
-                                {newFieldType === 'checkbox' ? '☑️ Opis pola (co zobaczy pacjent)' : '📝 Opis pola tekstowego'}
+                                {newFieldType === 'checkbox' ? '❓ Treść pytania' : '📝 Opis pola'}
                             </label>
                             <input
                                 value={newFieldLabel} onChange={e => setNewFieldLabel(e.target.value)}
-                                placeholder={newFieldType === 'checkbox' ? 'np. Ciąża, Alergia, Choroby serca...' : 'np. Uwagi, Numer zęba...'}
+                                placeholder={newFieldType === 'checkbox' ? 'np. Czy jest Pani w ciąży?' : 'np. Uwagi, Numer zęba...'}
                                 style={{ width: '100%', padding: '0.5rem 0.6rem', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '0.4rem', color: '#fff', fontSize: '0.85rem', boxSizing: 'border-box' }}
                             />
                             {newFieldType === 'checkbox' && (
-                                <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.35)', marginTop: '0.25rem', lineHeight: '1.5' }}>
-                                    💡 Jedno pole = jedno pytanie. Pacjent zobaczy przycisk TAK/NIE.<br />
-                                    Jeśli zaznaczone → na PDF pojawi się <strong style={{ color: 'rgb(13,115,38)' }}>✓</strong>, jeśli nie → <strong style={{ color: 'rgb(128,25,25)' }}>✗</strong>
+                                <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.35)', marginTop: '0.3rem', lineHeight: '1.6' }}>
+                                    💡 System utworzy <strong style={{ color: '#22c55e' }}>pole TAK</strong> i <strong style={{ color: '#ef4444' }}>pole NIE</strong> — oba pojawią się na PDF.<br />
+                                    Przeciągnij każde na odpowiednią kratkę na formularzu.<br />
+                                    Pacjent zobaczy pytanie z przyciskami TAK / NIE (tylko jedno można wybrać).
                                 </div>
                             )}
                         </div>
@@ -847,7 +880,7 @@ export default function PdfMapperPage() {
                                 cursor: newFieldLabel ? 'pointer' : 'default',
                                 opacity: !newFieldLabel ? 0.5 : 1,
                             }}>
-                            ✅ Dodaj i umieść na PDF
+                            {newFieldType === 'checkbox' ? '✅ Dodaj pytanie TAK/NIE' : '✅ Dodaj pole'}
                         </button>
                     </div>
                 )}
@@ -948,7 +981,7 @@ export default function PdfMapperPage() {
                                         <div style={{ flex: 1, minWidth: 0 }}>
                                             <div style={{ fontSize: '0.7rem', color: f.color, fontWeight: 'bold' }}>
                                                 {f.icon} {f.label}
-                                                {f.fieldType === 'checkbox' && <span style={{ fontSize: '0.55rem', marginLeft: '0.3rem', color: 'rgba(255,255,255,0.4)' }}>(pole wyboru)</span>}
+                                                {f.fieldType === 'checkbox' && f.mutexGroup && <span style={{ fontSize: '0.55rem', marginLeft: '0.3rem', color: 'rgba(255,255,255,0.4)' }}>← {f.mutexGroup}</span>}
                                                 {f.key !== getBaseKey(f.key) && <span style={{ fontSize: '0.55rem', marginLeft: '0.3rem', color: 'rgba(255,255,255,0.3)' }}>(kopia)</span>}
                                             </div>
                                             <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)', fontFamily: 'monospace' }}>
