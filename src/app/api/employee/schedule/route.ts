@@ -105,13 +105,6 @@ export async function GET(req: Request) {
     const days: ScheduleDay[] = [];
     const allDoctors = new Set<string>();
 
-    // Fetch deactivated employees to filter them out
-    const { data: deactivated } = await supabase
-        .from('employees')
-        .select('name, prodentis_id')
-        .eq('is_active', false);
-    const deactivatedNames = new Set((deactivated || []).map(e => normalizeName(e.name || '')).filter(Boolean));
-    const deactivatedProdentisIds = new Set((deactivated || []).map(e => e.prodentis_id).filter(Boolean));
 
     // Fetch 7 days of appointments
     for (let i = 0; i < 7; i++) {
@@ -169,11 +162,6 @@ export async function GET(req: Request) {
                 if (startHour < 7) continue;
 
                 const doctorName = apt.doctor?.name?.replace(/\s*\(I\)\s*/g, ' ').trim() || 'Nieznany';
-
-                // Skip appointments of deactivated employees
-                const normalizedDoctor = normalizeName(doctorName);
-                if (deactivatedNames.has(normalizedDoctor)) continue;
-                if (apt.doctor?.id && deactivatedProdentisIds.has(apt.doctor.id)) continue;
 
                 allDoctors.add(doctorName);
 
@@ -286,6 +274,87 @@ export async function GET(req: Request) {
         } catch (err) {
             console.error(`[Schedule] Error fetching ${dateStr}:`, err);
             days.push({ date: dateStr, dayName, appointments: [] });
+        }
+    }
+
+    // ── Auto-discover Prodentis operators into employees table ──────────
+    // This ensures every operator seen in the schedule has a record that
+    // can be deactivated from the admin panel.
+    if (allDoctors.size > 0) {
+        try {
+            // Fetch ALL employees (active + inactive) to know who already exists
+            const { data: existingEmployees } = await supabase
+                .from('employees')
+                .select('id, name, prodentis_id, is_active');
+
+            const existingNormalised = new Set(
+                (existingEmployees || []).map(e => normalizeName(e.name || '')).filter(Boolean)
+            );
+
+            // Collect doctor→id mapping from all days' appointments
+            const doctorIdMap = new Map<string, string>();
+            for (const day of days) {
+                for (const apt of day.appointments) {
+                    if (apt.doctorId && !doctorIdMap.has(apt.doctorName)) {
+                        doctorIdMap.set(apt.doctorName, apt.doctorId);
+                    }
+                }
+            }
+
+            const toInsert: { name: string; prodentis_id: string; is_active: boolean }[] = [];
+            for (const doctorName of allDoctors) {
+                const norm = normalizeName(doctorName);
+                if (!existingNormalised.has(norm)) {
+                    toInsert.push({
+                        name: doctorName,
+                        prodentis_id: doctorIdMap.get(doctorName) || '',
+                        is_active: true,
+                    });
+                }
+            }
+
+            if (toInsert.length > 0) {
+                await supabase.from('employees').insert(toInsert);
+                console.log(`[Schedule] Auto-discovered ${toInsert.length} new operators:`, toInsert.map(o => o.name));
+            }
+
+            // ── Re-check deactivated list (may have just-deactivated operators) ──
+            // Also now filter the results
+            const { data: freshDeactivated } = await supabase
+                .from('employees')
+                .select('name, prodentis_id')
+                .eq('is_active', false);
+
+            const freshDeactivatedNames = new Set(
+                (freshDeactivated || []).map(e => normalizeName(e.name || '')).filter(Boolean)
+            );
+            const freshDeactivatedIds = new Set(
+                (freshDeactivated || []).map(e => e.prodentis_id).filter(Boolean)
+            );
+
+            // Filter appointments and doctors
+            for (const day of days) {
+                day.appointments = day.appointments.filter(apt => {
+                    const norm = normalizeName(apt.doctorName);
+                    if (freshDeactivatedNames.has(norm)) return false;
+                    if (apt.doctorId && freshDeactivatedIds.has(apt.doctorId)) return false;
+                    return true;
+                });
+            }
+
+            const filteredDoctors = Array.from(allDoctors).filter(name => {
+                const norm = normalizeName(name);
+                return !freshDeactivatedNames.has(norm);
+            });
+
+            return NextResponse.json({
+                weekStart: weekStart.toISOString().split('T')[0],
+                days,
+                doctors: filteredDoctors.sort(),
+            });
+        } catch (err) {
+            console.error('[Schedule] Auto-discovery error:', err);
+            // Fall through to return unfiltered data
         }
     }
 
