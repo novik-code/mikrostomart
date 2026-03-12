@@ -22,10 +22,11 @@ export async function GET() {
     const adminUser = await verifyAdmin();
     if (!adminUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    // 1. Fetch ALL employees
+    // 1. Fetch ALL active employees
     const { data: allEmployees } = await supabase
         .from('employees')
         .select('user_id, name, email, position, push_groups')
+        .eq('is_active', true)
         .order('name', { ascending: true });
 
     // 2. Fetch ALL push subscriptions

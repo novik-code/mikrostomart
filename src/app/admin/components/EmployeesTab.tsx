@@ -126,16 +126,16 @@ export default function EmployeesTab() {
         }
     };
 
-    const removeEmployee = async (userId: string, email: string) => {
-        if (!confirm(`Usun\u0105\u0107 rol\u0119 pracownika dla ${email}?`)) return;
+    const deactivateEmployee = async (email: string, name: string) => {
+        if (!confirm(`Dezaktywowa\u0107 pracownika \u201e${name}\u201d?\n\nPracownik zniknie z:\n\u2022 Listy pracownik\u00f3w\n\u2022 Przypisywania do zada\u0144\n\u2022 Powiadomie\u0144 push\n\nDane w Prodentis NIE zostan\u0105 zmienione.`)) return;
         try {
-            const res = await fetch('/api/admin/roles', {
-                method: 'DELETE',
+            const res = await fetch('/api/admin/employees/deactivate', {
+                method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId, role: 'employee' }),
+                body: JSON.stringify({ email }),
             });
             if (res.ok) {
-                alert('\u2705 Rola usuni\u0119ta');
+                alert('\u2705 Pracownik dezaktywowany');
                 fetchEmployees();
             } else {
                 const data = await res.json();
@@ -376,7 +376,7 @@ export default function EmployeesTab() {
                                         )}
                                     </div>
                                     <button
-                                        onClick={() => removeEmployee(emp.userId, emp.accountEmail)}
+                                        onClick={() => deactivateEmployee(emp.accountEmail, emp.name)}
                                         style={{
                                             padding: '0.3rem 0.7rem',
                                             background: 'transparent',
@@ -387,7 +387,7 @@ export default function EmployeesTab() {
                                             fontSize: '0.7rem',
                                         }}
                                     >
-                                        ✖ Usuń rolę
+                                        ✖ Dezaktywuj
                                     </button>
                                 </div>
                             ))}
