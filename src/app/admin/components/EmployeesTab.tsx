@@ -12,6 +12,9 @@ export default function EmployeesTab() {
     const [newManualEmail, setNewManualEmail] = useState('');
     const [addingManual, setAddingManual] = useState(false);
     const [expandedStaffId, setExpandedStaffId] = useState<string | null>(null);
+    const [editingEmployeeId, setEditingEmployeeId] = useState<string | null>(null);
+    const [editName, setEditName] = useState('');
+    const [editEmail, setEditEmail] = useState('');
 
     const sendResetPassword = async (email: string) => {
         if (!confirm(`Wysłać email z resetem hasła do ${email}?`)) return;
@@ -146,6 +149,32 @@ export default function EmployeesTab() {
         }
     };
 
+    const startEditEmployee = (emp: any) => {
+        setEditingEmployeeId(emp.id);
+        setEditName(emp.name || '');
+        setEditEmail(emp.email || '');
+    };
+
+    const saveEditEmployee = async (empId: string) => {
+        try {
+            const res = await fetch('/api/admin/employees', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: empId, name: editName.trim(), email: editEmail.trim() }),
+            });
+            if (res.ok) {
+                alert('✅ Zapisano');
+                setEditingEmployeeId(null);
+                fetchEmployees();
+            } else {
+                const data = await res.json();
+                alert(`❌ ${data.error}`);
+            }
+        } catch {
+            alert('Błąd połączenia');
+        }
+    };
+
     useEffect(() => { fetchEmployees(); }, []);
 
     if (employeesLoading && employeesList.length === 0) {
@@ -265,11 +294,33 @@ export default function EmployeesTab() {
                                         padding: '0 1.25rem 1rem 2.5rem',
                                         borderTop: '1px solid var(--color-border)', paddingTop: '0.75rem',
                                     }}>
-                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.75rem', fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
-                                            {emp.email && <span>📧 {emp.email}</span>}
-                                            {emp.prodentis_id && <span>🔗 Prodentis ID: {emp.prodentis_id}</span>}
-                                            {emp.position && <span>👤 {emp.position}</span>}
-                                        </div>
+                                        {editingEmployeeId === emp.id ? (
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                                                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                                    <div style={{ flex: 1, minWidth: '150px' }}>
+                                                        <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--color-text-muted)', marginBottom: '0.15rem' }}>Imię i nazwisko</label>
+                                                        <input value={editName} onChange={(e) => setEditName(e.target.value)}
+                                                            style={{ width: '100%', boxSizing: 'border-box', padding: '0.4rem 0.6rem', borderRadius: '5px', border: '2px solid var(--color-primary)', background: 'var(--color-background)', color: 'var(--color-text-main)', fontSize: '0.85rem', fontFamily: 'inherit' }} />
+                                                    </div>
+                                                    <div style={{ flex: 1, minWidth: '180px' }}>
+                                                        <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--color-text-muted)', marginBottom: '0.15rem' }}>Email</label>
+                                                        <input value={editEmail} onChange={(e) => setEditEmail(e.target.value)} type="email"
+                                                            style={{ width: '100%', boxSizing: 'border-box', padding: '0.4rem 0.6rem', borderRadius: '5px', border: '2px solid var(--color-primary)', background: 'var(--color-background)', color: 'var(--color-text-main)', fontSize: '0.85rem', fontFamily: 'inherit' }} />
+                                                    </div>
+                                                </div>
+                                                <div style={{ display: 'flex', gap: '0.4rem' }}>
+                                                    <button onClick={() => saveEditEmployee(emp.id)} style={{ padding: '0.3rem 0.8rem', background: 'var(--color-primary)', border: 'none', borderRadius: '5px', color: '#000', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.75rem' }}>💾 Zapisz</button>
+                                                    <button onClick={() => setEditingEmployeeId(null)} style={{ padding: '0.3rem 0.8rem', background: 'transparent', border: '1px solid var(--color-border)', borderRadius: '5px', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: '0.75rem' }}>Anuluj</button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.75rem', fontSize: '0.75rem', color: 'var(--color-text-muted)', alignItems: 'center' }}>
+                                                {emp.email && <span>📧 {emp.email}</span>}
+                                                {emp.prodentis_id && <span>🔗 Prodentis ID: {emp.prodentis_id}</span>}
+                                                {emp.position && <span>👤 {emp.position}</span>}
+                                                <button onClick={() => startEditEmployee(emp)} style={{ padding: '0.15rem 0.5rem', background: 'transparent', border: '1px solid var(--color-border)', borderRadius: '4px', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: '0.7rem' }}>✏️ Edytuj</button>
+                                            </div>
+                                        )}
                                         <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
                                             {emp.has_account && emp.email && (
                                                 <button onClick={() => sendResetPassword(emp.email)} style={{

@@ -481,7 +481,6 @@ export default function TasksTab({
                                     marginTop: '0.25rem', minWidth: '180px', maxHeight: '200px', overflowY: 'auto',
                                     background: '#1a1a2e', border: '1px solid rgba(56,189,248,0.2)',
                                     borderRadius: '0.5rem', boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
-                                    overflow: 'hidden',
                                 }}
                                 onClick={e => e.stopPropagation()}
                             >

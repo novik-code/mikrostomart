@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { verifyAdmin } from '@/lib/auth';
 import { createClient } from '@supabase/supabase-js';
 
@@ -189,5 +189,49 @@ export async function GET() {
     } catch (error) {
         console.error('[Employees] Error:', error);
         return NextResponse.json({ error: 'Server error' }, { status: 500 });
+    }
+}
+
+/**
+ * PATCH /api/admin/employees
+ * Update employee name or email.
+ * Body: { id: string, name?: string, email?: string }
+ */
+export async function PATCH(request: NextRequest) {
+    const user = await verifyAdmin();
+    if (!user) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    try {
+        const { id, name, email } = await request.json();
+        if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
+
+        const updates: Record<string, any> = { updated_at: new Date().toISOString() };
+        if (name !== undefined) updates.name = name.trim();
+        if (email !== undefined) updates.email = email.trim() || null;
+
+        const { error } = await supabase.from('employees').update(updates).eq('id', id);
+        if (error) {
+            console.error('[Employees PATCH] Error:', error);
+            return NextResponse.json({ error: error.message }, { status: 500 });
+        }
+
+        // Also update name in push_subscriptions if the employee has a user_id
+        if (name !== undefined) {
+            const { data: emp } = await supabase.from('employees').select('user_id').eq('id', id).single();
+            if (emp?.user_id) {
+                await supabase.from('push_subscriptions')
+                    .update({ employee_name: name.trim() })
+                    .eq('user_id', emp.user_id)
+                    .eq('user_type', 'employee');
+            }
+        }
+
+        console.log(`[Employees PATCH] Updated employee ${id} by ${user.email}`);
+        return NextResponse.json({ success: true });
+    } catch (error: any) {
+        console.error('[Employees PATCH] Error:', error);
+        return NextResponse.json({ error: error.message || 'Server error' }, { status: 500 });
     }
 }
