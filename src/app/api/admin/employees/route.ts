@@ -17,11 +17,28 @@ interface ProdentisDoctor {
 }
 
 /**
+ * Normalize a name for fuzzy matching:
+ * lowercase, strip accents, remove extra whitespace.
+ */
+function normalizeName(name: string): string {
+    return name
+        .toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // strip accents
+        .replace(/[-()]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+/**
  * GET /api/admin/employees
- * Fetches ALL staff from Prodentis by scanning 60 days back + 14 days forward.
- * This captures doctors, hygienists, assistants, receptionists — anyone who 
- * appears as an operator in appointment data.
- * Cross-references with Supabase to show account status.
+ *
+ * Returns a SINGLE UNIFIED employee list.
+ * Source of truth: `employees` table.
+ *
+ * Prodentis scan runs in background to auto-discover new operators
+ * and link existing employees via prodentis_id.
+ *
+ * Response: { employees: [...], prodentisAvailable: boolean }
  */
 export async function GET() {
     const user = await verifyAdmin();
@@ -30,11 +47,10 @@ export async function GET() {
     }
 
     try {
-        // Scan 60 days back + 14 days forward = 74 days total
-        const doctors = new Map<string, ProdentisDoctor>();
+        // ─── Step 1: Prodentis scan (background enrichment) ───────────
+        const prodentisDoctors = new Map<string, ProdentisDoctor>();
         const today = new Date();
         const fetchPromises: Promise<void>[] = [];
-
         const DAYS_BACK = 60;
         const DAYS_FORWARD = 14;
 
@@ -48,126 +64,130 @@ export async function GET() {
                     try {
                         const controller = new AbortController();
                         const timeoutId = setTimeout(() => controller.abort(), 5000);
-
                         const res = await fetch(
                             `${PRODENTIS_API_URL}/api/appointments/by-date?date=${dateStr}`,
-                            {
-                                signal: controller.signal,
-                                headers: { 'Content-Type': 'application/json' },
-                            }
+                            { signal: controller.signal, headers: { 'Content-Type': 'application/json' } }
                         );
                         clearTimeout(timeoutId);
-
                         if (res.ok) {
                             const data = await res.json();
-                            const appointments = data.appointments || [];
-                            for (const apt of appointments) {
+                            for (const apt of (data.appointments || [])) {
                                 if (apt.doctor?.id && apt.doctor?.name) {
                                     const cleanName = apt.doctor.name.replace(/\s*\(I\)\s*/g, ' ').trim();
-                                    if (!doctors.has(apt.doctor.id)) {
-                                        doctors.set(apt.doctor.id, {
-                                            id: apt.doctor.id,
-                                            name: cleanName,
-                                        });
+                                    if (!prodentisDoctors.has(apt.doctor.id)) {
+                                        prodentisDoctors.set(apt.doctor.id, { id: apt.doctor.id, name: cleanName });
                                     }
                                 }
                             }
                         }
-                    } catch {
-                        // Individual day fetch failed — that's fine, we try many days
-                    }
+                    } catch { /* individual day failed — fine */ }
                 })()
             );
         }
 
         await Promise.all(fetchPromises);
+        const prodentisAvailable = prodentisDoctors.size > 0;
 
-        // Get all Supabase Auth users + employee roles for cross-reference
+        // ─── Step 2: Get ALL employees from DB (active + inactive) ───
+        const { data: allEmployees } = await supabase
+            .from('employees')
+            .select('*')
+            .order('name', { ascending: true });
+
+        const employeesList = allEmployees || [];
+
+        // ─── Step 3: Get user_roles for has_account cross-reference ──
         const { data: employeeRoles } = await supabase
             .from('user_roles')
             .select('user_id, email, granted_at')
             .eq('role', 'employee');
 
-        const employeeMap = new Map((employeeRoles || []).map(r => [r.email, r]));
+        const roleByEmail = new Map((employeeRoles || []).map(r => [r.email?.toLowerCase(), r]));
 
-        // Get employees from the dedicated employees table
-        const { data: employeesFromDb } = await supabase
-            .from('employees')
-            .select('*')
-            .eq('is_active', true);
+        // ─── Step 4: Auto-merge Prodentis operators into employees ───
+        // For each Prodentis doctor, find or create a matching employee record.
+        if (prodentisAvailable) {
+            for (const [prodId, doc] of prodentisDoctors) {
+                // Already linked by prodentis_id?
+                const linkedEmployee = employeesList.find(e => e.prodentis_id === prodId);
+                if (linkedEmployee) continue;
 
-        const employeesDbList = employeesFromDb || [];
-
-        // Build staff list from Prodentis
-        const staff = Array.from(doctors.values())
-            .sort((a, b) => a.name.localeCompare(b.name, 'pl'))
-            .map(doc => {
-                // 1. Try exact match from employees table (by prodentis_id or name)
-                const matchingEmployee = employeesDbList.find(e =>
-                    e.prodentis_id === doc.id || e.name === doc.name
-                );
-
-                if (matchingEmployee) {
-                    // Auto-update prodentis_id if not set
-                    if (!matchingEmployee.prodentis_id && matchingEmployee.email) {
-                        supabase.from('employees')
-                            .update({ prodentis_id: doc.id, updated_at: new Date().toISOString() })
-                            .eq('email', matchingEmployee.email)
-                            .then();
-                    }
-
-                    return {
-                        id: doc.id,
-                        name: doc.name,
-                        hasAccount: true,
-                        accountEmail: matchingEmployee.email,
-                        grantedAt: matchingEmployee.created_at,
-                        employeeId: matchingEmployee.id,
-                    };
-                }
-
-                // 2. Fallback: fuzzy match name in email (backward compatibility)
-                const matchingRole = Array.from(employeeMap.entries()).find(([email]) => {
-                    const emailLower = email.toLowerCase();
-                    const nameParts = doc.name.toLowerCase().split(' ').filter(p => p.length > 2);
-                    return nameParts.some(part => emailLower.includes(part));
+                // Fuzzy match by name
+                const normalizedDocName = normalizeName(doc.name);
+                const nameMatch = employeesList.find(e => {
+                    if (!e.name) return false;
+                    return normalizeName(e.name) === normalizedDocName;
                 });
 
+                if (nameMatch) {
+                    // Link existing employee to Prodentis
+                    await supabase.from('employees')
+                        .update({ prodentis_id: prodId, updated_at: new Date().toISOString() })
+                        .eq('id', nameMatch.id);
+                    nameMatch.prodentis_id = prodId; // update in-memory too
+                } else {
+                    // Brand new Prodentis operator — auto-create
+                    const { data: newEmp } = await supabase.from('employees')
+                        .insert({
+                            name: doc.name,
+                            prodentis_id: prodId,
+                            is_active: true,
+                        })
+                        .select()
+                        .single();
+                    if (newEmp) employeesList.push(newEmp);
+                }
+            }
+        }
+
+        // ─── Step 5: Also find user_roles employees not in employees table ──
+        // (edge case: someone has employee role but no employees record)
+        for (const role of (employeeRoles || [])) {
+            const alreadyInList = employeesList.some(e =>
+                e.email?.toLowerCase() === role.email?.toLowerCase() ||
+                e.user_id === role.user_id
+            );
+            if (!alreadyInList && role.email) {
+                // Auto-create employee record
+                const { data: newEmp } = await supabase.from('employees')
+                    .upsert({
+                        email: role.email,
+                        user_id: role.user_id,
+                        name: role.email, // will be overwritten when admin sets name
+                        is_active: true,
+                    }, { onConflict: 'email' })
+                    .select()
+                    .single();
+                if (newEmp) employeesList.push(newEmp);
+            }
+        }
+
+        // ─── Step 6: Build unified response ──────────────────────────
+        const employees = employeesList
+            .sort((a: any, b: any) => {
+                // Active first, then alphabetical
+                if (a.is_active !== b.is_active) return a.is_active ? -1 : 1;
+                return (a.name || '').localeCompare(b.name || '', 'pl');
+            })
+            .map((emp: any) => {
+                const roleInfo = roleByEmail.get(emp.email?.toLowerCase());
                 return {
-                    id: doc.id,
-                    name: doc.name,
-                    hasAccount: !!matchingRole,
-                    accountEmail: matchingRole?.[0] || null,
-                    grantedAt: matchingRole?.[1]?.granted_at || null,
+                    id: emp.id,            // employees table UUID
+                    name: emp.name,
+                    email: emp.email || null,
+                    user_id: emp.user_id || roleInfo?.user_id || null,
+                    position: emp.position || null,
+                    push_groups: emp.push_groups || [],
+                    prodentis_id: emp.prodentis_id || null,
+                    is_active: emp.is_active ?? true,
+                    has_account: !!(emp.user_id || roleInfo),
+                    created_at: emp.created_at,
                 };
             });
 
-        // Also get currently registered employees that may not appear in Prodentis
-        const registeredEmployees = (employeeRoles || [])
-            .filter(r => !staff.some(s => s.accountEmail === r.email))
-            .map(r => {
-                // Look up real name from employees table
-                const empRecord = employeesDbList.find(e => e.email === r.email);
-                const displayName = empRecord && empRecord.name !== r.email ? empRecord.name : r.email;
-                return {
-                    id: `supabase-${r.user_id}`,
-                    name: displayName,
-                    hasAccount: true,
-                    accountEmail: r.email,
-                    grantedAt: r.granted_at,
-                    userId: r.user_id,
-                };
-            });
-
-        return NextResponse.json({
-            staff,
-            registeredEmployees,
-            prodentisAvailable: doctors.size > 0,
-            scannedDays: DAYS_BACK + DAYS_FORWARD,
-        });
+        return NextResponse.json({ employees, prodentisAvailable });
     } catch (error) {
         console.error('[Employees] Error:', error);
         return NextResponse.json({ error: 'Server error' }, { status: 500 });
     }
 }
-

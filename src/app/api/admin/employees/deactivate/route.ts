@@ -19,7 +19,7 @@ const supabase = createClient(
  *   - Staff listings
  * They remain in Prodentis (external system) — no data is deleted.
  *
- * Body: { email: string }
+ * Body: { id?: string, email?: string }  — at least one required
  */
 export async function POST(request: NextRequest) {
     const user = await verifyAdmin();
@@ -28,53 +28,81 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-        const { email } = await request.json();
+        const { id, email } = await request.json();
 
-        if (!email) {
-            return NextResponse.json({ error: 'Email is required' }, { status: 400 });
+        if (!id && !email) {
+            return NextResponse.json({ error: 'id or email is required' }, { status: 400 });
         }
 
-        // 1. Set is_active = false in employees table
-        const { data: employee, error: empError } = await supabase
-            .from('employees')
+        // 1. Find the employee
+        let query = supabase.from('employees').select('*');
+        if (id) {
+            query = query.eq('id', id);
+        } else {
+            query = query.eq('email', email);
+        }
+        const { data: employee } = await query.single();
+
+        if (!employee) {
+            return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
+        }
+
+        // 2. Set is_active = false
+        await supabase.from('employees')
             .update({ is_active: false, updated_at: new Date().toISOString() })
-            .eq('email', email)
-            .select()
-            .single();
+            .eq('id', employee.id);
 
-        if (empError && empError.code !== 'PGRST116') {
-            console.error('[Deactivate] employees update error:', empError);
+        // 3. Remove employee role from user_roles (if they have an email)
+        if (employee.email) {
+            await supabase.from('user_roles')
+                .delete()
+                .eq('email', employee.email)
+                .eq('role', 'employee');
         }
 
-        // 2. Remove employee role from user_roles (so they can't log in to employee zone)
-        const { error: roleError } = await supabase
-            .from('user_roles')
-            .delete()
-            .eq('email', email)
-            .eq('role', 'employee');
-
-        if (roleError) {
-            console.error('[Deactivate] user_roles delete error:', roleError);
-        }
-
-        // 3. Remove their push subscriptions
-        if (employee?.user_id) {
-            await supabase
-                .from('push_subscriptions')
+        // 4. Remove their push subscriptions
+        if (employee.user_id) {
+            await supabase.from('push_subscriptions')
                 .delete()
                 .eq('user_id', employee.user_id)
                 .eq('user_type', 'employee');
         }
 
-        console.log(`[Deactivate] Employee ${email} deactivated by ${user.email}`);
+        console.log(`[Deactivate] Employee ${employee.name || employee.email || employee.id} deactivated by ${user.email}`);
 
         return NextResponse.json({
             success: true,
-            message: `Pracownik ${email} został dezaktywowany`,
-            deactivatedEmployee: employee?.name || email,
+            message: `Pracownik ${employee.name || employee.email} dezaktywowany`,
         });
     } catch (error: any) {
         console.error('[Deactivate] Error:', error);
+        return NextResponse.json({ error: error.message || 'Server error' }, { status: 500 });
+    }
+}
+
+/**
+ * PATCH /api/admin/employees/deactivate
+ * RE-ACTIVATE a previously deactivated employee.
+ * Body: { id: string }
+ */
+export async function PATCH(request: NextRequest) {
+    const user = await verifyAdmin();
+    if (!user) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    try {
+        const { id } = await request.json();
+        if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
+
+        await supabase.from('employees')
+            .update({ is_active: true, updated_at: new Date().toISOString() })
+            .eq('id', id);
+
+        console.log(`[Reactivate] Employee ${id} reactivated by ${user.email}`);
+        return NextResponse.json({ success: true });
+    } catch (error: any) {
+        console.error('[Reactivate] Error:', error);
         return NextResponse.json({ error: error.message || 'Server error' }, { status: 500 });
     }
 }
