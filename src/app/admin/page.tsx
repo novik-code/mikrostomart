@@ -1296,15 +1296,13 @@ export default function AdminPage() {
                         </p>
                     </div>
                     <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                        {inactiveEmployees.length > 0 && (
-                            <button onClick={() => setShowInactive(!showInactive)} style={{
-                                padding: '0.4rem 0.8rem', background: showInactive ? 'rgba(255,255,255,0.1)' : 'transparent',
-                                border: '1px solid var(--color-border)', borderRadius: '6px',
-                                color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: '0.8rem',
-                            }}>
-                                {showInactive ? 'Ukryj nieaktywnych' : `Pokaż nieaktywnych (${inactiveEmployees.length})`}
-                            </button>
-                        )}
+                        <button onClick={() => setShowInactive(!showInactive)} style={{
+                            padding: '0.4rem 0.8rem', background: showInactive ? 'rgba(255,255,255,0.1)' : 'transparent',
+                            border: '1px solid var(--color-border)', borderRadius: '6px',
+                            color: showInactive ? '#ef4444' : 'var(--color-text-muted)', cursor: 'pointer', fontSize: '0.8rem',
+                        }}>
+                            {showInactive ? '👁 Ukryj nieaktywnych' : `👁 Nieaktywni (${inactiveEmployees.length})`}
+                        </button>
                         <button onClick={fetchEmployees} style={{
                             padding: '0.4rem 1rem', background: 'var(--color-surface)',
                             border: '1px solid var(--color-border)', borderRadius: '6px',
