@@ -127,14 +127,21 @@ export async function GET() {
                     nameMatch.prodentis_id = prodId; // update in-memory too
                 } else {
                     // Brand new Prodentis operator — auto-create
-                    const { data: newEmp } = await supabase.from('employees')
+                    // Generate a unique placeholder email (email is NOT NULL + UNIQUE in DB)
+                    const slug = normalizeName(doc.name).replace(/\s+/g, '.') || 'unknown';
+                    const placeholderEmail = `prodentis-${prodId}@auto.mikrostomart.pl`;
+                    const { data: newEmp, error: insertErr } = await supabase.from('employees')
                         .insert({
                             name: doc.name,
+                            email: placeholderEmail,
                             prodentis_id: prodId,
                             is_active: true,
                         })
                         .select()
                         .single();
+                    if (insertErr) {
+                        console.error(`[Employees] Failed to auto-create "${doc.name}":`, insertErr.message);
+                    }
                     if (newEmp) employeesList.push(newEmp);
                 }
             }

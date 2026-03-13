@@ -301,21 +301,35 @@ export async function GET(req: Request) {
                 }
             }
 
-            const toInsert: { name: string; prodentis_id: string; is_active: boolean }[] = [];
+            const toInsert: { name: string; email: string; prodentis_id: string; is_active: boolean }[] = [];
             for (const doctorName of allDoctors) {
                 const norm = normalizeName(doctorName);
                 if (!existingNormalised.has(norm)) {
+                    // Generate a unique placeholder email (email is NOT NULL + UNIQUE in DB)
+                    const prodId = doctorIdMap.get(doctorName) || '';
+                    const slug = norm.replace(/\s+/g, '.') || 'unknown';
+                    const email = prodId
+                        ? `prodentis-${prodId}@auto.mikrostomart.pl`
+                        : `${slug}-${Date.now()}@auto.mikrostomart.pl`;
                     toInsert.push({
                         name: doctorName,
-                        prodentis_id: doctorIdMap.get(doctorName) || '',
+                        email,
+                        prodentis_id: prodId,
                         is_active: true,
                     });
                 }
             }
 
             if (toInsert.length > 0) {
-                await supabase.from('employees').insert(toInsert);
-                console.log(`[Schedule] Auto-discovered ${toInsert.length} new operators:`, toInsert.map(o => o.name));
+                // Insert one-by-one to handle individual failures gracefully
+                for (const emp of toInsert) {
+                    const { error: insertErr } = await supabase.from('employees').insert(emp);
+                    if (insertErr) {
+                        console.error(`[Schedule] Failed to auto-create employee "${emp.name}":`, insertErr.message);
+                    } else {
+                        console.log(`[Schedule] Auto-discovered: ${emp.name} (${emp.email})`);
+                    }
+                }
             }
 
             // ── Re-check deactivated list (may have just-deactivated operators) ──
