@@ -91,14 +91,27 @@ export async function PATCH(
             'title', 'description', 'status', 'priority',
             'task_type', 'checklist_items', 'image_url', 'image_urls',
             'patient_id', 'patient_name', 'appointment_type',
-            'due_date', 'linked_appointment_date', 'linked_appointment_info',
+            'due_date', 'due_time', 'linked_appointment_date', 'linked_appointment_info',
             'assigned_to_doctor_id', 'assigned_to_doctor_name', 'assigned_to',
         ];
+
+        // Fields that must be null (not '') for DB — date/nullable columns
+        const nullableFields = new Set([
+            'due_date', 'due_time', 'linked_appointment_date', 'linked_appointment_info',
+            'patient_id', 'patient_name', 'appointment_type', 'task_type',
+            'assigned_to_doctor_id', 'assigned_to_doctor_name',
+            'image_url', 'description',
+        ]);
 
         const updates: Record<string, any> = { updated_at: new Date().toISOString() };
         for (const field of allowedFields) {
             if (field in body) {
-                updates[field] = body[field];
+                let value = body[field];
+                // Convert empty strings to null for DB columns that don't accept ''
+                if (nullableFields.has(field) && value === '') {
+                    value = null;
+                }
+                updates[field] = value;
             }
         }
 

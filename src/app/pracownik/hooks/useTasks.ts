@@ -337,12 +337,16 @@ export function useTasks({
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(editForm),
             });
-            if (!res.ok) throw new Error('Failed to update task');
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.error || 'Failed to update task');
+            }
             setEditingTask(null);
             setEditForm({});
             fetchTasks();
-        } catch (err) {
+        } catch (err: any) {
             console.error('[Tasks] Edit error:', err);
+            alert(`Błąd zapisu: ${err.message || 'Spróbuj ponownie'}`);
         } finally {
             setEditSaving(false);
         }
