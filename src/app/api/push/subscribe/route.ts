@@ -41,6 +41,22 @@ export async function POST(request: NextRequest) {
                 else if (pos.includes('asysta') || pos.includes('asystentka')) employee_group = 'assistant';
                 if (employee_group) employee_groups = [employee_group];
             }
+
+            // Fallback for admin users: if no groups found, assign ALL groups
+            // so they receive every group-targeted notification in the Alerty tab.
+            if (!employee_groups) {
+                const { data: adminRole } = await supabase
+                    .from('user_roles')
+                    .select('id')
+                    .eq('user_id', userId)
+                    .eq('role', 'admin')
+                    .maybeSingle();
+                if (adminRole) {
+                    employee_groups = ['doctor', 'hygienist', 'reception', 'assistant'];
+                    employee_group = 'doctor';
+                    console.log(`[Push] Admin fallback: assigning all groups to user ${userId}`);
+                }
+            }
         }
 
         // Upsert — update locale/keys/group if endpoint already exists

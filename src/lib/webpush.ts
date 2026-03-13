@@ -246,7 +246,7 @@ export async function sendPushToAllEmployees(
     let query = supabase
         .from('push_subscriptions')
         .select('*')
-        .eq('user_type', 'employee');
+        .in('user_type', ['employee', 'admin']);
 
     if (excludeUserId) {
         query = query.neq('user_id', excludeUserId);
@@ -504,7 +504,7 @@ export async function sendPushByConfig(
             const { data: subs } = await supabase
                 .from('push_subscriptions')
                 .select('*')
-                .eq('user_type', 'employee')
+                .in('user_type', ['employee', 'admin'])
                 .or(`employee_groups.cs.{"${dbGroup}"},employee_group.eq.${dbGroup}`);
             await sendBatch(subs || []);
         }
