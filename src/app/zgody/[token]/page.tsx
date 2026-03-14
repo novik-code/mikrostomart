@@ -387,9 +387,10 @@ export default function ConsentSigningPage() {
                     await page.render({ canvas, canvasContext: ctx, viewport: scaledViewport } as any).promise;
                 }
             }
-        } catch (err) {
+        } catch (err: any) {
             console.error('PDF render error:', err);
-            container.innerHTML = '<p style="color:red;text-align:center;">Nie udało się wyświetlić dokumentu</p>';
+            const errMsg = err?.message || err?.toString() || 'Nieznany błąd';
+            container.innerHTML = `<div style="color:red;text-align:center;padding:1rem;"><p style="font-weight:bold;margin-bottom:0.5rem;">Nie udało się wyświetlić dokumentu</p><p style="font-size:0.75rem;color:#ff6b6b;word-break:break-all;">${errMsg}</p><button onclick="window.location.reload()" style="margin-top:0.75rem;padding:0.5rem 1.5rem;background:#f59e0b;color:#fff;border:none;border-radius:0.5rem;font-size:0.85rem;cursor:pointer;">🔄 Spróbuj ponownie</button></div>`;
         }
     }, []);
 
@@ -561,10 +562,17 @@ export default function ConsentSigningPage() {
             // Fallback — load original without pre-fill
             try {
                 const pdfRes = await fetch(consent.file);
+                if (!pdfRes.ok) {
+                    throw new Error(`PDF fetch failed: ${pdfRes.status} ${pdfRes.statusText} for ${consent.file}`);
+                }
                 const pdfBytes = await pdfRes.arrayBuffer();
+                if (pdfBytes.byteLength < 100) {
+                    throw new Error(`PDF file too small (${pdfBytes.byteLength} bytes) — likely not a valid PDF`);
+                }
                 setPrefilledPdfBytes(new Uint8Array(pdfBytes));
-            } catch {
-                // Can't even load the PDF
+            } catch (fallbackErr: any) {
+                console.error('PDF fallback fetch also failed:', fallbackErr);
+                setPrefillError((err?.message || 'Prefill error') + ' | Fallback: ' + (fallbackErr?.message || 'unknown'));
             }
             setPhase('viewing');
         }
