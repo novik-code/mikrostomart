@@ -343,11 +343,15 @@ export default function ConsentSigningPage() {
         container.innerHTML = '';
 
         try {
-            // Dynamically import pdf.js
-            const pdfjsLib = await import('pdfjs-dist');
+            // Use pdfjs-dist legacy build for Safari/iOS compatibility
+            // Legacy build avoids modern JS features (private fields, etc.) that break on Safari
+            const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
             pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
 
-            const pdf = await pdfjsLib.getDocument({ data: pdfBytes }).promise;
+            const pdf = await pdfjsLib.getDocument({
+                data: pdfBytes,
+                isEvalSupported: false,
+            }).promise;
             setPdfPageCount(pdf.numPages);
 
             const containerWidth = container.clientWidth || 800;
