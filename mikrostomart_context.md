@@ -1,6 +1,6 @@
 # Mikrostomart - Complete Project Context
 
-> **Last Updated:** 2026-03-10  
+> **Last Updated:** 2026-03-16  
 > **Version:** Production (Vercel Deployment)  
 > **Status:** Active Development
 
@@ -52,7 +52,7 @@
 
 ### Backend & Database
 - **Supabase** (PostgreSQL database, authentication, storage)
-  - Database: 77 migrations (003-077: email verification, appointment actions, SMS reminders, user_roles, employee tasks, task history, comments, labels, status fix, google reviews cache, chat, push subscriptions, employee_group, push_notification_config, employee_groups array, news/articles/blog/products i18n, calendar tokens, private tasks + reminders, SMS post-visit/week-after-visit, SMS unique constraint fix, task multi-images, push_notifications_log, google_event_id on employee_tasks, patient_intake_tokens, feature_suggestions, online_bookings, patient_match_confidence, consent_tokens/patient_consents, staff_signatures, intake_pdf_url, birthday_wishes, cancelled_appointments, login_attempts, patient_notification_prefs, biometric_signature, employee_audit_log, consent_field_mappings, rate_limit_table, cron_heartbeats, **sms_settings, email_ai_drafts, email_ai_config, email_compose_drafts, email_label_overrides, email_ai_drafts_skipped, compose_drafts_ai_text, email_ai_knowledge_files**)
+  - Database: 82 migrations (003-082: email verification, appointment actions, SMS reminders, user_roles, employee tasks, task history, comments, labels, status fix, google reviews cache, chat, push subscriptions, employee_group, push_notification_config, employee_groups array, news/articles/blog/products i18n, calendar tokens, private tasks + reminders, SMS post-visit/week-after-visit, SMS unique constraint fix, task multi-images, push_notifications_log, google_event_id on employee_tasks, patient_intake_tokens, feature_suggestions, online_bookings, patient_match_confidence, consent_tokens/patient_consents, staff_signatures, intake_pdf_url, birthday_wishes, cancelled_appointments, login_attempts, patient_notification_prefs, biometric_signature, employee_audit_log, consent_field_mappings, rate_limit_table, cron_heartbeats, sms_settings, email_ai_drafts, email_ai_config, email_compose_drafts, email_label_overrides, email_ai_drafts_skipped, compose_drafts_ai_text, email_ai_knowledge_files, **fix_nowosielska_role, employee_notification_prefs, cleanup_duplicate_push_subs, security_advisor_fixes, merge_duplicate_employees**)
   - Auth: Email/password, magic links, JWT tokens
   - Storage: Product images, patient documents, task images
 
@@ -246,7 +246,7 @@ mikrostomart/
 │   ├── en/common.json          # English
 │   ├── de/common.json          # German
 │   └── ua/common.json          # Ukrainian
-├── supabase_migrations/        # Database migrations (77 files: 003-077, some gaps)
+├── supabase_migrations/        # Database migrations (82 files: 003-082, some gaps)
 ├── public/                     # Static assets (incl. qr-ocen-nas.png)
 ├── scripts/                    # Utility scripts (13 files)
 └── vercel.json                 # Deployment configuration (17 cron jobs: see Cron section)
@@ -552,10 +552,12 @@ Employee account data (linked to Supabase Auth users).
 - id (uuid, PK)
 - user_id (uuid, FK → auth.users)
 - name (text)
-- email (text)
+- email (text, nullable) -- ← changed from NOT NULL (migration 082 context)
 - position (text) -- HR position from Prodentis (e.g. 'Lekarz', 'Higienistka')
 - employee_group (text) -- legacy single push group
 - push_groups (text[], DEFAULT NULL) -- canonical multi-groups for push routing (configurable from admin panel)
+- is_active (boolean, DEFAULT true) -- ← NEW (March 12): soft-deactivation flag
+- deactivated_at (timestamptz) -- ← NEW: when the employee was deactivated
 - created_at (timestamptz)
 ```
 
@@ -773,6 +775,15 @@ Uploaded PDF/TXT files parsed for AI knowledge base expansion.
 - created_at (timestamptz)
 ```
 RLS: service_only (no direct access). Max 10 files, 5MB each.
+
+#### 38. **employee_notification_preferences** (migration 079)
+Per-employee muted push notification types (opt-out pattern).
+```sql
+- user_id (uuid, PK, FK → auth.users ON DELETE CASCADE)
+- muted_keys (text[], NOT NULL, DEFAULT '{}') -- e.g. ['task-new', 'chat-patient-to-admin']
+- updated_at (timestamptz)
+```
+RLS: service_only. Default `'{}'` = nothing muted = user receives everything their groups allow. New notification types are auto-enabled.
 
 
 ## ✨ Feature Catalog
@@ -1027,7 +1038,7 @@ Features:
 1. **Login** (`/pracownik/login`) — Supabase email/password login + "Zapomniałem hasła" link
 2. **Password Reset** (`/pracownik/reset-haslo`) — sends reset email via `/api/auth/reset-password`
 3. **Tab Navigation** — responsive: **top bar on desktop (≥0768px)** | **fixed bottom nav on mobile (<768px)**
-   - 6 tabs: 📅 Grafik | ✅ Zadania | 🤖 AI (Asystent AI) | 🔔 Alerty (Powiadomienia) | 💡 Sugestie | 👤 Pacjenci
+   - 7 tabs: 📅 Grafik | ✅ Zadania | 🤖 AI (Asystent AI) | 🔔 Alerty (Powiadomienia) | 💡 Sugestie | 👤 Pacjenci | ⚙️ Preferencje
    - CSS class `.pw-tab-bar` / `.pw-tab-btn` — no inline styles, media query driven
    - Bottom bar: equal-width flex columns, icon stack, env(safe-area-inset-bottom) iPhone support
 4. **Component Architecture** (← **Refactored March 5, 2026**)
@@ -1119,12 +1130,14 @@ Features:
     - **Knowledge Files**: Upload PDF/TXT for AI knowledge base expansion
     - Debug panel with processing candidate details
 19. **SMS Settings toggles**: Admin can enable/disable SMS automation types via `sms_settings` table
+20. **Employee Notification Preferences** ← NEW (migration 079): Per-employee opt-out from specific push notification types via ⚙️ Preferencje tab. Uses `muted_keys TEXT[]` — opt-out pattern so new notification types auto-enable. Push history extended to 30 days (was 7).
+21. **Employee Deactivation** ← NEW (March 12): Soft-deactivation system — admin can hide employees from schedule/grafik without deleting from Prodentis. `is_active` flag + auto-discovery from Prodentis schedule.
 
 ### 🛡 Admin Panel (`/admin`)
 
 **Authentication Required** (Supabase Auth + admin email check)
 
-**15 Tabs** (`page.tsx` — ~216KB, 3750+ lines):
+**16 Tabs** (`page.tsx` — ~216KB, 3750+ lines):
 
 #### 1. Dashboard
 - Overview statistics
@@ -1197,14 +1210,15 @@ Features:
 - Used in patient emails before appointments
 
 #### 12. Pracownicy — Employee Management (`employees` tab)
-- **Accordion UI** — each staff member is a collapsed row, click to expand
-- **Prodentis staff scan** — fetches ALL staff (doctors, hygienists, assistants) from 74-day appointment scan
+- **Unified single list** ← REWRITTEN (March 12): merged Prodentis-discovered + Supabase-only employees into one sortable list
+- **Auto-merge duplicates** — detects employees appearing in both Prodentis scan and Supabase, merges into single row
+- **Employee deactivation** — toggle `is_active` flag to hide from schedule/grafik without deleting from Prodentis; deactivated employees shown in separate collapsible section
+- **Schedule auto-discovery** — operators appearing in Prodentis schedule are auto-added to `employees` table
 - **Account status badges** — "✅ Ma konto" or "—" (no account)
-- **Add account** — email input in expanded row, creates Supabase Auth account + `employee` role
+- **Add account** — email input, creates Supabase Auth account + `employee` role
 - **Password reset** — button to send reset email for existing accounts
-- **Manual add** — section for adding employees not found in Prodentis
-- **Registered employees** — shows Supabase-registered employees not in Prodentis data
-- **API**: `/api/admin/employees` (GET — Prodentis scan + Supabase cross-reference)
+- **Inactive employees toggle** — "Pokaż nieaktywnych" to reveal deactivated staff
+- **API**: `/api/admin/employees` (GET — Prodentis scan + Supabase cross-reference), `/api/admin/employees/deactivate` (POST — toggle is_active)
 
 #### 13. Uprawnienia — Role Management (`roles` tab)
 - **RBAC system** — 3 roles: `admin`, `employee`, `patient`
@@ -1372,6 +1386,7 @@ Features:
 | `/admin/push/config` | GET | Get all push notification type configurations |
 | `/admin/push/config` | PATCH | Update groups/enabled for a notification type |
 | `/admin/employees/position` | PATCH | Set employee push groups `{ userId, groups: string[] }` (updates employees + push_subscriptions) |
+| `/admin/employees/deactivate` | POST | **NEW** — Toggle employee `is_active` flag `{ employeeId, isActive }` |
 | `/admin/cancelled-appointments` | GET | Fetch cancelled appointments log from `cancelled_appointments` table |
 | `/admin/consent-mappings` | GET, POST, PUT, DELETE | **NEW** — Consent field mappings CRUD. GET: public read (consent page). POST/PUT/DELETE: admin only. Stores PDF field coordinates in DB. |
 | `/admin/consent-pdf-upload` | POST | **NEW** — Upload new consent PDF templates to Supabase Storage (`consent-pdfs` bucket). Admin only. |
@@ -1414,6 +1429,7 @@ Features:
 | `/employee/email-ai-knowledge` | GET, POST, DELETE | **NEW** — Knowledge files CRUD (PDF/TXT upload+parse, max 10 files, 5MB). |
 | `/employee/email-compose-drafts` | GET, POST, PUT, DELETE | **NEW** — Compose draft persistence (auto-save, resume). |
 | `/employee/email-label-overrides` | GET, POST, DELETE | **NEW** — Manual email label overrides (email_uid → label). |
+| `/employee/notification-preferences` | GET, POST | **NEW** — Employee notification preference CRUD (muted_keys). GET: returns muted keys. POST: save muted keys array. |
 
 ### Push Notification APIs (`/api/push/*`)
 
@@ -2079,6 +2095,160 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### March 14–16, 2026 — Safari PDF Fix + Blog Images
+
+#### Commits:
+- `4a1a11e` — fix: downgrade pdfjs-dist v5→v4 legacy build for Safari compatibility
+- `45b70ac` — fix: add detailed error messages to consent PDF display + retry button
+- `0df3678` — feat(blog): add image for usmiech-w-obliczu-strachu
+- `013a67e` — feat(blog): add image for od-cukierkow-do-usmiechu
+- `07a608a` — feat(blog): add image for usmiech-czasu-jak-dbac-o-zeby
+
+#### Key Fix:
+- **pdfjs-dist downgrade** — Safari on iPad crashed with `undefined is not a function` when using pdfjs-dist v5 (ES Modules + private class fields). Downgraded to v4.8.69 legacy build (`pdfjs-dist/legacy/build/pdf.mjs`), which transpiles to ES2017-compatible code. Updated worker to legacy version.
+- **Consent PDF error reporting** — Added detailed error messages and retry button to consent document display page.
+
+#### Files Modified:
+- `src/app/zgody/[token]/page.tsx` — legacy pdfjs-dist import + error UI
+- `package.json` — pdfjs-dist `^5.4.624` → `4.8.69`
+- `public/pdf.worker.min.mjs` — replaced with legacy build worker
+
+---
+
+### March 13, 2026 — Employee Merge Migration + Bug Fixes
+
+#### Commits:
+- `6d4610b` — feat: migration 082 — merge 4 sets of duplicate employee accounts
+- `49aea99` — fix: migration 082 type casts — UUID columns need UUID, not TEXT
+- `e350aa3` — fix: task edit save failing silently — empty string '' invalid for date columns
+- `109e60e` — fix: admin user missing alerts — no employee_groups on push subscription
+- `b0f2365` — fix: critical — auto-discovery failed because email column is NOT NULL
+- `5f9a60c` — fix: always show inactive employees toggle in admin panel
+
+#### Key Changes:
+1. **Migration 082** — Merged 4 sets of duplicate employee records (Małgorzata Maćków-Huras, Katarzyna Drabek, Dominika Milicz, Ilona Piechaczek). Transfers all dependent records (user_roles, employee_tasks, push_subscriptions, etc.) from duplicate → keeper, then deletes duplicate.
+2. **Task edit bug** — Empty string `''` was sent for `due_date`/`due_time` when fields cleared, causing Supabase to reject (invalid date format). Fixed: convert `''` → `null`.
+3. **Auto-discovery email fix** — `employees` table `email` column was `NOT NULL`, preventing auto-discovered Prodentis operators (who have no Supabase account) from being inserted. Made nullable.
+4. **Push subscription fix** — Admin users without `employee_groups` on their push subscription received no group-targeted notifications.
+
+#### Files Modified:
+- `supabase_migrations/082_merge_duplicate_employees.sql` — [NEW]
+- `src/app/api/employee/tasks/[id]/route.ts` — empty string → null conversion
+- `src/app/api/push/subscribe/route.ts` — sync employee_groups on subscribe
+- `src/app/api/admin/employees/route.ts` — email nullable handling
+- `src/app/admin/page.tsx` — always show inactive toggle
+
+---
+
+### March 12, 2026 — Employee Management Overhaul + Security + Consent Checkboxes
+
+#### Commits:
+- `ce716f1` — security: migration 081 — fix all Security Advisor errors and warnings
+- `8c1327f` — admin: reorganize sidebar + improve dashboard
+- `c7e645c` — feat: employee deactivation (hide from app without deleting from Prodentis)
+- `8c3e093` — feat: unified employee management — single list, auto-merge duplicates
+- `06156bc` — fix: 3 employee management bugs
+- `f86dbe5` — fix: filter deactivated employees from schedule/grafik
+- `5e232fe` — fix: schedule auto-discovers Prodentis operators + robust deactivation filter
+- `e7ed452` — feat: interactive checkbox fields on consent PDFs + simplified mapper UX
+- `ee7bf0a` — fix: remove TAK/NIE pair, enlarge delete buttons, add bulk delete
+- `34c6b0f` — fix: checkbox creates paired TAK+NIE with separate positioning
+
+#### New Features:
+1. **Employee Deactivation System** — Soft-deactivate employees via `is_active` boolean flag. Deactivated employees hidden from schedule/grafik and task assignment dropdowns. Admin panel shows separate collapsible "Nieaktywni" section. API: `POST /api/admin/employees/deactivate`.
+2. **Unified Employee Management** — Merged Prodentis-discovered staff and Supabase-registered employees into single sortable list. Auto-detects and merges duplicates appearing in both sources.
+3. **Schedule Auto-Discovery** — Employee Zone schedule route auto-adds operators found in Prodentis appointments to `employees` table if not already present.
+4. **Interactive Consent PDF Checkboxes** — PDF mapper now supports checkbox fields (TAK/NIE pairs). Clicking a checkbox on consent signing page toggles visual checkmark.
+5. **Admin Sidebar Reorganization** — Sidebar icons and grouping improved.
+
+#### Security (Migration 081):
+- Fixed 4 ERRORS (RLS not enabled on `cancelled_appointments`, `birthday_wishes`, `cron_heartbeats`) + 10 WARNINGS (always-true RLS policies on `consent_field_mappings`, `sms_settings`, `feature_suggestions`, `feature_suggestion_comments`, `online_bookings`, `reservations`)
+- All tables now have proper RLS with `USING(false)` or `USING(true)` for public-read tables
+
+#### Database:
+- Migration 081: Security Advisor fixes (RLS on 3 tables + tightened 10 policies)
+- `employees` table: added `is_active BOOLEAN DEFAULT true`, `deactivated_at TIMESTAMPTZ`
+
+#### New Files:
+- `src/app/api/admin/employees/deactivate/route.ts` — [NEW] toggle is_active
+- `supabase_migrations/081_security_advisor_fixes.sql` — [NEW]
+
+#### Files Modified:
+- `src/app/admin/page.tsx` — sidebar + employee deactivation UI
+- `src/app/admin/components/EmployeesTab.tsx` — unified list + deactivation toggles
+- `src/app/api/admin/employees/route.ts` — merge logic + auto-discovery
+- `src/app/api/employee/schedule/route.ts` — auto-discover operators + filter deactivated
+- `src/app/admin/pdf-mapper/page.tsx` — checkbox field support
+- `src/app/zgody/[token]/page.tsx` — checkbox rendering on consent signing
+- `src/lib/consentTypes.ts` — checkbox field type support
+
+---
+
+### March 11, 2026 — Safari Performance + Push Dedup
+
+#### Commits:
+- `510ae08` — perf: lazy-load admin tab data — fix Safari high resource usage
+- `c5c9dd6` — fix: admin push employee search + employee zone Safari performance
+- `b4070d1` — fix: push dedup — 1 notification per user, not per device
+- `749de11` — fix: eliminate double push notifications for ALL users
+
+#### Key Changes:
+1. **Admin Panel Lazy Loading** — Tab data now loads on-demand when tab is selected (was loading all tabs on mount). Fixes Safari high CPU/memory usage on iPad.
+2. **Push Notification Final Dedup** — After migration 080 removed duplicate push subscriptions, remaining dedup logic in `webpush.ts` ensures exactly 1 notification per user across all send functions. `push_subscriptions` table now has unique constraint on `user_id`.
+
+#### Database:
+- Migration 080: Cleaned up duplicate push subscriptions (keep only most recent per user_id)
+
+#### Files Modified:
+- `src/app/admin/page.tsx` — lazy-load tab data
+- `src/lib/webpush.ts` — final dedup across all send paths
+
+---
+
+### March 10, 2026 — Employee Notification Preferences + Bug Fixes
+
+#### Commits:
+- `56a6b22` — fix: sanitize doctor/patient names in SMS templates — toGSM7 prevents UCS-2 double cost
+- `aa124bf` — fix: Elżbieta Nowosielska role — hig. stom. (higienistka), not lek. dent.
+- `b2a9cef` — fix: daily-report 0 appointments + task-reminders archived leaks + push logPush gaps + schedule dashboard tasks
+- `1d05e06` — feat: employee notification preferences tab + push history 30d + login popup + muted_keys
+- `313b6ef` — fix: consent PDF always inserting Nowosielska — React state race condition
+
+#### New Features:
+1. **Employee Notification Preferences** — New ⚙️ Preferencje tab in Employee Zone. Each employee can mute/unmute specific notification types (opt-out pattern). Uses `employee_notification_preferences` table with `muted_keys TEXT[]`. Push sending functions (`sendPushByConfig`, `sendPushToGroups`) now check per-user muted keys before sending.
+2. **Push History 30 Days** — Extended from 7 to 30 days retention. Push cleanup cron updated accordingly.
+3. **SMS GSM-7 Sanitization** — `toGSM7()` function strips diacritics from doctor/patient names in SMS templates to prevent UCS-2 encoding (which doubles SMS cost).
+4. **Login Popup Tasks** — Employee login popup now shows pending tasks with clickable entries.
+
+#### Bug Fixes:
+- Migration 078: Fixed Elżbieta Nowosielska role in `staff_signatures` (was "lek. dent.", correct is "hig. stom." / hygienist)
+- Daily report: handled 0 appointments without crashing
+- Task reminders: filtered out archived tasks that were leaking into reminders
+- Push logPush: fixed gaps where some notification sends weren't being logged
+- Consent PDF: fixed React state race condition that always inserted Nowosielska as doctor regardless of selection
+
+#### Database:
+- Migration 078: Fix Nowosielska role in staff_signatures
+- Migration 079: `employee_notification_preferences` table (user_id PK, muted_keys TEXT[])
+
+#### New Files:
+- `src/app/pracownik/components/PreferencesTab.tsx` — [NEW] (399 LOC) notification preferences UI
+- `src/app/api/employee/notification-preferences/route.ts` — [NEW] GET/POST muted keys
+- `supabase_migrations/078_fix_nowosielska_role.sql` — [NEW]
+- `supabase_migrations/079_employee_notification_prefs.sql` — [NEW]
+- `supabase_migrations/080_cleanup_duplicate_push_subs.sql` — [NEW]
+
+#### Files Modified:
+- `src/app/pracownik/page.tsx` — Preferencje tab + login popup
+- `src/lib/webpush.ts` — muted_keys checking in send functions
+- `src/lib/smsService.ts` — toGSM7() sanitization
+- `src/app/api/cron/daily-report/route.ts` — 0 appointments fix
+- `src/app/api/cron/task-reminders/route.ts` — archived tasks filter
+- `src/app/api/employee/push/history/route.ts` — 30 day retention
+- `src/lib/doctorMapping.ts` — Nowosielska role fix
+
+---
 
 ### March 9–10, 2026 — AI Email: Regeneruj Button + Deployment Fixes
 
@@ -4269,7 +4439,7 @@ OpenAI gpt-image-1 regenerates the entire masked area from scratch (+ forces 102
 - [x] Appointment confirmation/cancellation workflow
 - [x] Short link system
 - [x] Appointment instructions
-- [x] Cron jobs (18 total — SMS, article, task reminders, push, booking digest, birthday, daily-report, deposit-reminder, noshow-followup, **email-ai-drafts**)
+- [x] Cron jobs (18 total — SMS, article, task reminders, push, booking digest, birthday, daily-report, deposit-reminder, noshow-followup, email-ai-drafts)
 - [x] Prodentis API integration
 - [x] YouTube feed
 - [x] AI assistant
@@ -4309,6 +4479,16 @@ OpenAI gpt-image-1 regenerates the entire masked area from scratch (+ forces 102
 - [x] **Regeneruj iterative refinement** — Rate + tag + notes → regenerate improved AI draft
 - [x] **SMS Settings Admin Controls** — Toggle SMS automation types on/off
 - [x] **Knowledge Files Upload** — PDF/TXT files parsed for AI knowledge base
+- [x] **Employee Deactivation** — Soft-deactivate employees from schedule/grafik without Prodentis deletion
+- [x] **Unified Employee Management** — Single list with auto-merge duplicates, auto-discovery from Prodentis
+- [x] **Employee Notification Preferences** — Per-employee opt-out from specific push types (migration 079)
+- [x] **Push Notification Final Dedup** — Exactly 1 notification per user, unique constraint on user_id (migration 080)
+- [x] **Security Advisor Fixes Round 3** — RLS on 3 more tables + tightened 10 policies (migration 081)
+- [x] **Duplicate Employee Merge** — Migration 082 merged 4 sets of duplicate employee records
+- [x] **Safari PDF Compatibility** — pdfjs-dist v5→v4 legacy build for iPad Safari consent documents
+- [x] **Consent PDF Checkboxes** — Interactive TAK/NIE checkbox fields on consent PDFs
+- [x] **Admin Panel Lazy Loading** — Tab data loads on-demand to fix Safari high resource usage
+- [x] **SMS GSM-7 Sanitization** — toGSM7() strips diacritics from names to prevent UCS-2 double cost
 
 ### ⚠️ Partial/Pending
 - [ ] Admin panel component split (`admin/page.tsx` — still monolithic at ~3700 LOC)
@@ -4397,7 +4577,7 @@ npm start
 - Points to sitemap: `https://mikrostomart.pl/sitemap.xml`
 
 ### Sitemap (`src/app/sitemap.ts`)
-- **29 static pages** organized by priority tier:
+- **29+ static pages** organized by priority tier:
   - Priority 1.0: Homepage
   - Priority 0.9: Main pages (o-nas, zespol, oferta, oferta/implantologia, oferta/leczenie-kanalowe, oferta/stomatologia-estetyczna, oferta/ortodoncja, oferta/chirurgia, oferta/protetyka, cennik, kontakt, rezerwacja)
   - Priority 0.8: Content pages (aktualnosci, baza-wiedzy, metamorfozy, sklep, faq, nowosielski)
