@@ -145,7 +145,7 @@ function placedToDbFields(placed: PlacedField[]): Record<string, any> {
         const base = getBaseKey(f.key);
         const isMultiInstance = f.key !== base;
         if (f.fieldType === 'pesel') {
-            fields[f.key] = { startX: f.pdfX, y: f.pdfY, boxWidth: f.boxWidth || 20.85, fontSize: f.fontSize || 9, page: f.page };
+            fields[f.key] = { startX: f.pdfX, y: f.pdfY, boxWidth: f.boxWidth || 21.0, fontSize: f.fontSize || 9, page: f.page };
             if (isMultiInstance) fields[f.key].sourceField = base;
         } else if (f.fieldType === 'signature') {
             fields[f.key] = { x: f.pdfX, y: f.pdfY, page: f.page };
@@ -414,7 +414,7 @@ export default function PdfMapperPage() {
                 fieldType: activeOption.fieldType as any,
                 page: currentPage, nx, ny, pdfX, pdfY,
                 fontSize: activeOption.fieldType === 'pesel' ? 9 : 11,
-                boxWidth: activeOption.fieldType === 'pesel' ? 20.85 : undefined,
+                boxWidth: activeOption.fieldType === 'pesel' ? 21.0 : undefined,
                 color: activeOption.color,
                 icon: activeOption.icon,
             };
@@ -1030,7 +1030,52 @@ export default function PdfMapperPage() {
                                             </div>
                                             <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)', fontFamily: 'monospace' }}>
                                                 s.{f.page} x={f.pdfX} y={f.pdfY}
+                                                {f.fieldType === 'pesel' && f.boxWidth && <> bw={f.boxWidth}</>}
                                             </div>
+                                            {/* PESEL boxWidth tuner */}
+                                            {f.fieldType === 'pesel' && (
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginTop: '0.2rem' }}>
+                                                    <span style={{ fontSize: '0.55rem', color: 'rgba(255,255,255,0.35)' }}>boxW:</span>
+                                                    <input
+                                                        type="number"
+                                                        step={0.25}
+                                                        min={10}
+                                                        max={40}
+                                                        value={f.boxWidth || 21.0}
+                                                        onChange={e => {
+                                                            const val = parseFloat(e.target.value);
+                                                            if (!isNaN(val)) {
+                                                                setPlacedFields(prev => prev.map(pf => pf.key === f.key ? { ...pf, boxWidth: val } : pf));
+                                                                setHasChanges(true);
+                                                            }
+                                                        }}
+                                                        style={{ width: '55px', padding: '1px 3px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '3px', color: '#38bdf8', fontSize: '0.6rem', fontFamily: 'monospace', textAlign: 'center' }}
+                                                    />
+                                                    <span style={{ fontSize: '0.5rem', color: 'rgba(255,255,255,0.25)' }}>pt</span>
+                                                </div>
+                                            )}
+                                            {/* fontSize tuner */}
+                                            {(f.fieldType === 'text' || f.fieldType === 'pesel') && (
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginTop: '0.15rem' }}>
+                                                    <span style={{ fontSize: '0.55rem', color: 'rgba(255,255,255,0.35)' }}>font:</span>
+                                                    <input
+                                                        type="number"
+                                                        step={0.5}
+                                                        min={5}
+                                                        max={30}
+                                                        value={f.fontSize || (f.fieldType === 'pesel' ? 9 : 11)}
+                                                        onChange={e => {
+                                                            const val = parseFloat(e.target.value);
+                                                            if (!isNaN(val)) {
+                                                                setPlacedFields(prev => prev.map(pf => pf.key === f.key ? { ...pf, fontSize: val } : pf));
+                                                                setHasChanges(true);
+                                                            }
+                                                        }}
+                                                        style={{ width: '45px', padding: '1px 3px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '3px', color: '#fbbf24', fontSize: '0.6rem', fontFamily: 'monospace', textAlign: 'center' }}
+                                                    />
+                                                    <span style={{ fontSize: '0.5rem', color: 'rgba(255,255,255,0.25)' }}>pt</span>
+                                                </div>
+                                            )}
                                         </div>
                                         <div style={{ display: 'flex', gap: '0.3rem', flexShrink: 0 }}>
                                             <button onClick={() => duplicateField(f.key)} title="Zwielokrotnij pole"

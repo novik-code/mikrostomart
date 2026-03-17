@@ -437,7 +437,8 @@ export default function ConsentSigningPage() {
                 const peselPage = getPage(fields.pesel.page);
                 const peselSize = fields.pesel.fontSize || 9;
                 const digits = pesel.split('');
-                const bw1 = fields.pesel.boxWidth;
+                // Fix stale DB boxWidth (was 23.5, should be 21.0)
+                const bw1 = fields.pesel.boxWidth >= 23 ? 21.0 : fields.pesel.boxWidth;
                 const bc = fields.pesel.boxCount ?? 11;
                 const bw2 = fields.pesel.boxWidth2 ?? bw1;
                 for (let i = 0; i < digits.length && i < 11; i++) {
@@ -628,7 +629,8 @@ export default function ConsentSigningPage() {
                 if (fields2.pesel && pesel) {
                     const peselPage = getPage2(fields2.pesel.page);
                     const peselSize = fields2.pesel.fontSize || 9;
-                    const bw1 = fields2.pesel.boxWidth;
+                    // Fix stale DB boxWidth (was 23.5, should be 21.0)
+                    const bw1 = fields2.pesel.boxWidth >= 23 ? 21.0 : fields2.pesel.boxWidth;
                     const bc = fields2.pesel.boxCount ?? 11;
                     const bw2 = fields2.pesel.boxWidth2 ?? bw1;
                     pesel.split('').forEach((d: string, i: number) => {
