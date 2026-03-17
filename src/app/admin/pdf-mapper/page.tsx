@@ -145,7 +145,7 @@ function placedToDbFields(placed: PlacedField[]): Record<string, any> {
         const base = getBaseKey(f.key);
         const isMultiInstance = f.key !== base;
         if (f.fieldType === 'pesel') {
-            fields[f.key] = { startX: f.pdfX, y: f.pdfY, boxWidth: f.boxWidth || 23.5, fontSize: f.fontSize || 9, page: f.page };
+            fields[f.key] = { startX: f.pdfX, y: f.pdfY, boxWidth: f.boxWidth || 20.85, fontSize: f.fontSize || 9, page: f.page };
             if (isMultiInstance) fields[f.key].sourceField = base;
         } else if (f.fieldType === 'signature') {
             fields[f.key] = { x: f.pdfX, y: f.pdfY, page: f.page };
@@ -414,7 +414,7 @@ export default function PdfMapperPage() {
                 fieldType: activeOption.fieldType as any,
                 page: currentPage, nx, ny, pdfX, pdfY,
                 fontSize: activeOption.fieldType === 'pesel' ? 9 : 11,
-                boxWidth: activeOption.fieldType === 'pesel' ? 23.5 : undefined,
+                boxWidth: activeOption.fieldType === 'pesel' ? 20.85 : undefined,
                 color: activeOption.color,
                 icon: activeOption.icon,
             };

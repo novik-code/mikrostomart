@@ -100,7 +100,7 @@ export const CONSENT_TYPES: Record<string, ConsentType> = {
         file: 'zgoda_na_higienizację.pdf',
         fields: {
             name: { x: 208.6, y: 617.1, fontSize: 11, page: 1 },
-            pesel: { startX: 166.4, y: 576.4, boxWidth: 23.5, fontSize: 9, page: 1 },
+            pesel: { startX: 166.4, y: 576.4, boxWidth: 20.85, fontSize: 9, page: 1 },
             date: { x: 315.6, y: 119.1, fontSize: 11, page: 1 },
             doctor: { x: 152, y: 510.3, fontSize: 11, page: 1 },
             patient_signature: { x: 317, y: 98, page: 1 },
@@ -116,7 +116,7 @@ export const CONSENT_TYPES: Record<string, ConsentType> = {
         file: 'zgoda_na_znieczulenie.pdf',
         fields: {
             name: { x: 197.6, y: 596.5, fontSize: 11, page: 1 },
-            pesel: { startX: 168.8, y: 554.4, boxWidth: 23.5, fontSize: 9, page: 1 },
+            pesel: { startX: 168.8, y: 554.4, boxWidth: 20.85, fontSize: 9, page: 1 },
             address: { x: 413, y: 612.3, fontSize: 11, page: 1 },
             city: { x: 413.9, y: 596, fontSize: 11, page: 1 },
             patient_signature: { x: 439.3, y: 61.6, page: 1 },
@@ -130,7 +130,7 @@ export const CONSENT_TYPES: Record<string, ConsentType> = {
         file: 'zgoda_na_leczenie_chirurgiczne.pdf',
         fields: {
             name: { x: 234.1, y: 637.2, fontSize: 11, page: 1 },
-            pesel: { startX: 168.3, y: 599.9, boxWidth: 23.5, fontSize: 9, page: 1 },
+            pesel: { startX: 168.3, y: 599.9, boxWidth: 20.85, fontSize: 9, page: 1 },
             address: { x: 434.1, y: 638.2, fontSize: 11, page: 1 },
             city: { x: 435.5, y: 614.2, fontSize: 11, page: 1 },
             tooth: { x: 178.4, y: 533.8, fontSize: 11, page: 1 },
@@ -147,7 +147,7 @@ export const CONSENT_TYPES: Record<string, ConsentType> = {
         file: 'zgoda_na_leczenie_protetyczne.pdf',
         fields: {
             name: { x: 211.5, y: 627.6, fontSize: 11, page: 1 },
-            pesel: { startX: 150.6, y: 575, boxWidth: 23.5, fontSize: 9, page: 1 },
+            pesel: { startX: 150.6, y: 575, boxWidth: 20.85, fontSize: 9, page: 1 },
             address: { x: 425.4, y: 633.9, fontSize: 11, page: 1 },
             city: { x: 428.3, y: 599.9, fontSize: 11, page: 1 },
             tooth: { x: 114.6, y: 525.2, fontSize: 11, page: 1 },
@@ -164,7 +164,7 @@ export const CONSENT_TYPES: Record<string, ConsentType> = {
         file: 'zgoda_na_leczenie_endodontyczne.pdf',
         fields: {
             name: { x: 213, y: 620.5, fontSize: 11, page: 1 },
-            pesel: { startX: 163.1, y: 571.6, boxWidth: 23.5, fontSize: 9, page: 1 },
+            pesel: { startX: 163.1, y: 571.6, boxWidth: 20.85, fontSize: 9, page: 1 },
             address: { x: 429.3, y: 625.7, fontSize: 11, page: 1 },
             city: { x: 429.3, y: 589.8, fontSize: 11, page: 1 },
             tooth: { x: 264.3, y: 502.7, fontSize: 11, page: 1 },
@@ -181,7 +181,7 @@ export const CONSENT_TYPES: Record<string, ConsentType> = {
         file: 'zgoda_na_leczenie_zachowawcze.pdf',
         fields: {
             name: { x: 207.7, y: 597, fontSize: 11, page: 1 },
-            pesel: { startX: 147.7, y: 558.7, boxWidth: 23.5, fontSize: 9, page: 1 },
+            pesel: { startX: 147.7, y: 558.7, boxWidth: 20.85, fontSize: 9, page: 1 },
             address: { x: 419.7, y: 613.3, fontSize: 11, page: 1 },
             city: { x: 419.7, y: 600.4, fontSize: 11, page: 1 },
             tooth: { x: 252.3, y: 501.2, fontSize: 11, page: 1 },
@@ -198,7 +198,7 @@ export const CONSENT_TYPES: Record<string, ConsentType> = {
         file: 'AKCEPTACJA_PRACY_PROTETYCZNEJ_NA_IMPLANCIE.pdf',
         fields: {
             name: { x: 152.6, y: 683, fontSize: 11, page: 1 },
-            pesel: { startX: 86.8, y: 660.6, boxWidth: 23.5, fontSize: 9, page: 1 },
+            pesel: { startX: 86.8, y: 660.6, boxWidth: 20.85, fontSize: 9, page: 1 },
             address: { x: 359.2, y: 684.8, fontSize: 11, page: 1 },
             city: { x: 361.1, y: 657.3, fontSize: 11, page: 1 },
             doctor_signature: { x: 398.9, y: 83.9, page: 1 },
@@ -216,7 +216,7 @@ export const CONSENT_TYPES: Record<string, ConsentType> = {
             address: { x: 106, y: 552.5, fontSize: 11, page: 1 },
             city: { x: 234.1, y: 572.1, fontSize: 11, page: 1 },
             phone: { x: 275.3, y: 531.9, fontSize: 11, page: 1 },
-            pesel: { startX: 184.7, y: 496, boxWidth: 23.5, fontSize: 9, page: 1 },
+            pesel: { startX: 184.7, y: 496, boxWidth: 20.85, fontSize: 9, page: 1 },
             date: { x: 95.9, y: 379.6, fontSize: 11, page: 2 },
             patient_signature: { x: 214.9, y: 379.1, page: 2 },
         },
@@ -229,7 +229,7 @@ export const CONSENT_TYPES: Record<string, ConsentType> = {
         fields: {
             city: { x: 170.3, y: 588.9, fontSize: 11, page: 1 },
             name: { x: 236.5, y: 567.3, fontSize: 11, page: 1 },
-            pesel: { startX: 70, y: 534.7, boxWidth: 23.5, fontSize: 9, page: 1 },
+            pesel: { startX: 70, y: 534.7, boxWidth: 20.85, fontSize: 9, page: 1 },
             patient_signature: { x: 324.2, y: 144.9, page: 4 },
             date: { x: 232.6, y: 145.9, fontSize: 11, page: 4 },
         },
