@@ -23,11 +23,15 @@ export interface PeselBoxes {
     startX: number;
     /** y baseline */
     y: number;
-    /** width of each box */
+    /** width of each box (used for digits 0..boxCount-1) */
     boxWidth: number;
     fontSize?: number;
     /** Which page this field is on (1-indexed, default=1) */
     page?: number;
+    /** How many boxes use boxWidth (default=11, all digits). Remaining digits use boxWidth2 */
+    boxCount?: number;
+    /** Width for digits after boxCount (default=boxWidth). Use when PDF has wider spacing after grid section */
+    boxWidth2?: number;
 }
 
 export interface CheckboxFieldPosition {

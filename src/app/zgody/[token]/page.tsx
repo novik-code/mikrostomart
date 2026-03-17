@@ -437,9 +437,16 @@ export default function ConsentSigningPage() {
                 const peselPage = getPage(fields.pesel.page);
                 const peselSize = fields.pesel.fontSize || 9;
                 const digits = pesel.split('');
+                const bw1 = fields.pesel.boxWidth;
+                const bc = fields.pesel.boxCount ?? 11;
+                const bw2 = fields.pesel.boxWidth2 ?? bw1;
                 for (let i = 0; i < digits.length && i < 11; i++) {
                     const digitWidth = font.widthOfTextAtSize(digits[i], peselSize);
-                    const digitX = fields.pesel.startX + (i * fields.pesel.boxWidth) + (fields.pesel.boxWidth - digitWidth) / 2;
+                    const bw = i < bc ? bw1 : bw2;
+                    const offsetX = i < bc
+                        ? i * bw1
+                        : bc * bw1 + (i - bc) * bw2;
+                    const digitX = fields.pesel.startX + offsetX + (bw - digitWidth) / 2;
                     peselPage.drawText(digits[i], {
                         x: digitX, y: fields.pesel.y,
                         size: peselSize, font, color: textColor,
@@ -621,11 +628,18 @@ export default function ConsentSigningPage() {
                 if (fields2.pesel && pesel) {
                     const peselPage = getPage2(fields2.pesel.page);
                     const peselSize = fields2.pesel.fontSize || 9;
+                    const bw1 = fields2.pesel.boxWidth;
+                    const bc = fields2.pesel.boxCount ?? 11;
+                    const bw2 = fields2.pesel.boxWidth2 ?? bw1;
                     pesel.split('').forEach((d: string, i: number) => {
                         if (i < 11) {
                             const dw = interFont.widthOfTextAtSize(d, peselSize);
+                            const bw = i < bc ? bw1 : bw2;
+                            const offsetX = i < bc
+                                ? i * bw1
+                                : bc * bw1 + (i - bc) * bw2;
                             peselPage.drawText(d, {
-                                x: fields2.pesel!.startX + i * fields2.pesel!.boxWidth + (fields2.pesel!.boxWidth - dw) / 2,
+                                x: fields2.pesel!.startX + offsetX + (bw - dw) / 2,
                                 y: fields2.pesel!.y,
                                 size: peselSize, font: interFont, color: textColor,
                             });

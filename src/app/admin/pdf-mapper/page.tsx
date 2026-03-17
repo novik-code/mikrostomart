@@ -591,6 +591,30 @@ export default function PdfMapperPage() {
         finally { setUploading(false); }
     };
 
+    // ── Delete consent type (soft-delete: is_active=false) ─────
+    const handleDeleteConsent = async (consentKey: string) => {
+        const consent = consents.find(c => c.consent_key === consentKey);
+        if (!consent) return;
+        if (!confirm(`Na pewno usunąć typ zgody "${consent.label}"?\n\nZgoda zostanie dezaktywowana (nie pojawi się w strefie pracownika).\nMożna ją przywrócić z poziomu bazy danych.`)) return;
+        try {
+            const res = await fetch('/api/admin/consent-mappings', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ consent_key: consentKey }),
+            });
+            if (!res.ok) { const err = await res.json(); throw new Error(err.error || 'Delete failed'); }
+            setConsents(prev => prev.filter(c => c.consent_key !== consentKey));
+            if (selectedKey === consentKey) {
+                const remaining = consents.filter(c => c.consent_key !== consentKey);
+                setSelectedKey(remaining.length > 0 ? remaining[0].consent_key : '');
+                setPlacedFields([]);
+                pdfDocRef.current = null;
+            }
+            setSaveMsg('🗑️ Usunięto!');
+            setTimeout(() => setSaveMsg(null), 3000);
+        } catch (err: any) { alert(`Błąd usuwania: ${err.message}`); }
+    };
+
     // ── Change consent ─────────────────────────────────────────
     const handleConsentChange = (key: string) => {
         if (hasChanges && !confirm('Masz niezapisane zmiany. Zmienić formularz?')) return;
@@ -728,17 +752,37 @@ export default function PdfMapperPage() {
                 {/* Consent selector */}
                 <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap', marginBottom: '0.5rem', alignItems: 'center' }}>
                     {consents.map(c => (
-                        <button key={c.consent_key} onClick={() => handleConsentChange(c.consent_key)}
-                            style={{
-                                padding: '0.25rem 0.5rem', borderRadius: '0.3rem',
-                                border: selectedKey === c.consent_key ? '2px solid #38bdf8' : '1px solid rgba(255,255,255,0.12)',
-                                background: selectedKey === c.consent_key ? 'rgba(56,189,248,0.15)' : 'rgba(255,255,255,0.03)',
-                                color: selectedKey === c.consent_key ? '#38bdf8' : 'rgba(255,255,255,0.6)',
-                                fontSize: '0.65rem', cursor: 'pointer',
-                                fontWeight: selectedKey === c.consent_key ? 'bold' : 'normal',
-                            }}>
-                            {Object.keys(c.fields || {}).length > 0 ? '✅ ' : '○ '}{c.label}
-                        </button>
+                        <div key={c.consent_key} style={{ display: 'flex', alignItems: 'center', gap: '0' }}>
+                            <button onClick={() => handleConsentChange(c.consent_key)}
+                                style={{
+                                    padding: '0.25rem 0.5rem', borderRadius: selectedKey === c.consent_key ? '0.3rem 0 0 0.3rem' : '0.3rem',
+                                    border: selectedKey === c.consent_key ? '2px solid #38bdf8' : '1px solid rgba(255,255,255,0.12)',
+                                    borderRight: selectedKey === c.consent_key ? '1px solid rgba(56,189,248,0.3)' : undefined,
+                                    background: selectedKey === c.consent_key ? 'rgba(56,189,248,0.15)' : 'rgba(255,255,255,0.03)',
+                                    color: selectedKey === c.consent_key ? '#38bdf8' : 'rgba(255,255,255,0.6)',
+                                    fontSize: '0.65rem', cursor: 'pointer',
+                                    fontWeight: selectedKey === c.consent_key ? 'bold' : 'normal',
+                                }}>
+                                {Object.keys(c.fields || {}).length > 0 ? '✅ ' : '○ '}{c.label}
+                            </button>
+                            {selectedKey === c.consent_key && (
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); handleDeleteConsent(c.consent_key); }}
+                                    title={`Usuń "${c.label}"`}
+                                    style={{
+                                        padding: '0.25rem 0.4rem', borderRadius: '0 0.3rem 0.3rem 0',
+                                        border: '2px solid rgba(239,68,68,0.4)', borderLeft: 'none',
+                                        background: 'rgba(239,68,68,0.1)',
+                                        color: '#ef4444', fontSize: '0.6rem', cursor: 'pointer',
+                                        fontWeight: 'bold', transition: 'all 0.15s',
+                                    }}
+                                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(239,68,68,0.25)'}
+                                    onMouseLeave={e => e.currentTarget.style.background = 'rgba(239,68,68,0.1)'}
+                                >
+                                    🗑️
+                                </button>
+                            )}
+                        </div>
                     ))}
                     <button onClick={() => setShowNewForm(!showNewForm)}
                         style={{ padding: '0.25rem 0.5rem', borderRadius: '0.3rem', border: '1px dashed rgba(34,197,94,0.4)', background: showNewForm ? 'rgba(34,197,94,0.15)' : 'transparent', color: '#22c55e', fontSize: '0.65rem', cursor: 'pointer', fontWeight: 'bold' }}>
