@@ -100,6 +100,26 @@ export default function ScheduleTab({
     const [pdfGenerating, setPdfGenerating] = useState(false);
     const [CONSENT_TYPES, setConsentTypes] = useState(HARDCODED_CONSENT_TYPES);
 
+    // Load consent types from DB on mount (same pattern as zgody/[token]/page.tsx)
+    useEffect(() => {
+        fetch('/api/admin/consent-mappings')
+            .then(r => r.json())
+            .then(data => {
+                if (Array.isArray(data) && data.length > 0) {
+                    const mapped: Record<string, { label: string; file: string; fields: Record<string, any> }> = {};
+                    for (const row of data) {
+                        mapped[row.consent_key] = {
+                            label: row.label,
+                            file: row.pdf_file,
+                            fields: row.fields,
+                        };
+                    }
+                    setConsentTypes(mapped);
+                }
+            })
+            .catch(() => { /* keep hardcoded fallback */ });
+    }, []);
+
     return (<div>
 
         {/* Week Navigation */}
