@@ -1,6 +1,6 @@
 # Mikrostomart - Complete Project Context
 
-> **Last Updated:** 2026-03-16  
+> **Last Updated:** 2026-03-18  
 > **Version:** Production (Vercel Deployment)  
 > **Status:** Active Development
 
@@ -2095,6 +2095,26 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### March 18, 2026
+**Email Client — Sent Messages Fix**
+
+#### Commits:
+- `4a7a5c0` — fix: save sent emails to IMAP Sent folder via APPEND after SMTP send
+
+#### Root Cause:
+Emails sent from the employee zone email client (`EmailTab.tsx`) were successfully delivered to recipients but never appeared in the **Wysłane (Sent)** folder. The `sendEmail()` function in `imapService.ts` used SMTP (nodemailer) to send but never appended the message to the IMAP Sent folder. Most email servers (including cyberfolks.pl) do **not** auto-copy SMTP-sent messages to Sent — the client must do an explicit **IMAP APPEND**.
+
+#### Fix:
+- After successful `transporter.sendMail()`, builds raw RFC 822 message using nodemailer's `MailComposer`
+- Finds the Sent folder via IMAP `specialUse === '\\Sent'` (with fallbacks to common names: `Sent`, `INBOX.Sent`, `Sent Messages`, `Sent Items`)
+- Appends message to Sent folder with `\\Seen` flag (so it doesn't appear as unread)
+- Wrapped in separate try/catch — append failure does **not** affect send success
+
+#### Files Modified:
+- `src/lib/imapService.ts` — Added IMAP APPEND logic to `sendEmail()` function
+
+---
 
 ### March 14–16, 2026 — Safari PDF Fix + Blog Images
 
