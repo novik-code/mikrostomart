@@ -367,6 +367,42 @@ export async function sendEmail(params: {
         if (params.references?.length) mailOptions.references = params.references.join(' ');
 
         const info = await transporter.sendMail(mailOptions);
+
+        // Save sent message to IMAP Sent folder
+        try {
+            // Build raw RFC 822 message using nodemailer's MailComposer
+            // eslint-disable-next-line @typescript-eslint/no-require-imports
+            const MailComposer = require('nodemailer/lib/mail-composer');
+            const composer = new MailComposer(mailOptions);
+            const rawBuffer: Buffer = await new Promise((resolve, reject) => {
+                composer.compile().build((err: Error | null, msg: Buffer) => {
+                    if (err) reject(err);
+                    else resolve(msg);
+                });
+            });
+
+            await withImap(async (client) => {
+                // Find the Sent folder (try specialUse first, then common names)
+                const folders = await client.list();
+                let sentPath = 'Sent';  // fallback
+                const sentFolderNames = ['Sent', 'INBOX.Sent', 'Sent Messages', 'Sent Items'];
+                for (const f of folders) {
+                    if (f.specialUse === '\\Sent') {
+                        sentPath = f.path;
+                        break;
+                    }
+                    if (sentFolderNames.includes(f.path)) {
+                        sentPath = f.path;
+                        // Don't break — keep looking for specialUse match
+                    }
+                }
+                await client.append(sentPath, rawBuffer, ['\\Seen']);
+            });
+        } catch (appendErr: any) {
+            // Don't fail the send — the message was already delivered
+            console.error('[SMTP] Sent folder append error (message was delivered):', appendErr?.message || appendErr);
+        }
+
         return { success: true, messageId: info.messageId };
     } catch (err: any) {
         console.error('[SMTP] Send error:', err);
