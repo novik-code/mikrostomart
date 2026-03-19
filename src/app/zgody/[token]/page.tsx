@@ -91,10 +91,13 @@ export default function ConsentSigningPage() {
     const [procedurePerConsent, setProcedurePerConsent] = useState<Record<string, string>>({});
     // Checkbox values per consent — key = consent_type, value = Record<checkboxKey, boolean>
     const [checkboxPerConsent, setCheckboxPerConsent] = useState<Record<string, Record<string, boolean>>>({});
+    // Custom text field values per consent — key = consent_type, value = Record<fieldKey, text>
+    const [customTextPerConsent, setCustomTextPerConsent] = useState<Record<string, Record<string, string>>>({});
     // Temporary state for the pick_doctor phase
     const [pickDoctorIdx, setPickDoctorIdx] = useState(0);
     const [pickProcedure, setPickProcedure] = useState('');
     const [pickCheckboxes, setPickCheckboxes] = useState<Record<string, boolean>>({});
+    const [pickCustomTexts, setPickCustomTexts] = useState<Record<string, string>>({});
 
     // PDF.js page rendering
     const pdfContainerRef = useRef<HTMLDivElement>(null);
@@ -398,10 +401,34 @@ export default function ConsentSigningPage() {
         }
     }, []);
 
+    // ── Helpers: multi-instance field support ──
+    /** Check if a field key is an instance of a base field (e.g., 'date_2' is instance of 'date') */
+    const isFieldInstance = (key: string, val: any, baseKey: string): boolean => {
+        if (key === baseKey) return true;
+        if (val?.sourceField === baseKey) return true;
+        // Match keys like 'date_2', 'patient_signature_3'
+        const match = key.match(/^(.+?)_(\d+)$/);
+        if (match && match[1] === baseKey) return true;
+        return false;
+    };
+
+    /** Extract custom text fields (custom_* with fieldType 'text') from consent type */
+    const getCustomTextFields = (consentType: string): { key: string; label: string; pos: any }[] => {
+        const ct = CONSENT_TYPES[consentType];
+        if (!ct?.fields) return [];
+        const result: { key: string; label: string; pos: any }[] = [];
+        for (const [fKey, fVal] of Object.entries(ct.fields)) {
+            if (fVal && typeof fVal === 'object' && 'fieldType' in fVal && (fVal as any).fieldType === 'text' && fKey.startsWith('custom_')) {
+                result.push({ key: fKey, label: (fVal as any).label || fKey, pos: fVal });
+            }
+        }
+        return result;
+    };
+
     /**
      * Pre-fill a PDF with patient data using pdf-lib.
      */
-    const prefillPdf = async (consent: ConsentItem, overrideDoctorIdx?: number, overrideProcedure?: string, overrideCheckboxValues?: Record<string, boolean>): Promise<Uint8Array> => {
+    const prefillPdf = async (consent: ConsentItem, overrideDoctorIdx?: number, overrideProcedure?: string, overrideCheckboxValues?: Record<string, boolean>, overrideCustomTexts?: Record<string, string>): Promise<Uint8Array> => {
         const pdfRes = await fetch(consent.file);
         const pdfBytes = await pdfRes.arrayBuffer();
 
@@ -426,18 +453,109 @@ export default function ConsentSigningPage() {
         if (fields) {
             const textColor = rgb(0.05, 0.05, 0.3);
 
-            if (fields.name) {
-                getPage(fields.name.page).drawText(fullName, {
-                    x: fields.name.x, y: fields.name.y,
-                    size: fields.name.fontSize || 11, font, color: textColor,
-                });
+            // Iterate ALL fields to support multi-instance (e.g., date, date_2, date_3)
+            for (const [fKey, fVal] of Object.entries(fields)) {
+                if (!fVal || typeof fVal !== 'object') continue;
+                const pos = fVal as any;
+
+                // Name — at all positions
+                if (isFieldInstance(fKey, pos, 'name')) {
+                    getPage(pos.page).drawText(fullName, {
+                        x: pos.x, y: pos.y,
+                        size: pos.fontSize || 11, font, color: textColor,
+                    });
+                }
+
+                // Date — at all positions
+                if (isFieldInstance(fKey, pos, 'date')) {
+                    getPage(pos.page).drawText(today, {
+                        x: pos.x, y: pos.y,
+                        size: pos.fontSize || 11, font, color: textColor,
+                    });
+                }
+
+                // Address — at all positions
+                if (isFieldInstance(fKey, pos, 'address') && patientDetails?.address) {
+                    const addr = patientDetails.address;
+                    const addrStr = `${addr.street || ''} ${addr.houseNumber || ''}${addr.apartmentNumber ? '/' + addr.apartmentNumber : ''}, ${addr.postalCode || ''} ${addr.city || ''}`.trim();
+                    if (addrStr.length > 3) {
+                        getPage(pos.page).drawText(addrStr, {
+                            x: pos.x, y: pos.y,
+                            size: pos.fontSize || 10, font, color: textColor,
+                        });
+                    }
+                }
+
+                // City — at all positions
+                if (isFieldInstance(fKey, pos, 'city') && patientDetails?.address?.city) {
+                    getPage(pos.page).drawText(patientDetails.address.city, {
+                        x: pos.x, y: pos.y,
+                        size: pos.fontSize || 11, font, color: textColor,
+                    });
+                }
+
+                // Phone — at all positions
+                if (isFieldInstance(fKey, pos, 'phone') && patientDetails?.phone) {
+                    getPage(pos.page).drawText(patientDetails.phone, {
+                        x: pos.x, y: pos.y,
+                        size: pos.fontSize || 10, font, color: textColor,
+                    });
+                }
+
+                // Doctor name — at all positions
+                if (isFieldInstance(fKey, pos, 'doctor')) {
+                    const consentDoctorIdx = overrideDoctorIdx ?? doctorPerConsent[consent.type] ?? 0;
+                    const selectedDoctor = staffSignatures[consentDoctorIdx];
+                    if (selectedDoctor?.staff_name) {
+                        getPage(pos.page).drawText(selectedDoctor.staff_name, {
+                            x: pos.x, y: pos.y,
+                            size: pos.fontSize || 11, font, color: textColor,
+                        });
+                    }
+                }
+
+                // Tooth / procedure — at all positions
+                if (isFieldInstance(fKey, pos, 'tooth')) {
+                    const consentProcedure = overrideProcedure ?? procedurePerConsent[consent.type] ?? '';
+                    if (consentProcedure) {
+                        getPage(pos.page).drawText(consentProcedure, {
+                            x: pos.x, y: pos.y,
+                            size: pos.fontSize || 11, font, color: textColor,
+                        });
+                    }
+                }
+
+                // Checkbox fields — draw ✓ or ✗
+                if (pos.fieldType === 'checkbox') {
+                    const overrideCheckboxes = overrideCheckboxValues ?? checkboxPerConsent[consent.type] ?? {};
+                    const cbField = pos as CheckboxFieldPosition;
+                    const isChecked = overrideCheckboxes[fKey] ?? false;
+                    const mark = isChecked ? '✓' : '✗';
+                    const markColor = isChecked ? rgb(0.05, 0.45, 0.15) : rgb(0.5, 0.1, 0.1);
+                    getPage(cbField.page).drawText(mark, {
+                        x: cbField.x, y: cbField.y,
+                        size: cbField.fontSize || 14, font, color: markColor,
+                    });
+                }
+
+                // Custom text fields (custom_*) — render employee-entered text
+                if (fKey.startsWith('custom_') && pos.fieldType === 'text') {
+                    const customTexts = overrideCustomTexts ?? customTextPerConsent[consent.type] ?? {};
+                    const textVal = customTexts[fKey] || '';
+                    if (textVal) {
+                        getPage(pos.page).drawText(textVal, {
+                            x: pos.x, y: pos.y,
+                            size: pos.fontSize || 11, font, color: textColor,
+                        });
+                    }
+                }
             }
 
+            // PESEL — special handling (box-by-box rendering, only base field)
             if (fields.pesel && pesel) {
                 const peselPage = getPage(fields.pesel.page);
                 const peselSize = fields.pesel.fontSize || 9;
                 const digits = pesel.split('');
-                // Fix stale DB boxWidth (was 23.5, should be 21.0)
                 const bw1 = fields.pesel.boxWidth >= 23 ? 21.0 : fields.pesel.boxWidth;
                 const bc = fields.pesel.boxCount ?? 11;
                 const bw2 = fields.pesel.boxWidth2 ?? bw1;
@@ -451,72 +569,6 @@ export default function ConsentSigningPage() {
                     peselPage.drawText(digits[i], {
                         x: digitX, y: fields.pesel.y,
                         size: peselSize, font, color: textColor,
-                    });
-                }
-            }
-
-            if (fields.date) {
-                getPage(fields.date.page).drawText(today, {
-                    x: fields.date.x, y: fields.date.y,
-                    size: fields.date.fontSize || 11, font, color: textColor,
-                });
-            }
-
-            if (fields.address && patientDetails?.address) {
-                const addr = patientDetails.address;
-                const addrStr = `${addr.street || ''} ${addr.houseNumber || ''}${addr.apartmentNumber ? '/' + addr.apartmentNumber : ''}, ${addr.postalCode || ''} ${addr.city || ''}`.trim();
-                if (addrStr.length > 3) {
-                    getPage(fields.address.page).drawText(addrStr, {
-                        x: fields.address.x, y: fields.address.y,
-                        size: fields.address.fontSize || 10, font, color: textColor,
-                    });
-                }
-            }
-
-            if (fields.city && patientDetails?.address?.city) {
-                getPage(fields.city.page).drawText(patientDetails.address.city, {
-                    x: fields.city.x, y: fields.city.y,
-                    size: fields.city.fontSize || 11, font, color: textColor,
-                });
-            }
-
-            if (fields.phone && patientDetails?.phone) {
-                getPage(fields.phone.page).drawText(patientDetails.phone, {
-                    x: fields.phone.x, y: fields.phone.y,
-                    size: fields.phone.fontSize || 10, font, color: textColor,
-                });
-            }
-
-            // Doctor name (per-consent) — use override if provided (avoids stale state)
-            const consentDoctorIdx = overrideDoctorIdx ?? doctorPerConsent[consent.type] ?? 0;
-            const selectedDoctor = staffSignatures[consentDoctorIdx];
-            if (fields.doctor && selectedDoctor?.staff_name) {
-                getPage(fields.doctor.page).drawText(selectedDoctor.staff_name, {
-                    x: fields.doctor.x, y: fields.doctor.y,
-                    size: fields.doctor.fontSize || 11, font, color: textColor,
-                });
-            }
-
-            // Tooth / procedure text (per-consent) — use override if provided
-            const consentProcedure = overrideProcedure ?? procedurePerConsent[consent.type] ?? '';
-            if (fields.tooth && consentProcedure) {
-                getPage(fields.tooth.page).drawText(consentProcedure, {
-                    x: fields.tooth.x, y: fields.tooth.y,
-                    size: fields.tooth.fontSize || 11, font, color: textColor,
-                });
-            }
-
-            // Checkbox fields — draw ✓ or ✗ based on patient selection
-            const overrideCheckboxes = overrideCheckboxValues ?? checkboxPerConsent[consent.type] ?? {};
-            for (const [fKey, fVal] of Object.entries(fields)) {
-                if (fVal && typeof fVal === 'object' && 'fieldType' in fVal && fVal.fieldType === 'checkbox') {
-                    const cbField = fVal as CheckboxFieldPosition;
-                    const isChecked = overrideCheckboxes[fKey] ?? false;
-                    const mark = isChecked ? '✓' : '✗';
-                    const markColor = isChecked ? rgb(0.05, 0.45, 0.15) : rgb(0.5, 0.1, 0.1);
-                    getPage(cbField.page).drawText(mark, {
-                        x: cbField.x, y: cbField.y,
-                        size: cbField.fontSize || 14, font, color: markColor,
                     });
                 }
             }
@@ -553,17 +605,18 @@ export default function ConsentSigningPage() {
         setPickDoctorIdx(doctorPerConsent[consent.type] ?? 0);
         setPickProcedure(procedurePerConsent[consent.type] ?? '');
         setPickCheckboxes(checkboxPerConsent[consent.type] ?? {});
+        setPickCustomTexts(customTextPerConsent[consent.type] ?? {});
         setPhase('pick_doctor');
     };
 
     // After doctor is picked, open consent for viewing (with pre-fill)
-    const openConsent = async (consent: ConsentItem, overrideDoctorIdx?: number, overrideProcedure?: string, overrideCheckboxValues?: Record<string, boolean>) => {
+    const openConsent = async (consent: ConsentItem, overrideDoctorIdx?: number, overrideProcedure?: string, overrideCheckboxValues?: Record<string, boolean>, overrideCustomTexts?: Record<string, string>) => {
         setPhase('preparing');
         setPrefillOk(true);
         setPrefillError(null);
 
         try {
-            const bytes = await prefillPdf(consent, overrideDoctorIdx, overrideProcedure, overrideCheckboxValues);
+            const bytes = await prefillPdf(consent, overrideDoctorIdx, overrideProcedure, overrideCheckboxValues, overrideCustomTexts);
             setPrefilledPdfBytes(bytes);
             setPrefillOk(true);
             setPhase('viewing');
@@ -625,11 +678,55 @@ export default function ConsentSigningPage() {
             const fields2 = consentTypeDef2?.fields;
             if (fields2) {
                 const getPage2 = (p?: number) => pdfDoc.getPages()[Math.min((p || 1) - 1, pdfDoc.getPages().length - 1)];
-                if (fields2.name) getPage2(fields2.name.page).drawText(fullName, { x: fields2.name.x, y: fields2.name.y, size: fields2.name.fontSize || 11, font: interFont, color: textColor });
+
+                // Multi-instance field rendering (same pattern as prefillPdf)
+                for (const [fKey2, fVal2] of Object.entries(fields2)) {
+                    if (!fVal2 || typeof fVal2 !== 'object') continue;
+                    const pos2 = fVal2 as any;
+
+                    if (isFieldInstance(fKey2, pos2, 'name')) {
+                        getPage2(pos2.page).drawText(fullName, { x: pos2.x, y: pos2.y, size: pos2.fontSize || 11, font: interFont, color: textColor });
+                    }
+                    if (isFieldInstance(fKey2, pos2, 'date')) {
+                        getPage2(pos2.page).drawText(today, { x: pos2.x, y: pos2.y, size: pos2.fontSize || 11, font: interFont, color: textColor });
+                    }
+                    if (isFieldInstance(fKey2, pos2, 'address') && patientDetails?.address) {
+                        const a = patientDetails.address;
+                        const s = `${a.street || ''} ${a.houseNumber || ''}${a.apartmentNumber ? '/' + a.apartmentNumber : ''}, ${a.postalCode || ''} ${a.city || ''}`.trim();
+                        if (s.length > 3) getPage2(pos2.page).drawText(s, { x: pos2.x, y: pos2.y, size: pos2.fontSize || 10, font: interFont, color: textColor });
+                    }
+                    if (isFieldInstance(fKey2, pos2, 'city') && patientDetails?.address?.city) {
+                        getPage2(pos2.page).drawText(patientDetails.address.city, { x: pos2.x, y: pos2.y, size: pos2.fontSize || 11, font: interFont, color: textColor });
+                    }
+                    if (isFieldInstance(fKey2, pos2, 'phone') && patientDetails?.phone) {
+                        getPage2(pos2.page).drawText(patientDetails.phone, { x: pos2.x, y: pos2.y, size: pos2.fontSize || 10, font: interFont, color: textColor });
+                    }
+                    if (isFieldInstance(fKey2, pos2, 'doctor')) {
+                        const selDoc = staffSignatures[doctorPerConsent[currentConsent.type] ?? 0];
+                        if (selDoc?.staff_name) getPage2(pos2.page).drawText(selDoc.staff_name, { x: pos2.x, y: pos2.y, size: pos2.fontSize || 11, font: interFont, color: textColor });
+                    }
+                    if (isFieldInstance(fKey2, pos2, 'tooth')) {
+                        const procText2 = procedurePerConsent[currentConsent.type] ?? '';
+                        if (procText2) getPage2(pos2.page).drawText(procText2, { x: pos2.x, y: pos2.y, size: pos2.fontSize || 11, font: interFont, color: textColor });
+                    }
+                    if (pos2.fieldType === 'checkbox') {
+                        const savedCheckboxes2 = checkboxPerConsent[currentConsent.type] ?? {};
+                        const isChecked2 = savedCheckboxes2[fKey2] ?? false;
+                        const mark2 = isChecked2 ? '✓' : '✗';
+                        const markColor2 = isChecked2 ? rgb(0.05, 0.45, 0.15) : rgb(0.5, 0.1, 0.1);
+                        getPage2(pos2.page).drawText(mark2, { x: pos2.x, y: pos2.y, size: pos2.fontSize || 14, font: interFont, color: markColor2 });
+                    }
+                    if (fKey2.startsWith('custom_') && pos2.fieldType === 'text') {
+                        const customTexts2 = customTextPerConsent[currentConsent.type] ?? {};
+                        const textVal2 = customTexts2[fKey2] || '';
+                        if (textVal2) getPage2(pos2.page).drawText(textVal2, { x: pos2.x, y: pos2.y, size: pos2.fontSize || 11, font: interFont, color: textColor });
+                    }
+                }
+
+                // PESEL (special box-by-box, base field only)
                 if (fields2.pesel && pesel) {
                     const peselPage = getPage2(fields2.pesel.page);
                     const peselSize = fields2.pesel.fontSize || 9;
-                    // Fix stale DB boxWidth (was 23.5, should be 21.0)
                     const bw1 = fields2.pesel.boxWidth >= 23 ? 21.0 : fields2.pesel.boxWidth;
                     const bc = fields2.pesel.boxCount ?? 11;
                     const bw2 = fields2.pesel.boxWidth2 ?? bw1;
@@ -637,9 +734,7 @@ export default function ConsentSigningPage() {
                         if (i < 11) {
                             const dw = interFont.widthOfTextAtSize(d, peselSize);
                             const bw = i < bc ? bw1 : bw2;
-                            const offsetX = i < bc
-                                ? i * bw1
-                                : bc * bw1 + (i - bc) * bw2;
+                            const offsetX = i < bc ? i * bw1 : bc * bw1 + (i - bc) * bw2;
                             peselPage.drawText(d, {
                                 x: fields2.pesel!.startX + offsetX + (bw - dw) / 2,
                                 y: fields2.pesel!.y,
@@ -648,61 +743,40 @@ export default function ConsentSigningPage() {
                         }
                     });
                 }
-                if (fields2.date) getPage2(fields2.date.page).drawText(today, { x: fields2.date.x, y: fields2.date.y, size: fields2.date.fontSize || 11, font: interFont, color: textColor });
-                if (fields2.address && patientDetails?.address) {
-                    const a = patientDetails.address;
-                    const s = `${a.street || ''} ${a.houseNumber || ''}${a.apartmentNumber ? '/' + a.apartmentNumber : ''}, ${a.postalCode || ''} ${a.city || ''}`.trim();
-                    if (s.length > 3) getPage2(fields2.address.page).drawText(s, { x: fields2.address.x, y: fields2.address.y, size: fields2.address.fontSize || 10, font: interFont, color: textColor });
-                }
-                if (fields2.city && patientDetails?.address?.city) getPage2(fields2.city.page).drawText(patientDetails.address.city, { x: fields2.city.x, y: fields2.city.y, size: fields2.city.fontSize || 11, font: interFont, color: textColor });
-                if (fields2.phone && patientDetails?.phone) getPage2(fields2.phone.page).drawText(patientDetails.phone, { x: fields2.phone.x, y: fields2.phone.y, size: fields2.phone.fontSize || 10, font: interFont, color: textColor });
-                // Doctor name (per-consent)
-                const selDocIdx2 = doctorPerConsent[currentConsent.type] ?? 0;
-                const selDoc = staffSignatures[selDocIdx2];
-                if (fields2.doctor && selDoc?.staff_name) getPage2(fields2.doctor.page).drawText(selDoc.staff_name, { x: fields2.doctor.x, y: fields2.doctor.y, size: fields2.doctor.fontSize || 11, font: interFont, color: textColor });
-                // Tooth / procedure (per-consent)
-                const procText2 = procedurePerConsent[currentConsent.type] ?? '';
-                if (fields2.tooth && procText2) getPage2(fields2.tooth.page).drawText(procText2, { x: fields2.tooth.x, y: fields2.tooth.y, size: fields2.tooth.fontSize || 11, font: interFont, color: textColor });
-                // Checkbox fields (re-apply from saved state)
-                const savedCheckboxes2 = checkboxPerConsent[currentConsent.type] ?? {};
-                for (const [fKey2, fVal2] of Object.entries(fields2)) {
-                    if (fVal2 && typeof fVal2 === 'object' && 'fieldType' in fVal2 && fVal2.fieldType === 'checkbox') {
-                        const cbField2 = fVal2 as CheckboxFieldPosition;
-                        const isChecked2 = savedCheckboxes2[fKey2] ?? false;
-                        const mark2 = isChecked2 ? '✓' : '✗';
-                        const markColor2 = isChecked2 ? rgb(0.05, 0.45, 0.15) : rgb(0.5, 0.1, 0.1);
-                        getPage2(cbField2.page).drawText(mark2, {
-                            x: cbField2.x, y: cbField2.y,
-                            size: cbField2.fontSize || 14, font: interFont, color: markColor2,
-                        });
-                    }
-                }
             }
 
             const pages = pdfDoc.getPages();
             const consentTypeDef = CONSENT_TYPES[currentConsent.type];
             const fields = consentTypeDef?.fields;
 
-            // ── STEP 2: Embed patient signature ──
+            // ── STEP 2: Embed patient signature at ALL mapped positions ──
             const signatureImageBytes = await fetch(signatureDataUrl).then(r => r.arrayBuffer());
             const signatureImage = await pdfDoc.embedPng(signatureImageBytes);
-
-            const patSigPos = fields?.patient_signature;
-            const patSigPageIdx = Math.min((patSigPos?.page || pages.length) - 1, pages.length - 1);
-            const patSigPage = pages[patSigPageIdx];
             const sigWidth = 150;
             const sigHeight = (signatureImage.height / signatureImage.width) * sigWidth;
 
-            if (patSigPos) {
-                patSigPage.drawImage(signatureImage, {
-                    x: patSigPos.x,
-                    y: patSigPos.y - sigHeight,
-                    width: sigWidth,
-                    height: sigHeight,
-                });
-            } else {
-                const { width: pageWidth } = patSigPage.getSize();
-                patSigPage.drawImage(signatureImage, {
+            let patSigRendered = false;
+            if (fields) {
+                for (const [fKey, fVal] of Object.entries(fields)) {
+                    if (!fVal || typeof fVal !== 'object') continue;
+                    if (isFieldInstance(fKey, fVal as any, 'patient_signature')) {
+                        const pos = fVal as any;
+                        const pageIdx = Math.min((pos.page || 1) - 1, pages.length - 1);
+                        pages[pageIdx].drawImage(signatureImage, {
+                            x: pos.x,
+                            y: pos.y - sigHeight,
+                            width: sigWidth,
+                            height: sigHeight,
+                        });
+                        patSigRendered = true;
+                    }
+                }
+            }
+            // Fallback: centered on last page if no position mapped
+            if (!patSigRendered) {
+                const lastPage = pages[pages.length - 1];
+                const { width: pageWidth } = lastPage.getSize();
+                lastPage.drawImage(signatureImage, {
                     x: pageWidth / 2 - sigWidth / 2,
                     y: 40,
                     width: sigWidth,
@@ -710,24 +784,29 @@ export default function ConsentSigningPage() {
                 });
             }
 
-            // ── STEP 3: Doctor signature (from per-consent selected staff) ──
-            const docSigPos = fields?.doctor_signature;
-            if (docSigPos) {
+            // ── STEP 3: Doctor signature at ALL mapped positions ──
+            if (fields) {
                 const activeSig = staffSignatures[doctorPerConsent[currentConsent.type] ?? 0];
                 if (activeSig?.signature_data) {
                     try {
                         const docSigBytes = await fetch(activeSig.signature_data).then(r => r.arrayBuffer());
                         const docSigImage = await pdfDoc.embedPng(docSigBytes);
-                        const docSigPageIdx = Math.min((docSigPos.page || 1) - 1, pages.length - 1);
-                        const docSigPage = pages[docSigPageIdx];
                         const docSigWidth = 120;
                         const docSigHeight = (docSigImage.height / docSigImage.width) * docSigWidth;
-                        docSigPage.drawImage(docSigImage, {
-                            x: docSigPos.x,
-                            y: docSigPos.y - docSigHeight,
-                            width: docSigWidth,
-                            height: docSigHeight,
-                        });
+
+                        for (const [fKey, fVal] of Object.entries(fields)) {
+                            if (!fVal || typeof fVal !== 'object') continue;
+                            if (isFieldInstance(fKey, fVal as any, 'doctor_signature')) {
+                                const pos = fVal as any;
+                                const pageIdx = Math.min((pos.page || 1) - 1, pages.length - 1);
+                                pages[pageIdx].drawImage(docSigImage, {
+                                    x: pos.x,
+                                    y: pos.y - docSigHeight,
+                                    width: docSigWidth,
+                                    height: docSigHeight,
+                                });
+                            }
+                        }
                     } catch (e) {
                         console.warn('Could not embed doctor signature:', e);
                     }
@@ -998,14 +1077,53 @@ export default function ConsentSigningPage() {
                         );
                     })()}
 
+                    {/* Custom text fields (custom_*) — employee-entered values */}
+                    {currentConsent && (() => {
+                        const customFields = getCustomTextFields(currentConsent.type);
+                        if (customFields.length === 0) return null;
+                        return (
+                            <div style={{
+                                background: 'rgba(255,255,255,0.04)',
+                                borderRadius: '0.75rem',
+                                padding: '0.75rem 1rem',
+                                marginBottom: '1rem',
+                                border: '1px solid rgba(255,255,255,0.08)',
+                            }}>
+                                <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.5rem' }}>📝 Pola dodatkowe</div>
+                                {customFields.map(cf => (
+                                    <div key={cf.key} style={{ marginBottom: '0.5rem' }}>
+                                        <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.2rem' }}>{cf.label}</div>
+                                        <input
+                                            type="text"
+                                            value={pickCustomTexts[cf.key] || ''}
+                                            onChange={e => setPickCustomTexts(prev => ({ ...prev, [cf.key]: e.target.value }))}
+                                            placeholder={cf.label}
+                                            style={{
+                                                width: '100%',
+                                                padding: '0.5rem',
+                                                borderRadius: '0.5rem',
+                                                border: '1px solid rgba(56, 189, 248, 0.3)',
+                                                background: 'rgba(20, 20, 35, 0.9)',
+                                                color: '#fff',
+                                                fontSize: '0.9rem',
+                                                boxSizing: 'border-box' as const,
+                                            }}
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                        );
+                    })()}
+
                     <button
                         onClick={() => {
-                            // Save doctor + procedure + checkboxes for this consent
+                            // Save doctor + procedure + checkboxes + custom texts for this consent
                             setDoctorPerConsent(prev => ({ ...prev, [currentConsent.type]: pickDoctorIdx }));
                             setProcedurePerConsent(prev => ({ ...prev, [currentConsent.type]: pickProcedure }));
                             setCheckboxPerConsent(prev => ({ ...prev, [currentConsent.type]: pickCheckboxes }));
+                            setCustomTextPerConsent(prev => ({ ...prev, [currentConsent.type]: pickCustomTexts }));
                             // Pass values directly to avoid React stale-state race
-                            openConsent(currentConsent, pickDoctorIdx, pickProcedure, pickCheckboxes);
+                            openConsent(currentConsent, pickDoctorIdx, pickProcedure, pickCheckboxes, pickCustomTexts);
                         }}
                         style={{ ...styles.primaryBtn, fontSize: '0.95rem', padding: '0.875rem' }}
                     >
