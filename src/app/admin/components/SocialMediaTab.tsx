@@ -195,6 +195,15 @@ export default function SocialMediaTab() {
     const [uploading, setUploading] = useState(false);
     const [uploadTags, setUploadTags] = useState('');
 
+    // AI Generation
+    const [generating, setGenerating] = useState(false);
+    const [showGenerateForm, setShowGenerateForm] = useState(false);
+    const [generateForm, setGenerateForm] = useState({
+        content_type: 'post_text_image',
+        custom_prompt: '',
+        with_image: true,
+    });
+
     // ── Fetch functions ──────────────────────────────────────────────
     const fetchPlatforms = async () => {
         setLoadingPlatforms(true);
@@ -340,6 +349,34 @@ export default function SocialMediaTab() {
             await fetch(`/api/social/posts?id=${id}`, { method: 'DELETE' });
             fetchPosts();
         } catch (e) { console.error(e); }
+    };
+
+    // ── AI Generation ─────────────────────────────────────────────────
+    const handleGenerateAI = async () => {
+        setGenerating(true);
+        try {
+            const res = await fetch('/api/social/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    content_type: generateForm.content_type,
+                    custom_prompt: generateForm.custom_prompt || undefined,
+                    with_image: generateForm.with_image,
+                }),
+            });
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || 'Błąd generowania');
+            }
+            const data = await res.json();
+            alert(`✅ Wygenerowano post! ${data.generated.has_image ? '(z grafiką)' : '(bez grafiki)'}`);
+            setShowGenerateForm(false);
+            setGenerateForm({ content_type: 'post_text_image', custom_prompt: '', with_image: true });
+            fetchPosts();
+        } catch (e: any) {
+            alert('❌ Błąd: ' + e.message);
+        }
+        setGenerating(false);
     };
 
     // ── Platform CRUD ─────────────────────────────────────────────────
@@ -650,32 +687,76 @@ export default function SocialMediaTab() {
                 <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
                         <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Posty</h3>
-                        <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
-                            {['all', 'draft', 'approved', 'published', 'rejected', 'failed'].map(f => (
-                                <button
-                                    key={f}
-                                    onClick={() => setPostsFilter(f)}
-                                    style={{
-                                        padding: '0.35rem 0.7rem',
-                                        borderRadius: '0.4rem',
-                                        border: postsFilter === f ? '1px solid rgba(220,177,74,0.5)' : '1px solid rgba(255,255,255,0.1)',
-                                        background: postsFilter === f ? 'rgba(220,177,74,0.15)' : 'transparent',
-                                        color: postsFilter === f ? '#dcb14a' : 'var(--color-text-muted)',
-                                        fontSize: '0.78rem', cursor: 'pointer',
-                                    }}
-                                >
-                                    {f === 'all' ? 'Wszystkie' : f.charAt(0).toUpperCase() + f.slice(1)}
-                                </button>
-                            ))}
+                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                            <button onClick={() => setShowGenerateForm(!showGenerateForm)} style={{ ...btnStyle('#8b5cf6'), color: 'white', display: 'flex', alignItems: 'center', gap: '0.3rem' }} disabled={generating}>
+                                {generating ? '⏳ Generuję...' : '🤖 Generuj post AI'}
+                            </button>
+                            <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
+                                {['all', 'draft', 'approved', 'published', 'rejected', 'failed'].map(f => (
+                                    <button
+                                        key={f}
+                                        onClick={() => setPostsFilter(f)}
+                                        style={{
+                                            padding: '0.35rem 0.7rem',
+                                            borderRadius: '0.4rem',
+                                            border: postsFilter === f ? '1px solid rgba(220,177,74,0.5)' : '1px solid rgba(255,255,255,0.1)',
+                                            background: postsFilter === f ? 'rgba(220,177,74,0.15)' : 'transparent',
+                                            color: postsFilter === f ? '#dcb14a' : 'var(--color-text-muted)',
+                                            fontSize: '0.78rem', cursor: 'pointer',
+                                        }}
+                                    >
+                                        {f === 'all' ? 'Wszystkie' : f.charAt(0).toUpperCase() + f.slice(1)}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
                     </div>
+
+                    {/* AI Generate form */}
+                    {showGenerateForm && (
+                        <div style={{ ...cardStyle, border: '1px solid rgba(139,92,246,0.4)', marginBottom: '1rem' }}>
+                            <h4 style={{ margin: '0 0 0.75rem', fontSize: '0.95rem', color: '#a78bfa' }}>🤖 Generuj post AI</h4>
+                            <div style={{ display: 'grid', gap: '0.75rem' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                                    <div>
+                                        <label style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginBottom: '0.3rem', display: 'block' }}>Typ treści</label>
+                                        <select value={generateForm.content_type} onChange={e => setGenerateForm(f => ({ ...f, content_type: e.target.value }))} style={selectStyle}>
+                                            {CONTENT_TYPES.map(ct => <option key={ct.value} value={ct.value}>{ct.label}</option>)}
+                                        </select>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.85rem' }}>
+                                            <input type="checkbox" checked={generateForm.with_image} onChange={e => setGenerateForm(f => ({ ...f, with_image: e.target.checked }))} style={{ accentColor: '#8b5cf6' }} />
+                                            Generuj grafikę
+                                        </label>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginBottom: '0.3rem', display: 'block' }}>Temat / instrukcja (opcjonalnie — AI wybierze losowy temat)</label>
+                                    <textarea
+                                        value={generateForm.custom_prompt}
+                                        onChange={e => setGenerateForm(f => ({ ...f, custom_prompt: e.target.value }))}
+                                        placeholder="np. Post o korzyściach z leczenia kanałowego pod mikroskopem"
+                                        rows={2}
+                                        style={{ ...inputStyle, resize: 'vertical' }}
+                                    />
+                                </div>
+                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                    <button onClick={handleGenerateAI} disabled={generating} style={{ ...btnStyle('#8b5cf6'), color: 'white', opacity: generating ? 0.6 : 1 }}>
+                                        {generating ? '⏳ Generowanie (~30s)...' : '🚀 Generuj'}
+                                    </button>
+                                    <button onClick={() => setShowGenerateForm(false)} style={{ ...btnStyle('#555'), color: 'white' }}>Anuluj</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     {loadingPosts ? (
                         <p style={{ color: 'var(--color-text-muted)' }}>Ładowanie...</p>
                     ) : posts.length === 0 ? (
                         <div style={{ ...cardStyle, textAlign: 'center', padding: '3rem' }}>
                             <p style={{ color: 'var(--color-text-muted)', fontSize: '1.1rem' }}>📝 Brak postów</p>
-                            <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>Posty pojawią się po uruchomieniu generowania AI (Faza 2).</p>
+                            <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>Kliknij "🤖 Generuj post AI" aby wygenerować pierwszy post.</p>
                         </div>
                     ) : (
                         posts.map(post => (
