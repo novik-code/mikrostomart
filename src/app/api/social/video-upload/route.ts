@@ -62,6 +62,50 @@ export async function POST(req: NextRequest) {
     }
 }
 
+// PUT — generate a signed upload URL for direct client-side upload
+export async function PUT(req: NextRequest) {
+    try {
+        const body = await req.json();
+        const { ext = 'mp4', contentType = 'video/mp4' } = body;
+
+        const fileName = `videos/raw_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
+
+        // Ensure bucket exists
+        const { data: buckets } = await supabase.storage.listBuckets();
+        const bucketExists = buckets?.some(b => b.name === 'social-media');
+        if (!bucketExists) {
+            await supabase.storage.createBucket('social-media', {
+                public: true,
+                fileSizeLimit: 524288000, // 500MB
+            });
+            console.log('[Video Upload] Created social-media bucket');
+        }
+
+        // Create a signed upload URL (valid for 1 hour)
+        const { data, error } = await supabase.storage
+            .from('social-media')
+            .createSignedUploadUrl(fileName);
+
+        if (error) throw error;
+
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+        const publicUrl = `${supabaseUrl}/storage/v1/object/public/social-media/${fileName}`;
+
+        console.log(`[Video Upload] Signed URL created for: ${fileName}`);
+
+        return NextResponse.json({
+            uploadUrl: data.signedUrl,
+            publicUrl,
+            token: data.token,
+            path: fileName,
+        });
+
+    } catch (err: any) {
+        console.error('[Video Upload] Signed URL Error:', err);
+        return NextResponse.json({ error: err.message }, { status: 500 });
+    }
+}
+
 // GET — list video queue entries
 export async function GET(req: NextRequest) {
     try {

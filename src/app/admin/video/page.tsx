@@ -77,7 +77,7 @@ export default function VideoPage() {
         setPreviewUrl(URL.createObjectURL(file));
     };
 
-    // ── Upload (direct to Supabase Storage → then register queue) ──
+    // ── Upload (get signed URL from server → upload directly → register queue) ──
     const handleUpload = async () => {
         if (!previewFile) return;
         setUploading(true);
@@ -85,30 +85,29 @@ export default function VideoPage() {
 
         try {
             const ext = previewFile.name.split(".").pop() || "mp4";
-            const fileName = `videos/raw_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
-            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-            const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-            if (!supabaseUrl || !supabaseAnonKey) {
-                throw new Error("Brak konfiguracji Supabase");
-            }
+            // Step 1: Get a signed upload URL from our server (uses service role key)
+            setUploadProgress(2);
+            const signRes = await fetch("/api/social/video-upload", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ext, contentType: previewFile.type || "video/mp4" }),
+            });
+            const signData = await signRes.json();
+            if (!signRes.ok) throw new Error(signData.error || "Failed to get upload URL");
 
-            // Step 1: Upload directly to Supabase Storage with real progress
-            const uploadUrl = `${supabaseUrl}/storage/v1/object/social-media/${fileName}`;
-            
+            const { uploadUrl, publicUrl, token } = signData;
+
+            // Step 2: Upload directly to Supabase Storage with real progress
             await new Promise<void>((resolve, reject) => {
                 const xhr = new XMLHttpRequest();
-                xhr.open("POST", uploadUrl);
-                xhr.setRequestHeader("Authorization", `Bearer ${supabaseAnonKey}`);
-                xhr.setRequestHeader("x-upsert", "false");
-                
-                // Content type for the video
-                const contentType = previewFile!.type || "video/mp4";
-                xhr.setRequestHeader("Content-Type", contentType);
+                xhr.open("PUT", uploadUrl);
+                xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+                xhr.setRequestHeader("Content-Type", previewFile!.type || "video/mp4");
 
                 xhr.upload.onprogress = (e) => {
                     if (e.lengthComputable) {
-                        const pct = Math.round((e.loaded / e.total) * 90);
+                        const pct = Math.round(5 + (e.loaded / e.total) * 85);
                         setUploadProgress(pct);
                     }
                 };
@@ -117,19 +116,17 @@ export default function VideoPage() {
                     if (xhr.status >= 200 && xhr.status < 300) {
                         resolve();
                     } else {
-                        // If bucket doesn't exist, try via API fallback
-                        reject(new Error(`Upload error: ${xhr.status} ${xhr.statusText}`));
+                        let errorMsg = `Upload error: ${xhr.status}`;
+                        try { errorMsg += ` — ${JSON.parse(xhr.responseText)?.message || xhr.statusText}`; } catch {}
+                        reject(new Error(errorMsg));
                     }
                 };
 
-                xhr.onerror = () => reject(new Error("Network error during upload"));
+                xhr.onerror = () => reject(new Error("Błąd sieci podczas uploadu"));
                 xhr.send(previewFile);
             });
 
             setUploadProgress(92);
-
-            // Step 2: Get public URL
-            const publicUrl = `${supabaseUrl}/storage/v1/object/public/social-media/${fileName}`;
 
             // Step 3: Register queue entry via lightweight API call
             const res = await fetch("/api/social/video-upload", {
