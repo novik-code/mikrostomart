@@ -204,6 +204,9 @@ export default function SocialMediaTab() {
         with_image: true,
     });
 
+    // Publishing
+    const [publishingId, setPublishingId] = useState<string | null>(null);
+
     // ── Fetch functions ──────────────────────────────────────────────
     const fetchPlatforms = async () => {
         setLoadingPlatforms(true);
@@ -377,6 +380,27 @@ export default function SocialMediaTab() {
             alert('❌ Błąd: ' + e.message);
         }
         setGenerating(false);
+    };
+
+    // ── Publish ─────────────────────────────────────────────────────────
+    const handlePublish = async (postId: string) => {
+        if (!confirm('Opublikować post na podłączonych platformach?')) return;
+        setPublishingId(postId);
+        try {
+            const res = await fetch('/api/social/publish', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ post_id: postId }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error);
+            const summary = data.summary;
+            alert(`Publikacja: ${summary.published}/${summary.total} platform OK${summary.failed > 0 ? `, ${summary.failed} błędów` : ''}`);
+            fetchPosts();
+        } catch (e: any) {
+            alert('❌ Błąd publikacji: ' + e.message);
+        }
+        setPublishingId(null);
     };
 
     // ── Platform CRUD ─────────────────────────────────────────────────
@@ -778,6 +802,15 @@ export default function SocialMediaTab() {
                                                 <button onClick={() => handlePostAction(post.id, 'reject')} style={{ ...btnStyle('#ef4444'), padding: '0.3rem 0.6rem', fontSize: '0.78rem', color: 'white' }}>❌ Odrzuć</button>
                                             </>
                                         )}
+                                        {post.status === 'approved' && (
+                                            <button
+                                                onClick={() => handlePublish(post.id)}
+                                                disabled={publishingId === post.id}
+                                                style={{ ...btnStyle('#f97316'), padding: '0.3rem 0.6rem', fontSize: '0.78rem', color: 'white', opacity: publishingId === post.id ? 0.6 : 1 }}
+                                            >
+                                                {publishingId === post.id ? '⏳...' : '📤 Publikuj'}
+                                            </button>
+                                        )}
                                         <button onClick={() => { setEditingPost(post); setEditPostText(post.text_content || ''); }} style={{ ...btnStyle('#3b82f6'), padding: '0.3rem 0.6rem', fontSize: '0.78rem', color: 'white' }}>✏️</button>
                                         <button onClick={() => handleDeletePost(post.id)} style={{ ...btnStyle('#555'), padding: '0.3rem 0.6rem', fontSize: '0.78rem', color: 'white' }}>🗑️</button>
                                     </div>
@@ -994,11 +1027,27 @@ export default function SocialMediaTab() {
                                             )}
                                         </div>
                                         <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: '0.25rem' }}>
-                                            Token: {p.access_token ? '✅ ustawiony' : '⚠️ brak — OAuth wymagany (Faza 3)'}
+                                            Token: {p.access_token ? '✅ ustawiony' : '⚠️ brak'}
                                             {p.token_expires_at && <> • Wygasa: {formatDate(p.token_expires_at)}</>}
                                         </div>
                                     </div>
-                                    <div style={{ display: 'flex', gap: '0.3rem' }}>
+                                    <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
+                                        {!p.access_token && (
+                                            <a
+                                                href={`/api/social/oauth/${p.platform === 'instagram' ? 'facebook' : p.platform}?platform_id=${p.id}`}
+                                                style={{ ...btnStyle('#8b5cf6'), padding: '0.35rem 0.7rem', fontSize: '0.8rem', color: 'white', textDecoration: 'none', display: 'inline-block' }}
+                                            >
+                                                🔑 Połącz
+                                            </a>
+                                        )}
+                                        {p.access_token && (
+                                            <a
+                                                href={`/api/social/oauth/${p.platform === 'instagram' ? 'facebook' : p.platform}?platform_id=${p.id}`}
+                                                style={{ ...btnStyle('#3b82f6'), padding: '0.35rem 0.7rem', fontSize: '0.78rem', color: 'white', textDecoration: 'none', display: 'inline-block' }}
+                                            >
+                                                🔄 Odśwież
+                                            </a>
+                                        )}
                                         <button onClick={() => handleTogglePlatform(p)} style={{ ...btnStyle(p.is_active ? '#ef4444' : '#22c55e'), padding: '0.35rem 0.7rem', fontSize: '0.8rem', color: 'white' }}>
                                             {p.is_active ? '⏸' : '▶'}
                                         </button>
