@@ -668,15 +668,28 @@ export default function PdfMapperPage() {
                             </ul>
 
                             <h3 style={{ color: '#a855f7', fontSize: '0.9rem', marginBottom: '0.4rem' }}>📋+ Zwielokrotnianie pól</h3>
-                            <p style={{ margin: '0 0 0.5rem' }}>Gdy potrzebujesz tego samego pola w kilku miejscach (np. podpis na stronie 1 i 3):</p>
+                            <p style={{ margin: '0 0 0.5rem' }}>Gdy potrzebujesz tego samego pola w kilku miejscach (np. data na stronie 1 i 3, podpis na stronie 1 i 3):</p>
                             <ul style={{ paddingLeft: '1.2rem', margin: '0 0 1rem' }}>
                                 <li><strong>Sposób 1:</strong> Kliknij <span style={{ background: 'rgba(56,189,248,0.2)', padding: '1px 6px', borderRadius: '3px', color: '#38bdf8', fontWeight: 'bold' }}>📋+</span> obok pola w panelu po prawej — tworzy kopię lekko przesuniętą</li>
                                 <li><strong>Sposób 2:</strong> Wybierz pole na górze i kliknij ponownie na PDF — automatycznie tworzy kolejną instancję (#2, #3...)</li>
-                                <li>Kopie oznaczone są tagiem <span style={{ color: 'rgba(255,255,255,0.4)' }}>(kopia)</span> w panelu</li>
-                                <li>Każda kopia zostanie wypełniona tymi samymi danymi pacjenta</li>
+                                <li>Każda kopia zostanie wypełniona tymi samymi danymi — <strong>daty, podpisy (pacjent i lekarz), imiona, adresy</strong> pojawiają się we wszystkich zmapowanych pozycjach</li>
+                                <li>Działa na <strong>wszystkich stronach</strong> dokumentu — nawiguj stronami aby zmapować pola na kolejnych stronach</li>
                             </ul>
 
-                            <h3 style={{ color: '#22c55e', fontSize: '0.9rem', marginBottom: '0.4rem' }}>➕ Dodawanie pytań TAK/NIE</h3>
+                            <h3 style={{ color: '#10b981', fontSize: '0.9rem', marginBottom: '0.4rem' }}>📝 Dodawanie pól tekstowych (custom)</h3>
+                            <p style={{ margin: '0 0 0.5rem' }}>Gdy na zgodzie są pola do wypełnienia indywidualną treścią (np. numer zęba implantu, opis zabiegu, uwagi):</p>
+                            <ul style={{ paddingLeft: '1.2rem', margin: '0 0 1rem' }}>
+                                <li>Kliknij żółty przycisk <strong>➕ Dodaj nowe pole</strong></li>
+                                <li>Wybierz <strong>📝 Pole tekstowe</strong></li>
+                                <li>Wpisz <strong>etykietę</strong> pola (np. &quot;Numer zęba&quot;, &quot;Rodzaj pracy protetycznej&quot;)</li>
+                                <li>Przeciągnij marker na odpowiednią pozycję na PDF</li>
+                                <li>Możesz dodać <strong>wiele różnych pól tekstowych</strong> — każde z osobną etykietą</li>
+                            </ul>
+                            <div style={{ padding: '0.6rem', background: 'rgba(16,185,129,0.08)', borderRadius: '0.5rem', border: '1px solid rgba(16,185,129,0.2)', marginBottom: '1rem' }}>
+                                <strong style={{ color: '#10b981' }}>📱 W strefie pracownika:</strong> Pola tekstowe pojawią się jako osobne inputy z etykietą na ekranie wyboru lekarza, <strong>przed otwarciem</strong> dokumentu do podpisu. Pracownik wpisuje treść, która następnie pojawia się na PDF w zmapowanym miejscu.
+                            </div>
+
+                            <h3 style={{ color: '#22c55e', fontSize: '0.9rem', marginBottom: '0.4rem' }}>☑️ Dodawanie pytań TAK/NIE</h3>
                             <p style={{ margin: '0 0 0.5rem' }}>Jeśli na formularzu PDF jest pytanie z kratkami TAK / NIE:</p>
                             <ul style={{ paddingLeft: '1.2rem', margin: '0 0 1rem' }}>
                                 <li>Kliknij żółty przycisk <strong>➕ Dodaj nowe pole</strong></li>
@@ -697,12 +710,18 @@ export default function PdfMapperPage() {
 
                             <h3 style={{ color: '#ef4444', fontSize: '0.9rem', marginBottom: '0.4rem' }}>🗑️ Usuwanie</h3>
                             <ul style={{ paddingLeft: '1.2rem', margin: '0 0 1rem' }}>
-                                <li><strong>✕</strong> — usuwa pole z mapowania</li>
+                                <li><strong>✕</strong> przy polu w sidebarze — usuwa to konkretne pole z mapowania</li>
                                 <li>Pola wielostronicowe — użyj nawigacji stron aby przechodzić między stronami PDF</li>
                             </ul>
 
                             <div style={{ padding: '0.6rem', background: 'rgba(34,197,94,0.08)', borderRadius: '0.5rem', border: '1px solid rgba(34,197,94,0.2)', marginBottom: '0.75rem' }}>
-                                <strong style={{ color: '#22c55e' }}>💡 Wskazówka:</strong> Pola automatyczne (Imię, PESEL, Data, Adres itp.) są wypełniane automatycznie danymi pacjenta przy podpisywaniu zgody. Pola własne (custom) wymagają ręcznego wypełnienia.
+                                <strong style={{ color: '#22c55e' }}>💡 Podsumowanie typów pól:</strong>
+                                <ul style={{ margin: '0.3rem 0 0', paddingLeft: '1.2rem', fontSize: '0.78rem' }}>
+                                    <li><strong>Automatyczne</strong> (Imię, PESEL, Data, Adres, Lekarz, Podpisy) — wypełniane <strong>automatycznie</strong> danymi pacjenta</li>
+                                    <li><strong>Ząb/Zabieg</strong> — wypełniany przez pracownika na ekranie wyboru lekarza</li>
+                                    <li><strong>Pola tekstowe (custom)</strong> — wypełniane przez pracownika, każde z osobnym inputem i etykietą</li>
+                                    <li><strong>Pytania TAK/NIE</strong> — pacjent odpowiada na ekranie podpisywania zgody</li>
+                                </ul>
                             </div>
                         </div>
 
@@ -1128,10 +1147,12 @@ export default function PdfMapperPage() {
                         <ul style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)', margin: 0, paddingLeft: '1rem', lineHeight: '1.6' }}>
                             <li>Wybierz typ pola na górze</li>
                             <li>Kliknij na PDF w miejscu pola</li>
-                            <li>Kliknij ponownie → tworzy <strong>nową kopię</strong> (np. podpis #2)</li>
-                            <li><strong>📋+</strong> w sidebarze = zwielokrotnij pole</li>
-                            <li>✕ w sidebarze = usuń pole</li>
-                            <li><strong>➕ Dodaj nowe pole</strong> — tekst lub checkbox</li>
+                            <li>Kliknij ponownie → <strong>nowa kopia</strong> (#2, #3)</li>
+                            <li><strong>📋+</strong> = zwielokrotnij pole</li>
+                            <li>✕ = usuń pole</li>
+                            <li><strong>➕ Dodaj nowe pole</strong> → tekst lub TAK/NIE</li>
+                            <li><strong>📝 Pola tekstowe</strong> → pracownik wpisuje treść przed podpisem</li>
+                            <li><strong>☑️ TAK/NIE</strong> → pacjent wybiera na ekranie podpisu</li>
                             <li>&quot;Zapisz&quot; = natychmiast w bazie, bez deploymentu</li>
                         </ul>
                     </div>
