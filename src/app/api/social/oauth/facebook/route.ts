@@ -15,7 +15,7 @@ const supabase = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const REDIRECT_URI = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.mikrostomart.pl'}/api/social/oauth/facebook`;
+const REDIRECT_URI = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://mikrostomart.pl'}/api/social/oauth/facebook`;
 const APP_ID = process.env.META_APP_ID!;
 const APP_SECRET = process.env.META_APP_SECRET!;
 
