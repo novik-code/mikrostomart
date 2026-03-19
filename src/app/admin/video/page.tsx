@@ -187,6 +187,20 @@ export default function VideoPage() {
         }
     };
 
+    // ── Retry failed video ──────────────────────────────────────────
+    const handleRetry = async (id: string) => {
+        try {
+            await fetch("/api/social/video-upload", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id, status: "uploaded" }),
+            });
+            await loadVideos();
+        } catch (err) {
+            console.error("Retry error:", err);
+        }
+    };
+
     // ── Delete video ────────────────────────────────────────────────
     const handleDelete = async (id: string) => {
         if (!confirm("Usunąć to wideo?")) return;
@@ -482,20 +496,38 @@ export default function VideoPage() {
                                         </div>
                                     </div>
 
-                                    {/* Delete */}
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); handleDelete(video.id); }}
-                                        style={{
-                                            background: "none",
-                                            border: "none",
-                                            color: "#555",
-                                            fontSize: 18,
-                                            cursor: "pointer",
-                                            padding: 4,
-                                        }}
-                                    >
-                                        🗑️
-                                    </button>
+                                    {/* Retry (failed only) + Delete */}
+                                    <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                                        {video.status === "failed" && (
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); handleRetry(video.id); }}
+                                                style={{
+                                                    background: "none",
+                                                    border: "none",
+                                                    color: "#f59e0b",
+                                                    fontSize: 18,
+                                                    cursor: "pointer",
+                                                    padding: 4,
+                                                }}
+                                                title="Ponów"
+                                            >
+                                                🔄
+                                            </button>
+                                        )}
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); handleDelete(video.id); }}
+                                            style={{
+                                                background: "none",
+                                                border: "none",
+                                                color: "#555",
+                                                fontSize: 18,
+                                                cursor: "pointer",
+                                                padding: 4,
+                                            }}
+                                        >
+                                            🗑️
+                                        </button>
+                                    </div>
                                 </div>
 
                                 {/* Expanded details */}

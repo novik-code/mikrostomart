@@ -106,6 +106,28 @@ export async function PUT(req: NextRequest) {
     }
 }
 
+// PATCH — retry a failed video (reset status)
+export async function PATCH(req: NextRequest) {
+    try {
+        const body = await req.json();
+        const { id, status = 'uploaded' } = body;
+
+        if (!id) {
+            return NextResponse.json({ error: 'ID required' }, { status: 400 });
+        }
+
+        const { error } = await supabase
+            .from('social_video_queue')
+            .update({ status, error_message: null })
+            .eq('id', id);
+
+        if (error) throw error;
+        return NextResponse.json({ success: true });
+    } catch (err: any) {
+        return NextResponse.json({ error: err.message }, { status: 500 });
+    }
+}
+
 // GET — list video queue entries
 export async function GET(req: NextRequest) {
     try {

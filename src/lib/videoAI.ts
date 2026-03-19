@@ -50,12 +50,56 @@ export interface ShotstackTimeline {
 export async function transcribeVideo(videoUrl: string): Promise<TranscriptionResult> {
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-    console.log('[VideoAI] Downloading video for transcription...');
-    const videoRes = await fetch(videoUrl);
-    const videoBuffer = await videoRes.arrayBuffer();
+    console.log('[VideoAI] Preparing video for transcription...');
+    
+    // Whisper API has a 25MB limit. For large files, we download a partial chunk.
+    // For a 60s video, the audio track is typically 1-3MB even in a 200MB+ video.
+    // Downloading the first 24MB captures the audio headers and usually the full audio track.
+    const MAX_WHISPER_SIZE = 24 * 1024 * 1024; // 24MB (below 25MB limit)
+
+    // First, check file size with HEAD request
+    let fileSize = 0;
+    try {
+        const headRes = await fetch(videoUrl, { method: 'HEAD' });
+        fileSize = parseInt(headRes.headers.get('content-length') || '0', 10);
+        console.log(`[VideoAI] Video file size: ${(fileSize / 1024 / 1024).toFixed(1)}MB`);
+    } catch {
+        console.log('[VideoAI] Could not determine file size, downloading full file');
+    }
+
+    let videoBuffer: ArrayBuffer;
+
+    if (fileSize > MAX_WHISPER_SIZE) {
+        // Download only the first 24MB (partial range request)
+        console.log(`[VideoAI] File too large for Whisper (${(fileSize / 1024 / 1024).toFixed(0)}MB). Downloading first 24MB...`);
+        
+        try {
+            const rangeRes = await fetch(videoUrl, {
+                headers: { 'Range': `bytes=0-${MAX_WHISPER_SIZE - 1}` },
+            });
+            videoBuffer = await rangeRes.arrayBuffer();
+        } catch {
+            // If range requests not supported, download full and truncate
+            console.log('[VideoAI] Range request failed, downloading full file and truncating...');
+            const fullRes = await fetch(videoUrl);
+            const fullBuffer = await fullRes.arrayBuffer();
+            videoBuffer = fullBuffer.slice(0, MAX_WHISPER_SIZE);
+        }
+    } else {
+        const videoRes = await fetch(videoUrl);
+        videoBuffer = await videoRes.arrayBuffer();
+    }
+
+    console.log(`[VideoAI] Sending ${(videoBuffer.byteLength / 1024 / 1024).toFixed(1)}MB to Whisper...`);
+    
+    // Determine file extension from URL
+    const urlPath = new URL(videoUrl).pathname;
+    const ext = urlPath.split('.').pop()?.toLowerCase() || 'mp4';
+    const mimeType = ext === 'mov' ? 'video/quicktime' : 'video/mp4';
+    const fileName = `video.${ext}`;
     
     // Create a File object for OpenAI API
-    const file = new File([videoBuffer], 'video.mp4', { type: 'video/mp4' });
+    const file = new File([videoBuffer], fileName, { type: mimeType });
 
     console.log('[VideoAI] Transcribing with Whisper...');
     const transcription = await openai.audio.transcriptions.create({
