@@ -1,0 +1,23 @@
+{
+  "name": "Video Shorts — Mikrostomart",
+  "short_name": "Video Shorts",
+  "description": "Upload wideo → AI obrabia → auto-publish na TikTok, YouTube, Instagram, Facebook",
+  "start_url": "/admin/video",
+  "scope": "/admin/video",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#FFD700",
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "orientation": "portrait"
+}
