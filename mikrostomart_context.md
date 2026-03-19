@@ -2096,6 +2096,28 @@ NODE_ENV=production
 
 ## 📝 Recent Changes
 
+### March 19, 2026
+**Consent PDFs — Multi-Instance Fields & Custom Text**
+
+#### Commits:
+- `77f0c75` — fix: support multi-instance fields (date, signatures, custom text) in consent PDFs
+
+#### Root Cause:
+The PDF mapper (`/admin/pdf-mapper`) already supported placing the same field type (e.g., date, signature) at multiple positions via `_2`/`_3` suffixed keys with `sourceField` metadata. However, the rendering code in `zgody/[token]/page.tsx` only handled base keys (`fields.date`, `fields.patient_signature`), ignoring all suffixed instances. Custom text fields (`custom_*`) were stored but never rendered.
+
+#### Fix:
+- `prefillPdf()` and `submitSignature()` now iterate **all** field keys using new `isFieldInstance()` helper
+- Dates, names, addresses, doctor names, tooth/procedure text now render at **all** mapped positions
+- Patient and doctor signatures now embed at **all** mapped positions
+- Custom text fields (`custom_*` with `fieldType: 'text'`) render with employee-entered values
+- Extended `pick_doctor` phase UI: dynamic labeled inputs for each custom text field
+- No DB migration needed — mapper already saves multi-instance data correctly
+
+#### Files Modified:
+- `src/app/zgody/[token]/page.tsx` — Multi-instance rendering, custom text fields, pick_doctor UI
+
+---
+
 ### March 18, 2026
 **Email Client — Sent Messages Fix**
 
