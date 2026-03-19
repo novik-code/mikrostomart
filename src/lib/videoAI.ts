@@ -6,6 +6,9 @@
  */
 
 import OpenAI from 'openai';
+import { execSync } from 'child_process';
+import { writeFileSync, readFileSync, unlinkSync, existsSync } from 'fs';
+import path from 'path';
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -52,88 +55,79 @@ export async function transcribeVideo(videoUrl: string): Promise<TranscriptionRe
 
     console.log('[VideoAI] Preparing video for transcription...');
     
-    // Whisper API has a 25MB limit. For large files, we download a partial chunk.
-    // For a 60s video, the audio track is typically 1-3MB even in a 200MB+ video.
-    // Downloading the first 24MB captures the audio headers and usually the full audio track.
-    const MAX_WHISPER_SIZE = 24 * 1024 * 1024; // 24MB (below 25MB limit)
-
-    // First, check file size with HEAD request
-    let fileSize = 0;
-    try {
-        const headRes = await fetch(videoUrl, { method: 'HEAD' });
-        fileSize = parseInt(headRes.headers.get('content-length') || '0', 10);
-        console.log(`[VideoAI] Video file size: ${(fileSize / 1024 / 1024).toFixed(1)}MB`);
-    } catch {
-        console.log('[VideoAI] Could not determine file size, downloading full file');
-    }
-
-    let videoBuffer: ArrayBuffer;
-
-    if (fileSize > MAX_WHISPER_SIZE) {
-        // Download only the first 24MB (partial range request)
-        console.log(`[VideoAI] File too large for Whisper (${(fileSize / 1024 / 1024).toFixed(0)}MB). Downloading first 24MB...`);
-        
-        try {
-            const rangeRes = await fetch(videoUrl, {
-                headers: { 'Range': `bytes=0-${MAX_WHISPER_SIZE - 1}` },
-            });
-            videoBuffer = await rangeRes.arrayBuffer();
-        } catch {
-            // If range requests not supported, download full and truncate
-            console.log('[VideoAI] Range request failed, downloading full file and truncating...');
-            const fullRes = await fetch(videoUrl);
-            const fullBuffer = await fullRes.arrayBuffer();
-            videoBuffer = fullBuffer.slice(0, MAX_WHISPER_SIZE);
-        }
-    } else {
-        const videoRes = await fetch(videoUrl);
-        videoBuffer = await videoRes.arrayBuffer();
-    }
-
-    console.log(`[VideoAI] Sending ${(videoBuffer.byteLength / 1024 / 1024).toFixed(1)}MB to Whisper...`);
-    
-    // Determine file extension from URL
+    // Download full video to /tmp
+    const tmpId = `vid_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
     const urlPath = new URL(videoUrl).pathname;
-    const ext = urlPath.split('.').pop()?.toLowerCase() || 'mp4';
-    const mimeType = ext === 'mov' ? 'video/quicktime' : 'video/mp4';
-    const fileName = `video.${ext}`;
+    const videoExt = urlPath.split('.').pop()?.toLowerCase() || 'mp4';
+    const videoPath = path.join('/tmp', `${tmpId}.${videoExt}`);
+    const audioPath = path.join('/tmp', `${tmpId}.mp3`);
     
-    // Create a File object for OpenAI API
-    const file = new File([videoBuffer], fileName, { type: mimeType });
+    try {
+        console.log('[VideoAI] Downloading video...');
+        const videoRes = await fetch(videoUrl);
+        const videoBuffer = Buffer.from(await videoRes.arrayBuffer());
+        writeFileSync(videoPath, videoBuffer);
+        console.log(`[VideoAI] Video saved to /tmp: ${(videoBuffer.length / 1024 / 1024).toFixed(1)}MB`);
 
-    console.log('[VideoAI] Transcribing with Whisper...');
-    const transcription = await openai.audio.transcriptions.create({
-        model: 'whisper-1',
-        file,
-        language: 'pl',
-        response_format: 'verbose_json',
-        timestamp_granularities: ['word', 'segment'],
-    });
+        // Extract audio using ffmpeg (static binary from npm)
+        let ffmpegPath = 'ffmpeg'; // fallback to system ffmpeg
+        try {
+            ffmpegPath = require('ffmpeg-static');
+        } catch {
+            console.log('[VideoAI] ffmpeg-static not found, using system ffmpeg');
+        }
+        
+        // Extract audio as MP3 (mono, 64kbps = very small file, perfect for speech)
+        console.log('[VideoAI] Extracting audio with ffmpeg...');
+        execSync(
+            `${ffmpegPath} -i "${videoPath}" -vn -ac 1 -ar 16000 -ab 64k -f mp3 "${audioPath}" -y`,
+            { timeout: 120000 } // 2 min timeout
+        );
+        
+        const audioBuffer = readFileSync(audioPath);
+        console.log(`[VideoAI] Audio extracted: ${(audioBuffer.length / 1024 / 1024).toFixed(1)}MB`);
 
-    // Build SRT from segments
-    const segments = (transcription as any).segments || [];
-    const words = (transcription as any).words || [];
-    let srt = '';
-    
-    segments.forEach((seg: any, i: number) => {
-        srt += `${i + 1}\n`;
-        srt += `${formatSrtTime(seg.start)} --> ${formatSrtTime(seg.end)}\n`;
-        srt += `${seg.text.trim()}\n\n`;
-    });
+        // Create a File object for OpenAI API
+        const file = new File([audioBuffer], 'audio.mp3', { type: 'audio/mpeg' });
 
-    const duration = segments.length > 0 
-        ? segments[segments.length - 1].end 
-        : (transcription as any).duration || 60;
+        console.log('[VideoAI] Transcribing with Whisper...');
+        const transcription = await openai.audio.transcriptions.create({
+            model: 'whisper-1',
+            file,
+            language: 'pl',
+            response_format: 'verbose_json',
+            timestamp_granularities: ['word', 'segment'],
+        });
 
-    console.log(`[VideoAI] Transcription done: ${transcription.text.length} chars, ${duration}s`);
+        // Build SRT from segments
+        const segments = (transcription as any).segments || [];
+        const words = (transcription as any).words || [];
+        let srt = '';
+        
+        segments.forEach((seg: any, i: number) => {
+            srt += `${i + 1}\n`;
+            srt += `${formatSrtTime(seg.start)} --> ${formatSrtTime(seg.end)}\n`;
+            srt += `${seg.text.trim()}\n\n`;
+        });
 
-    return {
-        text: transcription.text,
-        srt,
-        language: 'pl',
-        duration,
-        words: words.map((w: any) => ({ word: w.word, start: w.start, end: w.end })),
-    };
+        const duration = segments.length > 0 
+            ? segments[segments.length - 1].end 
+            : (transcription as any).duration || 60;
+
+        console.log(`[VideoAI] Transcription done: ${transcription.text.length} chars, ${duration}s`);
+
+        return {
+            text: transcription.text,
+            srt,
+            language: 'pl',
+            duration,
+            words: words.map((w: any) => ({ word: w.word, start: w.start, end: w.end })),
+        };
+    } finally {
+        // Cleanup temp files
+        try { if (existsSync(videoPath)) unlinkSync(videoPath); } catch {}
+        try { if (existsSync(audioPath)) unlinkSync(audioPath); } catch {}
+    }
 }
 
 function formatSrtTime(seconds: number): string {
