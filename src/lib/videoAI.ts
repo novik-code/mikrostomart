@@ -72,9 +72,27 @@ export async function transcribeVideo(videoUrl: string): Promise<TranscriptionRe
         // Extract audio using ffmpeg (static binary from npm)
         let ffmpegPath = 'ffmpeg'; // fallback to system ffmpeg
         try {
-            ffmpegPath = require('ffmpeg-static');
+            // Try to resolve ffmpeg-static path
+            const ffmpegStatic = require('ffmpeg-static');
+            if (ffmpegStatic && existsSync(ffmpegStatic)) {
+                ffmpegPath = ffmpegStatic;
+                console.log(`[VideoAI] Using ffmpeg-static: ${ffmpegPath}`);
+            } else {
+                // Try common Vercel paths
+                const possiblePaths = [
+                    path.join(process.cwd(), 'node_modules', 'ffmpeg-static', 'ffmpeg'),
+                    '/var/task/node_modules/ffmpeg-static/ffmpeg',
+                ];
+                for (const p of possiblePaths) {
+                    if (existsSync(p)) {
+                        ffmpegPath = p;
+                        console.log(`[VideoAI] Found ffmpeg at: ${p}`);
+                        break;
+                    }
+                }
+            }
         } catch {
-            console.log('[VideoAI] ffmpeg-static not found, using system ffmpeg');
+            console.log('[VideoAI] ffmpeg-static not available, using system ffmpeg');
         }
         
         // Extract audio as MP3 (mono, 64kbps = very small file, perfect for speech)
