@@ -62,7 +62,10 @@ export default function VideoPage() {
 
     // ── File selection ──────────────────────────────────────────────
     const handleFileSelect = (file: File) => {
-        if (!file.type.startsWith("video/")) {
+        // iOS sometimes doesn't set MIME type correctly
+        const isVideo = file.type.startsWith("video/") || 
+            /\.(mp4|mov|webm|avi|m4v|3gp)$/i.test(file.name);
+        if (!isVideo) {
             alert("Wybierz plik wideo (MP4, MOV, WebM)");
             return;
         }
@@ -74,33 +77,76 @@ export default function VideoPage() {
         setPreviewUrl(URL.createObjectURL(file));
     };
 
-    // ── Upload ──────────────────────────────────────────────────────
+    // ── Upload (direct to Supabase Storage → then register queue) ──
     const handleUpload = async () => {
         if (!previewFile) return;
         setUploading(true);
-        setUploadProgress(10);
+        setUploadProgress(0);
 
         try {
-            const formData = new FormData();
-            formData.append("video", previewFile);
+            const ext = previewFile.name.split(".").pop() || "mp4";
+            const fileName = `videos/raw_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
+            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+            const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-            // Simulate progress (real progress would need XMLHttpRequest)
-            const progressInterval = setInterval(() => {
-                setUploadProgress(p => Math.min(p + 5, 90));
-            }, 500);
+            if (!supabaseUrl || !supabaseAnonKey) {
+                throw new Error("Brak konfiguracji Supabase");
+            }
 
-            const res = await fetch("/api/social/video-upload", {
-                method: "POST",
-                body: formData,
+            // Step 1: Upload directly to Supabase Storage with real progress
+            const uploadUrl = `${supabaseUrl}/storage/v1/object/social-media/${fileName}`;
+            
+            await new Promise<void>((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                xhr.open("POST", uploadUrl);
+                xhr.setRequestHeader("Authorization", `Bearer ${supabaseAnonKey}`);
+                xhr.setRequestHeader("x-upsert", "false");
+                
+                // Content type for the video
+                const contentType = previewFile!.type || "video/mp4";
+                xhr.setRequestHeader("Content-Type", contentType);
+
+                xhr.upload.onprogress = (e) => {
+                    if (e.lengthComputable) {
+                        const pct = Math.round((e.loaded / e.total) * 90);
+                        setUploadProgress(pct);
+                    }
+                };
+
+                xhr.onload = () => {
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        resolve();
+                    } else {
+                        // If bucket doesn't exist, try via API fallback
+                        reject(new Error(`Upload error: ${xhr.status} ${xhr.statusText}`));
+                    }
+                };
+
+                xhr.onerror = () => reject(new Error("Network error during upload"));
+                xhr.send(previewFile);
             });
 
-            clearInterval(progressInterval);
-            setUploadProgress(100);
+            setUploadProgress(92);
 
+            // Step 2: Get public URL
+            const publicUrl = `${supabaseUrl}/storage/v1/object/public/social-media/${fileName}`;
+
+            // Step 3: Register queue entry via lightweight API call
+            const res = await fetch("/api/social/video-upload", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    videoUrl: publicUrl,
+                    fileSize: previewFile.size,
+                    fileName: previewFile.name,
+                }),
+            });
+
+            setUploadProgress(100);
             const data = await res.json();
 
             if (!res.ok) {
-                throw new Error(data.error || "Upload failed");
+                throw new Error(data.error || "Queue registration failed");
             }
 
             // Success
