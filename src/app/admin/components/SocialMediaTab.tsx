@@ -715,6 +715,9 @@ export default function SocialMediaTab() {
                             <button onClick={() => setShowGenerateForm(!showGenerateForm)} style={{ ...btnStyle('#8b5cf6'), color: 'white', display: 'flex', alignItems: 'center', gap: '0.3rem' }} disabled={generating}>
                                 {generating ? '⏳ Generuję...' : '🤖 Generuj post AI'}
                             </button>
+                            <a href="/admin/video" style={{ ...btnStyle('#f59e0b'), color: '#000', display: 'flex', alignItems: 'center', gap: '0.3rem', textDecoration: 'none', fontWeight: 700 }}>
+                                📹 Video Shorts
+                            </a>
                             <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
                                 {['all', 'draft', 'approved', 'published', 'rejected', 'failed'].map(f => (
                                     <button
