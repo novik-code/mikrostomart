@@ -32,9 +32,11 @@ import {
     Pen,
     Fingerprint,
     ClipboardList,
-    Send
+    Send,
+    Share2
 } from "lucide-react";
 import { Product } from './components/AdminTypes';
+import SocialMediaTab from './components/SocialMediaTab';
 
 export default function AdminPage() {
     const [loading, setLoading] = useState(false);
@@ -60,7 +62,7 @@ export default function AdminPage() {
     const [products, setProducts] = useState<Product[]>([]);
     const [error, setError] = useState<string | null>(null);
 
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'questions' | 'articles' | 'news' | 'orders' | 'reservations' | 'blog' | 'patients' | 'sms-reminders' | 'sms-post-visit' | 'sms-week-after-visit' | 'appointment-instructions' | 'roles' | 'employees' | 'chat' | 'theme' | 'push' | 'booking-settings' | 'online-bookings' | 'cancelled-appointments'>('dashboard');
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'questions' | 'articles' | 'news' | 'orders' | 'reservations' | 'blog' | 'patients' | 'sms-reminders' | 'sms-post-visit' | 'sms-week-after-visit' | 'appointment-instructions' | 'roles' | 'employees' | 'chat' | 'theme' | 'push' | 'booking-settings' | 'online-bookings' | 'cancelled-appointments' | 'social-media'>('dashboard');
     // Cancelled appointments state
     const [cancelledAppointments, setCancelledAppointments] = useState<any[]>([]);
     const [cancelledLoading, setCancelledLoading] = useState(false);
@@ -4960,6 +4962,9 @@ export default function AdminPage() {
                     <NavItem id="push" label="Powiadomienia Push" icon={Bell} />
                     <NavItem id="chat" label="Czat z pacjentami" icon={MessageCircle} />
 
+                    <NavSection title="Social Media" />
+                    <NavItem id="social-media" label="Social Media" icon={Share2} />
+
                     <NavSection title="Zespół" />
                     <NavItem id="employees" label="Pracownicy" icon={Users} />
                     <NavItem id="roles" label="Uprawnienia" icon={Shield} />
@@ -5303,6 +5308,7 @@ export default function AdminPage() {
                     {activeTab === 'sms-week-after-visit' && renderWeekAfterVisitSmsTab()}
                     {activeTab === 'chat' && <AdminChat />}
                     {activeTab === 'theme' && <ThemeEditor />}
+                    {activeTab === 'social-media' && <SocialMediaTab />}
                     {activeTab === 'online-bookings' && renderOnlineBookingsTab()}
                     {activeTab === 'cancelled-appointments' && (() => {
                         // Fetch on first render
