@@ -69,36 +69,43 @@ export async function transcribeVideo(videoUrl: string): Promise<TranscriptionRe
         writeFileSync(videoPath, videoBuffer);
         console.log(`[VideoAI] Video saved to /tmp: ${(videoBuffer.length / 1024 / 1024).toFixed(1)}MB`);
 
-        // Extract audio using ffmpeg (static binary from npm)
-        let ffmpegPath = 'ffmpeg'; // fallback to system ffmpeg
-        try {
-            // Try to resolve ffmpeg-static path
-            const ffmpegStatic = require('ffmpeg-static');
-            if (ffmpegStatic && existsSync(ffmpegStatic)) {
-                ffmpegPath = ffmpegStatic;
-                console.log(`[VideoAI] Using ffmpeg-static: ${ffmpegPath}`);
-            } else {
-                // Try common Vercel paths
-                const possiblePaths = [
-                    path.join(process.cwd(), 'node_modules', 'ffmpeg-static', 'ffmpeg'),
-                    '/var/task/node_modules/ffmpeg-static/ffmpeg',
-                ];
-                for (const p of possiblePaths) {
-                    if (existsSync(p)) {
-                        ffmpegPath = p;
-                        console.log(`[VideoAI] Found ffmpeg at: ${p}`);
-                        break;
-                    }
+        // Extract audio using ffmpeg
+        // On Vercel serverless, we download a static ffmpeg binary to /tmp (cached between invocations)
+        const ffmpegBinPath = path.join('/tmp', 'ffmpeg');
+        
+        if (!existsSync(ffmpegBinPath)) {
+            console.log('[VideoAI] Downloading ffmpeg static binary to /tmp...');
+            const ffmpegUrl = 'https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz';
+            
+            try {
+                // Download and extract ffmpeg
+                execSync(
+                    `cd /tmp && curl -sL "${ffmpegUrl}" | tar xJ --strip-components=1 -C /tmp --wildcards "*/ffmpeg"`,
+                    { timeout: 60000 }
+                );
+                execSync(`chmod +x ${ffmpegBinPath}`, { timeout: 5000 });
+                console.log('[VideoAI] ffmpeg downloaded and ready');
+            } catch (dlErr: any) {
+                // Fallback: try a smaller build
+                console.log('[VideoAI] Primary download failed, trying fallback...');
+                try {
+                    execSync(
+                        `cd /tmp && curl -sL "https://github.com/eugeneware/ffmpeg-static/releases/download/b6.0/linux-x64" -o ffmpeg && chmod +x ffmpeg`,
+                        { timeout: 60000 }
+                    );
+                    console.log('[VideoAI] ffmpeg fallback downloaded');
+                } catch (dl2Err: any) {
+                    throw new Error(`Cannot get ffmpeg binary: ${dl2Err.message}`);
                 }
             }
-        } catch {
-            console.log('[VideoAI] ffmpeg-static not available, using system ffmpeg');
+        } else {
+            console.log('[VideoAI] Using cached ffmpeg from /tmp');
         }
         
         // Extract audio as MP3 (mono, 64kbps = very small file, perfect for speech)
         console.log('[VideoAI] Extracting audio with ffmpeg...');
         execSync(
-            `${ffmpegPath} -i "${videoPath}" -vn -ac 1 -ar 16000 -ab 64k -f mp3 "${audioPath}" -y`,
+            `${ffmpegBinPath} -i "${videoPath}" -vn -ac 1 -ar 16000 -ab 64k -f mp3 "${audioPath}" -y`,
             { timeout: 120000 } // 2 min timeout
         );
         

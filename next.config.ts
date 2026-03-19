@@ -51,8 +51,6 @@ const withPWA = withPWAInit({
 // Force Deploy Timestamp: 2025-12-31 21:42
 
 const nextConfig: NextConfig = {
-  // Bundle ffmpeg-static binary for serverless functions
-  serverExternalPackages: ['ffmpeg-static'],
   images: {
     dangerouslyAllowSVG: true,
     remotePatterns: [
