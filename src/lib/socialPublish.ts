@@ -50,12 +50,13 @@ async function refreshGoogleToken(platformId: string, refreshToken: string): Pro
     return null;
 }
 
-// ── Facebook Publishing ─────────────────────────────────────────────
+// ── Facebook Publishing (supports text, image, and video/Reels) ─────
 async function publishToFacebook(
     platform: any,
     text: string,
     hashtags: string[],
     imageUrl?: string | null,
+    videoUrl?: string | null,
 ): Promise<PublishResult> {
     const result: PublishResult = { platform: 'facebook', platform_id: platform.id, success: false };
 
@@ -75,7 +76,13 @@ async function publishToFacebook(
         let endpoint: string;
         const body: any = { access_token: token };
 
-        if (imageUrl) {
+        if (videoUrl) {
+            // Video / Reels post
+            endpoint = `https://graph.facebook.com/v19.0/${pageId}/videos`;
+            body.file_url = videoUrl;
+            body.description = fullText;
+            body.title = text.substring(0, 100);
+        } else if (imageUrl) {
             // Photo post
             endpoint = `https://graph.facebook.com/v19.0/${pageId}/photos`;
             body.url = imageUrl;
@@ -104,12 +111,13 @@ async function publishToFacebook(
     return result;
 }
 
-// ── Instagram Publishing ─────────────────────────────────────────────
+// ── Instagram Publishing (supports image and video/Reels) ────────────
 async function publishToInstagram(
     platform: any,
     text: string,
     hashtags: string[],
     imageUrl?: string | null,
+    videoUrl?: string | null,
 ): Promise<PublishResult> {
     const result: PublishResult = { platform: 'instagram', platform_id: platform.id, success: false };
 
@@ -122,8 +130,8 @@ async function publishToInstagram(
             return result;
         }
 
-        if (!imageUrl) {
-            result.error = 'Instagram wymaga zdjęcia — wygeneruj post z grafiką';
+        if (!imageUrl && !videoUrl) {
+            result.error = 'Instagram wymaga zdjęcia lub wideo';
             return result;
         }
 
@@ -131,21 +139,49 @@ async function publishToInstagram(
             ? `${text}\n\n${hashtags.map(h => `#${h}`).join(' ')}`
             : text;
 
-        // Step 1: Create media container
+        // Step 1: Create media container (image or Reel)
+        const containerBody: any = {
+            caption: fullCaption,
+            access_token: token,
+        };
+
+        if (videoUrl) {
+            // Instagram Reel
+            containerBody.video_url = videoUrl;
+            containerBody.media_type = 'REELS';
+            containerBody.share_to_feed = true;
+        } else {
+            // Image post
+            containerBody.image_url = imageUrl;
+        }
+
         const containerRes = await fetch(`https://graph.facebook.com/v19.0/${igId}/media`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                image_url: imageUrl,
-                caption: fullCaption,
-                access_token: token,
-            }),
+            body: JSON.stringify(containerBody),
         });
 
         const containerData = await containerRes.json();
         if (containerData.error) throw new Error(containerData.error.message);
 
         const containerId = containerData.id;
+
+        // Step 1.5: For video, wait for processing
+        if (videoUrl) {
+            let attempts = 0;
+            while (attempts < 30) { // max 5 minutes
+                await new Promise(r => setTimeout(r, 10000)); // wait 10s
+                const statusRes = await fetch(
+                    `https://graph.facebook.com/v19.0/${containerId}?fields=status_code&access_token=${token}`
+                );
+                const statusData = await statusRes.json();
+                if (statusData.status_code === 'FINISHED') break;
+                if (statusData.status_code === 'ERROR') {
+                    throw new Error('Instagram video processing failed');
+                }
+                attempts++;
+            }
+        }
 
         // Step 2: Publish the container
         const publishRes = await fetch(`https://graph.facebook.com/v19.0/${igId}/media_publish`, {
@@ -365,10 +401,10 @@ export async function publishPost(postId: string): Promise<PublishResult[]> {
 
         switch (platform.platform) {
             case 'facebook':
-                result = await publishToFacebook(platform, post.text_content || '', post.hashtags || [], post.image_url);
+                result = await publishToFacebook(platform, post.text_content || '', post.hashtags || [], post.image_url, post.video_url);
                 break;
             case 'instagram':
-                result = await publishToInstagram(platform, post.text_content || '', post.hashtags || [], post.image_url);
+                result = await publishToInstagram(platform, post.text_content || '', post.hashtags || [], post.image_url, post.video_url);
                 break;
             case 'tiktok':
                 result = await publishToTikTok(platform, post.text_content || '', post.hashtags || [], post.video_url);
