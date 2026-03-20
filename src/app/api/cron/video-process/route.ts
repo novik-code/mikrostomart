@@ -93,9 +93,34 @@ export async function GET(req: NextRequest) {
                     .eq('id', video.id);
 
                 // Build Shotstack timeline and render
+                // Shotstack needs a publicly accessible URL — generate a signed URL from Supabase Storage
                 const logoUrl = process.env.LOGO_WATERMARK_URL || null;
+                
+                let videoUrlForShotstack = video.raw_video_url;
+                try {
+                    // Extract storage path from the public URL
+                    const urlObj = new URL(video.raw_video_url);
+                    const storagePath = urlObj.pathname.split('/object/public/social-media/')[1] 
+                        || urlObj.pathname.split('/object/sign/social-media/')[1];
+                    
+                    if (storagePath) {
+                        const { data: signedData, error: signError } = await supabase.storage
+                            .from('social-media')
+                            .createSignedUrl(decodeURIComponent(storagePath), 3600); // 1 hour
+                        
+                        if (signedData?.signedUrl) {
+                            videoUrlForShotstack = signedData.signedUrl;
+                            console.log(`[VideoCron] Signed URL generated for Shotstack`);
+                        } else if (signError) {
+                            console.log(`[VideoCron] Signed URL error: ${signError.message}, using original URL`);
+                        }
+                    }
+                } catch (urlErr: any) {
+                    console.log(`[VideoCron] Could not create signed URL: ${urlErr.message}`);
+                }
+
                 const timeline = await buildShotstackTimeline(
-                    video.raw_video_url,
+                    videoUrlForShotstack,
                     transcript,
                     metadata,
                     logoUrl || undefined,
