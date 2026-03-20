@@ -76,6 +76,39 @@ export async function GET(req: NextRequest) {
         const results: any[] = [];
 
         // ═══════════════════════════════════════════
+        // STEP 0: Auto-recover stuck videos
+        // If a video is stuck in a processing state for >10 min, reset it
+        // ═══════════════════════════════════════════
+        const stuckStatuses = ['transcribing', 'analyzing', 'generating', 'rendering'];
+        const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+        
+        const { data: stuck } = await supabase
+            .from('social_video_queue')
+            .select('id, status, updated_at, retry_count')
+            .in('status', stuckStatuses)
+            .lt('updated_at', tenMinAgo);
+        
+        if (stuck && stuck.length > 0) {
+            for (const video of stuck) {
+                const retries = (video.retry_count || 0) + 1;
+                if (retries > 3) {
+                    // Too many retries — mark as failed
+                    await supabase.from('social_video_queue')
+                        .update({ status: 'failed', error_message: `Stuck in "${video.status}" after ${retries} retries` })
+                        .eq('id', video.id);
+                    results.push({ id: video.id, action: 'stuck_failed', previousStatus: video.status });
+                } else {
+                    // Reset to uploadeed for re-processing
+                    await supabase.from('social_video_queue')
+                        .update({ status: 'uploaded', error_message: null, retry_count: retries })
+                        .eq('id', video.id);
+                    results.push({ id: video.id, action: 'auto_recovered', previousStatus: video.status, retry: retries });
+                    console.log(`[VideoCron] Auto-recovered stuck video ${video.id} from "${video.status}" (retry ${retries})`);
+                }
+            }
+        }
+
+        // ═══════════════════════════════════════════
         // STEP 1: Transcribe (uploaded → transcribed)
         // ═══════════════════════════════════════════
         const { data: uploaded } = await supabase
