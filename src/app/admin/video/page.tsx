@@ -19,6 +19,7 @@ interface VideoQueueItem {
     published_at: string | null;
     retry_count: number | null;
     captions_video_id: string | null;
+    compressed_video_url: string | null;
 }
 
 // ── Status Config ──────────────────────────────────────────────────
@@ -27,12 +28,14 @@ const STATUS_CONFIG: Record<string, { label: string; emoji: string; color: strin
     transcribing: { label: "Transkrypcja",    emoji: "🎤", color: "#8b5cf6", step: 1, desc: "Wyciąganie audio i rozpoznawanie mowy..." },
     transcribed:  { label: "Transkrypcja OK", emoji: "✅", color: "#8b5cf6", step: 1, desc: "Transkrypcja gotowa, czeka na analizę AI" },
     analyzing:    { label: "Analiza AI",      emoji: "🧠", color: "#3b82f6", step: 2, desc: "GPT-4o analizuje treść wideo..." },
-    generating:   { label: "Metadane",        emoji: "✍️", color: "#06b6d4", step: 2, desc: "Generowanie opisów, hashtagów, tytułu..." },
-    captioning:   { label: "Napisy",          emoji: "🎬", color: "#f59e0b", step: 3, desc: "Captions AI dodaje profesjonalne napisy..." },
-    review:       { label: "Do przeglądu",    emoji: "👁️", color: "#a855f7", step: 4, desc: "Gotowe — sprawdź i zatwierdź" },
-    ready:        { label: "Zatwierdzone",    emoji: "✅", color: "#10b981", step: 4, desc: "Zatwierdzone, gotowe do publikacji" },
-    publishing:   { label: "Publikowanie",    emoji: "📤", color: "#6366f1", step: 5, desc: "Publikowanie na platformy..." },
-    done:         { label: "Opublikowano",    emoji: "🎉", color: "#22c55e", step: 5, desc: "Opublikowane na wszystkich platformach" },
+    analyzed:     { label: "Analiza OK",      emoji: "✅", color: "#3b82f6", step: 2, desc: "Analiza gotowa, czeka na kompresję" },
+    generating:   { label: "Kompresja",       emoji: "⚙️", color: "#06b6d4", step: 3, desc: "Pobieranie i kompresja wideo (ffmpeg)..." },
+    compressed:   { label: "Skompresowano",   emoji: "✅", color: "#06b6d4", step: 3, desc: "Skompresowano, czeka na napisy" },
+    captioning:   { label: "Napisy",          emoji: "🎬", color: "#f59e0b", step: 4, desc: "Captions AI dodaje profesjonalne napisy..." },
+    review:       { label: "Do przeglądu",    emoji: "👁️", color: "#a855f7", step: 5, desc: "Gotowe — sprawdź i zatwierdź" },
+    ready:        { label: "Zatwierdzone",    emoji: "✅", color: "#10b981", step: 5, desc: "Zatwierdzone, gotowe do publikacji" },
+    publishing:   { label: "Publikowanie",    emoji: "📤", color: "#6366f1", step: 6, desc: "Publikowanie na platformy..." },
+    done:         { label: "Opublikowano",    emoji: "🎉", color: "#22c55e", step: 6, desc: "Opublikowane na wszystkich platformach" },
     failed:       { label: "Błąd",            emoji: "❌", color: "#ef4444", step: -1, desc: "Wystąpił błąd" },
 };
 
@@ -41,6 +44,7 @@ const PIPELINE_STEPS = [
     { label: "Upload", emoji: "📤" },
     { label: "Transkrypcja", emoji: "🎤" },
     { label: "Analiza AI", emoji: "🧠" },
+    { label: "Kompresja", emoji: "⚙️" },
     { label: "Napisy", emoji: "🎬" },
     { label: "Przegląd", emoji: "👁️" },
 ];
@@ -267,7 +271,7 @@ export default function VideoPage() {
         ["uploaded", "transcribing", "transcribed", "analyzing", "generating", "captioning"].includes(status);
 
     const canTrigger = (status: string) =>
-        ["uploaded", "transcribed", "captioning"].includes(status);
+        ["uploaded", "transcribed", "analyzed", "compressed", "captioning"].includes(status);
 
     // ── Render ──────────────────────────────────────────────────────
     return (

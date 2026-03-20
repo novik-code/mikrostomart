@@ -4,10 +4,12 @@
  * Cron job that processes uploaded videos through the AI pipeline.
  * Called every 5 minutes by Vercel Cron.
  * 
- * Pipeline split into separate cron runs to avoid timeout:
- *   Run 1: uploaded    → transcribing → transcribed  (download + ffmpeg + Whisper)
- *   Run 2: transcribed → analyzing → captioning      (GPT-4o analysis + metadata + compress + submit Captions API)
- *   Run 3: captioning  → review                       (poll Captions API + download result)
+ * Pipeline split into separate cron runs to avoid Vercel 300s timeout:
+ *   Run 1: uploaded    → transcribed       (Whisper transcription)
+ *   Run 2: transcribed → analyzed          (GPT-4o analysis + metadata)
+ *   Run 3: analyzed    → compressed        (ffmpeg download+compress + store to Supabase)
+ *   Run 4: compressed  → captioning        (read compressed + submit to Captions API)
+ *   Run 5: captioning  → review            (poll Captions API + download result)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -76,69 +78,6 @@ export async function GET(req: NextRequest) {
         const results: any[] = [];
 
         // ═══════════════════════════════════════════
-        // STEP 0: Smart auto-recover stuck videos
-        // Check what data already exists and skip to appropriate step
-        // ═══════════════════════════════════════════
-        const stuckStatuses = ['transcribing', 'analyzing', 'generating', 'rendering'];
-        
-        const { data: stuck } = await supabase
-            .from('social_video_queue')
-            .select('*')
-            .in('status', stuckStatuses);
-        
-        if (stuck && stuck.length > 0) {
-            for (const video of stuck) {
-                // Determine the best status to recover to based on existing data
-                let recoverTo = 'uploaded';
-                
-                if (video.captions_video_id) {
-                    // Already submitted to Captions API → just need to poll
-                    recoverTo = 'captioning';
-                } else if (video.title && video.hashtags && video.transcript) {
-                    // Has metadata + transcript → skip to captioning step
-                    recoverTo = 'transcribed';
-                } else if (video.transcript) {
-                    // Has transcript but no metadata → skip to analysis
-                    recoverTo = 'transcribed';
-                }
-                // else: no transcript → start from beginning ('uploaded')
-
-                console.log(`[VideoCron] Smart recovery: ${video.id} stuck in "${video.status}" → recovering to "${recoverTo}" (has transcript: ${!!video.transcript}, has title: ${!!video.title}, has captions_id: ${!!video.captions_video_id})`);
-
-                await supabase.from('social_video_queue')
-                    .update({ status: recoverTo, error_message: null, retry_count: 0 })
-                    .eq('id', video.id);
-                results.push({ id: video.id, action: 'smart_recovered', from: video.status, to: recoverTo });
-            }
-        }
-        
-        // Also recover 'failed' videos that have existing data (one-time fix)
-        const { data: failed } = await supabase
-            .from('social_video_queue')
-            .select('*')
-            .eq('status', 'failed')
-            .not('transcript', 'is', null);
-        
-        if (failed && failed.length > 0) {
-            for (const video of failed) {
-                let recoverTo = 'uploaded';
-                if (video.captions_video_id) {
-                    recoverTo = 'captioning';
-                } else if (video.transcript && video.title) {
-                    recoverTo = 'transcribed';
-                }
-                
-                if (recoverTo !== 'uploaded') {
-                    console.log(`[VideoCron] Recovering failed video ${video.id} → "${recoverTo}" (has data)`);
-                    await supabase.from('social_video_queue')
-                        .update({ status: recoverTo, error_message: null, retry_count: 0 })
-                        .eq('id', video.id);
-                    results.push({ id: video.id, action: 'failed_recovered', to: recoverTo });
-                }
-            }
-        }
-
-        // ═══════════════════════════════════════════
         // STEP 1: Transcribe (uploaded → transcribed)
         // ═══════════════════════════════════════════
         const { data: uploaded } = await supabase
@@ -173,15 +112,14 @@ export async function GET(req: NextRequest) {
             } catch (err: any) {
                 console.error(`[VideoCron] Transcription error:`, err);
                 await supabase.from('social_video_queue')
-                    .update({ status: 'failed', error_message: `Transcription: ${err.message}`, retry_count: (video.retry_count || 0) + 1 })
+                    .update({ status: 'failed', error_message: `Step1 Transcription: ${err.message}`, retry_count: (video.retry_count || 0) + 1 })
                     .eq('id', video.id);
                 results.push({ id: video.id, action: 'failed', error: err.message });
             }
         }
 
         // ═══════════════════════════════════════════
-        // STEP 2: Analyze + Compress + Submit (transcribed → captioning)
-        // Skip AI analysis if metadata already exists (smart recovery case)
+        // STEP 2: AI Analysis (transcribed → analyzed)
         // ═══════════════════════════════════════════
         const { data: transcribed } = await supabase
             .from('social_video_queue')
@@ -192,15 +130,17 @@ export async function GET(req: NextRequest) {
 
         if (transcribed && transcribed.length > 0) {
             const video = transcribed[0];
-            console.log(`[VideoCron] Step 2: Processing ${video.id} (has title: ${!!video.title}, has analysis: ${!!video.ai_analysis})`);
+            console.log(`[VideoCron] Step 2: AI analysis for ${video.id}`);
 
             try {
-                // Skip AI analysis if we already have the data
-                if (!video.title || !video.hashtags || !video.ai_analysis) {
-                    await supabase.from('social_video_queue')
-                        .update({ status: 'analyzing' })
-                        .eq('id', video.id);
+                await supabase.from('social_video_queue')
+                    .update({ status: 'analyzing' })
+                    .eq('id', video.id);
 
+                // Skip AI if metadata already exists (e.g. manual reset)
+                if (video.title && video.hashtags && video.ai_analysis) {
+                    console.log(`[VideoCron] Metadata exists, skipping AI analysis.`);
+                } else {
                     const analysis = await analyzeVideoContent(video.transcript);
                     const metadata = await generateVideoMetadata(video.transcript, analysis);
 
@@ -212,110 +152,155 @@ export async function GET(req: NextRequest) {
                             hashtags: metadata.hashtags,
                         })
                         .eq('id', video.id);
-                    
-                    console.log(`[VideoCron] AI analysis complete, metadata saved.`);
-                } else {
-                    console.log(`[VideoCron] Skipping AI analysis — metadata already exists.`);
                 }
 
-                // Update status to generating (about to download + compress)
                 await supabase.from('social_video_queue')
-                    .update({ status: 'generating' })
+                    .update({ status: 'analyzed' })
                     .eq('id', video.id);
 
-                // Download video for compression — use signed URL if it's a Supabase Storage path
-                let videoUrl = video.raw_video_url;
-                if (videoUrl.includes('/storage/v1/object/public/')) {
-                    // Already a public URL, use as-is
-                } else if (videoUrl.includes('/storage/')) {
-                    const storagePath = videoUrl.split('/storage/v1/object/sign/').pop() || 
-                                        videoUrl.split('/storage/v1/object/public/').pop() || '';
-                    const bucket = storagePath.split('/')[0];
-                    const filePath = storagePath.split('/').slice(1).join('/');
-                    if (bucket && filePath) {
-                        const { data: signedData } = await supabase.storage
-                            .from(bucket)
-                            .createSignedUrl(filePath, 600);
-                        if (signedData?.signedUrl) videoUrl = signedData.signedUrl;
-                    }
-                }
-
-                const inputSizeMB = (video.raw_video_size || 0) / (1024 * 1024);
-                const tmpOutput = `/tmp/compress_${Date.now()}_out.mp4`;
-                const ffmpeg = await ensureFfmpeg();
-                
-                if (inputSizeMB > 48) {
-                    // Stream directly from URL through ffmpeg (no 217MB buffer!)
-                    console.log(`[VideoCron] Streaming ${inputSizeMB.toFixed(1)}MB through ffmpeg (direct URL compression)...`);
-                    const compressStart = Date.now();
-                    execSync(
-                        `${ffmpeg} -i "${videoUrl}" -c:v libx264 -preset ultrafast -b:v 4500k -maxrate 5500k -bufsize 11000k -c:a aac -b:a 128k -movflags +faststart "${tmpOutput}" -y 2>&1 | tail -5`,
-                        { timeout: 240000 }
-                    );
-                    const compressedBuffer = readFileSync(tmpOutput);
-                    console.log(`[VideoCron] Compressed: ${inputSizeMB.toFixed(1)}MB → ${(compressedBuffer.length / 1024 / 1024).toFixed(1)}MB in ${((Date.now() - compressStart) / 1000).toFixed(1)}s`);
-
-                    try { unlinkSync(tmpOutput); } catch {}
-
-                    // Submit to Captions API
-                    await supabase.from('social_video_queue')
-                        .update({ status: 'captioning' })
-                        .eq('id', video.id);
-
-                    const { videoId: captionsVideoId } = await submitForCaptioning(
-                        compressedBuffer,
-                        `video_${video.id}.mp4`,
-                    );
-
-                    await supabase.from('social_video_queue')
-                        .update({ captions_video_id: captionsVideoId })
-                        .eq('id', video.id);
-
-                    results.push({ id: video.id, action: 'submitted_to_captions', captionsVideoId });
-                } else {
-                    // Small enough — download + optionally convert MOV → MP4
-                    console.log(`[VideoCron] Small file (${inputSizeMB.toFixed(1)}MB), downloading directly...`);
-                    const videoRes = await fetch(videoUrl);
-                    if (!videoRes.ok) throw new Error(`Download failed: ${videoRes.status}`);
-                    let compressedBuffer = Buffer.from(await videoRes.arrayBuffer());
-                    
-                    const ext = video.raw_video_url.includes('.mov') ? '.mov' : '.mp4';
-                    if (ext === '.mov') {
-                        const tmpInput = `/tmp/convert_${Date.now()}.mov`;
-                        writeFileSync(tmpInput, compressedBuffer);
-                        execSync(`${ffmpeg} -i "${tmpInput}" -c copy -movflags +faststart "${tmpOutput}" -y`, { timeout: 60000 });
-                        compressedBuffer = readFileSync(tmpOutput);
-                        try { unlinkSync(tmpInput); } catch {}
-                        try { unlinkSync(tmpOutput); } catch {}
-                    }
-
-                    await supabase.from('social_video_queue')
-                        .update({ status: 'captioning' })
-                        .eq('id', video.id);
-
-                    const { videoId: captionsVideoId } = await submitForCaptioning(
-                        compressedBuffer,
-                        `video_${video.id}.mp4`,
-                    );
-
-                    await supabase.from('social_video_queue')
-                        .update({ captions_video_id: captionsVideoId })
-                        .eq('id', video.id);
-
-                    results.push({ id: video.id, action: 'submitted_to_captions', captionsVideoId });
-                }
-
+                results.push({ id: video.id, action: 'analyzed' });
             } catch (err: any) {
-                console.error(`[VideoCron] Step 2 error:`, err);
+                console.error(`[VideoCron] Analysis error:`, err);
                 await supabase.from('social_video_queue')
-                    .update({ status: 'failed', error_message: `Step2: ${err.message}`, retry_count: (video.retry_count || 0) + 1 })
+                    .update({ status: 'failed', error_message: `Step2 Analysis: ${err.message}`, retry_count: (video.retry_count || 0) + 1 })
                     .eq('id', video.id);
                 results.push({ id: video.id, action: 'failed', error: err.message });
             }
         }
 
         // ═══════════════════════════════════════════
-        // STEP 3: Poll Captions API (captioning → review)
+        // STEP 3: Compress + Store (analyzed → compressed)
+        // Downloads video, compresses with ffmpeg, stores compressed to Supabase Storage
+        // This is the heavy step — gets its own cron run
+        // ═══════════════════════════════════════════
+        const { data: analyzed } = await supabase
+            .from('social_video_queue')
+            .select('*')
+            .eq('status', 'analyzed')
+            .order('created_at', { ascending: true })
+            .limit(1);
+
+        if (analyzed && analyzed.length > 0) {
+            const video = analyzed[0];
+            const inputSizeMB = (video.raw_video_size || 0) / (1024 * 1024);
+            console.log(`[VideoCron] Step 3: Compress ${video.id} (${inputSizeMB.toFixed(1)}MB)`);
+
+            try {
+                await supabase.from('social_video_queue')
+                    .update({ status: 'generating' })
+                    .eq('id', video.id);
+
+                let videoUrl = video.raw_video_url;
+                const tmpOutput = `/tmp/compress_${Date.now()}_out.mp4`;
+
+                if (inputSizeMB > 48) {
+                    // Large file: stream through ffmpeg directly from URL
+                    const ffmpeg = await ensureFfmpeg();
+                    console.log(`[VideoCron] Streaming ${inputSizeMB.toFixed(1)}MB through ffmpeg...`);
+                    const start = Date.now();
+                    execSync(
+                        `${ffmpeg} -i "${videoUrl}" -c:v libx264 -preset ultrafast -b:v 4500k -maxrate 5500k -bufsize 11000k -c:a aac -b:a 128k -movflags +faststart "${tmpOutput}" -y 2>/dev/null`,
+                        { timeout: 240000 }
+                    );
+                    const compressedBuffer = readFileSync(tmpOutput);
+                    const outputSizeMB = compressedBuffer.length / (1024 * 1024);
+                    console.log(`[VideoCron] Compressed: ${inputSizeMB.toFixed(1)}MB → ${outputSizeMB.toFixed(1)}MB in ${((Date.now() - start) / 1000).toFixed(0)}s`);
+                    try { unlinkSync(tmpOutput); } catch {}
+
+                    // Store compressed video to Supabase Storage
+                    const compressedFileName = `videos/compressed_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.mp4`;
+                    const { error: uploadError } = await supabase.storage
+                        .from('social-media')
+                        .upload(compressedFileName, compressedBuffer, {
+                            contentType: 'video/mp4',
+                            upsert: false,
+                        });
+                    if (uploadError) throw new Error(`Storage upload: ${uploadError.message}`);
+
+                    const { data: urlData } = supabase.storage
+                        .from('social-media')
+                        .getPublicUrl(compressedFileName);
+
+                    await supabase.from('social_video_queue')
+                        .update({
+                            status: 'compressed',
+                            compressed_video_url: urlData.publicUrl,
+                        })
+                        .eq('id', video.id);
+
+                    results.push({ id: video.id, action: 'compressed', outputMB: outputSizeMB.toFixed(1) });
+                } else {
+                    // Small file (<48MB): use raw video directly, skip compression
+                    console.log(`[VideoCron] File small enough (${inputSizeMB.toFixed(1)}MB), skipping compression.`);
+                    await supabase.from('social_video_queue')
+                        .update({
+                            status: 'compressed',
+                            compressed_video_url: videoUrl, // use original URL
+                        })
+                        .eq('id', video.id);
+                    results.push({ id: video.id, action: 'compressed_skip', sizeMB: inputSizeMB.toFixed(1) });
+                }
+            } catch (err: any) {
+                console.error(`[VideoCron] Compression error:`, err);
+                await supabase.from('social_video_queue')
+                    .update({ status: 'failed', error_message: `Step3 Compress: ${err.message}`, retry_count: (video.retry_count || 0) + 1 })
+                    .eq('id', video.id);
+                results.push({ id: video.id, action: 'failed', error: err.message });
+            }
+        }
+
+        // ═══════════════════════════════════════════
+        // STEP 4: Submit to Captions API (compressed → captioning)
+        // ═══════════════════════════════════════════
+        const { data: compressed } = await supabase
+            .from('social_video_queue')
+            .select('*')
+            .eq('status', 'compressed')
+            .order('created_at', { ascending: true })
+            .limit(1);
+
+        if (compressed && compressed.length > 0) {
+            const video = compressed[0];
+            console.log(`[VideoCron] Step 4: Submitting to Captions API for ${video.id}`);
+
+            try {
+                // Download compressed video (should be <50MB now)
+                const compUrl = video.compressed_video_url;
+                const res = await fetch(compUrl);
+                if (!res.ok) throw new Error(`Download compressed failed: ${res.status}`);
+                const compressedBuffer = Buffer.from(await res.arrayBuffer());
+                const sizeMB = compressedBuffer.length / (1024 * 1024);
+                console.log(`[VideoCron] Downloaded compressed video: ${sizeMB.toFixed(1)}MB`);
+
+                if (sizeMB > 50) {
+                    throw new Error(`Compressed video still too large: ${sizeMB.toFixed(1)}MB (max 50MB)`);
+                }
+
+                await supabase.from('social_video_queue')
+                    .update({ status: 'captioning' })
+                    .eq('id', video.id);
+
+                const { videoId: captionsVideoId } = await submitForCaptioning(
+                    compressedBuffer,
+                    `video_${video.id}.mp4`,
+                );
+
+                await supabase.from('social_video_queue')
+                    .update({ captions_video_id: captionsVideoId })
+                    .eq('id', video.id);
+
+                results.push({ id: video.id, action: 'submitted_to_captions', captionsVideoId });
+            } catch (err: any) {
+                console.error(`[VideoCron] Captions submit error:`, err);
+                await supabase.from('social_video_queue')
+                    .update({ status: 'failed', error_message: `Step4 Submit: ${err.message}`, retry_count: (video.retry_count || 0) + 1 })
+                    .eq('id', video.id);
+                results.push({ id: video.id, action: 'failed', error: err.message });
+            }
+        }
+
+        // ═══════════════════════════════════════════
+        // STEP 5: Poll Captions API (captioning → review)
         // ═══════════════════════════════════════════
         const { data: captioning } = await supabase
             .from('social_video_queue')
@@ -369,11 +354,6 @@ export async function GET(req: NextRequest) {
                 }
             }
         }
-
-        // ═══════════════════════════════════════════
-        // STEP 4: Manual review required
-        // ═══════════════════════════════════════════
-        // Videos at 'review' status wait for user approval in /admin/video.
 
         return NextResponse.json({
             success: true,
