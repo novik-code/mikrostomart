@@ -465,6 +465,15 @@ export async function renderWithShotstack(timeline: ShotstackTimeline): Promise<
     const baseUrl = `https://api.shotstack.io/${env}`;
 
     console.log('[VideoAI] Submitting to Shotstack for rendering...');
+    
+    // Log all source URLs in the timeline for debugging
+    const allSources: string[] = [];
+    for (const track of timeline.timeline?.tracks || []) {
+        for (const clip of track.clips || []) {
+            if (clip?.asset?.src) allSources.push(`${clip.asset.type}: ${clip.asset.src.substring(0, 100)}`);
+        }
+    }
+    console.log(`[VideoAI] Shotstack sources: ${JSON.stringify(allSources)}`);
 
     const res = await fetch(`${baseUrl}/render`, {
         method: 'POST',
@@ -505,6 +514,7 @@ export async function checkShotstackRender(renderId: string): Promise<{
 
     const data = await res.json();
     const response = data.response;
+    console.log(`[VideoAI] Shotstack render status for ${renderId}: ${response?.status}, error: ${response?.error}, data: ${JSON.stringify(response).substring(0, 300)}`);
 
     if (response?.status === 'done') {
         return { status: 'done', url: response.url };
