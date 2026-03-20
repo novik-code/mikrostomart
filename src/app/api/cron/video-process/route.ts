@@ -43,15 +43,29 @@ function cleanTmp() {
     } catch {}
 }
 
-/** Get ffmpeg path from npm package or /tmp */
-function getFfmpegPath(): string {
+/** Get ffmpeg path — downloads from GitHub to /tmp if not cached */
+async function ensureFfmpeg(): Promise<string> {
+    // Check npm bundled binary first
     try {
         // eslint-disable-next-line @typescript-eslint/no-require-imports
         const p = require('ffmpeg-static') as string;
         if (p && existsSync(p)) return p;
     } catch {}
+
+    // Check /tmp cache
     if (existsSync('/tmp/ffmpeg')) return '/tmp/ffmpeg';
-    throw new Error('ffmpeg not available');
+
+    // Download from GitHub (~80MB, fits in /tmp alongside output)
+    console.log('[VideoCron] Downloading ffmpeg to /tmp...');
+    const start = Date.now();
+    execSync(
+        'curl -sL -o /tmp/ffmpeg "https://github.com/eugeneware/ffmpeg-static/releases/download/b6.0/linux-x64" && chmod +x /tmp/ffmpeg',
+        { timeout: 120000 }
+    );
+    console.log(`[VideoCron] ffmpeg downloaded in ${((Date.now() - start) / 1000).toFixed(0)}s`);
+    
+    if (!existsSync('/tmp/ffmpeg')) throw new Error('ffmpeg download failed');
+    return '/tmp/ffmpeg';
 }
 
 export async function GET(req: NextRequest) {
@@ -193,7 +207,7 @@ export async function GET(req: NextRequest) {
                         .eq('id', video.id);
                     results.push({ id: video.id, action: 'compressed_skip' });
                 } else {
-                    const ffmpeg = getFfmpegPath();
+                    const ffmpeg = await ensureFfmpeg();
                     const tmpOutput = `/tmp/out_${Date.now()}.mp4`;
 
                     // Pipe curl output directly to ffmpeg — no 217MB temp file!
