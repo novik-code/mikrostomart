@@ -194,6 +194,13 @@ export default function Footer() {
                         RODO
                     </a>
                     <a
+                        href="/privacy-policy"
+                        style={{ color: 'var(--color-text-muted)', textDecoration: 'none', opacity: 0.7 }}
+                        className="hover-underline"
+                    >
+                        Privacy Policy
+                    </a>
+                    <a
                         href="/polityka-cookies"
                         style={{ color: 'var(--color-text-muted)', textDecoration: 'none', opacity: 0.7 }}
                         className="hover-underline"

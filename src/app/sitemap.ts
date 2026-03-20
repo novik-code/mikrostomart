@@ -67,6 +67,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         '/polityka-cookies',
         '/polityka-prywatnosci',
         '/rodo',
+        '/privacy-policy',
     ].map((route) => ({
         url: `${BASE_URL}${route}`,
         lastModified: new Date(),
