@@ -240,7 +240,7 @@ export async function GET(req: NextRequest) {
                     try {
                         execSync(
                             `"${ffmpeg}" -i "${tmpInput}" -c:v libx264 -preset ultrafast -crf 28 -c:a aac -b:a 128k -movflags +faststart "${tmpOutput}" -y 2>/tmp/ffmpeg_err.log`,
-                            { timeout: 120000 }
+                            { timeout: 250000 }
                         );
                     } catch (ffErr: any) {
                         let errLog = '';
