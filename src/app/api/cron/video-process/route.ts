@@ -208,19 +208,29 @@ export async function GET(req: NextRequest) {
                     results.push({ id: video.id, action: 'compressed_skip' });
                 } else {
                     const ffmpeg = await ensureFfmpeg();
+                    const tmpInput = `/tmp/input_${Date.now()}.mov`;
                     const tmpOutput = `/tmp/out_${Date.now()}.mp4`;
 
-                    // Pipe curl output directly to ffmpeg — no 217MB temp file!
-                    // ffmpeg reads from stdin (pipe:0), writes compressed to output file
-                    console.log(`[VideoCron] Pipe-compressing ${inputSizeMB.toFixed(1)}MB...`);
-                    const start = Date.now();
+                    // Download video to /tmp (cleanTmp ensures space)
+                    // 80MB ffmpeg + 217MB raw + 10MB output = 307MB < 512MB limit
+                    console.log(`[VideoCron] Downloading ${inputSizeMB.toFixed(1)}MB...`);
+                    const dlStart = Date.now();
+                    execSync(`curl -sL -o "${tmpInput}" "${videoUrl}"`, { timeout: 200000 });
+                    console.log(`[VideoCron] Downloaded in ${((Date.now() - dlStart) / 1000).toFixed(0)}s`);
+
+                    // Compress with ffmpeg
+                    console.log(`[VideoCron] Compressing...`);
+                    const compStart = Date.now();
                     execSync(
-                        `curl -sL "${videoUrl}" | "${ffmpeg}" -i pipe:0 -c:v libx264 -preset ultrafast -crf 28 -c:a aac -b:a 128k "${tmpOutput}" -y 2>&1 | tail -3`,
-                        { timeout: 280000 }
+                        `"${ffmpeg}" -i "${tmpInput}" -c:v libx264 -preset ultrafast -crf 28 -c:a aac -b:a 128k -movflags +faststart "${tmpOutput}" -y 2>&1 | tail -5`,
+                        { timeout: 80000 }
                     );
+                    // Delete raw immediately to free space for readFileSync
+                    try { unlinkSync(tmpInput); } catch {}
+                    
                     const compressedBuffer = readFileSync(tmpOutput);
                     const outputMB = compressedBuffer.length / (1024 * 1024);
-                    console.log(`[VideoCron] ${inputSizeMB.toFixed(1)}MB → ${outputMB.toFixed(1)}MB in ${((Date.now() - start) / 1000).toFixed(0)}s`);
+                    console.log(`[VideoCron] ${inputSizeMB.toFixed(1)}MB → ${outputMB.toFixed(1)}MB in ${((Date.now() - compStart) / 1000).toFixed(0)}s`);
                     try { unlinkSync(tmpOutput); } catch {}
 
                     // Upload compressed to Supabase Storage
