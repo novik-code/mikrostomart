@@ -94,9 +94,9 @@ export async function GET(req: NextRequest) {
 
                 // Build Shotstack timeline and render
                 // Shotstack needs a publicly accessible URL — generate a signed URL from Supabase Storage
-                const logoUrl = process.env.LOGO_WATERMARK_URL || null;
+                const logoUrl = (process.env.LOGO_WATERMARK_URL || '').trim() || null;
                 
-                let videoUrlForShotstack = video.raw_video_url;
+                let videoUrlForShotstack = (video.raw_video_url || '').trim();
                 try {
                     // Extract storage path from the public URL
                     const urlObj = new URL(video.raw_video_url);
