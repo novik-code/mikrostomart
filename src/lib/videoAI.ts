@@ -82,13 +82,19 @@ export async function transcribeVideo(videoUrl: string): Promise<TranscriptionRe
             // Ensure execute permission
             try { execSync(`chmod +x "${ffmpegBinPath}"`, { timeout: 5000 }); } catch {}
         } catch (err: any) {
-            console.error(`[VideoAI] ffmpeg-static error: ${err.message}`);
-            // Log available files for debugging
+            // Collect diagnostics for debugging
+            let diag = '';
             try {
-                const result = execSync('find /var/task/node_modules/ffmpeg-static -type f 2>/dev/null || echo "not found"', { timeout: 5000 });
-                console.log(`[VideoAI] ffmpeg-static files: ${result.toString().trim()}`);
+                const files = execSync('ls -la /var/task/node_modules/ffmpeg-static/ 2>/dev/null || echo "DIR_NOT_FOUND"', { timeout: 5000 });
+                diag += `FILES: ${files.toString().trim().substring(0, 300)}`;
             } catch {}
-            throw new Error(`ffmpeg not available: ${err.message}`);
+            try {
+                const tools = execSync('which ffmpeg avconv sox python3 2>/dev/null || echo "NO_TOOLS"', { timeout: 5000 });
+                diag += ` | TOOLS: ${tools.toString().trim()}`;
+            } catch {}
+            diag += ` | CWD: ${process.cwd()} | NODE: ${process.version}`;
+            
+            throw new Error(`ffmpeg not available: ${err.message} | DIAG: ${diag}`);
         }
         
         // Extract audio as MP3 (mono, 64kbps = very small file, perfect for speech)
