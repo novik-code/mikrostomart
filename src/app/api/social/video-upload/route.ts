@@ -106,7 +106,7 @@ export async function PUT(req: NextRequest) {
     }
 }
 
-// PATCH — retry a failed video (reset status)
+// PATCH — force-set video status (admin control)
 export async function PATCH(req: NextRequest) {
     try {
         const body = await req.json();
@@ -118,10 +118,11 @@ export async function PATCH(req: NextRequest) {
 
         const { error } = await supabase
             .from('social_video_queue')
-            .update({ status, error_message: null })
+            .update({ status, error_message: null, retry_count: 0 })
             .eq('id', id);
 
         if (error) throw error;
+        console.log(`[Video Admin] Force-set video ${id} → "${status}"`);
         return NextResponse.json({ success: true });
     } catch (err: any) {
         return NextResponse.json({ error: err.message }, { status: 500 });

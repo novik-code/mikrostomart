@@ -201,17 +201,18 @@ export default function VideoPage() {
         }
     };
 
-    // ── Retry / Reset video ──────────────────────────────────────────
-    const handleRetry = async (id: string) => {
+    // ── Force set status (admin control) ────────────────────────────
+    const handleForceStatus = async (id: string, newStatus: string, confirmMsg?: string) => {
+        if (confirmMsg && !confirm(confirmMsg)) return;
         try {
             await fetch("/api/social/video-upload", {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ id, status: "uploaded" }),
+                body: JSON.stringify({ id, status: newStatus }),
             });
             await loadVideos();
         } catch (err) {
-            console.error("Retry error:", err);
+            console.error("Force status error:", err);
         }
     };
 
@@ -530,6 +531,7 @@ export default function VideoPage() {
 
                                     {/* Actions: Trigger / Retry / Delete */}
                                     <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                                        {/* Trigger next step */}
                                         {canTrigger(video.status) && (
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); handleTriggerStep(video.id); }}
@@ -548,17 +550,21 @@ export default function VideoPage() {
                                                 {triggerLoading === video.id ? "⏳" : "▶️"}
                                             </button>
                                         )}
-                                        {video.status === "failed" && (
+                                        {/* Stop processing */}
+                                        {isProcessing(video.status) && (
                                             <button
-                                                onClick={(e) => { e.stopPropagation(); handleRetry(video.id); }}
-                                                style={{
-                                                    background: "none",
-                                                    border: "none",
-                                                    color: "#f59e0b",
-                                                    fontSize: 18,
-                                                    cursor: "pointer",
-                                                    padding: 4,
-                                                }}
+                                                onClick={(e) => { e.stopPropagation(); handleForceStatus(video.id, "uploaded", "Zatrzymać i zresetować do początku?"); }}
+                                                style={{ background: "none", border: "none", color: "#ef4444", fontSize: 18, cursor: "pointer", padding: 4 }}
+                                                title="Stop i reset"
+                                            >
+                                                ⏹️
+                                            </button>
+                                        )}
+                                        {/* Retry / Reset from any non-final state */}
+                                        {(video.status === "failed" || (isProcessing(video.status) && video.retry_count && video.retry_count > 0)) && (
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); handleForceStatus(video.id, "uploaded"); }}
+                                                style={{ background: "none", border: "none", color: "#f59e0b", fontSize: 18, cursor: "pointer", padding: 4 }}
                                                 title="Ponów od początku"
                                             >
                                                 🔄
@@ -627,29 +633,73 @@ export default function VideoPage() {
                                             )}
                                         </div>
 
-                                        {/* Manual trigger button */}
-                                        {canTrigger(video.status) && (
-                                            <button
-                                                onClick={() => handleTriggerStep(video.id)}
-                                                disabled={triggerLoading === video.id}
-                                                style={{
-                                                    width: "100%",
-                                                    padding: "12px 16px",
-                                                    background: triggerLoading === video.id
-                                                        ? "rgba(255,215,0,0.1)"
-                                                        : "linear-gradient(135deg, rgba(255,215,0,0.15), rgba(255,165,0,0.15))",
-                                                    border: "1px solid rgba(255,215,0,0.3)",
-                                                    borderRadius: 10,
-                                                    color: "#FFD700",
-                                                    fontSize: 13,
-                                                    fontWeight: 700,
-                                                    cursor: triggerLoading === video.id ? "wait" : "pointer",
-                                                    marginBottom: 10,
-                                                }}
-                                            >
-                                                {triggerLoading === video.id ? "⏳ Przetwarzanie..." : "▶️ Uruchom następny krok"}
-                                            </button>
-                                        )}
+                                        {/* Admin Control Panel */}
+                                        <div style={{
+                                            display: "flex",
+                                            gap: 6,
+                                            marginBottom: 10,
+                                            flexWrap: "wrap",
+                                        }}>
+                                            {/* Trigger next step */}
+                                            {canTrigger(video.status) && (
+                                                <button
+                                                    onClick={() => handleTriggerStep(video.id)}
+                                                    disabled={triggerLoading === video.id}
+                                                    style={{
+                                                        flex: 1,
+                                                        minWidth: 120,
+                                                        padding: "10px 12px",
+                                                        background: triggerLoading === video.id
+                                                            ? "rgba(255,215,0,0.1)"
+                                                            : "linear-gradient(135deg, rgba(255,215,0,0.15), rgba(255,165,0,0.15))",
+                                                        border: "1px solid rgba(255,215,0,0.3)",
+                                                        borderRadius: 8,
+                                                        color: "#FFD700",
+                                                        fontSize: 12,
+                                                        fontWeight: 700,
+                                                        cursor: triggerLoading === video.id ? "wait" : "pointer",
+                                                    }}
+                                                >
+                                                    {triggerLoading === video.id ? "⏳ Przetwarzanie..." : "▶️ Następny krok"}
+                                                </button>
+                                            )}
+                                            {/* Reset to beginning */}
+                                            {video.status !== "uploaded" && video.status !== "done" && (
+                                                <button
+                                                    onClick={() => handleForceStatus(video.id, "uploaded", "Reset do początku?")}
+                                                    style={{
+                                                        padding: "10px 12px",
+                                                        background: "rgba(239,68,68,0.1)",
+                                                        border: "1px solid rgba(239,68,68,0.2)",
+                                                        borderRadius: 8,
+                                                        color: "#ef4444",
+                                                        fontSize: 12,
+                                                        fontWeight: 600,
+                                                        cursor: "pointer",
+                                                    }}
+                                                >
+                                                    🔄 Od początku
+                                                </button>
+                                            )}
+                                            {/* Skip to transcribed (if has transcript) */}
+                                            {video.transcript && !["transcribed","analyzing","generating","captioning","review","ready","done"].includes(video.status) && (
+                                                <button
+                                                    onClick={() => handleForceStatus(video.id, "transcribed")}
+                                                    style={{
+                                                        padding: "10px 12px",
+                                                        background: "rgba(59,130,246,0.1)",
+                                                        border: "1px solid rgba(59,130,246,0.2)",
+                                                        borderRadius: 8,
+                                                        color: "#3b82f6",
+                                                        fontSize: 12,
+                                                        fontWeight: 600,
+                                                        cursor: "pointer",
+                                                    }}
+                                                >
+                                                    ⏭️ Pomiń do analizy
+                                                </button>
+                                            )}
+                                        </div>
 
                                         {video.error_message && (
                                             <div style={{
