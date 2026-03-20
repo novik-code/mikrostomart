@@ -69,53 +69,26 @@ export async function transcribeVideo(videoUrl: string): Promise<TranscriptionRe
         writeFileSync(videoPath, videoBuffer);
         console.log(`[VideoAI] Video saved to /tmp: ${(videoBuffer.length / 1024 / 1024).toFixed(1)}MB`);
 
-        // Extract audio using ffmpeg
-        // On Vercel serverless, we download a static ffmpeg binary to /tmp (cached between invocations)
-        const ffmpegBinPath = path.join('/tmp', 'ffmpeg');
-        
-        if (!existsSync(ffmpegBinPath)) {
-            console.log('[VideoAI] Downloading ffmpeg static binary to /tmp...');
+        // Get ffmpeg binary path (bundled via vercel.json includeFiles)
+        let ffmpegBinPath: string;
+        try {
+            ffmpegBinPath = require('ffmpeg-static');
+            console.log(`[VideoAI] ffmpeg-static path: ${ffmpegBinPath}`);
             
-            // Use BtbN's maintained builds (GitHub releases with CDN)
-            const downloadUrls = [
-                {
-                    url: 'https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz',
-                    extract: `curl -sL "{URL}" | tar xJ --strip-components=2 -C /tmp "ffmpeg-master-latest-linux64-gpl/bin/ffmpeg"`,
-                },
-                {
-                    url: 'https://johnvansickle.com/ffmpeg/builds/ffmpeg-git-amd64-static.tar.xz',
-                    extract: `curl -sL "{URL}" | tar xJ --strip-components=1 -C /tmp --wildcards "*/ffmpeg"`,
-                },
-            ];
-
-            let downloaded = false;
-            for (const source of downloadUrls) {
-                try {
-                    const cmd = source.extract.replace('{URL}', source.url);
-                    execSync(cmd, { timeout: 90000 });
-                    execSync(`chmod +x ${ffmpegBinPath}`, { timeout: 5000 });
-                    
-                    // Verify it's actually a binary, not an HTML error page
-                    const header = readFileSync(ffmpegBinPath).slice(0, 4);
-                    if (header[0] === 0x7F && header[1] === 0x45) { // ELF binary header
-                        console.log(`[VideoAI] ffmpeg downloaded from: ${source.url}`);
-                        downloaded = true;
-                        break;
-                    } else {
-                        console.log('[VideoAI] Downloaded file is not a valid binary, trying next source...');
-                        unlinkSync(ffmpegBinPath);
-                    }
-                } catch (err: any) {
-                    console.log(`[VideoAI] Download failed from ${source.url}: ${err.message}`);
-                    try { if (existsSync(ffmpegBinPath)) unlinkSync(ffmpegBinPath); } catch {}
-                }
+            if (!ffmpegBinPath || !existsSync(ffmpegBinPath)) {
+                throw new Error(`ffmpeg binary not found at: ${ffmpegBinPath}`);
             }
-
-            if (!downloaded) {
-                throw new Error('Could not download ffmpeg binary from any source');
-            }
-        } else {
-            console.log('[VideoAI] Using cached ffmpeg from /tmp');
+            
+            // Ensure execute permission
+            try { execSync(`chmod +x "${ffmpegBinPath}"`, { timeout: 5000 }); } catch {}
+        } catch (err: any) {
+            console.error(`[VideoAI] ffmpeg-static error: ${err.message}`);
+            // Log available files for debugging
+            try {
+                const result = execSync('find /var/task/node_modules/ffmpeg-static -type f 2>/dev/null || echo "not found"', { timeout: 5000 });
+                console.log(`[VideoAI] ffmpeg-static files: ${result.toString().trim()}`);
+            } catch {}
+            throw new Error(`ffmpeg not available: ${err.message}`);
         }
         
         // Extract audio as MP3 (mono, 64kbps = very small file, perfect for speech)

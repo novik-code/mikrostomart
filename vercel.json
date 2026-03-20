@@ -1,4 +1,10 @@
 {
+    "functions": {
+        "src/app/api/cron/video-process/route.ts": {
+            "maxDuration": 300,
+            "includeFiles": "node_modules/ffmpeg-static/**"
+        }
+    },
     "crons": [
         {
             "path": "/api/cron/daily-article",
