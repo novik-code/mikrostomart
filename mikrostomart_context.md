@@ -1,6 +1,6 @@
 # Mikrostomart - Complete Project Context
 
-> **Last Updated:** 2026-03-18  
+> **Last Updated:** 2026-03-20  
 > **Version:** Production (Vercel Deployment)  
 > **Status:** Active Development
 
@@ -52,9 +52,9 @@
 
 ### Backend & Database
 - **Supabase** (PostgreSQL database, authentication, storage)
-  - Database: 82 migrations (003-082: email verification, appointment actions, SMS reminders, user_roles, employee tasks, task history, comments, labels, status fix, google reviews cache, chat, push subscriptions, employee_group, push_notification_config, employee_groups array, news/articles/blog/products i18n, calendar tokens, private tasks + reminders, SMS post-visit/week-after-visit, SMS unique constraint fix, task multi-images, push_notifications_log, google_event_id on employee_tasks, patient_intake_tokens, feature_suggestions, online_bookings, patient_match_confidence, consent_tokens/patient_consents, staff_signatures, intake_pdf_url, birthday_wishes, cancelled_appointments, login_attempts, patient_notification_prefs, biometric_signature, employee_audit_log, consent_field_mappings, rate_limit_table, cron_heartbeats, sms_settings, email_ai_drafts, email_ai_config, email_compose_drafts, email_label_overrides, email_ai_drafts_skipped, compose_drafts_ai_text, email_ai_knowledge_files, **fix_nowosielska_role, employee_notification_prefs, cleanup_duplicate_push_subs, security_advisor_fixes, merge_duplicate_employees**)
+  - Database: 86 migrations (003-086: email verification, appointment actions, SMS reminders, user_roles, employee tasks, task history, comments, labels, status fix, google reviews cache, chat, push subscriptions, employee_group, push_notification_config, employee_groups array, news/articles/blog/products i18n, calendar tokens, private tasks + reminders, SMS post-visit/week-after-visit, SMS unique constraint fix, task multi-images, push_notifications_log, google_event_id on employee_tasks, patient_intake_tokens, feature_suggestions, online_bookings, patient_match_confidence, consent_tokens/patient_consents, staff_signatures, intake_pdf_url, birthday_wishes, cancelled_appointments, login_attempts, patient_notification_prefs, biometric_signature, employee_audit_log, consent_field_mappings, rate_limit_table, cron_heartbeats, sms_settings, email_ai_drafts, email_ai_config, email_compose_drafts, email_label_overrides, email_ai_drafts_skipped, compose_drafts_ai_text, email_ai_knowledge_files, fix_nowosielska_role, employee_notification_prefs, cleanup_duplicate_push_subs, security_advisor_fixes, merge_duplicate_employees, **social_media, video_queue, storage_video_upload, video_captions_api**)
   - Auth: Email/password, magic links, JWT tokens
-  - Storage: Product images, patient documents, task images
+  - Storage: Product images, patient documents, task images, **social media videos** (bucket: `social-media`)
 
 ### External Integrations
 | Service | Purpose | Status |
@@ -68,6 +68,8 @@
 | **YouTube Data API** | Video feed | ✅ Active |
 | **Google Places API** | Real Google Reviews (New + Legacy) | ✅ Active |
 | **Web Push (VAPID)** | Browser push notifications (patients + employees) | ✅ Active |
+| **Captions / Mirage API** | AI video captioning (professional animated subtitles) | ✅ Active |
+| **Whisper (OpenAI)** | Video audio transcription | ✅ Active |
 
 ### UI/UX Libraries
 - **Framer Motion** - Animations
@@ -784,6 +786,33 @@ Per-employee muted push notification types (opt-out pattern).
 - updated_at (timestamptz)
 ```
 RLS: service_only. Default `'{}'` = nothing muted = user receives everything their groups allow. New notification types are auto-enabled.
+
+#### 39. **social_video_queue** (migration 083-086)
+Video processing pipeline queue for social media content.
+```sql
+- id (uuid, PK)
+- raw_video_url (text) -- original uploaded video in Supabase Storage
+- processed_video_url (text) -- captioned video after Captions API processing
+- status (text) -- pipeline status (see below)
+- title (text)
+- descriptions (jsonb) -- per-platform descriptions
+- hashtags (text[]) -- AI-generated hashtags
+- transcript (text) -- Whisper transcription text
+- transcript_srt (text) -- SRT format subtitles
+- transcript_language (text)
+- raw_duration_seconds (numeric)
+- raw_video_size (bigint)
+- ai_analysis (jsonb) -- GPT-4o content analysis
+- captions_video_id (text) -- Mirage API job ID for polling
+- error_message (text)
+- retry_count (integer, DEFAULT 0)
+- created_at (timestamptz)
+- published_at (timestamptz)
+- processed_at (timestamptz)
+```
+**Status flow:** `uploaded` → `transcribing` → `transcribed` → `analyzing` → `generating` → `captioning` → `review` → `ready` → `publishing` → `done`
+**Auto-recovery:** Videos stuck in intermediate statuses (transcribing/analyzing/generating/rendering) are auto-reset to `uploaded` on next cron run (max 3 retries → `failed`).
+Storage: `social-media` bucket on Supabase Storage.
 
 
 ## ✨ Feature Catalog
@@ -1946,6 +1975,37 @@ This ensures Saturday and Monday templates don't mix in the admin panel.
 
 ---
 
+### 5. Video Processing Pipeline (video-process)
+**Path:** `/api/cron/video-process`
+**Schedule:** Every 5 minutes
+**Purpose:** Multi-step AI video processing for social media content
+
+**Pipeline (split across separate cron invocations to avoid timeout):**
+
+| Cron Run | Input Status | Output Status | What Happens | ~Time |
+|----------|-------------|--------------|-------------|-------|
+| **Step 0** | stuck (transcribing/analyzing/etc) | uploaded | Auto-recovery: resets stuck videos (max 3 retries) | <1s |
+| **Step 1** | uploaded | transcribed | Download video → ffmpeg audio extraction → Whisper transcription | ~90s |
+| **Step 2** | transcribed | captioning | GPT-4o analysis + metadata → ffmpeg compress (<50MB) → Captions/Mirage API submit | ~3min |
+| **Step 3** | captioning | review | Poll Captions API → download captioned video → upload to Supabase | ~10-60s |
+
+**Key Files:**
+- `src/app/api/cron/video-process/route.ts` — Cron orchestrator
+- `src/lib/videoAI.ts` — Transcription (Whisper), analysis (GPT-4o), metadata generation
+- `src/lib/captionsAI.ts` — Captions/Mirage API integration (submit, poll, download)
+
+**Technical Details:**
+- FFmpeg downloaded as static binary to `/tmp` at runtime (cached between invocations)
+- Videos compressed from 217MB → ~40MB (H.264, 4500kbps) to meet Captions API 50MB limit
+- Captions API: 60+ professional caption templates, $0.15/minute, max 5min, 9:16 aspect ratio
+- Admin panel (`/admin/video`) shows pipeline progress with manual ▶️ trigger button
+
+**Environment Variables:**
+- `MIRAGE_API_KEY` — Captions/Mirage API key
+- `OPENAI_API_KEY` — for Whisper transcription + GPT-4o analysis
+
+---
+
 ### Vercel Cron Configuration (`vercel.json`)
 ```json
 {
@@ -1966,7 +2026,8 @@ This ensures Saturday and Monday templates don't mix in the admin panel.
     { "path": "/api/cron/birthday-wishes", "schedule": "0 8 * * *" },
     { "path": "/api/cron/daily-report", "schedule": "30 5 * * *" },
     { "path": "/api/cron/deposit-reminder", "schedule": "0 7 * * *" },
-    { "path": "/api/cron/noshow-followup", "schedule": "0 8 * * *" }
+    { "path": "/api/cron/noshow-followup", "schedule": "0 8 * * *" },
+    { "path": "/api/cron/video-process", "schedule": "*/5 * * * *" }
   ]
 }
 ```
@@ -2083,6 +2144,9 @@ YOUTUBE_CHANNEL_ID=...
 # Google Reviews
 GOOGLE_PLACES_API_KEY=...
 
+# Captions / Mirage API (video captioning)
+MIRAGE_API_KEY=...
+
 # App
 NEXT_PUBLIC_BASE_URL=https://mikrostomart.pl
 NODE_ENV=production
@@ -2095,6 +2159,53 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### March 20, 2026
+**Social Media Video Pipeline — Full AI Processing with Captions/Mirage API**
+
+#### Commits:
+- `cfaf298`..`b2204e0` — FFmpeg on Vercel: static binary download to `/tmp` with caching & ELF validation
+- `74481f7` — fix: generate signed URLs for Supabase Storage videos
+- `67fa889` — fix: trim LOGO_WATERMARK_URL (trailing newline breaking Shotstack)
+- `48a8cbe` — URGENT: disable auto-publish, require manual review
+- `ba81bb9` — feat: replace Shotstack with Captions/Mirage API for video editing
+- `8ec2255` — fix: split pipeline into 3 cron steps to avoid 300s timeout
+- `6268b2b` — fix: auto-recover stuck videos (no more manual resets)
+- `74b5440` — fix: auto-recovery without timestamp dependency
+- `e0a9cb7` — feat: admin video dashboard with pipeline progress and manual triggers
+
+#### Architecture:
+- **Shotstack removed entirely** — replaced with Captions/Mirage API ($0.15/min, 60+ caption templates)
+- Pipeline split into 3 separate cron steps (each runs in separate invocation to avoid Vercel 300s timeout):
+  1. Transcribe (Whisper) — ~90s
+  2. Analyze (GPT-4o) + compress (ffmpeg, 217MB→<50MB) + submit to Captions API — ~3min
+  3. Poll Captions API + download captioned video — ~10-60s
+- Auto-recovery: stuck videos in intermediate statuses auto-reset (max 3 retries → failed)
+- FFmpeg downloaded as static Linux binary to `/tmp` at runtime (cached between Lambda invocations)
+
+#### Admin Panel (`/admin/video`):
+- Pipeline progress tracker (5-step visual bar: Upload → Transkrypcja → Analiza → Napisy → Przegląd)
+- Manual ▶️ "Uruchom następny krok" button
+- Status descriptions per step
+- Retry counter display (Próba X/3)
+- Auto-refresh every 15s
+
+#### New Files:
+- `src/lib/captionsAI.ts` — Captions/Mirage API integration (submit, poll, download)
+- `supabase_migrations/083_social_media.sql` — social media tables
+- `supabase_migrations/084_video_queue.sql` — video queue table
+- `supabase_migrations/085_storage_video_upload.sql` — storage policies
+- `supabase_migrations/086_video_captions_api.sql` — `captions_video_id` column
+
+#### Files Modified:
+- `src/app/api/cron/video-process/route.ts` — complete rewrite (Shotstack → Captions API, 3-step pipeline)
+- `src/lib/videoAI.ts` — FFmpeg runtime download, audio extraction, transcription, analysis, metadata
+- `src/app/admin/video/page.tsx` — pipeline progress tracker, manual triggers, new statuses
+
+#### New Environment Variables:
+- `MIRAGE_API_KEY` — Captions/Mirage API key (added to Vercel)
+
+---
 
 ### March 19, 2026
 **Consent PDFs — Multi-Instance Fields & Custom Text**
