@@ -193,19 +193,25 @@ export async function GET(req: NextRequest) {
                 let videoUrl = video.raw_video_url;
                 const tmpOutput = `/tmp/compress_${Date.now()}_out.mp4`;
 
-                if (inputSizeMB > 48) {
-                    // Large file: download with curl (streaming, no Node.js memory), then compress locally
+                if (inputSizeMB > 100) {
+                    // Too large for Vercel — tell user to delete and re-upload (client-side compression handles it)
+                    await supabase.from('social_video_queue')
+                        .update({
+                            status: 'failed',
+                            error_message: `Plik za duży (${inputSizeMB.toFixed(0)}MB). Usuń i prześlij ponownie — przeglądarka skompresuje automatycznie.`,
+                        })
+                        .eq('id', video.id);
+                    results.push({ id: video.id, action: 'too_large', sizeMB: inputSizeMB.toFixed(0) });
+                } else if (inputSizeMB > 48) {
+                    // Medium file (48-100MB): download with curl, compress with ffmpeg
                     const ffmpeg = await ensureFfmpeg();
                     const tmpInput = `/tmp/raw_${Date.now()}.mp4`;
                     
-                    // Step A: Download with curl (streams to disk, fast)
                     console.log(`[VideoCron] Downloading ${inputSizeMB.toFixed(1)}MB with curl...`);
                     const dlStart = Date.now();
-                    execSync(`curl -sL -o "${tmpInput}" "${videoUrl}"`, { timeout: 120000 });
-                    const dlTime = ((Date.now() - dlStart) / 1000).toFixed(0);
-                    console.log(`[VideoCron] Downloaded in ${dlTime}s`);
+                    execSync(`curl -sL -o "${tmpInput}" "${videoUrl}"`, { timeout: 150000 });
+                    console.log(`[VideoCron] Downloaded in ${((Date.now() - dlStart) / 1000).toFixed(0)}s`);
                     
-                    // Step B: Compress with ffmpeg (local file, fast)
                     console.log(`[VideoCron] Compressing with ffmpeg...`);
                     const compStart = Date.now();
                     try {
@@ -214,17 +220,14 @@ export async function GET(req: NextRequest) {
                             { timeout: 120000 }
                         );
                     } catch (ffmpegErr: any) {
-                        // Log ffmpeg stderr for debugging
-                        console.error(`[VideoCron] ffmpeg error output:`, ffmpegErr.stdout?.toString()?.slice(-500) || ffmpegErr.message);
+                        console.error(`[VideoCron] ffmpeg error:`, ffmpegErr.stdout?.toString()?.slice(-500) || ffmpegErr.message);
                         try { unlinkSync(tmpInput); } catch {}
-                        throw new Error(`ffmpeg compression failed: ${ffmpegErr.message?.slice(0, 200)}`);
+                        throw new Error(`ffmpeg: ${ffmpegErr.message?.slice(0, 200)}`);
                     }
-                    const compTime = ((Date.now() - compStart) / 1000).toFixed(0);
                     
                     const compressedBuffer = readFileSync(tmpOutput);
                     const outputSizeMB = compressedBuffer.length / (1024 * 1024);
-                    console.log(`[VideoCron] Compressed: ${inputSizeMB.toFixed(1)}MB → ${outputSizeMB.toFixed(1)}MB in ${compTime}s`);
-                    
+                    console.log(`[VideoCron] Compressed: ${inputSizeMB.toFixed(1)}MB → ${outputSizeMB.toFixed(1)}MB in ${((Date.now() - compStart) / 1000).toFixed(0)}s`);
                     try { unlinkSync(tmpInput); } catch {}
                     try { unlinkSync(tmpOutput); } catch {}
 

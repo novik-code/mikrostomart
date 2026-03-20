@@ -80,7 +80,6 @@ export default function VideoPage() {
 
     // ── File selection ──────────────────────────────────────────────
     const handleFileSelect = (file: File) => {
-        // iOS sometimes doesn't set MIME type correctly
         const isVideo = file.type.startsWith("video/") || 
             /\.(mp4|mov|webm|avi|m4v|3gp)$/i.test(file.name);
         if (!isVideo) {
@@ -95,21 +94,119 @@ export default function VideoPage() {
         setPreviewUrl(URL.createObjectURL(file));
     };
 
-    // ── Upload (get signed URL from server → upload directly → register queue) ──
+    // ── Client-side video compression ────────────────────────────────
+    const [compressing, setCompressing] = useState(false);
+    const [compressProgress, setCompressProgress] = useState(0);
+
+    const compressVideo = async (file: File): Promise<File> => {
+        return new Promise((resolve, reject) => {
+            const video = document.createElement('video');
+            video.muted = true;
+            video.playsInline = true;
+            video.preload = 'auto';
+            video.src = URL.createObjectURL(file);
+
+            video.onloadedmetadata = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = Math.min(video.videoWidth, 1080);
+                canvas.height = Math.round(canvas.width * (video.videoHeight / video.videoWidth));
+                const ctx = canvas.getContext('2d')!;
+                const duration = video.duration;
+
+                // Use MediaRecorder to capture canvas
+                const stream = canvas.captureStream(30);
+                // Add audio track if available
+                try {
+                    const audioCtx = new AudioContext();
+                    const source = audioCtx.createMediaElementSource(video);
+                    const dest = audioCtx.createMediaStreamDestination();
+                    source.connect(dest);
+                    source.connect(audioCtx.destination);
+                    dest.stream.getAudioTracks().forEach(t => stream.addTrack(t));
+                } catch (e) {
+                    console.warn('Could not capture audio track:', e);
+                }
+
+                const chunks: Blob[] = [];
+                const recorder = new MediaRecorder(stream, {
+                    mimeType: MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
+                        ? 'video/webm;codecs=vp9'
+                        : 'video/webm',
+                    videoBitsPerSecond: 2_000_000, // 2 Mbps → ~9MB per 36s
+                });
+
+                recorder.ondataavailable = (e) => {
+                    if (e.data.size > 0) chunks.push(e.data);
+                };
+
+                recorder.onstop = () => {
+                    URL.revokeObjectURL(video.src);
+                    const blob = new Blob(chunks, { type: 'video/webm' });
+                    const compressedFile = new File([blob], file.name.replace(/\.\w+$/, '.webm'), { type: 'video/webm' });
+                    console.log(`Compressed: ${(file.size / 1024 / 1024).toFixed(1)}MB → ${(compressedFile.size / 1024 / 1024).toFixed(1)}MB`);
+                    resolve(compressedFile);
+                };
+
+                recorder.onerror = (e) => reject(e);
+
+                // Play video and draw to canvas frame by frame
+                recorder.start(100); // collect data every 100ms
+                video.currentTime = 0;
+                video.play();
+
+                const drawFrame = () => {
+                    if (video.ended || video.paused) {
+                        recorder.stop();
+                        return;
+                    }
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    setCompressProgress(Math.round((video.currentTime / duration) * 100));
+                    requestAnimationFrame(drawFrame);
+                };
+
+                video.onplay = drawFrame;
+                video.onended = () => {
+                    setTimeout(() => recorder.stop(), 200);
+                };
+            };
+
+            video.onerror = () => {
+                URL.revokeObjectURL(video.src);
+                reject(new Error('Nie udało się załadować wideo do kompresji'));
+            };
+        });
+    };
+
+    // ── Upload (compress if needed → get signed URL → upload → register) ──
     const handleUpload = async () => {
         if (!previewFile) return;
         setUploading(true);
         setUploadProgress(0);
 
         try {
-            const ext = previewFile.name.split(".").pop() || "mp4";
+            let fileToUpload = previewFile;
+
+            // Compress large videos client-side (>45MB)
+            if (previewFile.size > 45 * 1024 * 1024) {
+                setCompressing(true);
+                setCompressProgress(0);
+                try {
+                    fileToUpload = await compressVideo(previewFile);
+                } catch (compErr: any) {
+                    console.error('Compression failed, uploading original:', compErr);
+                    fileToUpload = previewFile; // fallback to original
+                }
+                setCompressing(false);
+            }
+
+            const ext = fileToUpload.name.split(".").pop() || "mp4";
 
             // Step 1: Get a signed upload URL from our server (uses service role key)
             setUploadProgress(2);
             const signRes = await fetch("/api/social/video-upload", {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ ext, contentType: previewFile.type || "video/mp4" }),
+                body: JSON.stringify({ ext, contentType: fileToUpload.type || "video/mp4" }),
             });
             const signData = await signRes.json();
             if (!signRes.ok) throw new Error(signData.error || "Failed to get upload URL");
@@ -121,7 +218,7 @@ export default function VideoPage() {
                 const xhr = new XMLHttpRequest();
                 xhr.open("PUT", uploadUrl);
                 xhr.setRequestHeader("Authorization", `Bearer ${token}`);
-                xhr.setRequestHeader("Content-Type", previewFile!.type || "video/mp4");
+                xhr.setRequestHeader("Content-Type", fileToUpload.type || "video/mp4");
 
                 xhr.upload.onprogress = (e) => {
                     if (e.lengthComputable) {
@@ -141,7 +238,7 @@ export default function VideoPage() {
                 };
 
                 xhr.onerror = () => reject(new Error("Błąd sieci podczas uploadu"));
-                xhr.send(previewFile);
+                xhr.send(fileToUpload);
             });
 
             setUploadProgress(92);
@@ -152,8 +249,8 @@ export default function VideoPage() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     videoUrl: publicUrl,
-                    fileSize: previewFile.size,
-                    fileName: previewFile.name,
+                    fileSize: fileToUpload.size,
+                    fileName: fileToUpload.name,
                 }),
             });
 
