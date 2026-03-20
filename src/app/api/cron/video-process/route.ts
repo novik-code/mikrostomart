@@ -254,15 +254,48 @@ export async function GET(req: NextRequest) {
 
                     results.push({ id: video.id, action: 'compressed', outputMB: outputSizeMB.toFixed(1) });
                 } else {
-                    // Small file (<48MB): use raw video directly, skip compression
-                    console.log(`[VideoCron] File small enough (${inputSizeMB.toFixed(1)}MB), skipping compression.`);
-                    await supabase.from('social_video_queue')
-                        .update({
-                            status: 'compressed',
-                            compressed_video_url: videoUrl, // use original URL
-                        })
-                        .eq('id', video.id);
-                    results.push({ id: video.id, action: 'compressed_skip', sizeMB: inputSizeMB.toFixed(1) });
+                    // Small file (<48MB): convert to mp4 if needed (Captions API requires mp4/mov)
+                    const isWebm = videoUrl.includes('.webm');
+                    if (isWebm) {
+                        console.log(`[VideoCron] Converting WebM (${inputSizeMB.toFixed(1)}MB) → MP4...`);
+                        const ffmpeg = await ensureFfmpeg();
+                        const tmpInput = `/tmp/conv_${Date.now()}.webm`;
+                        
+                        // Download the small webm file
+                        const webmRes = await fetch(videoUrl);
+                        if (!webmRes.ok) throw new Error(`Download webm failed: ${webmRes.status}`);
+                        writeFileSync(tmpInput, Buffer.from(await webmRes.arrayBuffer()));
+                        
+                        execSync(`${ffmpeg} -i "${tmpInput}" -c:v libx264 -preset ultrafast -c:a aac -movflags +faststart "${tmpOutput}" -y 2>&1`, { timeout: 60000 });
+                        const mp4Buffer = readFileSync(tmpOutput);
+                        console.log(`[VideoCron] Converted: ${inputSizeMB.toFixed(1)}MB WebM → ${(mp4Buffer.length / 1024 / 1024).toFixed(1)}MB MP4`);
+                        
+                        try { unlinkSync(tmpInput); } catch {}
+                        try { unlinkSync(tmpOutput); } catch {}
+
+                        // Store converted mp4 to Supabase Storage
+                        const mp4FileName = `videos/converted_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.mp4`;
+                        const { error: uploadError } = await supabase.storage
+                            .from('social-media')
+                            .upload(mp4FileName, mp4Buffer, { contentType: 'video/mp4', upsert: false });
+                        if (uploadError) throw new Error(`Storage upload: ${uploadError.message}`);
+
+                        const { data: urlData } = supabase.storage
+                            .from('social-media')
+                            .getPublicUrl(mp4FileName);
+
+                        await supabase.from('social_video_queue')
+                            .update({ status: 'compressed', compressed_video_url: urlData.publicUrl })
+                            .eq('id', video.id);
+                        results.push({ id: video.id, action: 'converted_webm_to_mp4', outputMB: (mp4Buffer.length / 1024 / 1024).toFixed(1) });
+                    } else {
+                        // Already mp4/mov and small — use directly
+                        console.log(`[VideoCron] File small enough (${inputSizeMB.toFixed(1)}MB MP4), skipping.`);
+                        await supabase.from('social_video_queue')
+                            .update({ status: 'compressed', compressed_video_url: videoUrl })
+                            .eq('id', video.id);
+                        results.push({ id: video.id, action: 'compressed_skip', sizeMB: inputSizeMB.toFixed(1) });
+                    }
                 }
             } catch (err: any) {
                 console.error(`[VideoCron] Compression error:`, err);
