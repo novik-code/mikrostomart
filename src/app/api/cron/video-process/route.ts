@@ -218,13 +218,30 @@ export async function GET(req: NextRequest) {
                     execSync(`curl -sL -o "${tmpInput}" "${videoUrl}"`, { timeout: 200000 });
                     console.log(`[VideoCron] Downloaded in ${((Date.now() - dlStart) / 1000).toFixed(0)}s`);
 
-                    // Compress with ffmpeg
+                    // Compress with ffmpeg — capture stderr for diagnostics
                     console.log(`[VideoCron] Compressing...`);
                     const compStart = Date.now();
-                    execSync(
-                        `"${ffmpeg}" -i "${tmpInput}" -c:v libx264 -preset ultrafast -crf 28 -c:a aac -b:a 128k -movflags +faststart "${tmpOutput}" -y 2>&1 | tail -5`,
-                        { timeout: 80000 }
-                    );
+                    try {
+                        // Test ffmpeg binary first
+                        const ver = execSync(`"${ffmpeg}" -version 2>&1 | head -1`, { timeout: 5000 }).toString().trim();
+                        console.log(`[VideoCron] ffmpeg: ${ver}`);
+                    } catch (e: any) {
+                        console.error(`[VideoCron] ffmpeg test failed:`, e.message?.slice(0, 200));
+                        throw new Error(`ffmpeg binary broken: ${e.message?.slice(0, 100)}`);
+                    }
+                    
+                    try {
+                        execSync(
+                            `"${ffmpeg}" -i "${tmpInput}" -c:v libx264 -preset ultrafast -crf 28 -c:a aac -b:a 128k -movflags +faststart "${tmpOutput}" -y 2>/tmp/ffmpeg_err.log`,
+                            { timeout: 120000 }
+                        );
+                    } catch (ffErr: any) {
+                        let errLog = '';
+                        try { errLog = readFileSync('/tmp/ffmpeg_err.log', 'utf-8').slice(-500); } catch {}
+                        console.error(`[VideoCron] ffmpeg FAILED. stderr:`, errLog);
+                        try { unlinkSync(tmpInput); } catch {}
+                        throw new Error(`ffmpeg: ${errLog.slice(-200) || ffErr.message?.slice(0, 200)}`);
+                    }
                     // Delete raw immediately to free space for readFileSync
                     try { unlinkSync(tmpInput); } catch {}
                     
