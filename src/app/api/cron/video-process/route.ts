@@ -1,12 +1,10 @@
 /**
  * GET /api/cron/video-process
  * 
- * Cron: processes uploaded videos through the AI pipeline.
- * 
- * Pipeline (one step per cron run):
+ * Pipeline steps (one per cron run):
  *   1: uploaded    → transcribed   (Whisper)
  *   2: transcribed → analyzed      (GPT-4o analysis + metadata)
- *   3: analyzed    → compressed    (ffmpeg compress + store to Supabase)
+ *   3: analyzed    → compressed    (curl|ffmpeg pipe + store to Supabase)
  *   4: compressed  → captioning    (submit to Captions API)
  *   5: captioning  → review        (poll + download result)
  */
@@ -23,7 +21,7 @@ import {
     checkCaptioningStatus,
     downloadCaptionedVideo,
 } from '@/lib/captionsAI';
-import { readFileSync, unlinkSync, writeFileSync, existsSync, chmodSync } from 'fs';
+import { readFileSync, unlinkSync, existsSync, readdirSync } from 'fs';
 import { execSync } from 'child_process';
 
 export const maxDuration = 300;
@@ -33,51 +31,27 @@ const supabase = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-/**
- * Get ffmpeg path. Uses ffmpeg-static (bundled via npm) — no runtime download needed.
- * Falls back to downloading from GitHub if bundled binary is missing.
- */
-function getFfmpegPath(): string {
-    // Try ffmpeg-static npm package first (bundled at build time)
+/** Clean /tmp of large leftover files to prevent ENOSPC */
+function cleanTmp() {
     try {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const ffmpegStatic = require('ffmpeg-static') as string;
-        if (ffmpegStatic && existsSync(ffmpegStatic)) {
-            return ffmpegStatic;
+        const files = readdirSync('/tmp');
+        for (const f of files) {
+            if (/\.(mp4|mov|webm|wav|mp3|raw_|out_|conv_|compress_)/.test(f)) {
+                try { unlinkSync(`/tmp/${f}`); } catch {}
+            }
         }
     } catch {}
-
-    // Check /tmp cache
-    if (existsSync('/tmp/ffmpeg')) return '/tmp/ffmpeg';
-
-    throw new Error('ffmpeg not available');
 }
 
-/**
- * Download ffmpeg to /tmp as fallback (called asynchronously in background)
- */
-async function downloadFfmpegFallback(): Promise<string> {
+/** Get ffmpeg path from npm package or /tmp */
+function getFfmpegPath(): string {
+    try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const p = require('ffmpeg-static') as string;
+        if (p && existsSync(p)) return p;
+    } catch {}
     if (existsSync('/tmp/ffmpeg')) return '/tmp/ffmpeg';
-    
-    console.log('[VideoCron] Downloading ffmpeg fallback...');
-    const urls = [
-        'https://github.com/eugeneware/ffmpeg-static/releases/download/b6.0/linux-x64',
-        'https://github.com/eugeneware/ffmpeg-static/releases/download/b5.0.2/linux-x64',
-    ];
-    
-    for (const url of urls) {
-        try {
-            const res = await fetch(url, { redirect: 'follow' });
-            if (!res.ok) continue;
-            const buffer = Buffer.from(await res.arrayBuffer());
-            if (buffer[0] === 0x7F && buffer[1] === 0x45) {
-                writeFileSync('/tmp/ffmpeg', buffer);
-                chmodSync('/tmp/ffmpeg', 0o755);
-                return '/tmp/ffmpeg';
-            }
-        } catch {}
-    }
-    throw new Error('Could not download ffmpeg');
+    throw new Error('ffmpeg not available');
 }
 
 export async function GET(req: NextRequest) {
@@ -91,11 +65,11 @@ export async function GET(req: NextRequest) {
         }
     }
 
+    // Clean leftover files from previous runs (ENOSPC prevention)
+    cleanTmp();
+
     try {
         const results: any[] = [];
-
-        // Start background ffmpeg download (for fallback if npm binary missing)
-        const ffmpegFallback = downloadFfmpegFallback().catch(() => null);
 
         // ═══════════════════════════════════════════
         // STEP 1: Transcribe (uploaded → transcribed)
@@ -184,7 +158,10 @@ export async function GET(req: NextRequest) {
 
         // ═══════════════════════════════════════════
         // STEP 3: Compress (analyzed → compressed)
-        // Uses ffmpeg-static (bundled) — no download needed
+        // 
+        // STRATEGY: Pipe curl directly to ffmpeg — NO intermediate file.
+        // This way only the compressed output (~10MB) touches /tmp.
+        // Prevents ENOSPC on 512MB /tmp with 217MB input.
         // ═══════════════════════════════════════════
         const { data: analyzed } = await supabase
             .from('social_video_queue')
@@ -203,48 +180,33 @@ export async function GET(req: NextRequest) {
                     .update({ status: 'generating' })
                     .eq('id', video.id);
 
+                // Clean /tmp again right before compression
+                cleanTmp();
+
                 const videoUrl = video.raw_video_url;
                 const isMp4OrMov = /\.(mp4|m4v|mov)(\?|$)/i.test(videoUrl);
 
                 if (inputSizeMB <= 48 && isMp4OrMov) {
                     // Small MP4/MOV — skip compression
-                    console.log(`[VideoCron] Small (${inputSizeMB.toFixed(1)}MB), skipping.`);
                     await supabase.from('social_video_queue')
                         .update({ status: 'compressed', compressed_video_url: videoUrl })
                         .eq('id', video.id);
                     results.push({ id: video.id, action: 'compressed_skip' });
                 } else {
-                    // Get ffmpeg (bundled via npm, instant)
-                    let ffmpeg: string;
-                    try {
-                        ffmpeg = getFfmpegPath();
-                    } catch {
-                        // Wait for fallback download
-                        const fallback = await ffmpegFallback;
-                        if (!fallback) throw new Error('ffmpeg not available — retry will use cached binary');
-                        ffmpeg = fallback;
-                    }
-
-                    const tmpInput = `/tmp/raw_${Date.now()}.mp4`;
+                    const ffmpeg = getFfmpegPath();
                     const tmpOutput = `/tmp/out_${Date.now()}.mp4`;
 
-                    // Download video with curl (streams to disk, memory-efficient)
-                    console.log(`[VideoCron] Downloading ${inputSizeMB.toFixed(1)}MB...`);
-                    const dlStart = Date.now();
-                    execSync(`curl -sL -o "${tmpInput}" "${videoUrl}"`, { timeout: 200000 });
-                    console.log(`[VideoCron] Downloaded in ${((Date.now() - dlStart) / 1000).toFixed(0)}s`);
-
-                    // Compress with ffmpeg
-                    console.log(`[VideoCron] Compressing...`);
-                    const compStart = Date.now();
+                    // Pipe curl output directly to ffmpeg — no 217MB temp file!
+                    // ffmpeg reads from stdin (pipe:0), writes compressed to output file
+                    console.log(`[VideoCron] Pipe-compressing ${inputSizeMB.toFixed(1)}MB...`);
+                    const start = Date.now();
                     execSync(
-                        `"${ffmpeg}" -i "${tmpInput}" -c:v libx264 -preset ultrafast -crf 28 -c:a aac -b:a 128k -movflags +faststart "${tmpOutput}" -y 2>&1 | tail -5`,
-                        { timeout: 80000 }
+                        `curl -sL "${videoUrl}" | "${ffmpeg}" -i pipe:0 -c:v libx264 -preset ultrafast -crf 28 -c:a aac -b:a 128k "${tmpOutput}" -y 2>&1 | tail -3`,
+                        { timeout: 280000 }
                     );
                     const compressedBuffer = readFileSync(tmpOutput);
                     const outputMB = compressedBuffer.length / (1024 * 1024);
-                    console.log(`[VideoCron] ${inputSizeMB.toFixed(1)}MB → ${outputMB.toFixed(1)}MB in ${((Date.now() - compStart) / 1000).toFixed(0)}s`);
-                    try { unlinkSync(tmpInput); } catch {}
+                    console.log(`[VideoCron] ${inputSizeMB.toFixed(1)}MB → ${outputMB.toFixed(1)}MB in ${((Date.now() - start) / 1000).toFixed(0)}s`);
                     try { unlinkSync(tmpOutput); } catch {}
 
                     // Upload compressed to Supabase Storage
@@ -262,10 +224,11 @@ export async function GET(req: NextRequest) {
                 }
             } catch (err: any) {
                 console.error(`[VideoCron] Compression error:`, err);
+                cleanTmp(); // Clean up after failure
                 await supabase.from('social_video_queue')
-                    .update({ status: 'failed', error_message: `Step3: ${err.message}`, retry_count: (video.retry_count || 0) + 1 })
+                    .update({ status: 'failed', error_message: `Step3: ${err.message?.slice(0, 200)}`, retry_count: (video.retry_count || 0) + 1 })
                     .eq('id', video.id);
-                results.push({ id: video.id, action: 'failed', error: err.message });
+                results.push({ id: video.id, action: 'failed', error: err.message?.slice(0, 100) });
             }
         }
 
@@ -288,9 +251,8 @@ export async function GET(req: NextRequest) {
                 if (!res.ok) throw new Error(`Download failed: ${res.status}`);
                 const buffer = Buffer.from(await res.arrayBuffer());
                 const sizeMB = buffer.length / (1024 * 1024);
-                console.log(`[VideoCron] Downloaded for submission: ${sizeMB.toFixed(1)}MB`);
 
-                if (sizeMB > 50) throw new Error(`Still too large: ${sizeMB.toFixed(1)}MB (max 50MB)`);
+                if (sizeMB > 50) throw new Error(`Too large: ${sizeMB.toFixed(1)}MB (max 50MB)`);
 
                 await supabase.from('social_video_queue')
                     .update({ status: 'captioning' })
