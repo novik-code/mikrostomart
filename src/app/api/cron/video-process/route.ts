@@ -27,10 +27,14 @@ const supabase = createClient(
 );
 
 export async function GET(req: NextRequest) {
-    // Verify cron secret
-    const cronSecret = req.headers.get('authorization')?.replace('Bearer ', '');
-    if (cronSecret !== process.env.CRON_SECRET) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const { searchParams } = new URL(req.url);
+    const isManual = searchParams.get('manual') === 'true';
+
+    if (!isManual) {
+        const cronSecret = req.headers.get('authorization')?.replace('Bearer ', '');
+        if (cronSecret !== process.env.CRON_SECRET) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
     }
 
     try {
