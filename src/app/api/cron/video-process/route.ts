@@ -183,13 +183,13 @@ export async function GET(req: NextRequest) {
 
                         await supabase.from('social_video_queue')
                             .update({
-                                status: 'ready',
+                                status: 'review',
                                 processed_video_url: urlData.publicUrl,
                                 processed_at: new Date().toISOString(),
                             })
                             .eq('id', video.id);
 
-                        results.push({ id: video.id, action: 'render_complete' });
+                        results.push({ id: video.id, action: 'render_complete_awaiting_review' });
 
                     } else if (renderStatus.status === 'failed') {
                         await supabase.from('social_video_queue')
@@ -209,65 +209,10 @@ export async function GET(req: NextRequest) {
             }
         }
 
-        // ── Step 3: Auto-publish 'ready' videos ──
-        const { data: ready } = await supabase
-            .from('social_video_queue')
-            .select('*')
-            .eq('status', 'ready');
-
-        if (ready) {
-            for (const video of ready) {
-                try {
-                    console.log(`[VideoCron] Auto-publishing video ${video.id}`);
-
-                    await supabase.from('social_video_queue')
-                        .update({ status: 'publishing' })
-                        .eq('id', video.id);
-
-                    // Create social_post for publishing
-                    const { data: post, error: postErr } = await supabase
-                        .from('social_posts')
-                        .insert({
-                            status: 'approved',
-                            platform_ids: video.target_platform_ids || [],
-                            content_type: 'video_short',
-                            text_content: video.descriptions?.youtube || video.title || '',
-                            hashtags: video.hashtags || [],
-                            video_url: video.processed_video_url || video.raw_video_url,
-                            ai_model: 'gpt-4o + whisper + shotstack',
-                            ai_prompt_used: `Auto-generated from video upload ${video.id}`,
-                        })
-                        .select()
-                        .single();
-
-                    if (postErr || !post) throw new Error(`Failed to create post: ${postErr?.message}`);
-
-                    // Publish to all platforms
-                    const publishResults = await publishPost(post.id);
-
-                    await supabase.from('social_video_queue')
-                        .update({
-                            status: 'done',
-                            social_post_id: post.id,
-                            publish_results: publishResults,
-                            published_at: new Date().toISOString(),
-                        })
-                        .eq('id', video.id);
-
-                    results.push({ id: video.id, action: 'published', results: publishResults });
-
-                } catch (err: any) {
-                    console.error(`[VideoCron] Publish error for ${video.id}:`, err);
-                    await supabase.from('social_video_queue')
-                        .update({
-                            status: 'failed',
-                            error_message: `Publish: ${err.message}`,
-                        })
-                        .eq('id', video.id);
-                    results.push({ id: video.id, action: 'publish_failed', error: err.message });
-                }
-            }
-        }
+        // ── Step 3: Manual review required ──
+        // Videos go to 'review' status after rendering.
+        // User reviews in /admin/video, can approve or re-render with notes.
+        // Publishing only happens after manual approval.
 
         return NextResponse.json({
             success: true,
