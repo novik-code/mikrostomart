@@ -17,20 +17,33 @@ interface VideoQueueItem {
     raw_video_size: number | null;
     created_at: string;
     published_at: string | null;
+    retry_count: number | null;
+    captions_video_id: string | null;
 }
 
 // ── Status Config ──────────────────────────────────────────────────
-const STATUS_CONFIG: Record<string, { label: string; emoji: string; color: string }> = {
-    uploaded:     { label: "Przesłano",      emoji: "📤", color: "#6b7280" },
-    transcribing: { label: "Transkrypcja",   emoji: "🎤", color: "#8b5cf6" },
-    analyzing:    { label: "Analiza AI",     emoji: "🧠", color: "#3b82f6" },
-    generating:   { label: "Generowanie",    emoji: "✍️", color: "#06b6d4" },
-    rendering:    { label: "Obróbka wideo",  emoji: "🎬", color: "#f59e0b" },
-    ready:        { label: "Gotowe",         emoji: "✅", color: "#10b981" },
-    publishing:   { label: "Publikowanie",   emoji: "📤", color: "#6366f1" },
-    done:         { label: "Opublikowano",   emoji: "🎉", color: "#22c55e" },
-    failed:       { label: "Błąd",           emoji: "❌", color: "#ef4444" },
+const STATUS_CONFIG: Record<string, { label: string; emoji: string; color: string; step: number; desc: string }> = {
+    uploaded:     { label: "Przesłano",        emoji: "📤", color: "#6b7280", step: 0, desc: "Wideo czeka na przetworzenie" },
+    transcribing: { label: "Transkrypcja",    emoji: "🎤", color: "#8b5cf6", step: 1, desc: "Wyciąganie audio i rozpoznawanie mowy..." },
+    transcribed:  { label: "Transkrypcja OK", emoji: "✅", color: "#8b5cf6", step: 1, desc: "Transkrypcja gotowa, czeka na analizę AI" },
+    analyzing:    { label: "Analiza AI",      emoji: "🧠", color: "#3b82f6", step: 2, desc: "GPT-4o analizuje treść wideo..." },
+    generating:   { label: "Metadane",        emoji: "✍️", color: "#06b6d4", step: 2, desc: "Generowanie opisów, hashtagów, tytułu..." },
+    captioning:   { label: "Napisy",          emoji: "🎬", color: "#f59e0b", step: 3, desc: "Captions AI dodaje profesjonalne napisy..." },
+    review:       { label: "Do przeglądu",    emoji: "👁️", color: "#a855f7", step: 4, desc: "Gotowe — sprawdź i zatwierdź" },
+    ready:        { label: "Zatwierdzone",    emoji: "✅", color: "#10b981", step: 4, desc: "Zatwierdzone, gotowe do publikacji" },
+    publishing:   { label: "Publikowanie",    emoji: "📤", color: "#6366f1", step: 5, desc: "Publikowanie na platformy..." },
+    done:         { label: "Opublikowano",    emoji: "🎉", color: "#22c55e", step: 5, desc: "Opublikowane na wszystkich platformach" },
+    failed:       { label: "Błąd",            emoji: "❌", color: "#ef4444", step: -1, desc: "Wystąpił błąd" },
 };
+
+// Pipeline steps for progress tracker
+const PIPELINE_STEPS = [
+    { label: "Upload", emoji: "📤" },
+    { label: "Transkrypcja", emoji: "🎤" },
+    { label: "Analiza AI", emoji: "🧠" },
+    { label: "Napisy", emoji: "🎬" },
+    { label: "Przegląd", emoji: "👁️" },
+];
 
 export default function VideoPage() {
     const [videos, setVideos] = useState<VideoQueueItem[]>([]);
@@ -40,6 +53,7 @@ export default function VideoPage() {
     const [selectedVideo, setSelectedVideo] = useState<VideoQueueItem | null>(null);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [previewFile, setPreviewFile] = useState<File | null>(null);
+    const [triggerLoading, setTriggerLoading] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // ── Load videos ─────────────────────────────────────────────────
@@ -187,7 +201,7 @@ export default function VideoPage() {
         }
     };
 
-    // ── Retry failed video ──────────────────────────────────────────
+    // ── Retry / Reset video ──────────────────────────────────────────
     const handleRetry = async (id: string) => {
         try {
             await fetch("/api/social/video-upload", {
@@ -198,6 +212,21 @@ export default function VideoPage() {
             await loadVideos();
         } catch (err) {
             console.error("Retry error:", err);
+        }
+    };
+
+    // ── Trigger next step manually ──────────────────────────────────
+    const handleTriggerStep = async (id: string) => {
+        setTriggerLoading(id);
+        try {
+            const res = await fetch("/api/cron/video-process?manual=true");
+            const data = await res.json();
+            console.log("Cron result:", data);
+            await loadVideos();
+        } catch (err) {
+            console.error("Trigger error:", err);
+        } finally {
+            setTriggerLoading(null);
         }
     };
 
@@ -234,7 +263,10 @@ export default function VideoPage() {
     };
 
     const isProcessing = (status: string) =>
-        ["uploaded", "transcribing", "analyzing", "generating", "rendering", "publishing"].includes(status);
+        ["uploaded", "transcribing", "transcribed", "analyzing", "generating", "captioning"].includes(status);
+
+    const canTrigger = (status: string) =>
+        ["uploaded", "transcribed", "captioning"].includes(status);
 
     // ── Render ──────────────────────────────────────────────────────
     return (
@@ -496,8 +528,26 @@ export default function VideoPage() {
                                         </div>
                                     </div>
 
-                                    {/* Retry (failed only) + Delete */}
+                                    {/* Actions: Trigger / Retry / Delete */}
                                     <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                                        {canTrigger(video.status) && (
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); handleTriggerStep(video.id); }}
+                                                disabled={triggerLoading === video.id}
+                                                style={{
+                                                    background: "none",
+                                                    border: "none",
+                                                    color: "#FFD700",
+                                                    fontSize: 18,
+                                                    cursor: triggerLoading === video.id ? "wait" : "pointer",
+                                                    padding: 4,
+                                                    opacity: triggerLoading === video.id ? 0.5 : 1,
+                                                }}
+                                                title="Uruchom następny krok"
+                                            >
+                                                {triggerLoading === video.id ? "⏳" : "▶️"}
+                                            </button>
+                                        )}
                                         {video.status === "failed" && (
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); handleRetry(video.id); }}
@@ -509,7 +559,7 @@ export default function VideoPage() {
                                                     cursor: "pointer",
                                                     padding: 4,
                                                 }}
-                                                title="Ponów"
+                                                title="Ponów od początku"
                                             >
                                                 🔄
                                             </button>
@@ -537,6 +587,70 @@ export default function VideoPage() {
                                         paddingTop: 14,
                                         borderTop: "1px solid rgba(255,255,255,0.06)",
                                     }}>
+                                        {/* Pipeline Progress Tracker */}
+                                        <div style={{ marginBottom: 14 }}>
+                                            <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
+                                                {PIPELINE_STEPS.map((step, i) => {
+                                                    const currentStep = statusConfig.step;
+                                                    const isDone = currentStep > i;
+                                                    const isActive = currentStep === i;
+                                                    const isFailed = video.status === "failed";
+                                                    return (
+                                                        <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center" }}>
+                                                            <div style={{
+                                                                width: "100%",
+                                                                height: 4,
+                                                                borderRadius: 2,
+                                                                background: isDone ? "#10b981" : isActive ? (isFailed ? "#ef4444" : "#FFD700") : "rgba(255,255,255,0.08)",
+                                                                transition: "background 0.3s",
+                                                            }} />
+                                                            <span style={{
+                                                                fontSize: 9,
+                                                                marginTop: 3,
+                                                                color: isDone ? "#10b981" : isActive ? "#FFD700" : "#555",
+                                                                fontWeight: isActive ? 700 : 400,
+                                                                whiteSpace: "nowrap",
+                                                            }}>
+                                                                {step.emoji} {step.label}
+                                                            </span>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                            <p style={{ fontSize: 12, color: "#aaa", margin: "8px 0 0", textAlign: "center" }}>
+                                                {statusConfig.desc}
+                                            </p>
+                                            {video.retry_count && video.retry_count > 0 && (
+                                                <p style={{ fontSize: 10, color: "#f59e0b", margin: "4px 0 0", textAlign: "center" }}>
+                                                    Próba {video.retry_count}/3
+                                                </p>
+                                            )}
+                                        </div>
+
+                                        {/* Manual trigger button */}
+                                        {canTrigger(video.status) && (
+                                            <button
+                                                onClick={() => handleTriggerStep(video.id)}
+                                                disabled={triggerLoading === video.id}
+                                                style={{
+                                                    width: "100%",
+                                                    padding: "12px 16px",
+                                                    background: triggerLoading === video.id
+                                                        ? "rgba(255,215,0,0.1)"
+                                                        : "linear-gradient(135deg, rgba(255,215,0,0.15), rgba(255,165,0,0.15))",
+                                                    border: "1px solid rgba(255,215,0,0.3)",
+                                                    borderRadius: 10,
+                                                    color: "#FFD700",
+                                                    fontSize: 13,
+                                                    fontWeight: 700,
+                                                    cursor: triggerLoading === video.id ? "wait" : "pointer",
+                                                    marginBottom: 10,
+                                                }}
+                                            >
+                                                {triggerLoading === video.id ? "⏳ Przetwarzanie..." : "▶️ Uruchom następny krok"}
+                                            </button>
+                                        )}
+
                                         {video.error_message && (
                                             <div style={{
                                                 padding: "10px 12px",
