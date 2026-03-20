@@ -128,11 +128,17 @@ export default function VideoPage() {
                 }
 
                 const chunks: Blob[] = [];
+                // Prefer MP4 output (Chrome 126+), fallback to WebM
+                const mp4Types = ['video/mp4;codecs=avc1,mp4a.40.2', 'video/mp4;codecs=avc1', 'video/mp4'];
+                const webmTypes = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp9', 'video/webm'];
+                const allTypes = [...mp4Types, ...webmTypes];
+                const mimeType = allTypes.find(t => MediaRecorder.isTypeSupported(t)) || 'video/webm';
+                const isMp4 = mimeType.startsWith('video/mp4');
+                console.log(`[Compress] Using: ${mimeType} (isMp4=${isMp4})`);
+
                 const recorder = new MediaRecorder(stream, {
-                    mimeType: MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
-                        ? 'video/webm;codecs=vp9'
-                        : 'video/webm',
-                    videoBitsPerSecond: 2_000_000, // 2 Mbps → ~9MB per 36s
+                    mimeType,
+                    videoBitsPerSecond: 2_000_000,
                 });
 
                 recorder.ondataavailable = (e) => {
@@ -141,9 +147,11 @@ export default function VideoPage() {
 
                 recorder.onstop = () => {
                     URL.revokeObjectURL(video.src);
-                    const blob = new Blob(chunks, { type: 'video/webm' });
-                    const compressedFile = new File([blob], file.name.replace(/\.\w+$/, '.webm'), { type: 'video/webm' });
-                    console.log(`Compressed: ${(file.size / 1024 / 1024).toFixed(1)}MB → ${(compressedFile.size / 1024 / 1024).toFixed(1)}MB`);
+                    const outType = isMp4 ? 'video/mp4' : 'video/webm';
+                    const outExt = isMp4 ? '.mp4' : '.webm';
+                    const blob = new Blob(chunks, { type: outType });
+                    const compressedFile = new File([blob], file.name.replace(/\.\w+$/, outExt), { type: outType });
+                    console.log(`Compressed: ${(file.size / 1024 / 1024).toFixed(1)}MB → ${(compressedFile.size / 1024 / 1024).toFixed(1)}MB (${outType})`);
                     resolve(compressedFile);
                 };
 
