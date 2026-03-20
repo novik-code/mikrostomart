@@ -591,7 +591,9 @@ export default function VideoPage() {
 
                                 {/* Expanded details */}
                                 {selectedVideo?.id === video.id && (
-                                    <div style={{
+                                    <div
+                                        onClick={(e) => e.stopPropagation()}
+                                        style={{
                                         marginTop: 14,
                                         paddingTop: 14,
                                         borderTop: "1px solid rgba(255,255,255,0.06)",
