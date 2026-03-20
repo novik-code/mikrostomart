@@ -1,10 +1,10 @@
 /**
- * POST /api/cron/video-process
+ * GET /api/cron/video-process
  * 
  * Cron job that processes uploaded videos through the AI pipeline.
  * Called every 5 minutes by Vercel Cron.
  * 
- * Pipeline: uploaded → transcribing → analyzing → generating → rendering → ready → publishing → done
+ * Pipeline: uploaded → transcribing → analyzing → generating → captioning → review
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -13,11 +13,15 @@ import {
     transcribeVideo,
     analyzeVideoContent,
     generateVideoMetadata,
-    buildShotstackTimeline,
-    renderWithShotstack,
-    checkShotstackRender,
 } from '@/lib/videoAI';
-import { publishPost } from '@/lib/socialPublish';
+import {
+    submitForCaptioning,
+    checkCaptioningStatus,
+    downloadCaptionedVideo,
+} from '@/lib/captionsAI';
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'fs';
+import { execSync } from 'child_process';
+import path from 'path';
 
 export const maxDuration = 300; // 5 min max
 
@@ -25,6 +29,77 @@ const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
+
+/**
+ * Download ffmpeg binary to /tmp if not cached (same approach as videoAI.ts)
+ */
+async function ensureFfmpeg(): Promise<string> {
+    const ffmpegBinPath = '/tmp/ffmpeg';
+    
+    if (!existsSync(ffmpegBinPath)) {
+        console.log('[VideoCron] Downloading ffmpeg binary...');
+        const urls = [
+            'https://github.com/eugeneware/ffmpeg-static/releases/download/b6.0/linux-x64',
+            'https://github.com/eugeneware/ffmpeg-static/releases/download/b5.0.2/linux-x64',
+            'https://github.com/eugeneware/ffmpeg-static/releases/download/b4.4/linux-x64',
+        ];
+        
+        for (const url of urls) {
+            try {
+                const res = await fetch(url, { redirect: 'follow' });
+                if (!res.ok) continue;
+                const buffer = Buffer.from(await res.arrayBuffer());
+                if (buffer[0] === 0x7F && buffer[1] === 0x45 && buffer[2] === 0x4C && buffer[3] === 0x46) {
+                    writeFileSync(ffmpegBinPath, buffer);
+                    execSync(`chmod +x "${ffmpegBinPath}"`, { timeout: 5000 });
+                    console.log('[VideoCron] ffmpeg ready');
+                    return ffmpegBinPath;
+                }
+            } catch {}
+        }
+        throw new Error('Could not download ffmpeg');
+    }
+    
+    return ffmpegBinPath;
+}
+
+/**
+ * Compress video to under 50MB for Captions API
+ */
+async function compressVideoForCaptions(inputPath: string): Promise<string> {
+    const ffmpeg = await ensureFfmpeg();
+    const outputPath = inputPath.replace(/\.[^.]+$/, '_compressed.mp4');
+    
+    // Get input file size
+    const inputSize = readFileSync(inputPath).length;
+    const inputSizeMB = inputSize / (1024 * 1024);
+    
+    if (inputSizeMB <= 48) {
+        console.log(`[VideoCron] Video already under 50MB (${inputSizeMB.toFixed(1)}MB), skipping compression`);
+        // Still convert to MP4 if it's MOV
+        if (inputPath.endsWith('.mov')) {
+            execSync(
+                `${ffmpeg} -i "${inputPath}" -c:v libx264 -preset fast -crf 23 -c:a aac -b:a 128k -movflags +faststart "${outputPath}" -y`,
+                { timeout: 180000 }
+            );
+            return outputPath;
+        }
+        return inputPath;
+    }
+    
+    console.log(`[VideoCron] Compressing video from ${inputSizeMB.toFixed(1)}MB to <50MB...`);
+    
+    // Target ~40MB for safety margin. For 60s video: ~5.3 Mbps
+    execSync(
+        `${ffmpeg} -i "${inputPath}" -c:v libx264 -preset fast -b:v 4500k -maxrate 5500k -bufsize 11000k -c:a aac -b:a 128k -movflags +faststart -vf "scale='min(1080,iw)':'min(1920,ih)':force_original_aspect_ratio=decrease" "${outputPath}" -y`,
+        { timeout: 300000 } // 5 min timeout
+    );
+    
+    const outputSize = readFileSync(outputPath).length;
+    console.log(`[VideoCron] Compressed: ${inputSizeMB.toFixed(1)}MB → ${(outputSize / 1024 / 1024).toFixed(1)}MB`);
+    
+    return outputPath;
+}
 
 export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
@@ -40,7 +115,7 @@ export async function GET(req: NextRequest) {
     try {
         const results: any[] = [];
 
-        // ── Step 1: Process 'uploaded' videos (start transcription) ──
+        // ── Step 1: Process 'uploaded' videos ──
         const { data: uploaded } = await supabase
             .from('social_video_queue')
             .select('*')
@@ -53,11 +128,11 @@ export async function GET(req: NextRequest) {
             console.log(`[VideoCron] Processing uploaded video: ${video.id}`);
 
             try {
+                // ── Transcription ──
                 await supabase.from('social_video_queue')
                     .update({ status: 'transcribing' })
                     .eq('id', video.id);
 
-                // Transcribe
                 const transcript = await transcribeVideo(video.raw_video_url);
 
                 await supabase.from('social_video_queue')
@@ -70,7 +145,7 @@ export async function GET(req: NextRequest) {
                     })
                     .eq('id', video.id);
 
-                // Analyze content
+                // ── AI Analysis ──
                 const analysis = await analyzeVideoContent(transcript.text);
 
                 await supabase.from('social_video_queue')
@@ -80,62 +155,49 @@ export async function GET(req: NextRequest) {
                     })
                     .eq('id', video.id);
 
-                // Generate metadata
+                // ── Metadata Generation ──
                 const metadata = await generateVideoMetadata(transcript.text, analysis);
 
                 await supabase.from('social_video_queue')
                     .update({
-                        status: 'rendering',
+                        status: 'captioning',
                         title: metadata.title,
                         descriptions: metadata.descriptions,
                         hashtags: metadata.hashtags,
                     })
                     .eq('id', video.id);
 
-                // Build Shotstack timeline and render
-                // Shotstack needs a publicly accessible URL — generate a signed URL from Supabase Storage
-                const logoUrl = (process.env.LOGO_WATERMARK_URL || '').trim() || null;
+                // ── Compress & Submit to Captions API ──
+                console.log('[VideoCron] Downloading video for compression...');
+                const videoRes = await fetch(video.raw_video_url);
+                const rawBuffer = Buffer.from(await videoRes.arrayBuffer());
                 
-                let videoUrlForShotstack = (video.raw_video_url || '').trim();
-                try {
-                    // Extract storage path from the public URL
-                    const urlObj = new URL(video.raw_video_url);
-                    const storagePath = urlObj.pathname.split('/object/public/social-media/')[1] 
-                        || urlObj.pathname.split('/object/sign/social-media/')[1];
-                    
-                    if (storagePath) {
-                        const { data: signedData, error: signError } = await supabase.storage
-                            .from('social-media')
-                            .createSignedUrl(decodeURIComponent(storagePath), 3600); // 1 hour
-                        
-                        if (signedData?.signedUrl) {
-                            videoUrlForShotstack = signedData.signedUrl;
-                            console.log(`[VideoCron] Signed URL generated for Shotstack`);
-                        } else if (signError) {
-                            console.log(`[VideoCron] Signed URL error: ${signError.message}, using original URL`);
-                        }
-                    }
-                } catch (urlErr: any) {
-                    console.log(`[VideoCron] Could not create signed URL: ${urlErr.message}`);
-                }
-
-                const timeline = await buildShotstackTimeline(
-                    videoUrlForShotstack,
-                    transcript,
-                    metadata,
-                    logoUrl || undefined,
+                const ext = video.raw_video_url.includes('.mov') ? '.mov' : '.mp4';
+                const tmpInput = `/tmp/captions_input_${Date.now()}${ext}`;
+                writeFileSync(tmpInput, rawBuffer);
+                
+                const compressedPath = await compressVideoForCaptions(tmpInput);
+                const compressedBuffer = readFileSync(compressedPath);
+                
+                // Clean up input file
+                try { if (tmpInput !== compressedPath) unlinkSync(tmpInput); } catch {}
+                
+                // Submit to Captions API
+                const { videoId: captionsVideoId } = await submitForCaptioning(
+                    compressedBuffer,
+                    `video_${video.id}.mp4`,
                 );
-
-                const { renderId } = await renderWithShotstack(timeline);
+                
+                // Clean up compressed file
+                try { unlinkSync(compressedPath); } catch {}
 
                 await supabase.from('social_video_queue')
                     .update({
-                        shotstack_render_id: renderId,
-                        shotstack_config: timeline,
+                        captions_video_id: captionsVideoId,
                     })
                     .eq('id', video.id);
 
-                results.push({ id: video.id, action: 'started_pipeline', renderId });
+                results.push({ id: video.id, action: 'started_captioning', captionsVideoId });
 
             } catch (err: any) {
                 console.error(`[VideoCron] Pipeline error for ${video.id}:`, err);
@@ -150,29 +212,29 @@ export async function GET(req: NextRequest) {
             }
         }
 
-        // ── Step 2: Check 'rendering' videos (poll Shotstack) ──
-        const { data: rendering } = await supabase
+        // ── Step 2: Check 'captioning' videos (poll Captions API) ──
+        const { data: captioning } = await supabase
             .from('social_video_queue')
             .select('*')
-            .eq('status', 'rendering')
-            .not('shotstack_render_id', 'is', null);
+            .eq('status', 'captioning')
+            .not('captions_video_id', 'is', null);
 
-        if (rendering) {
-            for (const video of rendering) {
+        if (captioning) {
+            for (const video of captioning) {
                 try {
-                    const renderStatus = await checkShotstackRender(video.shotstack_render_id);
+                    const status = await checkCaptioningStatus(video.captions_video_id);
 
-                    if (renderStatus.status === 'done' && renderStatus.url) {
-                        console.log(`[VideoCron] Render complete for ${video.id}: ${renderStatus.url}`);
+                    if (status.status === 'COMPLETE') {
+                        console.log(`[VideoCron] Captions complete for ${video.id}`);
 
-                        // Download rendered video and upload to our storage
-                        const videoRes = await fetch(renderStatus.url);
-                        const videoBuffer = await videoRes.arrayBuffer();
-                        const fileName = `processed_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.mp4`;
+                        // Download captioned video
+                        const captionedBuffer = await downloadCaptionedVideo(video.captions_video_id);
+                        const fileName = `captioned_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.mp4`;
 
+                        // Upload to Supabase Storage
                         await supabase.storage
                             .from('social-media')
-                            .upload(`videos/${fileName}`, Buffer.from(videoBuffer), {
+                            .upload(`videos/${fileName}`, captionedBuffer, {
                                 contentType: 'video/mp4',
                                 upsert: false,
                             });
@@ -189,28 +251,28 @@ export async function GET(req: NextRequest) {
                             })
                             .eq('id', video.id);
 
-                        results.push({ id: video.id, action: 'render_complete_awaiting_review' });
+                        results.push({ id: video.id, action: 'captioning_complete' });
 
-                    } else if (renderStatus.status === 'failed') {
+                    } else if (status.status === 'FAILED' || status.status === 'CANCELLED') {
                         await supabase.from('social_video_queue')
                             .update({
                                 status: 'failed',
-                                error_message: `Shotstack: ${renderStatus.error}`,
+                                error_message: `Captions API: ${status.error || status.status}`,
                             })
                             .eq('id', video.id);
-                        results.push({ id: video.id, action: 'render_failed', error: renderStatus.error });
+                        results.push({ id: video.id, action: 'captioning_failed', error: status.error });
 
                     } else {
-                        results.push({ id: video.id, action: 'still_rendering', status: renderStatus.status });
+                        results.push({ id: video.id, action: 'still_captioning', status: status.status, progress: status.progress });
                     }
                 } catch (err: any) {
-                    console.error(`[VideoCron] Check render error for ${video.id}:`, err);
+                    console.error(`[VideoCron] Check captions error for ${video.id}:`, err);
                 }
             }
         }
 
         // ── Step 3: Manual review required ──
-        // Videos go to 'review' status after rendering.
+        // Videos go to 'review' status after captioning.
         // User reviews in /admin/video, can approve or re-render with notes.
         // Publishing only happens after manual approval.
 
