@@ -70,31 +70,53 @@ export async function transcribeVideo(videoUrl: string): Promise<TranscriptionRe
         console.log(`[VideoAI] Video saved to /tmp: ${(videoBuffer.length / 1024 / 1024).toFixed(1)}MB`);
 
         // Get ffmpeg binary path (bundled via vercel.json includeFiles)
-        let ffmpegBinPath: string;
-        try {
-            ffmpegBinPath = require('ffmpeg-static');
-            console.log(`[VideoAI] ffmpeg-static path: ${ffmpegBinPath}`);
+        // Get ffmpeg binary — download via fetch() to /tmp (cached between warm invocations)
+        const ffmpegBinPath = '/tmp/ffmpeg';
+        
+        if (!existsSync(ffmpegBinPath)) {
+            console.log('[VideoAI] Downloading ffmpeg binary via fetch()...');
             
-            if (!ffmpegBinPath || !existsSync(ffmpegBinPath)) {
-                throw new Error(`ffmpeg binary not found at: ${ffmpegBinPath}`);
+            // Direct binary URLs (no archive extraction needed)
+            const urls = [
+                'https://github.com/eugeneware/ffmpeg-static/releases/download/b6.0/linux-x64',
+                'https://github.com/eugeneware/ffmpeg-static/releases/download/b5.0.2/linux-x64',
+                'https://github.com/eugeneware/ffmpeg-static/releases/download/b4.4/linux-x64',
+            ];
+            
+            let downloaded = false;
+            for (const url of urls) {
+                try {
+                    console.log(`[VideoAI] Trying: ${url}`);
+                    const res = await fetch(url, { redirect: 'follow' });
+                    
+                    if (!res.ok) {
+                        console.log(`[VideoAI] HTTP ${res.status} from ${url}`);
+                        continue;
+                    }
+                    
+                    const buffer = Buffer.from(await res.arrayBuffer());
+                    console.log(`[VideoAI] Downloaded ${(buffer.length / 1024 / 1024).toFixed(1)}MB`);
+                    
+                    // Verify it's an ELF binary (not HTML error page)
+                    if (buffer[0] === 0x7F && buffer[1] === 0x45 && buffer[2] === 0x4C && buffer[3] === 0x46) {
+                        writeFileSync(ffmpegBinPath, buffer);
+                        execSync(`chmod +x "${ffmpegBinPath}"`, { timeout: 5000 });
+                        console.log('[VideoAI] ffmpeg binary ready!');
+                        downloaded = true;
+                        break;
+                    } else {
+                        console.log(`[VideoAI] Not an ELF binary (got: ${buffer.slice(0, 20).toString('utf8').substring(0, 50)})`);
+                    }
+                } catch (err: any) {
+                    console.log(`[VideoAI] Fetch failed: ${err.message}`);
+                }
             }
             
-            // Ensure execute permission
-            try { execSync(`chmod +x "${ffmpegBinPath}"`, { timeout: 5000 }); } catch {}
-        } catch (err: any) {
-            // Collect diagnostics for debugging
-            let diag = '';
-            try {
-                const files = execSync('ls -la /var/task/node_modules/ffmpeg-static/ 2>/dev/null || echo "DIR_NOT_FOUND"', { timeout: 5000 });
-                diag += `FILES: ${files.toString().trim().substring(0, 300)}`;
-            } catch {}
-            try {
-                const tools = execSync('which ffmpeg avconv sox python3 2>/dev/null || echo "NO_TOOLS"', { timeout: 5000 });
-                diag += ` | TOOLS: ${tools.toString().trim()}`;
-            } catch {}
-            diag += ` | CWD: ${process.cwd()} | NODE: ${process.version}`;
-            
-            throw new Error(`ffmpeg not available: ${err.message} | DIAG: ${diag}`);
+            if (!downloaded) {
+                throw new Error('Could not download ffmpeg from any source');
+            }
+        } else {
+            console.log('[VideoAI] Using cached ffmpeg from /tmp');
         }
         
         // Extract audio as MP3 (mono, 64kbps = very small file, perfect for speech)
