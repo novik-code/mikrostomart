@@ -76,31 +76,64 @@ export async function GET(req: NextRequest) {
         const results: any[] = [];
 
         // ═══════════════════════════════════════════
-        // STEP 0: Auto-recover stuck videos
-        // These intermediate statuses should never persist between cron runs.
-        // If found, it means a previous run timed out mid-processing.
+        // STEP 0: Smart auto-recover stuck videos
+        // Check what data already exists and skip to appropriate step
         // ═══════════════════════════════════════════
         const stuckStatuses = ['transcribing', 'analyzing', 'generating', 'rendering'];
         
         const { data: stuck } = await supabase
             .from('social_video_queue')
-            .select('id, status, retry_count')
+            .select('*')
             .in('status', stuckStatuses);
         
         if (stuck && stuck.length > 0) {
             for (const video of stuck) {
-                const retries = (video.retry_count || 0) + 1;
-                if (retries > 3) {
+                // Determine the best status to recover to based on existing data
+                let recoverTo = 'uploaded';
+                
+                if (video.captions_video_id) {
+                    // Already submitted to Captions API → just need to poll
+                    recoverTo = 'captioning';
+                } else if (video.title && video.hashtags && video.transcript) {
+                    // Has metadata + transcript → skip to captioning step
+                    recoverTo = 'transcribed';
+                } else if (video.transcript) {
+                    // Has transcript but no metadata → skip to analysis
+                    recoverTo = 'transcribed';
+                }
+                // else: no transcript → start from beginning ('uploaded')
+
+                console.log(`[VideoCron] Smart recovery: ${video.id} stuck in "${video.status}" → recovering to "${recoverTo}" (has transcript: ${!!video.transcript}, has title: ${!!video.title}, has captions_id: ${!!video.captions_video_id})`);
+
+                await supabase.from('social_video_queue')
+                    .update({ status: recoverTo, error_message: null, retry_count: 0 })
+                    .eq('id', video.id);
+                results.push({ id: video.id, action: 'smart_recovered', from: video.status, to: recoverTo });
+            }
+        }
+        
+        // Also recover 'failed' videos that have existing data (one-time fix)
+        const { data: failed } = await supabase
+            .from('social_video_queue')
+            .select('*')
+            .eq('status', 'failed')
+            .not('transcript', 'is', null);
+        
+        if (failed && failed.length > 0) {
+            for (const video of failed) {
+                let recoverTo = 'uploaded';
+                if (video.captions_video_id) {
+                    recoverTo = 'captioning';
+                } else if (video.transcript && video.title) {
+                    recoverTo = 'transcribed';
+                }
+                
+                if (recoverTo !== 'uploaded') {
+                    console.log(`[VideoCron] Recovering failed video ${video.id} → "${recoverTo}" (has data)`);
                     await supabase.from('social_video_queue')
-                        .update({ status: 'failed', error_message: `Stuck in "${video.status}" after ${retries} retries` })
+                        .update({ status: recoverTo, error_message: null, retry_count: 0 })
                         .eq('id', video.id);
-                    results.push({ id: video.id, action: 'stuck_failed', previousStatus: video.status });
-                } else {
-                    await supabase.from('social_video_queue')
-                        .update({ status: 'uploaded', error_message: null, retry_count: retries })
-                        .eq('id', video.id);
-                    results.push({ id: video.id, action: 'auto_recovered', previousStatus: video.status, retry: retries });
-                    console.log(`[VideoCron] Auto-recovered stuck video ${video.id} from "${video.status}" (retry ${retries})`);
+                    results.push({ id: video.id, action: 'failed_recovered', to: recoverTo });
                 }
             }
         }
