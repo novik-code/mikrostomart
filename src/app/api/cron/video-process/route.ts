@@ -58,13 +58,20 @@ async function ensureFfmpeg(): Promise<string> {
     // Download from GitHub (~80MB, fits in /tmp alongside output)
     console.log('[VideoCron] Downloading ffmpeg to /tmp...');
     const start = Date.now();
+    // IMPORTANT: asset name is "ffmpeg-linux-x64", NOT "linux-x64"
     execSync(
-        'curl -sL -o /tmp/ffmpeg "https://github.com/eugeneware/ffmpeg-static/releases/download/b6.0/linux-x64" && chmod +x /tmp/ffmpeg',
+        'curl -sL -o /tmp/ffmpeg "https://github.com/eugeneware/ffmpeg-static/releases/download/b6.1.1/ffmpeg-linux-x64" && chmod +x /tmp/ffmpeg',
         { timeout: 120000 }
     );
     console.log(`[VideoCron] ffmpeg downloaded in ${((Date.now() - start) / 1000).toFixed(0)}s`);
     
-    if (!existsSync('/tmp/ffmpeg')) throw new Error('ffmpeg download failed');
+    // Validate it's actually an ELF binary, not a 404 page
+    const header = readFileSync('/tmp/ffmpeg', { encoding: null }).subarray(0, 4);
+    if (header[0] !== 0x7F || header[1] !== 0x45 || header[2] !== 0x4C || header[3] !== 0x46) {
+        unlinkSync('/tmp/ffmpeg');
+        throw new Error('Downloaded ffmpeg is not a valid ELF binary');
+    }
+    
     return '/tmp/ffmpeg';
 }
 
