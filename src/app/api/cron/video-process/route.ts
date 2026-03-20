@@ -194,17 +194,38 @@ export async function GET(req: NextRequest) {
                 const tmpOutput = `/tmp/compress_${Date.now()}_out.mp4`;
 
                 if (inputSizeMB > 48) {
-                    // Large file: stream through ffmpeg directly from URL
+                    // Large file: download with curl (streaming, no Node.js memory), then compress locally
                     const ffmpeg = await ensureFfmpeg();
-                    console.log(`[VideoCron] Streaming ${inputSizeMB.toFixed(1)}MB through ffmpeg...`);
-                    const start = Date.now();
-                    execSync(
-                        `${ffmpeg} -i "${videoUrl}" -c:v libx264 -preset ultrafast -b:v 4500k -maxrate 5500k -bufsize 11000k -c:a aac -b:a 128k -movflags +faststart "${tmpOutput}" -y 2>/dev/null`,
-                        { timeout: 240000 }
-                    );
+                    const tmpInput = `/tmp/raw_${Date.now()}.mp4`;
+                    
+                    // Step A: Download with curl (streams to disk, fast)
+                    console.log(`[VideoCron] Downloading ${inputSizeMB.toFixed(1)}MB with curl...`);
+                    const dlStart = Date.now();
+                    execSync(`curl -sL -o "${tmpInput}" "${videoUrl}"`, { timeout: 120000 });
+                    const dlTime = ((Date.now() - dlStart) / 1000).toFixed(0);
+                    console.log(`[VideoCron] Downloaded in ${dlTime}s`);
+                    
+                    // Step B: Compress with ffmpeg (local file, fast)
+                    console.log(`[VideoCron] Compressing with ffmpeg...`);
+                    const compStart = Date.now();
+                    try {
+                        execSync(
+                            `${ffmpeg} -i "${tmpInput}" -c:v libx264 -preset ultrafast -crf 28 -c:a aac -b:a 96k -movflags +faststart "${tmpOutput}" -y 2>&1`,
+                            { timeout: 120000 }
+                        );
+                    } catch (ffmpegErr: any) {
+                        // Log ffmpeg stderr for debugging
+                        console.error(`[VideoCron] ffmpeg error output:`, ffmpegErr.stdout?.toString()?.slice(-500) || ffmpegErr.message);
+                        try { unlinkSync(tmpInput); } catch {}
+                        throw new Error(`ffmpeg compression failed: ${ffmpegErr.message?.slice(0, 200)}`);
+                    }
+                    const compTime = ((Date.now() - compStart) / 1000).toFixed(0);
+                    
                     const compressedBuffer = readFileSync(tmpOutput);
                     const outputSizeMB = compressedBuffer.length / (1024 * 1024);
-                    console.log(`[VideoCron] Compressed: ${inputSizeMB.toFixed(1)}MB → ${outputSizeMB.toFixed(1)}MB in ${((Date.now() - start) / 1000).toFixed(0)}s`);
+                    console.log(`[VideoCron] Compressed: ${inputSizeMB.toFixed(1)}MB → ${outputSizeMB.toFixed(1)}MB in ${compTime}s`);
+                    
+                    try { unlinkSync(tmpInput); } catch {}
                     try { unlinkSync(tmpOutput); } catch {}
 
                     // Store compressed video to Supabase Storage
