@@ -4,12 +4,14 @@
  * Cron job that processes uploaded videos through the AI pipeline.
  * Called every 5 minutes by Vercel Cron.
  * 
- * Pipeline split into separate cron runs to avoid Vercel 300s timeout:
- *   Run 1: uploaded    → transcribed       (Whisper transcription)
- *   Run 2: transcribed → analyzed          (GPT-4o analysis + metadata)
- *   Run 3: analyzed    → compressed        (ffmpeg download+compress + store to Supabase)
- *   Run 4: compressed  → captioning        (read compressed + submit to Captions API)
- *   Run 5: captioning  → review            (poll Captions API + download result)
+ * Pipeline steps (one per cron run):
+ *   Step 1: uploaded    → transcribed       (Whisper transcription)
+ *   Step 2: transcribed → analyzed          (GPT-4o analysis + metadata)
+ *   Step 3: analyzed    → compressed        (ffmpeg download+compress + store to Supabase)
+ *   Step 4: compressed  → captioning        (read compressed + submit to Captions API)
+ *   Step 5: captioning  → review            (poll Captions API + download result)
+ * 
+ * ffmpeg is pre-cached to /tmp/ffmpeg on first run. Subsequent runs skip download.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -27,7 +29,7 @@ import {
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'fs';
 import { execSync } from 'child_process';
 
-export const maxDuration = 300; // 5 min max
+export const maxDuration = 300;
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -76,6 +78,10 @@ export async function GET(req: NextRequest) {
 
     try {
         const results: any[] = [];
+
+        // Pre-cache ffmpeg binary (runs in background, cached for Step 3)
+        // Don't await — let it download while other steps run
+        const ffmpegPromise = ensureFfmpeg().catch(() => null);
 
         // ═══════════════════════════════════════════
         // STEP 1: Transcribe (uploaded → transcribed)
@@ -137,7 +143,6 @@ export async function GET(req: NextRequest) {
                     .update({ status: 'analyzing' })
                     .eq('id', video.id);
 
-                // Skip AI if metadata already exists (e.g. manual reset)
                 if (video.title && video.hashtags && video.ai_analysis) {
                     console.log(`[VideoCron] Metadata exists, skipping AI analysis.`);
                 } else {
@@ -170,8 +175,8 @@ export async function GET(req: NextRequest) {
 
         // ═══════════════════════════════════════════
         // STEP 3: Compress + Store (analyzed → compressed)
-        // Downloads video, compresses with ffmpeg, stores compressed to Supabase Storage
-        // This is the heavy step — gets its own cron run
+        // Downloads video, compresses with ffmpeg, stores to Supabase
+        // Budget: 300s total. ffmpeg should be cached from pre-download.
         // ═══════════════════════════════════════════
         const { data: analyzed } = await supabase
             .from('social_video_queue')
@@ -190,117 +195,60 @@ export async function GET(req: NextRequest) {
                     .update({ status: 'generating' })
                     .eq('id', video.id);
 
-                let videoUrl = video.raw_video_url;
-                const tmpOutput = `/tmp/compress_${Date.now()}_out.mp4`;
+                const videoUrl = video.raw_video_url;
+                const isMp4OrMov = /\.(mp4|m4v|mov)(\?|$)/i.test(videoUrl);
 
-                if (inputSizeMB > 100) {
-                    // Too large for Vercel — tell user to delete and re-upload (client-side compression handles it)
+                if (inputSizeMB <= 48 && isMp4OrMov) {
+                    // Small MP4/MOV — use directly
+                    console.log(`[VideoCron] Small file (${inputSizeMB.toFixed(1)}MB), skipping compression.`);
                     await supabase.from('social_video_queue')
-                        .update({
-                            status: 'failed',
-                            error_message: `Plik za duży (${inputSizeMB.toFixed(0)}MB). Usuń i prześlij ponownie — przeglądarka skompresuje automatycznie.`,
-                        })
+                        .update({ status: 'compressed', compressed_video_url: videoUrl })
                         .eq('id', video.id);
-                    results.push({ id: video.id, action: 'too_large', sizeMB: inputSizeMB.toFixed(0) });
-                } else if (inputSizeMB > 48) {
-                    // Medium file (48-100MB): download with curl, compress with ffmpeg
-                    const ffmpeg = await ensureFfmpeg();
+                    results.push({ id: video.id, action: 'compressed_skip' });
+                } else {
+                    // Wait for ffmpeg to be ready
+                    const ffmpeg = await ffmpegPromise;
+                    if (!ffmpeg) throw new Error('ffmpeg not available — will retry on next cron run');
+
+                    // Download with curl
                     const tmpInput = `/tmp/raw_${Date.now()}.mp4`;
-                    
-                    console.log(`[VideoCron] Downloading ${inputSizeMB.toFixed(1)}MB with curl...`);
+                    const tmpOutput = `/tmp/out_${Date.now()}.mp4`;
+                    console.log(`[VideoCron] Downloading ${inputSizeMB.toFixed(1)}MB...`);
                     const dlStart = Date.now();
-                    execSync(`curl -sL -o "${tmpInput}" "${videoUrl}"`, { timeout: 150000 });
+                    execSync(`curl -sL -o "${tmpInput}" "${videoUrl}"`, { timeout: 200000 });
                     console.log(`[VideoCron] Downloaded in ${((Date.now() - dlStart) / 1000).toFixed(0)}s`);
-                    
-                    console.log(`[VideoCron] Compressing with ffmpeg...`);
+
+                    // Compress
+                    console.log(`[VideoCron] Compressing...`);
                     const compStart = Date.now();
-                    try {
-                        execSync(
-                            `${ffmpeg} -i "${tmpInput}" -c:v libx264 -preset ultrafast -crf 28 -c:a aac -b:a 96k -movflags +faststart "${tmpOutput}" -y 2>&1`,
-                            { timeout: 120000 }
-                        );
-                    } catch (ffmpegErr: any) {
-                        console.error(`[VideoCron] ffmpeg error:`, ffmpegErr.stdout?.toString()?.slice(-500) || ffmpegErr.message);
-                        try { unlinkSync(tmpInput); } catch {}
-                        throw new Error(`ffmpeg: ${ffmpegErr.message?.slice(0, 200)}`);
-                    }
-                    
+                    execSync(
+                        `${ffmpeg} -i "${tmpInput}" -c:v libx264 -preset ultrafast -crf 28 -c:a aac -b:a 128k -movflags +faststart "${tmpOutput}" -y 2>&1 | tail -3`,
+                        { timeout: 80000 }
+                    );
                     const compressedBuffer = readFileSync(tmpOutput);
-                    const outputSizeMB = compressedBuffer.length / (1024 * 1024);
-                    console.log(`[VideoCron] Compressed: ${inputSizeMB.toFixed(1)}MB → ${outputSizeMB.toFixed(1)}MB in ${((Date.now() - compStart) / 1000).toFixed(0)}s`);
+                    const outputMB = compressedBuffer.length / (1024 * 1024);
+                    console.log(`[VideoCron] ${inputSizeMB.toFixed(1)}MB → ${outputMB.toFixed(1)}MB in ${((Date.now() - compStart) / 1000).toFixed(0)}s`);
                     try { unlinkSync(tmpInput); } catch {}
                     try { unlinkSync(tmpOutput); } catch {}
 
-                    // Store compressed video to Supabase Storage
-                    const compressedFileName = `videos/compressed_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.mp4`;
-                    const { error: uploadError } = await supabase.storage
+                    // Upload to Supabase Storage
+                    const fileName = `videos/compressed_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.mp4`;
+                    const { error: uploadErr } = await supabase.storage
                         .from('social-media')
-                        .upload(compressedFileName, compressedBuffer, {
-                            contentType: 'video/mp4',
-                            upsert: false,
-                        });
-                    if (uploadError) throw new Error(`Storage upload: ${uploadError.message}`);
+                        .upload(fileName, compressedBuffer, { contentType: 'video/mp4', upsert: false });
+                    if (uploadErr) throw new Error(`Upload: ${uploadErr.message}`);
 
-                    const { data: urlData } = supabase.storage
-                        .from('social-media')
-                        .getPublicUrl(compressedFileName);
-
+                    const { data: urlData } = supabase.storage.from('social-media').getPublicUrl(fileName);
                     await supabase.from('social_video_queue')
-                        .update({
-                            status: 'compressed',
-                            compressed_video_url: urlData.publicUrl,
-                        })
+                        .update({ status: 'compressed', compressed_video_url: urlData.publicUrl })
                         .eq('id', video.id);
 
-                    results.push({ id: video.id, action: 'compressed', outputMB: outputSizeMB.toFixed(1) });
-                } else {
-                    // Small file (<48MB): convert to mp4 if needed (Captions API requires mp4/mov)
-                    const isWebm = videoUrl.includes('.webm');
-                    if (isWebm) {
-                        console.log(`[VideoCron] Converting WebM (${inputSizeMB.toFixed(1)}MB) → MP4...`);
-                        const ffmpeg = await ensureFfmpeg();
-                        const tmpInput = `/tmp/conv_${Date.now()}.webm`;
-                        
-                        // Download the small webm file
-                        const webmRes = await fetch(videoUrl);
-                        if (!webmRes.ok) throw new Error(`Download webm failed: ${webmRes.status}`);
-                        writeFileSync(tmpInput, Buffer.from(await webmRes.arrayBuffer()));
-                        
-                        execSync(`${ffmpeg} -i "${tmpInput}" -c:v libx264 -preset ultrafast -c:a aac -movflags +faststart "${tmpOutput}" -y 2>&1`, { timeout: 60000 });
-                        const mp4Buffer = readFileSync(tmpOutput);
-                        console.log(`[VideoCron] Converted: ${inputSizeMB.toFixed(1)}MB WebM → ${(mp4Buffer.length / 1024 / 1024).toFixed(1)}MB MP4`);
-                        
-                        try { unlinkSync(tmpInput); } catch {}
-                        try { unlinkSync(tmpOutput); } catch {}
-
-                        // Store converted mp4 to Supabase Storage
-                        const mp4FileName = `videos/converted_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.mp4`;
-                        const { error: uploadError } = await supabase.storage
-                            .from('social-media')
-                            .upload(mp4FileName, mp4Buffer, { contentType: 'video/mp4', upsert: false });
-                        if (uploadError) throw new Error(`Storage upload: ${uploadError.message}`);
-
-                        const { data: urlData } = supabase.storage
-                            .from('social-media')
-                            .getPublicUrl(mp4FileName);
-
-                        await supabase.from('social_video_queue')
-                            .update({ status: 'compressed', compressed_video_url: urlData.publicUrl })
-                            .eq('id', video.id);
-                        results.push({ id: video.id, action: 'converted_webm_to_mp4', outputMB: (mp4Buffer.length / 1024 / 1024).toFixed(1) });
-                    } else {
-                        // Already mp4/mov and small — use directly
-                        console.log(`[VideoCron] File small enough (${inputSizeMB.toFixed(1)}MB MP4), skipping.`);
-                        await supabase.from('social_video_queue')
-                            .update({ status: 'compressed', compressed_video_url: videoUrl })
-                            .eq('id', video.id);
-                        results.push({ id: video.id, action: 'compressed_skip', sizeMB: inputSizeMB.toFixed(1) });
-                    }
+                    results.push({ id: video.id, action: 'compressed', outputMB: outputMB.toFixed(1) });
                 }
             } catch (err: any) {
                 console.error(`[VideoCron] Compression error:`, err);
                 await supabase.from('social_video_queue')
-                    .update({ status: 'failed', error_message: `Step3 Compress: ${err.message}`, retry_count: (video.retry_count || 0) + 1 })
+                    .update({ status: 'failed', error_message: `Step3: ${err.message}`, retry_count: (video.retry_count || 0) + 1 })
                     .eq('id', video.id);
                 results.push({ id: video.id, action: 'failed', error: err.message });
             }
@@ -318,19 +266,18 @@ export async function GET(req: NextRequest) {
 
         if (compressed && compressed.length > 0) {
             const video = compressed[0];
-            console.log(`[VideoCron] Step 4: Submitting to Captions API for ${video.id}`);
+            console.log(`[VideoCron] Step 4: Submit to Captions API for ${video.id}`);
 
             try {
-                // Download compressed video (should be <50MB now)
-                const compUrl = video.compressed_video_url;
+                const compUrl = video.compressed_video_url || video.raw_video_url;
                 const res = await fetch(compUrl);
-                if (!res.ok) throw new Error(`Download compressed failed: ${res.status}`);
-                const compressedBuffer = Buffer.from(await res.arrayBuffer());
-                const sizeMB = compressedBuffer.length / (1024 * 1024);
-                console.log(`[VideoCron] Downloaded compressed video: ${sizeMB.toFixed(1)}MB`);
+                if (!res.ok) throw new Error(`Download failed: ${res.status}`);
+                const buffer = Buffer.from(await res.arrayBuffer());
+                const sizeMB = buffer.length / (1024 * 1024);
+                console.log(`[VideoCron] Downloaded for submission: ${sizeMB.toFixed(1)}MB`);
 
                 if (sizeMB > 50) {
-                    throw new Error(`Compressed video still too large: ${sizeMB.toFixed(1)}MB (max 50MB)`);
+                    throw new Error(`Still too large: ${sizeMB.toFixed(1)}MB (max 50MB)`);
                 }
 
                 await supabase.from('social_video_queue')
@@ -338,7 +285,7 @@ export async function GET(req: NextRequest) {
                     .eq('id', video.id);
 
                 const { videoId: captionsVideoId } = await submitForCaptioning(
-                    compressedBuffer,
+                    buffer,
                     `video_${video.id}.mp4`,
                 );
 
@@ -348,9 +295,9 @@ export async function GET(req: NextRequest) {
 
                 results.push({ id: video.id, action: 'submitted_to_captions', captionsVideoId });
             } catch (err: any) {
-                console.error(`[VideoCron] Captions submit error:`, err);
+                console.error(`[VideoCron] Submit error:`, err);
                 await supabase.from('social_video_queue')
-                    .update({ status: 'failed', error_message: `Step4 Submit: ${err.message}`, retry_count: (video.retry_count || 0) + 1 })
+                    .update({ status: 'failed', error_message: `Step4: ${err.message}`, retry_count: (video.retry_count || 0) + 1 })
                     .eq('id', video.id);
                 results.push({ id: video.id, action: 'failed', error: err.message });
             }
@@ -372,20 +319,13 @@ export async function GET(req: NextRequest) {
 
                     if (status.status === 'COMPLETE') {
                         console.log(`[VideoCron] Captions complete for ${video.id}!`);
-
                         const captionedBuffer = await downloadCaptionedVideo(video.captions_video_id);
                         const fileName = `captioned_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.mp4`;
 
-                        await supabase.storage
-                            .from('social-media')
-                            .upload(`videos/${fileName}`, captionedBuffer, {
-                                contentType: 'video/mp4',
-                                upsert: false,
-                            });
+                        await supabase.storage.from('social-media')
+                            .upload(`videos/${fileName}`, captionedBuffer, { contentType: 'video/mp4', upsert: false });
 
-                        const { data: urlData } = supabase.storage
-                            .from('social-media')
-                            .getPublicUrl(`videos/${fileName}`);
+                        const { data: urlData } = supabase.storage.from('social-media').getPublicUrl(`videos/${fileName}`);
 
                         await supabase.from('social_video_queue')
                             .update({
@@ -396,13 +336,11 @@ export async function GET(req: NextRequest) {
                             .eq('id', video.id);
 
                         results.push({ id: video.id, action: 'captioning_complete' });
-
                     } else if (status.status === 'FAILED' || status.status === 'CANCELLED') {
                         await supabase.from('social_video_queue')
                             .update({ status: 'failed', error_message: `Captions: ${status.error || status.status}` })
                             .eq('id', video.id);
                         results.push({ id: video.id, action: 'captioning_failed', error: status.error });
-
                     } else {
                         results.push({ id: video.id, action: 'still_captioning', status: status.status, progress: status.progress });
                     }
