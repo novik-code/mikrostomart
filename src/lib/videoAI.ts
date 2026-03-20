@@ -75,28 +75,44 @@ export async function transcribeVideo(videoUrl: string): Promise<TranscriptionRe
         
         if (!existsSync(ffmpegBinPath)) {
             console.log('[VideoAI] Downloading ffmpeg static binary to /tmp...');
-            const ffmpegUrl = 'https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz';
             
-            try {
-                // Download and extract ffmpeg
-                execSync(
-                    `cd /tmp && curl -sL "${ffmpegUrl}" | tar xJ --strip-components=1 -C /tmp --wildcards "*/ffmpeg"`,
-                    { timeout: 60000 }
-                );
-                execSync(`chmod +x ${ffmpegBinPath}`, { timeout: 5000 });
-                console.log('[VideoAI] ffmpeg downloaded and ready');
-            } catch (dlErr: any) {
-                // Fallback: try a smaller build
-                console.log('[VideoAI] Primary download failed, trying fallback...');
+            // Use BtbN's maintained builds (GitHub releases with CDN)
+            const downloadUrls = [
+                {
+                    url: 'https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz',
+                    extract: `curl -sL "{URL}" | tar xJ --strip-components=2 -C /tmp "ffmpeg-master-latest-linux64-gpl/bin/ffmpeg"`,
+                },
+                {
+                    url: 'https://johnvansickle.com/ffmpeg/builds/ffmpeg-git-amd64-static.tar.xz',
+                    extract: `curl -sL "{URL}" | tar xJ --strip-components=1 -C /tmp --wildcards "*/ffmpeg"`,
+                },
+            ];
+
+            let downloaded = false;
+            for (const source of downloadUrls) {
                 try {
-                    execSync(
-                        `cd /tmp && curl -sL "https://github.com/eugeneware/ffmpeg-static/releases/download/b6.0/linux-x64" -o ffmpeg && chmod +x ffmpeg`,
-                        { timeout: 60000 }
-                    );
-                    console.log('[VideoAI] ffmpeg fallback downloaded');
-                } catch (dl2Err: any) {
-                    throw new Error(`Cannot get ffmpeg binary: ${dl2Err.message}`);
+                    const cmd = source.extract.replace('{URL}', source.url);
+                    execSync(cmd, { timeout: 90000 });
+                    execSync(`chmod +x ${ffmpegBinPath}`, { timeout: 5000 });
+                    
+                    // Verify it's actually a binary, not an HTML error page
+                    const header = readFileSync(ffmpegBinPath).slice(0, 4);
+                    if (header[0] === 0x7F && header[1] === 0x45) { // ELF binary header
+                        console.log(`[VideoAI] ffmpeg downloaded from: ${source.url}`);
+                        downloaded = true;
+                        break;
+                    } else {
+                        console.log('[VideoAI] Downloaded file is not a valid binary, trying next source...');
+                        unlinkSync(ffmpegBinPath);
+                    }
+                } catch (err: any) {
+                    console.log(`[VideoAI] Download failed from ${source.url}: ${err.message}`);
+                    try { if (existsSync(ffmpegBinPath)) unlinkSync(ffmpegBinPath); } catch {}
                 }
+            }
+
+            if (!downloaded) {
+                throw new Error('Could not download ffmpeg binary from any source');
             }
         } else {
             console.log('[VideoAI] Using cached ffmpeg from /tmp');
