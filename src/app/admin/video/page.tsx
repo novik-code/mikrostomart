@@ -58,6 +58,8 @@ export default function VideoPage() {
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [previewFile, setPreviewFile] = useState<File | null>(null);
     const [triggerLoading, setTriggerLoading] = useState<string | null>(null);
+    const [downloadProgress, setDownloadProgress] = useState<number>(0);
+    const [publishing, setPublishing] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // ── Load videos ─────────────────────────────────────────────────
@@ -243,6 +245,52 @@ export default function VideoPage() {
             if (selectedVideo?.id === id) setSelectedVideo(null);
         } catch (err) {
             console.error("Delete error:", err);
+        }
+    };
+
+    // ── Download video ────────────────────────────────────────────────
+    const handleDownload = async (url: string, title?: string | null) => {
+        try {
+            setDownloadProgress(1);
+            const res = await fetch(url);
+            if (!res.ok) throw new Error('Download failed');
+            const blob = await res.blob();
+            setDownloadProgress(90);
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            const safeName = (title || 'wideo').replace(/[^a-zA-Z0-9ąćęłńóśźżĄĆĘŁŃÓŚŹŻ ]/g, '').trim().replace(/\s+/g, '_');
+            a.download = `${safeName}.mp4`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(a.href);
+            setDownloadProgress(100);
+            setTimeout(() => setDownloadProgress(0), 2000);
+        } catch (err: any) {
+            alert(`Błąd pobierania: ${err.message}`);
+            setDownloadProgress(0);
+        }
+    };
+
+    // ── Approve video ────────────────────────────────────────────────
+    const handleApprove = async (id: string) => {
+        await handleForceStatus(id, 'ready');
+    };
+
+    // ── Mark as published ────────────────────────────────────────────
+    const handleMarkPublished = async (id: string) => {
+        setPublishing(true);
+        try {
+            await fetch('/api/social/video-upload', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, status: 'done' }),
+            });
+            await loadVideos();
+        } catch (err) {
+            console.error('Publish error:', err);
+        } finally {
+            setPublishing(false);
         }
     };
 
@@ -768,10 +816,148 @@ export default function VideoPage() {
                                                         marginTop: 4,
                                                     }}
                                                 />
+                                                {/* Download button */}
+                                                <button
+                                                    onClick={() => handleDownload(video.processed_video_url!, video.title)}
+                                                    disabled={downloadProgress > 0}
+                                                    style={{
+                                                        width: "100%",
+                                                        marginTop: 8,
+                                                        padding: "12px 16px",
+                                                        background: downloadProgress > 0
+                                                            ? "rgba(99,102,241,0.15)"
+                                                            : "linear-gradient(135deg, rgba(99,102,241,0.2), rgba(139,92,246,0.2))",
+                                                        border: "1px solid rgba(99,102,241,0.3)",
+                                                        borderRadius: 8,
+                                                        color: "#a5b4fc",
+                                                        fontSize: 14,
+                                                        fontWeight: 700,
+                                                        cursor: downloadProgress > 0 ? "wait" : "pointer",
+                                                        transition: "all 0.2s",
+                                                    }}
+                                                >
+                                                    {downloadProgress > 0 && downloadProgress < 100
+                                                        ? `⏳ Pobieranie...`
+                                                        : downloadProgress === 100
+                                                        ? "✅ Pobrano!"
+                                                        : "⬇️ Pobierz wideo"}
+                                                </button>
                                             </div>
                                         )}
 
-                                        {video.published_at && (
+                                        {/* Approve & Publish Section */}
+                                        {video.status === "review" && (
+                                            <div style={{
+                                                padding: 14,
+                                                background: "rgba(168,85,247,0.08)",
+                                                border: "1px solid rgba(168,85,247,0.2)",
+                                                borderRadius: 10,
+                                                marginBottom: 10,
+                                            }}>
+                                                <p style={{ fontSize: 13, color: "#c084fc", margin: "0 0 10px", fontWeight: 600 }}>
+                                                    👁️ Sprawdź wideo i zatwierdź do publikacji
+                                                </p>
+                                                <button
+                                                    onClick={() => handleApprove(video.id)}
+                                                    style={{
+                                                        width: "100%",
+                                                        padding: "14px 20px",
+                                                        background: "linear-gradient(135deg, #10b981, #059669)",
+                                                        border: "none",
+                                                        borderRadius: 10,
+                                                        color: "white",
+                                                        fontSize: 16,
+                                                        fontWeight: 800,
+                                                        cursor: "pointer",
+                                                    }}
+                                                >
+                                                    ✅ Zatwierdź do publikacji
+                                                </button>
+                                            </div>
+                                        )}
+
+                                        {(video.status === "ready" || video.status === "done") && (
+                                            <div style={{
+                                                padding: 14,
+                                                background: video.status === "done" 
+                                                    ? "rgba(34,197,94,0.08)" 
+                                                    : "rgba(16,185,129,0.08)",
+                                                border: `1px solid ${video.status === "done" ? "rgba(34,197,94,0.2)" : "rgba(16,185,129,0.2)"}`,
+                                                borderRadius: 10,
+                                                marginBottom: 10,
+                                            }}>
+                                                {video.status === "done" ? (
+                                                    <p style={{ fontSize: 14, color: "#22c55e", margin: 0, fontWeight: 700, textAlign: "center" }}>
+                                                        🎉 Opublikowano{video.published_at ? ` • ${formatTime(video.published_at)}` : ""}
+                                                    </p>
+                                                ) : (
+                                                    <>
+                                                        <p style={{ fontSize: 13, color: "#34d399", margin: "0 0 10px", fontWeight: 600 }}>
+                                                            📤 Gotowe do publikacji
+                                                        </p>
+                                                        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                                                            {/* Platform buttons */}
+                                                            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                                                                {[
+                                                                    { name: "YouTube", emoji: "🎬", color: "#FF0000", available: false },
+                                                                    { name: "Instagram", emoji: "📸", color: "#E4405F", available: false },
+                                                                    { name: "Facebook", emoji: "📘", color: "#1877F2", available: false },
+                                                                    { name: "TikTok", emoji: "🎵", color: "#000000", available: false },
+                                                                ].map(platform => (
+                                                                    <button
+                                                                        key={platform.name}
+                                                                        title={platform.available ? `Opublikuj na ${platform.name}` : `${platform.name} — wkrótce`}
+                                                                        disabled={!platform.available}
+                                                                        style={{
+                                                                            flex: 1,
+                                                                            minWidth: 80,
+                                                                            padding: "10px 8px",
+                                                                            background: platform.available 
+                                                                                ? `${platform.color}22` 
+                                                                                : "rgba(255,255,255,0.03)",
+                                                                            border: `1px solid ${platform.available ? `${platform.color}44` : "rgba(255,255,255,0.06)"}`,
+                                                                            borderRadius: 8,
+                                                                            color: platform.available ? platform.color : "#555",
+                                                                            fontSize: 11,
+                                                                            fontWeight: 600,
+                                                                            cursor: platform.available ? "pointer" : "not-allowed",
+                                                                            opacity: platform.available ? 1 : 0.5,
+                                                                        }}
+                                                                    >
+                                                                        {platform.emoji} {platform.name}
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                            <p style={{ fontSize: 10, color: "#666", margin: "2px 0 6px", textAlign: "center" }}>
+                                                                Publikacja na platformy — wkrótce. Na razie pobierz i opublikuj ręcznie.
+                                                            </p>
+                                                            {/* Mark as published manually */}
+                                                            <button
+                                                                onClick={() => handleMarkPublished(video.id)}
+                                                                disabled={publishing}
+                                                                style={{
+                                                                    width: "100%",
+                                                                    padding: "12px 16px",
+                                                                    background: publishing
+                                                                        ? "rgba(34,197,94,0.15)"
+                                                                        : "linear-gradient(135deg, rgba(34,197,94,0.2), rgba(16,185,129,0.2))",
+                                                                    border: "1px solid rgba(34,197,94,0.3)",
+                                                                    borderRadius: 8,
+                                                                    color: "#4ade80",
+                                                                    fontSize: 13,
+                                                                    fontWeight: 700,
+                                                                    cursor: publishing ? "wait" : "pointer",
+                                                                }}
+                                                            >
+                                                                {publishing ? "⏳ Zapisywanie..." : "🎉 Oznacz jako opublikowane"}
+                                                            </button>
+                                                        </div>
+                                                    </>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {video.published_at && video.status !== "done" && (
                                             <p style={{ fontSize: 11, color: "#22c55e", margin: "4px 0 0" }}>
                                                 Opublikowano: {formatTime(video.published_at)}
                                             </p>

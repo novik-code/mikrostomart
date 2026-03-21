@@ -116,9 +116,20 @@ export async function PATCH(req: NextRequest) {
             return NextResponse.json({ error: 'ID required' }, { status: 400 });
         }
 
+        const updateData: Record<string, any> = { 
+            status, 
+            error_message: null, 
+            retry_count: 0,
+        };
+        
+        // Set published_at when marking as done
+        if (status === 'done') {
+            updateData.published_at = new Date().toISOString();
+        }
+
         const { error } = await supabase
             .from('social_video_queue')
-            .update({ status, error_message: null, retry_count: 0 })
+            .update(updateData)
             .eq('id', id);
 
         if (error) throw error;
