@@ -61,7 +61,8 @@ export default function VideoPage() {
     const [downloadProgress, setDownloadProgress] = useState<number>(0);
     const [publishing, setPublishing] = useState(false);
     const [publishResults, setPublishResults] = useState<any>(null);
-    const [connectedPlatforms, setConnectedPlatforms] = useState<Record<string, boolean>>({});
+    const [platformEntries, setPlatformEntries] = useState<any[]>([]);
+    const [selectedPlatformIds, setSelectedPlatformIds] = useState<Set<string>>(new Set());
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // ── Load videos ─────────────────────────────────────────────────
@@ -87,13 +88,10 @@ export default function VideoPage() {
         try {
             const res = await fetch('/api/social/platforms');
             const data = await res.json();
-            const connected: Record<string, boolean> = {};
-            for (const p of (data.platforms || [])) {
-                if (p.is_active && p.access_token) {
-                    connected[p.platform] = true;
-                }
-            }
-            setConnectedPlatforms(connected);
+            const entries = (data.platforms || []).filter((p: any) => p.is_active && p.access_token);
+            setPlatformEntries(entries);
+            // Auto-select all by default
+            setSelectedPlatformIds(new Set(entries.map((p: any) => p.id)));
         } catch {}
     };
 
@@ -312,11 +310,19 @@ export default function VideoPage() {
     };
 
     // ── Publish to platforms ─────────────────────────────────────────
-    const handlePublish = async (videoId: string, platforms?: string[]) => {
-        if (!confirm(platforms 
-            ? `Opublikować na ${platforms.join(', ')}?` 
-            : 'Opublikować na wszystkich podłączonych platformach?'
-        )) return;
+    const handlePublish = async (videoId: string, platformIds?: string[]) => {
+        const ids = platformIds || Array.from(selectedPlatformIds);
+        if (ids.length === 0) {
+            alert('Wybierz co najmniej jedno konto do publikacji');
+            return;
+        }
+        
+        // Show selected account names in confirmation
+        const names = ids.map(id => {
+            const p = platformEntries.find((e: any) => e.id === id);
+            return p ? `${p.platform}: ${p.account_name || p.config?.ig_username || p.account_id}` : id;
+        });
+        if (!confirm(`Opublikować na:\n${names.join('\n')}?`)) return;
         
         setPublishing(true);
         setPublishResults(null);
@@ -324,7 +330,7 @@ export default function VideoPage() {
             const res = await fetch('/api/social/video-publish', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ video_id: videoId, platforms }),
+                body: JSON.stringify({ video_id: videoId, platform_ids: ids }),
             });
             const data = await res.json();
             setPublishResults(data);
@@ -941,76 +947,95 @@ export default function VideoPage() {
                                                             📤 Gotowe do publikacji
                                                         </p>
                                                         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                                                            {/* Publish to all connected */}
-                                                            {Object.keys(connectedPlatforms).length > 0 && (
-                                                                <button
-                                                                    onClick={() => handlePublish(video.id)}
-                                                                    disabled={publishing}
-                                                                    style={{
-                                                                        width: "100%",
-                                                                        padding: "14px 20px",
-                                                                        background: publishing
-                                                                            ? "rgba(34,197,94,0.2)"
-                                                                            : "linear-gradient(135deg, #10b981, #059669)",
-                                                                        border: "none",
-                                                                        borderRadius: 10,
-                                                                        color: "white",
-                                                                        fontSize: 15,
-                                                                        fontWeight: 800,
-                                                                        cursor: publishing ? "wait" : "pointer",
-                                                                        marginBottom: 4,
-                                                                    }}
-                                                                >
-                                                                    {publishing ? "⏳ Publikowanie..." : `🚀 Opublikuj na wszystkich (${Object.keys(connectedPlatforms).length})`}
-                                                                </button>
-                                                            )}
+                                                            {/* Account selection */}
+                                                            {platformEntries.length > 0 ? (
+                                                                <>
+                                                                    <p style={{ fontSize: 11, color: "#888", margin: "0 0 4px" }}>Wybierz konta:</p>
+                                                                    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                                                                        {platformEntries.map((p: any) => {
+                                                                            const platformColors: Record<string, string> = {
+                                                                                youtube: "#FF0000", instagram: "#E4405F", 
+                                                                                facebook: "#1877F2", tiktok: "#69C9D0",
+                                                                            };
+                                                                            const platformEmoji: Record<string, string> = {
+                                                                                youtube: "🎬", instagram: "📸", 
+                                                                                facebook: "📘", tiktok: "🎵",
+                                                                            };
+                                                                            const isSelected = selectedPlatformIds.has(p.id);
+                                                                            const accountLabel = p.account_name || p.config?.ig_username || p.config?.channel_title || p.account_id || p.platform;
+                                                                            
+                                                                            return (
+                                                                                <label
+                                                                                    key={p.id}
+                                                                                    style={{
+                                                                                        display: "flex",
+                                                                                        alignItems: "center",
+                                                                                        gap: 8,
+                                                                                        padding: "8px 10px",
+                                                                                        background: isSelected
+                                                                                            ? `${platformColors[p.platform] || '#888'}15`
+                                                                                            : "rgba(255,255,255,0.02)",
+                                                                                        border: `1px solid ${isSelected ? `${platformColors[p.platform] || '#888'}44` : "rgba(255,255,255,0.06)"}`,
+                                                                                        borderRadius: 8,
+                                                                                        cursor: "pointer",
+                                                                                        fontSize: 12,
+                                                                                    }}
+                                                                                >
+                                                                                    <input
+                                                                                        type="checkbox"
+                                                                                        checked={isSelected}
+                                                                                        onChange={() => {
+                                                                                            setSelectedPlatformIds(prev => {
+                                                                                                const next = new Set(prev);
+                                                                                                if (next.has(p.id)) next.delete(p.id);
+                                                                                                else next.add(p.id);
+                                                                                                return next;
+                                                                                            });
+                                                                                        }}
+                                                                                        style={{ accentColor: platformColors[p.platform] || '#888' }}
+                                                                                    />
+                                                                                    <span style={{ color: platformColors[p.platform] || '#888' }}>
+                                                                                        {platformEmoji[p.platform] || '📱'}
+                                                                                    </span>
+                                                                                    <span style={{ color: isSelected ? '#ddd' : '#666', fontWeight: isSelected ? 600 : 400 }}>
+                                                                                        {p.platform.charAt(0).toUpperCase() + p.platform.slice(1)}
+                                                                                    </span>
+                                                                                    <span style={{ color: '#888', fontSize: 11 }}>•</span>
+                                                                                    <span style={{ color: isSelected ? '#aaa' : '#555', fontSize: 11, flex: 1 }}>
+                                                                                        {accountLabel}
+                                                                                    </span>
+                                                                                </label>
+                                                                            );
+                                                                        })}
+                                                                    </div>
 
-                                                            {/* Individual platform buttons */}
-                                                            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                                                                {[
-                                                                    { name: "youtube", label: "YouTube", emoji: "🎬", color: "#FF0000" },
-                                                                    { name: "instagram", label: "Instagram", emoji: "📸", color: "#E4405F" },
-                                                                    { name: "facebook", label: "Facebook", emoji: "📘", color: "#1877F2" },
-                                                                    { name: "tiktok", label: "TikTok", emoji: "🎵", color: "#69C9D0" },
-                                                                ].map(platform => {
-                                                                    const isConnected = !!connectedPlatforms[platform.name];
-                                                                    return (
-                                                                        <button
-                                                                            key={platform.name}
-                                                                            onClick={() => isConnected 
-                                                                                ? handlePublish(video.id, [platform.name])
-                                                                                : window.open(`/api/social/oauth/${platform.name === 'instagram' ? 'facebook' : platform.name}`, '_blank')
-                                                                            }
-                                                                            disabled={publishing}
-                                                                            title={isConnected 
-                                                                                ? `Opublikuj na ${platform.label}` 
-                                                                                : `Kliknij aby podłączyć ${platform.label}`}
-                                                                            style={{
-                                                                                flex: 1,
-                                                                                minWidth: 80,
-                                                                                padding: "10px 8px",
-                                                                                background: isConnected
-                                                                                    ? `${platform.color}22`
-                                                                                    : "rgba(255,255,255,0.03)",
-                                                                                border: `1px solid ${isConnected ? `${platform.color}44` : "rgba(255,255,255,0.08)"}`,
-                                                                                borderRadius: 8,
-                                                                                color: isConnected ? platform.color : "#555",
-                                                                                fontSize: 11,
-                                                                                fontWeight: 600,
-                                                                                cursor: publishing ? "wait" : "pointer",
-                                                                                opacity: publishing ? 0.5 : 1,
-                                                                                position: "relative" as const,
-                                                                            }}
-                                                                        >
-                                                                            {platform.emoji} {platform.label}
-                                                                            {isConnected 
-                                                                                ? <span style={{ fontSize: 8, display: "block", marginTop: 2, color: "#22c55e" }}>✓ Podłączone</span>
-                                                                                : <span style={{ fontSize: 8, display: "block", marginTop: 2, color: "#ef4444" }}>Podłącz →</span>
-                                                                            }
-                                                                        </button>
-                                                                    );
-                                                                })}
-                                                            </div>
+                                                                    {/* Publish button */}
+                                                                    <button
+                                                                        onClick={() => handlePublish(video.id)}
+                                                                        disabled={publishing || selectedPlatformIds.size === 0}
+                                                                        style={{
+                                                                            width: "100%",
+                                                                            padding: "14px 20px",
+                                                                            background: publishing || selectedPlatformIds.size === 0
+                                                                                ? "rgba(34,197,94,0.15)"
+                                                                                : "linear-gradient(135deg, #10b981, #059669)",
+                                                                            border: "none",
+                                                                            borderRadius: 10,
+                                                                            color: "white",
+                                                                            fontSize: 15,
+                                                                            fontWeight: 800,
+                                                                            cursor: publishing || selectedPlatformIds.size === 0 ? "not-allowed" : "pointer",
+                                                                            marginTop: 4,
+                                                                        }}
+                                                                    >
+                                                                        {publishing ? "⏳ Publikowanie..." : `🚀 Opublikuj na wybranych (${selectedPlatformIds.size})`}
+                                                                    </button>
+                                                                </>
+                                                            ) : (
+                                                                <p style={{ fontSize: 12, color: "#666", margin: 0, textAlign: "center" }}>
+                                                                    Brak podłączonych kont. Przejdź do zakładki Social Media w panelu admina.
+                                                                </p>
+                                                            )}
 
                                                             {/* Publish results */}
                                                             {publishResults && (

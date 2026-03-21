@@ -50,7 +50,7 @@ async function refreshGoogleToken(platformId: string, refreshToken: string): Pro
 
 export async function POST(req: NextRequest) {
     try {
-        const { video_id, platforms: targetPlatforms } = await req.json();
+        const { video_id, platform_ids } = await req.json();
 
         if (!video_id) {
             return NextResponse.json({ error: 'video_id wymagany' }, { status: 400 });
@@ -69,15 +69,15 @@ export async function POST(req: NextRequest) {
         const videoUrl = video.processed_video_url || video.compressed_video_url;
         if (!videoUrl) throw new Error('Brak skompresowanego/przetworzonego wideo');
 
-        // 2. Get connected platforms
+        // 2. Get selected platforms by their IDs
         let platformQuery = supabase
             .from('social_platforms')
             .select('*')
             .eq('is_active', true);
 
-        // Filter to specific platforms if requested
-        if (targetPlatforms && targetPlatforms.length > 0) {
-            platformQuery = platformQuery.in('platform', targetPlatforms);
+        // Filter to specific platform IDs if provided
+        if (platform_ids && platform_ids.length > 0) {
+            platformQuery = platformQuery.in('id', platform_ids);
         }
 
         const { data: platforms } = await platformQuery;
@@ -99,19 +99,12 @@ export async function POST(req: NextRequest) {
         const hashtags: string[] = video.hashtags || [];
         const title = video.title || 'Mikrostomart';
 
-        // 5. Deduplicate: only keep one entry per platform type
-        const seen = new Set<string>();
-        const uniquePlatforms = platforms.filter(p => {
-            if (seen.has(p.platform)) return false;
-            seen.add(p.platform);
-            return true;
-        });
-        console.log(`[VideoPublish] Publishing to ${uniquePlatforms.length} unique platforms (from ${platforms.length} total)`);
+        console.log(`[VideoPublish] Publishing to ${platforms.length} selected platforms: ${platforms.map(p => `${p.platform}(${p.account_name || p.account_id})`).join(', ')}`);
 
-        // 6. Publish to each platform
+        // 5. Publish to each selected platform
         const results: any[] = [];
 
-        for (const platform of uniquePlatforms) {
+        for (const platform of platforms) {
             console.log(`[VideoPublish] Publishing to ${platform.platform}...`);
             
             // Get platform-specific description
