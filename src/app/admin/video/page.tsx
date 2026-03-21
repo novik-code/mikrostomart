@@ -60,6 +60,8 @@ export default function VideoPage() {
     const [triggerLoading, setTriggerLoading] = useState<string | null>(null);
     const [downloadProgress, setDownloadProgress] = useState<number>(0);
     const [publishing, setPublishing] = useState(false);
+    const [publishResults, setPublishResults] = useState<any>(null);
+    const [connectedPlatforms, setConnectedPlatforms] = useState<Record<string, boolean>>({});
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // ── Load videos ─────────────────────────────────────────────────
@@ -75,10 +77,25 @@ export default function VideoPage() {
 
     useEffect(() => {
         loadVideos();
-        // Auto-refresh every 15 seconds to track processing
+        loadPlatforms();
         const interval = setInterval(loadVideos, 15000);
         return () => clearInterval(interval);
     }, [loadVideos]);
+
+    // ── Load connected platforms ─────────────────────────────────────
+    const loadPlatforms = async () => {
+        try {
+            const res = await fetch('/api/social/platforms');
+            const data = await res.json();
+            const connected: Record<string, boolean> = {};
+            for (const p of (data.platforms || [])) {
+                if (p.is_active && p.access_token) {
+                    connected[p.platform] = true;
+                }
+            }
+            setConnectedPlatforms(connected);
+        } catch {}
+    };
 
     // ── File selection ──────────────────────────────────────────────
     const handleFileSelect = (file: File) => {
@@ -289,6 +306,34 @@ export default function VideoPage() {
             await loadVideos();
         } catch (err) {
             console.error('Publish error:', err);
+        } finally {
+            setPublishing(false);
+        }
+    };
+
+    // ── Publish to platforms ─────────────────────────────────────────
+    const handlePublish = async (videoId: string, platforms?: string[]) => {
+        if (!confirm(platforms 
+            ? `Opublikować na ${platforms.join(', ')}?` 
+            : 'Opublikować na wszystkich podłączonych platformach?'
+        )) return;
+        
+        setPublishing(true);
+        setPublishResults(null);
+        try {
+            const res = await fetch('/api/social/video-publish', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ video_id: videoId, platforms }),
+            });
+            const data = await res.json();
+            setPublishResults(data);
+            if (!res.ok) {
+                alert(`Błąd publikacji: ${data.error}`);
+            }
+            await loadVideos();
+        } catch (err: any) {
+            alert(`Błąd: ${err.message}`);
         } finally {
             setPublishing(false);
         }
@@ -896,61 +941,115 @@ export default function VideoPage() {
                                                             📤 Gotowe do publikacji
                                                         </p>
                                                         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                                                            {/* Platform buttons */}
+                                                            {/* Publish to all connected */}
+                                                            {Object.keys(connectedPlatforms).length > 0 && (
+                                                                <button
+                                                                    onClick={() => handlePublish(video.id)}
+                                                                    disabled={publishing}
+                                                                    style={{
+                                                                        width: "100%",
+                                                                        padding: "14px 20px",
+                                                                        background: publishing
+                                                                            ? "rgba(34,197,94,0.2)"
+                                                                            : "linear-gradient(135deg, #10b981, #059669)",
+                                                                        border: "none",
+                                                                        borderRadius: 10,
+                                                                        color: "white",
+                                                                        fontSize: 15,
+                                                                        fontWeight: 800,
+                                                                        cursor: publishing ? "wait" : "pointer",
+                                                                        marginBottom: 4,
+                                                                    }}
+                                                                >
+                                                                    {publishing ? "⏳ Publikowanie..." : `🚀 Opublikuj na wszystkich (${Object.keys(connectedPlatforms).length})`}
+                                                                </button>
+                                                            )}
+
+                                                            {/* Individual platform buttons */}
                                                             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                                                                 {[
-                                                                    { name: "YouTube", emoji: "🎬", color: "#FF0000", available: false },
-                                                                    { name: "Instagram", emoji: "📸", color: "#E4405F", available: false },
-                                                                    { name: "Facebook", emoji: "📘", color: "#1877F2", available: false },
-                                                                    { name: "TikTok", emoji: "🎵", color: "#000000", available: false },
-                                                                ].map(platform => (
-                                                                    <button
-                                                                        key={platform.name}
-                                                                        title={platform.available ? `Opublikuj na ${platform.name}` : `${platform.name} — wkrótce`}
-                                                                        disabled={!platform.available}
-                                                                        style={{
-                                                                            flex: 1,
-                                                                            minWidth: 80,
-                                                                            padding: "10px 8px",
-                                                                            background: platform.available 
-                                                                                ? `${platform.color}22` 
-                                                                                : "rgba(255,255,255,0.03)",
-                                                                            border: `1px solid ${platform.available ? `${platform.color}44` : "rgba(255,255,255,0.06)"}`,
-                                                                            borderRadius: 8,
-                                                                            color: platform.available ? platform.color : "#555",
-                                                                            fontSize: 11,
-                                                                            fontWeight: 600,
-                                                                            cursor: platform.available ? "pointer" : "not-allowed",
-                                                                            opacity: platform.available ? 1 : 0.5,
-                                                                        }}
-                                                                    >
-                                                                        {platform.emoji} {platform.name}
-                                                                    </button>
-                                                                ))}
+                                                                    { name: "youtube", label: "YouTube", emoji: "🎬", color: "#FF0000" },
+                                                                    { name: "instagram", label: "Instagram", emoji: "📸", color: "#E4405F" },
+                                                                    { name: "facebook", label: "Facebook", emoji: "📘", color: "#1877F2" },
+                                                                    { name: "tiktok", label: "TikTok", emoji: "🎵", color: "#69C9D0" },
+                                                                ].map(platform => {
+                                                                    const isConnected = !!connectedPlatforms[platform.name];
+                                                                    return (
+                                                                        <button
+                                                                            key={platform.name}
+                                                                            onClick={() => isConnected 
+                                                                                ? handlePublish(video.id, [platform.name])
+                                                                                : window.open(`/api/social/oauth/${platform.name === 'instagram' ? 'facebook' : platform.name}`, '_blank')
+                                                                            }
+                                                                            disabled={publishing}
+                                                                            title={isConnected 
+                                                                                ? `Opublikuj na ${platform.label}` 
+                                                                                : `Kliknij aby podłączyć ${platform.label}`}
+                                                                            style={{
+                                                                                flex: 1,
+                                                                                minWidth: 80,
+                                                                                padding: "10px 8px",
+                                                                                background: isConnected
+                                                                                    ? `${platform.color}22`
+                                                                                    : "rgba(255,255,255,0.03)",
+                                                                                border: `1px solid ${isConnected ? `${platform.color}44` : "rgba(255,255,255,0.08)"}`,
+                                                                                borderRadius: 8,
+                                                                                color: isConnected ? platform.color : "#555",
+                                                                                fontSize: 11,
+                                                                                fontWeight: 600,
+                                                                                cursor: publishing ? "wait" : "pointer",
+                                                                                opacity: publishing ? 0.5 : 1,
+                                                                                position: "relative" as const,
+                                                                            }}
+                                                                        >
+                                                                            {platform.emoji} {platform.label}
+                                                                            {isConnected 
+                                                                                ? <span style={{ fontSize: 8, display: "block", marginTop: 2, color: "#22c55e" }}>✓ Podłączone</span>
+                                                                                : <span style={{ fontSize: 8, display: "block", marginTop: 2, color: "#ef4444" }}>Podłącz →</span>
+                                                                            }
+                                                                        </button>
+                                                                    );
+                                                                })}
                                                             </div>
-                                                            <p style={{ fontSize: 10, color: "#666", margin: "2px 0 6px", textAlign: "center" }}>
-                                                                Publikacja na platformy — wkrótce. Na razie pobierz i opublikuj ręcznie.
-                                                            </p>
-                                                            {/* Mark as published manually */}
-                                                            <button
-                                                                onClick={() => handleMarkPublished(video.id)}
-                                                                disabled={publishing}
-                                                                style={{
-                                                                    width: "100%",
-                                                                    padding: "12px 16px",
-                                                                    background: publishing
-                                                                        ? "rgba(34,197,94,0.15)"
-                                                                        : "linear-gradient(135deg, rgba(34,197,94,0.2), rgba(16,185,129,0.2))",
-                                                                    border: "1px solid rgba(34,197,94,0.3)",
+
+                                                            {/* Publish results */}
+                                                            {publishResults && (
+                                                                <div style={{
+                                                                    padding: 10,
+                                                                    background: "rgba(0,0,0,0.3)",
                                                                     borderRadius: 8,
-                                                                    color: "#4ade80",
-                                                                    fontSize: 13,
-                                                                    fontWeight: 700,
-                                                                    cursor: publishing ? "wait" : "pointer",
-                                                                }}
-                                                            >
-                                                                {publishing ? "⏳ Zapisywanie..." : "🎉 Oznacz jako opublikowane"}
-                                                            </button>
+                                                                    fontSize: 12,
+                                                                    marginTop: 4,
+                                                                }}>
+                                                                    <p style={{ margin: "0 0 4px", fontWeight: 700, color: "#ddd" }}>
+                                                                        Wyniki publikacji:
+                                                                    </p>
+                                                                    {publishResults.results?.map((r: any, i: number) => (
+                                                                        <p key={i} style={{ margin: "2px 0", color: r.success ? "#22c55e" : "#ef4444" }}>
+                                                                            {r.success ? "✅" : "❌"} {r.platform}: {r.success ? `OK (${r.post_id})` : r.error}
+                                                                        </p>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+
+                                                            <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", margin: "4px 0", paddingTop: 6 }}>
+                                                                <button
+                                                                    onClick={() => handleMarkPublished(video.id)}
+                                                                    disabled={publishing}
+                                                                    style={{
+                                                                        width: "100%",
+                                                                        padding: "10px 16px",
+                                                                        background: "transparent",
+                                                                        border: "1px solid rgba(255,255,255,0.1)",
+                                                                        borderRadius: 8,
+                                                                        color: "#888",
+                                                                        fontSize: 12,
+                                                                        cursor: publishing ? "wait" : "pointer",
+                                                                    }}
+                                                                >
+                                                                    ✋ Oznacz ręcznie jako opublikowane
+                                                                </button>
+                                                            </div>
                                                         </div>
                                                     </>
                                                 )}
