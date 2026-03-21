@@ -11,7 +11,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -99,10 +99,19 @@ export async function POST(req: NextRequest) {
         const hashtags: string[] = video.hashtags || [];
         const title = video.title || 'Mikrostomart';
 
-        // 5. Publish to each platform
+        // 5. Deduplicate: only keep one entry per platform type
+        const seen = new Set<string>();
+        const uniquePlatforms = platforms.filter(p => {
+            if (seen.has(p.platform)) return false;
+            seen.add(p.platform);
+            return true;
+        });
+        console.log(`[VideoPublish] Publishing to ${uniquePlatforms.length} unique platforms (from ${platforms.length} total)`);
+
+        // 6. Publish to each platform
         const results: any[] = [];
 
-        for (const platform of platforms) {
+        for (const platform of uniquePlatforms) {
             console.log(`[VideoPublish] Publishing to ${platform.platform}...`);
             
             // Get platform-specific description
@@ -157,12 +166,13 @@ export async function POST(req: NextRequest) {
                         const containerData = await containerRes.json();
                         if (containerData.error) throw new Error(containerData.error.message);
                         
-                        // Wait for processing (max 2 min)
+                        // Wait for processing (max ~100s, polling every 5s)
                         const containerId = containerData.id;
-                        for (let i = 0; i < 12; i++) {
-                            await new Promise(r => setTimeout(r, 10000));
+                        for (let i = 0; i < 20; i++) {
+                            await new Promise(r => setTimeout(r, 5000));
                             const sRes = await fetch(`https://graph.facebook.com/v19.0/${containerId}?fields=status_code&access_token=${token}`);
                             const sData = await sRes.json();
+                            console.log(`[VideoPublish] IG processing status: ${sData.status_code} (attempt ${i + 1})`);
                             if (sData.status_code === 'FINISHED') break;
                             if (sData.status_code === 'ERROR') throw new Error('IG processing failed');
                         }
