@@ -1,6 +1,6 @@
 # Mikrostomart - Complete Project Context
 
-> **Last Updated:** 2026-03-20  
+> **Last Updated:** 2026-03-22  
 > **Version:** Production (Vercel Deployment)  
 > **Status:** Active Development
 
@@ -55,6 +55,7 @@
   - Database: 86 migrations (003-086: email verification, appointment actions, SMS reminders, user_roles, employee tasks, task history, comments, labels, status fix, google reviews cache, chat, push subscriptions, employee_group, push_notification_config, employee_groups array, news/articles/blog/products i18n, calendar tokens, private tasks + reminders, SMS post-visit/week-after-visit, SMS unique constraint fix, task multi-images, push_notifications_log, google_event_id on employee_tasks, patient_intake_tokens, feature_suggestions, online_bookings, patient_match_confidence, consent_tokens/patient_consents, staff_signatures, intake_pdf_url, birthday_wishes, cancelled_appointments, login_attempts, patient_notification_prefs, biometric_signature, employee_audit_log, consent_field_mappings, rate_limit_table, cron_heartbeats, sms_settings, email_ai_drafts, email_ai_config, email_compose_drafts, email_label_overrides, email_ai_drafts_skipped, compose_drafts_ai_text, email_ai_knowledge_files, fix_nowosielska_role, employee_notification_prefs, cleanup_duplicate_push_subs, security_advisor_fixes, merge_duplicate_employees, **social_media, video_queue, storage_video_upload, video_captions_api**)
   - Auth: Email/password, magic links, JWT tokens
   - Storage: Product images, patient documents, task images, **social media videos** (bucket: `social-media`)
+  - **Social Media**: `social_platforms`, `social_posts`, `social_schedules`, `social_topics` tables + cron auto-publish
 
 ### External Integrations
 | Service | Purpose | Status |
@@ -70,6 +71,8 @@
 | **Web Push (VAPID)** | Browser push notifications (patients + employees) | ✅ Active |
 | **Captions / Mirage API** | AI video captioning (professional animated subtitles) | ✅ Active |
 | **Whisper (OpenAI)** | Video audio transcription | ✅ Active |
+| **Meta Graph API** | Facebook + Instagram publishing (posts, images, Reels) | ✅ Active |
+| **TikTok API** | TikTok video publishing | ⚠️ Configured (needs app review) |
 
 ### UI/UX Libraries
 - **Framer Motion** - Animations
@@ -2159,6 +2162,62 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### March 21–22, 2026
+**Social Media AI Posting System — Full Generate & Publish Pipeline**
+
+#### Commits:
+- `ea5ee4f` — feat: daily social media schedule migration (FB+IG auto-post at 11:00)
+- `9250438` — feat: add Topics management sub-tab in Social Media admin panel
+- `07272d9` — feat: auto-replenish social topics when running low (perpetuum mobile)
+- `514c5ab` — feat: one-click generate+publish and strict topic deduplication
+- `b4cd1c7` — fix: auto-resolve platform IDs when generating social posts
+- `9252532` — feat: retry button for failed posts, publish error display, content_type filter
+- `41dd5bd` — fix: add container status polling for Instagram image posts
+
+#### Architecture:
+- **AI Content Generation** (`socialAI.ts`): GPT-4o generates text + Replicate generates images for dental posts
+- **Topic Management** (`social_topics` table, migration 090): DB-backed topics replace hardcoded array. Strict deduplication — topics used_count tracked, never reused. Auto-replenishment cron generates new topics via GPT when supply runs low.
+- **Publishing** (`socialPublish.ts`): Publishes to Facebook (text/image/video), Instagram (image+Reels with container status polling), TikTok, YouTube. Instagram fix: polls container status every 2s for images (was immediate → 'Media ID is not available').
+- **Daily Schedule** (migration 089): Cron generates + auto-publishes a dental post daily at 11:00 CEST to FB+IG.
+- **Admin Panel** (`SocialMediaTab.tsx`): Full management UI — generate draft/publish, retry failed, view errors, manage topics, configure schedules.
+
+#### Database:
+- Migration 083: `social_platforms` (OAuth connections), `social_posts` (content + publish status), `social_schedules` (cron config)
+- Migration 089: Daily schedule seed (FB+IG at 11:00)
+- Migration 090: `social_topics` table (25 seed topics, categories, usage tracking)
+
+#### Key Features:
+1. **One-click Generate & Publish** — "🚀 Generuj i publikuj" button in admin
+2. **Strict Topic Deduplication** — picks only unused topics, marks as used after generation
+3. **Auto-Replenishment** — cron checks topic count, generates new via GPT when low
+4. **Retry Failed Posts** — "🔄 Ponów publikację" button + inline error display per platform
+5. **Platform Content Type Filter** — auto-resolves correct platforms based on post type (posts vs video)
+6. **Instagram Container Polling** — polls status every 2s (images) / 10s (video) before publishing
+
+#### New Files:
+- `src/lib/socialAI.ts` — AI content generation (topic picking, GPT text, Replicate images)
+- `src/lib/socialPublish.ts` — Multi-platform publishing (FB, IG, TikTok, YouTube)
+- `src/app/admin/components/SocialMediaTab.tsx` — Admin UI component
+- `src/app/api/social/generate/route.ts` — Generate post API
+- `src/app/api/social/posts/route.ts` — Posts CRUD
+- `src/app/api/social/posts/[id]/publish/route.ts` — Publish post
+- `src/app/api/social/platforms/route.ts` — Platform management
+- `src/app/api/social/schedules/route.ts` — Schedule management
+- `src/app/api/social/topics/route.ts` — Topics CRUD + AI generation
+- `src/app/api/cron/social-generate/route.ts` — Scheduled content generation
+- `src/app/api/cron/social-publish/route.ts` — Scheduled publishing
+- `supabase_migrations/089_social_daily_schedule.sql`
+- `supabase_migrations/090_social_topics.sql`
+
+#### Environment Variables:
+- `META_APP_ID` — Meta (Facebook) App ID
+- `META_APP_SECRET` — Meta App Secret
+- `TIKTOK_CLIENT_KEY` — TikTok API client key
+- `TIKTOK_CLIENT_SECRET` — TikTok API client secret
+- `SOCIAL_AI_MODEL` — AI model for content generation (default: `gpt-4o`)
+
+---
 
 ### March 20, 2026
 **Social Media Video Pipeline — Full AI Processing with Captions/Mirage API**

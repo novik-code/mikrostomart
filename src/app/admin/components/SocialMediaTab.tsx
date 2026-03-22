@@ -62,7 +62,32 @@ interface MediaItem {
     created_at: string;
 }
 
-type SubTab = 'schedules' | 'drafts' | 'library' | 'platforms' | 'topics';
+type SubTab = 'schedules' | 'drafts' | 'library' | 'platforms' | 'topics' | 'comments';
+
+interface CommentReply {
+    id: string;
+    post_id: string;
+    platform: string;
+    platform_post_id: string;
+    comment_id: string;
+    comment_text: string;
+    comment_author: string;
+    comment_date: string;
+    reply_text: string;
+    reply_id: string | null;
+    status: string;
+    ai_model: string | null;
+    published_at: string | null;
+    created_at: string;
+}
+
+const COMMENT_STATUS_COLORS: Record<string, { bg: string; border: string; text: string }> = {
+    draft: { bg: 'rgba(59,130,246,0.12)', border: 'rgba(59,130,246,0.4)', text: '#60a5fa' },
+    approved: { bg: 'rgba(34,197,94,0.12)', border: 'rgba(34,197,94,0.4)', text: '#4ade80' },
+    published: { bg: 'rgba(34,197,94,0.2)', border: 'rgba(34,197,94,0.6)', text: '#22c55e' },
+    rejected: { bg: 'rgba(239,68,68,0.12)', border: 'rgba(239,68,68,0.4)', text: '#f87171' },
+    skipped: { bg: 'rgba(107,114,128,0.12)', border: 'rgba(107,114,128,0.4)', text: '#9ca3af' },
+};
 
 interface SocialTopic {
     id: string;
@@ -166,6 +191,7 @@ export default function SocialMediaTab() {
     const [media, setMedia] = useState<MediaItem[]>([]);
     const [topics, setTopics] = useState<SocialTopic[]>([]);
     const [topicCategories, setTopicCategories] = useState<string[]>([]);
+    const [commentReplies, setCommentReplies] = useState<CommentReply[]>([]);
 
     // Loading
     const [loadingPlatforms, setLoadingPlatforms] = useState(false);
@@ -173,6 +199,7 @@ export default function SocialMediaTab() {
     const [loadingPosts, setLoadingPosts] = useState(false);
     const [loadingMedia, setLoadingMedia] = useState(false);
     const [loadingTopics, setLoadingTopics] = useState(false);
+    const [loadingComments, setLoadingComments] = useState(false);
 
     // Filters
     const [postsFilter, setPostsFilter] = useState<string>('all');
@@ -184,6 +211,15 @@ export default function SocialMediaTab() {
     const [generatingTopics, setGeneratingTopics] = useState(false);
     const [generateTopicsCount, setGenerateTopicsCount] = useState(10);
     const [generateTopicsCategory, setGenerateTopicsCategory] = useState('');
+
+    // Comments
+    const [commentsStatusFilter, setCommentsStatusFilter] = useState<string>('all');
+    const [commentsPlatformFilter, setCommentsPlatformFilter] = useState<string>('all');
+    const [fetchingComments, setFetchingComments] = useState(false);
+    const [publishingReplyId, setPublishingReplyId] = useState<string | null>(null);
+    const [editingReplyId, setEditingReplyId] = useState<string | null>(null);
+    const [editingReplyText, setEditingReplyText] = useState('');
+    const [publishingAllReplies, setPublishingAllReplies] = useState(false);
 
     // Forms
     const [showScheduleForm, setShowScheduleForm] = useState(false);
@@ -282,6 +318,20 @@ export default function SocialMediaTab() {
         setLoadingTopics(false);
     };
 
+    const fetchCommentReplies = async () => {
+        setLoadingComments(true);
+        try {
+            const params = new URLSearchParams();
+            if (commentsStatusFilter !== 'all') params.set('status', commentsStatusFilter);
+            if (commentsPlatformFilter !== 'all') params.set('platform', commentsPlatformFilter);
+            const qs = params.toString() ? `?${params.toString()}` : '';
+            const res = await fetch(`/api/social/comments${qs}`);
+            const data = await res.json();
+            setCommentReplies(data.comments || []);
+        } catch (e) { console.error(e); }
+        setLoadingComments(false);
+    };
+
     // ── Initial load per sub-tab ──────────────────────────────────────
     useEffect(() => {
         if (subTab === 'platforms' && platforms.length === 0) fetchPlatforms();
@@ -289,10 +339,12 @@ export default function SocialMediaTab() {
         if (subTab === 'drafts') fetchPosts();
         if (subTab === 'library') fetchMedia();
         if (subTab === 'topics' && topics.length === 0) fetchTopics();
+        if (subTab === 'comments') fetchCommentReplies();
     }, [subTab]);
 
     useEffect(() => { if (subTab === 'drafts') fetchPosts(); }, [postsFilter]);
     useEffect(() => { if (subTab === 'library') fetchMedia(); }, [mediaTypeFilter]);
+    useEffect(() => { if (subTab === 'comments') fetchCommentReplies(); }, [commentsStatusFilter, commentsPlatformFilter]);
 
     // ── Schedule CRUD ─────────────────────────────────────────────────
     const resetScheduleForm = () => {
@@ -552,6 +604,7 @@ export default function SocialMediaTab() {
                     { id: 'drafts' as SubTab, label: '📝 Drafty' },
                     { id: 'library' as SubTab, label: '📁 Biblioteka' },
                     { id: 'topics' as SubTab, label: '💡 Tematy' },
+                    { id: 'comments' as SubTab, label: '💬 Komentarze' },
                     { id: 'platforms' as SubTab, label: '🔗 Platformy' },
                 ] as const).map(t => (
                     <button
@@ -1263,6 +1316,255 @@ export default function SocialMediaTab() {
                         <strong style={{ color: '#a78bfa' }}>💡 Jak działają tematy?</strong><br />
                         Codziennie cron wybiera losowy temat z bazy (preferuje najmniej używane) i generuje post AI. Jeśli baza jest pusta, używa tematów domyślnych.<br />
                         <strong>Kategorie</strong> pomagają filtrować i organizować tematy. AI może generować tematy w konkretnej kategorii.
+                    </div>
+                </div>
+            )}
+
+            {/* ═══════════════════════════════════════════════════════════ */}
+            {/* COMMENTS TAB */}
+            {/* ═══════════════════════════════════════════════════════════ */}
+            {subTab === 'comments' && (
+                <div>
+                    {/* Action bar */}
+                    <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                        <button
+                            onClick={async () => {
+                                setFetchingComments(true);
+                                try {
+                                    const res = await fetch('/api/social/comments/fetch', { method: 'POST' });
+                                    const data = await res.json();
+                                    alert(`Pobrano ${data.fetched || 0} nowych komentarzy, wygenerowano ${data.generated || 0} odpowiedzi AI${data.skipped ? `, pominięto ${data.skipped}` : ''}${data.errors?.length ? `\nBłędy: ${data.errors.join(', ')}` : ''}`);
+                                    fetchCommentReplies();
+                                } catch (e: any) { alert('Błąd: ' + e.message); }
+                                setFetchingComments(false);
+                            }}
+                            disabled={fetchingComments}
+                            style={{ ...btnStyle('#3b82f6'), color: 'white', opacity: fetchingComments ? 0.6 : 1 }}
+                        >
+                            {fetchingComments ? '⏳ Pobieranie...' : '🔄 Pobierz nowe komentarze'}
+                        </button>
+                        <button
+                            onClick={async () => {
+                                const approved = commentReplies.filter(c => c.status === 'approved');
+                                if (approved.length === 0) { alert('Brak zatwierdzonych odpowiedzi do publikacji'); return; }
+                                if (!confirm(`Opublikować ${approved.length} zatwierdzonych odpowiedzi?`)) return;
+                                setPublishingAllReplies(true);
+                                try {
+                                    const res = await fetch('/api/social/comments/publish', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ publish_all: true }),
+                                    });
+                                    const data = await res.json();
+                                    alert(`Opublikowano: ${data.published}/${data.total}${data.errors?.length ? `\nBłędy: ${data.errors.join('\n')}` : ''}`);
+                                    fetchCommentReplies();
+                                } catch (e: any) { alert('Błąd: ' + e.message); }
+                                setPublishingAllReplies(false);
+                            }}
+                            disabled={publishingAllReplies || commentReplies.filter(c => c.status === 'approved').length === 0}
+                            style={{ ...btnStyle('#22c55e'), color: 'white', opacity: publishingAllReplies || commentReplies.filter(c => c.status === 'approved').length === 0 ? 0.5 : 1 }}
+                        >
+                            {publishingAllReplies ? '⏳ Publikowanie...' : `🚀 Publikuj zatwierdzone (${commentReplies.filter(c => c.status === 'approved').length})`}
+                        </button>
+                        <button onClick={() => fetchCommentReplies()} style={{ ...btnStyle('#555'), color: 'white' }}>🔄 Odśwież</button>
+                    </div>
+
+                    {/* Filters */}
+                    <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+                        <select value={commentsStatusFilter} onChange={e => setCommentsStatusFilter(e.target.value)} style={{ ...selectStyle, maxWidth: 180 }}>
+                            <option value="all">Wszystkie statusy</option>
+                            <option value="draft">📝 Do przejrzenia</option>
+                            <option value="approved">✅ Zatwierdzone</option>
+                            <option value="published">🟢 Opublikowane</option>
+                            <option value="rejected">❌ Odrzucone</option>
+                            <option value="skipped">⏭️ Pominięte</option>
+                        </select>
+                        <select value={commentsPlatformFilter} onChange={e => setCommentsPlatformFilter(e.target.value)} style={{ ...selectStyle, maxWidth: 180 }}>
+                            <option value="all">Wszystkie platformy</option>
+                            <option value="facebook">📘 Facebook</option>
+                            <option value="instagram">📸 Instagram</option>
+                            <option value="youtube">🎬 YouTube</option>
+                        </select>
+                        <span style={{ color: 'var(--color-text-muted)', fontSize: '0.8rem', alignSelf: 'center' }}>
+                            {commentReplies.length} komentarzy
+                        </span>
+                    </div>
+
+                    {/* Comments list */}
+                    {loadingComments ? (
+                        <p style={{ color: 'var(--color-text-muted)' }}>Ładowanie...</p>
+                    ) : commentReplies.length === 0 ? (
+                        <div style={{ ...cardStyle, textAlign: 'center', padding: '3rem' }}>
+                            <p style={{ color: 'var(--color-text-muted)', fontSize: '1.1rem' }}>💬 Brak komentarzy</p>
+                            <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>Kliknij "Pobierz nowe komentarze" aby pobrać komentarze z opublikowanych postów.</p>
+                        </div>
+                    ) : (
+                        <div style={{ display: 'grid', gap: '0.75rem' }}>
+                            {commentReplies.map(cr => {
+                                const statusColors = COMMENT_STATUS_COLORS[cr.status] || COMMENT_STATUS_COLORS.draft;
+                                const isEditing = editingReplyId === cr.id;
+                                const isPublishing = publishingReplyId === cr.id;
+                                return (
+                                    <div key={cr.id} style={{
+                                        ...cardStyle,
+                                        marginBottom: 0,
+                                        borderLeft: `3px solid ${statusColors.border}`,
+                                    }}>
+                                        {/* Comment header */}
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.6rem', flexWrap: 'wrap', gap: '0.4rem' }}>
+                                            <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                                                <span style={{ fontSize: '0.75rem' }}>{PLATFORM_EMOJI[cr.platform] || '💬'}</span>
+                                                <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>@{cr.comment_author}</span>
+                                                <span style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>
+                                                    {cr.comment_date ? new Date(cr.comment_date).toLocaleString('pl-PL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''}
+                                                </span>
+                                            </div>
+                                            <span style={{
+                                                display: 'inline-block',
+                                                padding: '0.15rem 0.5rem',
+                                                borderRadius: '999px',
+                                                background: statusColors.bg,
+                                                border: `1px solid ${statusColors.border}`,
+                                                color: statusColors.text,
+                                                fontSize: '0.7rem',
+                                                fontWeight: 600,
+                                            }}>
+                                                {cr.status === 'draft' ? '📝 Do przejrzenia' : cr.status === 'approved' ? '✅ Zatwierdzony' : cr.status === 'published' ? '🟢 Opublikowany' : cr.status === 'rejected' ? '❌ Odrzucony' : '⏭️ Pominięty'}
+                                            </span>
+                                        </div>
+
+                                        {/* Original comment */}
+                                        <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '0.5rem', padding: '0.65rem 0.8rem', marginBottom: '0.6rem', borderLeft: '2px solid rgba(255,255,255,0.1)' }}>
+                                            <div style={{ fontSize: '0.8rem', lineHeight: 1.5 }}>{cr.comment_text}</div>
+                                        </div>
+
+                                        {/* AI reply */}
+                                        {cr.reply_text && cr.status !== 'skipped' && (
+                                            <div style={{ marginBottom: '0.6rem' }}>
+                                                <div style={{ fontSize: '0.7rem', color: '#dcb14a', marginBottom: '0.25rem', fontWeight: 600 }}>🤖 Odpowiedź AI:</div>
+                                                {isEditing ? (
+                                                    <div style={{ display: 'flex', gap: '0.4rem', flexDirection: 'column' }}>
+                                                        <textarea
+                                                            value={editingReplyText}
+                                                            onChange={e => setEditingReplyText(e.target.value)}
+                                                            rows={3}
+                                                            style={{ ...inputStyle, resize: 'vertical', fontSize: '0.85rem' }}
+                                                        />
+                                                        <div style={{ display: 'flex', gap: '0.3rem' }}>
+                                                            <button onClick={async () => {
+                                                                try {
+                                                                    await fetch('/api/social/comments', {
+                                                                        method: 'PATCH',
+                                                                        headers: { 'Content-Type': 'application/json' },
+                                                                        body: JSON.stringify({ id: cr.id, action: 'edit', reply_text: editingReplyText }),
+                                                                    });
+                                                                    setEditingReplyId(null);
+                                                                    fetchCommentReplies();
+                                                                } catch (e: any) { alert(e.message); }
+                                                            }} style={{ ...btnStyle(), padding: '0.3rem 0.6rem', fontSize: '0.75rem' }}>💾 Zapisz</button>
+                                                            <button onClick={() => setEditingReplyId(null)} style={{ ...btnStyle('#555'), padding: '0.3rem 0.6rem', fontSize: '0.75rem', color: 'white' }}>Anuluj</button>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div style={{ background: 'rgba(220,177,74,0.06)', borderRadius: '0.5rem', padding: '0.6rem 0.8rem', borderLeft: '2px solid rgba(220,177,74,0.3)', fontSize: '0.85rem', lineHeight: 1.5 }}>
+                                                        {cr.reply_text}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {/* Published info */}
+                                        {cr.status === 'published' && cr.published_at && (
+                                            <div style={{ fontSize: '0.7rem', color: '#4ade80', marginBottom: '0.5rem' }}>
+                                                Opublikowano: {new Date(cr.published_at).toLocaleString('pl-PL')}
+                                            </div>
+                                        )}
+
+                                        {/* Action buttons */}
+                                        {(cr.status === 'draft' || cr.status === 'approved' || cr.status === 'rejected') && (
+                                            <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
+                                                {cr.status === 'draft' && (
+                                                    <>
+                                                        <button onClick={async () => {
+                                                            try {
+                                                                await fetch('/api/social/comments', {
+                                                                    method: 'PATCH',
+                                                                    headers: { 'Content-Type': 'application/json' },
+                                                                    body: JSON.stringify({ id: cr.id, action: 'approve' }),
+                                                                });
+                                                                fetchCommentReplies();
+                                                            } catch (e: any) { alert(e.message); }
+                                                        }} style={{ ...btnStyle('#22c55e'), padding: '0.3rem 0.6rem', fontSize: '0.75rem', color: 'white' }}>✅ Zatwierdź</button>
+                                                        <button onClick={async () => {
+                                                            try {
+                                                                await fetch('/api/social/comments', {
+                                                                    method: 'PATCH',
+                                                                    headers: { 'Content-Type': 'application/json' },
+                                                                    body: JSON.stringify({ id: cr.id, action: 'reject' }),
+                                                                });
+                                                                fetchCommentReplies();
+                                                            } catch (e: any) { alert(e.message); }
+                                                        }} style={{ ...btnStyle('#ef4444'), padding: '0.3rem 0.6rem', fontSize: '0.75rem', color: 'white' }}>❌ Odrzuć</button>
+                                                    </>
+                                                )}
+                                                {cr.status !== 'approved' && (
+                                                    <button onClick={() => { setEditingReplyId(cr.id); setEditingReplyText(cr.reply_text || ''); }} style={{ ...btnStyle('#3b82f6'), padding: '0.3rem 0.6rem', fontSize: '0.75rem', color: 'white' }}>✏️ Edytuj</button>
+                                                )}
+                                                {(cr.status === 'approved') && (
+                                                    <button
+                                                        disabled={isPublishing}
+                                                        onClick={async () => {
+                                                            setPublishingReplyId(cr.id);
+                                                            try {
+                                                                const res = await fetch('/api/social/comments/publish', {
+                                                                    method: 'POST',
+                                                                    headers: { 'Content-Type': 'application/json' },
+                                                                    body: JSON.stringify({ id: cr.id }),
+                                                                });
+                                                                const data = await res.json();
+                                                                if (data.error) alert('Błąd: ' + data.error);
+                                                                fetchCommentReplies();
+                                                            } catch (e: any) { alert(e.message); }
+                                                            setPublishingReplyId(null);
+                                                        }}
+                                                        style={{ ...btnStyle(), padding: '0.3rem 0.6rem', fontSize: '0.75rem', opacity: isPublishing ? 0.5 : 1 }}
+                                                    >
+                                                        {isPublishing ? '⏳...' : '🚀 Publikuj'}
+                                                    </button>
+                                                )}
+                                                {cr.status === 'rejected' && (
+                                                    <button onClick={async () => {
+                                                        try {
+                                                            await fetch('/api/social/comments', {
+                                                                method: 'PATCH',
+                                                                headers: { 'Content-Type': 'application/json' },
+                                                                body: JSON.stringify({ id: cr.id, status: 'draft' }),
+                                                            });
+                                                            fetchCommentReplies();
+                                                        } catch (e: any) { alert(e.message); }
+                                                    }} style={{ ...btnStyle('#3b82f6'), padding: '0.3rem 0.6rem', fontSize: '0.75rem', color: 'white' }}>♻️ Przywróć</button>
+                                                )}
+                                                <button onClick={async () => {
+                                                    if (!confirm('Usunąć tę odpowiedź?')) return;
+                                                    try {
+                                                        await fetch(`/api/social/comments?id=${cr.id}`, { method: 'DELETE' });
+                                                        fetchCommentReplies();
+                                                    } catch (e: any) { alert(e.message); }
+                                                }} style={{ ...btnStyle('#555'), padding: '0.3rem 0.6rem', fontSize: '0.75rem', color: 'white' }}>🗑️</button>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+
+                    {/* Info box */}
+                    <div style={{ marginTop: '1.5rem', padding: '1rem', background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: '0.5rem', fontSize: '0.8rem', color: 'var(--color-text-muted)', lineHeight: 1.6 }}>
+                        <strong style={{ color: '#60a5fa' }}>💬 Jak działają komentarze?</strong><br />
+                        Co 15 minut cron pobiera nowe komentarze z opublikowanych postów (ostatnie 7 dni) na Facebooku, Instagramie i YouTube.<br />
+                        AI generuje odpowiedzi w trybie <strong>Draft</strong> — przeglądasz, edytujesz i zatwierdzasz przed publikacją.<br />
+                        Spam i nieistotne komentarze są automatycznie oznaczane jako "Pominięte".
                     </div>
                 </div>
             )}
