@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { processNewComments } from '@/lib/socialComments';
 
-export const maxDuration = 120; // 2 minutes — may have many posts × platforms × GPT calls
+export const maxDuration = 300; // 5 minutes — scans ALL posts/videos on connected channels
 
 /**
  * Cron: Social Comments — every 15 minutes (6:00–22:00)
  *
- * Fetches new comments from all published posts (last 7 days),
- * generates AI draft replies, and stores them for admin review.
+ * Scans ALL posts/videos on Facebook, Instagram, and YouTube channels,
+ * fetches new comments, generates AI draft replies for admin review.
  */
 export async function GET(req: NextRequest) {
     try {
