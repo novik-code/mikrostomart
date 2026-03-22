@@ -31,21 +31,23 @@ export async function POST(req: NextRequest) {
             auto_publish = false,
         } = body;
 
-        // Resolve platform names from IDs
+        // Resolve platform names and IDs
         let platforms: Platform[] = ['facebook', 'instagram'];
+        let resolvedPlatformIds: string[] = platform_ids || [];
+
         if (platform_ids && platform_ids.length > 0) {
             const { data: platformRecords } = await supabase
                 .from('social_platforms')
-                .select('platform')
+                .select('id, platform')
                 .in('id', platform_ids);
             if (platformRecords && platformRecords.length > 0) {
                 platforms = [...new Set(platformRecords.map((p: any) => p.platform as Platform))];
+                resolvedPlatformIds = platformRecords.map((p: any) => p.id);
             }
         }
 
         // If schedule_id provided, load schedule details
         let schedulePrompt = custom_prompt;
-        let schedulePlatformIds = platform_ids;
         if (schedule_id) {
             const { data: schedule } = await supabase
                 .from('social_schedules')
@@ -54,17 +56,33 @@ export async function POST(req: NextRequest) {
                 .single();
             if (schedule) {
                 schedulePrompt = schedulePrompt || schedule.ai_prompt;
-                schedulePlatformIds = schedulePlatformIds || schedule.platform_ids;
-                // Re-resolve platforms
                 if (schedule.platform_ids?.length > 0) {
+                    resolvedPlatformIds = schedule.platform_ids;
                     const { data: pRecords } = await supabase
                         .from('social_platforms')
-                        .select('platform')
+                        .select('id, platform')
                         .in('id', schedule.platform_ids);
                     if (pRecords && pRecords.length > 0) {
                         platforms = [...new Set(pRecords.map((p: any) => p.platform as Platform))];
                     }
                 }
+            }
+        }
+
+        // AUTO-RESOLVE: if still no platform IDs, fetch all active FB+IG platforms
+        if (resolvedPlatformIds.length === 0) {
+            console.log('[Social Generate] No platform IDs provided — auto-resolving active FB+IG platforms');
+            const { data: allPlatforms } = await supabase
+                .from('social_platforms')
+                .select('id, platform')
+                .in('platform', ['facebook', 'instagram'])
+                .eq('is_active', true);
+            if (allPlatforms && allPlatforms.length > 0) {
+                resolvedPlatformIds = allPlatforms.map((p: any) => p.id);
+                platforms = [...new Set(allPlatforms.map((p: any) => p.platform as Platform))];
+                console.log(`[Social Generate] Auto-resolved ${resolvedPlatformIds.length} platforms:`, platforms);
+            } else {
+                console.warn('[Social Generate] No active FB/IG platforms found!');
             }
         }
 
@@ -93,7 +111,7 @@ export async function POST(req: NextRequest) {
             .insert({
                 schedule_id: schedule_id || null,
                 status: postStatus,
-                platform_ids: schedulePlatformIds || platform_ids || [],
+                platform_ids: resolvedPlatformIds,
                 content_type,
                 text_content: content.text,
                 hashtags: content.hashtags,
