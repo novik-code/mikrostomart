@@ -379,35 +379,100 @@ async function publishYouTubeReply(commentId: string, text: string, token: strin
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// 4. FETCH RECENT POSTS DIRECTLY FROM PLATFORM APIs
+// 4. FETCH ALL POSTS/VIDEOS FROM PLATFORM APIs (with pagination)
 // ═══════════════════════════════════════════════════════════════════
 
-/** Fetch recent posts from a Facebook Page (last 50 posts) */
-async function fetchFacebookPagePosts(pageId: string, token: string): Promise<{ id: string; message: string }[]> {
-    const url = `https://graph.facebook.com/v19.0/${pageId}/posts?fields=id,message,created_time&limit=50&access_token=${token}`;
-    const res = await fetch(url);
-    const data = await res.json();
-    if (data.error) {
-        console.error('[Comments] FB page posts error:', data.error.message);
-        return [];
+/** Fetch ALL posts from a Facebook Page (paginated, max 200) */
+async function fetchAllFacebookPagePosts(pageId: string, token: string): Promise<{ id: string; message: string }[]> {
+    const allPosts: { id: string; message: string }[] = [];
+    let url: string | null = `https://graph.facebook.com/v19.0/${pageId}/posts?fields=id,message,created_time&limit=100&access_token=${token}`;
+
+    while (url && allPosts.length < 200) {
+        const res: Response = await fetch(url);
+        const data: any = await res.json();
+        if (data.error) {
+            console.error('[Comments] FB page posts error:', data.error.message);
+            break;
+        }
+        if (data.data) {
+            allPosts.push(...data.data.map((p: any) => ({ id: p.id, message: p.message || '' })));
+        }
+        url = data.paging?.next || null;
     }
-    return (data.data || []).map((p: any) => ({ id: p.id, message: p.message || '' }));
+
+    console.log(`[Comments] FB: fetched ${allPosts.length} posts from page ${pageId}`);
+    return allPosts;
 }
 
-/** Fetch recent media from an Instagram Business account (last 50 posts) */
-async function fetchInstagramMedia(igAccountId: string, token: string): Promise<{ id: string; caption: string }[]> {
-    const url = `https://graph.facebook.com/v19.0/${igAccountId}/media?fields=id,caption,timestamp&limit=50&access_token=${token}`;
-    const res = await fetch(url);
-    const data = await res.json();
-    if (data.error) {
-        console.error('[Comments] IG media error:', data.error.message);
+/** Fetch ALL media from an Instagram Business account (paginated, max 200) */
+async function fetchAllInstagramMedia(igAccountId: string, token: string): Promise<{ id: string; caption: string }[]> {
+    const allMedia: { id: string; caption: string }[] = [];
+    let url: string | null = `https://graph.facebook.com/v19.0/${igAccountId}/media?fields=id,caption,timestamp&limit=100&access_token=${token}`;
+
+    while (url && allMedia.length < 200) {
+        const res: Response = await fetch(url);
+        const data: any = await res.json();
+        if (data.error) {
+            console.error('[Comments] IG media error:', data.error.message);
+            break;
+        }
+        if (data.data) {
+            allMedia.push(...data.data.map((m: any) => ({ id: m.id, caption: m.caption || '' })));
+        }
+        url = data.paging?.next || null;
+    }
+
+    console.log(`[Comments] IG: fetched ${allMedia.length} media from account ${igAccountId}`);
+    return allMedia;
+}
+
+/** Fetch ALL videos from a YouTube channel */
+async function fetchAllYouTubeVideos(token: string): Promise<{ id: string; title: string }[]> {
+    // Step 1: get the channel's uploads playlist ID
+    const channelRes = await fetch(
+        'https://www.googleapis.com/youtube/v3/channels?part=contentDetails&mine=true',
+        { headers: { Authorization: `Bearer ${token}` } },
+    );
+    const channelData = await channelRes.json();
+    if (channelData.error) {
+        console.error('[Comments] YT channel error:', channelData.error.message || JSON.stringify(channelData.error));
         return [];
     }
-    return (data.data || []).map((m: any) => ({ id: m.id, caption: m.caption || '' }));
+    const uploadsPlaylistId = channelData.items?.[0]?.contentDetails?.relatedPlaylists?.uploads;
+    if (!uploadsPlaylistId) {
+        console.error('[Comments] YT: no uploads playlist found');
+        return [];
+    }
+
+    // Step 2: paginate through ALL videos in the uploads playlist (max 200)
+    const allVideos: { id: string; title: string }[] = [];
+    let pageToken: string | null = '';
+
+    while (pageToken !== null && allVideos.length < 200) {
+        const ptParam: string = pageToken ? `&pageToken=${pageToken}` : '';
+        const url: string = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${uploadsPlaylistId}&maxResults=50${ptParam}`;
+        const res: Response = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+        const data: any = await res.json();
+        if (data.error) {
+            console.error('[Comments] YT playlist items error:', data.error.message || JSON.stringify(data.error));
+            break;
+        }
+        if (data.items) {
+            for (const item of data.items) {
+                const videoId = item.snippet?.resourceId?.videoId;
+                const title = item.snippet?.title || '';
+                if (videoId) allVideos.push({ id: videoId, title });
+            }
+        }
+        pageToken = data.nextPageToken || null;
+    }
+
+    console.log(`[Comments] YT: fetched ${allVideos.length} videos from channel`);
+    return allVideos;
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// 5. ORCHESTRATION — fetch + generate for ALL posts on connected pages
+// 5. ORCHESTRATION — scan ALL content on connected channels
 // ═══════════════════════════════════════════════════════════════════
 
 async function processCommentsForItems(
@@ -485,16 +550,15 @@ export async function processNewComments(): Promise<{
 
     if (!allPlatforms || allPlatforms.length === 0) return result;
 
-    // ── APPROACH 1: Scan posts tracked in DB (published via admin) ──
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    // Collect DB-tracked post IDs (to avoid duplication with approach 2)
     const { data: dbPosts } = await supabase
         .from('social_posts')
-        .select('id, text_content, platform_post_ids, platform_ids')
-        .eq('status', 'published')
-        .gte('published_at', sevenDaysAgo);
+        .select('id, text_content, platform_post_ids')
+        .eq('status', 'published');
 
     const trackedPlatformPostIds = new Set<string>();
 
+    // ── Process DB-tracked posts first ──
     if (dbPosts && dbPosts.length > 0) {
         for (const post of dbPosts) {
             const platformPostIds = post.platform_post_ids || {};
@@ -521,15 +585,19 @@ export async function processNewComments(): Promise<{
         }
     }
 
-    // ── APPROACH 2: Scan ALL recent posts directly from platform APIs ──
+    // ── Scan ALL content on connected channels ──
     for (const platform of allPlatforms) {
         const token = await getValidToken(platform);
-        if (!token) continue;
+        if (!token) {
+            result.errors.push(`Brak tokenu dla ${platform.platform} (${platform.account_name || platform.id})`);
+            continue;
+        }
 
         try {
+            // ── Facebook: scan ALL page posts ──
             if (platform.platform === 'facebook' && platform.account_id) {
-                console.log(`[Comments] Scanning Facebook page: ${platform.account_id}`);
-                const pagePosts = await fetchFacebookPagePosts(platform.account_id, token);
+                console.log(`[Comments] Scanning ALL Facebook page posts: ${platform.account_id}`);
+                const pagePosts = await fetchAllFacebookPagePosts(platform.account_id, token);
                 const newItems = pagePosts
                     .filter(p => !trackedPlatformPostIds.has(`facebook:${p.id}`))
                     .map(p => ({
@@ -539,14 +607,15 @@ export async function processNewComments(): Promise<{
                     }));
 
                 if (newItems.length > 0) {
-                    console.log(`[Comments] Found ${newItems.length} external FB posts to scan`);
+                    console.log(`[Comments] Scanning ${newItems.length} FB posts for comments`);
                     await processCommentsForItems(newItems, 'facebook', token, platform.account_id, result);
                 }
             }
 
+            // ── Instagram: scan ALL media ──
             if (platform.platform === 'instagram' && platform.account_id) {
-                console.log(`[Comments] Scanning Instagram account: ${platform.account_id}`);
-                const igMedia = await fetchInstagramMedia(platform.account_id, token);
+                console.log(`[Comments] Scanning ALL Instagram media: ${platform.account_id}`);
+                const igMedia = await fetchAllInstagramMedia(platform.account_id, token);
                 const newItems = igMedia
                     .filter(m => !trackedPlatformPostIds.has(`instagram:${m.id}`))
                     .map(m => ({
@@ -556,13 +625,28 @@ export async function processNewComments(): Promise<{
                     }));
 
                 if (newItems.length > 0) {
-                    console.log(`[Comments] Found ${newItems.length} external IG posts to scan`);
+                    console.log(`[Comments] Scanning ${newItems.length} IG posts for comments`);
                     await processCommentsForItems(newItems, 'instagram', token, platform.account_id, result);
                 }
             }
 
-            // YouTube: scan channel videos would require channel ID — skip for now
-            // (YouTube posts are typically published via admin panel)
+            // ── YouTube: scan ALL channel videos ──
+            if (platform.platform === 'youtube') {
+                console.log(`[Comments] Scanning ALL YouTube channel videos`);
+                const ytVideos = await fetchAllYouTubeVideos(token);
+                const newItems = ytVideos
+                    .filter(v => !trackedPlatformPostIds.has(`youtube:${v.id}`))
+                    .map(v => ({
+                        platformPostId: v.id,
+                        postContext: v.title || '',
+                        postId: null as string | null,
+                    }));
+
+                if (newItems.length > 0) {
+                    console.log(`[Comments] Scanning ${newItems.length} YT videos for comments`);
+                    await processCommentsForItems(newItems, 'youtube', token, platform.account_id, result);
+                }
+            }
         } catch (err: any) {
             result.errors.push(`Błąd skanowania ${platform.platform}: ${err.message}`);
         }
@@ -570,3 +654,4 @@ export async function processNewComments(): Promise<{
 
     return result;
 }
+
