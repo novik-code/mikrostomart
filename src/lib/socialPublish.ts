@@ -166,21 +166,30 @@ async function publishToInstagram(
 
         const containerId = containerData.id;
 
-        // Step 1.5: For video, wait for processing
-        if (videoUrl) {
-            let attempts = 0;
-            while (attempts < 30) { // max 5 minutes
-                await new Promise(r => setTimeout(r, 10000)); // wait 10s
-                const statusRes = await fetch(
-                    `https://graph.facebook.com/v19.0/${containerId}?fields=status_code&access_token=${token}`
-                );
-                const statusData = await statusRes.json();
-                if (statusData.status_code === 'FINISHED') break;
-                if (statusData.status_code === 'ERROR') {
-                    throw new Error('Instagram video processing failed');
-                }
-                attempts++;
+        // Step 1.5: Wait for container processing (required for BOTH image and video)
+        const maxAttempts = videoUrl ? 30 : 15; // video: 5min, image: 30s
+        const pollInterval = videoUrl ? 10000 : 2000; // video: 10s, image: 2s
+        let containerReady = false;
+        
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+            await new Promise(r => setTimeout(r, pollInterval));
+            const statusRes = await fetch(
+                `https://graph.facebook.com/v19.0/${containerId}?fields=status_code&access_token=${token}`
+            );
+            const statusData = await statusRes.json();
+            console.log(`[IG Publish] Container ${containerId} status: ${statusData.status_code} (attempt ${attempt + 1})`);
+            
+            if (statusData.status_code === 'FINISHED') {
+                containerReady = true;
+                break;
             }
+            if (statusData.status_code === 'ERROR') {
+                throw new Error('Instagram media processing failed');
+            }
+        }
+
+        if (!containerReady) {
+            throw new Error('Instagram media processing timeout');
         }
 
         // Step 2: Publish the container
