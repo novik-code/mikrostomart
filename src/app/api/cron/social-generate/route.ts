@@ -159,11 +159,86 @@ export async function GET(req: NextRequest) {
             }
         }
 
-        // 4. Notify via Telegram if any drafts were created
-        if (generated > 0) {
+        // 3.5 Auto-replenish topics if running low (perpetuum mobile)
+        let topicsReplenished = 0;
+        try {
+            const { data: unusedTopics } = await supabase
+                .from('social_topics')
+                .select('id', { count: 'exact' })
+                .eq('is_active', true)
+                .eq('used_count', 0);
+
+            const unusedCount = unusedTopics?.length || 0;
+            console.log(`[Social Generate Cron] Unused topics: ${unusedCount}`);
+
+            if (unusedCount < 5) {
+                console.log('[Social Generate Cron] Topics running low — auto-generating 15 new topics...');
+
+                const { data: existing } = await supabase
+                    .from('social_topics')
+                    .select('topic');
+                const existingTopics = (existing || []).map((t: any) => t.topic);
+
+                const OpenAI = (await import('openai')).default;
+                const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+                const completion = await openai.chat.completions.create({
+                    model: 'gpt-4o',
+                    messages: [{
+                        role: 'system',
+                        content: `Jesteś redaktorem bloga stomatologicznego kliniki Mikrostomart w Opolu.
+Wygeneruj 15 UNIKALNYCH tematów na posty w social media.
+Tematy powinny obejmować różne aspekty stomatologii.
+
+Tematy powinny być:
+- Chwytliwe i angażujące
+- Edukacyjne ale przystępne
+- Z perspektywy pacjenta
+- Mieszanka: porady, mity vs fakty, nowości, case studies
+
+NIE powtarzaj tych tematów:
+${existingTopics.join('\n')}
+
+Odpowiedz WYŁĄCZNIE w JSON:
+{
+    "topics": [
+        { "topic": "Tytuł tematu", "category": "kategoria" }
+    ]
+}
+
+Kategorie: ogólne, implantologia, estetyka, higiena, endodoncja, protetyka, ortodoncja, chirurgia, laser, dzieci`
+                    }],
+                    response_format: { type: 'json_object' },
+                    temperature: 0.9,
+                });
+
+                const result = JSON.parse(completion.choices[0].message.content || '{}');
+                const newTopics = result.topics || [];
+
+                if (newTopics.length > 0) {
+                    const insertData = newTopics.map((t: any) => ({
+                        topic: t.topic,
+                        category: t.category || 'ogólne',
+                        created_by: 'ai',
+                    }));
+                    const { data: inserted } = await supabase
+                        .from('social_topics')
+                        .insert(insertData)
+                        .select();
+                    topicsReplenished = inserted?.length || 0;
+                    console.log(`[Social Generate Cron] Auto-generated ${topicsReplenished} new topics`);
+                }
+            }
+        } catch (topicErr: any) {
+            console.error('[Social Generate Cron] Topic replenish error:', topicErr.message);
+        }
+        // 4. Notify via Telegram
+        if (generated > 0 || topicsReplenished > 0) {
             try {
                 const { sendTelegramNotification } = await import('@/lib/telegram');
-                const msg = `📱 Social Media AI: ${generated} nowych draftów\n\n${results.filter(r => r.status === 'ok').map(r => `• ${r.schedule}`).join('\n')}\n\n👉 Otwórz panel admina → Social Media → Drafty`;
+                let msg = `📱 Social Media AI: ${generated} nowych draftów`;
+                if (topicsReplenished > 0) msg += `\n🔄 Auto-uzupełniono ${topicsReplenished} nowych tematów`;
+                msg += `\n\n${results.filter(r => r.status === 'ok').map(r => `• ${r.schedule}`).join('\n')}\n\n👉 Otwórz panel admina → Social Media → Drafty`;
                 await sendTelegramNotification(msg, 'default');
             } catch { /* Telegram optional */ }
         }
@@ -172,8 +247,9 @@ export async function GET(req: NextRequest) {
         console.log(`[Social Generate Cron] Done in ${elapsed}ms — ${generated} generated`);
 
         return NextResponse.json({
-            message: `Generated ${generated} draft(s)`,
+            message: `Generated ${generated} draft(s)${topicsReplenished > 0 ? `, replenished ${topicsReplenished} topics` : ''}`,
             generated,
+            topicsReplenished,
             results,
             elapsed: `${elapsed}ms`,
         });
