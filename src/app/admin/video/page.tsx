@@ -20,6 +20,7 @@ interface VideoQueueItem {
     retry_count: number | null;
     captions_video_id: string | null;
     compressed_video_url: string | null;
+    is_pre_edited: boolean;
 }
 
 // ── Status Config ──────────────────────────────────────────────────
@@ -49,6 +50,20 @@ const PIPELINE_STEPS = [
     { label: "Przegląd", emoji: "👁️" },
 ];
 
+// Simplified pipeline for pre-edited videos (skip compress/caption/review)
+const PRE_EDITED_STEPS = [
+    { label: "Upload", emoji: "📤" },
+    { label: "Transkrypcja + AI", emoji: "🧠" },
+    { label: "Auto-publish", emoji: "🚀" },
+];
+
+// Map statuses to pre-edited step numbers
+const PRE_EDITED_STEP_MAP: Record<string, number> = {
+    uploaded: 0, transcribing: 1, transcribed: 1,
+    analyzing: 1, analyzed: 1, ready: 2,
+    publishing: 2, done: 2, failed: -1,
+};
+
 export default function VideoPage() {
     const [videos, setVideos] = useState<VideoQueueItem[]>([]);
     const [uploading, setUploading] = useState(false);
@@ -63,6 +78,7 @@ export default function VideoPage() {
     const [publishResults, setPublishResults] = useState<any>(null);
     const [platformEntries, setPlatformEntries] = useState<any[]>([]);
     const [selectedPlatformIds, setSelectedPlatformIds] = useState<Set<string>>(new Set());
+    const [isPreEdited, setIsPreEdited] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // ── Load videos ─────────────────────────────────────────────────
@@ -170,6 +186,7 @@ export default function VideoPage() {
                     videoUrl: publicUrl,
                     fileSize: previewFile.size,
                     fileName: previewFile.name,
+                    isPreEdited,
                 }),
             });
 
@@ -183,6 +200,7 @@ export default function VideoPage() {
             // Success
             setPreviewFile(null);
             setPreviewUrl(null);
+            setIsPreEdited(false);
             await loadVideos();
 
             setTimeout(() => {
@@ -469,6 +487,57 @@ export default function VideoPage() {
                                 {previewFile?.name} • {formatSize(previewFile?.size || 0)}
                             </p>
 
+                            {/* Pre-edited toggle */}
+                            <div
+                                onClick={() => setIsPreEdited(!isPreEdited)}
+                                style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 10,
+                                    padding: "10px 14px",
+                                    borderRadius: 10,
+                                    background: isPreEdited
+                                        ? "linear-gradient(135deg, rgba(234,179,8,0.12), rgba(249,115,22,0.08))"
+                                        : "rgba(255,255,255,0.03)",
+                                    border: `1px solid ${isPreEdited ? "rgba(234,179,8,0.3)" : "rgba(255,255,255,0.08)"}`,
+                                    cursor: "pointer",
+                                    marginBottom: 12,
+                                    transition: "all 0.2s",
+                                }}
+                            >
+                                <div style={{
+                                    width: 40,
+                                    height: 22,
+                                    borderRadius: 11,
+                                    background: isPreEdited ? "linear-gradient(90deg, #eab308, #f97316)" : "rgba(255,255,255,0.15)",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    padding: 2,
+                                    transition: "all 0.2s",
+                                    flexShrink: 0,
+                                }}>
+                                    <div style={{
+                                        width: 18,
+                                        height: 18,
+                                        borderRadius: "50%",
+                                        background: "white",
+                                        transform: isPreEdited ? "translateX(18px)" : "translateX(0)",
+                                        transition: "transform 0.2s",
+                                        boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
+                                    }} />
+                                </div>
+                                <div>
+                                    <p style={{ fontSize: 13, fontWeight: 700, margin: 0, color: isPreEdited ? "#eab308" : "#888" }}>
+                                        {isPreEdited ? "⚡ Gotowe wideo (auto-publish)" : "🎬 Surowe wideo (pełny pipeline)"}
+                                    </p>
+                                    <p style={{ fontSize: 11, color: "#666", margin: "2px 0 0" }}>
+                                        {isPreEdited
+                                            ? "Tylko transkrypcja + AI analiza → auto-publish na SM"
+                                            : "Transkrypcja → kompresja → napisy → przegląd → publikacja"}
+                                    </p>
+                                </div>
+                            </div>
+
                             {uploading && (
                                 <div style={{
                                     height: 6,
@@ -505,7 +574,11 @@ export default function VideoPage() {
                                         cursor: uploading ? "wait" : "pointer",
                                     }}
                                 >
-                                    {uploading ? `Przesyłanie ${uploadProgress}%...` : "🚀 Przetwórz i opublikuj"}
+                                    {uploading
+                                        ? `Przesyłanie ${uploadProgress}%...`
+                                        : isPreEdited
+                                        ? "⚡ Auto-publish"
+                                        : "🚀 Przetwórz i opublikuj"}
                                 </button>
                                 {!uploading && (
                                     <button
@@ -591,6 +664,22 @@ export default function VideoPage() {
 
                                     {/* Info */}
                                     <div style={{ flex: 1, minWidth: 0 }}>
+                                        {/* Pre-edited badge */}
+                                        {video.is_pre_edited && (
+                                            <span style={{
+                                                fontSize: 9,
+                                                fontWeight: 800,
+                                                background: "linear-gradient(90deg, #eab308, #f97316)",
+                                                color: "#000",
+                                                padding: "2px 6px",
+                                                borderRadius: 4,
+                                                letterSpacing: 0.5,
+                                                marginBottom: 2,
+                                                alignSelf: "flex-start",
+                                            }}>
+                                                ⚡ AUTO
+                                            </span>
+                                        )}
                                         <p style={{
                                             fontSize: 14,
                                             fontWeight: 700,
@@ -700,8 +789,10 @@ export default function VideoPage() {
                                         {/* Pipeline Progress Tracker */}
                                         <div style={{ marginBottom: 14 }}>
                                             <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
-                                                {PIPELINE_STEPS.map((step, i) => {
-                                                    const currentStep = statusConfig.step;
+                                                {(video.is_pre_edited ? PRE_EDITED_STEPS : PIPELINE_STEPS).map((step, i) => {
+                                                    const currentStep = video.is_pre_edited
+                                                        ? (PRE_EDITED_STEP_MAP[video.status] ?? 0)
+                                                        : statusConfig.step;
                                                     const isDone = currentStep > i;
                                                     const isActive = currentStep === i;
                                                     const isFailed = video.status === "failed";
@@ -711,13 +802,13 @@ export default function VideoPage() {
                                                                 width: "100%",
                                                                 height: 4,
                                                                 borderRadius: 2,
-                                                                background: isDone ? "#10b981" : isActive ? (isFailed ? "#ef4444" : "#FFD700") : "rgba(255,255,255,0.08)",
+                                                                background: isDone ? "#10b981" : isActive ? (isFailed ? "#ef4444" : video.is_pre_edited ? "#eab308" : "#FFD700") : "rgba(255,255,255,0.08)",
                                                                 transition: "background 0.3s",
                                                             }} />
                                                             <span style={{
                                                                 fontSize: 9,
                                                                 marginTop: 3,
-                                                                color: isDone ? "#10b981" : isActive ? "#FFD700" : "#555",
+                                                                color: isDone ? "#10b981" : isActive ? (video.is_pre_edited ? "#eab308" : "#FFD700") : "#555",
                                                                 fontWeight: isActive ? 700 : 400,
                                                                 whiteSpace: "nowrap",
                                                             }}>

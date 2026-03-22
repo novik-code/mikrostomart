@@ -4,9 +4,11 @@
  * Pipeline steps (one per cron run):
  *   1: uploaded    → transcribed   (Whisper)
  *   2: transcribed → analyzed      (GPT-4o analysis + metadata)
+ *      ↳ if is_pre_edited: analyzed → ready (skip steps 3-5)
  *   3: analyzed    → compressed    (curl|ffmpeg pipe + store to Supabase)
  *   4: compressed  → captioning    (submit to Captions API)
  *   5: captioning  → review        (poll + download result)
+ *   6: auto-publish ready+pre_edited → done (publish to all platforms)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -21,6 +23,7 @@ import {
     checkCaptioningStatus,
     downloadCaptionedVideo,
 } from '@/lib/captionsAI';
+import { publishVideoToPlatforms } from '@/app/api/social/video-publish/route';
 import { readFileSync, unlinkSync, existsSync, readdirSync } from 'fs';
 import { execSync } from 'child_process';
 
@@ -104,7 +107,7 @@ export async function GET(req: NextRequest) {
 
         if (uploaded && uploaded.length > 0) {
             const video = uploaded[0];
-            console.log(`[VideoCron] Step 1: Transcribing ${video.id}`);
+            console.log(`[VideoCron] Step 1: Transcribing ${video.id}${video.is_pre_edited ? ' [PRE-EDITED]' : ''}`);
             try {
                 await supabase.from('social_video_queue')
                     .update({ status: 'transcribing' })
@@ -133,6 +136,7 @@ export async function GET(req: NextRequest) {
 
         // ═══════════════════════════════════════════
         // STEP 2: AI Analysis (transcribed → analyzed)
+        //   ↳ PRE-EDITED fast track: → ready (skip steps 3-5)
         // ═══════════════════════════════════════════
         const { data: transcribed } = await supabase
             .from('social_video_queue')
@@ -143,7 +147,7 @@ export async function GET(req: NextRequest) {
 
         if (transcribed && transcribed.length > 0) {
             const video = transcribed[0];
-            console.log(`[VideoCron] Step 2: AI analysis for ${video.id}`);
+            console.log(`[VideoCron] Step 2: AI analysis for ${video.id}${video.is_pre_edited ? ' [PRE-EDITED → fast track]' : ''}`);
             try {
                 await supabase.from('social_video_queue')
                     .update({ status: 'analyzing' })
@@ -164,10 +168,24 @@ export async function GET(req: NextRequest) {
                         .eq('id', video.id);
                 }
 
-                await supabase.from('social_video_queue')
-                    .update({ status: 'analyzed' })
-                    .eq('id', video.id);
-                results.push({ id: video.id, action: 'analyzed' });
+                // ── PRE-EDITED FAST TRACK ──
+                // Skip compress → caption → review, go straight to ready
+                if (video.is_pre_edited) {
+                    console.log(`[VideoCron] ⚡ Pre-edited fast track: skipping compress/caption/review → ready`);
+                    await supabase.from('social_video_queue')
+                        .update({
+                            status: 'ready',
+                            processed_video_url: video.raw_video_url,
+                            processed_at: new Date().toISOString(),
+                        })
+                        .eq('id', video.id);
+                    results.push({ id: video.id, action: 'fast_track_ready' });
+                } else {
+                    await supabase.from('social_video_queue')
+                        .update({ status: 'analyzed' })
+                        .eq('id', video.id);
+                    results.push({ id: video.id, action: 'analyzed' });
+                }
             } catch (err: any) {
                 console.error(`[VideoCron] Analysis error:`, err);
                 await supabase.from('social_video_queue')
@@ -361,6 +379,41 @@ export async function GET(req: NextRequest) {
                 } catch (err: any) {
                     console.error(`[VideoCron] Poll error for ${video.id}:`, err);
                 }
+            }
+        }
+
+        // ═══════════════════════════════════════════
+        // STEP 6: Auto-publish pre-edited videos (ready + is_pre_edited → done)
+        // ═══════════════════════════════════════════
+        const { data: readyPreEdited } = await supabase
+            .from('social_video_queue')
+            .select('*')
+            .eq('status', 'ready')
+            .eq('is_pre_edited', true)
+            .order('created_at', { ascending: true })
+            .limit(1);
+
+        if (readyPreEdited && readyPreEdited.length > 0) {
+            const video = readyPreEdited[0];
+            console.log(`[VideoCron] Step 6: ⚡ Auto-publishing pre-edited video ${video.id}`);
+            try {
+                const publishResult = await publishVideoToPlatforms(
+                    video.id,
+                    video.target_platform_ids || undefined
+                );
+                console.log(`[VideoCron] Auto-publish result: ${publishResult.summary.published}/${publishResult.summary.total} platforms OK`);
+                results.push({
+                    id: video.id,
+                    action: 'auto_published',
+                    published: publishResult.summary.published,
+                    failed: publishResult.summary.failed,
+                });
+            } catch (err: any) {
+                console.error(`[VideoCron] Auto-publish error:`, err);
+                await supabase.from('social_video_queue')
+                    .update({ status: 'failed', error_message: `AutoPublish: ${err.message}` })
+                    .eq('id', video.id);
+                results.push({ id: video.id, action: 'auto_publish_failed', error: err.message });
             }
         }
 

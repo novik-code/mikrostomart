@@ -19,13 +19,14 @@ const supabase = createClient(
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
-        const { videoUrl, fileSize, fileName } = body;
+        const { videoUrl, fileSize, fileName, isPreEdited } = body;
 
         if (!videoUrl) {
             return NextResponse.json({ error: 'Brak URL wideo' }, { status: 400 });
         }
 
-        console.log(`[Video Upload] Registering queue entry: ${fileName} (${((fileSize || 0) / 1024 / 1024).toFixed(1)}MB)`);
+        const preEdited = isPreEdited === true;
+        console.log(`[Video Upload] Registering queue entry: ${fileName} (${((fileSize || 0) / 1024 / 1024).toFixed(1)}MB)${preEdited ? ' [PRE-EDITED]' : ''}`);
 
         // Get all active platform IDs for auto-publishing
         const { data: platforms } = await supabase
@@ -43,13 +44,14 @@ export async function POST(req: NextRequest) {
                 raw_video_size: fileSize || null,
                 status: 'uploaded',
                 target_platform_ids: platformIds,
+                is_pre_edited: preEdited,
             })
             .select()
             .single();
 
         if (dbError) throw dbError;
 
-        console.log(`[Video Upload] Queue entry created: ${queueEntry.id}`);
+        console.log(`[Video Upload] Queue entry created: ${queueEntry.id}${preEdited ? ' (pre-edited fast-track)' : ''}`);
 
         return NextResponse.json({
             success: true,
