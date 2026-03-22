@@ -480,7 +480,7 @@ async function processCommentsForItems(
     platformName: string,
     token: string,
     accountId: string | undefined,
-    result: { fetched: number; generated: number; skipped: number; errors: string[] },
+    result: { fetched: number; generated: number; published: number; skipped: number; errors: string[] },
 ) {
     for (const item of items) {
         const newComments = await fetchCommentsForPost(
@@ -509,29 +509,59 @@ async function processCommentsForItems(
                     item.postContext,
                 );
 
-                const status = replyText.toUpperCase().trim() === 'SKIP' ? 'skipped' : 'draft';
+                const isSkip = replyText.toUpperCase().trim() === 'SKIP';
 
-                if (status === 'skipped') {
+                if (isSkip) {
                     result.skipped++;
+                    await supabase.from('social_comment_replies').upsert(
+                        {
+                            post_id: item.postId,
+                            platform: platformName,
+                            platform_post_id: item.platformPostId,
+                            comment_id: comment.comment_id,
+                            comment_text: comment.text,
+                            comment_author: comment.author,
+                            comment_date: comment.date,
+                            reply_text: null,
+                            status: 'skipped',
+                            ai_model: aiModel,
+                        },
+                        { onConflict: 'platform,comment_id' },
+                    );
                 } else {
                     result.generated++;
-                }
 
-                await supabase.from('social_comment_replies').upsert(
-                    {
-                        post_id: item.postId,
-                        platform: platformName,
-                        platform_post_id: item.platformPostId,
-                        comment_id: comment.comment_id,
-                        comment_text: comment.text,
-                        comment_author: comment.author,
-                        comment_date: comment.date,
-                        reply_text: status === 'skipped' ? null : replyText,
-                        status,
-                        ai_model: aiModel,
-                    },
-                    { onConflict: 'platform,comment_id' },
-                );
+                    // Save as approved first
+                    const { data: upserted } = await supabase.from('social_comment_replies').upsert(
+                        {
+                            post_id: item.postId,
+                            platform: platformName,
+                            platform_post_id: item.platformPostId,
+                            comment_id: comment.comment_id,
+                            comment_text: comment.text,
+                            comment_author: comment.author,
+                            comment_date: comment.date,
+                            reply_text: replyText,
+                            status: 'approved',
+                            ai_model: aiModel,
+                        },
+                        { onConflict: 'platform,comment_id' },
+                    ).select('*').single();
+
+                    // Auto-publish immediately
+                    if (upserted) {
+                        try {
+                            const pubResult = await publishReply(upserted as CommentReplyRow);
+                            if (pubResult.success) {
+                                result.published++;
+                            } else {
+                                result.errors.push(`Publikacja komentarza ${comment.comment_id}: ${pubResult.error}`);
+                            }
+                        } catch (pubErr: any) {
+                            result.errors.push(`Publikacja ${comment.comment_id}: ${pubErr.message}`);
+                        }
+                    }
+                }
             } catch (err: any) {
                 result.errors.push(
                     `Błąd AI dla komentarza ${comment.comment_id}: ${err.message}`,
@@ -544,10 +574,11 @@ async function processCommentsForItems(
 export async function processNewComments(): Promise<{
     fetched: number;
     generated: number;
+    published: number;
     skipped: number;
     errors: string[];
 }> {
-    const result = { fetched: 0, generated: 0, skipped: 0, errors: [] as string[] };
+    const result = { fetched: 0, generated: 0, published: 0, skipped: 0, errors: [] as string[] };
 
     // Get all active platforms
     const { data: allPlatforms } = await supabase

@@ -216,6 +216,7 @@ export default function SocialMediaTab() {
     const [commentsStatusFilter, setCommentsStatusFilter] = useState<string>('all');
     const [commentsPlatformFilter, setCommentsPlatformFilter] = useState<string>('all');
     const [fetchingComments, setFetchingComments] = useState(false);
+    const [fetchElapsed, setFetchElapsed] = useState(0);
     const [publishingReplyId, setPublishingReplyId] = useState<string | null>(null);
     const [editingReplyId, setEditingReplyId] = useState<string | null>(null);
     const [editingReplyText, setEditingReplyText] = useState('');
@@ -1330,18 +1331,28 @@ export default function SocialMediaTab() {
                         <button
                             onClick={async () => {
                                 setFetchingComments(true);
+                                setFetchElapsed(0);
+                                const timer = setInterval(() => setFetchElapsed(t => t + 1), 1000);
                                 try {
                                     const res = await fetch('/api/social/comments/fetch', { method: 'POST' });
-                                    const data = await res.json();
-                                    alert(`Pobrano ${data.fetched || 0} nowych komentarzy, wygenerowano ${data.generated || 0} odpowiedzi AI${data.skipped ? `, pominięto ${data.skipped}` : ''}${data.errors?.length ? `\nBłędy: ${data.errors.join(', ')}` : ''}`);
+                                    const text = await res.text();
+                                    let data: any = {};
+                                    try { data = JSON.parse(text); } catch { data = { error: text || 'Brak odpowiedzi z serwera' }; }
+                                    if (data.error) {
+                                        alert('Błąd: ' + data.error);
+                                    } else {
+                                        alert(`Pobrano ${data.fetched || 0} nowych komentarzy\nWygenerowano: ${data.generated || 0} odpowiedzi AI\nOpublikowano automatycznie: ${data.published || 0}${data.skipped ? `\nPominięto (spam): ${data.skipped}` : ''}${data.errors?.length ? `\n\nBłędy:\n${data.errors.join('\n')}` : ''}`);
+                                    }
                                     fetchCommentReplies();
-                                } catch (e: any) { alert('Błąd: ' + e.message); }
+                                } catch (e: any) { alert('Błąd połączenia: ' + e.message); }
+                                clearInterval(timer);
+                                setFetchElapsed(0);
                                 setFetchingComments(false);
                             }}
                             disabled={fetchingComments}
                             style={{ ...btnStyle('#3b82f6'), color: 'white', opacity: fetchingComments ? 0.6 : 1 }}
                         >
-                            {fetchingComments ? '⏳ Pobieranie...' : '🔄 Pobierz nowe komentarze'}
+                            {fetchingComments ? `⏳ Skanowanie... (${Math.floor(fetchElapsed / 60)}:${String(fetchElapsed % 60).padStart(2, '0')})` : '🔄 Pobierz nowe komentarze'}
                         </button>
                         <button
                             onClick={async () => {
