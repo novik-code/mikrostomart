@@ -1356,9 +1356,9 @@ export default function SocialMediaTab() {
                         </button>
                         <button
                             onClick={async () => {
-                                const approved = commentReplies.filter(c => c.status === 'approved');
-                                if (approved.length === 0) { alert('Brak zatwierdzonych odpowiedzi do publikacji'); return; }
-                                if (!confirm(`Opublikować ${approved.length} zatwierdzonych odpowiedzi?`)) return;
+                                const unpublished = commentReplies.filter(c => c.status === 'draft' || c.status === 'approved');
+                                if (unpublished.length === 0) { alert('Brak odpowiedzi do publikacji'); return; }
+                                if (!confirm(`Opublikować ${unpublished.length} odpowiedzi (draft + zatwierdzone)?`)) return;
                                 setPublishingAllReplies(true);
                                 try {
                                     const res = await fetch('/api/social/comments/publish', {
@@ -1366,16 +1366,18 @@ export default function SocialMediaTab() {
                                         headers: { 'Content-Type': 'application/json' },
                                         body: JSON.stringify({ publish_all: true }),
                                     });
-                                    const data = await res.json();
-                                    alert(`Opublikowano: ${data.published}/${data.total}${data.errors?.length ? `\nBłędy: ${data.errors.join('\n')}` : ''}`);
+                                    const text = await res.text();
+                                    let data: any = {};
+                                    try { data = JSON.parse(text); } catch { data = { error: text || 'Brak odpowiedzi' }; }
+                                    alert(`Opublikowano: ${data.published || 0}/${data.total || 0}${data.errors?.length ? `\nBłędy:\n${data.errors.join('\n')}` : ''}`);
                                     fetchCommentReplies();
                                 } catch (e: any) { alert('Błąd: ' + e.message); }
                                 setPublishingAllReplies(false);
                             }}
-                            disabled={publishingAllReplies || commentReplies.filter(c => c.status === 'approved').length === 0}
-                            style={{ ...btnStyle('#22c55e'), color: 'white', opacity: publishingAllReplies || commentReplies.filter(c => c.status === 'approved').length === 0 ? 0.5 : 1 }}
+                            disabled={publishingAllReplies || commentReplies.filter(c => c.status === 'draft' || c.status === 'approved').length === 0}
+                            style={{ ...btnStyle('#22c55e'), color: 'white', opacity: publishingAllReplies || commentReplies.filter(c => c.status === 'draft' || c.status === 'approved').length === 0 ? 0.5 : 1 }}
                         >
-                            {publishingAllReplies ? '⏳ Publikowanie...' : `🚀 Publikuj zatwierdzone (${commentReplies.filter(c => c.status === 'approved').length})`}
+                            {publishingAllReplies ? '⏳ Publikowanie...' : `🚀 Publikuj wszystkie (${commentReplies.filter(c => c.status === 'draft' || c.status === 'approved').length})`}
                         </button>
                         <button onClick={() => fetchCommentReplies()} style={{ ...btnStyle('#555'), color: 'white' }}>🔄 Odśwież</button>
                     </div>
