@@ -1341,7 +1341,7 @@ export default function SocialMediaTab() {
                                     if (data.error) {
                                         alert('Błąd: ' + data.error);
                                     } else {
-                                        alert(`Pobrano ${data.fetched || 0} nowych komentarzy\nWygenerowano: ${data.generated || 0} odpowiedzi AI\nOpublikowano automatycznie: ${data.published || 0}${data.skipped ? `\nPominięto (spam): ${data.skipped}` : ''}${data.errors?.length ? `\n\nBłędy:\n${data.errors.join('\n')}` : ''}`);
+                                        alert(`Pobrano ${data.fetched || 0} nowych komentarzy\nWygenerowano: ${data.generated || 0} odpowiedzi AI\nOpublikowano automatycznie: ${data.published || 0}${data.skipped ? `\nPominięto (spam): ${data.skipped}` : ''}${data.stopped_early ? '\n\n⚠️ Zatrzymano wcześniej (limit budżetu)' : ''}${data.debug?.length ? `\n\n📊 Debug:\n${data.debug.join('\n')}` : ''}${data.errors?.length ? `\n\n❌ Błędy:\n${data.errors.join('\n')}` : ''}`);
                                     }
                                     fetchCommentReplies();
                                 } catch (e: any) { alert('Błąd połączenia: ' + e.message); }

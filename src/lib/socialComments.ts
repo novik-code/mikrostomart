@@ -512,7 +512,7 @@ async function processCommentsForItems(
     platformName: string,
     token: string,
     accountId: string | undefined,
-    result: { fetched: number; generated: number; published: number; skipped: number; stopped_early: boolean; errors: string[] },
+    result: { fetched: number; generated: number; published: number; skipped: number; stopped_early: boolean; errors: string[]; debug: string[] },
     budget: ProcessBudget,
 ) {
     for (const item of items) {
@@ -534,6 +534,8 @@ async function processCommentsForItems(
                 if (!c.date) return true; // no date = assume recent
                 return new Date(c.date) >= thirtyDaysAgo;
             });
+
+            result.debug.push(`${platformName}/${item.platformPostId}: raw=${newComments.length}, recent=${recentComments.length}`);
         } catch (fetchErr: any) {
             result.errors.push(`${platformName}/${item.platformPostId}: ${fetchErr.message}`);
             continue; // skip this post, try next one
@@ -621,8 +623,9 @@ export async function processNewComments(): Promise<{
     skipped: number;
     stopped_early: boolean;
     errors: string[];
+    debug: string[];
 }> {
-    const result = { fetched: 0, generated: 0, published: 0, skipped: 0, stopped_early: false, errors: [] as string[] };
+    const result = { fetched: 0, generated: 0, published: 0, skipped: 0, stopped_early: false, errors: [] as string[], debug: [] as string[] };
     const budget: ProcessBudget = { startTime: Date.now(), repliesProcessed: 0 };
 
     // Get all active platforms
@@ -631,7 +634,11 @@ export async function processNewComments(): Promise<{
         .select('*')
         .eq('is_active', true);
 
-    if (!allPlatforms || allPlatforms.length === 0) return result;
+    if (!allPlatforms || allPlatforms.length === 0) {
+        result.debug.push('Brak aktywnych platform');
+        return result;
+    }
+    result.debug.push(`Platformy: ${allPlatforms.map((p: any) => `${p.platform}(${p.account_name})`).join(', ')}`);
 
     // Collect DB-tracked post IDs (to avoid duplication with approach 2)
     const { data: dbPosts } = await supabase
@@ -701,6 +708,8 @@ export async function processNewComments(): Promise<{
                         postId: null as string | null,
                     }));
 
+                result.debug.push(`FB(${platform.account_name}): ${pagePosts.length} postów, ${newItems.length} po filtrze tracked`);
+
                 if (newItems.length > 0) {
                     console.log(`[Comments] Scanning ${newItems.length} FB posts for comments`);
                     await processCommentsForItems(newItems, 'facebook', token, platform.account_id, result, budget);
@@ -721,6 +730,8 @@ export async function processNewComments(): Promise<{
                         postId: null as string | null,
                     }));
 
+                result.debug.push(`IG(${platform.account_name}): ${igMedia.length} mediów, ${newItems.length} po filtrze tracked`);
+
                 if (newItems.length > 0) {
                     console.log(`[Comments] Scanning ${newItems.length} IG posts for comments`);
                     await processCommentsForItems(newItems, 'instagram', token, platform.account_id, result, budget);
@@ -740,6 +751,8 @@ export async function processNewComments(): Promise<{
                         postContext: v.title || '',
                         postId: null as string | null,
                     }));
+
+                result.debug.push(`YT: ${ytVideos.length} filmów, ${newItems.length} po filtrze tracked`);
 
                 if (newItems.length > 0) {
                     console.log(`[Comments] Scanning ${newItems.length} YT videos for comments`);
