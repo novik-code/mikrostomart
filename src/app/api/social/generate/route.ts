@@ -69,13 +69,16 @@ export async function POST(req: NextRequest) {
             }
         }
 
-        // AUTO-RESOLVE: if still no platform IDs, fetch all active FB+IG platforms
+        // AUTO-RESOLVE: if still no platform IDs, fetch active FB+IG platforms matching content type
         if (resolvedPlatformIds.length === 0) {
-            console.log('[Social Generate] No platform IDs provided — auto-resolving active FB+IG platforms');
+            const isVideo = content_type === 'video_short';
+            const contentFilter = isVideo ? ['all', 'video'] : ['all', 'posts'];
+            console.log(`[Social Generate] No platform IDs — auto-resolving (content: ${contentFilter})`);
             const { data: allPlatforms } = await supabase
                 .from('social_platforms')
                 .select('id, platform')
                 .in('platform', ['facebook', 'instagram'])
+                .in('content_type', contentFilter)
                 .eq('is_active', true);
             if (allPlatforms && allPlatforms.length > 0) {
                 resolvedPlatformIds = allPlatforms.map((p: any) => p.id);

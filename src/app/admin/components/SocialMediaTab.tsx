@@ -856,10 +856,34 @@ export default function SocialMediaTab() {
                                                 {publishingId === post.id ? '⏳...' : '📤 Publikuj'}
                                             </button>
                                         )}
+                                        {post.status === 'failed' && (
+                                            <button
+                                                onClick={() => handlePublish(post.id)}
+                                                disabled={publishingId === post.id}
+                                                style={{ ...btnStyle('#f97316'), padding: '0.3rem 0.6rem', fontSize: '0.78rem', color: 'white', opacity: publishingId === post.id ? 0.6 : 1 }}
+                                            >
+                                                {publishingId === post.id ? '⏳ Ponawiam...' : '🔄 Ponów publikację'}
+                                            </button>
+                                        )}
+                                        {post.status === 'rejected' && (
+                                            <button onClick={() => handlePostAction(post.id, 'approve')} style={{ ...btnStyle('#22c55e'), padding: '0.3rem 0.6rem', fontSize: '0.78rem', color: 'white' }}>♻️ Przywróć</button>
+                                        )}
                                         <button onClick={() => { setEditingPost(post); setEditPostText(post.text_content || ''); }} style={{ ...btnStyle('#3b82f6'), padding: '0.3rem 0.6rem', fontSize: '0.78rem', color: 'white' }}>✏️</button>
                                         <button onClick={() => handleDeletePost(post.id)} style={{ ...btnStyle('#555'), padding: '0.3rem 0.6rem', fontSize: '0.78rem', color: 'white' }}>🗑️</button>
                                     </div>
                                 </div>
+
+                                {/* Publish errors */}
+                                {post.publish_errors && Object.keys(post.publish_errors).length > 0 && (
+                                    <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '0.4rem', padding: '0.5rem 0.75rem', marginBottom: '0.5rem', fontSize: '0.78rem' }}>
+                                        <strong style={{ color: '#f87171' }}>❌ Błędy publikacji:</strong>
+                                        {Object.entries(post.publish_errors).map(([platform, error]: [string, any]) => (
+                                            <div key={platform} style={{ marginTop: '0.2rem', color: 'var(--color-text-muted)' }}>
+                                                <strong>{platform}:</strong> {typeof error === 'string' ? error : JSON.stringify(error)}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
 
                                 {/* Content preview */}
                                 {post.text_content && (
