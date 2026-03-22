@@ -491,9 +491,16 @@ async function processCommentsForItems(
             accountId,
         );
 
-        result.fetched += newComments.length;
+        // Skip comments older than 30 days — no point replying to old ones
+        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+        const recentComments = newComments.filter(c => {
+            if (!c.date) return true; // no date = assume recent
+            return new Date(c.date) >= thirtyDaysAgo;
+        });
 
-        for (const comment of newComments) {
+        result.fetched += recentComments.length;
+
+        for (const comment of recentComments) {
             try {
                 const aiModel = process.env.SOCIAL_AI_MODEL || 'gpt-4o';
                 const replyText = await generateCommentReply(
