@@ -388,7 +388,7 @@ export default function SocialMediaTab() {
     };
 
     // ── AI Generation ─────────────────────────────────────────────────
-    const handleGenerateAI = async () => {
+    const handleGenerateAI = async (autoPublish = false) => {
         setGenerating(true);
         try {
             const res = await fetch('/api/social/generate', {
@@ -398,6 +398,7 @@ export default function SocialMediaTab() {
                     content_type: generateForm.content_type,
                     custom_prompt: generateForm.custom_prompt || undefined,
                     with_image: generateForm.with_image,
+                    auto_publish: autoPublish,
                 }),
             });
             if (!res.ok) {
@@ -405,7 +406,11 @@ export default function SocialMediaTab() {
                 throw new Error(err.error || 'Błąd generowania');
             }
             const data = await res.json();
-            alert(`✅ Wygenerowano post! ${data.generated.has_image ? '(z grafiką)' : '(bez grafiki)'}`);
+            if (autoPublish && data.published) {
+                alert(`✅ Post wygenerowany i opublikowany! ${data.generated.has_image ? '(z grafiką)' : ''}`);
+            } else {
+                alert(`✅ Wygenerowano draft! ${data.generated.has_image ? '(z grafiką)' : '(bez grafiki)'}`);
+            }
             setShowGenerateForm(false);
             setGenerateForm({ content_type: 'post_text_image', custom_prompt: '', with_image: true });
             fetchPosts();
@@ -802,9 +807,12 @@ export default function SocialMediaTab() {
                                         style={{ ...inputStyle, resize: 'vertical' }}
                                     />
                                 </div>
-                                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                    <button onClick={handleGenerateAI} disabled={generating} style={{ ...btnStyle('#8b5cf6'), color: 'white', opacity: generating ? 0.6 : 1 }}>
-                                        {generating ? '⏳ Generowanie (~30s)...' : '🚀 Generuj'}
+                                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                    <button onClick={() => handleGenerateAI(false)} disabled={generating} style={{ ...btnStyle('#8b5cf6'), color: 'white', opacity: generating ? 0.6 : 1 }}>
+                                        {generating ? '⏳ Generowanie (~30s)...' : '📝 Generuj draft'}
+                                    </button>
+                                    <button onClick={() => { if (confirm('Wygenerować post i od razu opublikować na FB/IG?')) handleGenerateAI(true); }} disabled={generating} style={{ ...btnStyle('#22c55e'), color: 'white', opacity: generating ? 0.6 : 1 }}>
+                                        {generating ? '⏳...' : '🚀 Generuj i publikuj'}
                                     </button>
                                     <button onClick={() => setShowGenerateForm(false)} style={{ ...btnStyle('#555'), color: 'white' }}>Anuluj</button>
                                 </div>

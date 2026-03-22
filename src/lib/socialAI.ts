@@ -96,25 +96,25 @@ async function pickTopicFromDB(): Promise<string | null> {
             process.env.SUPABASE_SERVICE_ROLE_KEY!
         );
 
-        // Prefer least-used active topics
+        // STRICT: only pick topics that have NEVER been used
         const { data: topics } = await db
             .from('social_topics')
             .select('id, topic')
             .eq('is_active', true)
-            .order('used_count', { ascending: true })
-            .order('last_used_at', { ascending: true, nullsFirst: true })
+            .eq('used_count', 0)
+            .order('created_at', { ascending: true })
             .limit(10);
 
         if (!topics || topics.length === 0) return null;
 
-        // Pick random from least-used
+        // Pick random from unused pool
         const picked = topics[Math.floor(Math.random() * topics.length)];
 
-        // Increment usage
+        // Mark as used (increment count + timestamp) — this topic will never be picked again
         await db
             .from('social_topics')
             .update({
-                used_count: (picked as any).used_count ? (picked as any).used_count + 1 : 1,
+                used_count: 1,
                 last_used_at: new Date().toISOString()
             })
             .eq('id', picked.id);

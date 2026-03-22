@@ -28,6 +28,7 @@ export async function POST(req: NextRequest) {
             content_type = 'post_text_image',
             custom_prompt,
             with_image = true,
+            auto_publish = false,
         } = body;
 
         // Resolve platform names from IDs
@@ -85,12 +86,13 @@ export async function POST(req: NextRequest) {
             console.log('[Social Generate] Image uploaded:', imageUrl);
         }
 
-        // 3. Create draft post in DB
+        // 3. Create post in DB (draft or approved for auto-publish)
+        const postStatus = auto_publish ? 'approved' : 'draft';
         const { data: post, error: insertError } = await supabase
             .from('social_posts')
             .insert({
                 schedule_id: schedule_id || null,
-                status: 'draft',
+                status: postStatus,
                 platform_ids: schedulePlatformIds || platform_ids || [],
                 content_type,
                 text_content: content.text,
@@ -98,13 +100,26 @@ export async function POST(req: NextRequest) {
                 image_url: imageUrl,
                 ai_model: process.env.SOCIAL_AI_MODEL || 'gpt-4o',
                 ai_prompt_used: schedulePrompt || '(auto-generated topic)',
+                scheduled_for: auto_publish ? new Date().toISOString() : null,
             })
             .select()
             .single();
 
         if (insertError) throw insertError;
 
-        console.log('[Social Generate] Draft created:', post.id);
+        console.log(`[Social Generate] Post created (${postStatus}):`, post.id);
+
+        // 4. Auto-publish if requested
+        let publishResults = null;
+        if (auto_publish) {
+            try {
+                const { publishPost } = await import('@/lib/socialPublish');
+                publishResults = await publishPost(post.id);
+                console.log('[Social Generate] Auto-published:', publishResults);
+            } catch (pubErr: any) {
+                console.error('[Social Generate] Auto-publish error:', pubErr.message);
+            }
+        }
 
         return NextResponse.json({
             success: true,
@@ -114,6 +129,8 @@ export async function POST(req: NextRequest) {
                 hashtags_count: content.hashtags.length,
                 has_image: !!imageUrl,
             },
+            published: auto_publish,
+            publishResults,
         });
     } catch (err: any) {
         console.error('[Social Generate] Error:', err);
