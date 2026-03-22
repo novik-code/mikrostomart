@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
         const status = searchParams.get('status');
         const platform = searchParams.get('platform');
         const postId = searchParams.get('post_id');
-        const limit = parseInt(searchParams.get('limit') || '100', 10);
+        const limit = parseInt(searchParams.get('limit') || '1000', 10);
 
         let query = supabase
             .from('social_comment_replies')

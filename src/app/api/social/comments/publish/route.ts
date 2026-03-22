@@ -30,8 +30,15 @@ export async function POST(req: NextRequest) {
 
             let published = 0;
             let errors: string[] = [];
+            const quotaExhausted = new Set<string>(); // track platforms with quota issues
 
             for (const row of unpublished) {
+                // Skip platforms that hit quota limits
+                if (quotaExhausted.has(row.platform)) {
+                    errors.push(`${row.platform}/${row.comment_id}: pominięto (wyczerpany limit API)`);
+                    continue;
+                }
+
                 // Auto-approve drafts before publishing
                 if (row.status === 'draft') {
                     await supabase.from('social_comment_replies').update({ status: 'approved' }).eq('id', row.id);
@@ -41,6 +48,10 @@ export async function POST(req: NextRequest) {
                     published++;
                 } else {
                     errors.push(`${row.platform}/${row.comment_id}: ${result.error}`);
+                    // Detect quota errors and stop for this platform
+                    if (result.error?.includes('quota') || result.error?.includes('Quota') || result.error?.includes('rate limit')) {
+                        quotaExhausted.add(row.platform);
+                    }
                 }
             }
 

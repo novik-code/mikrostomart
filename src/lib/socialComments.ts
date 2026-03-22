@@ -647,6 +647,8 @@ export async function processNewComments(): Promise<{
             const platformPostIds = post.platform_post_ids || {};
             for (const [platformName, platformPostId] of Object.entries(platformPostIds)) {
                 if (!platformPostId) continue;
+                // Skip platforms without comment API support
+                if (platformName === 'tiktok') continue;
                 trackedPlatformPostIds.add(`${platformName}:${platformPostId}`);
 
                 const matchingPlatform = allPlatforms.find(
@@ -674,9 +676,15 @@ export async function processNewComments(): Promise<{
     for (const platform of allPlatforms) {
         if (result.stopped_early) break;
 
+        // Skip platforms without comment API support
+        if (platform.platform === 'tiktok') continue;
+
         const token = await getValidToken(platform);
         if (!token) {
-            result.errors.push(`Brak tokenu dla ${platform.platform} (${platform.account_name || platform.id})`);
+            // Don't report missing token as error for platforms we don't scan
+            if (['facebook', 'instagram', 'youtube'].includes(platform.platform)) {
+                result.errors.push(`Brak tokenu dla ${platform.platform} (${platform.account_name || platform.id})`);
+            }
             continue;
         }
 
