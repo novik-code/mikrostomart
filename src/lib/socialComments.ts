@@ -387,7 +387,7 @@ async function fetchAllFacebookPagePosts(pageId: string, token: string): Promise
     const allPosts: { id: string; message: string }[] = [];
     let url: string | null = `https://graph.facebook.com/v19.0/${pageId}/posts?fields=id,message,created_time&limit=100&access_token=${token}`;
 
-    while (url && allPosts.length < 200) {
+    while (url && allPosts.length < 50) {
         const res: Response = await fetch(url);
         const data: any = await res.json();
         if (data.error) {
@@ -409,7 +409,7 @@ async function fetchAllInstagramMedia(igAccountId: string, token: string): Promi
     const allMedia: { id: string; caption: string }[] = [];
     let url: string | null = `https://graph.facebook.com/v19.0/${igAccountId}/media?fields=id,caption,timestamp&limit=100&access_token=${token}`;
 
-    while (url && allMedia.length < 200) {
+    while (url && allMedia.length < 50) {
         const res: Response = await fetch(url);
         const data: any = await res.json();
         if (data.error) {
@@ -448,7 +448,7 @@ async function fetchAllYouTubeVideos(token: string): Promise<{ id: string; title
     const allVideos: { id: string; title: string }[] = [];
     let pageToken: string | null = '';
 
-    while (pageToken !== null && allVideos.length < 200) {
+    while (pageToken !== null && allVideos.length < 50) {
         const ptParam: string = pageToken ? `&pageToken=${pageToken}` : '';
         const url: string = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${uploadsPlaylistId}&maxResults=50${ptParam}`;
         const res: Response = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
@@ -475,14 +475,32 @@ async function fetchAllYouTubeVideos(token: string): Promise<{ id: string; title
 // 5. ORCHESTRATION — scan ALL content on connected channels
 // ═══════════════════════════════════════════════════════════════════
 
+// Budget limits to avoid Vercel timeout
+const MAX_REPLIES_PER_RUN = 15;  // max GPT + publish operations per invocation
+const TIME_BUDGET_MS = 4 * 60 * 1000; // 4 minutes max (leave 1 min buffer for 5 min timeout)
+
+interface ProcessBudget {
+    startTime: number;
+    repliesProcessed: number;
+}
+
+function hasBudget(budget: ProcessBudget): boolean {
+    if (budget.repliesProcessed >= MAX_REPLIES_PER_RUN) return false;
+    if (Date.now() - budget.startTime > TIME_BUDGET_MS) return false;
+    return true;
+}
+
 async function processCommentsForItems(
     items: { platformPostId: string; postContext: string; postId: string | null }[],
     platformName: string,
     token: string,
     accountId: string | undefined,
-    result: { fetched: number; generated: number; published: number; skipped: number; errors: string[] },
+    result: { fetched: number; generated: number; published: number; skipped: number; stopped_early: boolean; errors: string[] },
+    budget: ProcessBudget,
 ) {
     for (const item of items) {
+        if (!hasBudget(budget)) { result.stopped_early = true; return; }
+
         const newComments = await fetchCommentsForPost(
             item.postId || 'external',
             platformName,
@@ -501,6 +519,7 @@ async function processCommentsForItems(
         result.fetched += recentComments.length;
 
         for (const comment of recentComments) {
+            if (!hasBudget(budget)) { result.stopped_early = true; return; }
             try {
                 const aiModel = process.env.SOCIAL_AI_MODEL || 'gpt-4o';
                 const replyText = await generateCommentReply(
@@ -562,6 +581,7 @@ async function processCommentsForItems(
                         }
                     }
                 }
+                budget.repliesProcessed++;
             } catch (err: any) {
                 result.errors.push(
                     `Błąd AI dla komentarza ${comment.comment_id}: ${err.message}`,
@@ -576,9 +596,11 @@ export async function processNewComments(): Promise<{
     generated: number;
     published: number;
     skipped: number;
+    stopped_early: boolean;
     errors: string[];
 }> {
-    const result = { fetched: 0, generated: 0, published: 0, skipped: 0, errors: [] as string[] };
+    const result = { fetched: 0, generated: 0, published: 0, skipped: 0, stopped_early: false, errors: [] as string[] };
+    const budget: ProcessBudget = { startTime: Date.now(), repliesProcessed: 0 };
 
     // Get all active platforms
     const { data: allPlatforms } = await supabase
@@ -618,13 +640,17 @@ export async function processNewComments(): Promise<{
                     token,
                     matchingPlatform.account_id,
                     result,
+                    budget,
                 );
+                if (result.stopped_early) break;
             }
         }
     }
 
     // ── Scan ALL content on connected channels ──
     for (const platform of allPlatforms) {
+        if (result.stopped_early) break;
+
         const token = await getValidToken(platform);
         if (!token) {
             result.errors.push(`Brak tokenu dla ${platform.platform} (${platform.account_name || platform.id})`);
@@ -646,9 +672,11 @@ export async function processNewComments(): Promise<{
 
                 if (newItems.length > 0) {
                     console.log(`[Comments] Scanning ${newItems.length} FB posts for comments`);
-                    await processCommentsForItems(newItems, 'facebook', token, platform.account_id, result);
+                    await processCommentsForItems(newItems, 'facebook', token, platform.account_id, result, budget);
                 }
             }
+
+            if (result.stopped_early) continue;
 
             // ── Instagram: scan ALL media ──
             if (platform.platform === 'instagram' && platform.account_id) {
@@ -664,9 +692,11 @@ export async function processNewComments(): Promise<{
 
                 if (newItems.length > 0) {
                     console.log(`[Comments] Scanning ${newItems.length} IG posts for comments`);
-                    await processCommentsForItems(newItems, 'instagram', token, platform.account_id, result);
+                    await processCommentsForItems(newItems, 'instagram', token, platform.account_id, result, budget);
                 }
             }
+
+            if (result.stopped_early) continue;
 
             // ── YouTube: scan ALL channel videos ──
             if (platform.platform === 'youtube') {
@@ -682,7 +712,7 @@ export async function processNewComments(): Promise<{
 
                 if (newItems.length > 0) {
                     console.log(`[Comments] Scanning ${newItems.length} YT videos for comments`);
-                    await processCommentsForItems(newItems, 'youtube', token, platform.account_id, result);
+                    await processCommentsForItems(newItems, 'youtube', token, platform.account_id, result, budget);
                 }
             }
         } catch (err: any) {
