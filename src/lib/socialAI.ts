@@ -86,18 +86,64 @@ const DENTAL_TOPICS = [
     'Chirurgia stomatologiczna — kiedy jest konieczna?',
 ];
 
+// ── Topic fetching from DB ─────────────────────────────────────────
+
+async function pickTopicFromDB(): Promise<string | null> {
+    try {
+        const { createClient } = await import('@supabase/supabase-js');
+        const db = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!
+        );
+
+        // Prefer least-used active topics
+        const { data: topics } = await db
+            .from('social_topics')
+            .select('id, topic')
+            .eq('is_active', true)
+            .order('used_count', { ascending: true })
+            .order('last_used_at', { ascending: true, nullsFirst: true })
+            .limit(10);
+
+        if (!topics || topics.length === 0) return null;
+
+        // Pick random from least-used
+        const picked = topics[Math.floor(Math.random() * topics.length)];
+
+        // Increment usage
+        await db
+            .from('social_topics')
+            .update({
+                used_count: (picked as any).used_count ? (picked as any).used_count + 1 : 1,
+                last_used_at: new Date().toISOString()
+            })
+            .eq('id', picked.id);
+
+        return picked.topic;
+    } catch (err) {
+        console.error('[SocialAI] DB topic fetch failed, using fallback:', err);
+        return null;
+    }
+}
+
 // ── Text Generation ────────────────────────────────────────────────
 
 export async function generateSocialText(
     contentType: ContentType,
     platforms: Platform[],
-    customPrompt?: string,
+    customPrompt?: string | null,
 ): Promise<GeneratedContent> {
     const model = process.env.SOCIAL_AI_MODEL || 'gpt-4o';
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-    // Pick random topic if no custom prompt
-    const topic = customPrompt || DENTAL_TOPICS[Math.floor(Math.random() * DENTAL_TOPICS.length)];
+    // Pick topic: custom prompt > DB topics > hardcoded fallback
+    let topic = customPrompt;
+    if (!topic) {
+        topic = await pickTopicFromDB();
+    }
+    if (!topic) {
+        topic = DENTAL_TOPICS[Math.floor(Math.random() * DENTAL_TOPICS.length)];
+    }
 
     const platformInstructions = platforms.map(p => PLATFORM_GUIDELINES[p]).join('\n\n');
 

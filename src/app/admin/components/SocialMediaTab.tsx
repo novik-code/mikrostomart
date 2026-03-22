@@ -62,7 +62,18 @@ interface MediaItem {
     created_at: string;
 }
 
-type SubTab = 'schedules' | 'drafts' | 'library' | 'platforms';
+type SubTab = 'schedules' | 'drafts' | 'library' | 'platforms' | 'topics';
+
+interface SocialTopic {
+    id: string;
+    topic: string;
+    category: string;
+    is_active: boolean;
+    used_count: number;
+    last_used_at: string | null;
+    created_by: string;
+    created_at: string;
+}
 
 const PLATFORM_EMOJI: Record<string, string> = {
     facebook: '📘',
@@ -153,16 +164,26 @@ export default function SocialMediaTab() {
     const [schedules, setSchedules] = useState<SocialSchedule[]>([]);
     const [posts, setPosts] = useState<SocialPost[]>([]);
     const [media, setMedia] = useState<MediaItem[]>([]);
+    const [topics, setTopics] = useState<SocialTopic[]>([]);
+    const [topicCategories, setTopicCategories] = useState<string[]>([]);
 
     // Loading
     const [loadingPlatforms, setLoadingPlatforms] = useState(false);
     const [loadingSchedules, setLoadingSchedules] = useState(false);
     const [loadingPosts, setLoadingPosts] = useState(false);
     const [loadingMedia, setLoadingMedia] = useState(false);
+    const [loadingTopics, setLoadingTopics] = useState(false);
 
     // Filters
     const [postsFilter, setPostsFilter] = useState<string>('all');
     const [mediaTypeFilter, setMediaTypeFilter] = useState<string>('all');
+    const [topicCategoryFilter, setTopicCategoryFilter] = useState<string>('all');
+    const [showTopicForm, setShowTopicForm] = useState(false);
+    const [editingTopic, setEditingTopic] = useState<SocialTopic | null>(null);
+    const [topicForm, setTopicForm] = useState({ topic: '', category: 'ogólne' });
+    const [generatingTopics, setGeneratingTopics] = useState(false);
+    const [generateTopicsCount, setGenerateTopicsCount] = useState(10);
+    const [generateTopicsCategory, setGenerateTopicsCategory] = useState('');
 
     // Forms
     const [showScheduleForm, setShowScheduleForm] = useState(false);
@@ -250,12 +271,24 @@ export default function SocialMediaTab() {
         setLoadingMedia(false);
     };
 
+    const fetchTopics = async () => {
+        setLoadingTopics(true);
+        try {
+            const res = await fetch('/api/social/topics');
+            const data = await res.json();
+            setTopics(data.topics || []);
+            setTopicCategories(data.categories || []);
+        } catch (e) { console.error(e); }
+        setLoadingTopics(false);
+    };
+
     // ── Initial load per sub-tab ──────────────────────────────────────
     useEffect(() => {
         if (subTab === 'platforms' && platforms.length === 0) fetchPlatforms();
         if (subTab === 'schedules') { fetchSchedules(); if (platforms.length === 0) fetchPlatforms(); }
         if (subTab === 'drafts') fetchPosts();
         if (subTab === 'library') fetchMedia();
+        if (subTab === 'topics' && topics.length === 0) fetchTopics();
     }, [subTab]);
 
     useEffect(() => { if (subTab === 'drafts') fetchPosts(); }, [postsFilter]);
@@ -513,6 +546,7 @@ export default function SocialMediaTab() {
                     { id: 'schedules' as SubTab, label: '📅 Harmonogram' },
                     { id: 'drafts' as SubTab, label: '📝 Drafty' },
                     { id: 'library' as SubTab, label: '📁 Biblioteka' },
+                    { id: 'topics' as SubTab, label: '💡 Tematy' },
                     { id: 'platforms' as SubTab, label: '🔗 Platformy' },
                 ] as const).map(t => (
                     <button
@@ -1068,6 +1102,135 @@ export default function SocialMediaTab() {
                         <strong style={{ color: '#dcb14a' }}>ℹ️ Tokeny OAuth</strong><br />
                         Tokeny API (Page Access Token, OAuth tokens) zostaną dodane po implementacji OAuth callbacks (Faza 3).
                         Na razie dodaj platformy ręcznie z nazwą konta i URL — tokeny dopiszemy później.
+                    </div>
+                </div>
+            )}
+
+            {/* ── TOPICS ───────────────────────────────────────────── */}
+            {subTab === 'topics' && (
+                <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                        <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Tematy do postów AI</h3>
+                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                            <button
+                                onClick={() => { setGeneratingTopics(true); fetch('/api/social/topics', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'generate', count: generateTopicsCount, category: generateTopicsCategory }) }).then(r => r.json()).then(d => { if (d.generated) { alert(`✅ Wygenerowano ${d.generated} nowych tematów`); fetchTopics(); } else { alert('❌ ' + (d.error || 'Błąd')); } }).catch(e => alert('❌ ' + e.message)).finally(() => setGeneratingTopics(false)); }}
+                                disabled={generatingTopics}
+                                style={{ ...btnStyle('#8b5cf6'), color: 'white', opacity: generatingTopics ? 0.6 : 1 }}
+                            >
+                                {generatingTopics ? '⏳ Generuję...' : '🤖 Generuj nowe tematy AI'}
+                            </button>
+                            <button onClick={() => { setEditingTopic(null); setTopicForm({ topic: '', category: 'ogólne' }); setShowTopicForm(true); }} style={btnStyle()}>
+                                + Dodaj temat
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* AI Generate controls */}
+                    <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                        <label style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>Ile tematów:</label>
+                        <select value={generateTopicsCount} onChange={e => setGenerateTopicsCount(parseInt(e.target.value))} style={{ ...selectStyle, width: 80 }}>
+                            {[5, 10, 15, 20].map(n => <option key={n} value={n}>{n}</option>)}
+                        </select>
+                        <label style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>Kategoria AI:</label>
+                        <select value={generateTopicsCategory} onChange={e => setGenerateTopicsCategory(e.target.value)} style={{ ...selectStyle, width: 160 }}>
+                            <option value="">Różne</option>
+                            {['ogólne', 'implantologia', 'estetyka', 'higiena', 'endodoncja', 'protetyka', 'ortodoncja', 'chirurgia', 'laser', 'dzieci'].map(c => (
+                                <option key={c} value={c}>{c}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {/* Category filter */}
+                    <div style={{ display: 'flex', gap: '0.3rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+                        <button onClick={() => setTopicCategoryFilter('all')} style={{ padding: '0.3rem 0.6rem', borderRadius: '0.4rem', border: topicCategoryFilter === 'all' ? '1px solid rgba(220,177,74,0.5)' : '1px solid rgba(255,255,255,0.1)', background: topicCategoryFilter === 'all' ? 'rgba(220,177,74,0.15)' : 'transparent', color: topicCategoryFilter === 'all' ? '#dcb14a' : 'var(--color-text-muted)', fontSize: '0.78rem', cursor: 'pointer' }}>
+                            Wszystkie ({topics.length})
+                        </button>
+                        {topicCategories.map(cat => {
+                            const count = topics.filter(t => t.category === cat).length;
+                            return (
+                                <button key={cat} onClick={() => setTopicCategoryFilter(cat)} style={{ padding: '0.3rem 0.6rem', borderRadius: '0.4rem', border: topicCategoryFilter === cat ? '1px solid rgba(220,177,74,0.5)' : '1px solid rgba(255,255,255,0.1)', background: topicCategoryFilter === cat ? 'rgba(220,177,74,0.15)' : 'transparent', color: topicCategoryFilter === cat ? '#dcb14a' : 'var(--color-text-muted)', fontSize: '0.78rem', cursor: 'pointer' }}>
+                                    {cat} ({count})
+                                </button>
+                            );
+                        })}
+                    </div>
+
+                    {/* Add/Edit topic form */}
+                    {showTopicForm && (
+                        <div style={{ ...cardStyle, border: '1px solid rgba(220,177,74,0.3)', marginBottom: '1rem' }}>
+                            <h4 style={{ margin: '0 0 0.75rem', fontSize: '0.95rem' }}>{editingTopic ? '✏️ Edytuj temat' : '➕ Nowy temat'}</h4>
+                            <div style={{ display: 'grid', gap: '0.75rem' }}>
+                                <div>
+                                    <label style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginBottom: '0.3rem', display: 'block' }}>Temat</label>
+                                    <input value={topicForm.topic} onChange={e => setTopicForm(f => ({ ...f, topic: e.target.value }))} placeholder="np. Jak uniknąć chorób przyzębia?" style={inputStyle} />
+                                </div>
+                                <div>
+                                    <label style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginBottom: '0.3rem', display: 'block' }}>Kategoria</label>
+                                    <select value={topicForm.category} onChange={e => setTopicForm(f => ({ ...f, category: e.target.value }))} style={{ ...selectStyle, maxWidth: 200 }}>
+                                        {['ogólne', 'implantologia', 'estetyka', 'higiena', 'endodoncja', 'protetyka', 'ortodoncja', 'chirurgia', 'laser', 'dzieci'].map(c => (
+                                            <option key={c} value={c}>{c}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                    <button onClick={async () => {
+                                        if (!topicForm.topic) { alert('Wpisz temat'); return; }
+                                        try {
+                                            if (editingTopic) {
+                                                await fetch('/api/social/topics', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: editingTopic.id, ...topicForm }) });
+                                            } else {
+                                                await fetch('/api/social/topics', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(topicForm) });
+                                            }
+                                            setShowTopicForm(false); setEditingTopic(null); setTopicForm({ topic: '', category: 'ogólne' }); fetchTopics();
+                                        } catch (e: any) { alert(e.message); }
+                                    }} style={btnStyle()}>
+                                        {editingTopic ? 'Zapisz zmiany' : 'Dodaj temat'}
+                                    </button>
+                                    <button onClick={() => { setShowTopicForm(false); setEditingTopic(null); }} style={{ ...btnStyle('#555'), color: 'white' }}>Anuluj</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Topics list */}
+                    {loadingTopics ? (
+                        <p style={{ color: 'var(--color-text-muted)' }}>Ładowanie...</p>
+                    ) : topics.length === 0 ? (
+                        <div style={{ ...cardStyle, textAlign: 'center', padding: '3rem' }}>
+                            <p style={{ color: 'var(--color-text-muted)', fontSize: '1.1rem' }}>💡 Brak tematów</p>
+                            <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>Dodaj tematy ręcznie lub wygeneruj za pomocą AI.</p>
+                        </div>
+                    ) : (
+                        <div style={{ display: 'grid', gap: '0.5rem' }}>
+                            {topics
+                                .filter(t => topicCategoryFilter === 'all' || t.category === topicCategoryFilter)
+                                .map(t => (
+                                    <div key={t.id} style={{ ...cardStyle, padding: '0.85rem 1rem', marginBottom: 0, opacity: t.is_active ? 1 : 0.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem' }}>
+                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                            <div style={{ fontSize: '0.9rem', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.topic}</div>
+                                            <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.3rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                                                <span style={{ fontSize: '0.7rem', padding: '0.1rem 0.45rem', borderRadius: '999px', background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.3)', color: '#a78bfa' }}>{t.category}</span>
+                                                <span style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>Użyto: {t.used_count}×</span>
+                                                {t.created_by === 'ai' && <span style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem', borderRadius: '999px', background: 'rgba(59,130,246,0.12)', color: '#60a5fa' }}>🤖 AI</span>}
+                                                {t.created_by === 'admin' && <span style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem', borderRadius: '999px', background: 'rgba(34,197,94,0.12)', color: '#4ade80' }}>👤 Admin</span>}
+                                                {!t.is_active && <span style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem', borderRadius: '999px', background: 'rgba(239,68,68,0.12)', color: '#f87171' }}>wyłączony</span>}
+                                            </div>
+                                        </div>
+                                        <div style={{ display: 'flex', gap: '0.25rem', flexShrink: 0 }}>
+                                            <button onClick={() => { setEditingTopic(t); setTopicForm({ topic: t.topic, category: t.category }); setShowTopicForm(true); }} style={{ ...btnStyle('#3b82f6'), padding: '0.3rem 0.55rem', fontSize: '0.75rem', color: 'white' }} title="Edytuj">✏️</button>
+                                            <button onClick={async () => { await fetch('/api/social/topics', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: t.id, is_active: !t.is_active }) }); fetchTopics(); }} style={{ ...btnStyle(t.is_active ? '#ef4444' : '#22c55e'), padding: '0.3rem 0.55rem', fontSize: '0.75rem', color: 'white' }} title={t.is_active ? 'Wyłącz' : 'Włącz'}>{t.is_active ? '⏸' : '▶'}</button>
+                                            <button onClick={async () => { if (confirm('Usunąć temat?')) { await fetch(`/api/social/topics?id=${t.id}`, { method: 'DELETE' }); fetchTopics(); } }} style={{ ...btnStyle('#555'), padding: '0.3rem 0.55rem', fontSize: '0.75rem', color: 'white' }} title="Usuń">🗑️</button>
+                                        </div>
+                                    </div>
+                                ))}
+                        </div>
+                    )}
+
+                    {/* Info */}
+                    <div style={{ marginTop: '1.5rem', padding: '1rem', background: 'rgba(139,92,246,0.06)', border: '1px solid rgba(139,92,246,0.2)', borderRadius: '0.5rem', fontSize: '0.8rem', color: 'var(--color-text-muted)', lineHeight: 1.6 }}>
+                        <strong style={{ color: '#a78bfa' }}>💡 Jak działają tematy?</strong><br />
+                        Codziennie cron wybiera losowy temat z bazy (preferuje najmniej używane) i generuje post AI. Jeśli baza jest pusta, używa tematów domyślnych.<br />
+                        <strong>Kategorie</strong> pomagają filtrować i organizować tematy. AI może generować tematy w konkretnej kategorii.
                     </div>
                 </div>
             )}
