@@ -379,8 +379,95 @@ async function publishYouTubeReply(commentId: string, text: string, token: strin
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// 4. ORCHESTRATION — fetch + generate for all recent posts
+// 4. FETCH RECENT POSTS DIRECTLY FROM PLATFORM APIs
 // ═══════════════════════════════════════════════════════════════════
+
+/** Fetch recent posts from a Facebook Page (last 50 posts) */
+async function fetchFacebookPagePosts(pageId: string, token: string): Promise<{ id: string; message: string }[]> {
+    const url = `https://graph.facebook.com/v19.0/${pageId}/posts?fields=id,message,created_time&limit=50&access_token=${token}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (data.error) {
+        console.error('[Comments] FB page posts error:', data.error.message);
+        return [];
+    }
+    return (data.data || []).map((p: any) => ({ id: p.id, message: p.message || '' }));
+}
+
+/** Fetch recent media from an Instagram Business account (last 50 posts) */
+async function fetchInstagramMedia(igAccountId: string, token: string): Promise<{ id: string; caption: string }[]> {
+    const url = `https://graph.facebook.com/v19.0/${igAccountId}/media?fields=id,caption,timestamp&limit=50&access_token=${token}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (data.error) {
+        console.error('[Comments] IG media error:', data.error.message);
+        return [];
+    }
+    return (data.data || []).map((m: any) => ({ id: m.id, caption: m.caption || '' }));
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// 5. ORCHESTRATION — fetch + generate for ALL posts on connected pages
+// ═══════════════════════════════════════════════════════════════════
+
+async function processCommentsForItems(
+    items: { platformPostId: string; postContext: string; postId: string | null }[],
+    platformName: string,
+    token: string,
+    accountId: string | undefined,
+    result: { fetched: number; generated: number; skipped: number; errors: string[] },
+) {
+    for (const item of items) {
+        const newComments = await fetchCommentsForPost(
+            item.postId || 'external',
+            platformName,
+            item.platformPostId,
+            token,
+            accountId,
+        );
+
+        result.fetched += newComments.length;
+
+        for (const comment of newComments) {
+            try {
+                const aiModel = process.env.SOCIAL_AI_MODEL || 'gpt-4o';
+                const replyText = await generateCommentReply(
+                    comment,
+                    platformName,
+                    item.postContext,
+                );
+
+                const status = replyText.toUpperCase().trim() === 'SKIP' ? 'skipped' : 'draft';
+
+                if (status === 'skipped') {
+                    result.skipped++;
+                } else {
+                    result.generated++;
+                }
+
+                await supabase.from('social_comment_replies').upsert(
+                    {
+                        post_id: item.postId,
+                        platform: platformName,
+                        platform_post_id: item.platformPostId,
+                        comment_id: comment.comment_id,
+                        comment_text: comment.text,
+                        comment_author: comment.author,
+                        comment_date: comment.date,
+                        reply_text: status === 'skipped' ? null : replyText,
+                        status,
+                        ai_model: aiModel,
+                    },
+                    { onConflict: 'platform,comment_id' },
+                );
+            } catch (err: any) {
+                result.errors.push(
+                    `Błąd AI dla komentarza ${comment.comment_id}: ${err.message}`,
+                );
+            }
+        }
+    }
+}
 
 export async function processNewComments(): Promise<{
     fetched: number;
@@ -390,16 +477,6 @@ export async function processNewComments(): Promise<{
 }> {
     const result = { fetched: 0, generated: 0, skipped: 0, errors: [] as string[] };
 
-    // Get posts published in last 7 days
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-    const { data: posts } = await supabase
-        .from('social_posts')
-        .select('id, text_content, platform_post_ids, platform_ids')
-        .eq('status', 'published')
-        .gte('published_at', sevenDaysAgo);
-
-    if (!posts || posts.length === 0) return result;
-
     // Get all active platforms
     const { data: allPlatforms } = await supabase
         .from('social_platforms')
@@ -408,78 +485,86 @@ export async function processNewComments(): Promise<{
 
     if (!allPlatforms || allPlatforms.length === 0) return result;
 
-    const platformMap = new Map(allPlatforms.map((p: any) => [p.id, p]));
+    // ── APPROACH 1: Scan posts tracked in DB (published via admin) ──
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const { data: dbPosts } = await supabase
+        .from('social_posts')
+        .select('id, text_content, platform_post_ids, platform_ids')
+        .eq('status', 'published')
+        .gte('published_at', sevenDaysAgo);
 
-    for (const post of posts) {
-        const platformPostIds = post.platform_post_ids || {};
+    const trackedPlatformPostIds = new Set<string>();
 
-        for (const [platformName, platformPostId] of Object.entries(platformPostIds)) {
-            if (!platformPostId) continue;
+    if (dbPosts && dbPosts.length > 0) {
+        for (const post of dbPosts) {
+            const platformPostIds = post.platform_post_ids || {};
+            for (const [platformName, platformPostId] of Object.entries(platformPostIds)) {
+                if (!platformPostId) continue;
+                trackedPlatformPostIds.add(`${platformName}:${platformPostId}`);
 
-            // Find matching platform credentials
-            const matchingPlatform = allPlatforms.find(
-                (p: any) => p.platform === platformName && p.is_active,
-            );
-            if (!matchingPlatform) continue;
+                const matchingPlatform = allPlatforms.find(
+                    (p: any) => p.platform === platformName && p.is_active,
+                );
+                if (!matchingPlatform) continue;
 
-            const token = await getValidToken(matchingPlatform);
-            if (!token) {
-                result.errors.push(`Brak tokenu dla ${platformName}`);
-                continue;
+                const token = await getValidToken(matchingPlatform);
+                if (!token) { result.errors.push(`Brak tokenu dla ${platformName}`); continue; }
+
+                await processCommentsForItems(
+                    [{ platformPostId: platformPostId as string, postContext: post.text_content || '', postId: post.id }],
+                    platformName,
+                    token,
+                    matchingPlatform.account_id,
+                    result,
+                );
             }
+        }
+    }
 
-            // Fetch new comments
-            const newComments = await fetchCommentsForPost(
-                post.id,
-                platformName,
-                platformPostId as string,
-                token,
-                matchingPlatform.account_id,
-            );
+    // ── APPROACH 2: Scan ALL recent posts directly from platform APIs ──
+    for (const platform of allPlatforms) {
+        const token = await getValidToken(platform);
+        if (!token) continue;
 
-            result.fetched += newComments.length;
+        try {
+            if (platform.platform === 'facebook' && platform.account_id) {
+                console.log(`[Comments] Scanning Facebook page: ${platform.account_id}`);
+                const pagePosts = await fetchFacebookPagePosts(platform.account_id, token);
+                const newItems = pagePosts
+                    .filter(p => !trackedPlatformPostIds.has(`facebook:${p.id}`))
+                    .map(p => ({
+                        platformPostId: p.id,
+                        postContext: p.message || '',
+                        postId: null as string | null,
+                    }));
 
-            // Generate AI reply for each comment
-            for (const comment of newComments) {
-                try {
-                    const aiModel = process.env.SOCIAL_AI_MODEL || 'gpt-4o';
-                    const replyText = await generateCommentReply(
-                        comment,
-                        platformName,
-                        post.text_content || '',
-                    );
-
-                    // Check if AI said SKIP (spam/irrelevant)
-                    const status = replyText.toUpperCase().trim() === 'SKIP' ? 'skipped' : 'draft';
-
-                    if (status === 'skipped') {
-                        result.skipped++;
-                    } else {
-                        result.generated++;
-                    }
-
-                    // Insert into DB
-                    await supabase.from('social_comment_replies').upsert(
-                        {
-                            post_id: post.id,
-                            platform: platformName,
-                            platform_post_id: platformPostId as string,
-                            comment_id: comment.comment_id,
-                            comment_text: comment.text,
-                            comment_author: comment.author,
-                            comment_date: comment.date,
-                            reply_text: status === 'skipped' ? null : replyText,
-                            status,
-                            ai_model: aiModel,
-                        },
-                        { onConflict: 'platform,comment_id' },
-                    );
-                } catch (err: any) {
-                    result.errors.push(
-                        `Błąd AI dla komentarza ${comment.comment_id}: ${err.message}`,
-                    );
+                if (newItems.length > 0) {
+                    console.log(`[Comments] Found ${newItems.length} external FB posts to scan`);
+                    await processCommentsForItems(newItems, 'facebook', token, platform.account_id, result);
                 }
             }
+
+            if (platform.platform === 'instagram' && platform.account_id) {
+                console.log(`[Comments] Scanning Instagram account: ${platform.account_id}`);
+                const igMedia = await fetchInstagramMedia(platform.account_id, token);
+                const newItems = igMedia
+                    .filter(m => !trackedPlatformPostIds.has(`instagram:${m.id}`))
+                    .map(m => ({
+                        platformPostId: m.id,
+                        postContext: m.caption || '',
+                        postId: null as string | null,
+                    }));
+
+                if (newItems.length > 0) {
+                    console.log(`[Comments] Found ${newItems.length} external IG posts to scan`);
+                    await processCommentsForItems(newItems, 'instagram', token, platform.account_id, result);
+                }
+            }
+
+            // YouTube: scan channel videos would require channel ID — skip for now
+            // (YouTube posts are typically published via admin panel)
+        } catch (err: any) {
+            result.errors.push(`Błąd skanowania ${platform.platform}: ${err.message}`);
         }
     }
 
