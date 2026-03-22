@@ -154,6 +154,15 @@ export default function Footer() {
                         <Link href="/sklep" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">Sklep</Link>
                     </div>
                 </div>
+                <div>
+                    <h4 style={{ color: 'var(--color-text-main)', marginBottom: '0.75rem', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Prawne</h4>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                        <Link href="/regulamin" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">Regulamin (Terms of Service)</Link>
+                        <Link href="/privacy-policy" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">Privacy Policy</Link>
+                        <Link href="/rodo" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">RODO</Link>
+                        <Link href="/polityka-cookies" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">Polityka cookies</Link>
+                    </div>
+                </div>
             </nav>
             <div className="container" style={{
                 marginTop: 'var(--spacing-lg)',
@@ -174,35 +183,35 @@ export default function Footer() {
                 <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', justifyContent: 'center' }}>
                     <a
                         href="/faq"
-                        style={{ color: 'var(--color-text-muted)', textDecoration: 'none', opacity: 0.7 }}
+                        style={{ color: 'var(--color-text-muted)', textDecoration: 'none' }}
                         className="hover-underline"
                     >
                         FAQ
                     </a>
                     <a
                         href="/regulamin"
-                        style={{ color: 'var(--color-text-muted)', textDecoration: 'none', opacity: 0.7 }}
+                        style={{ color: 'var(--color-text-muted)', textDecoration: 'none' }}
                         className="hover-underline"
                     >
                         {t('terms')}
                     </a>
                     <a
                         href="/rodo"
-                        style={{ color: 'var(--color-text-muted)', textDecoration: 'none', opacity: 0.7 }}
+                        style={{ color: 'var(--color-text-muted)', textDecoration: 'none' }}
                         className="hover-underline"
                     >
                         RODO
                     </a>
                     <a
                         href="/privacy-policy"
-                        style={{ color: 'var(--color-text-muted)', textDecoration: 'none', opacity: 0.7 }}
+                        style={{ color: 'var(--color-text-muted)', textDecoration: 'none' }}
                         className="hover-underline"
                     >
                         Privacy Policy
                     </a>
                     <a
                         href="/polityka-cookies"
-                        style={{ color: 'var(--color-text-muted)', textDecoration: 'none', opacity: 0.7 }}
+                        style={{ color: 'var(--color-text-muted)', textDecoration: 'none' }}
                         className="hover-underline"
                     >
                         {t('cookiePolicy')}
