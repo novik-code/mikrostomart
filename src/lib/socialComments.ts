@@ -115,7 +115,8 @@ export async function fetchCommentsForPost(
         }
     } catch (err: any) {
         console.error(`[Comments] Error fetching ${platform} comments for ${platformPostId}:`, err.message);
-        return [];
+        // Re-throw so the caller can surface the error
+        throw err;
     }
 
     if (rawComments.length === 0) return [];
@@ -139,8 +140,16 @@ async function fetchFacebookComments(postId: string, token: string): Promise<Fet
     const res = await fetch(url);
     const data = await res.json();
 
-    if (data.error) throw new Error(data.error.message);
-    if (!data.data) return [];
+    if (data.error) {
+        console.error(`[Comments] FB comments API error for post ${postId}:`, JSON.stringify(data.error));
+        throw new Error(`FB: ${data.error.message} (code ${data.error.code})`);
+    }
+    if (!data.data) {
+        console.log(`[Comments] FB: no data.data field for post ${postId}, response:`, JSON.stringify(data).substring(0, 200));
+        return [];
+    }
+
+    console.log(`[Comments] FB: post ${postId} has ${data.data.length} comments`);
 
     return data.data
         .filter((c: any) => c.message && c.message.trim())
@@ -163,8 +172,16 @@ async function fetchInstagramComments(
     const res = await fetch(url);
     const data = await res.json();
 
-    if (data.error) throw new Error(data.error.message);
-    if (!data.data) return [];
+    if (data.error) {
+        console.error(`[Comments] IG comments API error for media ${mediaId}:`, JSON.stringify(data.error));
+        throw new Error(`IG: ${data.error.message} (code ${data.error.code})`);
+    }
+    if (!data.data) {
+        console.log(`[Comments] IG: no data.data field for media ${mediaId}, response:`, JSON.stringify(data).substring(0, 200));
+        return [];
+    }
+
+    console.log(`[Comments] IG: media ${mediaId} has ${data.data.length} comments`);
 
     // Filter out own comments (our IG username)
     const ownUsername = accountId ? await getIgUsername(accountId, token) : null;
@@ -501,20 +518,26 @@ async function processCommentsForItems(
     for (const item of items) {
         if (!hasBudget(budget)) { result.stopped_early = true; return; }
 
-        const newComments = await fetchCommentsForPost(
-            item.postId || 'external',
-            platformName,
-            item.platformPostId,
-            token,
-            accountId,
-        );
+        let recentComments: FetchedComment[] = [];
+        try {
+            const newComments = await fetchCommentsForPost(
+                item.postId || 'external',
+                platformName,
+                item.platformPostId,
+                token,
+                accountId,
+            );
 
-        // Skip comments older than 30 days — no point replying to old ones
-        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-        const recentComments = newComments.filter(c => {
-            if (!c.date) return true; // no date = assume recent
-            return new Date(c.date) >= thirtyDaysAgo;
-        });
+            // Skip comments older than 30 days — no point replying to old ones
+            const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+            recentComments = newComments.filter(c => {
+                if (!c.date) return true; // no date = assume recent
+                return new Date(c.date) >= thirtyDaysAgo;
+            });
+        } catch (fetchErr: any) {
+            result.errors.push(`${platformName}/${item.platformPostId}: ${fetchErr.message}`);
+            continue; // skip this post, try next one
+        }
 
         result.fetched += recentComments.length;
 
