@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import bcrypt from 'bcryptjs';
 import jwt, { SignOptions } from 'jsonwebtoken';
+import { isDemoMode } from '@/lib/demoMode';
 
 export const dynamic = 'force-dynamic';
 
@@ -126,20 +127,35 @@ export async function POST(request: Request) {
             );
         }
 
-        // Fetch patient details from Prodentis
-        const prodentisUrl = process.env.PRODENTIS_API_URL || 'http://localhost:3000';
-        const detailsUrl = `${prodentisUrl}/api/patient/${patient.prodentis_id}/details`;
+        // Fetch patient details — in demo mode, use Supabase data directly
+        let patientDetails: any;
 
-        const prodentisResponse = await fetch(detailsUrl);
-        if (!prodentisResponse.ok) {
-            console.error('[Login] Failed to fetch from Prodentis');
-            return NextResponse.json(
-                { error: 'Błąd pobierania danych z systemu' },
-                { status: 500 }
-            );
+        if (isDemoMode) {
+            console.log('[Login] DEMO MODE: Using Supabase patient data instead of Prodentis');
+            patientDetails = {
+                id: patient.prodentis_id || patient.id,
+                firstName: patient.first_name || patient.name?.split(' ')[0] || 'Demo',
+                lastName: patient.last_name || patient.name?.split(' ').slice(1).join(' ') || 'Pacjent',
+                phone: patient.phone,
+                email: patient.email,
+                dateOfBirth: patient.date_of_birth || null,
+                appointments: [],
+            };
+        } else {
+            const prodentisUrl = process.env.PRODENTIS_API_URL || 'http://localhost:3000';
+            const detailsUrl = `${prodentisUrl}/api/patient/${patient.prodentis_id}/details`;
+
+            const prodentisResponse = await fetch(detailsUrl);
+            if (!prodentisResponse.ok) {
+                console.error('[Login] Failed to fetch from Prodentis');
+                return NextResponse.json(
+                    { error: 'Błąd pobierania danych z systemu' },
+                    { status: 500 }
+                );
+            }
+
+            patientDetails = await prodentisResponse.json();
         }
-
-        const patientDetails = await prodentisResponse.json();
 
         // Generate JWT
         const jwtSecret = process.env.JWT_SECRET!;
