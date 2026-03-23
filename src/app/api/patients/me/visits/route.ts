@@ -1,5 +1,6 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { verifyTokenFromRequest } from '@/lib/jwt';
+import { isDemoMode } from '@/lib/demoMode';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,6 +15,12 @@ export async function GET(request: NextRequest) {
                 { error: 'Unauthorized' },
                 { status: 401 }
             );
+        }
+
+        // In demo mode, return empty visits
+        if (isDemoMode) {
+            console.log('[Visits] DEMO MODE: Returning empty visits');
+            return NextResponse.json({ appointments: [], total: 0 });
         }
 
         // Get query params

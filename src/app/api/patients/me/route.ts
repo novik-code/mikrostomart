@@ -1,6 +1,7 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { verifyTokenFromRequest } from '@/lib/jwt';
 import { createClient } from '@supabase/supabase-js';
+import { isDemoMode } from '@/lib/demoMode';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,6 +22,53 @@ export async function GET(request: NextRequest) {
             );
         }
 
+        let patientData: any;
+
+        if (isDemoMode) {
+            // In demo mode, fetch patient data from Supabase directly
+            console.log('[Me] DEMO MODE: Using Supabase patient data');
+            const { data: patient, error: patientError } = await supabase
+                .from('patients')
+                .select('*')
+                .eq('prodentis_id', payload.prodentisId)
+                .single();
+
+            if (patientError || !patient) {
+                // Try by userId
+                const { data: patientById } = await supabase
+                    .from('patients')
+                    .select('*')
+                    .eq('id', payload.userId)
+                    .single();
+
+                patientData = patientById ? {
+                    id: patientById.prodentis_id || patientById.id,
+                    firstName: patientById.first_name || patientById.name?.split(' ')[0] || 'Demo',
+                    lastName: patientById.last_name || patientById.name?.split(' ').slice(1).join(' ') || 'Pacjent',
+                    phone: patientById.phone,
+                    email: patientById.email,
+                    dateOfBirth: patientById.date_of_birth || null,
+                    appointments: [],
+                    account_status: patientById.account_status || 'active',
+                    locale: patientById.locale || 'pl',
+                } : { id: payload.prodentisId, firstName: 'Demo', lastName: 'Pacjent', appointments: [] };
+            } else {
+                patientData = {
+                    id: patient.prodentis_id || patient.id,
+                    firstName: patient.first_name || patient.name?.split(' ')[0] || 'Demo',
+                    lastName: patient.last_name || patient.name?.split(' ').slice(1).join(' ') || 'Pacjent',
+                    phone: patient.phone,
+                    email: patient.email,
+                    dateOfBirth: patient.date_of_birth || null,
+                    appointments: [],
+                    account_status: patient.account_status || 'active',
+                    locale: patient.locale || 'pl',
+                };
+            }
+
+            return NextResponse.json(patientData);
+        }
+
         // Fetch patient details from Prodentis
         const prodentisUrl = process.env.PRODENTIS_API_URL || 'http://localhost:3000';
         const url = `${prodentisUrl}/api/patient/${payload.prodentisId}/details`;
@@ -35,7 +83,7 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        const patientData = await response.json();
+        patientData = await response.json();
 
         // Fetch email, phone, and account_status from Supabase
         const { data: supabasePatient, error: supabaseError } = await supabase
