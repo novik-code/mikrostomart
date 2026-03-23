@@ -1,16 +1,25 @@
-# PROJECT STATUS - Mikrostomart
+# PROJECT STATUS - Mikrostomart / DensFlow.Ai
 
-> **Last Updated:** March 5, 2026, 21:10  
+> **Last Updated:** March 23, 2026, 21:30  
 > **Build Status:** ✅ Production (Vercel)  
-> **Latest Commit:** `e38a073` - fix: restore fetchEmployees to populate staffList for task assignment
+> **Latest Commit:** `4b4c365` - feat: mock Prodentis API in /api/patients/me and /me/visits for demo mode
 
 ---
 
 ## 🎯 Current Status
 
 **Project Phase:** Production & Active Development  
-**Deployment:** Live on Vercel (mikrostomart.pl)  
+**Deployment:** Live on Vercel — **dual deployment** from single repo  
 **All Core Features:** ✅ Implemented & Working
+
+### Deployment Architecture
+
+| Środowisko | Domena | Vercel Project | Supabase | DEMO_MODE |
+|------------|--------|---------------|----------|-----------|
+| **Produkcja** | `mikrostomart.pl` | `mikrostomart` | `keucogopujdolzmfajjv` | `false` |
+| **Demo** | `demo.densflow.ai` | `densflow-demo` | `mhosfncgasjfruiohlfo` | `true` |
+
+**Każdy push na `main` → auto-deploy na OBA środowiska.**
 
 ---
 
@@ -142,9 +151,38 @@
 
 ---
 
-## 🚀 Latest Changes (Mar 5, 2026)
+## 🚀 Latest Changes (Mar 23, 2026)
 
-### Etap 3 — Notifications & Patient Features (3.1–3.6)
+### demo.densflow.ai — Wdrożenie wersji demonstracyjnej
+- `83cf3a7` - feat: add demo mode flag, disable integrations, add demo banner
+- `f647e98` - feat: mock Prodentis API in demo mode for patient login
+- `4b4c365` - feat: mock Prodentis API in /api/patients/me and /me/visits for demo mode
+
+**Nowe pliki:**
+- `src/lib/demoMode.ts` — flaga `isDemoMode` (`NEXT_PUBLIC_DEMO_MODE`)
+- `src/components/DemoBanner.tsx` — sticky banner "🧪 WERSJA DEMONSTRACYJNA"
+
+**Zmienione pliki (demo guards):**
+- `src/app/layout.tsx` — DemoBanner + padding
+- `src/lib/smsService.ts` — loguje zamiast wysyła w demo
+- `src/lib/telegram.ts` — skip w demo
+- `src/app/api/patients/login/route.ts` — mock Prodentis
+- `src/app/api/patients/me/route.ts` — mock Prodentis
+- `src/app/api/patients/me/visits/route.ts` — puste wizyty w demo
+- 19 cron routes — early return w demo
+
+**Baza danych demo:**
+- 66 tabel bazowych (z OpenAPI production)
+- 88 migracji (4 batche)
+- Seed: 5 pracowników, 20 pacjentów, ustawienia, produkty, SMS templates
+- 3 Supabase Auth users: admin, pracownik, (+20 patients via custom auth)
+
+**Login credentials (demo):**
+- Admin: `admin@demo.densflow.ai` / `DemoAdmin123!`
+- Pracownik: `pracownik@demo.densflow.ai` / `DemoPass123!`
+- Pacjent: `joanna.mazur@test.pl` / `DemoPass123!` (dowolny z 20)
+
+### Etap 3 — Notifications & Patient Features (Mar 5)
 - `59331d7` - 3.1: Push + SMS + email to patient on booking approve/reject
 - `814d6b4` - 3.2: Daily morning report on Telegram
 - `18c34a0` - 3.3: Deposit reminder SMS + push 48h before appointment

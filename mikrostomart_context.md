@@ -1,7 +1,7 @@
-# Mikrostomart - Complete Project Context
+# Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-03-22  
-> **Version:** Production (Vercel Deployment)  
+> **Last Updated:** 2026-03-23  
+> **Version:** Production + Demo (Dual Vercel Deployment)  
 > **Status:** Active Development
 
 ---
@@ -39,6 +39,48 @@
 - Patient appointment booking (integrated with Prodentis calendaring system)
 - Product sales (dental cosmetics, accessories)
 - Deposit payments for appointments
+
+### 🔀 Dual Deployment Architecture
+
+Same codebase (`novik-code/mikrostomart`) serves **two independent deployments**:
+
+| Środowisko | Domena | Vercel Project | Supabase Project ID | `DEMO_MODE` |
+|------------|--------|---------------|---------------------|-------------|
+| **Produkcja** | `mikrostomart.pl` | `mikrostomart` | `keucogopujdolzmfajjv` | `false` |
+| **Demo** | `demo.densflow.ai` | `densflow-demo` | `mhosfncgasjfruiohlfo` | `true` |
+
+**Every `git push origin main` → auto-deploys to BOTH environments.**
+
+### 🧪 Demo Mode (`NEXT_PUBLIC_DEMO_MODE=true`)
+
+When `isDemoMode` is `true` (from `src/lib/demoMode.ts`):
+- **DemoBanner** — sticky orange banner at top: "🧪 WERSJA DEMONSTRACYJNA"
+- **SMS** — logged to console, not sent via SMSAPI
+- **Telegram** — skipped entirely
+- **19 cron jobs** — early return with log message
+- **Prodentis API** — mocked in 3 endpoints (login, /me, /me/visits): patient data comes from Supabase
+- **All other features** — work normally against the demo Supabase DB
+
+**Demo Supabase DB contents:**
+- 66 base tables (generated from production OpenAPI spec)
+- 88 migration files applied
+- 5 employees, 20 demo patients, settings, products, SMS templates
+- 3 Supabase Auth users (admin, pracownik) + 20 patients with bcrypt hashes
+
+**Demo login credentials:**
+| Strefa | URL | Email | Hasło |
+|--------|-----|-------|-------|
+| Admin | `/admin/login` | `admin@demo.densflow.ai` | `DemoAdmin123!` |
+| Pracownik | `/pracownik/login` | `pracownik@demo.densflow.ai` | `DemoPass123!` |
+| Pacjent | `/strefa-pacjenta/login` | `joanna.mazur@test.pl` | `DemoPass123!` |
+
+**Key files:**
+- `src/lib/demoMode.ts` — `isDemoMode` flag
+- `src/components/DemoBanner.tsx` — banner component
+- `src/app/layout.tsx` — renders DemoBanner when demo
+- `src/app/api/patients/login/route.ts` — Prodentis mock
+- `src/app/api/patients/me/route.ts` — Prodentis mock
+- `src/app/api/patients/me/visits/route.ts` — empty visits mock
 
 ---
 
