@@ -5,6 +5,8 @@
  * Used for automated appointment reminders
  */
 
+import { isDemoMode } from './demoMode';
+
 export interface SMSOptions {
     to: string;           // Phone number (format: 48XXXXXXXXX for Polish numbers)
     message: string;      // SMS content (recommended: under 160 chars for single SMS)
@@ -78,6 +80,12 @@ export function toGSM7(text: string): string {
  */
 export async function sendSMS(options: SMSOptions): Promise<SMSResponse> {
     const { to, message, from = process.env.SMSAPI_FROM || 'Mikrostomart' } = options;
+
+    // Demo mode: log but don't send real SMS
+    if (isDemoMode) {
+        console.log(`[DEMO] SMS skipped → to: ${to}, message: ${message.substring(0, 50)}...`);
+        return { success: true, messageId: 'demo-mock-id' };
+    }
 
     // Validate inputs
     if (!to || !message) {

@@ -1,3 +1,4 @@
+import { isDemoMode } from '@/lib/demoMode';
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sendTranslatedPushToUser } from '@/lib/webpush';
@@ -16,6 +17,11 @@ const PRODENTIS_API_URL = process.env.PRODENTIS_API_URL || 'http://83.230.40.14:
  * Uses a simple dedup table check to avoid sending duplicates.
  */
 export async function GET(req: Request) {
+    // Demo mode: skip cron jobs
+    if (isDemoMode) {
+        return NextResponse.json({ skipped: 'demo mode' });
+    }
+
     console.log('⏰ [Push 1h] Starting 1-hour appointment push cron...');
 
     const authHeader = req.headers.get('authorization');

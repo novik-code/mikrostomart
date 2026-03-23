@@ -1,3 +1,4 @@
+import { isDemoMode } from '@/lib/demoMode';
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sendSMS } from '@/lib/smsService';
@@ -19,6 +20,10 @@ export const maxDuration = 120; // Vercel function timeout
  * Note: If admin already sent drafts manually, this cron will find no drafts to send
  */
 export async function GET(req: Request) {
+    // Demo mode: skip cron jobs
+    if (isDemoMode) {
+        return NextResponse.json({ skipped: 'demo mode' });
+    }
     console.log('🚀 [SMS Auto-Send] Starting cron job...');
     const startTime = Date.now();
 

@@ -1,3 +1,4 @@
+import { isDemoMode } from '@/lib/demoMode';
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sendTelegramNotification } from '@/lib/telegram';
@@ -21,6 +22,10 @@ const supabase = createClient(
  * 3. Processes personal task_reminders table → individual push per owner
  */
 export async function GET(req: Request) {
+    // Demo mode: skip cron jobs
+    if (isDemoMode) {
+        return NextResponse.json({ skipped: 'demo mode' });
+    }
     console.log('🔔 [TaskReminders] Starting cron job...');
 
     const authHeader = req.headers.get('authorization');

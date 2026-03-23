@@ -8,6 +8,7 @@
  * Auth: CRON_SECRET or ?manual=true
  */
 
+import { isDemoMode } from '@/lib/demoMode';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { listEmails, getEmail } from '@/lib/imapService';
@@ -72,6 +73,11 @@ function classifyEmailServer(email: { from: { address: string; name: string }; s
 // ─── Main handler ────────────────────────────────────────────────
 
 export async function GET(req: NextRequest) {
+    // Demo mode: skip cron jobs
+    if (isDemoMode) {
+        return NextResponse.json({ skipped: 'demo mode' });
+    }
+
     const { searchParams } = new URL(req.url);
     const isManual = searchParams.get('manual') === 'true';
 

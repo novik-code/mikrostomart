@@ -1,3 +1,4 @@
+import { isDemoMode } from '@/lib/demoMode';
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sendSMS, getSMSTemplate, formatSMSMessage } from '@/lib/smsService';
@@ -61,6 +62,11 @@ function isDoctorInList(apiDoctorName: string, doctorList: string[]): boolean {
  * Stage 2: Admin reviews drafts in /admin panel OR auto-send cron
  */
 export async function GET(req: Request) {
+    // Demo mode: skip cron jobs
+    if (isDemoMode) {
+        return NextResponse.json({ skipped: 'demo mode' });
+    }
+
     console.log('🚀 [SMS Reminders] Starting cron job (API 4.0)...');
     const startTime = Date.now();
 

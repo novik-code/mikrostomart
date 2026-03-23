@@ -11,6 +11,7 @@
  *   6: auto-publish ready+pre_edited → done (publish to all platforms)
  */
 
+import { isDemoMode } from '@/lib/demoMode';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import {
@@ -79,6 +80,10 @@ async function ensureFfmpeg(): Promise<string> {
 }
 
 export async function GET(req: NextRequest) {
+    // Demo mode: skip cron jobs
+    if (isDemoMode) {
+        return NextResponse.json({ skipped: 'demo mode' });
+    }
     const { searchParams } = new URL(req.url);
     const isManual = searchParams.get('manual') === 'true';
 

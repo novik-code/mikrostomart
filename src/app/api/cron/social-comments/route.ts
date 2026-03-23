@@ -1,3 +1,4 @@
+import { isDemoMode } from '@/lib/demoMode';
 import { NextRequest, NextResponse } from 'next/server';
 import { processNewComments } from '@/lib/socialComments';
 
@@ -10,6 +11,10 @@ export const maxDuration = 300; // 5 minutes — scans ALL posts/videos on conne
  * fetches new comments, generates AI draft replies for admin review.
  */
 export async function GET(req: NextRequest) {
+    // Demo mode: skip cron jobs
+    if (isDemoMode) {
+        return NextResponse.json({ skipped: 'demo mode' });
+    }
     try {
         // Verify cron secret (Vercel adds this automatically)
         const authHeader = req.headers.get('authorization');

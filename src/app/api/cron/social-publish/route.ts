@@ -7,6 +7,7 @@
  * Auth: CRON_SECRET header
  */
 
+import { isDemoMode } from '@/lib/demoMode';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { publishPost } from '@/lib/socialPublish';
@@ -20,6 +21,10 @@ const supabase = createClient(
 );
 
 export async function GET(req: NextRequest) {
+    // Demo mode: skip cron jobs
+    if (isDemoMode) {
+        return NextResponse.json({ skipped: 'demo mode' });
+    }
     const { searchParams } = new URL(req.url);
     const isManual = searchParams.get('manual') === 'true';
 

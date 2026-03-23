@@ -1,3 +1,4 @@
+import { isDemoMode } from '@/lib/demoMode';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sendTelegramNotification } from '@/lib/telegram';
@@ -24,6 +25,10 @@ const PRODENTIS_API = process.env.PRODENTIS_API_URL || 'http://83.230.40.14:3000
  * 4. Today's birthdays
  */
 export async function GET(req: NextRequest) {
+    // Demo mode: skip cron jobs
+    if (isDemoMode) {
+        return NextResponse.json({ skipped: 'demo mode' });
+    }
     const startTime = Date.now();
 
     // Verify cron secret

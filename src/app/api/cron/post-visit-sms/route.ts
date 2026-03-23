@@ -1,3 +1,4 @@
+import { isDemoMode } from '@/lib/demoMode';
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { formatSMSMessage } from '@/lib/smsService';
@@ -91,6 +92,11 @@ const FALLBACK_TEMPLATE_REVIEWED = `Dziekujemy za wizyte, {salutation}! Do zobac
  * Returns: {draftsCreated, skipped, skippedDetails[], errors[]}
  */
 export async function GET(req: Request) {
+    // Demo mode: skip cron jobs
+    if (isDemoMode) {
+        return NextResponse.json({ skipped: 'demo mode' });
+    }
+
     console.log('[Post-Visit SMS] Starting draft generation...');
     const startTime = Date.now();
 

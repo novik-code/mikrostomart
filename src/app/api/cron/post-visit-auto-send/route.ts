@@ -1,3 +1,4 @@
+import { isDemoMode } from '@/lib/demoMode';
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sendSMS } from '@/lib/smsService';
@@ -17,6 +18,11 @@ export const maxDuration = 120;
  * those records will already be 'sent'/'cancelled' and won't be re-sent.
  */
 export async function GET(req: Request) {
+    // Demo mode: skip cron jobs
+    if (isDemoMode) {
+        return NextResponse.json({ skipped: 'demo mode' });
+    }
+
     console.log('🚀 [Post-Visit Auto-Send] Starting...');
     const startTime = Date.now();
 

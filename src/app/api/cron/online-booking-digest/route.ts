@@ -1,3 +1,4 @@
+import { isDemoMode } from '@/lib/demoMode';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sendTelegramNotification } from '@/lib/telegram';
@@ -11,6 +12,10 @@ export const dynamic = 'force-dynamic';
  * Auth: CRON_SECRET required.
  */
 export async function GET(request: NextRequest) {
+    // Demo mode: skip cron jobs
+    if (isDemoMode) {
+        return NextResponse.json({ skipped: 'demo mode' });
+    }
     // Verify cron secret
     const authHeader = request.headers.get('authorization');
     const isCronAuth = authHeader === `Bearer ${process.env.CRON_SECRET}`;

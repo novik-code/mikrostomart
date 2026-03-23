@@ -1,3 +1,4 @@
+import { isDemoMode } from '@/lib/demoMode';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
@@ -16,6 +17,10 @@ const supabase = createClient(
  * Secured by CRON_SECRET header.
  */
 export async function GET(req: NextRequest) {
+    // Demo mode: skip cron jobs
+    if (isDemoMode) {
+        return NextResponse.json({ skipped: 'demo mode' });
+    }
     const authHeader = req.headers.get('authorization');
     if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

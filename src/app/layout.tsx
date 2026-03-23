@@ -8,6 +8,8 @@ import { AssistantProvider } from "@/context/AssistantContext";
 import { SimulatorProvider } from "@/context/SimulatorContext";
 import { OpinionProvider } from "@/context/OpinionContext";
 import ThemeLayout from "@/components/ThemeLayout";
+import DemoBanner from "@/components/DemoBanner";
+import { isDemoMode } from "@/lib/demoMode";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
@@ -75,7 +77,8 @@ export default async function RootLayout({
 
     return (
         <html lang={locale}>
-            <body className={`${inter.variable} ${playfair.variable}`}>
+            <body className={`${inter.variable} ${playfair.variable}`} style={isDemoMode ? { paddingTop: '2rem' } : undefined}>
+                <DemoBanner />
                 {/* Dentist / LocalBusiness schema */}
                 <script
                     type="application/ld+json"

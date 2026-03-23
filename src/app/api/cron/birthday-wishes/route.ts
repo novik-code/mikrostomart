@@ -1,3 +1,4 @@
+import { isDemoMode } from '@/lib/demoMode';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sendSMS } from '@/lib/smsService';
@@ -25,6 +26,11 @@ const PRODENTIS_API = process.env.PRODENTIS_API_URL || 'http://83.230.40.14:3000
  * 5. Sends Telegram summary to admin
  */
 export async function GET(req: NextRequest) {
+    // Demo mode: skip cron jobs
+    if (isDemoMode) {
+        return NextResponse.json({ skipped: 'demo mode' });
+    }
+
     try {
         // Verify cron secret (Vercel sends this automatically)
         const authHeader = req.headers.get('authorization');

@@ -11,6 +11,8 @@
  * if the channel-specific env vars are not set.
  */
 
+import { isDemoMode } from './demoMode';
+
 export type TelegramChannel = 'appointments' | 'messages' | 'default';
 
 interface ChannelConfig {
@@ -54,6 +56,12 @@ export async function sendTelegramNotification(
     message: string,
     channel: TelegramChannel = 'default'
 ): Promise<boolean> {
+    // Demo mode: skip Telegram notifications
+    if (isDemoMode) {
+        console.log(`[DEMO] Telegram skipped → channel: ${channel}, message: ${message.substring(0, 50)}...`);
+        return true;
+    }
+
     const { token, chatIds } = getChannelConfig(channel);
 
     if (!token || chatIds.length === 0) return false;

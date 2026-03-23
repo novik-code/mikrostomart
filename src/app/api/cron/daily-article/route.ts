@@ -1,3 +1,4 @@
+import { isDemoMode } from '@/lib/demoMode';
 
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
@@ -19,6 +20,10 @@ const TRANSLATE_LOCALES = [
 ] as const;
 
 export async function GET(req: Request) {
+    // Demo mode: skip cron jobs
+    if (isDemoMode) {
+        return NextResponse.json({ skipped: 'demo mode' });
+    }
     // 1. Auth Check
     const authHeader = req.headers.get('authorization');
     const isCronAuth = authHeader === `Bearer ${process.env.CRON_SECRET}`;
