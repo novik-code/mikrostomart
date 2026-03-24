@@ -51,7 +51,7 @@ export async function PUT(request: NextRequest) {
                 key: 'theme',
                 value: theme,
                 updated_at: new Date().toISOString(),
-            });
+            }, { onConflict: 'key' });
 
         if (error) {
             return NextResponse.json({ error: error.message }, { status: 500 });
@@ -76,7 +76,7 @@ export async function POST() {
             key: 'theme',
             value: {},
             updated_at: new Date().toISOString(),
-        });
+        }, { onConflict: 'key' });
 
     if (error) {
         return NextResponse.json({ error: error.message }, { status: 500 });

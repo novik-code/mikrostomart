@@ -52,7 +52,7 @@ export async function PUT(request: NextRequest) {
                 key: 'sections',
                 value: sections,
                 updated_at: new Date().toISOString(),
-            });
+            }, { onConflict: 'key' });
 
         if (error) {
             return NextResponse.json({ error: error.message }, { status: 500 });
@@ -77,7 +77,7 @@ export async function POST() {
             key: 'sections',
             value: [],
             updated_at: new Date().toISOString(),
-        });
+        }, { onConflict: 'key' });
 
     if (error) {
         return NextResponse.json({ error: error.message }, { status: 500 });
