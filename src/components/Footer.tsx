@@ -7,6 +7,7 @@ import AnimatedPhone from "@/components/AnimatedPhone";
 import AnimatedAt from "@/components/AnimatedAt";
 import NovikCodeCredit from "@/components/NovikCodeCredit";
 import { brand } from "@/lib/brandConfig";
+import { isDemoMode } from "@/lib/demoMode";
 
 export default function Footer() {
     const t = useTranslations('footer');
@@ -180,7 +181,7 @@ export default function Footer() {
                 gap: '2rem',
                 flexWrap: 'wrap'
             }}>
-                <span>{t('copyright', { year: new Date().getFullYear() })}</span>
+                <span>{isDemoMode ? `© ${new Date().getFullYear()} ${brand.name}. Wszelkie prawa zastrzeżone.` : t('copyright', { year: new Date().getFullYear() })}</span>
                 <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', justifyContent: 'center' }}>
                     <a
                         href="/faq"
