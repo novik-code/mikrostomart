@@ -15,6 +15,38 @@ async function checkAdmin() {
     return isAdmin ? user : null;
 }
 
+// Safe save: try update, fallback to insert
+async function saveSetting(key: string, value: any) {
+    // Check if row exists
+    const { data: existing } = await supabase
+        .from('site_settings')
+        .select('id')
+        .eq('key', key)
+        .maybeSingle();
+
+    if (existing) {
+        // Update existing row
+        const { error } = await supabase
+            .from('site_settings')
+            .update({
+                value: value,
+                updated_at: new Date().toISOString(),
+            })
+            .eq('key', key);
+        return error;
+    } else {
+        // Insert new row
+        const { error } = await supabase
+            .from('site_settings')
+            .insert({
+                key: key,
+                value: value,
+                updated_at: new Date().toISOString(),
+            });
+        return error;
+    }
+}
+
 // Admin GET — returns current sections config
 export async function GET() {
     const user = await checkAdmin();
@@ -26,14 +58,14 @@ export async function GET() {
         .from('site_settings')
         .select('value, updated_at')
         .eq('key', 'sections')
-        .single();
+        .maybeSingle();
 
     if (error) {
         // Key doesn't exist yet — return empty
         return NextResponse.json({ value: [], updated_at: null });
     }
 
-    return NextResponse.json(data);
+    return NextResponse.json(data || { value: [], updated_at: null });
 }
 
 // Admin PUT — save sections config
@@ -45,14 +77,7 @@ export async function PUT(request: NextRequest) {
 
     try {
         const sections = await request.json();
-
-        const { error } = await supabase
-            .from('site_settings')
-            .upsert({
-                key: 'sections',
-                value: sections,
-                updated_at: new Date().toISOString(),
-            }, { onConflict: 'key' });
+        const error = await saveSetting('sections', sections);
 
         if (error) {
             return NextResponse.json({ error: error.message }, { status: 500 });
@@ -71,13 +96,7 @@ export async function POST() {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { error } = await supabase
-        .from('site_settings')
-        .upsert({
-            key: 'sections',
-            value: [],
-            updated_at: new Date().toISOString(),
-        }, { onConflict: 'key' });
+    const error = await saveSetting('sections', []);
 
     if (error) {
         return NextResponse.json({ error: error.message }, { status: 500 });

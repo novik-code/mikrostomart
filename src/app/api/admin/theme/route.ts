@@ -15,6 +15,38 @@ async function checkAdmin() {
     return isAdmin ? user : null;
 }
 
+// Safe save: try update, fallback to insert
+async function saveSetting(key: string, value: any) {
+    // Check if row exists
+    const { data: existing } = await supabase
+        .from('site_settings')
+        .select('id')
+        .eq('key', key)
+        .maybeSingle();
+
+    if (existing) {
+        // Update existing row
+        const { error } = await supabase
+            .from('site_settings')
+            .update({
+                value: value,
+                updated_at: new Date().toISOString(),
+            })
+            .eq('key', key);
+        return error;
+    } else {
+        // Insert new row
+        const { error } = await supabase
+            .from('site_settings')
+            .insert({
+                key: key,
+                value: value,
+                updated_at: new Date().toISOString(),
+            });
+        return error;
+    }
+}
+
 // Admin GET — returns current theme config
 export async function GET() {
     const user = await checkAdmin();
@@ -26,13 +58,13 @@ export async function GET() {
         .from('site_settings')
         .select('value, updated_at')
         .eq('key', 'theme')
-        .single();
+        .maybeSingle();
 
     if (error) {
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json(data);
+    return NextResponse.json(data || { value: {}, updated_at: null });
 }
 
 // Admin PUT — save full theme config
@@ -44,14 +76,7 @@ export async function PUT(request: NextRequest) {
 
     try {
         const theme = await request.json();
-
-        const { error } = await supabase
-            .from('site_settings')
-            .upsert({
-                key: 'theme',
-                value: theme,
-                updated_at: new Date().toISOString(),
-            }, { onConflict: 'key' });
+        const error = await saveSetting('theme', theme);
 
         if (error) {
             return NextResponse.json({ error: error.message }, { status: 500 });
@@ -70,13 +95,7 @@ export async function POST() {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { error } = await supabase
-        .from('site_settings')
-        .upsert({
-            key: 'theme',
-            value: {},
-            updated_at: new Date().toISOString(),
-        }, { onConflict: 'key' });
+    const error = await saveSetting('theme', {});
 
     if (error) {
         return NextResponse.json({ error: error.message }, { status: 500 });
