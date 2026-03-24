@@ -15,36 +15,41 @@ async function checkAdmin() {
     return isAdmin ? user : null;
 }
 
-// Safe save: try update, fallback to insert
+// Bulletproof save: try UPDATE first, INSERT only if 0 rows updated
 async function saveSetting(key: string, value: any) {
-    // Check if row exists
-    const { data: existing } = await supabase
+    // First attempt: UPDATE existing row
+    const { data: updated, error: updateError } = await supabase
         .from('site_settings')
-        .select('id')
+        .update({
+            value: value,
+            updated_at: new Date().toISOString(),
+        })
         .eq('key', key)
-        .maybeSingle();
+        .select('key');
 
-    if (existing) {
-        // Update existing row
-        const { error } = await supabase
+    if (updateError) {
+        // If update fails (e.g. updated_at column missing), try without it
+        const { data: updated2, error: updateError2 } = await supabase
             .from('site_settings')
-            .update({
-                value: value,
-                updated_at: new Date().toISOString(),
-            })
-            .eq('key', key);
-        return error;
-    } else {
-        // Insert new row
-        const { error } = await supabase
-            .from('site_settings')
-            .insert({
-                key: key,
-                value: value,
-                updated_at: new Date().toISOString(),
-            });
-        return error;
+            .update({ value: value })
+            .eq('key', key)
+            .select('key');
+
+        if (updateError2) return updateError2;
+        if (updated2 && updated2.length > 0) return null;
+    } else if (updated && updated.length > 0) {
+        return null; // Successfully updated
     }
+
+    // No rows updated — need to insert
+    const { error: insertError } = await supabase
+        .from('site_settings')
+        .insert({
+            key: key,
+            value: value,
+        });
+
+    return insertError;
 }
 
 // Admin GET — returns current sections config
@@ -56,16 +61,15 @@ export async function GET() {
 
     const { data, error } = await supabase
         .from('site_settings')
-        .select('value, updated_at')
+        .select('value')
         .eq('key', 'sections')
         .maybeSingle();
 
     if (error) {
-        // Key doesn't exist yet — return empty
         return NextResponse.json({ value: [], updated_at: null });
     }
 
-    return NextResponse.json(data || { value: [], updated_at: null });
+    return NextResponse.json(data || { value: [] });
 }
 
 // Admin PUT — save sections config
