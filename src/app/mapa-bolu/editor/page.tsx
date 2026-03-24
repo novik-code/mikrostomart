@@ -186,15 +186,15 @@ export default function ZoneEditorPage() {
                 background: '#1a1a1a', borderBottom: '1px solid #333',
                 padding: '8px 16px', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap'
             }}>
-                <span style={{ fontWeight: 'bold', color: '#dcb14a' }}>🦷 Zone Editor</span>
+                <span style={{ fontWeight: 'bold', color: 'var(--color-primary)' }}>🦷 Zone Editor</span>
 
                 <button onClick={() => setShowLabels(l => !l)}
-                    style={{ padding: '4px 10px', background: showLabels ? '#dcb14a' : '#333', color: showLabels ? '#000' : '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '13px' }}>
+                    style={{ padding: '4px 10px', background: showLabels ? 'var(--color-primary)' : '#333', color: showLabels ? '#000' : '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '13px' }}>
                     {showLabels ? '🏷 Labels ON' : '🏷 Labels OFF'}
                 </button>
 
                 <button onClick={() => setShowSoftTissues(s => !s)}
-                    style={{ padding: '4px 10px', background: showSoftTissues ? '#dcb14a' : '#333', color: showSoftTissues ? '#000' : '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '13px' }}>
+                    style={{ padding: '4px 10px', background: showSoftTissues ? 'var(--color-primary)' : '#333', color: showSoftTissues ? '#000' : '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '13px' }}>
                     {showSoftTissues ? '👅 Soft ON' : '👅 Soft OFF'}
                 </button>
 
@@ -209,7 +209,7 @@ export default function ZoneEditorPage() {
                 </button>
 
                 {selectedZone && (
-                    <span style={{ marginLeft: '16px', color: '#dcb14a', fontSize: '13px' }}>
+                    <span style={{ marginLeft: '16px', color: 'var(--color-primary)', fontSize: '13px' }}>
                         Wybrany: <strong>{selectedZone.id}</strong> — x:{selectedZone.x} y:{selectedZone.y} w:{selectedZone.w} h:{selectedZone.h}
                         <span style={{ color: '#888', marginLeft: '8px' }}>Strzałki = przesuń, Shift+strzałki = ±0.5</span>
                     </span>
@@ -241,8 +241,8 @@ export default function ZoneEditorPage() {
                         {visibleZones.map(zone => {
                             const isSoft = ['tongue', 'palate', 'throat'].includes(zone.id);
                             const isSelected = selectedId === zone.id;
-                            const fill = isSelected ? 'rgba(220, 177, 74, 0.3)' : (isSoft ? 'rgba(100, 180, 255, 0.1)' : 'rgba(220, 177, 74, 0.12)');
-                            const stroke = isSelected ? '#fff' : (isSoft ? 'rgba(100, 180, 255, 0.5)' : 'rgba(220, 177, 74, 0.5)');
+                            const fill = isSelected ? 'rgba(var(--color-primary-rgb), 0.3)' : (isSoft ? 'rgba(100, 180, 255, 0.1)' : 'rgba(var(--color-primary-rgb), 0.12)');
+                            const stroke = isSelected ? '#fff' : (isSoft ? 'rgba(100, 180, 255, 0.5)' : 'rgba(var(--color-primary-rgb), 0.5)');
 
                             return (
                                 <g key={zone.id}>
@@ -276,7 +276,7 @@ export default function ZoneEditorPage() {
                                             y={zone.y + zone.h / 2 + 0.8}
                                             textAnchor="middle"
                                             fontSize={isSoft ? 2.5 : Math.min(zone.w, zone.h) * 0.5}
-                                            fill={isSelected ? '#fff' : '#dcb14a'}
+                                            fill={isSelected ? '#fff' : 'var(--color-primary)'}
                                             fontWeight="bold"
                                             pointerEvents="none"
                                             style={{ userSelect: 'none' }}
@@ -295,7 +295,7 @@ export default function ZoneEditorPage() {
             {exported && (
                 <div style={{ maxWidth: '800px', margin: '16px auto', padding: '0 8px' }}>
                     <div style={{ background: '#1a1a1a', border: '1px solid #333', borderRadius: '8px', padding: '12px', fontSize: '12px' }}>
-                        <div style={{ marginBottom: '8px', color: '#dcb14a', fontWeight: 'bold' }}>
+                        <div style={{ marginBottom: '8px', color: 'var(--color-primary)', fontWeight: 'bold' }}>
                             📋 Skopiowane do schowka! Wyślij te koordynaty:
                         </div>
                         <pre style={{ whiteSpace: 'pre-wrap', color: '#aaa', lineHeight: 1.5, margin: 0, fontFamily: 'monospace', fontSize: '11px' }}>
@@ -308,7 +308,7 @@ export default function ZoneEditorPage() {
             {/* Instructions */}
             <div style={{ maxWidth: '800px', margin: '16px auto', padding: '0 8px 32px' }}>
                 <div style={{ background: '#1a1a1a', border: '1px solid #333', borderRadius: '8px', padding: '12px', fontSize: '13px', color: '#888' }}>
-                    <strong style={{ color: '#dcb14a' }}>Instrukcja:</strong>
+                    <strong style={{ color: 'var(--color-primary)' }}>Instrukcja:</strong>
                     <ul style={{ margin: '8px 0 0 0', paddingLeft: '20px', lineHeight: 1.8 }}>
                         <li>🖱 <strong>Przeciągnij</strong> prostokąt aby go przenieść na właściwy ząb</li>
                         <li>↔ <strong>Mały kwadrat (prawy dół)</strong> — zmień rozmiar strefy</li>

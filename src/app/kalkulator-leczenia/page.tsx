@@ -37,7 +37,7 @@ const S = {
     heroGradient: {
         position: "absolute" as const,
         top: 0, left: 0, right: 0, bottom: 0,
-        background: "radial-gradient(ellipse at 50% 0%, rgba(212,175,55,0.08) 0%, transparent 70%)",
+        background: "radial-gradient(ellipse at 50% 0%, rgba(var(--color-primary-dark-rgb),0.08) 0%, transparent 70%)",
         pointerEvents: "none" as const,
     } as React.CSSProperties,
 
@@ -141,7 +141,7 @@ const S = {
         alignItems: "center",
         gap: "0.75rem",
         padding: "0.9rem 1.2rem",
-        background: isActive ? "rgba(212,175,55,0.15)" : "rgba(255,255,255,0.03)",
+        background: isActive ? "rgba(var(--color-primary-dark-rgb),0.15)" : "rgba(255,255,255,0.03)",
         border: `1px solid ${isActive ? "var(--color-primary)" : "rgba(255,255,255,0.08)"}`,
         borderRadius: "var(--radius-md)",
         cursor: "pointer",
@@ -163,7 +163,7 @@ const S = {
         width: "10px",
         height: "10px",
         borderRadius: "50%",
-        background: done ? "var(--color-primary)" : active ? "rgba(212,175,55,0.6)" : "rgba(255,255,255,0.15)",
+        background: done ? "var(--color-primary)" : active ? "rgba(var(--color-primary-dark-rgb),0.6)" : "rgba(255,255,255,0.15)",
         transition: "all 0.3s ease",
     }) as React.CSSProperties,
 
@@ -237,7 +237,7 @@ const S = {
         top: 0,
         bottom: 0,
         width: "2px",
-        background: "linear-gradient(to bottom, var(--color-primary), rgba(212,175,55,0.1))",
+        background: "linear-gradient(to bottom, var(--color-primary), rgba(var(--color-primary-dark-rgb),0.1))",
     } as React.CSSProperties,
 
     stageCard: {
@@ -320,7 +320,7 @@ const S = {
         marginBottom: "0.5rem",
         fontSize: "0.82rem",
         color: "rgba(255,255,255,0.35)",
-        borderLeft: "2px dashed rgba(212,175,55,0.2)",
+        borderLeft: "2px dashed rgba(var(--color-primary-dark-rgb),0.2)",
         marginLeft: "0px",
     } as React.CSSProperties,
 
@@ -360,9 +360,9 @@ const S = {
         gap: "1rem",
         marginTop: "2.5rem",
         padding: "2rem",
-        background: "rgba(212,175,55,0.04)",
+        background: "rgba(var(--color-primary-dark-rgb),0.04)",
         borderRadius: "var(--radius-lg)",
-        border: "1px solid rgba(212,175,55,0.1)",
+        border: "1px solid rgba(var(--color-primary-dark-rgb),0.1)",
     } as React.CSSProperties,
 
     ctaPrimary: {

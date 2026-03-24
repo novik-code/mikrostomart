@@ -176,7 +176,7 @@ export default function AssistantTeaser() {
                         width: '52px',
                         height: '52px',
                         borderRadius: '50%',
-                        border: '2px solid rgba(220, 177, 74, 0.6)',
+                        border: '2px solid rgba(var(--color-primary-rgb), 0.6)',
                         background: 'rgba(18, 20, 24, 0.85)',
                         backdropFilter: 'blur(12px)',
                         WebkitBackdropFilter: 'blur(12px)',
@@ -185,7 +185,7 @@ export default function AssistantTeaser() {
                         justifyContent: 'center',
                         cursor: 'pointer',
                         boxShadow: isHovered
-                            ? '0 0 20px rgba(220, 177, 74, 0.4), 0 8px 32px rgba(0,0,0,0.5)'
+                            ? '0 0 20px rgba(var(--color-primary-rgb), 0.4), 0 8px 32px rgba(0,0,0,0.5)'
                             : '0 4px 16px rgba(0,0,0,0.4)',
                         transform: isHovered ? 'scale(1.1)' : 'scale(1)',
                         transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -194,7 +194,7 @@ export default function AssistantTeaser() {
                 >
                     <MessageCircle
                         size={22}
-                        color="#dcb14a"
+                        color="var(--color-primary)"
                         style={{
                             transition: 'transform 0.3s ease',
                             transform: isHovered ? 'scale(1.15)' : 'scale(1)',
@@ -209,12 +209,12 @@ export default function AssistantTeaser() {
                             left: '50%',
                             transform: 'translateX(-50%)',
                             background: 'rgba(18, 20, 24, 0.95)',
-                            color: '#f0c975',
+                            color: 'var(--color-primary-light)',
                             padding: '6px 12px',
                             borderRadius: '8px',
                             fontSize: '12px',
                             whiteSpace: 'nowrap',
-                            border: '1px solid rgba(220, 177, 74, 0.3)',
+                            border: '1px solid rgba(var(--color-primary-rgb), 0.3)',
                             boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
                             pointerEvents: 'none',
                         }}>
@@ -287,7 +287,7 @@ export default function AssistantTeaser() {
                                 backgroundColor: 'rgba(18, 20, 24, 0.97)',
                                 backdropFilter: 'blur(16px)',
                                 WebkitBackdropFilter: 'blur(16px)',
-                                border: '1px solid rgba(220, 177, 74, 0.3)',
+                                border: '1px solid rgba(var(--color-primary-rgb), 0.3)',
                                 borderRadius: '16px',
                                 boxShadow: '0 25px 60px rgba(0,0,0,0.6)',
                                 overflow: 'hidden',
@@ -303,7 +303,7 @@ export default function AssistantTeaser() {
                             }}>
                                 <div style={{
                                     width: '36px', height: '36px', borderRadius: '50%',
-                                    border: '1px solid #dcb14a',
+                                    border: '1px solid var(--color-primary)',
                                     overflow: 'hidden',
                                     position: 'relative',
                                     flexShrink: 0,
@@ -339,7 +339,7 @@ export default function AssistantTeaser() {
                                             <div style={{
                                                 width: '24px', height: '24px', borderRadius: '50%',
                                                 overflow: 'hidden', position: 'relative', flexShrink: 0,
-                                                border: '1px solid #dcb14a'
+                                                border: '1px solid var(--color-primary)'
                                             }}>
                                                 <Image src="/assistant-avatar.png" alt="AI" fill style={{ objectFit: 'cover' }} />
                                             </div>
@@ -347,7 +347,7 @@ export default function AssistantTeaser() {
                                         <div style={{
                                             padding: '12px 16px',
                                             borderRadius: '12px',
-                                            backgroundColor: msg.role === 'user' ? '#dcb14a' : 'rgba(255,255,255,0.05)',
+                                            backgroundColor: msg.role === 'user' ? 'var(--color-primary)' : 'rgba(255,255,255,0.05)',
                                             color: msg.role === 'user' ? '#000' : '#e5e7eb',
                                             maxWidth: '80%',
                                             fontSize: '14px',
@@ -370,7 +370,7 @@ export default function AssistantTeaser() {
                                         <div style={{
                                             width: '24px', height: '24px', borderRadius: '50%',
                                             overflow: 'hidden', position: 'relative', flexShrink: 0,
-                                            border: '1px solid #dcb14a'
+                                            border: '1px solid var(--color-primary)'
                                         }}>
                                             <Image src="/assistant-avatar.png" alt="AI" fill style={{ objectFit: 'cover' }} />
                                         </div>
@@ -390,8 +390,8 @@ export default function AssistantTeaser() {
                                         <button
                                             onClick={() => handleSuggestionClick({ label: t('bookAppointment'), action: "/rezerwacja" })}
                                             style={{
-                                                padding: '6px 12px', borderRadius: '20px', border: '1px solid #dcb14a',
-                                                background: '#dcb14a', color: 'black', fontSize: '12px', cursor: 'pointer', whiteSpace: 'nowrap', fontWeight: 'bold'
+                                                padding: '6px 12px', borderRadius: '20px', border: '1px solid var(--color-primary)',
+                                                background: 'var(--color-primary)', color: 'black', fontSize: '12px', cursor: 'pointer', whiteSpace: 'nowrap', fontWeight: 'bold'
                                             }}
                                         >
                                             {t('bookAppointment')}
@@ -459,7 +459,7 @@ export default function AssistantTeaser() {
                                         onClick={() => sendMessage(input)}
                                         disabled={isLoading || !input.trim()}
                                         style={{
-                                            width: '46px', height: '46px', borderRadius: '8px', background: '#dcb14a',
+                                            width: '46px', height: '46px', borderRadius: '8px', background: 'var(--color-primary)',
                                             border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
                                             opacity: (isLoading || !input.trim()) ? 0.5 : 1
                                         }}
@@ -476,8 +476,8 @@ export default function AssistantTeaser() {
             {/* Pulse keyframes (injected once) */}
             <style jsx global>{`
                 @keyframes assistantPulse {
-                    0%, 100% { box-shadow: 0 4px 16px rgba(0,0,0,0.4), 0 0 0 0 rgba(220, 177, 74, 0); }
-                    50% { box-shadow: 0 4px 16px rgba(0,0,0,0.4), 0 0 0 6px rgba(220, 177, 74, 0.15); }
+                    0%, 100% { box-shadow: 0 4px 16px rgba(0,0,0,0.4), 0 0 0 0 rgba(var(--color-primary-rgb), 0); }
+                    50% { box-shadow: 0 4px 16px rgba(0,0,0,0.4), 0 0 0 6px rgba(var(--color-primary-rgb), 0.15); }
                 }
                 .animate-spin {
                     animation: spin 1s linear infinite;

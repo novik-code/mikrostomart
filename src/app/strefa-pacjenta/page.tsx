@@ -36,11 +36,11 @@ export default function StrefaPacjentaRoot() {
             color: '#fff',
             gap: '1.5rem'
         }}>
-            <div style={{ width: '48px', height: '48px', border: '3px solid rgba(212,175,55,0.15)', borderTop: '3px solid #dcb14a', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+            <div style={{ width: '48px', height: '48px', border: '3px solid rgba(var(--color-primary-dark-rgb),0.15)', borderTop: '3px solid var(--color-primary)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
             <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem' }}>Przekierowanie...</p>
             {showFallback && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', alignItems: 'center', marginTop: '1rem' }}>
-                    <a href="/strefa-pacjenta/login" style={{ color: '#dcb14a', textDecoration: 'underline', fontSize: '0.9rem' }}>
+                    <a href="/strefa-pacjenta/login" style={{ color: 'var(--color-primary)', textDecoration: 'underline', fontSize: '0.9rem' }}>
                         Zaloguj się do Strefy Pacjenta →
                     </a>
                     <a href="/" style={{ color: 'rgba(255,255,255,0.4)', textDecoration: 'none', fontSize: '0.8rem' }}>

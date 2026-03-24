@@ -93,7 +93,7 @@
 
 .btnPrimary {
     padding: 0.75rem 1.5rem;
-    background: linear-gradient(135deg, #dcb14a, #c9a044);
+    background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
     color: #000;
     font-weight: bold;
     border: none;

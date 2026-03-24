@@ -367,13 +367,13 @@ export default function ContactForm() {
                     id="rodo-consent-contact"
                     checked={rodoConsent}
                     onChange={(e) => setRodoConsent(e.target.checked)}
-                    style={{ marginTop: '3px', accentColor: '#dcb14a', minWidth: '18px', minHeight: '18px', cursor: 'pointer' }}
+                    style={{ marginTop: '3px', accentColor: 'var(--color-primary)', minWidth: '18px', minHeight: '18px', cursor: 'pointer' }}
                 />
                 <label htmlFor="rodo-consent-contact" style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', lineHeight: 1.5, cursor: 'pointer' }}>
                     {t('rodoConsent')}{' '}
-                    <a href="/rodo" target="_blank" style={{ color: '#dcb14a', textDecoration: 'underline' }}>{t('rodoClause')}</a>{' '}
+                    <a href="/rodo" target="_blank" style={{ color: 'var(--color-primary)', textDecoration: 'underline' }}>{t('rodoClause')}</a>{' '}
                     {t('rodoAnd')}{' '}
-                    <a href="/polityka-prywatnosci" target="_blank" style={{ color: '#dcb14a', textDecoration: 'underline' }}>{t('privacyPolicy')}</a>.
+                    <a href="/polityka-prywatnosci" target="_blank" style={{ color: 'var(--color-primary)', textDecoration: 'underline' }}>{t('privacyPolicy')}</a>.
                 </label>
             </div>
 

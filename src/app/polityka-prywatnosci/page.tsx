@@ -19,7 +19,7 @@ export default function PrivacyPolicyPage() {
             }}>
                 <div style={{
                     position: "absolute", inset: 0,
-                    background: "radial-gradient(ellipse at center top, rgba(220,177,74,0.06) 0%, transparent 60%)",
+                    background: "radial-gradient(ellipse at center top, rgba(var(--color-primary-rgb),0.06) 0%, transparent 60%)",
                     pointerEvents: "none"
                 }} />
                 <div className="container" style={{ position: "relative", zIndex: 1 }}>
@@ -27,7 +27,7 @@ export default function PrivacyPolicyPage() {
                         <div style={{ display: "flex", justifyContent: "center", marginBottom: "1.5rem" }}>
                             <div style={{
                                 width: "56px", height: "56px", borderRadius: "50%",
-                                background: "rgba(220,177,74,0.1)", border: "1px solid rgba(220,177,74,0.2)",
+                                background: "rgba(var(--color-primary-rgb),0.1)", border: "1px solid rgba(var(--color-primary-rgb),0.2)",
                                 display: "flex", alignItems: "center", justifyContent: "center"
                             }}>
                                 <Lock size={28} color="var(--color-primary)" />
@@ -118,7 +118,7 @@ function PolicyCard({ icon, title, children }: { icon: React.ReactNode; title: s
             <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
                 <div style={{
                     width: "40px", height: "40px", borderRadius: "50%",
-                    background: "rgba(220,177,74,0.08)", border: "1px solid rgba(220,177,74,0.15)",
+                    background: "rgba(var(--color-primary-rgb),0.08)", border: "1px solid rgba(var(--color-primary-rgb),0.15)",
                     display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0
                 }}>
                     {icon}

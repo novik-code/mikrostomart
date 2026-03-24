@@ -66,7 +66,7 @@ function LanguageSwitcherInner({ hidden }: { hidden?: boolean }) {
                 aria-label="Change language"
                 style={{
                     background: "rgba(255,255,255,0.04)",
-                    border: "1px solid rgba(212, 175, 55, 0.2)",
+                    border: "1px solid rgba(var(--color-primary-dark-rgb), 0.2)",
                     borderRadius: "8px",
                     padding: "4px 8px",
                     cursor: "pointer",
@@ -80,11 +80,11 @@ function LanguageSwitcherInner({ hidden }: { hidden?: boolean }) {
                     lineHeight: 1,
                 }}
                 onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLElement).style.borderColor = "rgba(212, 175, 55, 0.5)";
-                    (e.currentTarget as HTMLElement).style.background = "rgba(212, 175, 55, 0.08)";
+                    (e.currentTarget as HTMLElement).style.borderColor = "rgba(var(--color-primary-dark-rgb), 0.5)";
+                    (e.currentTarget as HTMLElement).style.background = "rgba(var(--color-primary-dark-rgb), 0.08)";
                 }}
                 onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLElement).style.borderColor = "rgba(212, 175, 55, 0.2)";
+                    (e.currentTarget as HTMLElement).style.borderColor = "rgba(var(--color-primary-dark-rgb), 0.2)";
                     (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.04)";
                 }}
             >
@@ -108,11 +108,11 @@ function LanguageSwitcherInner({ hidden }: { hidden?: boolean }) {
                         top: "calc(100% + 4px)",
                         right: 0,
                         background: "rgba(18, 20, 24, 0.97)",
-                        border: "1px solid rgba(212, 175, 55, 0.15)",
+                        border: "1px solid rgba(var(--color-primary-dark-rgb), 0.15)",
                         borderRadius: "10px",
                         padding: "0.3rem 0",
                         minWidth: "110px",
-                        boxShadow: "0 12px 30px rgba(0,0,0,0.5), 0 0 15px rgba(212,175,55,0.05)",
+                        boxShadow: "0 12px 30px rgba(0,0,0,0.5), 0 0 15px rgba(var(--color-primary-dark-rgb),0.05)",
                         backdropFilter: "blur(16px)",
                         animation: "langFadeIn 0.15s ease-out",
                     }}
@@ -127,7 +127,7 @@ function LanguageSwitcherInner({ hidden }: { hidden?: boolean }) {
                                 gap: "0.4rem",
                                 width: "100%",
                                 padding: "0.4rem 0.75rem",
-                                background: loc === locale ? "rgba(212, 175, 55, 0.1)" : "transparent",
+                                background: loc === locale ? "rgba(var(--color-primary-dark-rgb), 0.1)" : "transparent",
                                 border: "none",
                                 cursor: "pointer",
                                 color: loc === locale ? "var(--color-primary, #d4af37)" : "var(--color-text-main, #fff)",
@@ -142,7 +142,7 @@ function LanguageSwitcherInner({ hidden }: { hidden?: boolean }) {
                                 }
                             }}
                             onMouseLeave={(e) => {
-                                (e.currentTarget as HTMLElement).style.background = loc === locale ? "rgba(212, 175, 55, 0.1)" : "transparent";
+                                (e.currentTarget as HTMLElement).style.background = loc === locale ? "rgba(var(--color-primary-dark-rgb), 0.1)" : "transparent";
                             }}
                         >
                             <span style={{ fontSize: "0.95rem" }}>{FLAGS[loc]}</span>

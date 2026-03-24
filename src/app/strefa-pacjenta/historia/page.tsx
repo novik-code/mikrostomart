@@ -129,10 +129,10 @@ export default function VisitHistory() {
                                     onClick={() => setFilter(f.value as any)}
                                     style={{
                                         padding: '0.75rem 1.25rem',
-                                        background: filter === f.value ? 'rgba(220, 177, 74, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-                                        border: filter === f.value ? '1px solid rgba(220, 177, 74, 0.4)' : '1px solid rgba(255, 255, 255, 0.1)',
+                                        background: filter === f.value ? 'rgba(var(--color-primary-rgb), 0.2)' : 'rgba(255, 255, 255, 0.05)',
+                                        border: filter === f.value ? '1px solid rgba(var(--color-primary-rgb), 0.4)' : '1px solid rgba(255, 255, 255, 0.1)',
                                         borderRadius: '0.5rem',
-                                        color: filter === f.value ? '#dcb14a' : 'rgba(255, 255, 255, 0.7)',
+                                        color: filter === f.value ? 'var(--color-primary)' : 'rgba(255, 255, 255, 0.7)',
                                         fontWeight: filter === f.value ? 'bold' : 'normal',
                                         cursor: 'pointer',
                                         transition: 'all 0.2s',
@@ -179,7 +179,7 @@ export default function VisitHistory() {
                                         gap: '1rem',
                                     }}>
                                         <div>
-                                            <div style={{ color: '#dcb14a', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
+                                            <div style={{ color: 'var(--color-primary)', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
                                                 {new Date(visit.date).toLocaleDateString('pl-PL', {
                                                     weekday: 'long',
                                                     year: 'numeric',
@@ -223,7 +223,7 @@ export default function VisitHistory() {
                                         }}>
                                             {visit.medicalDetails.visitDescription && (
                                                 <div style={{ marginBottom: '1rem' }}>
-                                                    <div style={{ color: '#dcb14a', fontSize: '0.85rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>
+                                                    <div style={{ color: 'var(--color-primary)', fontSize: '0.85rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>
                                                         📝 Opis wizyty
                                                     </div>
                                                     <div style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '0.95rem' }}>
@@ -234,7 +234,7 @@ export default function VisitHistory() {
 
                                             {visit.medicalDetails.diagnosis && (
                                                 <div style={{ marginBottom: '1rem' }}>
-                                                    <div style={{ color: '#dcb14a', fontSize: '0.85rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>
+                                                    <div style={{ color: 'var(--color-primary)', fontSize: '0.85rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>
                                                         🔬 Rozpoznanie
                                                     </div>
                                                     <div style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '0.95rem' }}>
@@ -245,7 +245,7 @@ export default function VisitHistory() {
 
                                             {visit.medicalDetails.procedures && visit.medicalDetails.procedures.length > 0 && (
                                                 <div style={{ marginBottom: '1rem' }}>
-                                                    <div style={{ color: '#dcb14a', fontSize: '0.85rem', fontWeight: 'bold', marginBottom: '0.75rem' }}>
+                                                    <div style={{ color: 'var(--color-primary)', fontSize: '0.85rem', fontWeight: 'bold', marginBottom: '0.75rem' }}>
                                                         🦷 Procedury
                                                     </div>
                                                     {visit.medicalDetails.procedures.map((proc, pidx) => (
@@ -267,7 +267,7 @@ export default function VisitHistory() {
                                                                     </div>
                                                                 )}
                                                             </div>
-                                                            <div style={{ color: '#dcb14a', fontWeight: 'bold' }}>
+                                                            <div style={{ color: 'var(--color-primary)', fontWeight: 'bold' }}>
                                                                 {(proc.price || 0).toFixed(2)} PLN
                                                             </div>
                                                         </div>
@@ -277,7 +277,7 @@ export default function VisitHistory() {
 
                                             {visit.medicalDetails.recommendations && (
                                                 <div>
-                                                    <div style={{ color: '#dcb14a', fontSize: '0.85rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>
+                                                    <div style={{ color: 'var(--color-primary)', fontSize: '0.85rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>
                                                         💊 Zalecenia
                                                     </div>
                                                     <div style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '0.95rem' }}>
@@ -307,7 +307,7 @@ export default function VisitHistory() {
                         🔒
                     </div>
                     <h2 style={{
-                        color: '#dcb14a',
+                        color: 'var(--color-primary)',
                         fontSize: '1.8rem',
                         marginBottom: '1rem',
                     }}>

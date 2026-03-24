@@ -19,14 +19,14 @@ interface OfferItem {
 
 // Icon mapping (stays outside component — no translation needed)
 const OFFER_ICONS: React.ReactNode[] = [
-    <Microscope key="mic" size={60} className="text-[#dcb14a]" />,
-    <Scan key="scan" size={60} className="text-[#dcb14a]" />,
-    <Wand2 key="wand" size={60} className="text-[#dcb14a]" />,
-    <Sparkles key="spark" size={60} className="text-[#dcb14a]" />,
-    <Gem key="gem" size={60} className="text-[#dcb14a]" />,
-    <Syringe key="syr" size={60} className="text-[#dcb14a]" />,
-    <ShieldCheck key="shield" size={60} className="text-[#dcb14a]" />,
-    <Smile key="smile" size={60} className="text-[#dcb14a]" />,
+    <Microscope key="mic" size={60} className="text-[var(--color-primary)]" />,
+    <Scan key="scan" size={60} className="text-[var(--color-primary)]" />,
+    <Wand2 key="wand" size={60} className="text-[var(--color-primary)]" />,
+    <Sparkles key="spark" size={60} className="text-[var(--color-primary)]" />,
+    <Gem key="gem" size={60} className="text-[var(--color-primary)]" />,
+    <Syringe key="syr" size={60} className="text-[var(--color-primary)]" />,
+    <ShieldCheck key="shield" size={60} className="text-[var(--color-primary)]" />,
+    <Smile key="smile" size={60} className="text-[var(--color-primary)]" />,
 ];
 
 const OFFER_IMAGES = [
@@ -212,7 +212,7 @@ export default function OfferCarousel() {
                             {/* RIGHT: Text Content (Team Member Style) - Order 2 */}
                             <div className="order-2 text-left" style={{ paddingLeft: "var(--spacing-md)" }}>
                                 <p style={{
-                                    color: "#dcb14a",
+                                    color: "var(--color-primary)",
                                     marginBottom: "1rem",
                                     textTransform: "uppercase",
                                     letterSpacing: "0.1em",
@@ -234,7 +234,7 @@ export default function OfferCarousel() {
                                     marginBottom: "2rem",
                                     color: "#e5e7eb",
                                     fontSize: "1.2rem",
-                                    borderLeft: "2px solid #dcb14a",
+                                    borderLeft: "2px solid var(--color-primary)",
                                     paddingLeft: "1.5rem"
                                 }}>
                                     "{offer.shortDesc}"
@@ -265,12 +265,12 @@ export default function OfferCarousel() {
                                                     href={offer.link}
                                                     className="
                                                         inline-flex items-center gap-3 px-8 py-3 
-                                                        bg-[#dcb14a] text-black 
+                                                        bg-[var(--color-primary)] text-black 
                                                         hover:bg-white hover:scale-105 active:scale-95
                                                         transition-all duration-300
                                                         rounded-[2px] 
                                                         uppercase tracking-wider text-sm font-bold
-                                                        shadow-[0_0_20px_rgba(220,177,74,0.3)]
+                                                        shadow-[0_0_20px_rgba(var(--color-primary-rgb),0.3)]
                                                     "
                                                 >
                                                     {t('bookVisit')} <ChevronRight size={16} strokeWidth={3} />
@@ -286,7 +286,7 @@ export default function OfferCarousel() {
                                             alignItems: 'center',
                                             gap: '0.5rem',
                                             marginTop: '1rem',
-                                            color: '#dcb14a',
+                                            color: 'var(--color-primary)',
                                             fontSize: '0.8rem',
                                             textTransform: 'uppercase',
                                             letterSpacing: '0.1em',
@@ -315,7 +315,7 @@ export default function OfferCarousel() {
                             const diff = i - activeIndex;
                             if (diff !== 0) paginate(diff);
                         }}
-                        className={`h-1.5 rounded-full transition-all duration-300 ${i === activeIndex ? 'w-8 bg-[#dcb14a]' : 'w-1.5 bg-white/20 hover:bg-white/40'
+                        className={`h-1.5 rounded-full transition-all duration-300 ${i === activeIndex ? 'w-8 bg-[var(--color-primary)]' : 'w-1.5 bg-white/20 hover:bg-white/40'
                             }`}
                     />
                 ))}

@@ -120,7 +120,7 @@ export default function SetPassword() {
                         <div key={step} style={{
                             width: '60px',
                             height: '4px',
-                            background: 'linear-gradient(90deg, #dcb14a, #f0c96c)',
+                            background: 'linear-gradient(90deg, var(--color-primary), var(--color-primary-light))',
                             borderRadius: '2px',
                         }} />
                     ))}
@@ -131,7 +131,7 @@ export default function SetPassword() {
                     <div style={{
                         width: '80px',
                         height: '80px',
-                        background: 'linear-gradient(135deg, #dcb14a, #f0c96c)',
+                        background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-light))',
                         borderRadius: '50%',
                         display: 'flex',
                         alignItems: 'center',
@@ -145,7 +145,7 @@ export default function SetPassword() {
                         fontSize: '2rem',
                         fontWeight: 'bold',
                         marginBottom: '0.5rem',
-                        background: 'linear-gradient(135deg, #fff, #dcb14a)',
+                        background: 'linear-gradient(135deg, #fff, var(--color-primary))',
                         WebkitBackgroundClip: 'text',
                         WebkitTextFillColor: 'transparent',
                     }}>
@@ -305,8 +305,8 @@ export default function SetPassword() {
                                 flex: 2,
                                 padding: '1rem',
                                 background: (isLoading || !password || !confirmPassword)
-                                    ? 'rgba(220, 177, 74, 0.5)'
-                                    : 'linear-gradient(135deg, #dcb14a, #f0c96c)',
+                                    ? 'rgba(var(--color-primary-rgb), 0.5)'
+                                    : 'linear-gradient(135deg, var(--color-primary), var(--color-primary-light))',
                                 border: 'none',
                                 borderRadius: '0.5rem',
                                 color: '#000',
@@ -318,7 +318,7 @@ export default function SetPassword() {
                             onMouseEnter={(e) => {
                                 if (!isLoading && password && confirmPassword) {
                                     e.currentTarget.style.transform = 'translateY(-2px)';
-                                    e.currentTarget.style.boxShadow = '0 10px 25px rgba(220, 177, 74, 0.4)';
+                                    e.currentTarget.style.boxShadow = '0 10px 25px rgba(var(--color-primary-rgb), 0.4)';
                                 }
                             }}
                             onMouseLeave={(e) => {

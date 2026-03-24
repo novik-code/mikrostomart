@@ -5,12 +5,14 @@ import RevealOnScroll from "@/components/RevealOnScroll";
 import AppointmentInstructionsEditor from "@/components/AppointmentInstructionsEditor";
 import AdminChat from "@/components/AdminChat";
 import ThemeEditor from "@/components/ThemeEditor";
+import PageBuilderTab from './components/PageBuilderTab';
 import { createBrowserClient } from "@supabase/ssr";
 import { useRouter } from "next/navigation";
 import {
     LayoutDashboard,
     ShoppingBag,
     Calendar,
+    LayoutGrid,
     Package,
     FileText,
     HelpCircle,
@@ -62,7 +64,7 @@ export default function AdminPage() {
     const [products, setProducts] = useState<Product[]>([]);
     const [error, setError] = useState<string | null>(null);
 
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'questions' | 'articles' | 'news' | 'orders' | 'reservations' | 'blog' | 'patients' | 'sms-reminders' | 'sms-post-visit' | 'sms-week-after-visit' | 'appointment-instructions' | 'roles' | 'employees' | 'chat' | 'theme' | 'push' | 'booking-settings' | 'online-bookings' | 'cancelled-appointments' | 'social-media'>('dashboard');
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'questions' | 'articles' | 'news' | 'orders' | 'reservations' | 'blog' | 'patients' | 'sms-reminders' | 'sms-post-visit' | 'sms-week-after-visit' | 'appointment-instructions' | 'roles' | 'employees' | 'chat' | 'theme' | 'page-builder' | 'push' | 'booking-settings' | 'online-bookings' | 'cancelled-appointments' | 'social-media'>('dashboard');
     // Cancelled appointments state
     const [cancelledAppointments, setCancelledAppointments] = useState<any[]>([]);
     const [cancelledLoading, setCancelledLoading] = useState(false);
@@ -1946,7 +1948,7 @@ export default function AdminPage() {
                                     width: "100%",
                                     opacity: isGenerating ? 0.7 : 1,
                                     position: "relative",
-                                    background: "linear-gradient(135deg, #dcb14a, #f0c96c)" // Gold gradient
+                                    background: "linear-gradient(135deg, var(--color-primary), var(--color-primary-light))" // Gold gradient
                                 }}
                             >
                                 {isGenerating ? "Generowanie (ok. 30s)..." : "Generuj Treść i Zdjęcie 🪄"}
@@ -2031,7 +2033,7 @@ export default function AdminPage() {
                     <button
                         onClick={handleGenerateDailyArticle}
                         className="btn-primary"
-                        style={{ background: "linear-gradient(135deg, #dcb14a, #f0c96c)", color: "black", fontSize: "0.9rem" }}
+                        style={{ background: "linear-gradient(135deg, var(--color-primary), var(--color-primary-light))", color: "black", fontSize: "0.9rem" }}
                     >
                         Generuj Losowy Artykuł (Flux) 🎲
                     </button>
@@ -2125,7 +2127,7 @@ export default function AdminPage() {
                                 style={{
                                     width: "100%",
                                     opacity: isGenerating ? 0.7 : 1,
-                                    background: "linear-gradient(135deg, #dcb14a, #f0c96c)"
+                                    background: "linear-gradient(135deg, var(--color-primary), var(--color-primary-light))"
                                 }}
                             >
                                 {isGenerating ? "Generowanie (ok. 30-60s)..." : "Generuj Post na Bloga ✍️"}
@@ -2194,8 +2196,8 @@ export default function AdminPage() {
                                 const getStatusBadge = (status: string | null) => {
                                     let bgColor, textColor, label;
                                     if (status === 'pending_admin_approval') {
-                                        bgColor = 'rgba(220, 177, 74, 0.2)';
-                                        textColor = '#dcb14a';
+                                        bgColor = 'rgba(var(--color-primary-rgb), 0.2)';
+                                        textColor = 'var(--color-primary)';
                                         label = '⏳ Oczekuje';
                                     } else if (status === 'active') {
                                         bgColor = 'rgba(34, 197, 94, 0.2)';
@@ -2512,7 +2514,7 @@ export default function AdminPage() {
                                     background: 'var(--color-surface)',
                                     borderRadius: '12px',
                                     padding: '1.25rem',
-                                    border: '1px solid rgba(220, 177, 74, 0.3)',
+                                    border: '1px solid rgba(var(--color-primary-rgb), 0.3)',
                                     borderLeft: '4px solid var(--color-primary)',
                                 }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}>
@@ -2794,7 +2796,7 @@ export default function AdminPage() {
                         style={{
                             flex: 1,
                             padding: "1rem",
-                            background: sendingAll ? "#666" : "linear-gradient(135deg, #dcb14a, #f0c96c)",
+                            background: sendingAll ? "#666" : "linear-gradient(135deg, var(--color-primary), var(--color-primary-light))",
                             fontSize: "1.1rem",
                             fontWeight: "bold"
                         }}
@@ -2863,7 +2865,7 @@ export default function AdminPage() {
                 style={{
                     width: "100%",
                     padding: "0.75rem 1rem",
-                    background: showTemplateEditor ? "rgba(220, 177, 74, 0.15)" : "var(--color-surface)",
+                    background: showTemplateEditor ? "rgba(var(--color-primary-rgb), 0.15)" : "var(--color-surface)",
                     border: showTemplateEditor ? "2px solid var(--color-primary)" : "1px solid var(--color-border)",
                     borderRadius: "var(--radius-md)",
                     color: showTemplateEditor ? "var(--color-primary)" : "var(--color-text-muted)",
@@ -2884,7 +2886,7 @@ export default function AdminPage() {
                     padding: "1.5rem",
                     borderRadius: "var(--radius-md)",
                     marginBottom: "1.5rem",
-                    border: "1px solid rgba(220, 177, 74, 0.2)"
+                    border: "1px solid rgba(var(--color-primary-rgb), 0.2)"
                 }}>
                     <div style={{ marginBottom: "1rem" }}>
                         <h3 style={{ margin: 0, marginBottom: "0.5rem" }}>📝 Szablony treści SMS</h3>
@@ -3202,7 +3204,7 @@ export default function AdminPage() {
                                         gap: "0.75rem",
                                         marginBottom: "0.75rem",
                                         padding: "0.6rem 1rem",
-                                        background: "rgba(220, 177, 74, 0.08)",
+                                        background: "rgba(var(--color-primary-rgb), 0.08)",
                                         borderRadius: "6px",
                                         borderLeft: "3px solid var(--color-primary)"
                                     }}>
@@ -3330,7 +3332,7 @@ export default function AdminPage() {
                                                 transition: "background 0.15s",
                                                 fontSize: "0.9rem"
                                             }}
-                                            onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(220, 177, 74, 0.1)')}
+                                            onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(var(--color-primary-rgb), 0.1)')}
                                             onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                                         >
                                             <strong>{patient.firstName} {patient.lastName}</strong>
@@ -3354,7 +3356,7 @@ export default function AdminPage() {
                                     padding: "0.7rem 1rem",
                                     borderRadius: "6px",
                                     border: "2px solid var(--color-border)",
-                                    background: manualPatientName ? "rgba(220, 177, 74, 0.05)" : "var(--color-background)",
+                                    background: manualPatientName ? "rgba(var(--color-primary-rgb), 0.05)" : "var(--color-background)",
                                     color: "var(--color-text-main)",
                                     fontSize: "0.95rem",
                                     fontFamily: "inherit"
@@ -3375,7 +3377,7 @@ export default function AdminPage() {
                                     padding: "0.7rem 1rem",
                                     borderRadius: "6px",
                                     border: `2px solid ${manualPhone ? 'var(--color-primary)' : 'var(--color-border)'}`,
-                                    background: manualPhone ? "rgba(220, 177, 74, 0.05)" : "var(--color-background)",
+                                    background: manualPhone ? "rgba(var(--color-primary-rgb), 0.05)" : "var(--color-background)",
                                     color: "var(--color-text-main)",
                                     fontSize: "0.95rem",
                                     fontFamily: "inherit"
@@ -3826,7 +3828,7 @@ export default function AdminPage() {
                                                     <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
                                                         {isEditing ? (
                                                             <>
-                                                                <button onClick={() => { editDraft(sms.id, editMsg); setPostVisitEditingId(null); }} style={{ padding: '0.25rem 0.7rem', background: 'rgba(220,177,74,0.15)', border: '1px solid rgba(220,177,74,0.4)', borderRadius: '0.35rem', color: '#dcb14a', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 'bold' }}>💾 Zapisz</button>
+                                                                <button onClick={() => { editDraft(sms.id, editMsg); setPostVisitEditingId(null); }} style={{ padding: '0.25rem 0.7rem', background: 'rgba(var(--color-primary-rgb),0.15)', border: '1px solid rgba(var(--color-primary-rgb),0.4)', borderRadius: '0.35rem', color: 'var(--color-primary)', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 'bold' }}>💾 Zapisz</button>
                                                                 <button onClick={() => setPostVisitEditingId(null)} style={{ padding: '0.25rem 0.7rem', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.35rem', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: '0.72rem' }}>Anuluj</button>
                                                             </>
                                                         ) : (
@@ -4102,7 +4104,7 @@ export default function AdminPage() {
                                                     <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
                                                         {isEditing ? (
                                                             <>
-                                                                <button onClick={() => { editDraftW(sms.id, editMsg); setWeekAfterEditingId(null); }} style={{ padding: '0.25rem 0.7rem', background: 'rgba(220,177,74,0.15)', border: '1px solid rgba(220,177,74,0.4)', borderRadius: '0.35rem', color: '#dcb14a', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 'bold' }}>💾 Zapisz</button>
+                                                                <button onClick={() => { editDraftW(sms.id, editMsg); setWeekAfterEditingId(null); }} style={{ padding: '0.25rem 0.7rem', background: 'rgba(var(--color-primary-rgb),0.15)', border: '1px solid rgba(var(--color-primary-rgb),0.4)', borderRadius: '0.35rem', color: 'var(--color-primary)', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 'bold' }}>💾 Zapisz</button>
                                                                 <button onClick={() => setWeekAfterEditingId(null)} style={{ padding: '0.25rem 0.7rem', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.35rem', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: '0.72rem' }}>Anuluj</button>
                                                             </>
                                                         ) : (
@@ -4519,7 +4521,7 @@ export default function AdminPage() {
                                 padding: '0.4rem 1rem',
                                 borderRadius: '2rem',
                                 border: `1px solid ${onlineBookingsFilter === f ? 'var(--color-primary)' : 'rgba(255,255,255,0.12)'}`,
-                                background: onlineBookingsFilter === f ? 'rgba(220,177,74,0.15)' : 'transparent',
+                                background: onlineBookingsFilter === f ? 'rgba(var(--color-primary-rgb),0.15)' : 'transparent',
                                 color: onlineBookingsFilter === f ? 'var(--color-primary)' : 'rgba(255,255,255,0.5)',
                                 cursor: 'pointer',
                                 fontSize: '0.82rem',
@@ -4987,6 +4989,7 @@ export default function AdminPage() {
 
                     <NavSection title="Wygląd" />
                     <NavItem id="theme" label="Motyw strony" icon={Paintbrush} />
+                    <NavItem id="page-builder" label="Kreator strony" icon={LayoutGrid} />
                 </nav>
 
                 <div style={{ marginTop: "auto", borderTop: "1px solid var(--color-surface-hover)", paddingTop: "1rem" }}>
@@ -5046,6 +5049,7 @@ export default function AdminPage() {
                             {activeTab === 'booking-settings' && '📅 Rezerwacje'}
                             {activeTab === 'online-bookings' && '📅 Wizyty Umówione Online'}
                             {activeTab === 'cancelled-appointments' && '❌ Odwołane Wizyty'}
+                            {activeTab === 'page-builder' && '🏗️ Kreator Strony Głównej'}
                         </h1>
                         <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
                             {/* Header Actions if needed */}
@@ -5100,8 +5104,8 @@ export default function AdminPage() {
                             </div>
 
                             {/* ── System Info ── */}
-                            <div style={{ padding: '1rem 1.2rem', background: 'rgba(220,177,74,0.04)', border: '1px solid rgba(220,177,74,0.15)', borderRadius: 'var(--radius-md)', fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
-                                <strong style={{ color: '#dcb14a' }}>Mikrostomart Admin v2.1</strong> — Panel zarządzania kliniką stomatologiczną
+                            <div style={{ padding: '1rem 1.2rem', background: 'rgba(var(--color-primary-rgb),0.04)', border: '1px solid rgba(var(--color-primary-rgb),0.15)', borderRadius: 'var(--radius-md)', fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
+                                <strong style={{ color: 'var(--color-primary)' }}>Mikrostomart Admin v2.1</strong> — Panel zarządzania kliniką stomatologiczną
                             </div>
                         </div>
                     )}
@@ -5235,7 +5239,7 @@ export default function AdminPage() {
                                 <div key={q.id} style={{ background: "var(--color-surface)", padding: "1.5rem", borderRadius: "var(--radius-md)" }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                                         <span style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>{new Date(q.created_at).toLocaleDateString()}</span>
-                                        <span style={{ background: q.status === 'pending' ? '#dcb14a' : 'green', color: 'black', padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 'bold' }}>{q.status}</span>
+                                        <span style={{ background: q.status === 'pending' ? 'var(--color-primary)' : 'green', color: 'black', padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 'bold' }}>{q.status}</span>
                                     </div>
                                     <p style={{ fontSize: "1.1rem", marginBottom: "1rem" }}>{q.question}</p>
                                     <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
@@ -5309,6 +5313,7 @@ export default function AdminPage() {
                     {activeTab === 'chat' && <AdminChat />}
                     {activeTab === 'theme' && <ThemeEditor />}
                     {activeTab === 'social-media' && <SocialMediaTab />}
+                    {activeTab === 'page-builder' && <PageBuilderTab />}
                     {activeTab === 'online-bookings' && renderOnlineBookingsTab()}
                     {activeTab === 'cancelled-appointments' && (() => {
                         // Fetch on first render
@@ -5399,7 +5404,7 @@ export default function AdminPage() {
                                         width: '100%',
                                         padding: '0.8rem 1rem',
                                         background: 'rgba(0,0,0,0.3)',
-                                        border: '1px solid rgba(220,177,74,0.3)',
+                                        border: '1px solid rgba(var(--color-primary-rgb),0.3)',
                                         borderRadius: '0.5rem',
                                         color: 'white',
                                         fontSize: '1rem',
@@ -5415,7 +5420,7 @@ export default function AdminPage() {
                                     <option value={14}>2 tygodnie (14 dni)</option>
                                 </select>
                                 <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
-                                    Aktualnie: sloty wyświetlają się najwcześniej za <strong style={{ color: '#dcb14a' }}>{minDaysAhead} {minDaysAhead === 1 ? 'dzień' : minDaysAhead < 5 ? 'dni' : 'dni'}</strong> od dziś.
+                                    Aktualnie: sloty wyświetlają się najwcześniej za <strong style={{ color: 'var(--color-primary)' }}>{minDaysAhead} {minDaysAhead === 1 ? 'dzień' : minDaysAhead < 5 ? 'dni' : 'dni'}</strong> od dziś.
                                 </p>
                             </div>
 
@@ -5441,7 +5446,7 @@ export default function AdminPage() {
                                 disabled={bookingSettingsSaving}
                                 style={{
                                     padding: '0.8rem 2rem',
-                                    background: 'linear-gradient(135deg, #dcb14a, #f0c975)',
+                                    background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-light))',
                                     border: 'none',
                                     borderRadius: '0.5rem',
                                     color: 'black',
@@ -5460,8 +5465,8 @@ export default function AdminPage() {
                                 </div>
                             )}
 
-                            <div style={{ marginTop: '2rem', padding: '1rem', background: 'rgba(220,177,74,0.06)', border: '1px solid rgba(220,177,74,0.2)', borderRadius: '0.5rem', fontSize: '0.8rem', color: 'var(--color-text-muted)', lineHeight: 1.6 }}>
-                                <strong style={{ color: '#dcb14a' }}>ℹ️ Jak to działa?</strong><br />
+                            <div style={{ marginTop: '2rem', padding: '1rem', background: 'rgba(var(--color-primary-rgb),0.06)', border: '1px solid rgba(var(--color-primary-rgb),0.2)', borderRadius: '0.5rem', fontSize: '0.8rem', color: 'var(--color-text-muted)', lineHeight: 1.6 }}>
+                                <strong style={{ color: 'var(--color-primary)' }}>ℹ️ Jak to działa?</strong><br />
                                 Formularz rezerwacji pobiera to ustawienie i ukrywa sloty, które przypadają wcześniej niż <em>dziś + N dni</em>.
                                 Zmiana obowiązuje natychmiast po zapisaniu — bez potrzeby przeładowania serwera.
                             </div>

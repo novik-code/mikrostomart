@@ -114,7 +114,7 @@ function AuthenticatedLayout({ children, pathname }: { children: React.ReactNode
                         ))}
                     </div>
                 </div>
-                <div style={{ width: '48px', height: '48px', border: '3px solid rgba(212,175,55,0.15)', borderTop: '3px solid #dcb14a', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                <div style={{ width: '48px', height: '48px', border: '3px solid rgba(var(--color-primary-dark-rgb),0.15)', borderTop: '3px solid var(--color-primary)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
                 <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem' }}>Ładowanie danych...</p>
                 <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
             </div>
@@ -167,16 +167,16 @@ function AuthenticatedLayout({ children, pathname }: { children: React.ReactNode
             {/* Pending Approval Banner */}
             {accountStatus === 'pending_admin_approval' && (
                 <div style={{
-                    background: 'linear-gradient(135deg, rgba(220, 177, 74, 0.15), rgba(220, 177, 74, 0.05))',
-                    border: '2px solid rgba(220, 177, 74, 0.4)',
-                    borderLeft: '6px solid #dcb14a',
+                    background: 'linear-gradient(135deg, rgba(var(--color-primary-rgb), 0.15), rgba(var(--color-primary-rgb), 0.05))',
+                    border: '2px solid rgba(var(--color-primary-rgb), 0.4)',
+                    borderLeft: '6px solid var(--color-primary)',
                     padding: '1.5rem 2rem',
                     margin: '0',
                 }}>
                     <div style={{ display: 'flex', alignItems: 'start', gap: '1rem' }}>
                         <div style={{ fontSize: '2rem', lineHeight: 1 }}>⏳</div>
                         <div style={{ flex: 1 }}>
-                            <h3 style={{ color: '#dcb14a', fontSize: '1.2rem', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+                            <h3 style={{ color: 'var(--color-primary)', fontSize: '1.2rem', marginBottom: '0.5rem', fontWeight: 'bold' }}>
                                 Konto w trakcie weryfikacji
                             </h3>
                             <p style={{ color: 'rgba(255, 255, 255, 0.9)', fontSize: '1rem', lineHeight: '1.6', marginBottom: '0.75rem' }}>
@@ -235,10 +235,10 @@ function AuthenticatedLayout({ children, pathname }: { children: React.ReactNode
                             href={link.href}
                             style={{
                                 padding: '0.75rem 1.5rem',
-                                background: isActive ? 'rgba(220, 177, 74, 0.15)' : 'transparent',
-                                border: isActive ? '1px solid rgba(220, 177, 74, 0.3)' : '1px solid transparent',
+                                background: isActive ? 'rgba(var(--color-primary-rgb), 0.15)' : 'transparent',
+                                border: isActive ? '1px solid rgba(var(--color-primary-rgb), 0.3)' : '1px solid transparent',
                                 borderRadius: '0.5rem',
-                                color: isActive ? '#dcb14a' : 'rgba(255, 255, 255, 0.7)',
+                                color: isActive ? 'var(--color-primary)' : 'rgba(255, 255, 255, 0.7)',
                                 textDecoration: 'none',
                                 whiteSpace: 'nowrap',
                                 fontWeight: isActive ? 'bold' : 'normal',

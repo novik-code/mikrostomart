@@ -392,7 +392,7 @@ export default function PatientDashboard() {
                         marginBottom: '2rem',
                     }}>
                         {[
-                            { icon: '📋', label: 'Wizyty w systemie', value: stats?.totalVisits || 0, color: '#dcb14a' },
+                            { icon: '📋', label: 'Wizyty w systemie', value: stats?.totalVisits || 0, color: 'var(--color-primary)' },
                             { icon: '💰', label: 'Całkowity koszt', value: `${stats?.totalCost || 0} PLN`, color: '#60a5fa' },
                             { icon: '✅', label: 'Zapłacono', value: `${stats?.totalPaid || 0} PLN`, color: '#22c55e' },
                             { icon: '📊', label: 'Saldo', value: `${stats?.balance || 0} PLN`, color: parseFloat(stats?.balance || 0) > 0 ? '#f97316' : '#22c55e' },
@@ -425,15 +425,15 @@ export default function PatientDashboard() {
 
                     {/* Actions */}
                     <div style={{
-                        background: 'rgba(220, 177, 74, 0.1)',
-                        border: '1px solid rgba(220, 177, 74, 0.3)',
+                        background: 'rgba(var(--color-primary-rgb), 0.1)',
+                        border: '1px solid rgba(var(--color-primary-rgb), 0.3)',
                         borderRadius: '1rem',
                         padding: '1.5rem',
                         marginBottom: '2rem',
                     }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
                             <div>
-                                <h3 style={{ color: '#dcb14a', fontSize: '1.1rem', marginBottom: '0.5rem' }}>
+                                <h3 style={{ color: 'var(--color-primary)', fontSize: '1.1rem', marginBottom: '0.5rem' }}>
                                     💡 Aktualizuj swoją historię
                                 </h3>
                                 <p style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: '0.9rem' }}>
@@ -445,7 +445,7 @@ export default function PatientDashboard() {
                                 disabled={isSyncing}
                                 style={{
                                     padding: '0.875rem 1.75rem',
-                                    background: isSyncing ? 'rgba(220, 177, 74, 0.5)' : 'linear-gradient(135deg, #dcb14a, #f0c96c)',
+                                    background: isSyncing ? 'rgba(var(--color-primary-rgb), 0.5)' : 'linear-gradient(135deg, var(--color-primary), var(--color-primary-light))',
                                     border: 'none',
                                     borderRadius: '0.5rem',
                                     color: '#000',
@@ -497,20 +497,20 @@ export default function PatientDashboard() {
                                             const actionInfo = appointmentActionsMap[apt.date];
                                             return (
                                                 <div key={apt.date + idx} style={{
-                                                    background: 'linear-gradient(135deg, rgba(220, 177, 74, 0.1), rgba(220, 177, 74, 0.05))',
-                                                    border: '2px solid rgba(220, 177, 74, 0.3)',
+                                                    background: 'linear-gradient(135deg, rgba(var(--color-primary-rgb), 0.1), rgba(var(--color-primary-rgb), 0.05))',
+                                                    border: '2px solid rgba(var(--color-primary-rgb), 0.3)',
                                                     borderRadius: '1rem', padding: '2rem', position: 'relative', overflow: 'hidden',
                                                 }}>
                                                     <div style={{
                                                         position: 'absolute', top: '1rem', right: '1rem',
-                                                        background: 'linear-gradient(135deg, #dcb14a, #f0c96c)',
+                                                        background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-light))',
                                                         color: '#000', padding: '0.5rem 1rem', borderRadius: '99px',
                                                         fontWeight: 'bold', fontSize: '0.85rem',
                                                     }}>
                                                         {dUntil === 0 ? '🔥 Dziś!' : dUntil === 1 ? '⏰ Jutro' : `Za ${dUntil} dni`}
                                                     </div>
                                                     <div style={{ marginBottom: '1.5rem', paddingRight: '7rem' }}>
-                                                        <div style={{ color: '#dcb14a', fontSize: '0.9rem', fontWeight: '500', marginBottom: '0.5rem' }}>📅 Data wizyty</div>
+                                                        <div style={{ color: 'var(--color-primary)', fontSize: '0.9rem', fontWeight: '500', marginBottom: '0.5rem' }}>📅 Data wizyty</div>
                                                         <div style={{ color: '#fff', fontSize: '1.75rem', fontWeight: 'bold', marginBottom: '0.25rem' }}>
                                                             {aptDate.toLocaleDateString('pl-PL', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                                                         </div>
@@ -564,18 +564,18 @@ export default function PatientDashboard() {
                                 {/* Pending online bookings */}
                                 {pendingBookings.length > 0 && (
                                     <div style={{ marginBottom: '1.5rem' }}>
-                                        <h3 style={{ color: '#dcb14a', fontSize: '1rem', marginBottom: '0.75rem' }}>⏳ Rezerwacje online</h3>
+                                        <h3 style={{ color: 'var(--color-primary)', fontSize: '1rem', marginBottom: '0.75rem' }}>⏳ Rezerwacje online</h3>
                                         {pendingBookings.map(b => {
                                             const bDate = new Date(`${b.appointment_date}T${b.appointment_time}`);
                                             return (
                                                 <div key={b.id} style={{
-                                                    padding: '1rem 1.25rem', background: 'rgba(220, 177, 74, 0.08)',
-                                                    border: '1px solid rgba(220, 177, 74, 0.2)', borderRadius: '0.75rem',
+                                                    padding: '1rem 1.25rem', background: 'rgba(var(--color-primary-rgb), 0.08)',
+                                                    border: '1px solid rgba(var(--color-primary-rgb), 0.2)', borderRadius: '0.75rem',
                                                     marginBottom: '0.5rem', display: 'flex', justifyContent: 'space-between',
                                                     alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem',
                                                 }}>
                                                     <div>
-                                                        <div style={{ color: '#dcb14a', fontSize: '0.75rem', fontWeight: '600', marginBottom: '0.25rem' }}>
+                                                        <div style={{ color: 'var(--color-primary)', fontSize: '0.75rem', fontWeight: '600', marginBottom: '0.25rem' }}>
                                                             ⏳ {b.schedule_status === 'pending' ? 'Oczekuje na potwierdzenie' : 'Zatwierdzona'}
                                                         </div>
                                                         <div style={{ color: '#fff', fontSize: '0.95rem', fontWeight: 'bold' }}>{b.specialist_name}</div>
@@ -585,8 +585,8 @@ export default function PatientDashboard() {
                                                     </div>
                                                     <div style={{
                                                         padding: '0.3rem 0.75rem', borderRadius: '99px', fontSize: '0.7rem', fontWeight: '600',
-                                                        background: b.schedule_status === 'pending' ? 'rgba(220, 177, 74, 0.15)' : 'rgba(34, 197, 94, 0.15)',
-                                                        color: b.schedule_status === 'pending' ? '#dcb14a' : '#22c55e',
+                                                        background: b.schedule_status === 'pending' ? 'rgba(var(--color-primary-rgb), 0.15)' : 'rgba(34, 197, 94, 0.15)',
+                                                        color: b.schedule_status === 'pending' ? 'var(--color-primary)' : '#22c55e',
                                                     }}>
                                                         {b.schedule_status === 'pending' ? '⏳ Pending' : '✅ Approved'}
                                                     </div>
@@ -613,13 +613,13 @@ export default function PatientDashboard() {
                                         <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
                                             <button
                                                 onClick={() => { setShowBookingForm(true); setBookingSuccess(false); }}
-                                                style={{ padding: '0.75rem 2rem', background: 'linear-gradient(135deg, #dcb14a, #f0c96c)', border: 'none', borderRadius: '0.5rem', color: '#000', fontSize: '1rem', fontWeight: 'bold', cursor: 'pointer', transition: 'transform 0.2s' }}
+                                                style={{ padding: '0.75rem 2rem', background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-light))', border: 'none', borderRadius: '0.5rem', color: '#000', fontSize: '1rem', fontWeight: 'bold', cursor: 'pointer', transition: 'transform 0.2s' }}
                                                 onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
                                                 onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
                                             >
                                                 🗓️ Umów wizytę online
                                             </button>
-                                            <a href="tel:570270470" style={{ padding: '0.75rem 2rem', background: 'transparent', border: '1px solid rgba(220, 177, 74, 0.3)', borderRadius: '0.5rem', color: '#dcb14a', fontSize: '1rem', fontWeight: 'bold', textDecoration: 'none', transition: 'transform 0.2s' }}
+                                            <a href="tel:570270470" style={{ padding: '0.75rem 2rem', background: 'transparent', border: '1px solid rgba(var(--color-primary-rgb), 0.3)', borderRadius: '0.5rem', color: 'var(--color-primary)', fontSize: '1rem', fontWeight: 'bold', textDecoration: 'none', transition: 'transform 0.2s' }}
                                                 onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
                                                 onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
                                             >📞 570 270 470</a>
@@ -627,9 +627,9 @@ export default function PatientDashboard() {
                                     </div>
                                 ) : (
                                     /* ── Inline booking form ── */
-                                    <div style={{ padding: '1.5rem', background: 'rgba(255, 255, 255, 0.03)', borderRadius: '0.75rem', border: '1px solid rgba(220, 177, 74, 0.2)' }}>
+                                    <div style={{ padding: '1.5rem', background: 'rgba(255, 255, 255, 0.03)', borderRadius: '0.75rem', border: '1px solid rgba(var(--color-primary-rgb), 0.2)' }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-                                            <h3 style={{ color: '#dcb14a', fontSize: '1.1rem', fontWeight: 'bold' }}>🗓️ Umów wizytę online</h3>
+                                            <h3 style={{ color: 'var(--color-primary)', fontSize: '1.1rem', fontWeight: 'bold' }}>🗓️ Umów wizytę online</h3>
                                             <button onClick={() => setShowBookingForm(false)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: '1.2rem', cursor: 'pointer' }}>✕</button>
                                         </div>
 
@@ -674,7 +674,7 @@ export default function PatientDashboard() {
                                                     }}
                                                 />
                                                 {bookingDate && bookingTime && (
-                                                    <p style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: '#dcb14a' }}>
+                                                    <p style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: 'var(--color-primary)' }}>
                                                         ✓ Wybrany termin: {bookingDate}, godz. {bookingTime}
                                                     </p>
                                                 )}
@@ -705,7 +705,7 @@ export default function PatientDashboard() {
                                             disabled={isBooking || !bookingSpecialist || !bookingDate || !bookingTime}
                                             style={{
                                                 width: '100%', padding: '0.85rem',
-                                                background: (isBooking || !bookingSpecialist || !bookingDate || !bookingTime) ? 'rgba(220, 177, 74, 0.3)' : 'linear-gradient(135deg, #dcb14a, #f0c96c)',
+                                                background: (isBooking || !bookingSpecialist || !bookingDate || !bookingTime) ? 'rgba(var(--color-primary-rgb), 0.3)' : 'linear-gradient(135deg, var(--color-primary), var(--color-primary-light))',
                                                 border: 'none', borderRadius: '0.5rem', color: '#000', fontSize: '1rem',
                                                 fontWeight: 'bold', cursor: (isBooking || !bookingSpecialist || !bookingDate || !bookingTime) ? 'not-allowed' : 'pointer',
                                                 opacity: (isBooking || !bookingSpecialist || !bookingDate || !bookingTime) ? 0.5 : 1,
@@ -791,10 +791,10 @@ export default function PatientDashboard() {
                                                     rel="noopener noreferrer"
                                                     style={{
                                                         padding: '0.4rem 1rem',
-                                                        background: 'rgba(220, 177, 74, 0.15)',
-                                                        border: '1px solid rgba(220, 177, 74, 0.3)',
+                                                        background: 'rgba(var(--color-primary-rgb), 0.15)',
+                                                        border: '1px solid rgba(var(--color-primary-rgb), 0.3)',
                                                         borderRadius: '0.5rem',
-                                                        color: '#dcb14a',
+                                                        color: 'var(--color-primary)',
                                                         fontSize: '0.8rem',
                                                         fontWeight: '600',
                                                         textDecoration: 'none',
@@ -802,10 +802,10 @@ export default function PatientDashboard() {
                                                         transition: 'all 0.2s',
                                                     }}
                                                     onMouseEnter={(e) => {
-                                                        e.currentTarget.style.background = 'rgba(220, 177, 74, 0.25)';
+                                                        e.currentTarget.style.background = 'rgba(var(--color-primary-rgb), 0.25)';
                                                     }}
                                                     onMouseLeave={(e) => {
-                                                        e.currentTarget.style.background = 'rgba(220, 177, 74, 0.15)';
+                                                        e.currentTarget.style.background = 'rgba(var(--color-primary-rgb), 0.15)';
                                                     }}
                                                 >
                                                     📥 Pobierz PDF
@@ -841,7 +841,7 @@ export default function PatientDashboard() {
                         🔒
                     </div>
                     <h2 style={{
-                        color: '#dcb14a',
+                        color: 'var(--color-primary)',
                         fontSize: '1.8rem',
                         marginBottom: '1rem',
                     }}>

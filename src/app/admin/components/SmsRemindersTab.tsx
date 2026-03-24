@@ -487,7 +487,7 @@ export default function SmsRemindersTab() {
                         style={{
                             flex: 1,
                             padding: "1rem",
-                            background: sendingAll ? "#666" : "linear-gradient(135deg, #dcb14a, #f0c96c)",
+                            background: sendingAll ? "#666" : "linear-gradient(135deg, var(--color-primary), var(--color-primary-light))",
                             fontSize: "1.1rem",
                             fontWeight: "bold"
                         }}
@@ -556,7 +556,7 @@ export default function SmsRemindersTab() {
                 style={{
                     width: "100%",
                     padding: "0.75rem 1rem",
-                    background: showTemplateEditor ? "rgba(220, 177, 74, 0.15)" : "var(--color-surface)",
+                    background: showTemplateEditor ? "rgba(var(--color-primary-rgb), 0.15)" : "var(--color-surface)",
                     border: showTemplateEditor ? "2px solid var(--color-primary)" : "1px solid var(--color-border)",
                     borderRadius: "var(--radius-md)",
                     color: showTemplateEditor ? "var(--color-primary)" : "var(--color-text-muted)",
@@ -577,7 +577,7 @@ export default function SmsRemindersTab() {
                     padding: "1.5rem",
                     borderRadius: "var(--radius-md)",
                     marginBottom: "1.5rem",
-                    border: "1px solid rgba(220, 177, 74, 0.2)"
+                    border: "1px solid rgba(var(--color-primary-rgb), 0.2)"
                 }}>
                     <div style={{ marginBottom: "1rem" }}>
                         <h3 style={{ margin: 0, marginBottom: "0.5rem" }}>📝 Szablony treści SMS</h3>
@@ -895,7 +895,7 @@ export default function SmsRemindersTab() {
                                         gap: "0.75rem",
                                         marginBottom: "0.75rem",
                                         padding: "0.6rem 1rem",
-                                        background: "rgba(220, 177, 74, 0.08)",
+                                        background: "rgba(var(--color-primary-rgb), 0.08)",
                                         borderRadius: "6px",
                                         borderLeft: "3px solid var(--color-primary)"
                                     }}>
@@ -1023,7 +1023,7 @@ export default function SmsRemindersTab() {
                                                 transition: "background 0.15s",
                                                 fontSize: "0.9rem"
                                             }}
-                                            onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(220, 177, 74, 0.1)')}
+                                            onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(var(--color-primary-rgb), 0.1)')}
                                             onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                                         >
                                             <strong>{patient.firstName} {patient.lastName}</strong>
@@ -1047,7 +1047,7 @@ export default function SmsRemindersTab() {
                                     padding: "0.7rem 1rem",
                                     borderRadius: "6px",
                                     border: "2px solid var(--color-border)",
-                                    background: manualPatientName ? "rgba(220, 177, 74, 0.05)" : "var(--color-background)",
+                                    background: manualPatientName ? "rgba(var(--color-primary-rgb), 0.05)" : "var(--color-background)",
                                     color: "var(--color-text-main)",
                                     fontSize: "0.95rem",
                                     fontFamily: "inherit"
@@ -1068,7 +1068,7 @@ export default function SmsRemindersTab() {
                                     padding: "0.7rem 1rem",
                                     borderRadius: "6px",
                                     border: `2px solid ${manualPhone ? 'var(--color-primary)' : 'var(--color-border)'}`,
-                                    background: manualPhone ? "rgba(220, 177, 74, 0.05)" : "var(--color-background)",
+                                    background: manualPhone ? "rgba(var(--color-primary-rgb), 0.05)" : "var(--color-background)",
                                     color: "var(--color-text-main)",
                                     fontSize: "0.95rem",
                                     fontFamily: "inherit"

@@ -225,7 +225,7 @@ export default function PatientChat() {
                             width: '40px',
                             height: '40px',
                             borderRadius: '50%',
-                            background: 'linear-gradient(135deg, #dcb14a, #f0c96c)',
+                            background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-light))',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
@@ -289,10 +289,10 @@ export default function PatientChat() {
                                         ? '1rem 1rem 0.25rem 1rem'
                                         : '1rem 1rem 1rem 0.25rem',
                                     background: msg.sender_role === 'patient'
-                                        ? 'linear-gradient(135deg, rgba(220, 177, 74, 0.25), rgba(220, 177, 74, 0.15))'
+                                        ? 'linear-gradient(135deg, rgba(var(--color-primary-rgb), 0.25), rgba(var(--color-primary-rgb), 0.15))'
                                         : 'rgba(255, 255, 255, 0.08)',
                                     border: msg.sender_role === 'patient'
-                                        ? '1px solid rgba(220, 177, 74, 0.3)'
+                                        ? '1px solid rgba(var(--color-primary-rgb), 0.3)'
                                         : '1px solid rgba(255, 255, 255, 0.12)',
                                 }}>
                                     {msg.sender_role === 'reception' && (
@@ -375,8 +375,8 @@ export default function PatientChat() {
                         style={{
                             padding: '0.875rem 1.5rem',
                             background: (!newMessage.trim() || isSending)
-                                ? 'rgba(220, 177, 74, 0.3)'
-                                : 'linear-gradient(135deg, #dcb14a, #f0c96c)',
+                                ? 'rgba(var(--color-primary-rgb), 0.3)'
+                                : 'linear-gradient(135deg, var(--color-primary), var(--color-primary-light))',
                             border: 'none',
                             borderRadius: '0.75rem',
                             color: (!newMessage.trim() || isSending) ? 'rgba(0,0,0,0.3)' : '#000',
@@ -414,9 +414,9 @@ export default function PatientChat() {
                                     transition: 'all 0.2s',
                                 }}
                                 onMouseEnter={(e) => {
-                                    e.currentTarget.style.background = 'rgba(220, 177, 74, 0.15)';
-                                    e.currentTarget.style.borderColor = 'rgba(220, 177, 74, 0.3)';
-                                    e.currentTarget.style.color = '#dcb14a';
+                                    e.currentTarget.style.background = 'rgba(var(--color-primary-rgb), 0.15)';
+                                    e.currentTarget.style.borderColor = 'rgba(var(--color-primary-rgb), 0.3)';
+                                    e.currentTarget.style.color = 'var(--color-primary)';
                                 }}
                                 onMouseLeave={(e) => {
                                     e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';

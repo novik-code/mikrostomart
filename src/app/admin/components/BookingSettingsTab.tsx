@@ -29,7 +29,7 @@ export default function BookingSettingsTab() {
                     onChange={e => setMinDaysAhead(Number(e.target.value))}
                     style={{
                         width: '100%', padding: '0.8rem 1rem', background: 'rgba(0,0,0,0.3)',
-                        border: '1px solid rgba(220,177,74,0.3)', borderRadius: '0.5rem',
+                        border: '1px solid rgba(var(--color-primary-rgb),0.3)', borderRadius: '0.5rem',
                         color: 'white', fontSize: '1rem', cursor: 'pointer', marginBottom: '0.5rem',
                     }}
                 >
@@ -41,7 +41,7 @@ export default function BookingSettingsTab() {
                     <option value={14}>2 tygodnie (14 dni)</option>
                 </select>
                 <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
-                    Aktualnie: sloty wyświetlają się najwcześniej za <strong style={{ color: '#dcb14a' }}>{minDaysAhead} {minDaysAhead === 1 ? 'dzień' : minDaysAhead < 5 ? 'dni' : 'dni'}</strong> od dziś.
+                    Aktualnie: sloty wyświetlają się najwcześniej za <strong style={{ color: 'var(--color-primary)' }}>{minDaysAhead} {minDaysAhead === 1 ? 'dzień' : minDaysAhead < 5 ? 'dni' : 'dni'}</strong> od dziś.
                 </p>
             </div>
 
@@ -66,7 +66,7 @@ export default function BookingSettingsTab() {
                 }}
                 disabled={bookingSettingsSaving}
                 style={{
-                    padding: '0.8rem 2rem', background: 'linear-gradient(135deg, #dcb14a, #f0c975)',
+                    padding: '0.8rem 2rem', background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-light))',
                     border: 'none', borderRadius: '0.5rem', color: 'black', fontWeight: 700,
                     fontSize: '0.95rem', cursor: bookingSettingsSaving ? 'not-allowed' : 'pointer',
                     opacity: bookingSettingsSaving ? 0.7 : 1,
@@ -81,8 +81,8 @@ export default function BookingSettingsTab() {
                 </div>
             )}
 
-            <div style={{ marginTop: '2rem', padding: '1rem', background: 'rgba(220,177,74,0.06)', border: '1px solid rgba(220,177,74,0.2)', borderRadius: '0.5rem', fontSize: '0.8rem', color: 'var(--color-text-muted)', lineHeight: 1.6 }}>
-                <strong style={{ color: '#dcb14a' }}>ℹ️ Jak to działa?</strong><br />
+            <div style={{ marginTop: '2rem', padding: '1rem', background: 'rgba(var(--color-primary-rgb),0.06)', border: '1px solid rgba(var(--color-primary-rgb),0.2)', borderRadius: '0.5rem', fontSize: '0.8rem', color: 'var(--color-text-muted)', lineHeight: 1.6 }}>
+                <strong style={{ color: 'var(--color-primary)' }}>ℹ️ Jak to działa?</strong><br />
                 Formularz rezerwacji pobiera to ustawienie i ukrywa sloty, które przypadają wcześniej niż <em>dziś + N dni</em>.
                 Zmiana obowiązuje natychmiast po zapisaniu — bez potrzeby przeładowania serwera.
             </div>

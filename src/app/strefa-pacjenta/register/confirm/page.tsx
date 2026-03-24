@@ -115,7 +115,7 @@ export default function ConfirmData() {
                         <div key={step} style={{
                             width: '60px',
                             height: '4px',
-                            background: step <= 2 ? 'linear-gradient(90deg, #dcb14a, #f0c96c)' : 'rgba(255, 255, 255, 0.1)',
+                            background: step <= 2 ? 'linear-gradient(90deg, var(--color-primary), var(--color-primary-light))' : 'rgba(255, 255, 255, 0.1)',
                             borderRadius: '2px',
                         }} />
                     ))}
@@ -126,7 +126,7 @@ export default function ConfirmData() {
                     <div style={{
                         width: '80px',
                         height: '80px',
-                        background: 'linear-gradient(135deg, #dcb14a, #f0c96c)',
+                        background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-light))',
                         borderRadius: '50%',
                         display: 'flex',
                         alignItems: 'center',
@@ -140,7 +140,7 @@ export default function ConfirmData() {
                         fontSize: '2rem',
                         fontWeight: 'bold',
                         marginBottom: '0.5rem',
-                        background: 'linear-gradient(135deg, #fff, #dcb14a)',
+                        background: 'linear-gradient(135deg, #fff, var(--color-primary))',
                         WebkitBackgroundClip: 'text',
                         WebkitTextFillColor: 'transparent',
                     }}>
@@ -172,7 +172,7 @@ export default function ConfirmData() {
                     marginBottom: '2rem',
                     border: '1px solid rgba(255, 255, 255, 0.05)',
                 }}>
-                    <h3 style={{ color: '#dcb14a', marginBottom: '1rem', fontSize: '1.1rem' }}>
+                    <h3 style={{ color: 'var(--color-primary)', marginBottom: '1rem', fontSize: '1.1rem' }}>
                         Dane podstawowe (z systemu)
                     </h3>
                     <div style={{ display: 'grid', gap: '0.75rem', color: 'rgba(255, 255, 255, 0.9)' }}>
@@ -193,7 +193,7 @@ export default function ConfirmData() {
 
                 {/* Editable Fields */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                    <h3 style={{ color: '#dcb14a', fontSize: '1.1rem' }}>
+                    <h3 style={{ color: 'var(--color-primary)', fontSize: '1.1rem' }}>
                         Dane kontaktowe (możesz edytować)
                     </h3>
 
@@ -393,7 +393,7 @@ export default function ConfirmData() {
                             style={{
                                 flex: 2,
                                 padding: '1rem',
-                                background: 'linear-gradient(135deg, #dcb14a, #f0c96c)',
+                                background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-light))',
                                 border: 'none',
                                 borderRadius: '0.5rem',
                                 color: '#000',
@@ -404,7 +404,7 @@ export default function ConfirmData() {
                             }}
                             onMouseEnter={(e) => {
                                 e.currentTarget.style.transform = 'translateY(-2px)';
-                                e.currentTarget.style.boxShadow = '0 10px 25px rgba(220, 177, 74, 0.4)';
+                                e.currentTarget.style.boxShadow = '0 10px 25px rgba(var(--color-primary-rgb), 0.4)';
                             }}
                             onMouseLeave={(e) => {
                                 e.currentTarget.style.transform = 'translateY(0)';
@@ -434,12 +434,12 @@ export default function ConfirmData() {
                 }}>
                     <div style={{
                         background: 'rgba(26, 26, 26, 0.98)',
-                        border: '2px solid rgba(220, 177, 74, 0.3)',
+                        border: '2px solid rgba(var(--color-primary-rgb), 0.3)',
                         borderRadius: '1rem',
                         padding: '2rem',
                         maxWidth: '500px',
                         width: '100%',
-                        boxShadow: '0 20px 60px rgba(220, 177, 74, 0.2)',
+                        boxShadow: '0 20px 60px rgba(var(--color-primary-rgb), 0.2)',
                     }}>
                         <div style={{
                             fontSize: '3rem',
@@ -449,7 +449,7 @@ export default function ConfirmData() {
                             ⚠️
                         </div>
                         <h3 style={{
-                            color: '#dcb14a',
+                            color: 'var(--color-primary)',
                             fontSize: '1.5rem',
                             marginBottom: '1rem',
                             textAlign: 'center',
@@ -462,7 +462,7 @@ export default function ConfirmData() {
                             lineHeight: '1.6',
                         }}>
                             Email w naszej bazie danych to:<br />
-                            <strong style={{ color: '#dcb14a' }}>{prodentisEmail}</strong>
+                            <strong style={{ color: 'var(--color-primary)' }}>{prodentisEmail}</strong>
                         </p>
                         <p style={{
                             color: 'rgba(255, 255, 255, 0.9)',
@@ -470,7 +470,7 @@ export default function ConfirmData() {
                             lineHeight: '1.6',
                         }}>
                             Ty podałeś:<br />
-                            <strong style={{ color: '#dcb14a' }}>{email}</strong>
+                            <strong style={{ color: 'var(--color-primary)' }}>{email}</strong>
                         </p>
                         <p style={{
                             color: 'rgba(255, 255, 255, 0.7)',
@@ -539,7 +539,7 @@ export default function ConfirmData() {
                                     flex: 1,
                                     padding: '0.875rem',
                                     background: emailConfirmed
-                                        ? 'linear-gradient(135deg, #dcb14a, #f0c96c)'
+                                        ? 'linear-gradient(135deg, var(--color-primary), var(--color-primary-light))'
                                         : 'rgba(255, 255, 255, 0.1)',
                                     border: 'none',
                                     borderRadius: '0.5rem',

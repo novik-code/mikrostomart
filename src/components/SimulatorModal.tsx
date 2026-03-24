@@ -74,7 +74,7 @@ export default function SimulatorModal() {
             ctx.textAlign = "center";
             ctx.fillText(slogan, canvas.width / 2 + 2, canvas.height - (canvas.height * 0.05) + 2);
 
-            ctx.fillStyle = "#dcb14a"; // Gold Color
+            ctx.fillStyle = "var(--color-primary)"; // Gold Color
             ctx.fillText(slogan, canvas.width / 2, canvas.height - (canvas.height * 0.05));
 
             // Trigger Download
@@ -482,7 +482,7 @@ export default function SimulatorModal() {
 
                 {/* --- HEADER --- */}
                 <div style={{ padding: '20px', textAlign: 'center', background: '#0f0f0f' }}>
-                    <h2 style={{ margin: 0, color: '#dcb14a' }}>{t('title')}</h2>
+                    <h2 style={{ margin: 0, color: 'var(--color-primary)' }}>{t('title')}</h2>
                 </div>
 
                 {/* --- CONTENT --- */}
@@ -518,7 +518,7 @@ export default function SimulatorModal() {
                             display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'center'
                         }}>
                             <div style={{ fontSize: '50px' }}>📸</div>
-                            <h3 style={{ margin: 0, color: '#dcb14a' }}>{t('instructionTitle')}</h3>
+                            <h3 style={{ margin: 0, color: 'var(--color-primary)' }}>{t('instructionTitle')}</h3>
                             <p style={{ lineHeight: '1.6', fontSize: '16px', color: '#ccc' }}>
                                 {t('instructionSubtitle')}
                             </p>
@@ -534,7 +534,7 @@ export default function SimulatorModal() {
                             <button onClick={() => setStep('intro')} style={{
                                 marginTop: '10px',
                                 padding: '15px 40px', borderRadius: '50px',
-                                background: '#dcb14a', color: 'black', border: 'none',
+                                background: 'var(--color-primary)', color: 'black', border: 'none',
                                 fontWeight: 'bold', fontSize: '16px', cursor: 'pointer'
                             }}>
                                 {t('understood')}
@@ -583,7 +583,7 @@ export default function SimulatorModal() {
                             <div style={{ position: 'absolute', bottom: '20px', left: 0, right: 0, display: 'flex', justifyContent: 'center' }}>
                                 <button onClick={capturePhoto} style={{
                                     width: '80px', height: '80px', borderRadius: '50%',
-                                    background: '#fff', border: '5px solid #dcb14a'
+                                    background: '#fff', border: '5px solid var(--color-primary)'
                                 }} />
                             </div>
                         </div>
@@ -591,7 +591,7 @@ export default function SimulatorModal() {
 
                     {step === 'processing' && (
                         <div style={{ textAlign: 'center' }}>
-                            <div className="animate-spin" style={{ margin: '0 auto 20px', width: '50px', height: '50px', border: '4px solid #333', borderTopColor: '#dcb14a', borderRadius: '50%' }} />
+                            <div className="animate-spin" style={{ margin: '0 auto 20px', width: '50px', height: '50px', border: '4px solid #333', borderTopColor: 'var(--color-primary)', borderRadius: '50%' }} />
                             <h3 style={{ color: 'white' }}>{statusMsg}</h3>
                         </div>
                     )}
@@ -612,7 +612,7 @@ export default function SimulatorModal() {
                                     </button>
                                     <button onClick={downloadBrandedImage} style={{
                                         flex: 1, padding: '15px', borderRadius: '12px',
-                                        background: '#dcb14a', color: 'black', border: 'none', fontWeight: 'bold',
+                                        background: 'var(--color-primary)', color: 'black', border: 'none', fontWeight: 'bold',
                                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', cursor: 'pointer'
                                     }}>
                                         <Download size={18} /> {t('download')}

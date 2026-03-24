@@ -177,7 +177,7 @@ export default function ReservationForm() {
                 border: "1px solid var(--color-surface-hover)"
             }}>
                 <div style={{ color: "var(--color-primary)", marginBottom: "1rem", display: 'flex', justifyContent: 'center' }}>
-                    <CheckCircle className="w-16 h-16 text-[#dcb14a]" />
+                    <CheckCircle className="w-16 h-16 text-[var(--color-primary)]" />
                 </div>
                 <h3 style={{ fontSize: "1.5rem", marginBottom: "1rem" }}>{t('successTitle')}</h3>
                 <p style={{ color: "var(--color-text-muted)" }}>
@@ -188,8 +188,8 @@ export default function ReservationForm() {
                     <div style={{
                         marginTop: '1.5rem',
                         padding: '1.25rem',
-                        background: 'rgba(212, 175, 55, 0.08)',
-                        border: '1px solid rgba(212, 175, 55, 0.25)',
+                        background: 'rgba(var(--color-primary-dark-rgb), 0.08)',
+                        border: '1px solid rgba(var(--color-primary-dark-rgb), 0.25)',
                         borderRadius: 'var(--radius-md)',
                         textAlign: 'left',
                     }}>
@@ -379,7 +379,7 @@ export default function ReservationForm() {
                 selectedSpecialist && (
                     <div className="form-group">
                         <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", color: "var(--color-text-muted)" }}>
-                            {t('availableSlots')} * <span className="text-xs text-[#dcb14a]">({t('duration', { duration: selectedSpecialist.id === 'malgorzata' ? '60min' : '30min' })})</span>
+                            {t('availableSlots')} * <span className="text-xs text-[var(--color-primary)]">({t('duration', { duration: selectedSpecialist.id === 'malgorzata' ? '60min' : '30min' })})</span>
                         </label>
                         <AppointmentScheduler
                             specialistId={selectedSpecialist.id}
@@ -397,7 +397,7 @@ export default function ReservationForm() {
                         )}
 
                         {selectedDate && selectedTime && (
-                            <p style={{ marginTop: "0.5rem", fontSize: "0.9rem", color: "#dcb14a" }}>
+                            <p style={{ marginTop: "0.5rem", fontSize: "0.9rem", color: "var(--color-primary)" }}>
                                 {t('selectedSlot', { date: selectedDate, time: selectedTime })}
                             </p>
                         )}
@@ -458,13 +458,13 @@ export default function ReservationForm() {
                     id="rodo-consent-reservation"
                     checked={rodoConsent}
                     onChange={(e) => setRodoConsent(e.target.checked)}
-                    style={{ marginTop: '3px', accentColor: '#dcb14a', minWidth: '18px', minHeight: '18px', cursor: 'pointer' }}
+                    style={{ marginTop: '3px', accentColor: 'var(--color-primary)', minWidth: '18px', minHeight: '18px', cursor: 'pointer' }}
                 />
                 <label htmlFor="rodo-consent-reservation" style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', lineHeight: 1.5, cursor: 'pointer' }}>
                     {t('rodoConsent')}{' '}
-                    <a href="/rodo" target="_blank" style={{ color: '#dcb14a', textDecoration: 'underline' }}>{t('rodoClause')}</a>{' '}
+                    <a href="/rodo" target="_blank" style={{ color: 'var(--color-primary)', textDecoration: 'underline' }}>{t('rodoClause')}</a>{' '}
                     {t('rodoAnd')}{' '}
-                    <a href="/polityka-prywatnosci" target="_blank" style={{ color: '#dcb14a', textDecoration: 'underline' }}>{t('privacyPolicy')}</a>.
+                    <a href="/polityka-prywatnosci" target="_blank" style={{ color: 'var(--color-primary)', textDecoration: 'underline' }}>{t('privacyPolicy')}</a>.
                 </label>
             </div>
 

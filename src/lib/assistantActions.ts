@@ -380,7 +380,7 @@ Odpowiedz TYLKO gotowym, zredagowanym tekstem.`
             html: `
                 <div style="font-family: 'Inter', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
                     <div style="background: #1a1b1e; border-radius: 12px; padding: 24px; color: #f3f4f6;">
-                        <h2 style="color: #dcb14a; margin-top: 0;">📝 ${subject}</h2>
+                        <h2 style="color: var(--color-primary); margin-top: 0;">📝 ${subject}</h2>
                         <div style="white-space: pre-wrap; line-height: 1.7; font-size: 14px;">
 ${processedText}
                         </div>

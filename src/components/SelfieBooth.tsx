@@ -242,7 +242,7 @@ export default function SelfieBooth() {
             justifyContent: "center",
             padding: "20px"
         }}>
-            <h1 style={{ color: "#dcb14a", marginBottom: "20px", fontFamily: "serif" }}>{t('title')}</h1>
+            <h1 style={{ color: "var(--color-primary)", marginBottom: "20px", fontFamily: "serif" }}>{t('title')}</h1>
 
             <div style={{
                 position: "relative",
@@ -251,7 +251,7 @@ export default function SelfieBooth() {
                 borderRadius: "20px",
                 overflow: "hidden",
                 boxShadow: "0 20px 50px rgba(0,0,0,0.5)",
-                border: "4px solid #dcb14a"
+                border: "4px solid var(--color-primary)"
             }}>
                 <video
                     ref={videoRef}
@@ -297,7 +297,7 @@ export default function SelfieBooth() {
                         disabled={isCountingDown}
                         style={{
                             width: "80px", height: "80px", borderRadius: "50%",
-                            background: "#dcb14a", border: "4px solid rgba(255,255,255,0.2)",
+                            background: "var(--color-primary)", border: "4px solid rgba(255,255,255,0.2)",
                             display: "flex", alignItems: "center", justifyContent: "center",
                             cursor: "pointer", transform: isCountingDown ? "scale(0.9)" : "scale(1)", transition: "transform 0.2s"
                         }}
@@ -330,7 +330,7 @@ export default function SelfieBooth() {
                     <button
                         onClick={downloadPhoto}
                         className="btn-primary"
-                        style={{ display: "flex", gap: "10px", alignItems: "center", background: "#dcb14a", color: "#000" }}
+                        style={{ display: "flex", gap: "10px", alignItems: "center", background: "var(--color-primary)", color: "#000" }}
                     >
                         <Download size={20} />
                         {t('download')}

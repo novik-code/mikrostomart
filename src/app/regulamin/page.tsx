@@ -19,7 +19,7 @@ export default function RegulaminPage() {
             }}>
                 <div style={{
                     position: "absolute", inset: 0,
-                    background: "radial-gradient(ellipse at center top, rgba(220,177,74,0.06) 0%, transparent 60%)",
+                    background: "radial-gradient(ellipse at center top, rgba(var(--color-primary-rgb),0.06) 0%, transparent 60%)",
                     pointerEvents: "none"
                 }} />
                 <div className="container" style={{ position: "relative", zIndex: 1 }}>
@@ -27,7 +27,7 @@ export default function RegulaminPage() {
                         <div style={{ display: "flex", justifyContent: "center", marginBottom: "1.5rem" }}>
                             <div style={{
                                 width: "56px", height: "56px", borderRadius: "50%",
-                                background: "rgba(220,177,74,0.1)", border: "1px solid rgba(220,177,74,0.2)",
+                                background: "rgba(var(--color-primary-rgb),0.1)", border: "1px solid rgba(var(--color-primary-rgb),0.2)",
                                 display: "flex", alignItems: "center", justifyContent: "center"
                             }}>
                                 <FileText size={28} color="var(--color-primary)" />
@@ -82,7 +82,7 @@ export default function RegulaminPage() {
                             }
                             .reg-badge {
                                 min-width: 32px; height: 28px; border-radius: 14px;
-                                background: rgba(220,177,74,0.1); border: 1px solid rgba(220,177,74,0.15);
+                                background: rgba(var(--color-primary-rgb),0.1); border: 1px solid rgba(var(--color-primary-rgb),0.15);
                                 display: flex; align-items: center; justify-content: center;
                                 font-size: 0.7rem; font-family: var(--font-sans); font-weight: 700;
                                 color: var(--color-primary); padding: 0 8px; flex-shrink: 0;

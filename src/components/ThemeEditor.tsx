@@ -384,9 +384,9 @@ export default function ThemeEditor() {
                         onClick={() => setActiveSection(s.id)}
                         style={{
                             padding: '0.5rem 0.85rem',
-                            background: activeSection === s.id ? 'rgba(220,177,74,0.15)' : 'transparent',
+                            background: activeSection === s.id ? 'rgba(var(--color-primary-rgb),0.15)' : 'transparent',
                             color: activeSection === s.id ? 'var(--color-primary)' : 'rgba(255,255,255,0.5)',
-                            border: activeSection === s.id ? '1px solid rgba(220,177,74,0.3)' : '1px solid transparent',
+                            border: activeSection === s.id ? '1px solid rgba(var(--color-primary-rgb),0.3)' : '1px solid transparent',
                             borderRadius: '6px',
                             cursor: 'pointer',
                             fontSize: '0.8rem',
@@ -523,8 +523,8 @@ export default function ThemeEditor() {
                                         style={{
                                             flex: 1,
                                             padding: '0.75rem',
-                                            background: theme.layout.borderRadius === r.id ? 'rgba(220,177,74,0.15)' : 'rgba(255,255,255,0.03)',
-                                            border: theme.layout.borderRadius === r.id ? '2px solid rgba(220,177,74,0.5)' : '1px solid rgba(255,255,255,0.1)',
+                                            background: theme.layout.borderRadius === r.id ? 'rgba(var(--color-primary-rgb),0.15)' : 'rgba(255,255,255,0.03)',
+                                            border: theme.layout.borderRadius === r.id ? '2px solid rgba(var(--color-primary-rgb),0.5)' : '1px solid rgba(255,255,255,0.1)',
                                             borderRadius: r.preview,
                                             color: theme.layout.borderRadius === r.id ? 'var(--color-primary)' : 'rgba(255,255,255,0.6)',
                                             cursor: 'pointer',
@@ -532,7 +532,7 @@ export default function ThemeEditor() {
                                             transition: 'all 0.15s',
                                         }}
                                     >
-                                        <div style={{ width: '40px', height: '28px', background: 'rgba(220,177,74,0.2)', borderRadius: r.preview, margin: '0 auto 0.4rem' }} />
+                                        <div style={{ width: '40px', height: '28px', background: 'rgba(var(--color-primary-rgb),0.2)', borderRadius: r.preview, margin: '0 auto 0.4rem' }} />
                                         {r.label}
                                     </button>
                                 ))}
@@ -644,8 +644,8 @@ export default function ThemeEditor() {
                                         style={{
                                             flex: 1,
                                             padding: '0.75rem',
-                                            background: theme.navbar.style === s.id ? 'rgba(220,177,74,0.15)' : 'rgba(255,255,255,0.03)',
-                                            border: theme.navbar.style === s.id ? '2px solid rgba(220,177,74,0.5)' : '1px solid rgba(255,255,255,0.1)',
+                                            background: theme.navbar.style === s.id ? 'rgba(var(--color-primary-rgb),0.15)' : 'rgba(255,255,255,0.03)',
+                                            border: theme.navbar.style === s.id ? '2px solid rgba(var(--color-primary-rgb),0.5)' : '1px solid rgba(255,255,255,0.1)',
                                             borderRadius: '8px',
                                             color: theme.navbar.style === s.id ? 'var(--color-primary)' : 'rgba(255,255,255,0.6)',
                                             cursor: 'pointer',
@@ -708,7 +708,7 @@ export default function ThemeEditor() {
                         </p>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
                             {[
-                                { id: 'default-gold', name: 'Domyślne Złoto', colors: ['#08090a', '#dcb14a', '#f0c975'] },
+                                { id: 'default-gold', name: 'Domyślne Złoto', colors: ['#08090a', 'var(--color-primary)', 'var(--color-primary-light)'] },
                                 { id: 'ocean-blue', name: 'Ocean Blue', colors: ['#0a0e1a', '#3b82f6', '#60a5fa'] },
                                 { id: 'forest-green', name: 'Forest Green', colors: ['#0a1208', '#22c55e', '#4ade80'] },
                                 { id: 'minimalist-white', name: 'Minimalist White', colors: ['#ffffff', '#1a1a1a', '#444444'] },
@@ -728,7 +728,7 @@ export default function ThemeEditor() {
                                         color: 'white',
                                     }}
                                     onMouseEnter={(e) => {
-                                        (e.target as HTMLElement).style.borderColor = 'rgba(220,177,74,0.4)';
+                                        (e.target as HTMLElement).style.borderColor = 'rgba(var(--color-primary-rgb),0.4)';
                                         (e.target as HTMLElement).style.transform = 'translateY(-2px)';
                                     }}
                                     onMouseLeave={(e) => {

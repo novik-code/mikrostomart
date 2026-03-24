@@ -118,10 +118,10 @@ export async function POST(request: NextRequest) {
                         <style>
                             body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
                             .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-                            .header { background: linear-gradient(135deg, #dcb14a, #f0c96c); padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+                            .header { background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light)); padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
                             .header h1 { color: #000; margin: 0; font-size: 24px; }
                             .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
-                            .button { display: inline-block; padding: 15px 30px; background: linear-gradient(135deg, #dcb14a, #f0c96c); color: #000; text-decoration: none; border-radius: 5px; font-weight: bold; margin: 20px 0; }
+                            .button { display: inline-block; padding: 15px 30px; background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light)); color: #000; text-decoration: none; border-radius: 5px; font-weight: bold; margin: 20px 0; }
                             .footer { text-align: center; margin-top: 20px; font-size: 12px; color: #666; }
                             .warning { background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; }
                         </style>

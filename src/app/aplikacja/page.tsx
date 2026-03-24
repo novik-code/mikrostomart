@@ -4,8 +4,8 @@ import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 
 
-const BRAND = '#dcb14a';
-const BRAND_LIGHT = '#f0c975';
+const BRAND = 'var(--color-primary)';
+const BRAND_LIGHT = 'var(--color-primary-light)';
 const DARK = '#0a0a0f';
 const SURFACE = '#12131a';
 const SURFACE2 = '#1a1c27';
@@ -80,7 +80,7 @@ function StepCard({ n, title, desc, color }: { n: string; title: string; desc: s
             padding: '1.25rem',
             background: SURFACE2,
             borderRadius: '1rem',
-            border: `1px solid rgba(220,177,74,0.1)`,
+            border: `1px solid rgba(var(--color-primary-rgb),0.1)`,
         }}>
             <div style={{
                 flexShrink: 0,
@@ -133,7 +133,7 @@ export default function AplikacjaPage() {
         zIndex: 100,
         background: scrollY > 60 ? 'rgba(10,10,15,0.95)' : 'transparent',
         backdropFilter: scrollY > 60 ? 'blur(12px)' : 'none',
-        borderBottom: scrollY > 60 ? '1px solid rgba(220,177,74,0.12)' : 'none',
+        borderBottom: scrollY > 60 ? '1px solid rgba(var(--color-primary-rgb),0.12)' : 'none',
         transition: 'all 0.3s',
         padding: '1rem 2rem',
         display: 'flex',

@@ -61,15 +61,15 @@ export default function OcenNas() {
 
                 {/* QR Code card */}
                 <div style={{
-                    background: 'linear-gradient(135deg, rgba(220, 177, 74, 0.08), rgba(220, 177, 74, 0.03))',
-                    border: '1px solid rgba(220, 177, 74, 0.25)',
+                    background: 'linear-gradient(135deg, rgba(var(--color-primary-rgb), 0.08), rgba(var(--color-primary-rgb), 0.03))',
+                    border: '1px solid rgba(var(--color-primary-rgb), 0.25)',
                     borderRadius: '1.25rem',
                     padding: '2.5rem',
                     textAlign: 'center',
                     marginBottom: '2rem',
                 }}>
                     <p style={{
-                        color: '#dcb14a',
+                        color: 'var(--color-primary)',
                         fontSize: '0.95rem',
                         fontWeight: '600',
                         marginBottom: '1.5rem',
@@ -84,7 +84,7 @@ export default function OcenNas() {
                         background: '#fff',
                         borderRadius: '1rem',
                         padding: '1.25rem',
-                        boxShadow: '0 8px 32px rgba(220, 177, 74, 0.15)',
+                        boxShadow: '0 8px 32px rgba(var(--color-primary-rgb), 0.15)',
                         marginBottom: '1.5rem',
                     }}>
                         <a href={GOOGLE_REVIEW_URL} target="_blank" rel="noopener noreferrer">
@@ -121,7 +121,7 @@ export default function OcenNas() {
                             alignItems: 'center',
                             gap: '0.75rem',
                             padding: '1rem 2.5rem',
-                            background: 'linear-gradient(135deg, #dcb14a, #f0c96c)',
+                            background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-light))',
                             border: 'none',
                             borderRadius: '0.75rem',
                             color: '#000',
@@ -129,15 +129,15 @@ export default function OcenNas() {
                             fontWeight: 'bold',
                             textDecoration: 'none',
                             transition: 'transform 0.2s, box-shadow 0.2s',
-                            boxShadow: '0 4px 20px rgba(220, 177, 74, 0.3)',
+                            boxShadow: '0 4px 20px rgba(var(--color-primary-rgb), 0.3)',
                         }}
                         onMouseEnter={(e) => {
                             e.currentTarget.style.transform = 'translateY(-3px)';
-                            e.currentTarget.style.boxShadow = '0 8px 30px rgba(220, 177, 74, 0.4)';
+                            e.currentTarget.style.boxShadow = '0 8px 30px rgba(var(--color-primary-rgb), 0.4)';
                         }}
                         onMouseLeave={(e) => {
                             e.currentTarget.style.transform = 'translateY(0)';
-                            e.currentTarget.style.boxShadow = '0 4px 20px rgba(220, 177, 74, 0.3)';
+                            e.currentTarget.style.boxShadow = '0 4px 20px rgba(var(--color-primary-rgb), 0.3)';
                         }}
                     >
                         ⭐ Zostaw opinię w Google

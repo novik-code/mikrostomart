@@ -148,7 +148,7 @@ const renderNewsTab = () => (
                                 width: "100%",
                                 opacity: isGenerating ? 0.7 : 1,
                                 position: "relative",
-                                background: "linear-gradient(135deg, #dcb14a, #f0c96c)" // Gold gradient
+                                background: "linear-gradient(135deg, var(--color-primary), var(--color-primary-light))" // Gold gradient
                             }}
                         >
                             {isGenerating ? "Generowanie (ok. 30s)..." : "Generuj Treść i Zdjęcie 🪄"}

@@ -198,18 +198,18 @@ export default function StudioMaskEditor({ imageSrc, onBack, onNext }: StudioMas
                     <button onClick={() => setTool('brush')} style={{
                         padding: '12px',
                         borderRadius: '12px',
-                        background: tool === 'brush' ? 'rgba(220, 177, 74, 0.2)' : 'transparent',
-                        color: tool === 'brush' ? '#dcb14a' : 'white',
-                        border: tool === 'brush' ? '1px solid #dcb14a' : '1px solid rgba(255,255,255,0.1)'
+                        background: tool === 'brush' ? 'rgba(var(--color-primary-rgb), 0.2)' : 'transparent',
+                        color: tool === 'brush' ? 'var(--color-primary)' : 'white',
+                        border: tool === 'brush' ? '1px solid var(--color-primary)' : '1px solid rgba(255,255,255,0.1)'
                     }}>
                         <Paintbrush size={24} />
                     </button>
                     <button onClick={() => setTool('eraser')} style={{
                         padding: '12px',
                         borderRadius: '12px',
-                        background: tool === 'eraser' ? 'rgba(220, 177, 74, 0.2)' : 'transparent',
-                        color: tool === 'eraser' ? '#dcb14a' : 'white',
-                        border: tool === 'eraser' ? '1px solid #dcb14a' : '1px solid rgba(255,255,255,0.1)'
+                        background: tool === 'eraser' ? 'rgba(var(--color-primary-rgb), 0.2)' : 'transparent',
+                        color: tool === 'eraser' ? 'var(--color-primary)' : 'white',
+                        border: tool === 'eraser' ? '1px solid var(--color-primary)' : '1px solid rgba(255,255,255,0.1)'
                     }}>
                         <Eraser size={24} />
                     </button>
@@ -291,7 +291,7 @@ export default function StudioMaskEditor({ imageSrc, onBack, onNext }: StudioMas
                 <input
                     type="range" min="10" max="100" value={brushSize}
                     onChange={(e) => setBrushSize(Number(e.target.value))}
-                    style={{ width: '100%', maxWidth: '300px', accentColor: '#dcb14a', height: '6px' }}
+                    style={{ width: '100%', maxWidth: '300px', accentColor: 'var(--color-primary)', height: '6px' }}
                 />
             </div>
         </div>

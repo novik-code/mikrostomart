@@ -254,14 +254,14 @@ export default function OpinionSurvey() {
                 onClick={e => e.stopPropagation()}
                 style={{
                     background: 'linear-gradient(145deg, #1a1f2e, #141822)',
-                    border: '1px solid rgba(212,175,55,0.15)',
+                    border: '1px solid rgba(var(--color-primary-dark-rgb),0.15)',
                     borderRadius: '1rem',
                     width: '100%',
                     maxWidth: '480px',
                     maxHeight: '90vh',
                     overflow: 'auto',
                     position: 'relative',
-                    boxShadow: '0 25px 60px rgba(0,0,0,0.5), 0 0 30px rgba(212,175,55,0.06)',
+                    boxShadow: '0 25px 60px rgba(0,0,0,0.5), 0 0 30px rgba(var(--color-primary-dark-rgb),0.06)',
                 }}
             >
                 {/* Close button */}
@@ -395,8 +395,8 @@ export default function OpinionSurvey() {
                                         display: 'flex',
                                         alignItems: 'center',
                                         gap: '0.3rem',
-                                        background: currentQ.valid() ? 'rgba(212,175,55,0.12)' : 'rgba(255,255,255,0.03)',
-                                        border: `1px solid ${currentQ.valid() ? 'rgba(212,175,55,0.3)' : 'rgba(255,255,255,0.06)'}`,
+                                        background: currentQ.valid() ? 'rgba(var(--color-primary-dark-rgb),0.12)' : 'rgba(255,255,255,0.03)',
+                                        border: `1px solid ${currentQ.valid() ? 'rgba(var(--color-primary-dark-rgb),0.3)' : 'rgba(255,255,255,0.06)'}`,
                                         borderRadius: '0.5rem',
                                         padding: '0.5rem 1rem',
                                         color: currentQ.valid() ? '#d4af37' : 'rgba(255,255,255,0.15)',
@@ -447,8 +447,8 @@ export default function OpinionSurvey() {
 
                                 {/* Generated review */}
                                 <div style={{
-                                    background: 'rgba(212,175,55,0.06)',
-                                    border: '1px solid rgba(212,175,55,0.15)',
+                                    background: 'rgba(var(--color-primary-dark-rgb),0.06)',
+                                    border: '1px solid rgba(var(--color-primary-dark-rgb),0.15)',
                                     borderRadius: '0.75rem',
                                     padding: '1rem',
                                     marginBottom: '1rem',
@@ -552,7 +552,7 @@ export default function OpinionSurvey() {
                             {t('negativeBody')}
                         </p>
                         <p style={{
-                            color: 'rgba(212,175,55,0.7)',
+                            color: 'rgba(var(--color-primary-dark-rgb),0.7)',
                             fontSize: '0.8rem',
                             fontWeight: '500',
                         }}>
@@ -621,8 +621,8 @@ function StarRating({ value, onChange }: { value: number; onChange: (v: number) 
 
 const optionStyle = (selected: boolean): React.CSSProperties => ({
     padding: '0.65rem 1rem',
-    background: selected ? 'rgba(212,175,55,0.12)' : 'rgba(255,255,255,0.04)',
-    border: `1px solid ${selected ? 'rgba(212,175,55,0.35)' : 'rgba(255,255,255,0.08)'}`,
+    background: selected ? 'rgba(var(--color-primary-dark-rgb),0.12)' : 'rgba(255,255,255,0.04)',
+    border: `1px solid ${selected ? 'rgba(var(--color-primary-dark-rgb),0.35)' : 'rgba(255,255,255,0.08)'}`,
     borderRadius: '0.5rem',
     color: selected ? '#d4af37' : 'rgba(255,255,255,0.6)',
     cursor: 'pointer',
@@ -634,8 +634,8 @@ const optionStyle = (selected: boolean): React.CSSProperties => ({
 
 const chipStyle = (selected: boolean): React.CSSProperties => ({
     padding: '0.4rem 0.75rem',
-    background: selected ? 'rgba(212,175,55,0.15)' : 'rgba(255,255,255,0.04)',
-    border: `1px solid ${selected ? 'rgba(212,175,55,0.3)' : 'rgba(255,255,255,0.08)'}`,
+    background: selected ? 'rgba(var(--color-primary-dark-rgb),0.15)' : 'rgba(255,255,255,0.04)',
+    border: `1px solid ${selected ? 'rgba(var(--color-primary-dark-rgb),0.3)' : 'rgba(255,255,255,0.08)'}`,
     borderRadius: '2rem',
     color: selected ? '#d4af37' : 'rgba(255,255,255,0.5)',
     cursor: 'pointer',

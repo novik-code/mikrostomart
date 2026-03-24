@@ -5,10 +5,12 @@
   --color-surface-hover: #1c1f26;
 
   --color-primary: #dcb14a;
+  --color-primary-rgb: 220, 177, 74;
   /* More yellowish gold */
   --color-primary-light: #f0c975;
   /* Lighter yellow-gold */
   --color-primary-dark: #a68531;
+  --color-primary-dark-rgb: 166, 133, 49;
   /* Darker antique gold */
 
   --color-text-main: #f3f4f6;

@@ -111,11 +111,11 @@ export default function StudioCapture({ onImageSelected }: StudioCaptureProps) {
                 }}>
                     <div style={{
                         width: '80px', height: '80px',
-                        background: 'linear-gradient(135deg, #dcb14a, #856b2d)',
+                        background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-dark))',
                         borderRadius: '20px',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         marginBottom: '24px',
-                        boxShadow: '0 10px 30px rgba(220,177,74,0.3)'
+                        boxShadow: '0 10px 30px rgba(var(--color-primary-rgb),0.3)'
                     }}>
                         <Camera size={40} color="black" />
                     </div>
@@ -240,7 +240,7 @@ export default function StudioCapture({ onImageSelected }: StudioCaptureProps) {
                             }}
                             style={{
                                 width: '80px', height: '80px', borderRadius: '50%',
-                                background: 'white', border: '4px solid #dcb14a',
+                                background: 'white', border: '4px solid var(--color-primary)',
                                 cursor: 'pointer',
                                 touchAction: 'manipulation'
                             }}

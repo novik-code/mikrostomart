@@ -172,7 +172,7 @@ export default function RescheduleAppointmentModal({
                         {/* Header */}
                         <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
                             <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>📅</div>
-                            <h3 style={{ color: '#dcb14a', marginBottom: '0.5rem', fontSize: '1.5rem' }}>
+                            <h3 style={{ color: 'var(--color-primary)', marginBottom: '0.5rem', fontSize: '1.5rem' }}>
                                 Przełóż wizytę
                             </h3>
                             <p style={{ color: '#aaa', fontSize: '0.9rem' }}>
@@ -227,8 +227,8 @@ export default function RescheduleAppointmentModal({
                                                     disabled={isLoading}
                                                     style={{
                                                         padding: '0.6rem 0.25rem',
-                                                        background: isSelected ? '#dcb14a' : 'rgba(255,255,255,0.05)',
-                                                        border: isSelected ? '2px solid #dcb14a' : '1px solid #333',
+                                                        background: isSelected ? 'var(--color-primary)' : 'rgba(255,255,255,0.05)',
+                                                        border: isSelected ? '2px solid var(--color-primary)' : '1px solid #333',
                                                         borderRadius: '6px',
                                                         color: isSelected ? '#000' : '#fff',
                                                         fontSize: '0.85rem', fontWeight: isSelected ? '700' : '400',
@@ -236,7 +236,7 @@ export default function RescheduleAppointmentModal({
                                                         transition: 'all 0.15s',
                                                     }}
                                                     onMouseEnter={(e) => {
-                                                        if (!isSelected) e.currentTarget.style.background = 'rgba(220,177,74,0.15)';
+                                                        if (!isSelected) e.currentTarget.style.background = 'rgba(var(--color-primary-rgb),0.15)';
                                                     }}
                                                     onMouseLeave={(e) => {
                                                         if (!isSelected) e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
@@ -267,7 +267,7 @@ export default function RescheduleAppointmentModal({
                                     borderRadius: '8px', color: '#fff', fontSize: '0.9rem',
                                     fontFamily: 'inherit', resize: 'vertical', outline: 'none',
                                 }}
-                                onFocus={(e) => e.currentTarget.style.borderColor = '#dcb14a'}
+                                onFocus={(e) => e.currentTarget.style.borderColor = 'var(--color-primary)'}
                                 onBlur={(e) => e.currentTarget.style.borderColor = '#333'}
                             />
                         </div>
@@ -305,7 +305,7 @@ export default function RescheduleAppointmentModal({
                                 disabled={isLoading || !selectedDate || !selectedTime}
                                 style={{
                                     flex: 1, padding: '0.875rem',
-                                    background: (isLoading || !selectedDate || !selectedTime) ? '#555' : '#dcb14a',
+                                    background: (isLoading || !selectedDate || !selectedTime) ? '#555' : 'var(--color-primary)',
                                     border: 'none', borderRadius: '8px',
                                     color: (isLoading || !selectedDate || !selectedTime) ? '#999' : '#000',
                                     fontSize: '1rem', fontWeight: '600',
@@ -315,7 +315,7 @@ export default function RescheduleAppointmentModal({
                                     if (!isLoading && selectedDate && selectedTime) e.currentTarget.style.background = '#c9a13d';
                                 }}
                                 onMouseLeave={(e) => {
-                                    if (!isLoading && selectedDate && selectedTime) e.currentTarget.style.background = '#dcb14a';
+                                    if (!isLoading && selectedDate && selectedTime) e.currentTarget.style.background = 'var(--color-primary)';
                                 }}
                             >
                                 {isLoading ? 'Przenoszę...' : 'Przełóż wizytę'}

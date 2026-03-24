@@ -297,7 +297,7 @@ export default function AdminChat() {
                                     width: '100%',
                                     padding: '1rem 1.25rem',
                                     background: selectedConv === conv.id
-                                        ? 'rgba(220, 177, 74, 0.1)'
+                                        ? 'rgba(var(--color-primary-rgb), 0.1)'
                                         : conv.unread_by_admin
                                             ? 'rgba(59, 130, 246, 0.05)'
                                             : 'transparent',
@@ -484,15 +484,15 @@ export default function AdminChat() {
                                                 ? '1rem 1rem 0.25rem 1rem'
                                                 : '1rem 1rem 1rem 0.25rem',
                                             background: msg.sender_role === 'reception'
-                                                ? 'rgba(220, 177, 74, 0.15)'
+                                                ? 'rgba(var(--color-primary-rgb), 0.15)'
                                                 : 'rgba(255, 255, 255, 0.06)',
                                             border: msg.sender_role === 'reception'
-                                                ? '1px solid rgba(220, 177, 74, 0.3)'
+                                                ? '1px solid rgba(var(--color-primary-rgb), 0.3)'
                                                 : '1px solid rgba(255, 255, 255, 0.1)',
                                         }}>
                                             <div style={{
                                                 fontSize: '0.7rem',
-                                                color: msg.sender_role === 'reception' ? '#dcb14a' : '#60a5fa',
+                                                color: msg.sender_role === 'reception' ? 'var(--color-primary)' : '#60a5fa',
                                                 fontWeight: 'bold',
                                                 marginBottom: '0.25rem',
                                                 textTransform: 'uppercase',
@@ -565,7 +565,7 @@ export default function AdminChat() {
                                 style={{
                                     padding: '0.75rem 1.25rem',
                                     background: (!newReply.trim() || sending)
-                                        ? 'rgba(220, 177, 74, 0.3)'
+                                        ? 'rgba(var(--color-primary-rgb), 0.3)'
                                         : 'var(--color-primary)',
                                     border: 'none',
                                     borderRadius: 'var(--radius-md)',

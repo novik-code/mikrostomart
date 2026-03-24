@@ -105,7 +105,7 @@ export default function CheckoutForm({ onSuccess, initialValues }: CheckoutFormP
                         {formData.zipCode} {formData.city}<br />
                         <span style={{ fontSize: '0.9rem', color: '#9ca3af' }}>{formData.email} • {formData.phone}</span>
                     </div>
-                    <button onClick={() => setStep('ADDRESS')} style={{ background: 'none', border: 'none', color: '#dcb14a', marginTop: '0.5rem', cursor: 'pointer', fontSize: '0.9rem', textDecoration: 'underline' }}>{t('editDetails')}</button>
+                    <button onClick={() => setStep('ADDRESS')} style={{ background: 'none', border: 'none', color: 'var(--color-primary)', marginTop: '0.5rem', cursor: 'pointer', fontSize: '0.9rem', textDecoration: 'underline' }}>{t('editDetails')}</button>
                 </div>
 
                 <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
@@ -122,7 +122,7 @@ export default function CheckoutForm({ onSuccess, initialValues }: CheckoutFormP
                             appearance: {
                                 theme: 'night',
                                 variables: {
-                                    colorPrimary: '#dcb14a',
+                                    colorPrimary: 'var(--color-primary)',
                                     colorBackground: '#1c1c1c',
                                     colorText: '#ffffff',
                                     colorDanger: '#ef4444',

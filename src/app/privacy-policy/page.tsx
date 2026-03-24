@@ -15,14 +15,14 @@ export default function PrivacyPolicyPage() {
             }}>
                 <div style={{
                     position: "absolute", inset: 0,
-                    background: "radial-gradient(ellipse at center top, rgba(220,177,74,0.06) 0%, transparent 60%)",
+                    background: "radial-gradient(ellipse at center top, rgba(var(--color-primary-rgb),0.06) 0%, transparent 60%)",
                     pointerEvents: "none"
                 }} />
                 <div className="container" style={{ position: "relative", zIndex: 1 }}>
                     <div style={{ display: "flex", justifyContent: "center", marginBottom: "1.5rem" }}>
                         <div style={{
                             width: "56px", height: "56px", borderRadius: "50%",
-                            background: "rgba(220,177,74,0.1)", border: "1px solid rgba(220,177,74,0.2)",
+                            background: "rgba(var(--color-primary-rgb),0.1)", border: "1px solid rgba(var(--color-primary-rgb),0.2)",
                             display: "flex", alignItems: "center", justifyContent: "center"
                         }}>
                             <Shield size={28} color="var(--color-primary)" />
@@ -74,8 +74,8 @@ export default function PrivacyPolicyPage() {
                     <PolicySection icon={<Shield size={20} />} number="1" title="Data Controller">
                         <p>The controller of your personal data is:</p>
                         <div style={{
-                            background: "rgba(220,177,74,0.05)",
-                            border: "1px solid rgba(220,177,74,0.1)",
+                            background: "rgba(var(--color-primary-rgb),0.05)",
+                            border: "1px solid rgba(var(--color-primary-rgb),0.1)",
                             borderRadius: "8px",
                             padding: "1rem 1.25rem",
                             marginTop: "0.75rem",
@@ -292,8 +292,8 @@ export default function PrivacyPolicyPage() {
                             If you believe your data protection rights have been violated, you have the right to lodge a complaint with the Polish Data Protection Authority:
                         </p>
                         <div style={{
-                            background: "rgba(220,177,74,0.05)",
-                            border: "1px solid rgba(220,177,74,0.1)",
+                            background: "rgba(var(--color-primary-rgb),0.05)",
+                            border: "1px solid rgba(var(--color-primary-rgb),0.1)",
                             borderRadius: "8px",
                             padding: "1rem 1.25rem",
                             marginTop: "0.75rem",
@@ -348,7 +348,7 @@ function PolicySection({ icon, number, title, children, last }: {
             }}>
                 <span style={{
                     width: "28px", height: "28px", borderRadius: "50%",
-                    background: "rgba(220,177,74,0.1)", border: "1px solid rgba(220,177,74,0.15)",
+                    background: "rgba(var(--color-primary-rgb),0.1)", border: "1px solid rgba(var(--color-primary-rgb),0.15)",
                     display: "flex", alignItems: "center", justifyContent: "center",
                     fontSize: "0.75rem", fontFamily: "var(--font-sans)", fontWeight: 700,
                     flexShrink: 0

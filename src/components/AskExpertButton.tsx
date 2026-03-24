@@ -40,7 +40,7 @@ export default function AskExpertButton() {
                     background: var(--color-primary);
                     color: black;
                     transform: translateY(-2px);
-                    box-shadow: 0 4px 12px rgba(220, 177, 74, 0.3);
+                    box-shadow: 0 4px 12px rgba(var(--color-primary-rgb), 0.3);
                 }
             `}</style>
         </>

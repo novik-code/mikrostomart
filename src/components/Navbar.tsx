@@ -256,11 +256,11 @@ export default function Navbar() {
                                                 >
                                                     <div style={{
                                                         background: 'rgba(18, 20, 24, 0.95)',
-                                                        border: '1px solid rgba(212, 175, 55, 0.15)',
+                                                        border: '1px solid rgba(var(--color-primary-dark-rgb), 0.15)',
                                                         borderRadius: 'var(--radius-md)',
                                                         padding: '0.5rem 0',
                                                         minWidth: '260px',
-                                                        boxShadow: '0 15px 40px rgba(0,0,0,0.6), 0 0 20px rgba(212,175,55,0.05)',
+                                                        boxShadow: '0 15px 40px rgba(0,0,0,0.6), 0 0 20px rgba(var(--color-primary-dark-rgb),0.05)',
                                                         display: 'flex',
                                                         flexDirection: 'column',
                                                         backdropFilter: 'blur(16px)',

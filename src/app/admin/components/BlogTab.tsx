@@ -150,7 +150,7 @@ export default function BlogTab({ initialBlogPosts }: { initialBlogPosts: any[] 
                                 style={{
                                     width: "100%",
                                     opacity: isGenerating ? 0.7 : 1,
-                                    background: "linear-gradient(135deg, #dcb14a, #f0c96c)"
+                                    background: "linear-gradient(135deg, var(--color-primary), var(--color-primary-light))"
                                 }}
                             >
                                 {isGenerating ? "Generowanie (ok. 30-60s)..." : "Generuj Post na Bloga ✍️"}

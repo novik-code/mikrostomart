@@ -200,8 +200,8 @@ export default function PainMapInteractive() {
                     y={zone.y}
                     width={zone.w}
                     height={zone.h}
-                    fill={isActive ? 'rgba(220, 177, 74, 0.3)' : 'transparent'}
-                    stroke={isActive ? '#dcb14a' : 'transparent'}
+                    fill={isActive ? 'rgba(var(--color-primary-rgb), 0.3)' : 'transparent'}
+                    stroke={isActive ? 'var(--color-primary)' : 'transparent'}
                     strokeWidth={isSelected ? 0.8 : 0.5}
                     rx={1}
                     style={{ cursor: 'pointer', transition: 'all 0.2s ease' }}
@@ -234,10 +234,10 @@ export default function PainMapInteractive() {
             {hoveredZoneId && !selectedZoneId && (
                 <div style={{
                     position: 'absolute', bottom: '12px', left: '50%', transform: 'translateX(-50%)',
-                    background: 'rgba(10,10,10,0.9)', color: '#dcb14a',
+                    background: 'rgba(10,10,10,0.9)', color: 'var(--color-primary)',
                     padding: '8px 20px', borderRadius: '24px', fontSize: '13px',
                     fontWeight: 600, whiteSpace: 'nowrap', zIndex: 20,
-                    border: '1px solid rgba(220,177,74,0.4)', backdropFilter: 'blur(12px)',
+                    border: '1px solid rgba(var(--color-primary-rgb),0.4)', backdropFilter: 'blur(12px)',
                     pointerEvents: 'none', animation: 'slideDown 0.15s ease-out',
                     boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
                     letterSpacing: '0.02em',
@@ -268,7 +268,7 @@ export default function PainMapInteractive() {
                 {quadrants.map((q, qi) => (
                     <div key={q.title} style={{ marginBottom: qi < quadrants.length - 1 ? '24px' : 0 }}>
                         <div style={{ marginBottom: '12px' }}>
-                            <h3 style={{ color: '#dcb14a', fontWeight: 700, fontSize: '14px', letterSpacing: '0.05em', textTransform: 'uppercase', margin: 0 }}>
+                            <h3 style={{ color: 'var(--color-primary)', fontWeight: 700, fontSize: '14px', letterSpacing: '0.05em', textTransform: 'uppercase', margin: 0 }}>
                                 {q.title}
                             </h3>
                             <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '11px' }}>{q.subtitle}</span>
@@ -286,17 +286,17 @@ export default function PainMapInteractive() {
                                             display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
                                             padding: '10px 12px', borderRadius: '12px', border: 'none',
                                             cursor: 'pointer', textAlign: 'left', transition: 'all 0.2s ease',
-                                            background: isSelected ? 'rgba(220,177,74,0.15)' : 'rgba(255,255,255,0.04)',
-                                            outline: isSelected ? '1px solid rgba(220,177,74,0.5)' : '1px solid rgba(255,255,255,0.06)',
+                                            background: isSelected ? 'rgba(var(--color-primary-rgb),0.15)' : 'rgba(255,255,255,0.04)',
+                                            outline: isSelected ? '1px solid rgba(var(--color-primary-rgb),0.5)' : '1px solid rgba(255,255,255,0.06)',
                                         }}
-                                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(220,177,74,0.1)'; e.currentTarget.style.outline = '1px solid rgba(220,177,74,0.3)'; }}
+                                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(var(--color-primary-rgb),0.1)'; e.currentTarget.style.outline = '1px solid rgba(var(--color-primary-rgb),0.3)'; }}
                                         onMouseLeave={e => {
-                                            e.currentTarget.style.background = isSelected ? 'rgba(220,177,74,0.15)' : 'rgba(255,255,255,0.04)';
-                                            e.currentTarget.style.outline = isSelected ? '1px solid rgba(220,177,74,0.5)' : '1px solid rgba(255,255,255,0.06)';
+                                            e.currentTarget.style.background = isSelected ? 'rgba(var(--color-primary-rgb),0.15)' : 'rgba(255,255,255,0.04)';
+                                            e.currentTarget.style.outline = isSelected ? '1px solid rgba(var(--color-primary-rgb),0.5)' : '1px solid rgba(255,255,255,0.06)';
                                         }}
                                     >
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                                            <span style={{ color: '#dcb14a', fontWeight: 700, fontSize: '13px' }}>{key}</span>
+                                            <span style={{ color: 'var(--color-primary)', fontWeight: 700, fontSize: '13px' }}>{key}</span>
                                         </div>
                                         <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '11px', lineHeight: 1.3 }}>
                                             {info.title}
@@ -332,15 +332,15 @@ export default function PainMapInteractive() {
                     <div style={{
                         position: 'relative', zIndex: 1,
                         background: 'linear-gradient(145deg, rgba(20,20,20,0.95), rgba(10,10,10,0.98))',
-                        border: '1px solid rgba(220,177,74,0.3)',
+                        border: '1px solid rgba(var(--color-primary-rgb),0.3)',
                         borderRadius: '24px', padding: '32px 28px', maxWidth: '420px', width: '100%',
                         textAlign: 'center', backdropFilter: 'blur(20px)',
-                        boxShadow: '0 25px 60px rgba(0,0,0,0.7), 0 0 40px rgba(220,177,74,0.08)',
+                        boxShadow: '0 25px 60px rgba(0,0,0,0.7), 0 0 40px rgba(var(--color-primary-rgb),0.08)',
                         animation: introClosing ? 'fadeInUp 0.3s ease reverse forwards' : 'fadeInUp 0.4s ease',
                     }}>
                         <div style={{ fontSize: '48px', marginBottom: '12px' }}>🦷</div>
                         <h2 style={{
-                            color: '#dcb14a', fontSize: '24px', fontWeight: 700,
+                            color: 'var(--color-primary)', fontSize: '24px', fontWeight: 700,
                             marginBottom: '12px', letterSpacing: '-0.01em',
                         }}>
                             {t('heroTitle')}
@@ -364,13 +364,13 @@ export default function PainMapInteractive() {
                             onClick={closeIntro}
                             style={{
                                 width: '100%', padding: '14px', border: 'none', borderRadius: '14px',
-                                background: 'linear-gradient(135deg, #dcb14a, #c59d3e)',
+                                background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-dark))',
                                 color: '#000', fontWeight: 700, fontSize: '15px', cursor: 'pointer',
                                 transition: 'all 0.2s ease', letterSpacing: '0.02em',
-                                boxShadow: '0 4px 16px rgba(220,177,74,0.3)',
+                                boxShadow: '0 4px 16px rgba(var(--color-primary-rgb),0.3)',
                             }}
-                            onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 24px rgba(220,177,74,0.4)'; }}
-                            onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(220,177,74,0.3)'; }}
+                            onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 24px rgba(var(--color-primary-rgb),0.4)'; }}
+                            onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(var(--color-primary-rgb),0.3)'; }}
                         >
                             {t('startDiagnostics')}
                         </button>
@@ -395,9 +395,9 @@ export default function PainMapInteractive() {
                                 padding: '8px 20px', border: 'none', borderRadius: '10px',
                                 fontSize: '13px', fontWeight: 600, cursor: 'pointer',
                                 transition: 'all 0.2s ease', letterSpacing: '0.02em',
-                                background: viewMode === mode ? 'linear-gradient(135deg, #dcb14a, #c59d3e)' : 'transparent',
+                                background: viewMode === mode ? 'linear-gradient(135deg, var(--color-primary), var(--color-primary-dark))' : 'transparent',
                                 color: viewMode === mode ? '#000' : 'rgba(255,255,255,0.4)',
-                                boxShadow: viewMode === mode ? '0 2px 12px rgba(220,177,74,0.25)' : 'none',
+                                boxShadow: viewMode === mode ? '0 2px 12px rgba(var(--color-primary-rgb),0.25)' : 'none',
                             }}
                         >
                             {mode === 'map' ? t('viewMap') : t('viewList')}
@@ -438,10 +438,10 @@ export default function PainMapInteractive() {
                         position: 'relative', zIndex: 1, width: '100%', maxWidth: '500px',
                         maxHeight: '88vh', overflowY: 'auto',
                         background: 'linear-gradient(180deg, rgba(18,18,18,0.98), rgba(10,10,10,0.99))',
-                        borderTop: '2px solid rgba(220,177,74,0.4)',
+                        borderTop: '2px solid rgba(var(--color-primary-rgb),0.4)',
                         borderRadius: '24px 24px 0 0',
                         padding: '28px 24px 32px',
-                        boxShadow: '0 -10px 50px rgba(0,0,0,0.6), 0 0 30px rgba(220,177,74,0.05)',
+                        boxShadow: '0 -10px 50px rgba(0,0,0,0.6), 0 0 30px rgba(var(--color-primary-rgb),0.05)',
                         backdropFilter: 'blur(20px)',
                         animation: modalClosing ? 'fadeInUp 0.25s ease reverse forwards' : 'fadeInUp 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
                     }}>
@@ -462,7 +462,7 @@ export default function PainMapInteractive() {
                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                                 transition: 'all 0.2s ease', fontSize: '16px',
                             }}
-                            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(220,177,74,0.15)'; e.currentTarget.style.color = '#dcb14a'; e.currentTarget.style.borderColor = 'rgba(220,177,74,0.3)'; }}
+                            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(var(--color-primary-rgb),0.15)'; e.currentTarget.style.color = 'var(--color-primary)'; e.currentTarget.style.borderColor = 'rgba(var(--color-primary-rgb),0.3)'; }}
                             onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = 'rgba(255,255,255,0.4)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; }}
                         >
                             ✕
@@ -470,7 +470,7 @@ export default function PainMapInteractive() {
 
                         {/* Title + subtitle */}
                         <h3 style={{
-                            color: '#dcb14a', fontSize: '22px', fontWeight: 700,
+                            color: 'var(--color-primary)', fontSize: '22px', fontWeight: 700,
                             margin: '0 0 2px', letterSpacing: '-0.01em',
                         }}>
                             {selectedData.title}
@@ -514,7 +514,7 @@ export default function PainMapInteractive() {
                             border: '1px solid rgba(255,255,255,0.06)',
                         }}>
                             <span style={{
-                                color: '#dcb14a', fontSize: '11px', fontWeight: 700,
+                                color: 'var(--color-primary)', fontSize: '11px', fontWeight: 700,
                                 textTransform: 'uppercase', letterSpacing: '0.08em',
                                 display: 'block', marginBottom: '10px',
                             }}>
@@ -529,11 +529,11 @@ export default function PainMapInteractive() {
                                     >
                                         <span style={{
                                             width: '6px', height: '6px', borderRadius: '50%',
-                                            background: '#dcb14a', flexShrink: 0, marginTop: '6px',
+                                            background: 'var(--color-primary)', flexShrink: 0, marginTop: '6px',
                                         }} />
                                         <span style={{ color: 'rgba(255,255,255,0.65)', fontSize: '13px', lineHeight: 1.5 }}>
                                             {s.text}
-                                            {s.tip && <span style={{ color: 'rgba(220,177,74,0.5)', fontSize: '11px', marginLeft: '4px' }}>ⓘ</span>}
+                                            {s.tip && <span style={{ color: 'rgba(var(--color-primary-rgb),0.5)', fontSize: '11px', marginLeft: '4px' }}>ⓘ</span>}
                                         </span>
                                     </div>
                                 ))}
@@ -547,7 +547,7 @@ export default function PainMapInteractive() {
                             border: '1px solid rgba(255,255,255,0.06)',
                         }}>
                             <span style={{
-                                color: '#dcb14a', fontSize: '11px', fontWeight: 700,
+                                color: 'var(--color-primary)', fontSize: '11px', fontWeight: 700,
                                 textTransform: 'uppercase', letterSpacing: '0.08em',
                                 display: 'block', marginBottom: '10px',
                             }}>
@@ -565,7 +565,7 @@ export default function PainMapInteractive() {
                                             background: 'transparent', border: 'none',
                                         }}
                                         onMouseEnter={e => {
-                                            (e.currentTarget as HTMLElement).style.background = 'rgba(220,177,74,0.08)';
+                                            (e.currentTarget as HTMLElement).style.background = 'rgba(var(--color-primary-rgb),0.08)';
                                             showTip(c.tip, e);
                                         }}
                                         onMouseLeave={e => {
@@ -579,9 +579,9 @@ export default function PainMapInteractive() {
                                         }} />
                                         <span style={{ color: 'rgba(255,255,255,0.55)', fontSize: '13px', lineHeight: 1.5, flex: 1 }}>
                                             {c.text}
-                                            {c.tip && <span style={{ color: 'rgba(220,177,74,0.4)', fontSize: '11px', marginLeft: '4px' }}>ⓘ</span>}
+                                            {c.tip && <span style={{ color: 'rgba(var(--color-primary-rgb),0.4)', fontSize: '11px', marginLeft: '4px' }}>ⓘ</span>}
                                         </span>
-                                        <span style={{ color: 'rgba(220,177,74,0.5)', fontSize: '11px', flexShrink: 0, marginTop: '3px' }}>{t('bookArrow')}</span>
+                                        <span style={{ color: 'rgba(var(--color-primary-rgb),0.5)', fontSize: '11px', flexShrink: 0, marginTop: '3px' }}>{t('bookArrow')}</span>
                                     </Link>
                                 ))}
                             </div>
@@ -590,12 +590,12 @@ export default function PainMapInteractive() {
                         {/* Recommended doctors */}
                         {activeLevel.doctors && activeLevel.doctors.length > 0 && (
                             <div style={{
-                                background: 'rgba(220,177,74,0.03)', borderRadius: '16px',
+                                background: 'rgba(var(--color-primary-rgb),0.03)', borderRadius: '16px',
                                 padding: '16px', marginBottom: '12px',
-                                border: '1px solid rgba(220,177,74,0.08)',
+                                border: '1px solid rgba(var(--color-primary-rgb),0.08)',
                             }}>
                                 <span style={{
-                                    color: '#dcb14a', fontSize: '11px', fontWeight: 700,
+                                    color: 'var(--color-primary)', fontSize: '11px', fontWeight: 700,
                                     textTransform: 'uppercase', letterSpacing: '0.08em',
                                     display: 'block', marginBottom: '10px',
                                 }}>
@@ -616,14 +616,14 @@ export default function PainMapInteractive() {
                                                     border: '1px solid rgba(255,255,255,0.06)',
                                                     textDecoration: 'none', transition: 'all 0.15s ease',
                                                 }}
-                                                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(220,177,74,0.1)'; e.currentTarget.style.borderColor = 'rgba(220,177,74,0.3)'; }}
+                                                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(var(--color-primary-rgb),0.1)'; e.currentTarget.style.borderColor = 'rgba(var(--color-primary-rgb),0.3)'; }}
                                                 onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'; }}
                                             >
                                                 <div>
                                                     <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '13px', fontWeight: 600 }}>{doc.name}</div>
                                                     <div style={{ color: 'rgba(255,255,255,0.35)', fontSize: '11px', marginTop: '2px' }}>{doc.specialties}</div>
                                                 </div>
-                                                <span style={{ color: '#dcb14a', fontSize: '12px', fontWeight: 600, flexShrink: 0, marginLeft: '12px' }}>{t('bookSpecialist')}</span>
+                                                <span style={{ color: 'var(--color-primary)', fontSize: '12px', fontWeight: 600, flexShrink: 0, marginLeft: '12px' }}>{t('bookSpecialist')}</span>
                                             </Link>
                                         );
                                     })}
@@ -633,12 +633,12 @@ export default function PainMapInteractive() {
 
                         {/* Advice card */}
                         <div style={{
-                            background: 'rgba(220,177,74,0.04)', borderRadius: '16px',
+                            background: 'rgba(var(--color-primary-rgb),0.04)', borderRadius: '16px',
                             padding: '16px', marginBottom: '24px',
-                            border: '1px solid rgba(220,177,74,0.1)',
+                            border: '1px solid rgba(var(--color-primary-rgb),0.1)',
                         }}>
                             <span style={{
-                                color: '#dcb14a', fontSize: '11px', fontWeight: 700,
+                                color: 'var(--color-primary)', fontSize: '11px', fontWeight: 700,
                                 textTransform: 'uppercase', letterSpacing: '0.08em',
                                 display: 'block', marginBottom: '8px',
                             }}>
@@ -658,10 +658,10 @@ export default function PainMapInteractive() {
                             style={{
                                 display: 'block', width: '100%', padding: '14px',
                                 borderRadius: '14px', textAlign: 'center',
-                                background: 'linear-gradient(135deg, #dcb14a, #c59d3e)',
+                                background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-dark))',
                                 color: '#000', fontWeight: 700, fontSize: '15px',
                                 textDecoration: 'none', transition: 'all 0.2s ease',
-                                boxShadow: '0 4px 20px rgba(220,177,74,0.3)',
+                                boxShadow: '0 4px 20px rgba(var(--color-primary-rgb),0.3)',
                                 letterSpacing: '0.02em',
                             }}
                         >
@@ -678,7 +678,7 @@ export default function PainMapInteractive() {
                                 maxWidth: '260px', padding: '10px 14px',
                                 background: 'rgba(10,10,10,0.95)', color: 'rgba(255,255,255,0.8)',
                                 fontSize: '12px', lineHeight: 1.5, borderRadius: '12px',
-                                border: '1px solid rgba(220,177,74,0.3)',
+                                border: '1px solid rgba(var(--color-primary-rgb),0.3)',
                                 boxShadow: '0 8px 30px rgba(0,0,0,0.6)',
                                 zIndex: 10001, pointerEvents: 'none',
                                 animation: 'fadeIn 0.15s ease',
@@ -687,8 +687,8 @@ export default function PainMapInteractive() {
                                 <div style={{
                                     position: 'absolute', bottom: '-5px', left: '50%',
                                     width: '10px', height: '10px', background: 'rgba(10,10,10,0.95)',
-                                    borderRight: '1px solid rgba(220,177,74,0.3)',
-                                    borderBottom: '1px solid rgba(220,177,74,0.3)',
+                                    borderRight: '1px solid rgba(var(--color-primary-rgb),0.3)',
+                                    borderBottom: '1px solid rgba(var(--color-primary-rgb),0.3)',
                                     transform: 'translateX(-50%) rotate(45deg)',
                                 }} />
                             </div>

@@ -54,8 +54,8 @@ const renderPatientsTab = () => (
                             const getStatusBadge = (status: string | null) => {
                                 let bgColor, textColor, label;
                                 if (status === 'pending_admin_approval') {
-                                    bgColor = 'rgba(220, 177, 74, 0.2)';
-                                    textColor = '#dcb14a';
+                                    bgColor = 'rgba(var(--color-primary-rgb), 0.2)';
+                                    textColor = 'var(--color-primary)';
                                     label = '⏳ Oczekuje';
                                 } else if (status === 'active') {
                                     bgColor = 'rgba(34, 197, 94, 0.2)';

@@ -143,7 +143,7 @@ export default function SimulatorPage() {
             }}>
                 <div style={{
                     display: 'flex', alignItems: 'center', gap: '10px',
-                    color: '#dcb14a', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px'
+                    color: 'var(--color-primary)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px'
                 }}>
                     <RefreshCw size={20} /> Mikrostomart AI
                 </div>
@@ -155,7 +155,7 @@ export default function SimulatorPage() {
                 {step === 'upload' && (
                     <>
                         <h1 style={{ fontSize: '2rem', textAlign: 'center', fontWeight: 300 }}>
-                            {t('title')} <span style={{ color: '#dcb14a', fontWeight: 600 }}>{t('titleAccent')}</span>
+                            {t('title')} <span style={{ color: 'var(--color-primary)', fontWeight: 600 }}>{t('titleAccent')}</span>
                         </h1>
                         <p style={{ color: '#aaa', textAlign: 'center', marginBottom: '20px' }}>
                             {t('subtitle')}
@@ -219,7 +219,7 @@ export default function SimulatorPage() {
                 {step === 'processing' && (
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
                         <div className="relative">
-                            <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-[#dcb14a]"></div>
+                            <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-[var(--color-primary)]"></div>
                         </div>
                         <h2 style={{ fontSize: '1.2rem', color: '#eee' }}>{statusMessage}</h2>
                         <p style={{ color: '#666', fontSize: '0.9rem' }}>{t('statusWait')}</p>

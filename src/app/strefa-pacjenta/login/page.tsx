@@ -81,7 +81,7 @@ export default function PatientLogin() {
                     <div style={{
                         width: '80px',
                         height: '80px',
-                        background: 'linear-gradient(135deg, #dcb14a, #f0c96c)',
+                        background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-light))',
                         borderRadius: '50%',
                         display: 'flex',
                         alignItems: 'center',
@@ -95,7 +95,7 @@ export default function PatientLogin() {
                         fontSize: '2rem',
                         fontWeight: 'bold',
                         marginBottom: '0.5rem',
-                        background: 'linear-gradient(135deg, #fff, #dcb14a)',
+                        background: 'linear-gradient(135deg, #fff, var(--color-primary))',
                         WebkitBackgroundClip: 'text',
                         WebkitTextFillColor: 'transparent',
                     }}>
@@ -137,7 +137,7 @@ export default function PatientLogin() {
                                 transition: 'all 0.2s',
                             }}
                             onFocus={(e) => {
-                                e.target.style.borderColor = '#dcb14a';
+                                e.target.style.borderColor = 'var(--color-primary)';
                                 e.target.style.background = 'rgba(255, 255, 255, 0.08)';
                             }}
                             onBlur={(e) => {
@@ -176,7 +176,7 @@ export default function PatientLogin() {
                                 transition: 'all 0.2s',
                             }}
                             onFocus={(e) => {
-                                e.target.style.borderColor = '#dcb14a';
+                                e.target.style.borderColor = 'var(--color-primary)';
                                 e.target.style.background = 'rgba(255, 255, 255, 0.08)';
                             }}
                             onBlur={(e) => {
@@ -207,7 +207,7 @@ export default function PatientLogin() {
                         style={{
                             width: '100%',
                             padding: '1rem',
-                            background: isLoading ? 'rgba(220, 177, 74, 0.5)' : 'linear-gradient(135deg, #dcb14a, #f0c96c)',
+                            background: isLoading ? 'rgba(var(--color-primary-rgb), 0.5)' : 'linear-gradient(135deg, var(--color-primary), var(--color-primary-light))',
                             border: 'none',
                             borderRadius: '0.5rem',
                             color: '#000',
@@ -220,7 +220,7 @@ export default function PatientLogin() {
                         onMouseEnter={(e) => {
                             if (!isLoading) {
                                 e.currentTarget.style.transform = 'translateY(-2px)';
-                                e.currentTarget.style.boxShadow = '0 10px 25px rgba(220, 177, 74, 0.4)';
+                                e.currentTarget.style.boxShadow = '0 10px 25px rgba(var(--color-primary-rgb), 0.4)';
                             }
                         }}
                         onMouseLeave={(e) => {
@@ -241,7 +241,7 @@ export default function PatientLogin() {
                         <Link
                             href="/strefa-pacjenta/reset-password"
                             style={{
-                                color: '#dcb14a',
+                                color: 'var(--color-primary)',
                                 textDecoration: 'none',
                                 transition: 'opacity 0.2s',
                             }}
@@ -253,7 +253,7 @@ export default function PatientLogin() {
                         <Link
                             href="/strefa-pacjenta/register/verify"
                             style={{
-                                color: '#dcb14a',
+                                color: 'var(--color-primary)',
                                 textDecoration: 'none',
                                 transition: 'opacity 0.2s',
                             }}
@@ -275,7 +275,7 @@ export default function PatientLogin() {
                             textDecoration: 'none',
                             transition: 'color 0.2s',
                         }}
-                        onMouseEnter={(e) => e.currentTarget.style.color = '#dcb14a'}
+                        onMouseEnter={(e) => e.currentTarget.style.color = 'var(--color-primary)'}
                         onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(255, 255, 255, 0.6)'}
                     >
                         ← Powrót do strony głównej
@@ -301,14 +301,14 @@ export default function PatientLogin() {
                 }}>
                     <div style={{
                         background: 'linear-gradient(135deg, rgba(26, 26, 26, 0.98), rgba(10, 10, 10, 0.98))',
-                        border: '2px solid rgba(220, 177, 74, 0.3)',
+                        border: '2px solid rgba(var(--color-primary-rgb), 0.3)',
                         borderRadius: '1.5rem',
                         maxWidth: '650px',
                         width: '100%',
                         maxHeight: '90vh',
                         overflowY: 'auto',
                         padding: '3rem 2.5rem',
-                        boxShadow: '0 25px 100px rgba(220, 177, 74, 0.2)',
+                        boxShadow: '0 25px 100px rgba(var(--color-primary-rgb), 0.2)',
                     }}>
                         {/* Header */}
                         <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
@@ -320,7 +320,7 @@ export default function PatientLogin() {
                             </div>
                             <h2 style={{
                                 fontSize: '2rem',
-                                background: 'linear-gradient(135deg, #dcb14a, #f0c96c)',
+                                background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-light))',
                                 WebkitBackgroundClip: 'text',
                                 WebkitTextFillColor: 'transparent',
                                 marginBottom: '0.5rem',
@@ -336,14 +336,14 @@ export default function PatientLogin() {
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                             {/* Step 1 */}
                             <div style={{
-                                background: 'rgba(220, 177, 74, 0.08)',
-                                border: '1px solid rgba(220, 177, 74, 0.2)',
+                                background: 'rgba(var(--color-primary-rgb), 0.08)',
+                                border: '1px solid rgba(var(--color-primary-rgb), 0.2)',
                                 borderRadius: '1rem',
                                 padding: '1.5rem',
                             }}>
                                 <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
                                     <div style={{
-                                        background: 'linear-gradient(135deg, #dcb14a, #f0c96c)',
+                                        background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-light))',
                                         borderRadius: '50%',
                                         width: '36px',
                                         height: '36px',
@@ -357,7 +357,7 @@ export default function PatientLogin() {
                                         1
                                     </div>
                                     <div>
-                                        <h3 style={{ color: '#dcb14a', marginBottom: '0.5rem', fontSize: '1.15rem' }}>
+                                        <h3 style={{ color: 'var(--color-primary)', marginBottom: '0.5rem', fontSize: '1.15rem' }}>
                                             Rejestracja konta
                                         </h3>
                                         <p style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '0.95rem', lineHeight: '1.6' }}>
@@ -493,7 +493,7 @@ export default function PatientLogin() {
                                 marginTop: '2rem',
                                 width: '100%',
                                 padding: '1rem',
-                                background: 'linear-gradient(135deg, #dcb14a, #f0c96c)',
+                                background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-light))',
                                 border: 'none',
                                 borderRadius: '0.75rem',
                                 color: '#000',
@@ -504,7 +504,7 @@ export default function PatientLogin() {
                             }}
                             onMouseEnter={(e) => {
                                 e.currentTarget.style.transform = 'translateY(-2px)';
-                                e.currentTarget.style.boxShadow = '0 10px 30px rgba(220, 177, 74, 0.4)';
+                                e.currentTarget.style.boxShadow = '0 10px 30px rgba(var(--color-primary-rgb), 0.4)';
                             }}
                             onMouseLeave={(e) => {
                                 e.currentTarget.style.transform = 'translateY(0)';

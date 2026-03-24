@@ -151,7 +151,7 @@ export default function CancelAppointmentModal({
                                     outline: 'none',
                                     transition: 'border-color 0.2s ease'
                                 }}
-                                onFocus={(e) => e.currentTarget.style.borderColor = '#dcb14a'}
+                                onFocus={(e) => e.currentTarget.style.borderColor = 'var(--color-primary)'}
                                 onBlur={(e) => e.currentTarget.style.borderColor = '#333'}
                             />
                         </div>

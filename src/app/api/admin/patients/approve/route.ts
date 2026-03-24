@@ -80,7 +80,7 @@ export async function POST(request: Request) {
                             </ul>
                             <p>
                                 <a href="${process.env.NEXT_PUBLIC_SITE_URL}/strefa-pacjenta/login" 
-                                   style="display: inline-block; padding: 12px 24px; background: linear-gradient(135deg, #dcb14a, #f0c96c); color: #000; text-decoration: none; border-radius: 8px; font-weight: bold;">
+                                   style="display: inline-block; padding: 12px 24px; background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light)); color: #000; text-decoration: none; border-radius: 8px; font-weight: bold;">
                                     Zaloguj się
                                 </a>
                             </p>

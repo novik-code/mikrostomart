@@ -21,7 +21,7 @@ export default function QuestionsTab({ initialQuestions }: { initialQuestions: a
                 <div key={q.id} style={{ background: "var(--color-surface)", padding: "1.5rem", borderRadius: "var(--radius-md)" }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                         <span style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>{new Date(q.created_at).toLocaleDateString()}</span>
-                        <span style={{ background: q.status === 'pending' ? '#dcb14a' : 'green', color: 'black', padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 'bold' }}>{q.status}</span>
+                        <span style={{ background: q.status === 'pending' ? 'var(--color-primary)' : 'green', color: 'black', padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 'bold' }}>{q.status}</span>
                     </div>
                     <p style={{ fontSize: "1.1rem", marginBottom: "1rem" }}>{q.question}</p>
                     <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>

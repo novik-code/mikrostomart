@@ -168,7 +168,7 @@ export default function AppointmentScheduler({ specialistId, specialistName, onS
                 justifyContent: "space-between",
                 marginBottom: "1.5rem",
                 paddingBottom: "1rem",
-                borderBottom: "1px solid rgba(220, 177, 74, 0.2)",
+                borderBottom: "1px solid rgba(var(--color-primary-rgb), 0.2)",
                 gap: "0.5rem"
             }}>
                 <button
@@ -176,8 +176,8 @@ export default function AppointmentScheduler({ specialistId, specialistName, onS
                     disabled={isSameDay(currentWeekStart, startOfWeek(new Date(), { weekStartsOn: 1 }))}
                     style={{
                         padding: "0.625rem",
-                        background: "rgba(220, 177, 74, 0.1)",
-                        border: "1px solid rgba(220, 177, 74, 0.3)",
+                        background: "rgba(var(--color-primary-rgb), 0.1)",
+                        border: "1px solid rgba(var(--color-primary-rgb), 0.3)",
                         borderRadius: "0.5rem",
                         cursor: isSameDay(currentWeekStart, startOfWeek(new Date(), { weekStartsOn: 1 })) ? "not-allowed" : "pointer",
                         transition: "all 0.2s",
@@ -185,7 +185,7 @@ export default function AppointmentScheduler({ specialistId, specialistName, onS
                         flexShrink: 0
                     }}
                 >
-                    <ChevronLeft style={{ width: "1.25rem", height: "1.25rem", color: "#dcb14a" }} />
+                    <ChevronLeft style={{ width: "1.25rem", height: "1.25rem", color: "var(--color-primary)" }} />
                 </button>
 
                 <div style={{ textAlign: "center", flex: 1, minWidth: 0 }}>
@@ -208,7 +208,7 @@ export default function AppointmentScheduler({ specialistId, specialistName, onS
                         gap: "0.5rem",
                         flexWrap: "wrap"
                     }}>
-                        <Calendar style={{ width: "0.9rem", height: "0.9rem", color: "#dcb14a", flexShrink: 0 }} />
+                        <Calendar style={{ width: "0.9rem", height: "0.9rem", color: "var(--color-primary)", flexShrink: 0 }} />
                         <span style={{ whiteSpace: "nowrap", fontSize: "0.85rem" }}>
                             {format(currentWeekStart, 'd MMM', { locale: pl })} - {format(addDays(currentWeekStart, 4), 'd MMM', { locale: pl })}
                         </span>
@@ -219,15 +219,15 @@ export default function AppointmentScheduler({ specialistId, specialistName, onS
                     onClick={handleNextWeek}
                     style={{
                         padding: "0.625rem",
-                        background: "rgba(220, 177, 74, 0.1)",
-                        border: "1px solid rgba(220, 177, 74, 0.3)",
+                        background: "rgba(var(--color-primary-rgb), 0.1)",
+                        border: "1px solid rgba(var(--color-primary-rgb), 0.3)",
                         borderRadius: "0.5rem",
                         cursor: "pointer",
                         transition: "all 0.2s",
                         flexShrink: 0
                     }}
                 >
-                    <ChevronRight style={{ width: "1.25rem", height: "1.25rem", color: "#dcb14a" }} />
+                    <ChevronRight style={{ width: "1.25rem", height: "1.25rem", color: "var(--color-primary)" }} />
                 </button>
             </div>
 
@@ -239,7 +239,7 @@ export default function AppointmentScheduler({ specialistId, specialistName, onS
                     alignItems: "center",
                     gap: "1rem"
                 }}>
-                    <Loader2 style={{ width: "2rem", height: "2rem", color: "#dcb14a" }} className="animate-spin" />
+                    <Loader2 style={{ width: "2rem", height: "2rem", color: "var(--color-primary)" }} className="animate-spin" />
                     <p style={{ fontSize: "0.875rem", color: "#9ca3af" }}>Ładowanie dostępnych terminów...</p>
                 </div>
             ) : error ? (
@@ -279,12 +279,12 @@ export default function AppointmentScheduler({ specialistId, specialistName, onS
                                         padding: "0.75rem 0.25rem",
                                         borderRadius: "0.75rem",
                                         border: isSelected
-                                            ? "2px solid #dcb14a"
+                                            ? "2px solid var(--color-primary)"
                                             : hasSlots
                                                 ? "1px solid rgba(255, 255, 255, 0.1)"
                                                 : "1px solid transparent",
                                         background: isSelected
-                                            ? "#dcb14a"
+                                            ? "var(--color-primary)"
                                             : hasSlots
                                                 ? "rgba(255, 255, 255, 0.05)"
                                                 : "rgba(0, 0, 0, 0.2)",
@@ -336,7 +336,7 @@ export default function AppointmentScheduler({ specialistId, specialistName, onS
                             background: "rgba(0, 0, 0, 0.3)",
                             padding: "1.25rem",
                             borderRadius: "0.75rem",
-                            border: "1px solid rgba(220, 177, 74, 0.2)"
+                            border: "1px solid rgba(var(--color-primary-rgb), 0.2)"
                         }}>
                             <h4 style={{
                                 fontSize: "0.875rem",
@@ -346,7 +346,7 @@ export default function AppointmentScheduler({ specialistId, specialistName, onS
                                 borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
                                 fontWeight: "500"
                             }}>
-                                Dostępne godziny: <span style={{ color: "#dcb14a", fontWeight: "600" }}>
+                                Dostępne godziny: <span style={{ color: "var(--color-primary)", fontWeight: "600" }}>
                                     {format(selectedDateView, 'EEEE, d MMMM', { locale: pl })}
                                 </span>
                             </h4>
@@ -373,11 +373,11 @@ export default function AppointmentScheduler({ specialistId, specialistName, onS
                                                     borderRadius: "0.5rem",
                                                     border: isSelected
                                                         ? "2px solid white"
-                                                        : "1px solid rgba(220, 177, 74, 0.3)",
+                                                        : "1px solid rgba(var(--color-primary-rgb), 0.3)",
                                                     background: isSelected
                                                         ? "white"
-                                                        : "rgba(220, 177, 74, 0.1)",
-                                                    color: isSelected ? "black" : "#dcb14a",
+                                                        : "rgba(var(--color-primary-rgb), 0.1)",
+                                                    color: isSelected ? "black" : "var(--color-primary)",
                                                     fontSize: "1rem",
                                                     fontWeight: "700",
                                                     cursor: "pointer",

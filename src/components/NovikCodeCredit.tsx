@@ -175,7 +175,7 @@ export default function NovikCodeCredit() {
                                     width: '200px',
                                     height: '200px',
                                     borderRadius: '50%',
-                                    border: `1px solid rgba(212, 175, 55, ${0.25 - ring * 0.06})`,
+                                    border: `1px solid rgba(var(--color-primary-dark-rgb), ${0.25 - ring * 0.06})`,
                                     top: '50%',
                                     left: '50%',
                                     transform: 'translate(-50%, -50%)',
@@ -203,7 +203,7 @@ export default function NovikCodeCredit() {
                                     background: p.id % 4 === 0
                                         ? '#d4af37'
                                         : p.id % 4 === 1
-                                            ? 'rgba(212, 175, 55, 0.5)'
+                                            ? 'rgba(var(--color-primary-dark-rgb), 0.5)'
                                             : p.id % 4 === 2
                                                 ? 'rgba(255, 200, 100, 0.4)'
                                                 : 'rgba(255, 255, 255, 0.3)',
@@ -211,7 +211,7 @@ export default function NovikCodeCredit() {
                                     left: '50%',
                                     pointerEvents: 'none',
                                     boxShadow: p.id % 4 === 0
-                                        ? '0 0 8px rgba(212, 175, 55, 0.6)'
+                                        ? '0 0 8px rgba(var(--color-primary-dark-rgb), 0.6)'
                                         : 'none',
                                 }}
                                 initial={{ x: 0, y: 0, opacity: 1, scale: 0 }}

@@ -286,13 +286,13 @@ export default function PatientProfile() {
                                             style={{
                                                 padding: '0.625rem 1rem',
                                                 background: locale === lang.code
-                                                    ? 'rgba(220, 177, 74, 0.2)'
+                                                    ? 'rgba(var(--color-primary-rgb), 0.2)'
                                                     : 'rgba(255, 255, 255, 0.05)',
                                                 border: locale === lang.code
-                                                    ? '2px solid rgba(220, 177, 74, 0.6)'
+                                                    ? '2px solid rgba(var(--color-primary-rgb), 0.6)'
                                                     : '1px solid rgba(255, 255, 255, 0.1)',
                                                 borderRadius: '0.5rem',
-                                                color: locale === lang.code ? '#dcb14a' : 'rgba(255, 255, 255, 0.7)',
+                                                color: locale === lang.code ? 'var(--color-primary)' : 'rgba(255, 255, 255, 0.7)',
                                                 cursor: 'pointer',
                                                 fontSize: '0.9rem',
                                                 fontWeight: locale === lang.code ? 'bold' : 'normal',
@@ -330,7 +330,7 @@ export default function PatientProfile() {
                                 disabled={isSaving}
                                 style={{
                                     padding: '1rem',
-                                    background: isSaving ? 'rgba(220, 177, 74, 0.5)' : 'linear-gradient(135deg, #dcb14a, #f0c96c)',
+                                    background: isSaving ? 'rgba(var(--color-primary-rgb), 0.5)' : 'linear-gradient(135deg, var(--color-primary), var(--color-primary-light))',
                                     border: 'none',
                                     borderRadius: '0.5rem',
                                     color: '#000',
@@ -467,7 +467,7 @@ export default function PatientProfile() {
                                 disabled={isChangingPassword}
                                 style={{
                                     padding: '1rem',
-                                    background: isChangingPassword ? 'rgba(220, 177, 74, 0.5)' : 'linear-gradient(135deg, #dcb14a, #f0c96c)',
+                                    background: isChangingPassword ? 'rgba(var(--color-primary-rgb), 0.5)' : 'linear-gradient(135deg, var(--color-primary), var(--color-primary-light))',
                                     border: 'none',
                                     borderRadius: '0.5rem',
                                     color: '#000',
@@ -529,7 +529,7 @@ export default function PatientProfile() {
                                             cursor: 'pointer',
                                             position: 'relative',
                                             transition: 'background 0.2s',
-                                            background: notifPrefs[item.key] ? '#dcb14a' : 'rgba(255, 255, 255, 0.15)',
+                                            background: notifPrefs[item.key] ? 'var(--color-primary)' : 'rgba(255, 255, 255, 0.15)',
                                             flexShrink: 0,
                                         }}
                                     >
@@ -585,7 +585,7 @@ export default function PatientProfile() {
                                 disabled={isSavingNotifs}
                                 style={{
                                     padding: '1rem',
-                                    background: isSavingNotifs ? 'rgba(220, 177, 74, 0.5)' : 'linear-gradient(135deg, #dcb14a, #f0c96c)',
+                                    background: isSavingNotifs ? 'rgba(var(--color-primary-rgb), 0.5)' : 'linear-gradient(135deg, var(--color-primary), var(--color-primary-light))',
                                     border: 'none',
                                     borderRadius: '0.5rem',
                                     color: '#000',
@@ -794,7 +794,7 @@ export default function PatientProfile() {
                         🔒
                     </div>
                     <h2 style={{
-                        color: '#dcb14a',
+                        color: 'var(--color-primary)',
                         fontSize: '1.8rem',
                         marginBottom: '1rem',
                     }}>

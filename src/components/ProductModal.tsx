@@ -109,14 +109,14 @@ export default function ProductModal({ product, initialStep = "PRODUCT", onClose
             const isDeposit = product?.id === 'deposit-payment';
             return (
                 <div style={{ padding: "4rem", textAlign: "center", color: "white", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%" }}>
-                    <CheckCircle size={64} color="#dcb14a" style={{ marginBottom: "1.5rem" }} />
+                    <CheckCircle size={64} color="var(--color-primary)" style={{ marginBottom: "1.5rem" }} />
                     <h2 style={{ fontSize: "2rem", marginBottom: "1rem" }}>
                         {isDeposit ? t('depositPaid') : t('thankYou')}
                     </h2>
                     <p style={{ color: "#d1d5db", maxWidth: "400px", lineHeight: "1.6", marginBottom: "2rem" }}>
                         {isDeposit ? t('depositConfirmation') : t('orderConfirmation')}
                     </p>
-                    <button onClick={onClose} className="btn-primary" style={{ background: "#dcb14a", color: "black", border: "none" }}>
+                    <button onClick={onClose} className="btn-primary" style={{ background: "var(--color-primary)", color: "black", border: "none" }}>
                         {isDeposit ? t('backToHome') : t('closeWindow')}
                     </button>
                 </div>
@@ -151,7 +151,7 @@ export default function ProductModal({ product, initialStep = "PRODUCT", onClose
                         </div>
                         <div style={{ marginTop: '2rem', paddingTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.1)', color: 'white', display: 'flex', justifyContent: 'space-between', fontSize: '1.2rem', fontWeight: 'bold' }}>
                             <span>{t('total')}</span>
-                            <span style={{ color: '#dcb14a' }}>{total} PLN</span>
+                            <span style={{ color: 'var(--color-primary)' }}>{total} PLN</span>
                         </div>
                     </div>
 
@@ -208,7 +208,7 @@ export default function ProductModal({ product, initialStep = "PRODUCT", onClose
                             }}>
                                 {images.map((img, idx) => (
                                     <button key={idx} onClick={() => setCurrentImageIndex(idx)} style={{
-                                        border: currentImageIndex === idx ? '2px solid #dcb14a' : '2px solid transparent',
+                                        border: currentImageIndex === idx ? '2px solid var(--color-primary)' : '2px solid transparent',
                                         borderRadius: '6px', overflow: 'hidden', width: '50px', height: '50px', flexShrink: 0, padding: 0
                                     }}>
                                         <img src={img} alt="thumb" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -228,7 +228,7 @@ export default function ProductModal({ product, initialStep = "PRODUCT", onClose
                         <h2 style={{ fontSize: '28px', margin: '10px 0', fontFamily: 'serif', lineHeight: '1.2' }}>
                             {getTranslated(product, 'name', locale)}
                         </h2>
-                        <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#dcb14a' }}>
+                        <div style={{ fontSize: '24px', fontWeight: 'bold', color: 'var(--color-primary)' }}>
                             {currentPrice} PLN
                         </div>
 
@@ -248,7 +248,7 @@ export default function ProductModal({ product, initialStep = "PRODUCT", onClose
                                         width: "100%",
                                         padding: "1rem",
                                         background: "rgba(255,255,255,0.05)",
-                                        border: "1px solid #dcb14a",
+                                        border: "1px solid var(--color-primary)",
                                         borderRadius: "8px",
                                         color: "white",
                                         fontSize: "1.2rem",
@@ -275,14 +275,14 @@ export default function ProductModal({ product, initialStep = "PRODUCT", onClose
                             onClick={() => setStep("CHECKOUT")}
                             style={{
                                 background: 'rgba(255,255,255,0.05)', padding: '15px', borderRadius: '8px', marginBottom: '10px',
-                                cursor: 'pointer', border: '1px solid rgba(220, 177, 74, 0.2)', transition: 'background 0.2s'
+                                cursor: 'pointer', border: '1px solid rgba(var(--color-primary-rgb), 0.2)', transition: 'background 0.2s'
                             }}
                         >
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', color: '#9ca3af', marginBottom: '5px' }}>
                                 <span>{t('inCart', { count: items.length })}</span>
                                 <span>{t('cartTotal', { total })}</span>
                             </div>
-                            <div style={{ color: '#dcb14a', fontSize: '0.8rem', textAlign: 'right', fontWeight: 'bold' }}>
+                            <div style={{ color: 'var(--color-primary)', fontSize: '0.8rem', textAlign: 'right', fontWeight: 'bold' }}>
                                 {t('goToCart')}
                             </div>
                         </div>
@@ -317,8 +317,8 @@ export default function ProductModal({ product, initialStep = "PRODUCT", onClose
                             <button
                                 onClick={handleAddToCart}
                                 style={{
-                                    flex: 1, padding: '16px', borderRadius: '8px', border: '1px solid #dcb14a',
-                                    background: 'transparent', color: '#dcb14a', fontWeight: 'bold', cursor: 'pointer',
+                                    flex: 1, padding: '16px', borderRadius: '8px', border: '1px solid var(--color-primary)',
+                                    background: 'transparent', color: 'var(--color-primary)', fontWeight: 'bold', cursor: 'pointer',
                                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
                                     transition: 'all 0.2s'
                                 }}
@@ -330,9 +330,9 @@ export default function ProductModal({ product, initialStep = "PRODUCT", onClose
                                 onClick={handleBuyNow}
                                 style={{
                                     flex: 1, padding: '16px', borderRadius: '8px', border: 'none',
-                                    background: '#dcb14a', color: 'black', fontWeight: 'bold', cursor: 'pointer',
+                                    background: 'var(--color-primary)', color: 'black', fontWeight: 'bold', cursor: 'pointer',
                                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
-                                    boxShadow: '0 4px 15px rgba(220, 177, 74, 0.3)'
+                                    boxShadow: '0 4px 15px rgba(var(--color-primary-rgb), 0.3)'
                                 }}
                             >
                                 <CreditCard size={20} />
@@ -365,7 +365,7 @@ export default function ProductModal({ product, initialStep = "PRODUCT", onClose
                 maxWidth: '1000px', // Wider for split view in checkout
                 height: '80vh', // Fixed height for consistency
                 backgroundColor: 'rgba(18, 20, 24, 0.98)',
-                border: '1px solid rgba(220, 177, 74, 0.3)',
+                border: '1px solid rgba(var(--color-primary-rgb), 0.3)',
                 borderRadius: '16px',
                 boxShadow: '0 25px 60px rgba(0,0,0,0.5)',
                 overflow: 'hidden',

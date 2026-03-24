@@ -154,12 +154,12 @@ const badgeStyle = (status: string): React.CSSProperties => {
     };
 };
 
-const btnStyle = (color: string = '#dcb14a'): React.CSSProperties => ({
+const btnStyle = (color: string = 'var(--color-primary)'): React.CSSProperties => ({
     padding: '0.5rem 1rem',
     background: `linear-gradient(135deg, ${color}, ${color}cc)`,
     border: 'none',
     borderRadius: '0.5rem',
-    color: color === '#dcb14a' ? 'black' : 'white',
+    color: color === 'var(--color-primary)' ? 'black' : 'white',
     fontWeight: 600,
     fontSize: '0.85rem',
     cursor: 'pointer',
@@ -169,7 +169,7 @@ const inputStyle: React.CSSProperties = {
     width: '100%',
     padding: '0.65rem 0.8rem',
     background: 'rgba(0,0,0,0.3)',
-    border: '1px solid rgba(220,177,74,0.3)',
+    border: '1px solid rgba(var(--color-primary-rgb),0.3)',
     borderRadius: '0.5rem',
     color: 'white',
     fontSize: '0.9rem',
@@ -614,9 +614,9 @@ export default function SocialMediaTab() {
                         style={{
                             padding: '0.55rem 1.1rem',
                             borderRadius: '0.5rem',
-                            border: subTab === t.id ? '1px solid rgba(220,177,74,0.5)' : '1px solid rgba(255,255,255,0.1)',
-                            background: subTab === t.id ? 'rgba(220,177,74,0.15)' : 'rgba(255,255,255,0.04)',
-                            color: subTab === t.id ? '#dcb14a' : 'var(--color-text-muted)',
+                            border: subTab === t.id ? '1px solid rgba(var(--color-primary-rgb),0.5)' : '1px solid rgba(255,255,255,0.1)',
+                            background: subTab === t.id ? 'rgba(var(--color-primary-rgb),0.15)' : 'rgba(255,255,255,0.04)',
+                            color: subTab === t.id ? 'var(--color-primary)' : 'var(--color-text-muted)',
                             fontWeight: subTab === t.id ? 700 : 400,
                             fontSize: '0.85rem',
                             cursor: 'pointer',
@@ -640,7 +640,7 @@ export default function SocialMediaTab() {
 
                     {/* Schedule form */}
                     {showScheduleForm && (
-                        <div style={{ ...cardStyle, border: '1px solid rgba(220,177,74,0.3)' }}>
+                        <div style={{ ...cardStyle, border: '1px solid rgba(var(--color-primary-rgb),0.3)' }}>
                             <h4 style={{ margin: '0 0 1rem', fontSize: '1rem' }}>{editingSchedule ? '✏️ Edytuj harmonogram' : '➕ Nowy harmonogram'}</h4>
 
                             <div style={{ display: 'grid', gap: '0.75rem' }}>
@@ -659,9 +659,9 @@ export default function SocialMediaTab() {
                                                 style={{
                                                     padding: '0.4rem 0.8rem',
                                                     borderRadius: '0.4rem',
-                                                    border: scheduleForm.platform_ids.includes(p.id) ? '1px solid rgba(220,177,74,0.6)' : '1px solid rgba(255,255,255,0.15)',
-                                                    background: scheduleForm.platform_ids.includes(p.id) ? 'rgba(220,177,74,0.15)' : 'transparent',
-                                                    color: scheduleForm.platform_ids.includes(p.id) ? '#dcb14a' : 'var(--color-text-muted)',
+                                                    border: scheduleForm.platform_ids.includes(p.id) ? '1px solid rgba(var(--color-primary-rgb),0.6)' : '1px solid rgba(255,255,255,0.15)',
+                                                    background: scheduleForm.platform_ids.includes(p.id) ? 'rgba(var(--color-primary-rgb),0.15)' : 'transparent',
+                                                    color: scheduleForm.platform_ids.includes(p.id) ? 'var(--color-primary)' : 'var(--color-text-muted)',
                                                     fontSize: '0.8rem',
                                                     cursor: 'pointer',
                                                 }}
@@ -705,9 +705,9 @@ export default function SocialMediaTab() {
                                                 style={{
                                                     width: 38, height: 38,
                                                     borderRadius: '0.4rem',
-                                                    border: scheduleForm.preferred_days.includes(i + 1) ? '1px solid rgba(220,177,74,0.6)' : '1px solid rgba(255,255,255,0.15)',
-                                                    background: scheduleForm.preferred_days.includes(i + 1) ? 'rgba(220,177,74,0.2)' : 'transparent',
-                                                    color: scheduleForm.preferred_days.includes(i + 1) ? '#dcb14a' : 'var(--color-text-muted)',
+                                                    border: scheduleForm.preferred_days.includes(i + 1) ? '1px solid rgba(var(--color-primary-rgb),0.6)' : '1px solid rgba(255,255,255,0.15)',
+                                                    background: scheduleForm.preferred_days.includes(i + 1) ? 'rgba(var(--color-primary-rgb),0.2)' : 'transparent',
+                                                    color: scheduleForm.preferred_days.includes(i + 1) ? 'var(--color-primary)' : 'var(--color-text-muted)',
                                                     fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer',
                                                 }}
                                             >
@@ -734,7 +734,7 @@ export default function SocialMediaTab() {
                                             type="checkbox"
                                             checked={scheduleForm.auto_publish}
                                             onChange={e => setScheduleForm(f => ({ ...f, auto_publish: e.target.checked }))}
-                                            style={{ accentColor: '#dcb14a' }}
+                                            style={{ accentColor: 'var(--color-primary)' }}
                                         />
                                         Auto-publikuj (bez manualnej akceptacji)
                                     </label>
@@ -819,9 +819,9 @@ export default function SocialMediaTab() {
                                         style={{
                                             padding: '0.35rem 0.7rem',
                                             borderRadius: '0.4rem',
-                                            border: postsFilter === f ? '1px solid rgba(220,177,74,0.5)' : '1px solid rgba(255,255,255,0.1)',
-                                            background: postsFilter === f ? 'rgba(220,177,74,0.15)' : 'transparent',
-                                            color: postsFilter === f ? '#dcb14a' : 'var(--color-text-muted)',
+                                            border: postsFilter === f ? '1px solid rgba(var(--color-primary-rgb),0.5)' : '1px solid rgba(255,255,255,0.1)',
+                                            background: postsFilter === f ? 'rgba(var(--color-primary-rgb),0.15)' : 'transparent',
+                                            color: postsFilter === f ? 'var(--color-primary)' : 'var(--color-text-muted)',
                                             fontSize: '0.78rem', cursor: 'pointer',
                                         }}
                                     >
@@ -998,7 +998,7 @@ export default function SocialMediaTab() {
                     </div>
 
                     {/* Upload area */}
-                    <div style={{ ...cardStyle, border: '2px dashed rgba(220,177,74,0.3)', textAlign: 'center', padding: '2rem', cursor: 'pointer' }}
+                    <div style={{ ...cardStyle, border: '2px dashed rgba(var(--color-primary-rgb),0.3)', textAlign: 'center', padding: '2rem', cursor: 'pointer' }}
                         onClick={() => fileInputRef.current?.click()}
                     >
                         <input
@@ -1010,7 +1010,7 @@ export default function SocialMediaTab() {
                             onChange={handleMediaUpload}
                         />
                         {uploading ? (
-                            <p style={{ color: '#dcb14a' }}>⏳ Przesyłanie...</p>
+                            <p style={{ color: 'var(--color-primary)' }}>⏳ Przesyłanie...</p>
                         ) : (
                             <>
                                 <p style={{ color: 'var(--color-text-muted)', fontSize: '1rem', margin: '0 0 0.5rem' }}>📤 Kliknij aby przesłać pliki</p>
@@ -1058,7 +1058,7 @@ export default function SocialMediaTab() {
                                         {m.tags && m.tags.length > 0 && (
                                             <div style={{ display: 'flex', gap: '0.2rem', flexWrap: 'wrap', marginBottom: '0.4rem' }}>
                                                 {m.tags.map((t, i) => (
-                                                    <span key={i} style={{ fontSize: '0.65rem', padding: '0.1rem 0.4rem', background: 'rgba(220,177,74,0.1)', border: '1px solid rgba(220,177,74,0.2)', borderRadius: '999px', color: '#dcb14a' }}>
+                                                    <span key={i} style={{ fontSize: '0.65rem', padding: '0.1rem 0.4rem', background: 'rgba(var(--color-primary-rgb),0.1)', border: '1px solid rgba(var(--color-primary-rgb),0.2)', borderRadius: '999px', color: 'var(--color-primary)' }}>
                                                         {t}
                                                     </span>
                                                 ))}
@@ -1087,7 +1087,7 @@ export default function SocialMediaTab() {
 
                     {/* Add platform form */}
                     {showPlatformForm && (
-                        <div style={{ ...cardStyle, border: '1px solid rgba(220,177,74,0.3)' }}>
+                        <div style={{ ...cardStyle, border: '1px solid rgba(var(--color-primary-rgb),0.3)' }}>
                             <h4 style={{ margin: '0 0 1rem', fontSize: '1rem' }}>➕ Dodaj platformę</h4>
                             <div style={{ display: 'grid', gap: '0.75rem' }}>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
@@ -1184,8 +1184,8 @@ export default function SocialMediaTab() {
                     )}
 
                     {/* Info box */}
-                    <div style={{ marginTop: '1.5rem', padding: '1rem', background: 'rgba(220,177,74,0.06)', border: '1px solid rgba(220,177,74,0.2)', borderRadius: '0.5rem', fontSize: '0.8rem', color: 'var(--color-text-muted)', lineHeight: 1.6 }}>
-                        <strong style={{ color: '#dcb14a' }}>ℹ️ Tokeny OAuth</strong><br />
+                    <div style={{ marginTop: '1.5rem', padding: '1rem', background: 'rgba(var(--color-primary-rgb),0.06)', border: '1px solid rgba(var(--color-primary-rgb),0.2)', borderRadius: '0.5rem', fontSize: '0.8rem', color: 'var(--color-text-muted)', lineHeight: 1.6 }}>
+                        <strong style={{ color: 'var(--color-primary)' }}>ℹ️ Tokeny OAuth</strong><br />
                         Tokeny API (Page Access Token, OAuth tokens) zostaną dodane po implementacji OAuth callbacks (Faza 3).
                         Na razie dodaj platformy ręcznie z nazwą konta i URL — tokeny dopiszemy później.
                     </div>
@@ -1228,13 +1228,13 @@ export default function SocialMediaTab() {
 
                     {/* Category filter */}
                     <div style={{ display: 'flex', gap: '0.3rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
-                        <button onClick={() => setTopicCategoryFilter('all')} style={{ padding: '0.3rem 0.6rem', borderRadius: '0.4rem', border: topicCategoryFilter === 'all' ? '1px solid rgba(220,177,74,0.5)' : '1px solid rgba(255,255,255,0.1)', background: topicCategoryFilter === 'all' ? 'rgba(220,177,74,0.15)' : 'transparent', color: topicCategoryFilter === 'all' ? '#dcb14a' : 'var(--color-text-muted)', fontSize: '0.78rem', cursor: 'pointer' }}>
+                        <button onClick={() => setTopicCategoryFilter('all')} style={{ padding: '0.3rem 0.6rem', borderRadius: '0.4rem', border: topicCategoryFilter === 'all' ? '1px solid rgba(var(--color-primary-rgb),0.5)' : '1px solid rgba(255,255,255,0.1)', background: topicCategoryFilter === 'all' ? 'rgba(var(--color-primary-rgb),0.15)' : 'transparent', color: topicCategoryFilter === 'all' ? 'var(--color-primary)' : 'var(--color-text-muted)', fontSize: '0.78rem', cursor: 'pointer' }}>
                             Wszystkie ({topics.length})
                         </button>
                         {topicCategories.map(cat => {
                             const count = topics.filter(t => t.category === cat).length;
                             return (
-                                <button key={cat} onClick={() => setTopicCategoryFilter(cat)} style={{ padding: '0.3rem 0.6rem', borderRadius: '0.4rem', border: topicCategoryFilter === cat ? '1px solid rgba(220,177,74,0.5)' : '1px solid rgba(255,255,255,0.1)', background: topicCategoryFilter === cat ? 'rgba(220,177,74,0.15)' : 'transparent', color: topicCategoryFilter === cat ? '#dcb14a' : 'var(--color-text-muted)', fontSize: '0.78rem', cursor: 'pointer' }}>
+                                <button key={cat} onClick={() => setTopicCategoryFilter(cat)} style={{ padding: '0.3rem 0.6rem', borderRadius: '0.4rem', border: topicCategoryFilter === cat ? '1px solid rgba(var(--color-primary-rgb),0.5)' : '1px solid rgba(255,255,255,0.1)', background: topicCategoryFilter === cat ? 'rgba(var(--color-primary-rgb),0.15)' : 'transparent', color: topicCategoryFilter === cat ? 'var(--color-primary)' : 'var(--color-text-muted)', fontSize: '0.78rem', cursor: 'pointer' }}>
                                     {cat} ({count})
                                 </button>
                             );
@@ -1243,7 +1243,7 @@ export default function SocialMediaTab() {
 
                     {/* Add/Edit topic form */}
                     {showTopicForm && (
-                        <div style={{ ...cardStyle, border: '1px solid rgba(220,177,74,0.3)', marginBottom: '1rem' }}>
+                        <div style={{ ...cardStyle, border: '1px solid rgba(var(--color-primary-rgb),0.3)', marginBottom: '1rem' }}>
                             <h4 style={{ margin: '0 0 0.75rem', fontSize: '0.95rem' }}>{editingTopic ? '✏️ Edytuj temat' : '➕ Nowy temat'}</h4>
                             <div style={{ display: 'grid', gap: '0.75rem' }}>
                                 <div>
@@ -1454,7 +1454,7 @@ export default function SocialMediaTab() {
                                         {/* AI reply */}
                                         {cr.reply_text && cr.status !== 'skipped' && (
                                             <div style={{ marginBottom: '0.6rem' }}>
-                                                <div style={{ fontSize: '0.7rem', color: '#dcb14a', marginBottom: '0.25rem', fontWeight: 600 }}>🤖 Odpowiedź AI:</div>
+                                                <div style={{ fontSize: '0.7rem', color: 'var(--color-primary)', marginBottom: '0.25rem', fontWeight: 600 }}>🤖 Odpowiedź AI:</div>
                                                 {isEditing ? (
                                                     <div style={{ display: 'flex', gap: '0.4rem', flexDirection: 'column' }}>
                                                         <textarea
@@ -1479,7 +1479,7 @@ export default function SocialMediaTab() {
                                                         </div>
                                                     </div>
                                                 ) : (
-                                                    <div style={{ background: 'rgba(220,177,74,0.06)', borderRadius: '0.5rem', padding: '0.6rem 0.8rem', borderLeft: '2px solid rgba(220,177,74,0.3)', fontSize: '0.85rem', lineHeight: 1.5 }}>
+                                                    <div style={{ background: 'rgba(var(--color-primary-rgb),0.06)', borderRadius: '0.5rem', padding: '0.6rem 0.8rem', borderLeft: '2px solid rgba(var(--color-primary-rgb),0.3)', fontSize: '0.85rem', lineHeight: 1.5 }}>
                                                         {cr.reply_text}
                                                     </div>
                                                 )}

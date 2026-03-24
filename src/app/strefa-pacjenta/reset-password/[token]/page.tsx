@@ -129,7 +129,7 @@ export default function ResetPasswordConfirm() {
                         style={{
                             display: 'inline-block',
                             padding: '0.75rem 1.5rem',
-                            background: 'linear-gradient(135deg, #dcb14a, #f0c96c)',
+                            background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-light))',
                             color: '#000',
                             textDecoration: 'none',
                             borderRadius: '0.5rem',
@@ -167,7 +167,7 @@ export default function ResetPasswordConfirm() {
                     <div style={{
                         width: '80px',
                         height: '80px',
-                        background: 'linear-gradient(135deg, #dcb14a, #f0c96c)',
+                        background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-light))',
                         borderRadius: '50%',
                         display: 'flex',
                         alignItems: 'center',
@@ -181,7 +181,7 @@ export default function ResetPasswordConfirm() {
                         fontSize: '2rem',
                         fontWeight: 'bold',
                         marginBottom: '0.5rem',
-                        background: 'linear-gradient(135deg, #fff, #dcb14a)',
+                        background: 'linear-gradient(135deg, #fff, var(--color-primary))',
                         WebkitBackgroundClip: 'text',
                         WebkitTextFillColor: 'transparent',
                     }}>
@@ -246,7 +246,7 @@ export default function ResetPasswordConfirm() {
                                     transition: 'all 0.2s',
                                 }}
                                 onFocus={(e) => {
-                                    e.target.style.borderColor = '#dcb14a';
+                                    e.target.style.borderColor = 'var(--color-primary)';
                                     e.target.style.background = 'rgba(255, 255, 255, 0.08)';
                                 }}
                                 onBlur={(e) => {
@@ -264,7 +264,7 @@ export default function ResetPasswordConfirm() {
                                     transform: 'translateY(-50%)',
                                     background: 'none',
                                     border: 'none',
-                                    color: '#dcb14a',
+                                    color: 'var(--color-primary)',
                                     cursor: 'pointer',
                                     fontSize: '1.2rem',
                                 }}
@@ -304,7 +304,7 @@ export default function ResetPasswordConfirm() {
                                 transition: 'all 0.2s',
                             }}
                             onFocus={(e) => {
-                                e.target.style.borderColor = '#dcb14a';
+                                e.target.style.borderColor = 'var(--color-primary)';
                                 e.target.style.background = 'rgba(255, 255, 255, 0.08)';
                             }}
                             onBlur={(e) => {
@@ -316,12 +316,12 @@ export default function ResetPasswordConfirm() {
 
                     {/* Info */}
                     <div style={{
-                        background: 'rgba(220, 177, 74, 0.1)',
-                        border: '1px solid rgba(220, 177, 74, 0.3)',
+                        background: 'rgba(var(--color-primary-rgb), 0.1)',
+                        border: '1px solid rgba(var(--color-primary-rgb), 0.3)',
                         borderRadius: '0.5rem',
                         padding: '0.875rem',
                         fontSize: '0.85rem',
-                        color: '#dcb14a',
+                        color: 'var(--color-primary)',
                     }}>
                         💡 Hasło musi mieć minimum 8 znaków
                     </div>
@@ -333,7 +333,7 @@ export default function ResetPasswordConfirm() {
                         style={{
                             width: '100%',
                             padding: '1rem',
-                            background: (isLoading || message?.type === 'success') ? 'rgba(220, 177, 74, 0.5)' : 'linear-gradient(135deg, #dcb14a, #f0c96c)',
+                            background: (isLoading || message?.type === 'success') ? 'rgba(var(--color-primary-rgb), 0.5)' : 'linear-gradient(135deg, var(--color-primary), var(--color-primary-light))',
                             border: 'none',
                             borderRadius: '0.5rem',
                             color: '#000',
@@ -346,7 +346,7 @@ export default function ResetPasswordConfirm() {
                         onMouseEnter={(e) => {
                             if (!isLoading && message?.type !== 'success') {
                                 e.currentTarget.style.transform = 'translateY(-2px)';
-                                e.currentTarget.style.boxShadow = '0 10px 25px rgba(220, 177, 74, 0.4)';
+                                e.currentTarget.style.boxShadow = '0 10px 25px rgba(var(--color-primary-rgb), 0.4)';
                             }
                         }}
                         onMouseLeave={(e) => {
@@ -368,7 +368,7 @@ export default function ResetPasswordConfirm() {
                             textDecoration: 'none',
                             transition: 'color 0.2s',
                         }}
-                        onMouseEnter={(e) => e.currentTarget.style.color = '#dcb14a'}
+                        onMouseEnter={(e) => e.currentTarget.style.color = 'var(--color-primary)'}
                         onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(255, 255, 255, 0.6)'}
                     >
                         ← Powrót do strony głównej

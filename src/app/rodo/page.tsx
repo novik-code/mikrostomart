@@ -20,7 +20,7 @@ export default function RodoPage() {
                 {/* Subtle gradient overlay */}
                 <div style={{
                     position: "absolute", inset: 0,
-                    background: "radial-gradient(ellipse at center top, rgba(220,177,74,0.06) 0%, transparent 60%)",
+                    background: "radial-gradient(ellipse at center top, rgba(var(--color-primary-rgb),0.06) 0%, transparent 60%)",
                     pointerEvents: "none"
                 }} />
                 <div className="container" style={{ position: "relative", zIndex: 1 }}>
@@ -28,7 +28,7 @@ export default function RodoPage() {
                         <div style={{ display: "flex", justifyContent: "center", marginBottom: "1.5rem" }}>
                             <div style={{
                                 width: "56px", height: "56px", borderRadius: "50%",
-                                background: "rgba(220,177,74,0.1)", border: "1px solid rgba(220,177,74,0.2)",
+                                background: "rgba(var(--color-primary-rgb),0.1)", border: "1px solid rgba(var(--color-primary-rgb),0.2)",
                                 display: "flex", alignItems: "center", justifyContent: "center"
                             }}>
                                 <Shield size={28} color="var(--color-primary)" />
@@ -162,7 +162,7 @@ function LegalSection({ number, title, children, last }: { number: string; title
             }}>
                 <span style={{
                     width: "28px", height: "28px", borderRadius: "50%",
-                    background: "rgba(220,177,74,0.1)", border: "1px solid rgba(220,177,74,0.15)",
+                    background: "rgba(var(--color-primary-rgb),0.1)", border: "1px solid rgba(var(--color-primary-rgb),0.15)",
                     display: "flex", alignItems: "center", justifyContent: "center",
                     fontSize: "0.75rem", fontFamily: "var(--font-sans)", fontWeight: 700,
                     flexShrink: 0

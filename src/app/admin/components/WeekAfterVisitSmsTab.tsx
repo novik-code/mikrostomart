@@ -250,7 +250,7 @@ const renderWeekAfterVisitSmsTab = () => {
                                                 <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
                                                     {isEditing ? (
                                                         <>
-                                                            <button onClick={() => { editDraftW(sms.id, editMsg); setWeekAfterEditingId(null); }} style={{ padding: '0.25rem 0.7rem', background: 'rgba(220,177,74,0.15)', border: '1px solid rgba(220,177,74,0.4)', borderRadius: '0.35rem', color: '#dcb14a', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 'bold' }}>💾 Zapisz</button>
+                                                            <button onClick={() => { editDraftW(sms.id, editMsg); setWeekAfterEditingId(null); }} style={{ padding: '0.25rem 0.7rem', background: 'rgba(var(--color-primary-rgb),0.15)', border: '1px solid rgba(var(--color-primary-rgb),0.4)', borderRadius: '0.35rem', color: 'var(--color-primary)', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 'bold' }}>💾 Zapisz</button>
                                                             <button onClick={() => setWeekAfterEditingId(null)} style={{ padding: '0.25rem 0.7rem', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.35rem', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: '0.72rem' }}>Anuluj</button>
                                                         </>
                                                     ) : (

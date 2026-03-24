@@ -483,7 +483,7 @@ const S = {
         width: "22px",
         height: "22px",
         borderRadius: "50%",
-        background: rank === 1 ? "rgba(212,175,55,0.2)" : rank === 2 ? "rgba(192,192,192,0.15)" : "rgba(205,127,50,0.12)",
+        background: rank === 1 ? "rgba(var(--color-primary-dark-rgb),0.2)" : rank === 2 ? "rgba(192,192,192,0.15)" : "rgba(205,127,50,0.12)",
         color: rank === 1 ? "#d4af37" : rank === 2 ? "#c0c0c0" : "#cd7f32",
         fontSize: "0.7rem",
         fontWeight: 700,

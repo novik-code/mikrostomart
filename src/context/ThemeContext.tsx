@@ -241,6 +241,14 @@ const RADIUS_MAP: Record<string, { sm: string; md: string; lg: string }> = {
     rounded: { sm: '6px', md: '12px', lg: '20px' },
 };
 
+function hexToRgb(hex: string): string {
+    const h = hex.replace('#', '');
+    const r = parseInt(h.substring(0, 2), 16);
+    const g = parseInt(h.substring(2, 4), 16);
+    const b = parseInt(h.substring(4, 6), 16);
+    return `${r}, ${g}, ${b}`;
+}
+
 export function applyThemeToDOM(theme: ThemeConfig) {
     const root = document.documentElement;
 
@@ -249,8 +257,10 @@ export function applyThemeToDOM(theme: ThemeConfig) {
     root.style.setProperty('--color-surface', theme.colors.surface);
     root.style.setProperty('--color-surface-hover', theme.colors.surfaceHover);
     root.style.setProperty('--color-primary', theme.colors.primary);
+    root.style.setProperty('--color-primary-rgb', hexToRgb(theme.colors.primary));
     root.style.setProperty('--color-primary-light', theme.colors.primaryLight);
     root.style.setProperty('--color-primary-dark', theme.colors.primaryDark);
+    root.style.setProperty('--color-primary-dark-rgb', hexToRgb(theme.colors.primaryDark));
     root.style.setProperty('--color-text-main', theme.colors.textMain);
     root.style.setProperty('--color-text-muted', theme.colors.textMuted);
     root.style.setProperty('--color-success', theme.colors.success);

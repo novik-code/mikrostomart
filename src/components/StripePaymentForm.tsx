@@ -64,7 +64,7 @@ export default function StripePaymentForm({ amount, onSuccess, onBack }: StripeP
             <div style={{ marginTop: "1rem", borderTop: "1px solid var(--color-surface-hover)", paddingTop: "1rem" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "1rem", fontWeight: "bold", fontSize: '1.2rem', color: 'white' }}>
                     <span>{t('toPay')}</span>
-                    <span style={{ color: '#dcb14a' }}>{amount} PLN</span>
+                    <span style={{ color: 'var(--color-primary)' }}>{amount} PLN</span>
                 </div>
 
                 <div style={{ display: "flex", gap: "1rem" }}>

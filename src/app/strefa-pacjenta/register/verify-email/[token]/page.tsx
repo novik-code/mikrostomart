@@ -71,7 +71,7 @@ export default function VerifyEmailPage() {
                             ⏳
                         </div>
                         <h1 style={{
-                            color: '#dcb14a',
+                            color: 'var(--color-primary)',
                             fontSize: '1.8rem',
                             marginBottom: '1rem',
                         }}>
@@ -95,7 +95,7 @@ export default function VerifyEmailPage() {
                             ✅
                         </div>
                         <h1 style={{
-                            color: '#dcb14a',
+                            color: 'var(--color-primary)',
                             fontSize: '1.8rem',
                             marginBottom: '1rem',
                         }}>
@@ -111,8 +111,8 @@ export default function VerifyEmailPage() {
                         </p>
 
                         <div style={{
-                            background: 'rgba(220, 177, 74, 0.1)',
-                            border: '2px solid rgba(220, 177, 74, 0.3)',
+                            background: 'rgba(var(--color-primary-rgb), 0.1)',
+                            border: '2px solid rgba(var(--color-primary-rgb), 0.3)',
                             borderRadius: '1rem',
                             padding: '1.5rem',
                             marginBottom: '2rem',
@@ -135,7 +135,7 @@ export default function VerifyEmailPage() {
                             style={{
                                 display: 'inline-block',
                                 padding: '1rem 2rem',
-                                background: 'linear-gradient(135deg, #dcb14a, #f0c96c)',
+                                background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-light))',
                                 border: 'none',
                                 borderRadius: '0.5rem',
                                 color: '#000',
@@ -184,7 +184,7 @@ export default function VerifyEmailPage() {
                                 href="/strefa-pacjenta/register/verify"
                                 style={{
                                     padding: '0.875rem 1.5rem',
-                                    background: 'linear-gradient(135deg, #dcb14a, #f0c96c)',
+                                    background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-light))',
                                     border: 'none',
                                     borderRadius: '0.5rem',
                                     color: '#000',

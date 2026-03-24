@@ -234,7 +234,7 @@ const renderOnlineBookingsTab = () => {
                             padding: '0.4rem 1rem',
                             borderRadius: '2rem',
                             border: `1px solid ${onlineBookingsFilter === f ? 'var(--color-primary)' : 'rgba(255,255,255,0.12)'}`,
-                            background: onlineBookingsFilter === f ? 'rgba(220,177,74,0.15)' : 'transparent',
+                            background: onlineBookingsFilter === f ? 'rgba(var(--color-primary-rgb),0.15)' : 'transparent',
                             color: onlineBookingsFilter === f ? 'var(--color-primary)' : 'rgba(255,255,255,0.5)',
                             cursor: 'pointer',
                             fontSize: '0.82rem',

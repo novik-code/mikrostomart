@@ -660,7 +660,7 @@
 }
 
 .landingContent a {
-    color: #dcb14a;
+    color: var(--color-primary);
     text-decoration: underline;
 }
 
@@ -677,7 +677,7 @@
     padding: 0.85rem;
     text-align: center;
     border-radius: 8px;
-    background: linear-gradient(135deg, #dcb14a, #c4982e);
+    background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
     color: #1a1a1a;
     font-weight: 700;
     font-size: 0.95rem;

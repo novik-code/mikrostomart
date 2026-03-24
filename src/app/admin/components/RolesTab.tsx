@@ -380,7 +380,7 @@ export default function RolesTab() {
                                     background: 'var(--color-surface)',
                                     borderRadius: '12px',
                                     padding: '1.25rem',
-                                    border: '1px solid rgba(220, 177, 74, 0.3)',
+                                    border: '1px solid rgba(var(--color-primary-rgb), 0.3)',
                                     borderLeft: '4px solid var(--color-primary)',
                                 }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}>

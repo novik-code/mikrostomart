@@ -79,7 +79,7 @@ const renderArticlesTab = () => (
                 <button
                     onClick={handleGenerateDailyArticle}
                     className="btn-primary"
-                    style={{ background: "linear-gradient(135deg, #dcb14a, #f0c96c)", color: "black", fontSize: "0.9rem" }}
+                    style={{ background: "linear-gradient(135deg, var(--color-primary), var(--color-primary-light))", color: "black", fontSize: "0.9rem" }}
                 >
                     Generuj Losowy Artykuł (Flux) 🎲
                 </button>

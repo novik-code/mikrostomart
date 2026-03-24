@@ -151,7 +151,7 @@ export default function SplashScreen({ children }: { children: React.ReactNode }
                             width: '600px',
                             height: '600px',
                             borderRadius: '50%',
-                            background: 'radial-gradient(circle, rgba(212,175,55,0.1) 0%, rgba(212,175,55,0.03) 40%, transparent 70%)',
+                            background: 'radial-gradient(circle, rgba(var(--color-primary-dark-rgb),0.1) 0%, rgba(var(--color-primary-dark-rgb),0.03) 40%, transparent 70%)',
                             pointerEvents: 'none',
                         }}
                     />
@@ -184,9 +184,9 @@ export default function SplashScreen({ children }: { children: React.ReactNode }
                             height: p.size,
                             borderRadius: '50%',
                             background: p.size > 3
-                                ? `radial-gradient(circle, rgba(255,235,130,0.95), rgba(212,175,55,0.3))`
-                                : `radial-gradient(circle, rgba(255,255,220,0.9), rgba(212,175,55,0.2))`,
-                            boxShadow: `0 0 ${p.size * 2}px rgba(212,175,55,${p.opacity * 0.4})`,
+                                ? `radial-gradient(circle, rgba(255,235,130,0.95), rgba(var(--color-primary-dark-rgb),0.3))`
+                                : `radial-gradient(circle, rgba(255,255,220,0.9), rgba(var(--color-primary-dark-rgb),0.2))`,
+                            boxShadow: `0 0 ${p.size * 2}px rgba(var(--color-primary-dark-rgb),${p.opacity * 0.4})`,
                             pointerEvents: 'none',
                         }}
                     />
@@ -245,7 +245,7 @@ export default function SplashScreen({ children }: { children: React.ReactNode }
                                 width: '500px',
                                 height: '200px',
                                 borderRadius: '50%',
-                                background: 'radial-gradient(ellipse, rgba(212,175,55,0.25) 0%, rgba(212,175,55,0.05) 50%, transparent 70%)',
+                                background: 'radial-gradient(ellipse, rgba(var(--color-primary-dark-rgb),0.25) 0%, rgba(var(--color-primary-dark-rgb),0.05) 50%, transparent 70%)',
                                 pointerEvents: 'none',
                             }}
                         />
@@ -264,7 +264,7 @@ export default function SplashScreen({ children }: { children: React.ReactNode }
                                 width: '350px',
                                 height: '350px',
                                 borderRadius: '50%',
-                                border: '1px solid rgba(212,175,55,0.25)',
+                                border: '1px solid rgba(var(--color-primary-dark-rgb),0.25)',
                                 pointerEvents: 'none',
                             }}
                         />
@@ -282,7 +282,7 @@ export default function SplashScreen({ children }: { children: React.ReactNode }
                                 width: '280px',
                                 height: '280px',
                                 borderRadius: '50%',
-                                border: '1px solid rgba(212,175,55,0.15)',
+                                border: '1px solid rgba(var(--color-primary-dark-rgb),0.15)',
                                 pointerEvents: 'none',
                             }}
                         />
@@ -317,7 +317,7 @@ export default function SplashScreen({ children }: { children: React.ReactNode }
                             position: 'absolute',
                             width: '80%',
                             height: '1px',
-                            background: 'linear-gradient(90deg, transparent, rgba(212,175,55,0.4), rgba(255,223,100,0.6), rgba(212,175,55,0.4), transparent)',
+                            background: 'linear-gradient(90deg, transparent, rgba(var(--color-primary-dark-rgb),0.4), rgba(255,223,100,0.6), rgba(var(--color-primary-dark-rgb),0.4), transparent)',
                             pointerEvents: 'none',
                         }}
                     />
