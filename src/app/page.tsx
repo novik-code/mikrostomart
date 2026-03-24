@@ -249,7 +249,7 @@ export default function Home() {
 
     // Load sections config
     useEffect(() => {
-        fetch('/api/sections')
+        fetch('/api/sections', { cache: 'no-store' })
             .then(r => r.json())
             .then(data => {
                 if (Array.isArray(data) && data.length > 0) {

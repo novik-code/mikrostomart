@@ -17,12 +17,12 @@ export async function GET() {
 
         if (error || !data) {
             return NextResponse.json({}, {
-                headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300' }
+                headers: { 'Cache-Control': 'no-store, max-age=0' }
             });
         }
 
         return NextResponse.json(data.value, {
-            headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300' }
+            headers: { 'Cache-Control': 'no-store, max-age=0' }
         });
     } catch {
         return NextResponse.json({});

@@ -305,7 +305,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         async function loadTheme() {
             try {
-                const res = await fetch('/api/theme', { next: { revalidate: 60 } });
+                const res = await fetch('/api/theme', { cache: 'no-store' });
                 if (res.ok) {
                     const overrides = await res.json();
                     if (overrides && Object.keys(overrides).length > 0) {
