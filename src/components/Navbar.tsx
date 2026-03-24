@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslations } from 'next-intl';
 import styles from './Navbar.module.css';
+import { brand } from "@/lib/brandConfig";
 
 import { useAssistant } from "@/context/AssistantContext";
 import { useSimulator } from "@/context/SimulatorContext";
@@ -146,7 +147,7 @@ export default function Navbar() {
                     <Link href="/" className={styles.logo} onClick={closeMenu}>
                         <Image
                             src="/logo-transparent.png"
-                            alt="Mikrostomart Logo"
+                            alt={brand.logoAlt}
                             width={220}
                             height={70}
                             style={{ width: 'auto', height: '50px' }}

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
+import { brand } from '@/lib/brandConfig';
 
 /**
  * SplashScreen — Cinematic intro animation
@@ -290,7 +291,7 @@ export default function SplashScreen({ children }: { children: React.ReactNode }
                         {/* The logo image */}
                         <Image
                             src="/logo-transparent.png"
-                            alt="Mikrostomart"
+                            alt={brand.logoAlt}
                             width={440}
                             height={140}
                             style={{

@@ -10,61 +10,153 @@ import { OpinionProvider } from "@/context/OpinionContext";
 import ThemeLayout from "@/components/ThemeLayout";
 import DemoBanner from "@/components/DemoBanner";
 import { isDemoMode } from "@/lib/demoMode";
+import { brand } from "@/lib/brandConfig";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 const playfair = Playfair_Display({ subsets: ["latin"], variable: "--font-heading" });
 
-export const metadata: Metadata = {
-    metadataBase: new URL('https://mikrostomart.pl'),
-    alternates: {
-        canonical: './',
-        languages: {
-            'pl': './',
-            'en': './',
-            'de': './',
-            'uk': './',
-            'x-default': './',
+export function generateMetadata(): Metadata {
+    return {
+        metadataBase: new URL(brand.metadataBase),
+        alternates: {
+            canonical: './',
+            languages: {
+                'pl': './',
+                'en': './',
+                'de': './',
+                'uk': './',
+                'x-default': './',
+            },
         },
-    },
-    title: {
-        default: 'Dentysta Opole - Mikrostomart | Implanty i Stomatologia Mikroskopowa',
-        template: '%s | Mikrostomart - Dentysta Opole',
-    },
-    description: "Szukasz dentysty w Opolu? Mikrostomart to nowoczesny gabinet stomatologiczny. Specjalizujemy się w implantach, leczeniu kanałowym i estetyce. Umów wizytę w Opolu (Chmielowice).",
-    keywords: "dentysta opole, stomatolog opole, implanty opole, leczenie kanałowe opole, mikrostomart, stomatologia mikroskopowa",
-    manifest: "/manifest.json",
-    icons: {
-        icon: '/icon.png',
-        shortcut: '/icon.png',
-        apple: '/icon-512x512.png',
-    },
-    openGraph: {
-        type: 'website',
-        locale: 'pl_PL',
-        siteName: 'Mikrostomart - Dentysta Opole',
-        images: [{
-            url: '/opengraph-image.png',
-            width: 1200,
-            height: 630,
-            alt: 'Mikrostomart - Mikroskopowa Stomatologia Artystyczna w Opolu',
-        }],
-    },
-    twitter: {
-        card: 'summary_large_image',
-        images: ['/opengraph-image.png'],
-    },
-    other: {
-        "geo.region": "PL-OP",
-        "geo.placename": "Opole",
-        "geo.position": "50.677682;17.866163",
-        "ICBM": "50.677682, 17.866163",
-    },
-};
+        title: {
+            default: brand.titleDefault,
+            template: brand.titleTemplate,
+        },
+        description: brand.description,
+        keywords: brand.keywords,
+        manifest: "/manifest.json",
+        icons: {
+            icon: '/icon.png',
+            shortcut: '/icon.png',
+            apple: '/icon-512x512.png',
+        },
+        openGraph: {
+            type: 'website',
+            locale: 'pl_PL',
+            siteName: brand.ogSiteName,
+            images: [{
+                url: '/opengraph-image.png',
+                width: 1200,
+                height: 630,
+                alt: brand.ogImageAlt,
+            }],
+        },
+        twitter: {
+            card: 'summary_large_image',
+            images: ['/opengraph-image.png'],
+        },
+        other: isDemoMode ? undefined : {
+            "geo.region": brand.geoRegion,
+            "geo.placename": brand.geoPlacename,
+            "geo.position": brand.geoPosition,
+            "ICBM": brand.icbm,
+        },
+    };
+}
 
 export const viewport: Viewport = {
     themeColor: "#0f1115",
 };
+
+function SchemaOrg() {
+    return (
+        <>
+            {/* Dentist / LocalBusiness schema */}
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{
+                    __html: JSON.stringify({
+                        "@context": "https://schema.org",
+                        "@type": ["Dentist", "MedicalBusiness"],
+                        "name": brand.schemaName,
+                        "alternateName": brand.schemaAlternateName,
+                        "description": brand.schemaDescription,
+                        "image": brand.schemaImage,
+                        "@id": brand.schemaId,
+                        "url": brand.schemaUrl,
+                        "telephone": isDemoMode ? undefined : `+48${brand.phone1.replace(/-/g, '')}`,
+                        "priceRange": "$$",
+                        "currenciesAccepted": "PLN",
+                        "paymentAccepted": "Cash, Credit Card",
+                        "address": {
+                            "@type": "PostalAddress",
+                            "streetAddress": brand.streetAddress,
+                            "addressLocality": brand.city,
+                            "addressRegion": brand.region,
+                            "postalCode": brand.postalCode,
+                            "addressCountry": brand.country,
+                        },
+                        "geo": {
+                            "@type": "GeoCoordinates",
+                            "latitude": parseFloat(brand.geoPosition.split(';')[0]),
+                            "longitude": parseFloat(brand.geoPosition.split(';')[1]),
+                        },
+                        "hasMap": `https://www.google.com/maps/search/?api=1&query=${brand.mapQuery}`,
+                        "sameAs": brand.facebookUrl ? [brand.facebookUrl] : [],
+                        "medicalSpecialty": [
+                            "Dentistry",
+                            "Endodontics",
+                            "Prosthodontics",
+                            "Orthodontics",
+                            "DentalHygiene"
+                        ],
+                        "availableService": [
+                            { "@type": "MedicalProcedure", "name": "Implanty zębów", "url": `${brand.schemaUrl}/oferta/implantologia` },
+                            { "@type": "MedicalProcedure", "name": "Leczenie kanałowe pod mikroskopem" },
+                            { "@type": "MedicalProcedure", "name": "Stomatologia estetyczna" },
+                            { "@type": "MedicalProcedure", "name": "Ortodoncja" },
+                            { "@type": "MedicalProcedure", "name": "Protetyka" },
+                            { "@type": "MedicalProcedure", "name": "Chirurgia stomatologiczna" },
+                            { "@type": "MedicalProcedure", "name": "Higienizacja i profilaktyka" }
+                        ],
+                        "openingHoursSpecification": [
+                            {
+                                "@type": "OpeningHoursSpecification",
+                                "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday"],
+                                "opens": "09:00",
+                                "closes": "20:00"
+                            },
+                            {
+                                "@type": "OpeningHoursSpecification",
+                                "dayOfWeek": "Friday",
+                                "opens": "09:00",
+                                "closes": "16:00"
+                            }
+                        ]
+                    })
+                }}
+            />
+            {/* WebSite schema — enables sitelinks search in Google */}
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{
+                    __html: JSON.stringify({
+                        "@context": "https://schema.org",
+                        "@type": "WebSite",
+                        "name": brand.name,
+                        "url": brand.schemaUrl,
+                        "potentialAction": {
+                            "@type": "SearchAction",
+                            "target": `${brand.schemaUrl}/baza-wiedzy?q={search_term_string}`,
+                            "query-input": "required name=search_term_string"
+                        }
+                    })
+                }}
+            />
+        </>
+    );
+}
 
 export default async function RootLayout({
     children,
@@ -79,90 +171,7 @@ export default async function RootLayout({
         <html lang={locale}>
             <body className={`${inter.variable} ${playfair.variable}`} style={isDemoMode ? { paddingTop: '2rem' } : undefined}>
                 <DemoBanner />
-                {/* Dentist / LocalBusiness schema */}
-                <script
-                    type="application/ld+json"
-                    dangerouslySetInnerHTML={{
-                        __html: JSON.stringify({
-                            "@context": "https://schema.org",
-                            "@type": ["Dentist", "MedicalBusiness"],
-                            "name": "Mikrostomart - Mikroskopowa Stomatologia Artystyczna",
-                            "alternateName": "Mikrostomart Gabinet Stomatologiczny",
-                            "description": "Nowoczesny gabinet stomatologiczny w Opolu specjalizujący się w implantologii, stomatologii mikroskopowej, leczeniu kanałowym i estetyce. Zaawansowana technologia, indywidualne podejście.",
-                            "image": "https://mikrostomart.pl/logo-transparent.png",
-                            "@id": "https://mikrostomart.pl",
-                            "url": "https://mikrostomart.pl",
-                            "telephone": "+48570270470",
-                            "priceRange": "$$",
-                            "currenciesAccepted": "PLN",
-                            "paymentAccepted": "Cash, Credit Card",
-                            "address": {
-                                "@type": "PostalAddress",
-                                "streetAddress": "ul. Centralna 33a",
-                                "addressLocality": "Opole",
-                                "addressRegion": "opolskie",
-                                "postalCode": "45-940",
-                                "addressCountry": "PL"
-                            },
-                            "geo": {
-                                "@type": "GeoCoordinates",
-                                "latitude": 50.677682,
-                                "longitude": 17.866163
-                            },
-                            "hasMap": "https://www.google.com/maps/search/?api=1&query=Mikrostomart+Opole+ul.+Centralna+33a",
-                            "sameAs": [
-                                "https://www.facebook.com/mikrostomart"
-                            ],
-                            "medicalSpecialty": [
-                                "Dentistry",
-                                "Endodontics",
-                                "Prosthodontics",
-                                "Orthodontics",
-                                "DentalHygiene"
-                            ],
-                            "availableService": [
-                                { "@type": "MedicalProcedure", "name": "Implanty zębów", "url": "https://mikrostomart.pl/oferta/implantologia" },
-                                { "@type": "MedicalProcedure", "name": "Leczenie kanałowe pod mikroskopem" },
-                                { "@type": "MedicalProcedure", "name": "Stomatologia estetyczna" },
-                                { "@type": "MedicalProcedure", "name": "Ortodoncja" },
-                                { "@type": "MedicalProcedure", "name": "Protetyka" },
-                                { "@type": "MedicalProcedure", "name": "Chirurgia stomatologiczna" },
-                                { "@type": "MedicalProcedure", "name": "Higienizacja i profilaktyka" }
-                            ],
-                            "openingHoursSpecification": [
-                                {
-                                    "@type": "OpeningHoursSpecification",
-                                    "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday"],
-                                    "opens": "09:00",
-                                    "closes": "20:00"
-                                },
-                                {
-                                    "@type": "OpeningHoursSpecification",
-                                    "dayOfWeek": "Friday",
-                                    "opens": "09:00",
-                                    "closes": "16:00"
-                                }
-                            ]
-                        })
-                    }}
-                />
-                {/* WebSite schema — enables sitelinks search in Google */}
-                <script
-                    type="application/ld+json"
-                    dangerouslySetInnerHTML={{
-                        __html: JSON.stringify({
-                            "@context": "https://schema.org",
-                            "@type": "WebSite",
-                            "name": "Mikrostomart",
-                            "url": "https://mikrostomart.pl",
-                            "potentialAction": {
-                                "@type": "SearchAction",
-                                "target": "https://mikrostomart.pl/baza-wiedzy?q={search_term_string}",
-                                "query-input": "required name=search_term_string"
-                            }
-                        })
-                    }}
-                />
+                <SchemaOrg />
                 <NextIntlClientProvider locale={locale} messages={messages}>
                     <CartProvider>
                         <AssistantProvider>

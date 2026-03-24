@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import AnimatedPhone from "@/components/AnimatedPhone";
 import AnimatedAt from "@/components/AnimatedAt";
 import NovikCodeCredit from "@/components/NovikCodeCredit";
+import { brand } from "@/lib/brandConfig";
 
 export default function Footer() {
     const t = useTranslations('footer');
@@ -52,7 +53,7 @@ export default function Footer() {
             }}>
 
                 <div>
-                    <h3 style={{ color: 'var(--color-primary)', marginBottom: 'var(--spacing-sm)' }}>Mikrostomart</h3>
+                    <h3 style={{ color: 'var(--color-primary)', marginBottom: 'var(--spacing-sm)' }}>{brand.name}</h3>
                     <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>
                         {t('slogan')}<br />
                         {t('sloganSub')}
@@ -63,30 +64,30 @@ export default function Footer() {
                     <h4 style={{ color: 'var(--color-text-main)', marginBottom: 'var(--spacing-sm)' }}>{t('contact')}</h4>
                     <div style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>
                         <a
-                            href="https://www.google.com/maps/search/?api=1&query=Mikrostomart+Opole+ul.+Centralna+33a"
+                            href={`https://www.google.com/maps/search/?api=1&query=${brand.mapQuery}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             style={{ color: 'var(--color-text-muted)', textDecoration: 'none', display: 'block', marginBottom: '0.5rem' }}
                             className="hover-underline"
                         >
-                            ul. Centralna 33a<br />
-                            45-940 Opole/Chmielowice
+                            {brand.streetAddress}<br />
+                            {brand.postalCode} {brand.city}
                         </a>
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                            <a href="tel:+48570270470" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem' }} className="hover-primary">
+                            <a href={`tel:+48${brand.phone1.replace(/-/g, '')}`} style={{ color: 'var(--color-text-muted)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem' }} className="hover-primary">
                                 <AnimatedPhone size={16} color="var(--color-primary)" />
-                                570-270-470
+                                {brand.phone1}
                             </a>
-                            <a href="tel:+48570810800" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem' }} className="hover-primary">
+                            <a href={`tel:+48${brand.phone2.replace(/-/g, '')}`} style={{ color: 'var(--color-text-muted)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem' }} className="hover-primary">
                                 <AnimatedPhone size={16} color="var(--color-primary)" />
-                                570-810-800
+                                {brand.phone2}
                             </a>
                         </div>
 
-                        <a href="mailto:gabinet@mikrostomart.pl" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem' }} className="hover-primary">
+                        <a href={`mailto:${brand.email}`} style={{ color: 'var(--color-text-muted)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem' }} className="hover-primary">
                             <AnimatedAt size={16} color="var(--color-primary)" />
-                            gabinet@mikrostomart.pl
+                            {brand.email}
                         </a>
                     </div>
                 </div>
