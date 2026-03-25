@@ -773,6 +773,7 @@ export default function ThemeEditor() {
                                 { id: 'forest-green', name: 'Forest Green', colors: ['#0a1208', '#22c55e', '#4ade80'] },
                                 { id: 'minimalist-white', name: 'Minimalist White', colors: ['#ffffff', '#1a1a1a', '#444444'] },
                                 { id: 'rose-gold', name: 'Rose Gold', colors: ['#1a0f0f', '#e8998d', '#f0b5ab'] },
+                                { id: 'densflow-light', name: 'DensFlow Light', colors: ['#F8FAFD', '#4F8FE6', '#E88DA0'] },
                             ].map(preset => (
                                 <button
                                     key={preset.id}

@@ -2241,6 +2241,46 @@ NODE_ENV=production
 
 ## 📝 Recent Changes
 
+### March 25, 2026
+**Visual Editor Drag-and-Drop Overhaul + DensFlow Light Template**
+
+#### Commits:
+- `f086e15` — fix: free-form cross-parent drag, freeze hover skips scripts/svg
+- `dcdfe7b` — feat: ghost drag UX + confirm bar + splash popup in visual editor
+- `24728a5` — feat: move history stack with step-by-step undo + splash popup fix
+- `5ebe620` — feat: CSS transform pixel-perfect drag + splash popup backdrop
+- `3fb7cc1` — fix: z-index on moved elements + nuclear splash popup event blocker
+
+#### Visual Editor Drag (CSS Transform):
+- **Free-form positioning** — replaced DOM `insertBefore` reordering with CSS `transform: translate(dx, dy)` for pixel-perfect placement
+- **Move history stack** — `moveHistory` ref array stores each drag's `prevTransform` for step-by-step undo
+- **Undo bar** — bottom toolbar shows: ↩️ Cofnij (last), ↩️↩️ Cofnij wszystko, ✅ Zatwierdź
+- **Z-index** — moved elements get `position: relative` + `z-index: 9999` to stay above other layers
+- No DOM reordering = no broken layouts, no disappearing elements
+
+#### Splash Screen Configuration:
+- 🌟 button in editor toolbar opens config popup (animation type, duration, frequency, sections)
+- ThemeContext now exposes `setTheme` for live editor updates
+
+> [!WARNING]
+> **Known Bug**: Splash popup controls (select, range slider, toggle) are NOT interactive in the in-vitro editor despite multiple fix attempts (React synthetic `stopPropagation`, native `stopImmediatePropagation` capture-phase blocker, full-screen backdrop). The controls work correctly in the Admin → Motyw panel. Root cause likely involves React event delegation vs native capture-phase handler ordering. Requires further investigation.
+
+#### DensFlow Light Template:
+- New `densflow-light` preset in `THEME_PRESETS` — bright clinic aesthetic
+- **Colors**: white background (#F8FAFD), blue primary (#4F8FE6), pink preview (#E88DA0)
+- **Typography**: DM Sans body, Outfit headings
+- **Layout**: rounded corners, glassmorphism navbar
+- **Features**: fade splash (3s, once/session), no background video, no simulator/survey
+- **Demo default**: `ThemeProvider` auto-selects `densflow-light` when `NEXT_PUBLIC_DEMO_MODE=true`
+- Available in both mikrostomart.pl and demo.densflow.ai ThemeEditor → Szablony tab
+
+#### Files Modified:
+- `src/components/editor/VisualEditorOverlay.tsx` — CSS transform drag, move history stack, splash popup
+- `src/context/ThemeContext.tsx` — `densflow-light` preset, `setTheme` exposed, demo default
+- `src/components/ThemeEditor.tsx` — DensFlow Light in presets grid
+
+---
+
 ### March 24–25, 2026
 **Deep Demo Debranding — Full Neutralization of demo.densflow.ai**
 

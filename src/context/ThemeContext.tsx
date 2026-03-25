@@ -214,6 +214,59 @@ export const THEME_PRESETS: Record<string, Partial<ThemeConfig>> = {
             surfaceHover: '#2e2020',
         },
     },
+    'densflow-light': {
+        colors: {
+            ...DEFAULT_THEME.colors,
+            primary: '#4F8FE6',
+            primaryLight: '#7EB3F7',
+            primaryDark: '#2D6BC4',
+            background: '#F8FAFD',
+            surface: '#FFFFFF',
+            surfaceHover: '#EDF2F9',
+            textMain: '#1E293B',
+            textMuted: '#64748B',
+            success: '#22C55E',
+            error: '#EF4444',
+        },
+        typography: {
+            fontBody: 'DM Sans',
+            fontHeading: 'Outfit',
+            baseFontSize: 16,
+            headingScale: 1.0,
+            lineHeight: 1.6,
+        },
+        layout: {
+            containerMaxWidth: 1200,
+            borderRadius: 'rounded',
+            spacingScale: 1.0,
+        },
+        hero: {
+            minHeight: '85vh',
+            backgroundVideoId: 'dQw4w9WgXcQ', // neutral placeholder — admin can change
+            backgroundVideoOpacity: 0.08,
+        },
+        navbar: {
+            style: 'glassmorphism',
+            logoText: 'DENSFLOW',
+        },
+        features: {
+            ...DEFAULT_THEME.features,
+            splashScreen: true,
+            splashScreenConfig: {
+                enabled: true,
+                animationType: 'fade',
+                duration: 3,
+                frequency: 'once_session',
+                sections: { public: true, admin: false, employee: false, patient: false },
+            },
+            backgroundVideo: false,
+            assistantTeaser: true,
+            pwaInstallPrompt: true,
+            cookieConsent: true,
+            simulatorModal: false,
+            opinionSurvey: false,
+        },
+    },
 };
 
 // ===================== CONTEXT =====================
@@ -323,7 +376,10 @@ export function applyThemeToDOM(theme: ThemeConfig) {
 // ===================== PROVIDER =====================
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-    // Load from localStorage synchronously to prevent FOUC
+    // Demo mode uses DensFlow Light preset as default
+    const isDemo = typeof window !== 'undefined' && process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
+    const DEMO_DEFAULT = isDemo ? mergeTheme(THEME_PRESETS['densflow-light'] || {}) : DEFAULT_THEME;
+
     const [theme, setTheme] = useState<ThemeConfig>(() => {
         if (typeof window !== 'undefined') {
             try {
@@ -336,7 +392,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
                 }
             } catch { /* use defaults */ }
         }
-        return DEFAULT_THEME;
+        return DEMO_DEFAULT;
     });
     const [isLoaded, setIsLoaded] = useState(false);
 
