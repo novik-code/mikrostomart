@@ -203,20 +203,11 @@ export default function VisualEditorOverlay() {
             style.textContent = `
                 [data-ve-editing] [class*="dropdown"],
                 [data-ve-editing] [class*="submenu"],
-                [data-ve-editing] [class*="menu"],
-                [data-ve-editing] [class*="nav-links"],
-                [data-ve-editing] [class*="mobile"],
-                [data-ve-editing] [class*="hamburger"],
                 [data-ve-editing] [class*="Dropdown"],
-                [data-ve-editing] [class*="Menu"],
-                [data-ve-editing] ul[class] li ul,
-                [data-ve-editing] nav ul ul {
+                [data-ve-editing] [class*="Menu"] {
                     display: block !important;
                     visibility: visible !important;
                     pointer-events: auto !important;
-                    position: static !important;
-                    height: auto !important;
-                    max-height: none !important;
                 }
                 [data-ve-editing] .ve-hidden-element { 
                     opacity: 0.15 !important; 
@@ -341,28 +332,21 @@ export default function VisualEditorOverlay() {
         };
     }, [isEditorOpen, hov, sel, moveMode, resizeMode, colorTgt, ctx, closeEditor, isDragging, videoPopup]);
 
-    // ---- Reflow drag ----
+    // ---- DOM-based drag (insertBefore) ----
     function doReflowDrag(dragEl: HTMLElement) {
         const parent = dragEl.parentElement;
         if (!parent) return;
-        const parentPath = getPath(parent);
-
-        // Ensure parent is flex
-        const disp = getComputedStyle(parent).display;
-        if (!disp.includes('flex') && !disp.includes('grid')) {
-            parent.style.display = 'flex';
-            parent.style.flexDirection = 'column';
-            setOv(p => ({ ...p, flexParents: [...new Set([...(p.flexParents || []), parentPath])] }));
-        }
 
         const siblings = Array.from(parent.children).filter(
-            c => c !== dragEl && !c.classList.contains('ve-drop-indicator')
+            c => c !== dragEl && !c.classList.contains('ve-drop-indicator') && !(c as HTMLElement).closest('[data-ve-ui]')
         ) as HTMLElement[];
+
+        if (siblings.length === 0) { flash('❌ Brak rodzeństwa do przesunięcia'); setMoveMode(false); return; }
 
         setIsDragging(true);
         dragEl.classList.add('ve-dragging');
         const ind = dropRef.current;
-        let insertRef: HTMLElement | null = null;
+        let insertTarget: { before: HTMLElement | null } = { before: null };
 
         const onMove = (e: MouseEvent) => {
             if (!ind) return;
@@ -381,7 +365,7 @@ export default function VisualEditorOverlay() {
                 ind.style.left = `${pr.left}px`;
                 ind.style.width = `${pr.width}px`;
                 ind.style.top = above ? `${r.top + scrollY - 2}px` : `${r.bottom + scrollY - 1}px`;
-                insertRef = above ? closest : closest.nextElementSibling as HTMLElement | null;
+                insertTarget.before = above ? closest : closest.nextElementSibling as HTMLElement | null;
             }
         };
 
@@ -391,23 +375,18 @@ export default function VisualEditorOverlay() {
             setIsDragging(false);
             setMoveMode(false);
 
-            // Reorder via CSS order
-            const all = Array.from(parent.children).filter(
-                c => !c.classList.contains('ve-drop-indicator')
-            ) as HTMLElement[];
-            const ordered: HTMLElement[] = [];
-            for (const ch of all) {
-                if (ch === dragEl) continue;
-                if (insertRef && ch === insertRef) ordered.push(dragEl);
-                ordered.push(ch);
+            // Actually move the DOM node
+            try {
+                if (insertTarget.before) {
+                    parent.insertBefore(dragEl, insertTarget.before);
+                } else {
+                    parent.appendChild(dragEl);
+                }
+                flash('📐 Przesunięto');
+            } catch (err) {
+                flash('❌ Nie udało się przesunąć');
+                console.error('[VE] move error:', err);
             }
-            if (!insertRef) ordered.push(dragEl);
-            ordered.forEach((ch, i) => {
-                (ch as HTMLElement).style.order = String(i);
-                const p = getPath(ch as HTMLElement);
-                setOv(prev => ({ ...prev, elements: { ...prev.elements, [p]: { ...prev.elements[p], order: i } } }));
-            });
-            flash('📐 Przesunięto');
             posToolbar(dragEl);
             document.removeEventListener('mousemove', onMove);
             document.removeEventListener('mouseup', onUp);
@@ -427,8 +406,14 @@ export default function VisualEditorOverlay() {
             if (!resizeRef.current) return;
             const dx = e.clientX - resizeRef.current.x;
             const dy = e.clientY - resizeRef.current.y;
-            el.style.width = `${Math.max(30, resizeRef.current.w + dx)}px`;
-            el.style.height = `${Math.max(15, resizeRef.current.h + dy)}px`;
+            const newW = Math.max(30, resizeRef.current.w + dx);
+            const newH = Math.max(15, resizeRef.current.h + dy);
+            el.style.setProperty('width', `${newW}px`, 'important');
+            el.style.setProperty('height', `${newH}px`, 'important');
+            el.style.setProperty('max-width', 'none', 'important');
+            el.style.setProperty('min-width', '0', 'important');
+            el.style.setProperty('max-height', 'none', 'important');
+            el.style.setProperty('min-height', '0', 'important');
         };
 
         const onUp = () => {
