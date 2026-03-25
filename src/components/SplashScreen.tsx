@@ -5,22 +5,20 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import { brand } from '@/lib/brandConfig';
 import { isDemoMode } from '@/lib/demoMode';
+import { useTheme, SplashScreenConfig, DEFAULT_THEME } from '@/context/ThemeContext';
+import { usePathname } from 'next/navigation';
 
 /**
  * SplashScreen — Cinematic intro animation
  * 
- * Sequence:
- * 1. Black screen (0.5s)
- * 2. ~80 golden particles drift inward like a star nebula
- * 3. Logo materializes at center with golden glow burst
- * 4. Logo holds center (1.5s)
- * 5. Logo flies to top-left (navbar position), page fades in simultaneously
- * 6. Overlay fully dissolves
- * 
- * Only plays once per session (sessionStorage).
+ * Reads config from ThemeContext.features.splashScreenConfig:
+ * - animationType: 'particles' | 'fade' | 'slide' | 'none'
+ * - duration: 1-10s (scales all phase timings)
+ * - frequency: 'always' | 'once_session' | 'once_ever' | 'daily' | 'weekly'
+ * - sections: which site sections show the splash
  */
 
-// Star nebula particles — many more, varied sizes
+// Star nebula particles
 const particles = Array.from({ length: 80 }, (_, i) => {
     const angle = Math.random() * Math.PI * 2;
     const distance = 300 + Math.random() * 500;
@@ -31,7 +29,6 @@ const particles = Array.from({ length: 80 }, (_, i) => {
         size: 1 + Math.random() * 3.5,
         delay: Math.random() * 1.0,
         opacity: 0.2 + Math.random() * 0.8,
-        // Small offset from center to create more natural convergence
         endX: (Math.random() - 0.5) * 40,
         endY: (Math.random() - 0.5) * 30,
     };
@@ -39,8 +36,67 @@ const particles = Array.from({ length: 80 }, (_, i) => {
 
 type Phase = 'idle' | 'particles' | 'logo-center' | 'logo-fly' | 'reveal' | 'done';
 
+function shouldShowSplash(cfg: SplashScreenConfig, pathname: string): boolean {
+    if (!cfg.enabled) return false;
+
+    // Section check
+    const isAdmin = pathname.startsWith('/admin');
+    const isEmployee = pathname.startsWith('/pracownik');
+    const isPatient = pathname.startsWith('/panel-pacjenta');
+    const isPublic = !isAdmin && !isEmployee && !isPatient;
+    
+    if (isAdmin && !cfg.sections.admin) return false;
+    if (isEmployee && !cfg.sections.employee) return false;
+    if (isPatient && !cfg.sections.patient) return false;
+    if (isPublic && !cfg.sections.public) return false;
+
+    // Frequency check
+    const key = 'splash-seen';
+    const tsKey = 'splash-seen-ts';
+
+    switch (cfg.frequency) {
+        case 'always':
+            return true;
+        case 'once_session': {
+            const seen = sessionStorage.getItem(key);
+            if (!seen) { sessionStorage.setItem(key, '1'); return true; }
+            return false;
+        }
+        case 'once_ever': {
+            const seen = localStorage.getItem(key);
+            if (!seen) { localStorage.setItem(key, '1'); return true; }
+            return false;
+        }
+        case 'daily': {
+            const ts = localStorage.getItem(tsKey);
+            const now = Date.now();
+            if (!ts || now - parseInt(ts) > 86400000) {
+                localStorage.setItem(tsKey, String(now));
+                return true;
+            }
+            return false;
+        }
+        case 'weekly': {
+            const ts = localStorage.getItem(tsKey);
+            const now = Date.now();
+            if (!ts || now - parseInt(ts) > 604800000) {
+                localStorage.setItem(tsKey, String(now));
+                return true;
+            }
+            return false;
+        }
+        default:
+            return true;
+    }
+}
+
 export default function SplashScreen({ children }: { children: React.ReactNode }) {
-    // Default to 'done' so SSR output shows content (opacity: 1) for Googlebot / noscript
+    const { theme } = useTheme();
+    const pathname = usePathname();
+    const cfg: SplashScreenConfig = theme.features.splashScreenConfig || DEFAULT_THEME.features.splashScreenConfig;
+    const durationScale = (cfg.duration || 6) / 6; // normalize to default 6s
+
+    // Default to 'done' so SSR output shows content
     const [phase, setPhase] = useState<Phase>('done');
     const [shouldShow, setShouldShow] = useState(false);
     const [mounted, setMounted] = useState(false);
@@ -48,41 +104,38 @@ export default function SplashScreen({ children }: { children: React.ReactNode }
     useEffect(() => {
         setMounted(true);
         if (typeof window !== 'undefined') {
-            const seen = sessionStorage.getItem('splash-seen');
-            if (!seen) {
-                // Reset phase to 'idle' to start splash animation
+            if (shouldShowSplash(cfg, pathname)) {
                 setPhase('idle');
                 setShouldShow(true);
-                sessionStorage.setItem('splash-seen', '1');
                 document.body.style.overflow = 'hidden';
             }
-            // If already seen, stay in 'done' (initial state)
         }
-    }, []);
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Slower, more cinematic timeline
+    // Cinematic timeline — scales with configured duration
     useEffect(() => {
         if (!shouldShow) return;
 
         const timers: NodeJS.Timeout[] = [];
+        const d = durationScale;
 
-        // Phase 1: Star nebula particles drift in (0.5s delay → ~1.5s animation)
-        timers.push(setTimeout(() => setPhase('particles'), 500));
+        // Phase 1: Star nebula particles drift in
+        timers.push(setTimeout(() => setPhase('particles'), 500 * d));
 
-        // Phase 2: Logo materializes at center (after particles have mostly converged)
-        timers.push(setTimeout(() => setPhase('logo-center'), 2000));
+        // Phase 2: Logo materializes at center
+        timers.push(setTimeout(() => setPhase('logo-center'), 2000 * d));
 
-        // Phase 3: Logo flies to navbar corner + page starts fading in simultaneously
-        timers.push(setTimeout(() => setPhase('logo-fly'), 4000));
+        // Phase 3: Logo flies to navbar corner + page fades in
+        timers.push(setTimeout(() => setPhase('logo-fly'), 4000 * d));
 
         // Phase 4: Overlay fully gone
-        timers.push(setTimeout(() => setPhase('reveal'), 5200));
+        timers.push(setTimeout(() => setPhase('reveal'), 5200 * d));
 
         // Phase 5: Cleanup
         timers.push(setTimeout(() => {
             setPhase('done');
             document.body.style.overflow = '';
-        }, 6000));
+        }, 6000 * d));
 
         return () => {
             timers.forEach(clearTimeout);

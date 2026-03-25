@@ -49,8 +49,22 @@ export interface ThemeNavbar {
     logoText: string;
 }
 
+export interface SplashScreenConfig {
+    enabled: boolean;
+    animationType: 'particles' | 'fade' | 'slide' | 'none';
+    duration: number; // seconds (1-10)
+    frequency: 'always' | 'once_session' | 'once_ever' | 'daily' | 'weekly';
+    sections: {
+        public: boolean;
+        admin: boolean;
+        employee: boolean;
+        patient: boolean;
+    };
+}
+
 export interface ThemeFeatures {
-    splashScreen: boolean;
+    splashScreen: boolean; // kept for backward compat
+    splashScreenConfig: SplashScreenConfig;
     backgroundVideo: boolean;
     assistantTeaser: boolean;
     pwaInstallPrompt: boolean;
@@ -123,6 +137,13 @@ export const DEFAULT_THEME: ThemeConfig = {
     },
     features: {
         splashScreen: true,
+        splashScreenConfig: {
+            enabled: true,
+            animationType: 'particles',
+            duration: 6,
+            frequency: 'once_session',
+            sections: { public: true, admin: false, employee: false, patient: false },
+        },
         backgroundVideo: true,
         assistantTeaser: true,
         pwaInstallPrompt: true,

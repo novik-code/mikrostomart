@@ -101,8 +101,6 @@ export default function VisualEditorOverlay() {
     const [ctxEl, setCtxEl] = useState<HTMLElement | null>(null);
 
     // MODES — activated by clicking a toolbar button, then interacting with element
-    const [moveMode, setMoveMode] = useState(false);
-    const [resizeMode, setResizeMode] = useState(false);
     const [hoverFrozen, setHoverFrozen] = useState(false);
     const [videoPopup, setVideoPopup] = useState(false);
     const [videoId, setVideoId] = useState('');
@@ -111,6 +109,7 @@ export default function VisualEditorOverlay() {
 
     const dropRef = useRef<HTMLDivElement | null>(null);
     const resizeRef = useRef<{ w: number; h: number; x: number; y: number } | null>(null);
+    const frozenEls = useRef<Map<HTMLElement, string>>(new Map());
 
     const supabase = createBrowserClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -197,28 +196,41 @@ export default function VisualEditorOverlay() {
     useEffect(() => {
         if (!isEditorOpen) return;
         if (hoverFrozen) {
-            // Add a style tag that forces all elements visible
-            const style = document.createElement('style');
-            style.id = 've-freeze-hover';
-            style.textContent = `
-                [data-ve-editing] [class*="dropdown"],
-                [data-ve-editing] [class*="submenu"],
-                [data-ve-editing] [class*="Dropdown"],
-                [data-ve-editing] [class*="Menu"] {
-                    display: block !important;
-                    visibility: visible !important;
-                    pointer-events: auto !important;
+            // JS-based freeze: find hidden elements and force them visible
+            const allEls = document.body.querySelectorAll('*');
+            const frozen = new Map<HTMLElement, string>();
+            allEls.forEach(raw => {
+                const el = raw as HTMLElement;
+                if (el.closest('[data-ve-ui]')) return;
+                const cs = getComputedStyle(el);
+                const isHidden = cs.display === 'none' || cs.visibility === 'hidden' ||
+                    (parseFloat(cs.opacity) === 0 && el.children.length > 0) ||
+                    (parseFloat(cs.maxHeight) === 0);
+                if (isHidden && el.offsetParent !== null || cs.display === 'none') {
+                    const origStyle = el.getAttribute('style') || '';
+                    frozen.set(el, origStyle);
+                    if (cs.display === 'none') el.style.setProperty('display', 'block', 'important');
+                    if (cs.visibility === 'hidden') el.style.setProperty('visibility', 'visible', 'important');
+                    if (parseFloat(cs.opacity) === 0) el.style.setProperty('opacity', '1', 'important');
+                    if (parseFloat(cs.maxHeight) === 0) el.style.setProperty('max-height', 'none', 'important');
                 }
-                [data-ve-editing] .ve-hidden-element { 
-                    opacity: 0.15 !important; 
-                }
-            `;
-            document.head.appendChild(style);
-            flash('📌 Hover zamrożony — rozwijane menu widoczne');
+            });
+            frozenEls.current = frozen;
+            flash('📌 Hover zamrożony — ukryte elementy widoczne');
         } else {
-            document.getElementById('ve-freeze-hover')?.remove();
+            // Restore frozen elements
+            frozenEls.current.forEach((origStyle, el) => {
+                el.setAttribute('style', origStyle);
+            });
+            frozenEls.current.clear();
         }
-        return () => { document.getElementById('ve-freeze-hover')?.remove(); };
+        return () => {
+            // Restore frozen elements
+            frozenEls.current.forEach((origStyle, el) => {
+                el.setAttribute('style', origStyle);
+            });
+            frozenEls.current.clear();
+        };
     }, [hoverFrozen, isEditorOpen]);
 
     // ---- Drop indicator ----
@@ -245,36 +257,10 @@ export default function VisualEditorOverlay() {
         }
         function onOut(e: MouseEvent) { (e.target as HTMLElement).classList.remove('ve-highlight'); }
 
-        // mousedown: used for drag/resize (starts operation immediately, before mouseup)
-        function onMouseDown(e: MouseEvent) {
-            if (isDragging) return;
-            const t = e.target as HTMLElement;
-            if (isUI(t)) return;
-
-            // MOVE MODE: mousedown on selected element starts drag
-            if (moveMode && sel && (t === sel || sel.contains(t))) {
-                e.preventDefault(); e.stopPropagation();
-                doReflowDrag(sel);
-                return;
-            }
-
-            // RESIZE MODE: mousedown on selected element starts resize
-            if (resizeMode && sel && (t === sel || sel.contains(t))) {
-                e.preventDefault(); e.stopPropagation();
-                doResize(sel, e);
-                return;
-            }
-        }
-
         function onClick(e: MouseEvent) {
             if (isDragging) return;
             const t = e.target as HTMLElement;
             if (isUI(t)) return;
-            // Don't re-select if in move/resize mode (already handled by mousedown)
-            if ((moveMode || resizeMode) && sel && (t === sel || sel.contains(t))) {
-                e.preventDefault(); e.stopPropagation();
-                return;
-            }
             e.preventDefault(); e.stopPropagation();
 
             // Normal select
@@ -289,8 +275,9 @@ export default function VisualEditorOverlay() {
             setBc(b.slice(-5));
             posToolbar(t);
             setColorTgt(null); setColorPos(null); setCtx(null);
-            setMoveMode(false); setResizeMode(false);
         }
+
+
 
         function onCtx(e: MouseEvent) {
             const t = e.target as HTMLElement;
@@ -301,8 +288,7 @@ export default function VisualEditorOverlay() {
 
         function onKey(e: KeyboardEvent) {
             if (e.key === 'Escape') {
-                if (moveMode) { setMoveMode(false); flash('Tryb przesuwania wyłączony'); return; }
-                if (resizeMode) { setResizeMode(false); flash('Tryb rozmiaru wyłączony'); return; }
+                if (isDragging) return;
                 if (videoPopup) { setVideoPopup(false); return; }
                 if (colorTgt) { setColorTgt(null); setColorPos(null); return; }
                 if (ctx) { setCtx(null); return; }
@@ -316,21 +302,19 @@ export default function VisualEditorOverlay() {
             }
         }
 
-        document.addEventListener('mousedown', onMouseDown, true);
         document.addEventListener('mouseover', onOver, true);
         document.addEventListener('mouseout', onOut, true);
         document.addEventListener('click', onClick, true);
         document.addEventListener('contextmenu', onCtx, true);
         document.addEventListener('keydown', onKey);
         return () => {
-            document.removeEventListener('mousedown', onMouseDown, true);
             document.removeEventListener('mouseover', onOver, true);
             document.removeEventListener('mouseout', onOut, true);
             document.removeEventListener('click', onClick, true);
             document.removeEventListener('contextmenu', onCtx, true);
             document.removeEventListener('keydown', onKey);
         };
-    }, [isEditorOpen, hov, sel, moveMode, resizeMode, colorTgt, ctx, closeEditor, isDragging, videoPopup]);
+    }, [isEditorOpen, hov, sel, colorTgt, ctx, closeEditor, isDragging, videoPopup]);
 
     // ---- DOM-based drag (insertBefore) ----
     function doReflowDrag(dragEl: HTMLElement) {
@@ -341,7 +325,7 @@ export default function VisualEditorOverlay() {
             c => c !== dragEl && !c.classList.contains('ve-drop-indicator') && !(c as HTMLElement).closest('[data-ve-ui]')
         ) as HTMLElement[];
 
-        if (siblings.length === 0) { flash('❌ Brak rodzeństwa do przesunięcia'); setMoveMode(false); return; }
+        if (siblings.length === 0) { flash('❌ Brak rodzeństwa do przesunięcia'); return; }
 
         setIsDragging(true);
         dragEl.classList.add('ve-dragging');
@@ -373,7 +357,6 @@ export default function VisualEditorOverlay() {
             dragEl.classList.remove('ve-dragging');
             if (ind) ind.style.display = 'none';
             setIsDragging(false);
-            setMoveMode(false);
 
             // Actually move the DOM node
             try {
@@ -419,7 +402,6 @@ export default function VisualEditorOverlay() {
         const onUp = () => {
             el.classList.remove('ve-resize-active');
             resizeRef.current = null;
-            setResizeMode(false);
             const path = getPath(el);
             upd(path, 'width', el.style.width);
             upd(path, 'height', el.style.height);
@@ -497,9 +479,6 @@ export default function VisualEditorOverlay() {
                     <span className="ve-toolbar-title">✏️ Edytor</span>
                     {dirty && <div className="ve-unsaved-dot" />}
                     {dirty && <span style={{ fontSize: '0.7rem', color: '#f59e0b' }}>●</span>}
-                    <div className="ve-toolbar-sep" />
-                    {moveMode && <span style={{ fontSize: '0.7rem', color: '#a5b4fc', fontWeight: 600 }}>↕️ TRYB PRZESUWANIA — kliknij element</span>}
-                    {resizeMode && <span style={{ fontSize: '0.7rem', color: '#a5b4fc', fontWeight: 600 }}>↘️ TRYB ROZMIARU — kliknij i ciągnij element</span>}
                 </div>
                 <div className="ve-toolbar-group">
                     <button className={`ve-toolbar-btn ${hoverFrozen ? 've-active-btn' : ''}`}
@@ -535,13 +514,6 @@ export default function VisualEditorOverlay() {
                     <button className={colorTgt === 'text' ? 've-active' : ''} title="Kolor tekstu"
                         onClick={e => { e.stopPropagation(); const r = (e.target as HTMLElement).getBoundingClientRect(); setColorTgt(colorTgt === 'text' ? null : 'text'); setColorPos({ x: r.left, y: r.bottom + 6 }); }}>🔤</button>
                     <div className="ve-float-sep" />
-                    {/* MOVE MODE */}
-                    <button className={moveMode ? 've-active' : ''} title="Przesuń: kliknij, potem złap element"
-                        onClick={e => { e.stopPropagation(); setMoveMode(!moveMode); setResizeMode(false); flash(moveMode ? 'Tryb wyłączony' : '↕️ Kliknij element aby go przesunąć'); }}>↕️</button>
-                    {/* RESIZE MODE */}
-                    <button className={resizeMode ? 've-active' : ''} title="Rozmiar: kliknij, potem ciągnij element"
-                        onClick={e => { e.stopPropagation(); setResizeMode(!resizeMode); setMoveMode(false); flash(resizeMode ? 'Tryb wyłączony' : '↘️ Kliknij i ciągnij element'); }}>↘️</button>
-                    <div className="ve-float-sep" />
                     {/* FONT SIZE */}
                     <button title="Mniejsza czcionka" onClick={e => { e.stopPropagation(); const s = Math.max(8, parseFloat(getComputedStyle(sel).fontSize) - 2); sel.style.fontSize = s + 'px'; upd(selPath, 'fontSize', s + 'px'); }}>A-</button>
                     <button title="Większa czcionka" onClick={e => { e.stopPropagation(); const s = Math.min(120, parseFloat(getComputedStyle(sel).fontSize) + 2); sel.style.fontSize = s + 'px'; upd(selPath, 'fontSize', s + 'px'); }}>A+</button>
@@ -555,6 +527,68 @@ export default function VisualEditorOverlay() {
                     }}>↩️</button>
                 </div>
             )}
+
+            {/* ---- DRAG HANDLE (⊞) + RESIZE HANDLE (■) on selected element ---- */}
+            {sel && !isDragging && (() => {
+                const r = sel.getBoundingClientRect();
+                return (
+                    <>
+                        {/* Drag handle — top-left corner */}
+                        <div
+                            data-ve-ui="true"
+                            title="Złap i przeciągnij aby przesunąć"
+                            style={{
+                                position: 'fixed',
+                                left: r.left - 2,
+                                top: r.top - 2,
+                                width: 22,
+                                height: 22,
+                                background: 'rgba(99,102,241,0.9)',
+                                borderRadius: '4px 0 4px 0',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'grab',
+                                zIndex: 100012,
+                                fontSize: '11px',
+                                color: 'white',
+                                fontWeight: 700,
+                                userSelect: 'none',
+                                boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+                            }}
+                            onMouseDown={e => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                doReflowDrag(sel);
+                            }}
+                        >⊞</div>
+
+                        {/* Resize handle — bottom-right corner */}
+                        <div
+                            data-ve-ui="true"
+                            title="Złap i ciągnij aby zmienić rozmiar"
+                            style={{
+                                position: 'fixed',
+                                left: r.right - 12,
+                                top: r.bottom - 12,
+                                width: 14,
+                                height: 14,
+                                background: 'rgba(99,102,241,0.9)',
+                                borderRadius: '2px',
+                                cursor: 'nwse-resize',
+                                zIndex: 100012,
+                                boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+                                border: '2px solid rgba(255,255,255,0.3)',
+                            }}
+                            onMouseDown={e => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                doResize(sel, e.nativeEvent);
+                            }}
+                        />
+                    </>
+                );
+            })()}
 
             {/* ---- COLOR PICKER ---- */}
             {colorTgt && colorPos && sel && (
@@ -628,11 +662,11 @@ export default function VisualEditorOverlay() {
                     <div className="ve-ctx-divider" />
                     <button className="ve-ctx-item" onClick={() => {
                         setSel(ctxEl); setSelPath(ctxP); ctxEl.classList.add('ve-selected'); posToolbar(ctxEl);
-                        setMoveMode(true); setCtx(null); flash('↕️ Kliknij element aby przesunąć');
+                        setCtx(null); flash('⊞ Złap uchwyt ⊞ aby przesunąć');
                     }}>↕️ Przesuń</button>
                     <button className="ve-ctx-item" onClick={() => {
                         setSel(ctxEl); setSelPath(ctxP); ctxEl.classList.add('ve-selected'); posToolbar(ctxEl);
-                        setResizeMode(true); setCtx(null); flash('↘️ Kliknij i ciągnij');
+                        setCtx(null); flash('■ Złap uchwyt ■ aby zmienić rozmiar');
                     }}>↘️ Rozmiar</button>
                     <div className="ve-ctx-divider" />
                     <button className="ve-ctx-item" onClick={() => {

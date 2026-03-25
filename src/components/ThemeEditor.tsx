@@ -673,7 +673,67 @@ export default function ThemeEditor() {
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '0.75rem' }}>
                             <div>
                                 <h4 style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Komponenty UI</h4>
-                                <ToggleSwitch label="Splash Screen" description="Ekran powitalny z animacją" value={theme.features.splashScreen} onChange={(v) => updateFeature('splashScreen', v)} />
+                                <ToggleSwitch label="Splash Screen" description="Ekran powitalny z animacją" value={theme.features.splashScreen} onChange={(v) => {
+                                    updateFeature('splashScreen', v);
+                                    setTheme(prev => ({
+                                        ...prev,
+                                        features: {
+                                            ...prev.features,
+                                            splashScreenConfig: { ...prev.features.splashScreenConfig, enabled: v }
+                                        }
+                                    }));
+                                }} />
+                                {theme.features.splashScreen && (() => {
+                                    const sc = theme.features.splashScreenConfig || { enabled: true, animationType: 'particles' as const, duration: 6, frequency: 'once_session' as const, sections: { public: true, admin: false, employee: false, patient: false } };
+                                    const updateSC = (patch: any) => setTheme(prev => ({
+                                        ...prev,
+                                        features: {
+                                            ...prev.features,
+                                            splashScreenConfig: { ...prev.features.splashScreenConfig, ...patch }
+                                        }
+                                    }));
+                                    return (
+                                        <div style={{ marginLeft: '0.5rem', padding: '0.75rem', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)', marginBottom: '0.5rem' }}>
+                                            <div style={{ marginBottom: '0.75rem' }}>
+                                                <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: '4px' }}>Typ animacji</label>
+                                                <select
+                                                    value={sc.animationType}
+                                                    onChange={e => updateSC({ animationType: e.target.value })}
+                                                    style={{ width: '100%', padding: '0.4rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', color: 'white', fontSize: '0.8rem' }}
+                                                >
+                                                    <option value="particles">🌟 Nebula (cząsteczki)</option>
+                                                    <option value="fade">🌊 Fade (płynne pojawienie)</option>
+                                                    <option value="slide">📐 Slide (wjazd)</option>
+                                                    <option value="none">⚡ Brak (tylko logo)</option>
+                                                </select>
+                                            </div>
+                                            <RangeInput label="Czas trwania" value={sc.duration} onChange={v => updateSC({ duration: v })} min={1} max={10} step={0.5} unit="s" />
+                                            <div style={{ marginBottom: '0.75rem' }}>
+                                                <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: '4px' }}>Częstotliwość</label>
+                                                <select
+                                                    value={sc.frequency}
+                                                    onChange={e => updateSC({ frequency: e.target.value })}
+                                                    style={{ width: '100%', padding: '0.4rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', color: 'white', fontSize: '0.8rem' }}
+                                                >
+                                                    <option value="always">Zawsze (każde wejście)</option>
+                                                    <option value="once_session">Raz na sesję</option>
+                                                    <option value="once_ever">Raz na zawsze</option>
+                                                    <option value="daily">Raz dziennie</option>
+                                                    <option value="weekly">Raz w tygodniu</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: '6px' }}>Wyświetlaj w sekcjach</label>
+                                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.3rem' }}>
+                                                    <ToggleSwitch label="Publiczna" value={sc.sections.public} onChange={v => updateSC({ sections: { ...sc.sections, public: v } })} />
+                                                    <ToggleSwitch label="Admin" value={sc.sections.admin} onChange={v => updateSC({ sections: { ...sc.sections, admin: v } })} />
+                                                    <ToggleSwitch label="Pracownik" value={sc.sections.employee} onChange={v => updateSC({ sections: { ...sc.sections, employee: v } })} />
+                                                    <ToggleSwitch label="Pacjent" value={sc.sections.patient} onChange={v => updateSC({ sections: { ...sc.sections, patient: v } })} />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
                                 <ToggleSwitch label="Wideo w tle" description="Film YouTube jako tło strony" value={theme.features.backgroundVideo} onChange={(v) => updateFeature('backgroundVideo', v)} />
                                 <ToggleSwitch label="Asystent AI" description="Pływający przycisk asystenta" value={theme.features.assistantTeaser} onChange={(v) => updateFeature('assistantTeaser', v)} />
                                 <ToggleSwitch label="Monit PWA" description="Zachęta do instalacji aplikacji" value={theme.features.pwaInstallPrompt} onChange={(v) => updateFeature('pwaInstallPrompt', v)} />
