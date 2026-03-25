@@ -5,6 +5,7 @@ import { formatSMSMessage } from '@/lib/smsService';
 import { sendPushToUser } from '@/lib/webpush';
 import { randomUUID } from 'crypto';
 import { isSmsTypeEnabled } from '@/lib/smsSettings';
+import { demoSanitize } from '@/lib/brandConfig';
 
 export const maxDuration = 120;
 

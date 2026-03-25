@@ -2,6 +2,7 @@ import { isDemoMode } from '@/lib/demoMode';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sendTelegramNotification } from '@/lib/telegram';
+import { demoSanitize } from '@/lib/brandConfig';
 
 export const dynamic = 'force-dynamic';
 

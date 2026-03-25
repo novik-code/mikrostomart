@@ -10,6 +10,7 @@ import { createClient } from '@supabase/supabase-js';
 import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
 import { KNOWLEDGE_BASE } from '@/lib/knowledgeBase';
+import { demoSanitize } from '@/lib/brandConfig';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30; // AI generation can take a few seconds

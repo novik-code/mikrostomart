@@ -9,6 +9,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import OpenAI from 'openai';
+import { demoSanitize } from '@/lib/brandConfig';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

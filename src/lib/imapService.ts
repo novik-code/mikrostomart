@@ -7,6 +7,7 @@
 import { ImapFlow } from 'imapflow';
 import nodemailer from 'nodemailer';
 import { simpleParser, ParsedMail } from 'mailparser';
+import { demoSanitize } from '@/lib/brandConfig';
 
 // ─── Config ──────────────────────────────────────────────────
 
@@ -15,7 +16,7 @@ const IMAP_CONFIG = {
     port: parseInt(process.env.EMAIL_IMAP_PORT || '993'),
     secure: true,
     auth: {
-        user: process.env.EMAIL_IMAP_USER || 'gabinet@mikrostomart.pl',
+        user: process.env.EMAIL_IMAP_USER || demoSanitize('gabinet@mikrostomart.pl'),
         pass: process.env.EMAIL_IMAP_PASS || '',
     },
     logger: false as const,
@@ -29,7 +30,7 @@ const SMTP_CONFIG = {
     port: parseInt(process.env.EMAIL_SMTP_PORT || '465'),
     secure: true,
     auth: {
-        user: process.env.EMAIL_IMAP_USER || 'gabinet@mikrostomart.pl',
+        user: process.env.EMAIL_IMAP_USER || demoSanitize('gabinet@mikrostomart.pl'),
         pass: process.env.EMAIL_IMAP_PASS || '',
     },
     tls: {

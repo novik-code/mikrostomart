@@ -3,6 +3,7 @@ import { Resend } from "resend";
 import { sendTelegramNotification } from '@/lib/telegram';
 import { broadcastPush } from '@/lib/webpush';
 import { getEmailTemplate } from '@/lib/emailTemplates';
+import { demoSanitize } from '@/lib/brandConfig';
 
 export const runtime = 'nodejs';
 
@@ -100,7 +101,7 @@ export async function POST(req: NextRequest) {
         const resendKey = process.env.RESEND_API_KEY;
         if (resendKey) {
             const resend = new Resend(resendKey);
-            const adminEmail = "gabinet@mikrostomart.pl";
+            const adminEmail = demoSanitize("gabinet@mikrostomart.pl");
             const fromEmail = "powiadomienia@mikrostomart.pl"; // Nowa, zweryfikowana domena
 
             // Email to Seller

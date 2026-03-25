@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { verifyTokenFromRequest } from '@/lib/jwt';
+import { demoSanitize } from '@/lib/brandConfig';
 
 export const dynamic = 'force-dynamic';
 
@@ -89,7 +90,7 @@ export async function GET(request: NextRequest) {
         return new NextResponse(JSON.stringify(exportData, null, 2), {
             headers: {
                 'Content-Type': 'application/json',
-                'Content-Disposition': `attachment; filename="moje-dane-mikrostomart-${new Date().toISOString().split('T')[0]}.json"`,
+                'Content-Disposition': `attachment; filename="${demoSanitize("moje-dane-mikrostomart")}-${new Date().toISOString().split('T')[0]}.json"`,
             },
         });
 

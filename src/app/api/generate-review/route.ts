@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { checkRateLimit, getClientIP } from '@/lib/rateLimit';
+import { demoSanitize } from '@/lib/brandConfig';
 
 interface SurveyAnswers {
     isPatient: string;

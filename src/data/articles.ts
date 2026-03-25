@@ -1,3 +1,4 @@
+import { demoSanitize } from '@/lib/brandConfig';
 export interface Article {
     id: string;
     title: string;

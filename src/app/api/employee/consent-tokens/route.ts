@@ -4,6 +4,7 @@ import { randomBytes } from 'crypto';
 import { getConsentTypesFromDB } from '@/lib/consentTypes';
 import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
+import { demoSanitize } from '@/lib/brandConfig';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -54,7 +55,7 @@ export async function POST(req: NextRequest) {
 
         if (error) throw error;
 
-        const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://mikrostomart.pl';
+        const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || demoSanitize('https://www.mikrostomart.pl');
         const url = `${baseUrl}/zgody/${token}`;
 
         return NextResponse.json({

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sendTelegramNotification } from '@/lib/telegram';
 import { broadcastPush } from '@/lib/webpush';
+import { demoSanitize } from '@/lib/brandConfig';
 
 export const runtime = "nodejs";
 
@@ -50,8 +51,8 @@ export async function POST(req: NextRequest) {
                 const resend = new Resend(resendKey);
 
                 await resend.emails.send({
-                    from: "powiadomienia@mikrostomart.pl",
-                    to: "gabinet@mikrostomart.pl",
+                    from: demoSanitize("powiadomienia@mikrostomart.pl"),
+                    to: demoSanitize("gabinet@mikrostomart.pl"),
                     subject: `[Kalkulator Leczenia] ${name} — ${service}`,
                     html: `
             <h2>🧮 Kalkulator Leczenia — Nowy Lead</h2>

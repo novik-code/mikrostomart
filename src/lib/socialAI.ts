@@ -6,6 +6,7 @@
  */
 
 import OpenAI from 'openai';
+import { demoSanitize } from '@/lib/brandConfig';
 
 // ── Types ──────────────────────────────────────────────────────────
 

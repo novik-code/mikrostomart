@@ -15,6 +15,7 @@ import { listEmails, getEmail } from '@/lib/imapService';
 import { KNOWLEDGE_BASE } from '@/lib/knowledgeBase';
 import { sendTelegramNotification } from '@/lib/telegram';
 import { logCronHeartbeat } from '@/lib/cronHeartbeat';
+import { demoSanitize } from '@/lib/brandConfig';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;

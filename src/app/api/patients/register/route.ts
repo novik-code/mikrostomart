@@ -5,6 +5,7 @@ import { Resend } from 'resend';
 import { broadcastPush } from '@/lib/webpush';
 import { sendTelegramNotification } from '@/lib/telegram';
 import { getEmailTemplate } from '@/lib/emailTemplates';
+import { demoSanitize } from '@/lib/brandConfig';
 
 export const dynamic = 'force-dynamic';
 
@@ -102,7 +103,7 @@ export async function POST(request: Request) {
         }
 
         // Send verification email
-        const verificationUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.mikrostomart.pl'}/strefa-pacjenta/register/verify-email/${token}`;
+        const verificationUrl = `${process.env.NEXT_PUBLIC_SITE_URL || demoSanitize('https://www.mikrostomart.pl')}/strefa-pacjenta/register/verify-email/${token}`;
 
         console.log('[Register] Attempting to send verification email to:', email);
         console.log('[Register] Verification URL:', verificationUrl);
@@ -114,7 +115,7 @@ export async function POST(request: Request) {
             });
 
             await resend.emails.send({
-                from: 'Mikrostomart <noreply@mikrostomart.pl>',
+                from: demoSanitize('Mikrostomart <noreply@mikrostomart.pl>'),
                 to: email,
                 subject,
                 html,

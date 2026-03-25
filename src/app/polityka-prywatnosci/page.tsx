@@ -3,6 +3,7 @@
 import { Lock, Mail, Shield, Database, UserCheck } from "lucide-react";
 import { useTranslations } from "next-intl";
 import RevealOnScroll from "@/components/RevealOnScroll";
+import { demoSanitize } from '@/lib/brandConfig';
 
 export default function PrivacyPolicyPage() {
     const t = useTranslations('politykaPriv');

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { verifyAdmin } from '@/lib/auth';
+import { demoSanitize } from '@/lib/brandConfig';
 
 /**
  * Admin API for SMS Templates Management

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { nanoid } from 'nanoid';
+import { demoSanitize } from '@/lib/brandConfig';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -52,7 +53,7 @@ export async function POST(req: NextRequest) {
             throw error;
         }
 
-        const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://mikrostomart.pl';
+        const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || demoSanitize('https://www.mikrostomart.pl');
         const shortUrl = `${baseUrl}/s/${shortCode}`;
 
         return NextResponse.json({

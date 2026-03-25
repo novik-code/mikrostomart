@@ -6,6 +6,7 @@ import { notFound } from 'next/navigation';
 import { Metadata } from 'next';
 import { supabase } from '@/lib/supabaseClient';
 import { getTranslations, getLocale } from 'next-intl/server';
+import { demoSanitize } from '@/lib/brandConfig';
 
 // Supported locale suffixes
 const LOCALE_SUFFIXES = ['en', 'de', 'ua'] as const;

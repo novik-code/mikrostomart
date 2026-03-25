@@ -4,6 +4,7 @@ import { grantRole, type UserRole } from '@/lib/roles';
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 import crypto from 'crypto';
+import { demoSanitize } from '@/lib/brandConfig';
 
 export const dynamic = 'force-dynamic';
 
@@ -66,7 +67,7 @@ export async function POST(request: Request) {
             // Also send a password reset email in case user doesn't know their password
             if (sendPasswordReset) {
                 try {
-                    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.mikrostomart.pl';
+                    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || demoSanitize('https://www.mikrostomart.pl');
                     const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
                         type: 'recovery',
                         email: patientEmail,
@@ -76,10 +77,10 @@ export async function POST(request: Request) {
                         const recoveryUrl = `${siteUrl}/admin/update-password?token_hash=${encodeURIComponent(tokenHash)}&type=recovery`;
                         const resend = new Resend(process.env.RESEND_API_KEY!);
                         await resend.emails.send({
-                            from: 'Mikrostomart <noreply@mikrostomart.pl>',
+                            from: demoSanitize('Mikrostomart <noreply@mikrostomart.pl>'),
                             to: patientEmail,
-                            subject: 'Ustaw hasło do panelu Mikrostomart',
-                            html: `
+                            subject: demoSanitize('Ustaw hasło do panelu Mikrostomart'),
+                            html: demoSanitize(`
                                 <!DOCTYPE html><html><head><meta charset="utf-8"></head>
                                 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
                                 <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -96,7 +97,7 @@ export async function POST(request: Request) {
                                         <p>📞 570 270 470<br>📧 gabinet@mikrostomart.pl</p>
                                     </div>
                                 </div></body></html>
-                            `
+                            `)
                         });
                         console.log('[Promote] Recovery email sent to existing user', patientEmail);
                     }
@@ -127,7 +128,7 @@ export async function POST(request: Request) {
             // Send password reset email so the user can set their own password
             if (sendPasswordReset) {
                 try {
-                    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.mikrostomart.pl';
+                    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || demoSanitize('https://www.mikrostomart.pl');
 
                     // Generate a recovery link (admin API - returns the link but doesn't send email)
                     const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
@@ -144,10 +145,10 @@ export async function POST(request: Request) {
                         const recoveryUrl = `${siteUrl}/admin/update-password?token_hash=${encodeURIComponent(tokenHash)}&type=recovery`;
 
                         await resend.emails.send({
-                            from: 'Mikrostomart <noreply@mikrostomart.pl>',
+                            from: demoSanitize('Mikrostomart <noreply@mikrostomart.pl>'),
                             to: patientEmail,
-                            subject: 'Ustaw hasło do panelu Mikrostomart',
-                            html: `
+                            subject: demoSanitize('Ustaw hasło do panelu Mikrostomart'),
+                            html: demoSanitize(`
                                 <!DOCTYPE html>
                                 <html>
                                 <head><meta charset="utf-8"></head>
@@ -173,7 +174,7 @@ export async function POST(request: Request) {
                                     </div>
                                 </body>
                                 </html>
-                            `
+                            `)
                         });
                         console.log('[Promote] Password setup email sent to', patientEmail);
                     }

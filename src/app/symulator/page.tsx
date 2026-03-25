@@ -5,6 +5,7 @@ import { Camera, Upload, RefreshCw, AlertTriangle } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { analysisFaceAlignment } from "@/helpers/faceDetection";
 import BeforeAfterSlider from "@/components/BeforeAfterSlider";
+import { demoSanitize } from '@/lib/brandConfig';
 
 // --- STYLES ---
 const containerStyle: React.CSSProperties = {

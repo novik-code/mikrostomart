@@ -4,6 +4,7 @@ import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
 import fs from 'fs';
 import path from 'path';
+import { demoSanitize } from '@/lib/brandConfig';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

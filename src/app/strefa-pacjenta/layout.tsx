@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import styles from './patient.module.css';
+import { demoSanitize } from '@/lib/brandConfig';
 
 // Pages that don't need the authenticated layout shell
 const PUBLIC_PATHS = [

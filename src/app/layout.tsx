@@ -10,7 +10,7 @@ import { OpinionProvider } from "@/context/OpinionContext";
 import ThemeLayout from "@/components/ThemeLayout";
 import DemoBanner from "@/components/DemoBanner";
 import { isDemoMode } from "@/lib/demoMode";
-import { brand } from "@/lib/brandConfig";
+import { brand, demoSanitize } from "@/lib/brandConfig";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
@@ -165,7 +165,20 @@ export default async function RootLayout({
 }>) {
     // Read locale from NEXT_LOCALE cookie (set by LanguageSwitcher)
     const locale = await getLocale();
-    const messages = await getMessages();
+    const rawMessages = await getMessages();
+
+    // Recursively sanitize all translation strings for demo mode
+    function deepSanitize(obj: any): any {
+        if (typeof obj === 'string') return demoSanitize(obj);
+        if (Array.isArray(obj)) return obj.map(deepSanitize);
+        if (obj && typeof obj === 'object') {
+            const result: any = {};
+            for (const key of Object.keys(obj)) result[key] = deepSanitize(obj[key]);
+            return result;
+        }
+        return obj;
+    }
+    const messages = isDemoMode ? deepSanitize(rawMessages) : rawMessages;
 
     return (
         <html lang={locale}>

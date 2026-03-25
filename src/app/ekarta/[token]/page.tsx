@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams } from "next/navigation";
+import { demoSanitize } from '@/lib/brandConfig';
 
 // ─── Types ────────────────────────────────────────────────
 interface TokenData {

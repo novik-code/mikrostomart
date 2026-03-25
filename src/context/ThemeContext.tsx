@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { demoSanitize } from '@/lib/brandConfig';
 
 // ===================== TYPES =====================
 

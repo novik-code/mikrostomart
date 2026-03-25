@@ -1,6 +1,7 @@
 import { MetadataRoute } from 'next';
 import { articles } from '@/data/articles'; // News
 import { supabase } from '@/lib/supabaseClient';
+import { demoSanitize } from '@/lib/brandConfig';
 
 const BASE_URL = 'https://mikrostomart.pl';
 

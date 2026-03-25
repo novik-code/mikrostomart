@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
+import { demoSanitize } from '@/lib/brandConfig';
 
 
 const BRAND = 'var(--color-primary)';

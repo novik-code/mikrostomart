@@ -1,3 +1,4 @@
+import { demoSanitize } from '@/lib/brandConfig';
 export const KNOWLEDGE_BASE = `
 # BAZA WIEDZY KLINIKI MIKROSTOMART (DLA POLECENIA SYSTEMOWEGO AI)
 

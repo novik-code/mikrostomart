@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { demoSanitize } from '@/lib/brandConfig';
 
 export default function PatientLogin() {
     const [phone, setPhone] = useState('');

@@ -4,6 +4,7 @@ import fs from "fs";
 import path from "path";
 import { sendTelegramNotification } from '@/lib/telegram';
 import { broadcastPush } from '@/lib/webpush';
+import { demoSanitize } from '@/lib/brandConfig';
 
 export const runtime = 'nodejs';
 
@@ -143,7 +144,7 @@ export async function POST(req: NextRequest) {
 
         if (resendKey) {
             const resend = new Resend(resendKey);
-            const adminEmail = "gabinet@mikrostomart.pl";
+            const adminEmail = demoSanitize("gabinet@mikrostomart.pl");
             const fromEmail = "powiadomienia@mikrostomart.pl";
 
 

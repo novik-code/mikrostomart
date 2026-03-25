@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 import { verifyAdmin } from '@/lib/auth';
 import { logAudit } from '@/lib/auditLog';
+import { demoSanitize } from '@/lib/brandConfig';
 
 export const dynamic = 'force-dynamic';
 
@@ -68,10 +69,10 @@ export async function POST(request: Request) {
         if (patient.email) {
             try {
                 await resend.emails.send({
-                    from: 'Mikrostomart <noreply@mikrostomart.pl>',
+                    from: demoSanitize('Mikrostomart <noreply@mikrostomart.pl>'),
                     to: patient.email,
                     subject: 'Rejestracja w Strefie Pacjenta - wymagane wyjaśnienie',
-                    html: `
+                    html: demoSanitize(`
                         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                             <h2 style="color: #ef4444;">Witaj ${firstName}!</h2>
                             <p>Niestety nie mogliśmy automatycznie zatwierdzić Twojego konta.</p>
@@ -88,7 +89,7 @@ export async function POST(request: Request) {
                                 Zespół Mikrostomart
                             </p>
                         </div>
-                    `
+                    `)
                 });
             } catch (emailError) {
                 console.error('Failed to send rejection email:', emailError);

@@ -13,6 +13,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { generateSocialText, generateSocialImage, uploadImageToStorage } from '@/lib/socialAI';
 import type { Platform, ContentType } from '@/lib/socialAI';
+import { demoSanitize } from '@/lib/brandConfig';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;

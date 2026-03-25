@@ -6,6 +6,8 @@
  *   const { subject, html } = getEmailTemplate('verification_email', 'en', { verificationUrl, year });
  */
 
+import { demoSanitize } from '@/lib/brandConfig';
+
 type EmailTemplateType = 'verification_email' | 'order_confirmation' | 'reservation_confirmation';
 
 interface EmailTemplate {
@@ -392,7 +394,7 @@ export function getEmailTemplate(
         : template.subject;
 
     return {
-        subject,
-        html: template.html(params),
+        subject: demoSanitize(subject),
+        html: demoSanitize(template.html(params)),
     };
 }

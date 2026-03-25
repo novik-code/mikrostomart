@@ -6,10 +6,11 @@
  */
 
 import { Resend } from 'resend';
+import { demoSanitize } from '@/lib/brandConfig';
 
 const resend = new Resend(process.env.RESEND_API_KEY!);
 
-const FROM_ADDRESS = 'Mikrostomart <noreply@mikrostomart.pl>';
+const FROM_ADDRESS = demoSanitize('Mikrostomart <noreply@mikrostomart.pl>');
 
 interface EmailResult {
     success: boolean;
@@ -19,7 +20,7 @@ interface EmailResult {
 // ── Email wrapper function ──
 
 function makeHtml(bodyContent: string): string {
-    return `
+    const raw = `
     <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background: #1a1a2e; color: #e0e0e0; padding: 0; border-radius: 12px; overflow: hidden;">
         <!-- Header -->
         <div style="background: linear-gradient(135deg, #dcb14a, #f0c96c); padding: 1.5rem 2rem; text-align: center;">
@@ -40,6 +41,7 @@ function makeHtml(bodyContent: string): string {
             </p>
         </div>
     </div>`;
+    return demoSanitize(raw);
 }
 
 // ═══════════════════════════════════════════════════════════

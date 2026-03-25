@@ -9,13 +9,14 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { demoSanitize } from '@/lib/brandConfig';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const REDIRECT_URI = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://mikrostomart.pl'}/api/social/oauth/tiktok`;
+const REDIRECT_URI = `${process.env.NEXT_PUBLIC_SITE_URL || demoSanitize('https://www.mikrostomart.pl')}/api/social/oauth/tiktok`;
 const CLIENT_KEY = process.env.TIKTOK_CLIENT_KEY!;
 const CLIENT_SECRET = process.env.TIKTOK_CLIENT_SECRET!;
 

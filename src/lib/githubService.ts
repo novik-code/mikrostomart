@@ -1,3 +1,4 @@
+import { demoSanitize } from '@/lib/brandConfig';
 
 const GITHUB_TOKEN = process.env.GITHUB_ACCESS_TOKEN;
 const REPO_OWNER = 'novik-code'; // Hardcoded based on remote url or env? Better to env or simple extraction

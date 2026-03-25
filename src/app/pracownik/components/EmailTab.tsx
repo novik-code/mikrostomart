@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Mail, MailOpen, Send, Inbox, Star, Trash2, Search, RefreshCw, ChevronLeft, Paperclip, X, ArrowLeft, Reply, Forward, FileText, Tag, Bell, Globe, MessageCircle, Archive, Sparkles, Zap, Settings, BookOpen, GraduationCap, Plus, ToggleLeft, ToggleRight, Brain, ThumbsUp, ThumbsDown, Save, FolderOpen, ChevronDown } from 'lucide-react';
+import { demoSanitize } from '@/lib/brandConfig';
 
 // ─── Types ───────────────────────────────────────────────────
 

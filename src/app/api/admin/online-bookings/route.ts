@@ -5,6 +5,7 @@ import { verifyAdmin } from '@/lib/auth';
 import { sendTranslatedPushToUser } from '@/lib/webpush';
 import { sendSMS } from '@/lib/smsService';
 import { sendBookingConfirmedEmail, sendBookingRejectedEmail } from '@/lib/emailService';
+import { demoSanitize } from '@/lib/brandConfig';
 
 export const dynamic = 'force-dynamic';
 

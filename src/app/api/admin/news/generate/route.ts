@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { uploadToRepo } from "@/lib/githubService";
 import { verifyAdmin } from "@/lib/auth";
+import { demoSanitize } from '@/lib/brandConfig';
 
 export const maxDuration = 60; // Allow sufficient time for AI + Upload
 

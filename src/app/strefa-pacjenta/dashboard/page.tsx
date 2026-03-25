@@ -8,6 +8,7 @@ import { DashboardSkeleton } from '@/components/PatientSkeleton';
 import { usePatientAuth } from '@/hooks/usePatientAuth';
 import type { PatientData } from '@/hooks/usePatientAuth';
 import type { AppointmentStatusResponse } from '@/types/appointmentActions';
+import { demoSanitize } from '@/lib/brandConfig';
 
 interface PatientDocument {
     id: string;

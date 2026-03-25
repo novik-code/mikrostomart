@@ -3,6 +3,8 @@
  * Generates .ics files for "Add to Calendar" functionality
  */
 
+import { demoSanitize } from '@/lib/brandConfig';
+
 interface ICSEvent {
     summary: string;
     description?: string;
@@ -82,7 +84,7 @@ export function generateICS(event: ICSEvent): string {
 
     lines.push('END:VEVENT', 'END:VCALENDAR');
 
-    return lines.join('\r\n');
+    return demoSanitize(lines.join('\r\n'));
 }
 
 /**

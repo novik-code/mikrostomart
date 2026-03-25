@@ -1,6 +1,7 @@
 import webpush from 'web-push';
 import { createClient } from '@supabase/supabase-js';
 import { getPushTranslation, PushNotificationType } from './pushTranslations';
+import { demoSanitize } from '@/lib/brandConfig';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

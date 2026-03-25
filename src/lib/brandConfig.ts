@@ -103,3 +103,36 @@ const DEMO_BRAND: BrandConfig = {
 };
 
 export const brand: BrandConfig = isDemoMode ? DEMO_BRAND : PROD_BRAND;
+
+/**
+ * Sanitizes text by replacing Mikrostomart-specific references with generic demo equivalents.
+ * In production mode, returns the input string unchanged.
+ * Use this at output points (emails, SMS, AI prompts, rendered text) to neutralize branding.
+ */
+export function demoSanitize(text: string): string {
+    if (!isDemoMode || !text) return text;
+
+    return text
+        // Email / domain
+        .replace(/gabinet@mikrostomart\.pl/gi, 'kontakt@demo.densflow.ai')
+        .replace(/mikrostomart\.pl/gi, 'demo.densflow.ai')
+        // Address
+        .replace(/ul\.\s*Centralna?\s*33\s*[aA]?/gi, 'ul. Przykładowa 1')
+        .replace(/45[\s-]*940/g, '00-001')
+        .replace(/Opole[\s/]*Chmielowice/gi, 'Warszawa')
+        .replace(/w\s+Opolu/gi, 'w Warszawie')
+        .replace(/\bOpole\b/gi, 'Warszawa')
+        // Phone
+        .replace(/570[\s-]*270[\s-]*470/g, '000-000-000')
+        .replace(/570[\s-]*810[\s-]*800/g, '000-000-000')
+        // Brand name (order matters — longer patterns first)
+        .replace(/MIKROSTOMART[\s–-]*Mikroskopow[aą]\s*Stomatologi[aąę]\s*Artystyczn[aąą]/gi, 'Klinika Demo — Gabinet Stomatologiczny')
+        .replace(/Mikroskopow[aą]\s*Stomatologi[aąę]\s*Artystyczn[aąą]/gi, 'Gabinet Stomatologiczny')
+        .replace(/MIKROSTOMART/g, 'KLINIKA DEMO')
+        .replace(/Mikrostomart/g, 'Klinika Demo')
+        .replace(/mikrostomart/g, 'klinika-demo')
+        // NIP / company details
+        .replace(/ELMAR\s+SP(?:ÓŁKA|\.)\s*Z\s*(?:OGRANICZONĄ\s*ODPOWIEDZIALNOŚCIĄ|O\.?\s*O\.?)/gi, 'Demo Dental Sp. z o.o.')
+        .replace(/NIP:\s*7543251709/gi, 'NIP: 0000000000')
+        .replace(/7543251709/g, '0000000000');
+}

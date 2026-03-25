@@ -1,4 +1,5 @@
 import { MetadataRoute } from 'next';
+import { demoSanitize } from '@/lib/brandConfig';
 
 export default function robots(): MetadataRoute.Robots {
     return {

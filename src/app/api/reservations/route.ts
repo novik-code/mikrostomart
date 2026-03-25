@@ -5,6 +5,7 @@ import { broadcastPush } from '@/lib/webpush';
 import { getEmailTemplate } from '@/lib/emailTemplates';
 import { getDoctorInfo, normalizePhone, fuzzyNameMatch, extractFirstName, extractLastName, findBestPatientMatch, nameMatchScore } from '@/lib/doctorMapping';
 import type { PatientCandidate } from '@/lib/doctorMapping';
+import { demoSanitize } from '@/lib/brandConfig';
 
 export const runtime = 'nodejs';
 
@@ -112,7 +113,7 @@ export async function POST(req: NextRequest) {
         const resendKey = process.env.RESEND_API_KEY;
         if (resendKey) {
             const resend = new Resend(resendKey);
-            const adminEmail = "gabinet@mikrostomart.pl";
+            const adminEmail = demoSanitize("gabinet@mikrostomart.pl");
             const fromEmail = "powiadomienia@mikrostomart.pl";
 
             const emailData: any = {
@@ -343,7 +344,7 @@ export async function POST(req: NextRequest) {
 
                         if (!tokenErr && tokenData) {
                             intakeTokenId = tokenData.id;
-                            const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://mikrostomart.pl';
+                            const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || demoSanitize('https://www.mikrostomart.pl');
                             intakeUrl = `${baseUrl}/ekarta/${tokenData.token}`;
                             console.log(`[OnlineBooking] E-karta token generated: ${intakeUrl}`);
                         } else {

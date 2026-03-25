@@ -7,6 +7,7 @@ import { sendTranslatedPushToUser } from '@/lib/webpush';
 import { logCronHeartbeat } from '@/lib/cronHeartbeat';
 import { randomUUID } from 'crypto';
 import { nanoid } from 'nanoid';
+import { demoSanitize } from '@/lib/brandConfig';
 
 export const maxDuration = 120; // Vercel function timeout (increased: many appointments + multiple DB queries per appointment)
 

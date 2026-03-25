@@ -10,6 +10,7 @@ const supabase = createClient(
 );
 
 import { checkRateLimit } from '@/lib/rateLimit';
+import { demoSanitize } from '@/lib/brandConfig';
 
 /**
  * POST /api/auth/reset-password
@@ -68,7 +69,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Build a DIRECT link to our page (no Supabase redirect!)
-        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.mikrostomart.pl';
+        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || demoSanitize('https://www.mikrostomart.pl');
         const tokenHash = linkData.properties.hashed_token;
         const recoveryUrl = `${siteUrl}/admin/update-password?token_hash=${encodeURIComponent(tokenHash)}&type=recovery`;
 
@@ -77,10 +78,10 @@ export async function POST(request: NextRequest) {
         // Send email via Resend
         const resend = new Resend(process.env.RESEND_API_KEY!);
         const { error: emailError } = await resend.emails.send({
-            from: 'Mikrostomart <noreply@mikrostomart.pl>',
+            from: demoSanitize('Mikrostomart <noreply@mikrostomart.pl>'),
             to: normalizedEmail,
-            subject: 'Resetowanie hasła — Mikrostomart',
-            html: `
+            subject: demoSanitize('Resetowanie hasła — Mikrostomart'),
+            html: demoSanitize(`
                 <!DOCTYPE html><html><head><meta charset="utf-8"></head>
                 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
                 <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -103,7 +104,7 @@ export async function POST(request: NextRequest) {
                         <p>📞 570 270 470<br>📧 gabinet@mikrostomart.pl</p>
                     </div>
                 </div></body></html>
-            `,
+            `),
         });
 
         if (emailError) {

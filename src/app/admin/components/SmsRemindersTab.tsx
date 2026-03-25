@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { inputStyle } from "./adminStyles";
 import { createBrowserClient } from "@supabase/ssr";
+import { demoSanitize } from '@/lib/brandConfig';
 
 const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

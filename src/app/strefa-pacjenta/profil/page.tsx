@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { usePatientAuth } from '@/hooks/usePatientAuth';
+import { demoSanitize } from '@/lib/brandConfig';
 
 interface PatientData {
     id: string;
@@ -630,7 +631,7 @@ export default function PatientProfile() {
                                             const url = URL.createObjectURL(blob);
                                             const a = document.createElement('a');
                                             a.href = url;
-                                            a.download = `moje-dane-mikrostomart-${new Date().toISOString().split('T')[0]}.json`;
+                                            a.download = `${demoSanitize("moje-dane-mikrostomart")}-${new Date().toISOString().split('T')[0]}.json`;
                                             a.click();
                                             URL.revokeObjectURL(url);
                                         });

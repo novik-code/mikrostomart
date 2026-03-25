@@ -10,6 +10,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { demoSanitize } from '@/lib/brandConfig';
 
 export const maxDuration = 300;
 

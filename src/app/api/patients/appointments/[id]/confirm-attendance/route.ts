@@ -5,6 +5,7 @@ import { verifyTokenFromRequest } from '@/lib/jwt';
 import { sendTelegramNotification } from '@/lib/telegram';
 import { broadcastPush } from '@/lib/webpush';
 import type { ConfirmAttendanceRequest, AppointmentActionResponse, AppointmentAction } from '@/types/appointmentActions';
+import { demoSanitize } from '@/lib/brandConfig';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -148,8 +149,8 @@ export async function POST(
         let emailSent = false;
         try {
             await resend.emails.send({
-                from: 'Strefa Pacjenta <noreply@mikrostomart.pl>',
-                to: ['gabinet@mikrostomart.pl'],
+                from: demoSanitize('Strefa Pacjenta <noreply@mikrostomart.pl>'),
+                to: [demoSanitize(demoSanitize('gabinet@mikrostomart.pl'))],
                 subject: '✅ Pacjent potwierdził obecność na wizycie',
                 html: emailHtml
             });

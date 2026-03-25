@@ -39,6 +39,7 @@ import {
 } from "lucide-react";
 import { Product } from './components/AdminTypes';
 import SocialMediaTab from './components/SocialMediaTab';
+import { demoSanitize } from '@/lib/brandConfig';
 
 export default function AdminPage() {
     const [loading, setLoading] = useState(false);

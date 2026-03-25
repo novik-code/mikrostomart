@@ -9,6 +9,7 @@ import OpenAI from 'openai';
 import { execSync } from 'child_process';
 import { writeFileSync, readFileSync, unlinkSync, existsSync } from 'fs';
 import path from 'path';
+import { demoSanitize } from '@/lib/brandConfig';
 
 // ── Types ──────────────────────────────────────────────────────────
 

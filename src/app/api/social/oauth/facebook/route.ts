@@ -9,13 +9,14 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { demoSanitize } from '@/lib/brandConfig';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const REDIRECT_URI = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://mikrostomart.pl'}/api/social/oauth/facebook`;
+const REDIRECT_URI = `${process.env.NEXT_PUBLIC_SITE_URL || demoSanitize('https://www.mikrostomart.pl')}/api/social/oauth/facebook`;
 const APP_ID = process.env.META_APP_ID!;
 const APP_SECRET = process.env.META_APP_SECRET!;
 

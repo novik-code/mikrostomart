@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { demoSanitize } from '@/lib/brandConfig';
 
 /**
  * POST /api/intake/generate-token
@@ -69,7 +70,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: 'Failed to create token' }, { status: 500 });
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://mikrostomart.pl';
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || demoSanitize('https://www.mikrostomart.pl');
     const url = `${baseUrl}/ekarta/${data.token}`;
 
     return NextResponse.json({

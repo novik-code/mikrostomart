@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 import { sendSMS } from '@/lib/smsService';
 import { sendTelegramNotification } from '@/lib/telegram';
 import { isSmsTypeEnabled } from '@/lib/smsSettings';
+import { demoSanitize } from '@/lib/brandConfig';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;

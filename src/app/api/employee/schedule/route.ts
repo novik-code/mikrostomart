@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
 import { createClient } from '@supabase/supabase-js';
+import { demoSanitize } from '@/lib/brandConfig';
 
 export const dynamic = 'force-dynamic';
 

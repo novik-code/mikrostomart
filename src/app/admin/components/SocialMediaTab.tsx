@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
+import { demoSanitize } from '@/lib/brandConfig';
 
 // ── Types ──────────────────────────────────────────────────────────
 interface SocialPlatform {

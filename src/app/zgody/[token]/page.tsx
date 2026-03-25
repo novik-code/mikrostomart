@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { PDFDocument, rgb } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
 import { CONSENT_TYPES as HARDCODED_CONSENT_TYPES, ConsentType, CheckboxFieldPosition } from '@/lib/consentTypes';
+import { demoSanitize } from '@/lib/brandConfig';
 
 /** Cache for the Inter font bytes so we only fetch it once */
 let cachedFontBytes: ArrayBuffer | null = null;

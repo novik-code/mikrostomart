@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
+import { demoSanitize } from '@/lib/brandConfig';
 
 export const dynamic = 'force-dynamic';
 
@@ -100,17 +101,17 @@ export async function POST(request: NextRequest) {
         }
 
         // Send email with reset link
-        const resetUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.mikrostomart.pl'}/strefa-pacjenta/reset-password/${token}`;
+        const resetUrl = `${process.env.NEXT_PUBLIC_SITE_URL || demoSanitize('https://www.mikrostomart.pl')}/strefa-pacjenta/reset-password/${token}`;
 
         console.log('[Password Reset] Attempting to send email to:', patient.email);
         console.log('[Password Reset] Reset URL:', resetUrl);
 
         try {
             const emailResult = await resend.emails.send({
-                from: 'Mikrostomart <noreply@mikrostomart.pl>',
+                from: demoSanitize('Mikrostomart <noreply@mikrostomart.pl>'),
                 to: patient.email,
                 subject: 'Resetowanie hasła - Strefa Pacjenta',
-                html: `
+                html: demoSanitize(`
                     <!DOCTYPE html>
                     <html>
                     <head>
@@ -166,7 +167,7 @@ export async function POST(request: NextRequest) {
                         </div>
                     </body>
                     </html>
-                `
+                `)
             });
 
             console.log('[Password Reset] Email sent successfully:', emailResult);

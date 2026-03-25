@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { demoSanitize } from '@/lib/brandConfig';
 
 export const metadata: Metadata = {
     title: "Video Shorts — Mikrostomart",

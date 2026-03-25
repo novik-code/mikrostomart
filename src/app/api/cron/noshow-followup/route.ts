@@ -5,6 +5,7 @@ import { sendSMS } from '@/lib/smsService';
 import { sendTelegramNotification } from '@/lib/telegram';
 import { logCronHeartbeat } from '@/lib/cronHeartbeat';
 import { isSmsTypeEnabled } from '@/lib/smsSettings';
+import { demoSanitize } from '@/lib/brandConfig';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;

@@ -4,6 +4,7 @@ import { KNOWLEDGE_BASE } from '@/lib/knowledgeBase';
 import { checkRateLimit, getClientIP } from '@/lib/rateLimit';
 import fs from 'fs';
 import path from 'path';
+import { demoSanitize } from '@/lib/brandConfig';
 
 
 
