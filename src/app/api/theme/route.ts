@@ -6,16 +6,16 @@ const supabase = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-// DensFlow Light preset — returned as default for demo mode
+// DensFlow Light preset — returned as default for demo mode (LePerle-inspired)
 const DENSFLOW_LIGHT_PRESET = {
     colors: {
-        background: '#F8FAFD', surface: '#FFFFFF', surfaceHover: '#EDF2F9',
-        primary: '#4F8FE6', primaryLight: '#7EB3F7', primaryDark: '#2D6BC4',
-        textMain: '#1E293B', textMuted: '#64748B', success: '#22C55E', error: '#EF4444',
+        background: '#FAFAFA', surface: '#FFFFFF', surfaceHover: '#F5F0EB',
+        primary: '#9D7D5D', primaryLight: '#B89B7A', primaryDark: '#7A5F42',
+        textMain: '#1A1A1A', textMuted: '#6B6B6B', success: '#22C55E', error: '#EF4444',
     },
-    typography: { fontBody: 'DM Sans', fontHeading: 'Outfit', baseFontSize: 16, headingScale: 1.0, lineHeight: 1.6 },
-    layout: { containerMaxWidth: 1200, borderRadius: 'rounded', spacingScale: 1.0 },
-    animations: { enableScrollAnimations: true, enablePageTransitions: true, animationSpeed: 0.8 },
+    typography: { fontBody: 'DM Sans', fontHeading: 'Outfit', baseFontSize: 16, headingScale: 1.05, lineHeight: 1.7 },
+    layout: { containerMaxWidth: 1200, borderRadius: 'rounded', spacingScale: 1.1 },
+    animations: { enableScrollAnimations: true, enablePageTransitions: true, animationSpeed: 0.9 },
     hero: { minHeight: '85vh', backgroundVideoId: '', backgroundVideoOpacity: 0 },
     navbar: { style: 'glassmorphism', logoText: 'DENSFLOW' },
     features: {
@@ -26,8 +26,8 @@ const DENSFLOW_LIGHT_PRESET = {
         },
         backgroundVideo: false, assistantTeaser: true, pwaInstallPrompt: true, cookieConsent: true,
         simulatorModal: false, opinionSurvey: false,
-        shop: true, blog: true, faq: true, knowledgeBase: true, treatmentCalculator: true,
-        metamorphoses: true, youtubeSection: false, googleReviews: true, painMap: true,
+        shop: false, blog: false, faq: false, knowledgeBase: false, treatmentCalculator: false,
+        metamorphoses: true, youtubeSection: false, googleReviews: true, painMap: false,
         selfie: false, comparator: false,
     },
 };

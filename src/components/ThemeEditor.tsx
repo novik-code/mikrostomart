@@ -769,11 +769,11 @@ export default function ThemeEditor() {
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
                             {[
                                 { id: 'default-gold', name: 'Domyślne Złoto', colors: ['#08090a', '#dcb14a', '#f0c975'] },
-                                { id: 'densflow-light', name: 'DensFlow Light', colors: ['#F8FAFD', '#4F8FE6', '#E88DA0'] },
-                                { id: 'dental-luxe', name: 'Dental Luxe', colors: ['#0B0C10', '#D4AF37', '#E8C85A'] },
-                                { id: 'fresh-smile', name: 'Fresh Smile', colors: ['#F0FDF4', '#16A34A', '#4ADE80'] },
-                                { id: 'nordic-dental', name: 'Nordic Dental', colors: ['#F1F5F9', '#475569', '#64748B'] },
-                                { id: 'warm-care', name: 'Warm Care', colors: ['#FFF7ED', '#EA580C', '#FB923C'] },
+                                { id: 'densflow-light', name: 'DensFlow Light', colors: ['#FAFAFA', '#9D7D5D', '#B89B7A'] },
+                                { id: 'dental-luxe', name: 'Dental Luxe', colors: ['#0A0A0A', '#C5A55A', '#D4BA78'] },
+                                { id: 'fresh-smile', name: 'Fresh Smile', colors: ['#FFFFFF', '#8B5CF6', '#A78BFA'] },
+                                { id: 'nordic-dental', name: 'Nordic Dental', colors: ['#F7F5F2', '#8B7355', '#A69178'] },
+                                { id: 'warm-care', name: 'Warm Care', colors: ['#F5EDE4', '#3B82F6', '#60A5FA'] },
                             ].map(preset => (
                                 <button
                                     key={preset.id}

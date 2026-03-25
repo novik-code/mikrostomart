@@ -169,44 +169,46 @@ export const DEFAULT_THEME: ThemeConfig = {
 export const THEME_PRESETS: Record<string, Partial<ThemeConfig>> = {
     'default-gold': {},
 
+    // Inspired by LePerle.pl — boutique premium, white/gold, minimal features
+    // Clean white background, gold accents, floating nav, team & opinie focus
     'densflow-light': {
         colors: {
             ...DEFAULT_THEME.colors,
-            primary: '#4F8FE6',
-            primaryLight: '#7EB3F7',
-            primaryDark: '#2D6BC4',
-            background: '#F8FAFD',
+            primary: '#9D7D5D',       // warm gold/bronze like LePerle
+            primaryLight: '#B89B7A',
+            primaryDark: '#7A5F42',
+            background: '#FAFAFA',     // near-white
             surface: '#FFFFFF',
-            surfaceHover: '#EDF2F9',
-            textMain: '#1E293B',
-            textMuted: '#64748B',
+            surfaceHover: '#F5F0EB',   // warm cream hover
+            textMain: '#1A1A1A',       // crisp black text
+            textMuted: '#6B6B6B',
             success: '#22C55E',
             error: '#EF4444',
         },
         typography: {
             fontBody: 'DM Sans',
-            fontHeading: 'Outfit',
+            fontHeading: 'Outfit',     // modern geometric like LePerle
             baseFontSize: 16,
-            headingScale: 1.0,
-            lineHeight: 1.6,
+            headingScale: 1.05,
+            lineHeight: 1.7,
         },
         layout: {
             containerMaxWidth: 1200,
-            borderRadius: 'rounded',
-            spacingScale: 1.0,
+            borderRadius: 'rounded',   // LePerle uses rounded cards
+            spacingScale: 1.1,
         },
         animations: {
             enableScrollAnimations: true,
             enablePageTransitions: true,
-            animationSpeed: 0.8,
+            animationSpeed: 0.9,
         },
         hero: {
             minHeight: '85vh',
-            backgroundVideoId: '',
+            backgroundVideoId: '',     // LePerle: no video, photo hero
             backgroundVideoOpacity: 0,
         },
         navbar: {
-            style: 'glassmorphism',
+            style: 'glassmorphism',    // LePerle: floating white card navbar
             logoText: 'DENSFLOW',
         },
         features: {
@@ -223,60 +225,63 @@ export const THEME_PRESETS: Record<string, Partial<ThemeConfig>> = {
             assistantTeaser: true,
             pwaInstallPrompt: true,
             cookieConsent: true,
+            // LePerle: minimal — no shop, no FAQ, no blog, no pain map, no selfie
             simulatorModal: false,
             opinionSurvey: false,
-            shop: true,
-            blog: true,
-            faq: true,
-            knowledgeBase: true,
-            treatmentCalculator: true,
-            metamorphoses: true,
+            shop: false,
+            blog: false,
+            faq: false,
+            knowledgeBase: false,
+            treatmentCalculator: false,
+            metamorphoses: true,      // LePerle highlights metamorfozy
             youtubeSection: false,
-            googleReviews: true,
-            painMap: true,
+            googleReviews: true,      // LePerle shows client reviews
+            painMap: false,
             selfie: false,
             comparator: false,
         },
     },
 
+    // Inspired by NawrockiClinic.com — ultra-luxury dark cinema with gold
+    // Full-screen video, transparent nav, thin elegant sans, ALL features maxed
     'dental-luxe': {
         colors: {
             ...DEFAULT_THEME.colors,
-            primary: '#D4AF37',
-            primaryLight: '#E8C85A',
-            primaryDark: '#A68B1F',
-            background: '#0B0C10',
-            surface: '#151720',
-            surfaceHover: '#1E2030',
-            textMain: '#F1F2F6',
-            textMuted: '#8B8FA3',
+            primary: '#C5A55A',        // rich gold like Nawrocki
+            primaryLight: '#D4BA78',
+            primaryDark: '#9A7E3B',
+            background: '#0A0A0A',     // deep black
+            surface: '#141414',
+            surfaceHover: '#1E1E1E',
+            textMain: '#F5F5F5',       // crisp white on black
+            textMuted: '#8A8A8A',
             success: '#10B981',
             error: '#F43F5E',
         },
         typography: {
-            fontBody: 'Inter',
-            fontHeading: 'Playfair Display',
+            fontBody: 'Inter',          // thin modern sans like Nawrocki
+            fontHeading: 'Cormorant Garamond', // elegant serif for luxury
             baseFontSize: 17,
-            headingScale: 1.15,
-            lineHeight: 1.7,
+            headingScale: 1.2,         // large dramatic headings
+            lineHeight: 1.75,
         },
         layout: {
-            containerMaxWidth: 1400,
+            containerMaxWidth: 1400,   // wide cinematic layout
             borderRadius: 'soft',
-            spacingScale: 1.2,
+            spacingScale: 1.3,         // generous spacing = luxury feel
         },
         animations: {
             enableScrollAnimations: true,
             enablePageTransitions: true,
-            animationSpeed: 1.0,
+            animationSpeed: 1.2,       // slow elegant animations
         },
         hero: {
-            minHeight: '100vh',
+            minHeight: '100vh',        // Nawrocki: full viewport video
             backgroundVideoId: 'vGAu6rdJ8WQ',
-            backgroundVideoOpacity: 0.3,
+            backgroundVideoOpacity: 0.35,
         },
         navbar: {
-            style: 'transparent',
+            style: 'transparent',      // Nawrocki: transparent nav over video
             logoText: 'DENTAL LUXE',
         },
         features: {
@@ -284,24 +289,25 @@ export const THEME_PRESETS: Record<string, Partial<ThemeConfig>> = {
             splashScreen: true,
             splashScreenConfig: {
                 enabled: true,
-                animationType: 'particles',
-                duration: 6,
+                animationType: 'particles', // dramatic particle splash
+                duration: 5,
                 frequency: 'once_session',
                 sections: { public: true, admin: false, employee: false, patient: false },
             },
-            backgroundVideo: true,
+            backgroundVideo: true,     // Nawrocki: full video bg
             assistantTeaser: true,
             pwaInstallPrompt: true,
             cookieConsent: true,
+            // Nawrocki: everything on — premium full experience
             simulatorModal: true,
             opinionSurvey: true,
-            shop: true,
-            blog: true,
+            shop: true,               // Nawrocki has voucher shop
+            blog: true,               // Nawrocki has blog
             faq: true,
             knowledgeBase: true,
             treatmentCalculator: true,
-            metamorphoses: true,
-            youtubeSection: true,
+            metamorphoses: true,       // Nawrocki highlights metamorfozy
+            youtubeSection: true,      // Nawrocki has YouTube
             googleReviews: true,
             painMap: true,
             selfie: true,
@@ -309,48 +315,51 @@ export const THEME_PRESETS: Record<string, Partial<ThemeConfig>> = {
         },
     },
 
+    // Inspired by AmbasadaUsmiechu.pl — community-friendly, white/lavender
+    // Wide service grid, educational feel, FAQ & blog prominent, no splash
     'fresh-smile': {
         colors: {
             ...DEFAULT_THEME.colors,
-            primary: '#16A34A',
-            primaryLight: '#4ADE80',
-            primaryDark: '#15803D',
-            background: '#F0FDF4',
-            surface: '#FFFFFF',
-            surfaceHover: '#DCFCE7',
-            textMain: '#14532D',
-            textMuted: '#4B5563',
+            primary: '#8B5CF6',        // lavender/purple like Ambasada
+            primaryLight: '#A78BFA',
+            primaryDark: '#7C3AED',
+            background: '#FFFFFF',     // pure white
+            surface: '#FAFAFE',
+            surfaceHover: '#F3F0FF',   // light lavender hover
+            textMain: '#1F1F1F',
+            textMuted: '#6B7280',
             success: '#059669',
             error: '#DC2626',
         },
         typography: {
-            fontBody: 'Poppins',
-            fontHeading: 'Montserrat',
+            fontBody: 'Poppins',       // Ambasada uses Poppins-like
+            fontHeading: 'Montserrat', // bold geometric headings
             baseFontSize: 15,
             headingScale: 0.95,
-            lineHeight: 1.5,
+            lineHeight: 1.6,
         },
         layout: {
-            containerMaxWidth: 1100,
+            containerMaxWidth: 1200,
             borderRadius: 'rounded',
-            spacingScale: 0.9,
+            spacingScale: 0.95,        // compact, informational
         },
         animations: {
             enableScrollAnimations: true,
-            enablePageTransitions: false,
+            enablePageTransitions: false, // fast, no page transitions
             animationSpeed: 0.7,
         },
         hero: {
-            minHeight: '70vh',
+            minHeight: '70vh',         // Ambasada: shorter, informational hero
             backgroundVideoId: '',
             backgroundVideoOpacity: 0,
         },
         navbar: {
-            style: 'solid',
+            style: 'solid',           // Ambasada: solid white navbar
             logoText: 'FRESH SMILE',
         },
         features: {
             ...DEFAULT_THEME.features,
+            // Ambasada: No splash, educational community feel
             splashScreen: false,
             splashScreenConfig: {
                 enabled: false,
@@ -360,67 +369,71 @@ export const THEME_PRESETS: Record<string, Partial<ThemeConfig>> = {
                 sections: { public: false, admin: false, employee: false, patient: false },
             },
             backgroundVideo: false,
-            assistantTeaser: false,
+            assistantTeaser: false,    // Ambasada: no float widgets
             pwaInstallPrompt: true,
             cookieConsent: true,
-            simulatorModal: true,
+            simulatorModal: false,
             opinionSurvey: false,
-            shop: true,
-            blog: false,
-            faq: true,
-            knowledgeBase: false,
+            // Ambasada: education-heavy = FAQ + blog + knowledge base
+            shop: false,              // no shop
+            blog: true,               // Ambasada has expert blog
+            faq: true,                // Ambasada has prominent FAQ
+            knowledgeBase: true,       // educational content
             treatmentCalculator: true,
-            metamorphoses: true,
+            metamorphoses: false,      // Ambasada doesn't emphasize metamorfozy
             youtubeSection: false,
-            googleReviews: true,
+            googleReviews: true,       // Ambasada shows reviews
             painMap: false,
             selfie: false,
-            comparator: true,
+            comparator: true,         // Ambasada: service comparison
         },
     },
 
+    // Inspired by OneandonlyClinic.pl — butique elegance, sand/serif
+    // Serif headings, earthy tones, metamorfozy + holistic focus, calm sophistication
     'nordic-dental': {
         colors: {
             ...DEFAULT_THEME.colors,
-            primary: '#475569',
-            primaryLight: '#64748B',
-            primaryDark: '#334155',
-            background: '#F1F5F9',
+            primary: '#8B7355',        // sandy/earthy brown like One&Only
+            primaryLight: '#A69178',
+            primaryDark: '#6D5840',
+            background: '#F7F5F2',     // warm marble/sand white
             surface: '#FFFFFF',
-            surfaceHover: '#E2E8F0',
-            textMain: '#0F172A',
-            textMuted: '#64748B',
+            surfaceHover: '#EDE8E2',   // warm sand hover
+            textMain: '#2C2420',       // near-black brown
+            textMuted: '#7A6E64',
             success: '#0D9488',
             error: '#E11D48',
         },
         typography: {
-            fontBody: 'Roboto',
-            fontHeading: 'Roboto Slab',
+            fontBody: 'Lato',          // clean readable sans
+            fontHeading: 'Playfair Display', // elegant serif like One&Only
             baseFontSize: 16,
-            headingScale: 1.05,
-            lineHeight: 1.65,
+            headingScale: 1.1,
+            lineHeight: 1.7,
         },
         layout: {
-            containerMaxWidth: 1300,
-            borderRadius: 'sharp',
-            spacingScale: 1.1,
+            containerMaxWidth: 1200,
+            borderRadius: 'soft',     // subtle, not aggressive
+            spacingScale: 1.15,        // generous, calm spacing
         },
         animations: {
-            enableScrollAnimations: false,
-            enablePageTransitions: false,
-            animationSpeed: 0.5,
+            enableScrollAnimations: true,
+            enablePageTransitions: true,
+            animationSpeed: 1.0,
         },
         hero: {
-            minHeight: '80vh',
+            minHeight: '90vh',        // One&Only: near-full hero
             backgroundVideoId: '',
             backgroundVideoOpacity: 0,
         },
         navbar: {
-            style: 'solid',
+            style: 'glassmorphism',   // One&Only: integrated top bar
             logoText: 'NORDIC DENTAL',
         },
         features: {
             ...DEFAULT_THEME.features,
+            // One&Only: no splash, calm entry, focused on aesthetics
             splashScreen: false,
             splashScreenConfig: {
                 enabled: false,
@@ -433,88 +446,93 @@ export const THEME_PRESETS: Record<string, Partial<ThemeConfig>> = {
             assistantTeaser: true,
             pwaInstallPrompt: false,
             cookieConsent: true,
-            simulatorModal: false,
+            // One&Only: focused portfolio — metamorfozy + estetyka, no shop/blog/FAQ
+            simulatorModal: true,      // smile simulator fits aesthetic focus
             opinionSurvey: false,
-            shop: true,
-            blog: true,
-            faq: true,
-            knowledgeBase: true,
+            shop: false,
+            blog: false,
+            faq: false,
+            knowledgeBase: false,
             treatmentCalculator: true,
-            metamorphoses: false,
+            metamorphoses: true,       // One&Only: strong metamorfozy focus
             youtubeSection: false,
-            googleReviews: true,
-            painMap: true,
+            googleReviews: true,       // One&Only shows patient reviews
+            painMap: false,
             selfie: false,
             comparator: false,
         },
     },
 
+    // Inspired by MalottkiClinic.pl — warm, approachable, full-content
+    // Beige/cream background, blue accents, rounded, all content sections visible
     'warm-care': {
         colors: {
             ...DEFAULT_THEME.colors,
-            primary: '#EA580C',
-            primaryLight: '#FB923C',
-            primaryDark: '#C2410C',
-            background: '#FFF7ED',
+            primary: '#3B82F6',        // blue accent like Malottki's CTA
+            primaryLight: '#60A5FA',
+            primaryDark: '#2563EB',
+            background: '#F5EDE4',     // warm beige/cream like Malottki
             surface: '#FFFFFF',
-            surfaceHover: '#FED7AA',
-            textMain: '#431407',
-            textMuted: '#78716C',
+            surfaceHover: '#EDE5DB',
+            textMain: '#2D1F1A',       // warm dark brown
+            textMuted: '#7A6A5F',
             success: '#16A34A',
             error: '#DC2626',
         },
         typography: {
-            fontBody: 'Lato',
-            fontHeading: 'Merriweather',
-            baseFontSize: 17,
-            headingScale: 1.1,
-            lineHeight: 1.75,
+            fontBody: 'Open Sans',
+            fontHeading: 'Montserrat', // geometric sans like Malottki
+            baseFontSize: 16,
+            headingScale: 1.0,
+            lineHeight: 1.65,
         },
         layout: {
-            containerMaxWidth: 1150,
-            borderRadius: 'rounded',
-            spacingScale: 1.15,
+            containerMaxWidth: 1200,
+            borderRadius: 'rounded',   // Malottki: large border radius
+            spacingScale: 1.0,
         },
         animations: {
             enableScrollAnimations: true,
             enablePageTransitions: true,
-            animationSpeed: 1.3,
+            animationSpeed: 0.9,
         },
         hero: {
             minHeight: '85vh',
-            backgroundVideoId: 'vGAu6rdJ8WQ',
-            backgroundVideoOpacity: 0.1,
+            backgroundVideoId: '',     // Malottki: photo hero, no video
+            backgroundVideoOpacity: 0,
         },
         navbar: {
-            style: 'glassmorphism',
+            style: 'solid',           // Malottki: solid navbar
             logoText: 'WARM CARE',
         },
         features: {
             ...DEFAULT_THEME.features,
-            splashScreen: true,
+            // Malottki: no splash screen
+            splashScreen: false,
             splashScreenConfig: {
-                enabled: true,
-                animationType: 'slide',
-                duration: 4,
-                frequency: 'daily',
-                sections: { public: true, admin: false, employee: false, patient: false },
+                enabled: false,
+                animationType: 'none',
+                duration: 2,
+                frequency: 'once_ever',
+                sections: { public: false, admin: false, employee: false, patient: false },
             },
-            backgroundVideo: true,
+            backgroundVideo: false,
             assistantTeaser: true,
             pwaInstallPrompt: true,
             cookieConsent: true,
-            simulatorModal: true,
+            // Malottki: content-rich = blog + FAQ + opinie + metamorfozy
+            simulatorModal: false,
             opinionSurvey: true,
             shop: false,
-            blog: true,
-            faq: true,
+            blog: true,                // Malottki has active blog
+            faq: true,                 // Malottki has prominent FAQ
             knowledgeBase: true,
             treatmentCalculator: true,
-            metamorphoses: true,
-            youtubeSection: true,
-            googleReviews: true,
-            painMap: false,
-            selfie: true,
+            metamorphoses: true,       // Malottki highlights metamorfozy
+            youtubeSection: false,
+            googleReviews: true,       // Malottki shows Google reviews
+            painMap: true,
+            selfie: false,
             comparator: false,
         },
     },
