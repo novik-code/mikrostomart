@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 
 /**
  * PageOverridesApplier — loads saved page overrides from the public API
@@ -23,6 +23,17 @@ export default function PageOverridesApplier() {
                     document.body.style.backgroundColor = overrides.bodyBg;
                 }
 
+                // Make flex parents (for CSS order to work)
+                for (const path of (overrides.flexParents || [])) {
+                    try {
+                        const el = document.querySelector(path) as HTMLElement | null;
+                        if (el) {
+                            el.style.display = 'flex';
+                            el.style.flexDirection = 'column';
+                        }
+                    } catch {}
+                }
+
                 // Apply element-level overrides
                 const elements = overrides.elements || {};
                 for (const [selector, styles] of Object.entries(elements)) {
@@ -30,7 +41,7 @@ export default function PageOverridesApplier() {
                     try {
                         const el = document.querySelector(selector) as HTMLElement | null;
                         if (!el) continue;
-                        const s = styles as Record<string, string | boolean>;
+                        const s = styles as Record<string, any>;
                         if (s.hidden) el.style.display = 'none';
                         if (s.bgColor && typeof s.bgColor === 'string') el.style.backgroundColor = s.bgColor;
                         if (s.textColor && typeof s.textColor === 'string') el.style.color = s.textColor;
@@ -38,10 +49,12 @@ export default function PageOverridesApplier() {
                         if (s.fontSize && typeof s.fontSize === 'string') el.style.fontSize = s.fontSize;
                         if (s.fontWeight && typeof s.fontWeight === 'string') el.style.fontWeight = s.fontWeight;
                         if (s.borderRadius && typeof s.borderRadius === 'string') el.style.borderRadius = s.borderRadius;
-                        if (s.transform && typeof s.transform === 'string') el.style.transform = s.transform;
+                        if (s.width && typeof s.width === 'string') el.style.width = s.width;
+                        if (s.height && typeof s.height === 'string') el.style.height = s.height;
+                        if (s.order !== undefined) el.style.order = String(s.order);
                     } catch { /* invalid selector, skip */ }
                 }
-            } catch { /* network error, ignore — page works without overrides */ }
+            } catch { /* network error, ignore */ }
         })();
     }, []);
 

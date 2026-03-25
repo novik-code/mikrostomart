@@ -300,9 +300,29 @@ export function applyThemeToDOM(theme: ThemeConfig) {
 // ===================== PROVIDER =====================
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-    const [theme, setTheme] = useState<ThemeConfig>(DEFAULT_THEME);
+    // Load from localStorage synchronously to prevent FOUC
+    const [theme, setTheme] = useState<ThemeConfig>(() => {
+        if (typeof window !== 'undefined') {
+            try {
+                const cached = localStorage.getItem('densflow_theme');
+                if (cached) {
+                    const parsed = JSON.parse(cached);
+                    if (parsed && typeof parsed === 'object' && parsed.colors) {
+                        return mergeTheme(parsed);
+                    }
+                }
+            } catch { /* use defaults */ }
+        }
+        return DEFAULT_THEME;
+    });
     const [isLoaded, setIsLoaded] = useState(false);
 
+    // Apply theme to DOM immediately on first render
+    useEffect(() => {
+        applyThemeToDOM(theme);
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Fetch latest from API and update
     useEffect(() => {
         async function loadTheme() {
             try {
@@ -313,10 +333,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
                         const merged = mergeTheme(overrides);
                         setTheme(merged);
                         applyThemeToDOM(merged);
+                        // Cache for next page load
+                        try { localStorage.setItem('densflow_theme', JSON.stringify(overrides)); } catch {}
                     }
                 }
             } catch {
-                // Use defaults silently
+                // Use defaults/cached silently
             }
             setIsLoaded(true);
         }
