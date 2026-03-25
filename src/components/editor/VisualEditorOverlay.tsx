@@ -334,6 +334,26 @@ export default function VisualEditorOverlay() {
         };
     }, [isEditorOpen, hov, sel, colorTgt, ctx, closeEditor, isDragging, videoPopup]);
 
+    // ---- Nuclear fix: native event blocker for splash popup ----
+    // React's stopPropagation doesn't block capture-phase handlers on document.
+    // This native listener fires FIRST and uses stopImmediatePropagation to prevent
+    // the editor's own capture handlers from intercepting popup interactions.
+    useEffect(() => {
+        if (!splashPopup) return;
+        const blockForPopup = (e: Event) => {
+            const t = e.target as HTMLElement;
+            if (t?.closest?.('[data-ve-splash-popup]')) {
+                e.stopImmediatePropagation();
+            }
+        };
+        // Register BEFORE the editor's handlers by using capture
+        const events = ['click', 'mousedown', 'mouseup', 'mouseover', 'mouseout', 'contextmenu', 'pointerdown', 'pointerup'];
+        events.forEach(evt => document.addEventListener(evt, blockForPopup, true));
+        return () => {
+            events.forEach(evt => document.removeEventListener(evt, blockForPopup, true));
+        };
+    }, [splashPopup]);
+
     // ---- CSS Transform drag (pixel-perfect free-form) ----
     function doReflowDrag(dragEl: HTMLElement, startEvent?: MouseEvent) {
         setIsDragging(true);
@@ -380,7 +400,9 @@ export default function VisualEditorOverlay() {
                 dragEl.style.setProperty('transform', `translate(${finalX}px, ${finalY}px)`, 'important');
                 dragEl.style.setProperty('outline', '3px solid rgba(99,102,241,0.6)', 'important');
                 dragEl.style.setProperty('box-shadow', '0 0 16px rgba(99,102,241,0.3)', 'important');
-                dragEl.style.removeProperty('z-index');
+                // Keep element above other layers after placement
+                dragEl.style.setProperty('position', 'relative', 'important');
+                dragEl.style.setProperty('z-index', '9999', 'important');
                 dragEl.style.removeProperty('transition');
 
                 // Push to move history (store previous transform for undo)
@@ -426,6 +448,8 @@ export default function VisualEditorOverlay() {
         }
         dragEl.style.removeProperty('outline');
         dragEl.style.removeProperty('box-shadow');
+        dragEl.style.removeProperty('z-index');
+        dragEl.style.removeProperty('position');
         posToolbar(dragEl);
         flash(`↩️ Cofnięto (pozostało: ${moveHistory.current.length})`);
     }
@@ -441,6 +465,8 @@ export default function VisualEditorOverlay() {
             }
             dragEl.style.removeProperty('outline');
             dragEl.style.removeProperty('box-shadow');
+            dragEl.style.removeProperty('z-index');
+            dragEl.style.removeProperty('position');
         }
         setMoveHistoryLen(0);
         flash('↩️ Cofnięto wszystko do stanu początkowego');
@@ -809,7 +835,7 @@ export default function VisualEditorOverlay() {
                 return (
                     <>
                     {/* Full-screen backdrop to block editor events */}
-                    <div data-ve-ui="true" style={{
+                    <div data-ve-ui="true" data-ve-splash-popup="true" style={{
                         position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
                         background: 'rgba(0,0,0,0.4)', zIndex: 100029, cursor: 'default',
                     }} onClick={() => setSplashPopup(false)}
@@ -817,7 +843,7 @@ export default function VisualEditorOverlay() {
                        onMouseUp={e => e.stopPropagation()}
                        onMouseMove={e => e.stopPropagation()}
                     />
-                    <div data-ve-ui="true"
+                    <div data-ve-ui="true" data-ve-splash-popup="true"
                         onMouseDown={e => e.stopPropagation()}
                         onMouseUp={e => e.stopPropagation()}
                         onClick={e => e.stopPropagation()}
