@@ -201,12 +201,22 @@ export default function VisualEditorOverlay() {
             const style = document.createElement('style');
             style.id = 've-freeze-hover';
             style.textContent = `
-                [data-ve-editing] * { 
-                    visibility: visible !important; 
-                    opacity: 1 !important; 
+                [data-ve-editing] [class*="dropdown"],
+                [data-ve-editing] [class*="submenu"],
+                [data-ve-editing] [class*="menu"],
+                [data-ve-editing] [class*="nav-links"],
+                [data-ve-editing] [class*="mobile"],
+                [data-ve-editing] [class*="hamburger"],
+                [data-ve-editing] [class*="Dropdown"],
+                [data-ve-editing] [class*="Menu"],
+                [data-ve-editing] ul[class] li ul,
+                [data-ve-editing] nav ul ul {
+                    display: block !important;
+                    visibility: visible !important;
                     pointer-events: auto !important;
+                    position: static !important;
+                    height: auto !important;
                     max-height: none !important;
-                    overflow: visible !important;
                 }
                 [data-ve-editing] .ve-hidden-element { 
                     opacity: 0.15 !important; 
@@ -244,23 +254,37 @@ export default function VisualEditorOverlay() {
         }
         function onOut(e: MouseEvent) { (e.target as HTMLElement).classList.remove('ve-highlight'); }
 
-        function onClick(e: MouseEvent) {
+        // mousedown: used for drag/resize (starts operation immediately, before mouseup)
+        function onMouseDown(e: MouseEvent) {
             if (isDragging) return;
             const t = e.target as HTMLElement;
             if (isUI(t)) return;
-            e.preventDefault(); e.stopPropagation();
 
-            // If in MOVE MODE and clicking the selected element → start drag
+            // MOVE MODE: mousedown on selected element starts drag
             if (moveMode && sel && (t === sel || sel.contains(t))) {
+                e.preventDefault(); e.stopPropagation();
                 doReflowDrag(sel);
                 return;
             }
 
-            // If in RESIZE MODE and clicking the selected element → start resize
+            // RESIZE MODE: mousedown on selected element starts resize
             if (resizeMode && sel && (t === sel || sel.contains(t))) {
+                e.preventDefault(); e.stopPropagation();
                 doResize(sel, e);
                 return;
             }
+        }
+
+        function onClick(e: MouseEvent) {
+            if (isDragging) return;
+            const t = e.target as HTMLElement;
+            if (isUI(t)) return;
+            // Don't re-select if in move/resize mode (already handled by mousedown)
+            if ((moveMode || resizeMode) && sel && (t === sel || sel.contains(t))) {
+                e.preventDefault(); e.stopPropagation();
+                return;
+            }
+            e.preventDefault(); e.stopPropagation();
 
             // Normal select
             sel?.classList.remove('ve-selected');
@@ -301,12 +325,14 @@ export default function VisualEditorOverlay() {
             }
         }
 
+        document.addEventListener('mousedown', onMouseDown, true);
         document.addEventListener('mouseover', onOver, true);
         document.addEventListener('mouseout', onOut, true);
         document.addEventListener('click', onClick, true);
         document.addEventListener('contextmenu', onCtx, true);
         document.addEventListener('keydown', onKey);
         return () => {
+            document.removeEventListener('mousedown', onMouseDown, true);
             document.removeEventListener('mouseover', onOver, true);
             document.removeEventListener('mouseout', onOut, true);
             document.removeEventListener('click', onClick, true);
