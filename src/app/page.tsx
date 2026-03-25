@@ -9,6 +9,7 @@ import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { useTheme } from "@/context/ThemeContext";
 import { isDemoMode } from "@/lib/demoMode";
+import DensFlowLightPage from "@/components/DensFlowLightPage";
 import type { PageSection } from "@/lib/sections";
 
 // ===================== HERO VARIANTS =====================
@@ -669,6 +670,11 @@ export default function Home() {
     const tNotification = useTranslations('notification');
     const { theme } = useTheme();
     const f = theme.features;
+
+    // DensFlow Light template — render a completely different page
+    if (theme.navbar.layout === 'inline') {
+        return <DensFlowLightPage />;
+    }
 
     // Load sections config
     useEffect(() => {
