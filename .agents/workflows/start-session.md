@@ -14,6 +14,14 @@ description: MANDATORY start-of-session: read entire context and check project s
 
 ## Steps
 
+### 0. Sync golden copy (ALWAYS FIRST)
+
+```bash
+git -C /Users/marcinnowosielskimedit/Desktop/mikrostomart pull origin main
+```
+
+This ensures the Desktop golden copy is up-to-date before starting any work.
+
 ### 1. Get total line count of context file
 
 ```bash
@@ -80,3 +88,7 @@ State ALL of the following:
 - Already-implemented features (avoid duplicating work)
 - Changed DB schema (check DB Schema section)
 - **SEO: Every new page needs sitemap.ts + layout.tsx metadata + Footer link** (see SEO Architecture section)
+- **Golden copy sync: ALWAYS run after EVERY `git push`:**
+  ```bash
+  git -C /Users/marcinnowosielskimedit/Desktop/mikrostomart pull origin main
+  ```
