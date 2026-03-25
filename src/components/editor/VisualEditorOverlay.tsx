@@ -3,23 +3,28 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useVisualEditor } from '@/context/VisualEditorContext';
 import { createBrowserClient } from '@supabase/ssr';
-import { DEFAULT_SECTIONS, SECTION_CATALOG, type PageSection } from '@/lib/sections';
 import TemplateManager from './TemplateManager';
 import './editor.css';
 
-interface PageOverrides {
-    sectionOrder: string[];
-    hiddenSections: string[];
-    sectionColors: Record<string, { bg?: string; text?: string }>;
-    customLogo?: string;
-    backgroundColor?: string;
+// ===================== TYPES =====================
+
+interface ElementOverride {
+    hidden?: boolean;
+    bgColor?: string;
+    textColor?: string;
+    opacity?: string;
+    fontSize?: string;
+    fontWeight?: string;
+    borderRadius?: string;
+    transform?: string; // for drag-to-move: "translate(Xpx, Ypx)"
 }
 
-const DEFAULT_OVERRIDES: PageOverrides = {
-    sectionOrder: [],
-    hiddenSections: [],
-    sectionColors: {},
-};
+interface PageOverrides {
+    elements: Record<string, ElementOverride>; // keyed by CSS selector path
+    bodyBg?: string;
+}
+
+const EMPTY_OVERRIDES: PageOverrides = { elements: {} };
 
 const COLOR_PRESETS = [
     '#08090a', '#121418', '#1a1a2e', '#0a0e1a', '#0a1208', '#1a0f0f',
@@ -29,488 +34,586 @@ const COLOR_PRESETS = [
     '#ffffff', '#f5f5f5', '#e5e7eb', '#d1d5db', '#9ca3af', '#6b7280',
 ];
 
+// ===================== SELECTOR PATH =====================
+
+/** Build a unique CSS-like path for an element */
+function getElementPath(el: HTMLElement): string {
+    const parts: string[] = [];
+    let current: HTMLElement | null = el;
+    while (current && current !== document.body && current !== document.documentElement) {
+        let selector = current.tagName.toLowerCase();
+        // Prefer data-section
+        const section = current.getAttribute('data-section');
+        if (section) {
+            selector = `[data-section="${section}"]`;
+            parts.unshift(selector);
+            break; // data-section is unique enough
+        }
+        // Use id if available
+        if (current.id) {
+            selector = `#${current.id}`;
+            parts.unshift(selector);
+            break;
+        }
+        // Use classes (first 2 meaningful ones)
+        const classes = Array.from(current.classList)
+            .filter(c => !c.startsWith('ve-') && c.length < 30)
+            .slice(0, 2);
+        if (classes.length > 0) {
+            selector += '.' + classes.join('.');
+        }
+        // Add nth-child for disambiguation
+        const parent = current.parentElement;
+        if (parent) {
+            const siblings = Array.from(parent.children).filter(s => s.tagName === current!.tagName);
+            if (siblings.length > 1) {
+                const idx = siblings.indexOf(current) + 1;
+                selector += `:nth-child(${idx})`;
+            }
+        }
+        parts.unshift(selector);
+        current = current.parentElement;
+    }
+    return parts.join(' > ');
+}
+
+/** Get readable label for breadcrumb */
+function getElementLabel(el: HTMLElement): string {
+    const tag = el.tagName.toLowerCase();
+    const section = el.getAttribute('data-section');
+    if (section) return `section[${section}]`;
+    if (el.id) return `#${el.id}`;
+    const cls = Array.from(el.classList).filter(c => !c.startsWith('ve-')).slice(0, 2).join('.');
+    const text = el.textContent?.trim().slice(0, 20);
+    if (cls) return `${tag}.${cls}`;
+    if (text) return `${tag} "${text}…"`;
+    return tag;
+}
+
+// ===================== COMPONENT =====================
+
 export default function VisualEditorOverlay() {
     const { isEditorOpen, closeEditor } = useVisualEditor();
-    const [sections, setSections] = useState<PageSection[]>([]);
-    const [overrides, setOverrides] = useState<PageOverrides>(DEFAULT_OVERRIDES);
-    const [originalOverrides, setOriginalOverrides] = useState<PageOverrides>(DEFAULT_OVERRIDES);
+    const [overrides, setOverrides] = useState<PageOverrides>(EMPTY_OVERRIDES);
+    const [original, setOriginal] = useState<PageOverrides>(EMPTY_OVERRIDES);
     const [hasChanges, setHasChanges] = useState(false);
     const [saving, setSaving] = useState(false);
     const [toast, setToast] = useState<string | null>(null);
-    const [contextMenu, setContextMenu] = useState<{ x: number; y: number; sectionId?: string } | null>(null);
-    const [colorPicker, setColorPicker] = useState<{ sectionId: string; type: 'bg' | 'text'; x: number; y: number } | null>(null);
-    const [dragItem, setDragItem] = useState<number | null>(null);
     const [showTemplates, setShowTemplates] = useState(false);
+
+    // Selection state
+    const [hoveredEl, setHoveredEl] = useState<HTMLElement | null>(null);
+    const [selectedEl, setSelectedEl] = useState<HTMLElement | null>(null);
+    const [selectedPath, setSelectedPath] = useState<string>('');
+    const [breadcrumb, setBreadcrumb] = useState<string[]>([]);
+    const [floatPos, setFloatPos] = useState<{ x: number; y: number } | null>(null);
+
+    // Color picker
+    const [colorTarget, setColorTarget] = useState<'bg' | 'text' | null>(null);
+    const [colorPos, setColorPos] = useState<{ x: number; y: number } | null>(null);
+
+    // Context menu
+    const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null);
+    const [ctxEl, setCtxEl] = useState<HTMLElement | null>(null);
+
+    // Drag
+    const dragRef = useRef<{ startX: number; startY: number; origTransform: string } | null>(null);
 
     const supabase = createBrowserClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     );
 
-    // Load sections + overrides
+    // ---- Load overrides ----
     useEffect(() => {
         if (!isEditorOpen) return;
-        async function load() {
+        (async () => {
             try {
                 const { data: { session } } = await supabase.auth.getSession();
                 if (!session) return;
-                const headers = { Authorization: `Bearer ${session.access_token}` };
-
-                // Load sections
-                const secRes = await fetch('/api/admin/sections', { headers });
-                if (secRes.ok) {
-                    const secData = await secRes.json();
-                    const secs = secData?.value?.length > 0 ? secData.value : DEFAULT_SECTIONS;
-                    setSections(secs);
+                const res = await fetch('/api/admin/page-overrides', {
+                    headers: { Authorization: `Bearer ${session.access_token}` },
+                });
+                if (res.ok) {
+                    const d = await res.json();
+                    const val = d?.value && typeof d.value === 'object' ? d.value : EMPTY_OVERRIDES;
+                    if (!val.elements) val.elements = {};
+                    setOverrides(val);
+                    setOriginal(val);
+                    applyOverridesToDOM(val);
                 }
-
-                // Load overrides
-                const ovRes = await fetch('/api/admin/page-overrides', { headers });
-                if (ovRes.ok) {
-                    const ovData = await ovRes.json();
-                    if (ovData?.value && Object.keys(ovData.value).length > 0) {
-                        setOverrides(ovData.value);
-                        setOriginalOverrides(ovData.value);
-                    }
-                }
-            } catch (e) {
-                console.error('[VisualEditor] Load error:', e);
-            }
-        }
-        load();
+            } catch (e) { console.error('[VE] load:', e); }
+        })();
     }, [isEditorOpen]);
 
-    // Apply editor mode to DOM
+    // ---- Toggle editing attribute on <html> ----
     useEffect(() => {
         if (isEditorOpen) {
-            document.documentElement.setAttribute('data-ve-editing', 'true');
+            document.documentElement.setAttribute('data-ve-editing', '');
         } else {
             document.documentElement.removeAttribute('data-ve-editing');
-        }
-        return () => document.documentElement.removeAttribute('data-ve-editing');
-    }, [isEditorOpen]);
-
-    // Apply overrides live to DOM
-    useEffect(() => {
-        if (!isEditorOpen) return;
-
-        // Apply section visibility
-        document.querySelectorAll('[data-section]').forEach(el => {
-            const sectionId = el.getAttribute('data-section') || '';
-            if (overrides.hiddenSections.includes(sectionId)) {
-                el.classList.add('ve-hidden');
-            } else {
-                el.classList.remove('ve-hidden');
-            }
-
-            // Apply section colors
-            const colors = overrides.sectionColors[sectionId];
-            if (colors?.bg) (el as HTMLElement).style.backgroundColor = colors.bg;
-            if (colors?.text) (el as HTMLElement).style.color = colors.text;
-        });
-
-        // Apply section order
-        if (overrides.sectionOrder.length > 0) {
-            document.querySelectorAll('[data-section]').forEach(el => {
-                const sectionId = el.getAttribute('data-section') || '';
-                const idx = overrides.sectionOrder.indexOf(sectionId);
-                if (idx >= 0) {
-                    (el as HTMLElement).style.order = String(idx);
-                }
+            // Clean up highlights
+            document.querySelectorAll('.ve-highlight,.ve-selected,.ve-hidden-element').forEach(e => {
+                e.classList.remove('ve-highlight', 've-selected', 've-hidden-element');
             });
         }
-
-        // Apply background
-        if (overrides.backgroundColor) {
-            document.body.style.backgroundColor = overrides.backgroundColor;
-        }
-    }, [overrides, isEditorOpen]);
-
-    // Track changes
-    useEffect(() => {
-        setHasChanges(JSON.stringify(overrides) !== JSON.stringify(originalOverrides));
-    }, [overrides, originalOverrides]);
-
-    // Close context menu on click
-    useEffect(() => {
-        const handler = () => { setContextMenu(null); setColorPicker(null); };
-        if (isEditorOpen) document.addEventListener('click', handler);
-        return () => document.removeEventListener('click', handler);
+        return () => { document.documentElement.removeAttribute('data-ve-editing'); };
     }, [isEditorOpen]);
 
-    // Keyboard shortcut: Escape closes editor
+    // ---- Track changes ----
     useEffect(() => {
-        const handler = (e: KeyboardEvent) => {
-            if (e.key === 'Escape' && isEditorOpen) {
-                if (colorPicker) setColorPicker(null);
-                else if (contextMenu) setContextMenu(null);
-                else closeEditor();
-            }
-        };
-        document.addEventListener('keydown', handler);
-        return () => document.removeEventListener('keydown', handler);
-    }, [isEditorOpen, colorPicker, contextMenu, closeEditor]);
+        setHasChanges(JSON.stringify(overrides) !== JSON.stringify(original));
+    }, [overrides, original]);
 
+    // ---- Apply overrides to DOM ----
+    function applyOverridesToDOM(ov: PageOverrides) {
+        if (ov.bodyBg) document.body.style.backgroundColor = ov.bodyBg;
+        for (const [path, styles] of Object.entries(ov.elements || {})) {
+            try {
+                const el = document.querySelector(path) as HTMLElement | null;
+                if (!el) continue;
+                if (styles.hidden) el.classList.add('ve-hidden-element');
+                else el.classList.remove('ve-hidden-element');
+                if (styles.bgColor) el.style.backgroundColor = styles.bgColor;
+                if (styles.textColor) el.style.color = styles.textColor;
+                if (styles.opacity) el.style.opacity = styles.opacity;
+                if (styles.fontSize) el.style.fontSize = styles.fontSize;
+                if (styles.fontWeight) el.style.fontWeight = styles.fontWeight;
+                if (styles.borderRadius) el.style.borderRadius = styles.borderRadius;
+                if (styles.transform) el.style.transform = styles.transform;
+            } catch { /* invalid selector, skip */ }
+        }
+    }
+
+    // Re-apply when overrides change
+    useEffect(() => {
+        if (isEditorOpen) applyOverridesToDOM(overrides);
+    }, [overrides, isEditorOpen]);
+
+    // ---- Helpers ----
     const showToast = useCallback((msg: string) => {
         setToast(msg);
         setTimeout(() => setToast(null), 2500);
     }, []);
 
-    // Toggle section visibility
-    const toggleSectionVisibility = useCallback((sectionId: string) => {
-        setOverrides(prev => {
-            const hidden = prev.hiddenSections.includes(sectionId)
-                ? prev.hiddenSections.filter(s => s !== sectionId)
-                : [...prev.hiddenSections, sectionId];
-            return { ...prev, hiddenSections: hidden };
-        });
-    }, []);
+    function isEditorUI(el: HTMLElement): boolean {
+        return !!(el.closest('.ve-toolbar') || el.closest('.ve-float-toolbar') || el.closest('.ve-color-popover') || el.closest('.ve-context-menu') || el.closest('.ve-toast') || el.closest('.ve-template-modal') || el.closest('.ve-breadcrumb') || el.closest('[class*="AdminFloatingBar"]'));
+    }
 
-    // Change section color
-    const setSectionColor = useCallback((sectionId: string, type: 'bg' | 'text', color: string) => {
+    function updateElementOverride(path: string, key: keyof ElementOverride, value: string | boolean) {
         setOverrides(prev => ({
             ...prev,
-            sectionColors: {
-                ...prev.sectionColors,
-                [sectionId]: {
-                    ...prev.sectionColors[sectionId],
-                    [type]: color,
+            elements: {
+                ...prev.elements,
+                [path]: {
+                    ...prev.elements[path],
+                    [key]: value || undefined,
                 },
             },
         }));
-    }, []);
+    }
 
-    // Drag handlers for reorder
-    const handleDragStart = useCallback((idx: number) => setDragItem(idx), []);
-    const handleDragOver = useCallback((e: React.DragEvent, idx: number) => {
-        e.preventDefault();
-        if (dragItem === null || dragItem === idx) return;
-        const newSections = [...sections];
-        const [moved] = newSections.splice(dragItem, 1);
-        newSections.splice(idx, 0, moved);
-        setSections(newSections);
-        setDragItem(idx);
-        setOverrides(prev => ({
-            ...prev,
-            sectionOrder: newSections.map(s => s.id),
-        }));
-    }, [dragItem, sections]);
+    function positionFloatToolbar(el: HTMLElement) {
+        const rect = el.getBoundingClientRect();
+        const x = Math.min(rect.left, window.innerWidth - 300);
+        const y = rect.top > 60 ? rect.top - 36 : rect.bottom + 6;
+        setFloatPos({ x: Math.max(0, x), y: Math.max(48, y) });
+    }
 
-    // Save
+    // ---- Hover/Click handlers (delegated) ----
+    useEffect(() => {
+        if (!isEditorOpen) return;
+
+        function onMouseOver(e: MouseEvent) {
+            const t = e.target as HTMLElement;
+            if (isEditorUI(t)) return;
+            if (t === hoveredEl) return;
+            hoveredEl?.classList.remove('ve-highlight');
+            if (t !== selectedEl) {
+                t.classList.add('ve-highlight');
+            }
+            setHoveredEl(t);
+        }
+
+        function onMouseOut(e: MouseEvent) {
+            const t = e.target as HTMLElement;
+            t.classList.remove('ve-highlight');
+        }
+
+        function onClick(e: MouseEvent) {
+            const t = e.target as HTMLElement;
+            if (isEditorUI(t)) return;
+            e.preventDefault();
+            e.stopPropagation();
+
+            // Deselect previous
+            selectedEl?.classList.remove('ve-selected');
+
+            // Select new
+            t.classList.remove('ve-highlight');
+            t.classList.add('ve-selected');
+            setSelectedEl(t);
+            const path = getElementPath(t);
+            setSelectedPath(path);
+
+            // Build breadcrumb
+            const bc: string[] = [];
+            let cur: HTMLElement | null = t;
+            while (cur && cur !== document.body) {
+                bc.unshift(getElementLabel(cur));
+                cur = cur.parentElement;
+            }
+            setBreadcrumb(bc.slice(-5));
+
+            // Position floating toolbar
+            positionFloatToolbar(t);
+            setColorTarget(null);
+            setColorPos(null);
+            setCtxMenu(null);
+        }
+
+        function onContextMenu(e: MouseEvent) {
+            const t = e.target as HTMLElement;
+            if (isEditorUI(t)) return;
+            e.preventDefault();
+            setCtxEl(t);
+            setCtxMenu({ x: e.clientX, y: e.clientY });
+        }
+
+        function onKeyDown(e: KeyboardEvent) {
+            if (e.key === 'Escape') {
+                if (colorTarget) { setColorTarget(null); setColorPos(null); }
+                else if (ctxMenu) { setCtxMenu(null); }
+                else if (selectedEl) { selectedEl.classList.remove('ve-selected'); setSelectedEl(null); setFloatPos(null); }
+                else { closeEditor(); }
+            }
+            if (e.key === 'Delete' && selectedEl && !isEditorUI(selectedEl)) {
+                const path = getElementPath(selectedEl);
+                updateElementOverride(path, 'hidden', true);
+                selectedEl.classList.add('ve-hidden-element');
+                showToast('🙈 Element ukryty');
+            }
+        }
+
+        document.addEventListener('mouseover', onMouseOver, true);
+        document.addEventListener('mouseout', onMouseOut, true);
+        document.addEventListener('click', onClick, true);
+        document.addEventListener('contextmenu', onContextMenu, true);
+        document.addEventListener('keydown', onKeyDown);
+
+        return () => {
+            document.removeEventListener('mouseover', onMouseOver, true);
+            document.removeEventListener('mouseout', onMouseOut, true);
+            document.removeEventListener('click', onClick, true);
+            document.removeEventListener('contextmenu', onContextMenu, true);
+            document.removeEventListener('keydown', onKeyDown);
+        };
+    }, [isEditorOpen, hoveredEl, selectedEl, colorTarget, ctxMenu, closeEditor]);
+
+    // ---- Save ----
     const handleSave = async () => {
         setSaving(true);
         try {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) throw new Error('Not authenticated');
-            const headers = {
-                Authorization: `Bearer ${session.access_token}`,
-                'Content-Type': 'application/json',
-            };
-
-            // Save overrides
             const res = await fetch('/api/admin/page-overrides', {
                 method: 'PUT',
-                headers,
+                headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
                 body: JSON.stringify(overrides),
             });
-            if (!res.ok) throw new Error('Failed to save overrides');
-
-            // Save section order/visibility
-            const updatedSections = sections.map(s => ({
-                ...s,
-                visible: !overrides.hiddenSections.includes(s.id),
-            }));
-            const secRes = await fetch('/api/admin/sections', {
-                method: 'PUT',
-                headers,
-                body: JSON.stringify(updatedSections),
-            });
-            if (!secRes.ok) throw new Error('Failed to save sections');
-
-            setOriginalOverrides(overrides);
+            if (!res.ok) throw new Error('Save failed');
+            setOriginal(overrides);
             setHasChanges(false);
-            showToast('✅ Zmiany zapisane!');
-        } catch (err: any) {
-            showToast(`❌ Błąd: ${err.message}`);
-        }
+            showToast('✅ Zapisano!');
+        } catch (err: any) { showToast('❌ ' + err.message); }
         setSaving(false);
     };
 
-    // Discard
+    // ---- Discard ----
     const handleDiscard = () => {
-        setOverrides(originalOverrides);
+        // Remove all applied styles and re-apply originals
+        for (const path of Object.keys(overrides.elements)) {
+            try {
+                const el = document.querySelector(path) as HTMLElement | null;
+                if (el) {
+                    el.classList.remove('ve-hidden-element');
+                    el.style.backgroundColor = '';
+                    el.style.color = '';
+                    el.style.opacity = '';
+                    el.style.fontSize = '';
+                    el.style.fontWeight = '';
+                    el.style.borderRadius = '';
+                    el.style.transform = '';
+                }
+            } catch {}
+        }
+        setOverrides(original);
+        applyOverridesToDOM(original);
         showToast('↩️ Zmiany odrzucone');
     };
 
-    // Add section from catalog
-    const addSection = (sectionType: string) => {
-        const meta = SECTION_CATALOG.find(s => s.type === sectionType);
-        if (!meta) return;
-        const newId = `${sectionType}-${Date.now()}`;
-        const newSection: PageSection = {
-            id: newId,
-            type: meta.type,
-            visible: true,
-            order: sections.length,
-            config: { ...meta.defaultConfig },
-        };
-        setSections(prev => [...prev, newSection]);
-        setOverrides(prev => ({
-            ...prev,
-            sectionOrder: [...(prev.sectionOrder.length > 0 ? prev.sectionOrder : sections.map(s => s.id)), newId],
-        }));
-        showToast(`➕ Dodano: ${meta.label}`);
-        setContextMenu(null);
-    };
+    // ---- Drag to move ----
+    const startDrag = () => {
+        if (!selectedEl) return;
+        const path = selectedPath;
+        const existing = overrides.elements[path]?.transform || '';
 
-    // Right-click handler
-    const handleContextMenu = useCallback((e: React.MouseEvent) => {
-        e.preventDefault();
-        const sectionEl = (e.target as HTMLElement).closest('[data-section]');
-        setContextMenu({
-            x: e.clientX,
-            y: e.clientY,
-            sectionId: sectionEl?.getAttribute('data-section') || undefined,
-        });
-    }, []);
+        const onMouseMove = (e: MouseEvent) => {
+            if (!dragRef.current) {
+                dragRef.current = { startX: e.clientX, startY: e.clientY, origTransform: existing };
+                selectedEl.classList.add('ve-dragging');
+            }
+            const dx = e.clientX - dragRef.current.startX;
+            const dy = e.clientY - dragRef.current.startY;
+            // Parse existing translate if any
+            const match = dragRef.current.origTransform.match(/translate\(([-\d.]+)px,\s*([-\d.]+)px\)/);
+            const origDx = match ? parseFloat(match[1]) : 0;
+            const origDy = match ? parseFloat(match[2]) : 0;
+            selectedEl.style.transform = `translate(${origDx + dx}px, ${origDy + dy}px)`;
+        };
+
+        const onMouseUp = () => {
+            selectedEl.classList.remove('ve-dragging');
+            if (dragRef.current) {
+                updateElementOverride(path, 'transform', selectedEl.style.transform);
+                showToast('📐 Element przesunięty');
+            }
+            dragRef.current = null;
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+        };
+
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+    };
 
     if (!isEditorOpen) return null;
 
-    const activeSections = sections.filter(s => !overrides.hiddenSections.includes(s.id));
-    const hiddenSections = sections.filter(s => overrides.hiddenSections.includes(s.id));
-    const availableToAdd = SECTION_CATALOG.filter(cat =>
-        !sections.some(s => s.type === cat.type) || cat.maxInstances > 1 || cat.maxInstances === -1
-    );
+    const currentOverride = selectedPath ? (overrides.elements[selectedPath] || {}) : {};
+    const ctxPath = ctxEl ? getElementPath(ctxEl) : '';
 
     return (
         <>
-            {/* Top Toolbar */}
+            {/* ---- Top Toolbar ---- */}
             <div className="ve-toolbar">
                 <div className="ve-toolbar-group">
-                    <span className="ve-toolbar-title">✏️ Edytor wizualny</span>
-                    <div className="ve-toolbar-divider" />
+                    <span className="ve-toolbar-title">✏️ Edytor</span>
                     {hasChanges && <div className="ve-unsaved-dot" />}
-                    {hasChanges && (
-                        <span style={{ fontSize: '0.75rem', color: '#f59e0b' }}>Niezapisane</span>
-                    )}
+                    {hasChanges && <span style={{ fontSize: '0.7rem', color: '#f59e0b' }}>Niezapisane</span>}
                 </div>
                 <div className="ve-toolbar-group">
-                    <button className="ve-toolbar-btn" onClick={handleDiscard} disabled={!hasChanges}>
-                        ↩️ Odrzuć
-                    </button>
+                    <button className="ve-toolbar-btn" onClick={handleDiscard} disabled={!hasChanges}>↩️ Odrzuć</button>
                     <button className="ve-toolbar-btn ve-success" onClick={handleSave} disabled={saving || !hasChanges}>
-                        {saving ? '⏳ Zapisuję...' : '💾 Zapisz'}
+                        {saving ? '⏳...' : '💾 Zapisz'}
                     </button>
-                    <button className="ve-toolbar-btn ve-primary" onClick={() => setShowTemplates(true)}>
-                        📁 Szablony
-                    </button>
-                    <div className="ve-toolbar-divider" />
-                    <button className="ve-toolbar-btn ve-danger" onClick={closeEditor}>
-                        ✕ Zamknij
-                    </button>
+                    <div className="ve-toolbar-sep" />
+                    <button className="ve-toolbar-btn ve-primary" onClick={() => setShowTemplates(true)}>📁 Szablony</button>
+                    <div className="ve-toolbar-sep" />
+                    <button className="ve-toolbar-btn ve-danger" onClick={closeEditor}>✕</button>
                 </div>
             </div>
 
-            {/* Left Sidebar — Section List */}
-            <div className="ve-sidebar" onContextMenu={handleContextMenu}>
-                <div className="ve-sidebar-title">Sekcje strony</div>
-
-                {/* Active sections */}
-                {sections.filter(s => !overrides.hiddenSections.includes(s.id)).map((section, idx) => {
-                    const meta = SECTION_CATALOG.find(c => c.type === section.type);
-                    return (
-                        <div
-                            key={section.id}
-                            className={`ve-section-item ${dragItem === idx ? 've-dragging' : ''}`}
-                            draggable
-                            onDragStart={() => handleDragStart(idx)}
-                            onDragOver={(e) => handleDragOver(e, idx)}
-                            onDragEnd={() => setDragItem(null)}
-                            onClick={() => {
-                                const el = document.querySelector(`[data-section="${section.id}"]`);
-                                el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                            }}
-                        >
-                            <span className="ve-drag-handle">⠿</span>
-                            <span className="ve-section-label">
-                                {meta?.icon} {meta?.label || section.type}
-                            </span>
-                            <button
-                                className="ve-visibility-btn"
-                                title="Ukryj sekcję"
-                                onClick={(e) => { e.stopPropagation(); toggleSectionVisibility(section.id); }}
-                            >
-                                👁
-                            </button>
-                            <button
-                                className="ve-visibility-btn"
-                                title="Zmień tło"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    const rect = (e.target as HTMLElement).getBoundingClientRect();
-                                    setColorPicker({ sectionId: section.id, type: 'bg', x: rect.right + 8, y: rect.top });
-                                }}
-                            >
-                                🎨
-                            </button>
-                        </div>
-                    );
-                })}
-
-                {/* Hidden sections */}
-                {hiddenSections.length > 0 && (
-                    <>
-                        <div className="ve-sidebar-title" style={{ marginTop: '1rem' }}>Ukryte</div>
-                        {hiddenSections.map(section => {
-                            const meta = SECTION_CATALOG.find(c => c.type === section.type);
-                            return (
-                                <div key={section.id} className="ve-section-item" style={{ opacity: 0.5 }}>
-                                    <span className="ve-section-label ve-hidden-label">
-                                        {meta?.icon} {meta?.label || section.type}
-                                    </span>
-                                    <button
-                                        className="ve-visibility-btn"
-                                        title="Pokaż sekcję"
-                                        onClick={() => toggleSectionVisibility(section.id)}
-                                    >
-                                        👁‍🗨
-                                    </button>
-                                </div>
-                            );
-                        })}
-                    </>
-                )}
-
-                {/* Add section */}
-                <div style={{ marginTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '0.75rem' }}>
-                    <div className="ve-sidebar-title">Dodaj sekcję</div>
-                    {availableToAdd.map(cat => (
-                        <button
-                            key={cat.type}
-                            className="ve-section-item"
-                            style={{ cursor: 'pointer', border: '1px dashed rgba(99,102,241,0.3)' }}
-                            onClick={() => addSection(cat.type)}
-                        >
-                            <span style={{ fontSize: '1rem' }}>{cat.icon}</span>
-                            <span className="ve-section-label" style={{ color: '#a5b4fc' }}>
-                                {cat.label}
-                            </span>
-                            <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)' }}>+</span>
-                        </button>
-                    ))}
+            {/* ---- Floating Element Toolbar ---- */}
+            {selectedEl && floatPos && (
+                <div className="ve-float-toolbar" style={{ left: floatPos.x, top: floatPos.y }}>
+                    <button
+                        className={currentOverride.hidden ? 've-active' : ''}
+                        title={currentOverride.hidden ? 'Pokaż element' : 'Ukryj element'}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            const newHidden = !currentOverride.hidden;
+                            updateElementOverride(selectedPath, 'hidden', newHidden);
+                            if (newHidden) selectedEl.classList.add('ve-hidden-element');
+                            else selectedEl.classList.remove('ve-hidden-element');
+                        }}
+                    >
+                        {currentOverride.hidden ? '👁' : '✕'}
+                    </button>
+                    <div className="ve-float-sep" />
+                    <button
+                        className={colorTarget === 'bg' ? 've-active' : ''}
+                        title="Kolor tła"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            const rect = (e.target as HTMLElement).getBoundingClientRect();
+                            setColorTarget(colorTarget === 'bg' ? null : 'bg');
+                            setColorPos({ x: rect.left, y: rect.bottom + 6 });
+                        }}
+                    >
+                        🎨
+                    </button>
+                    <button
+                        className={colorTarget === 'text' ? 've-active' : ''}
+                        title="Kolor tekstu"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            const rect = (e.target as HTMLElement).getBoundingClientRect();
+                            setColorTarget(colorTarget === 'text' ? null : 'text');
+                            setColorPos({ x: rect.left, y: rect.bottom + 6 });
+                        }}
+                    >
+                        🔤
+                    </button>
+                    <div className="ve-float-sep" />
+                    <button
+                        title="Przesuń element (kliknij i przeciągnij)"
+                        onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); startDrag(); }}
+                    >
+                        ↕️
+                    </button>
+                    <div className="ve-float-sep" />
+                    <button
+                        title="Resetuj zmiany tego elementu"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            // Remove override
+                            setOverrides(prev => {
+                                const newEl = { ...prev.elements };
+                                delete newEl[selectedPath];
+                                return { ...prev, elements: newEl };
+                            });
+                            // Clean styles
+                            selectedEl.classList.remove('ve-hidden-element');
+                            selectedEl.style.backgroundColor = '';
+                            selectedEl.style.color = '';
+                            selectedEl.style.transform = '';
+                            selectedEl.style.opacity = '';
+                            selectedEl.style.fontSize = '';
+                            selectedEl.style.fontWeight = '';
+                            selectedEl.style.borderRadius = '';
+                            showToast('↩️ Element zresetowany');
+                        }}
+                    >
+                        ↩️
+                    </button>
                 </div>
-            </div>
+            )}
 
-            {/* Color Picker Popover */}
-            {colorPicker && (
-                <div
-                    className="ve-color-picker"
-                    style={{ left: colorPicker.x, top: colorPicker.y }}
-                    onClick={e => e.stopPropagation()}
-                >
-                    <div className="ve-color-picker-label">
-                        {colorPicker.type === 'bg' ? 'Kolor tła' : 'Kolor tekstu'}
-                    </div>
-                    <div className="ve-color-presets">
-                        {COLOR_PRESETS.map(color => (
+            {/* ---- Color Picker ---- */}
+            {colorTarget && colorPos && selectedEl && (
+                <div className="ve-color-popover" style={{ left: colorPos.x, top: colorPos.y }} onClick={e => e.stopPropagation()}>
+                    <div className="ve-color-popover-label">{colorTarget === 'bg' ? 'Kolor tła' : 'Kolor tekstu'}</div>
+                    <div className="ve-color-grid">
+                        {COLOR_PRESETS.map(c => (
                             <button
-                                key={color}
-                                className={`ve-color-preset ${overrides.sectionColors[colorPicker.sectionId]?.[colorPicker.type] === color ? 've-active' : ''}`}
-                                style={{ background: color, border: color === '#ffffff' ? '2px solid #ccc' : undefined }}
+                                key={c}
+                                className={`ve-color-swatch ${
+                                    (colorTarget === 'bg' ? currentOverride.bgColor : currentOverride.textColor) === c ? 'active' : ''
+                                }`}
+                                style={{ background: c, border: c === '#ffffff' ? '2px solid #999' : undefined }}
                                 onClick={() => {
-                                    setSectionColor(colorPicker.sectionId, colorPicker.type, color);
+                                    const key = colorTarget === 'bg' ? 'bgColor' : 'textColor';
+                                    updateElementOverride(selectedPath, key, c);
+                                    if (colorTarget === 'bg') selectedEl.style.backgroundColor = c;
+                                    else selectedEl.style.color = c;
                                 }}
                             />
                         ))}
                     </div>
-                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
                         <input
                             type="color"
-                            value={overrides.sectionColors[colorPicker.sectionId]?.[colorPicker.type] || '#08090a'}
-                            onChange={(e) => setSectionColor(colorPicker.sectionId, colorPicker.type, e.target.value)}
-                            style={{ width: '36px', height: '28px', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-                        />
-                        <input
-                            type="text"
-                            placeholder="#hex"
-                            value={overrides.sectionColors[colorPicker.sectionId]?.[colorPicker.type] || ''}
-                            onChange={(e) => setSectionColor(colorPicker.sectionId, colorPicker.type, e.target.value)}
-                            style={{
-                                flex: 1,
-                                padding: '0.3rem 0.5rem',
-                                background: 'rgba(255,255,255,0.05)',
-                                border: '1px solid rgba(255,255,255,0.1)',
-                                borderRadius: '4px',
-                                color: 'white',
-                                fontSize: '0.8rem',
-                                fontFamily: 'monospace',
+                            value={(colorTarget === 'bg' ? currentOverride.bgColor : currentOverride.textColor) || '#08090a'}
+                            onChange={(e) => {
+                                const key = colorTarget === 'bg' ? 'bgColor' : 'textColor';
+                                updateElementOverride(selectedPath, key, e.target.value);
+                                if (colorTarget === 'bg') selectedEl.style.backgroundColor = e.target.value;
+                                else selectedEl.style.color = e.target.value;
                             }}
+                            style={{ width: 30, height: 24, border: 'none', borderRadius: 3, cursor: 'pointer', padding: 0 }}
                         />
                         <button
                             className="ve-toolbar-btn"
-                            style={{ padding: '0.3rem 0.5rem', fontSize: '0.75rem' }}
+                            style={{ padding: '0.2rem 0.4rem', fontSize: '0.7rem' }}
                             onClick={() => {
-                                setSectionColor(colorPicker.sectionId, colorPicker.type, '');
-                                setColorPicker(null);
+                                const key = colorTarget === 'bg' ? 'bgColor' : 'textColor';
+                                updateElementOverride(selectedPath, key, '');
+                                if (colorTarget === 'bg') selectedEl.style.backgroundColor = '';
+                                else selectedEl.style.color = '';
+                                setColorTarget(null);
                             }}
                         >
-                            ↩️ Reset
+                            ↩️
                         </button>
                     </div>
                 </div>
             )}
 
-            {/* Context Menu */}
-            {contextMenu && (
-                <div
-                    className="ve-context-menu"
-                    style={{ left: contextMenu.x, top: contextMenu.y }}
-                    onClick={e => e.stopPropagation()}
-                >
-                    {contextMenu.sectionId && (
-                        <>
-                            <button className="ve-context-menu-item" onClick={() => {
-                                toggleSectionVisibility(contextMenu.sectionId!);
-                                setContextMenu(null);
-                            }}>
-                                {overrides.hiddenSections.includes(contextMenu.sectionId)
-                                    ? '👁 Pokaż sekcję' : '✕ Ukryj sekcję'}
-                            </button>
-                            <button className="ve-context-menu-item" onClick={() => {
-                                setColorPicker({ sectionId: contextMenu.sectionId!, type: 'bg', x: contextMenu.x, y: contextMenu.y + 40 });
-                                setContextMenu(null);
-                            }}>
-                                🎨 Zmień kolor tła
-                            </button>
-                            <button className="ve-context-menu-item" onClick={() => {
-                                setColorPicker({ sectionId: contextMenu.sectionId!, type: 'text', x: contextMenu.x, y: contextMenu.y + 40 });
-                                setContextMenu(null);
-                            }}>
-                                🔤 Zmień kolor tekstu
-                            </button>
-                            <div className="ve-context-menu-divider" />
-                        </>
-                    )}
-                    <button className="ve-context-menu-item" onClick={() => {
-                        setOverrides(prev => ({ ...prev, backgroundColor: '' }));
-                        setContextMenu(null);
-                    }}>
-                        🖼️ Resetuj tło strony
-                    </button>
+            {/* ---- Context Menu ---- */}
+            {ctxMenu && ctxEl && (
+                <div className="ve-context-menu" style={{ left: ctxMenu.x, top: ctxMenu.y }} onClick={e => e.stopPropagation()}>
+                    <button className="ve-ctx-item" onClick={() => {
+                        updateElementOverride(ctxPath, 'hidden', true);
+                        ctxEl.classList.add('ve-hidden-element');
+                        setCtxMenu(null);
+                        showToast('🙈 Element ukryty');
+                    }}>✕ Ukryj element</button>
+                    <button className="ve-ctx-item" onClick={() => {
+                        setSelectedEl(ctxEl);
+                        setSelectedPath(ctxPath);
+                        ctxEl.classList.add('ve-selected');
+                        positionFloatToolbar(ctxEl);
+                        setColorTarget('bg');
+                        const rect = ctxEl.getBoundingClientRect();
+                        setColorPos({ x: ctxMenu.x, y: ctxMenu.y + 30 });
+                        setCtxMenu(null);
+                    }}>🎨 Zmień kolor tła</button>
+                    <button className="ve-ctx-item" onClick={() => {
+                        setSelectedEl(ctxEl);
+                        setSelectedPath(ctxPath);
+                        ctxEl.classList.add('ve-selected');
+                        positionFloatToolbar(ctxEl);
+                        setColorTarget('text');
+                        setColorPos({ x: ctxMenu.x, y: ctxMenu.y + 30 });
+                        setCtxMenu(null);
+                    }}>🔤 Zmień kolor tekstu</button>
+                    <div className="ve-ctx-divider" />
+                    <button className="ve-ctx-item" onClick={() => {
+                        setOverrides(prev => {
+                            const newEl = { ...prev.elements };
+                            delete newEl[ctxPath];
+                            return { ...prev, elements: newEl };
+                        });
+                        ctxEl.classList.remove('ve-hidden-element');
+                        ctxEl.style.backgroundColor = '';
+                        ctxEl.style.color = '';
+                        ctxEl.style.transform = '';
+                        setCtxMenu(null);
+                        showToast('↩️ Reset elementu');
+                    }}>↩️ Resetuj element</button>
+                    <div className="ve-ctx-divider" />
+                    <button className="ve-ctx-item" onClick={() => {
+                        // Reset ALL overrides
+                        if (confirm('Resetować WSZYSTKIE zmiany?')) {
+                            handleDiscard();
+                            setCtxMenu(null);
+                        }
+                    }}>🗑 Resetuj wszystko</button>
                 </div>
             )}
 
-            {/* Toast */}
+            {/* ---- Breadcrumb bar ---- */}
+            {selectedEl && (
+                <div className="ve-breadcrumb">
+                    {breadcrumb.map((bc, i) => (
+                        <span key={i} className={i === breadcrumb.length - 1 ? 've-bc-active' : ''}>
+                            {i > 0 && ' › '}
+                            {bc}
+                        </span>
+                    ))}
+                </div>
+            )}
+
+            {/* ---- Toast ---- */}
             {toast && <div className="ve-toast">{toast}</div>}
 
-            {/* Template Manager Modal */}
+            {/* ---- Template Manager ---- */}
             <TemplateManager
                 isOpen={showTemplates}
                 onClose={() => setShowTemplates(false)}
                 onApplied={() => {
                     setShowTemplates(false);
-                    showToast('✅ Szablon załadowany — odśwież stronę');
-                    // Reload overrides
+                    showToast('✅ Szablon załadowany');
                     window.location.reload();
                 }}
             />

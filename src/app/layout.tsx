@@ -12,6 +12,7 @@ import ThemeLayout from "@/components/ThemeLayout";
 import DemoBanner from "@/components/DemoBanner";
 import AdminFloatingBar from "@/components/AdminFloatingBar";
 import VisualEditorOverlay from "@/components/editor/VisualEditorOverlay";
+import PageOverridesApplier from "@/components/editor/PageOverridesApplier";
 import { isDemoMode } from "@/lib/demoMode";
 import { brand, demoSanitize } from "@/lib/brandConfig";
 import "./globals.css";
@@ -196,6 +197,7 @@ export default async function RootLayout({
                                     <OpinionProvider>
                                         <ThemeLayout>
                                             {children}
+                                            <PageOverridesApplier />
                                         </ThemeLayout>
                                     </OpinionProvider>
                                 </SimulatorProvider>
