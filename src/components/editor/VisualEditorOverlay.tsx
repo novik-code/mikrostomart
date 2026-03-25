@@ -193,6 +193,7 @@ export default function VisualEditorOverlay() {
     useEffect(() => { if (isEditorOpen) applyDOM(ov); }, [ov, isEditorOpen]);
 
     // ---- Freeze hover: force all hidden elements visible ----
+    const NON_VISUAL_TAGS = new Set(['SCRIPT', 'STYLE', 'LINK', 'META', 'TEMPLATE', 'NOSCRIPT', 'HEAD', 'TITLE', 'BASE', 'BR', 'WBR', 'DEFS', 'CLIPPATH', 'LINEARGRADIENT', 'RADIALGRADIENT', 'STOP', 'SYMBOL']);
     useEffect(() => {
         if (!isEditorOpen) return;
         if (hoverFrozen) {
@@ -202,6 +203,11 @@ export default function VisualEditorOverlay() {
             allEls.forEach(raw => {
                 const el = raw as HTMLElement;
                 if (el.closest('[data-ve-ui]')) return;
+                // Skip non-visual / metadata elements
+                if (NON_VISUAL_TAGS.has(el.tagName)) return;
+                if (el.closest('script') || el.closest('style') || el.closest('noscript')) return;
+                // Skip SVG internal elements
+                if (el instanceof SVGElement && !(el instanceof SVGSVGElement)) return;
                 const cs = getComputedStyle(el);
                 const isHidden = cs.display === 'none' || cs.visibility === 'hidden' ||
                     (parseFloat(cs.opacity) === 0 && el.children.length > 0) ||
@@ -316,40 +322,79 @@ export default function VisualEditorOverlay() {
         };
     }, [isEditorOpen, hov, sel, colorTgt, ctx, closeEditor, isDragging, videoPopup]);
 
-    // ---- DOM-based drag (insertBefore) ----
+    // ---- DOM-based drag (free-form cross-parent) ----
     function doReflowDrag(dragEl: HTMLElement) {
-        const parent = dragEl.parentElement;
-        if (!parent) return;
-
-        const siblings = Array.from(parent.children).filter(
-            c => c !== dragEl && !c.classList.contains('ve-drop-indicator') && !(c as HTMLElement).closest('[data-ve-ui]')
-        ) as HTMLElement[];
-
-        if (siblings.length === 0) { flash('❌ Brak rodzeństwa do przesunięcia'); return; }
-
         setIsDragging(true);
         dragEl.classList.add('ve-dragging');
         const ind = dropRef.current;
-        let insertTarget: { before: HTMLElement | null } = { before: null };
+        let dropTarget: { parent: HTMLElement; before: HTMLElement | null } | null = null;
+
+        // Collect all possible drop targets — block/flex/grid containers that are visible
+        function getDropTargets(): HTMLElement[] {
+            const targets: HTMLElement[] = [];
+            const all = document.body.querySelectorAll('*');
+            all.forEach(raw => {
+                const el = raw as HTMLElement;
+                if (el === dragEl || dragEl.contains(el) || el.closest('[data-ve-ui]')) return;
+                // Only consider elements with children (containers) or siblings of dragEl
+                const cs = getComputedStyle(el);
+                if (cs.display === 'none' || cs.visibility === 'hidden') return;
+                const r = el.getBoundingClientRect();
+                if (r.width < 10 || r.height < 5) return;
+                targets.push(el);
+            });
+            return targets;
+        }
 
         const onMove = (e: MouseEvent) => {
             if (!ind) return;
-            const my = e.clientY;
-            let closest: HTMLElement | null = null, dist = Infinity, above = true;
-            for (const s of siblings) {
-                const r = s.getBoundingClientRect();
-                const mid = r.top + r.height / 2;
-                const d = Math.abs(my - mid);
-                if (d < dist) { dist = d; closest = s; above = my < mid; }
+            const mx = e.clientX, my = e.clientY;
+            const targets = getDropTargets();
+
+            // Find nearest element edge to the mouse position
+            let best: { el: HTMLElement; dist: number; above: boolean } | null = null;
+            for (const el of targets) {
+                const r = el.getBoundingClientRect();
+                // Check if mouse is horizontally within this element's bounds (with some tolerance)
+                if (mx < r.left - 50 || mx > r.right + 50) continue;
+                // Distance to top edge
+                const dTop = Math.abs(my - r.top);
+                // Distance to bottom edge
+                const dBot = Math.abs(my - r.bottom);
+                const minD = Math.min(dTop, dBot);
+                if (!best || minD < best.dist) {
+                    best = { el, dist: minD, above: dTop < dBot };
+                }
             }
-            if (closest) {
-                const r = closest.getBoundingClientRect();
-                const pr = parent.getBoundingClientRect();
+
+            if (best && best.dist < 60) {
+                const r = best.el.getBoundingClientRect();
+                const parent = best.el.parentElement;
                 ind.style.display = 'block';
-                ind.style.left = `${pr.left}px`;
-                ind.style.width = `${pr.width}px`;
-                ind.style.top = above ? `${r.top + scrollY - 2}px` : `${r.bottom + scrollY - 1}px`;
-                insertTarget.before = above ? closest : closest.nextElementSibling as HTMLElement | null;
+                if (parent) {
+                    const pr = parent.getBoundingClientRect();
+                    ind.style.left = `${Math.min(r.left, pr.left)}px`;
+                    ind.style.width = `${Math.max(r.width, pr.width)}px`;
+                } else {
+                    ind.style.left = `${r.left}px`;
+                    ind.style.width = `${r.width}px`;
+                }
+                if (best.above) {
+                    ind.style.top = `${r.top + scrollY - 2}px`;
+                    dropTarget = {
+                        parent: best.el.parentElement || document.body,
+                        before: best.el,
+                    };
+                } else {
+                    ind.style.top = `${r.bottom + scrollY - 1}px`;
+                    dropTarget = {
+                        parent: best.el.parentElement || document.body,
+                        before: best.el.nextElementSibling as HTMLElement | null,
+                    };
+                }
+            } else {
+                ind.style.display = 'none';
+                dropTarget = null;
             }
         };
 
@@ -358,17 +403,20 @@ export default function VisualEditorOverlay() {
             if (ind) ind.style.display = 'none';
             setIsDragging(false);
 
-            // Actually move the DOM node
-            try {
-                if (insertTarget.before) {
-                    parent.insertBefore(dragEl, insertTarget.before);
-                } else {
-                    parent.appendChild(dragEl);
+            if (dropTarget) {
+                try {
+                    if (dropTarget.before) {
+                        dropTarget.parent.insertBefore(dragEl, dropTarget.before);
+                    } else {
+                        dropTarget.parent.appendChild(dragEl);
+                    }
+                    flash('📍 Przesunięto');
+                } catch (err) {
+                    flash('❌ Nie udało się przesunąć');
+                    console.error('[VE] move error:', err);
                 }
-                flash('📐 Przesunięto');
-            } catch (err) {
-                flash('❌ Nie udało się przesunąć');
-                console.error('[VE] move error:', err);
+            } else {
+                flash('❌ Przeciągnij nad element aby tam upusćcić');
             }
             posToolbar(dragEl);
             document.removeEventListener('mousemove', onMove);
