@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslations } from 'next-intl';
 import styles from './Navbar.module.css';
 import { brand } from "@/lib/brandConfig";
+import { isDemoMode } from "@/lib/demoMode";
 
 import { useAssistant } from "@/context/AssistantContext";
 import { useSimulator } from "@/context/SimulatorContext";
@@ -146,7 +147,7 @@ export default function Navbar() {
                 >
                     <Link href="/" className={styles.logo} onClick={closeMenu}>
                         <Image
-                            src="/logo-transparent.png"
+                            src={isDemoMode ? "/demo-logo.png" : "/logo-transparent.png"}
                             alt={brand.logoAlt}
                             width={220}
                             height={70}

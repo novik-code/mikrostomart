@@ -5,6 +5,7 @@ import BeforeAfterSlider from '@/components/BeforeAfterSlider';
 import RevealOnScroll from '@/components/RevealOnScroll';
 import { useSimulator } from "@/context/SimulatorContext";
 import { useTranslations } from 'next-intl';
+import { isDemoMode } from '@/lib/demoMode';
 
 interface MetamorphosisItem {
     id: number;
@@ -134,7 +135,7 @@ const METAMORPHOSES: MetamorphosisItem[] = [
         after: "/images/metamorphoses/meta_15_after.jpg",
         title: "Uśmiech Marzeń Pani Elżbiety",
         description: "Pełna rekonstrukcja łuku górnego na implantach (All-on-4).",
-        motto: '"To inwestycja w jakość życia. Dziękuję zespołowi Mikrostomart."'
+        motto: isDemoMode ? '"To inwestycja w jakość życia. Dziękuję całemu zespołowi."' : '"To inwestycja w jakość życia. Dziękuję zespołowi Mikrostomart."'
     }
 ];
 

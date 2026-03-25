@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { X, Camera, Upload, RefreshCw, AlertTriangle, Check, RotateCcw, Download } from "lucide-react";
 import { useSimulator } from "@/context/SimulatorContext";
 import { useTranslations } from "next-intl";
+import { isDemoMode } from "@/lib/demoMode";
 import { analysisFaceAlignment } from "@/helpers/faceDetection";
 import BeforeAfterSlider from "@/components/BeforeAfterSlider";
 
@@ -79,7 +80,7 @@ export default function SimulatorModal() {
 
             // Trigger Download
             const link = document.createElement('a');
-            link.download = `mikrostomart-metamorfoza-${Date.now()}.png`;
+            link.download = `${isDemoMode ? 'densflow' : 'mikrostomart'}-metamorfoza-${Date.now()}.png`;
             link.href = canvas.toDataURL('image/png');
             link.click();
         } catch (e) {

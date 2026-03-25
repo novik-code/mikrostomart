@@ -1,9 +1,11 @@
 import { Shield, Mail, Globe, Video, Brain, Lock, Trash2, FileText, ExternalLink } from "lucide-react";
+import DemoPagePlaceholder from "@/components/DemoPagePlaceholder";
 
 export default function PrivacyPolicyPage() {
     const lastUpdated = "March 20, 2026";
 
     return (
+        <DemoPagePlaceholder pageTitle="Privacy Policy" pageDescription="Polityka prywatności i ochrona danych — treść dostosowana indywidualnie do każdego klienta DensFlow.">
         <main style={{ background: "var(--color-background)", minHeight: "100vh" }}>
 
             {/* Hero Header */}
@@ -326,6 +328,7 @@ export default function PrivacyPolicyPage() {
                 </div>
             </section>
         </main>
+        </DemoPagePlaceholder>
     );
 }
 

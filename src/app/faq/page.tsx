@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useTranslations } from "next-intl";
 import RevealOnScroll from "@/components/RevealOnScroll";
 import { ChevronDown } from "lucide-react";
+import DemoPagePlaceholder from "@/components/DemoPagePlaceholder";
 
 export default function FAQPage() {
     const t = useTranslations('faq');
@@ -35,6 +36,7 @@ export default function FAQPage() {
     }
 
     return (
+        <DemoPagePlaceholder pageTitle="FAQ" pageDescription="Najczęściej zadawane pytania — treść dostosowana indywidualnie do każdego klienta DensFlow.">
         <main>
             {/* Header Section */}
             <section className="section" style={{ padding: "var(--spacing-xl) 0 0 0" }}>
@@ -153,5 +155,6 @@ export default function FAQPage() {
                 }
             `}</style>
         </main>
+        </DemoPagePlaceholder>
     );
 }

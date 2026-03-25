@@ -3,11 +3,13 @@
 import { Cookie, Settings, BarChart3, ShieldCheck } from "lucide-react";
 import { useTranslations } from "next-intl";
 import RevealOnScroll from "@/components/RevealOnScroll";
+import DemoPagePlaceholder from "@/components/DemoPagePlaceholder";
 
 export default function CookiesPage() {
     const t = useTranslations('politykaCookies');
 
     return (
+        <DemoPagePlaceholder pageTitle="Polityka Cookies" pageDescription="Polityka plików cookie — treść dostosowana indywidualnie do każdego klienta DensFlow.">
         <main style={{ background: "var(--color-background)", minHeight: "100vh" }}>
 
             {/* Hero Header */}
@@ -92,6 +94,7 @@ export default function CookiesPage() {
                 </div>
             </section>
         </main>
+        </DemoPagePlaceholder>
     );
 }
 

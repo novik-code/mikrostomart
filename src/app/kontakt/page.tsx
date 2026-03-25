@@ -5,9 +5,19 @@ import RevealOnScroll from "@/components/RevealOnScroll";
 import AnimatedPhone from "@/components/AnimatedPhone";
 import AnimatedAt from "@/components/AnimatedAt";
 import ContactForm from "@/components/ContactForm";
+import { brand } from "@/lib/brandConfig";
+import { isDemoMode } from "@/lib/demoMode";
 
 export default function ContactPage() {
     const t = useTranslations('kontakt');
+
+    // Demo: generic Warsaw map embed
+    const mapSrc = isDemoMode
+        ? "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2443.907!2d21.012229!3d52.229676!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x471ecc669a869f01%3A0x72f0be2a88ead3fc!2sWarszawa!5e0!3m2!1spl!2spl"
+        : "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2528.274384666504!2d17.86616297693526!3d50.677682371636184!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x471053a479cde783%3A0xe544973347f32770!2sCentralna%2033a%2C%2045-940%20Opole!5e0!3m2!1spl!2spl!4v1714488800000!5m2!1spl!2spl";
+
+    const phone1Raw = brand.phone1.replace(/-/g, '');
+    const phone2Raw = brand.phone2.replace(/-/g, '');
 
     return (
         <main>
@@ -34,11 +44,11 @@ export default function ContactPage() {
 
                                 <div style={{ marginBottom: "var(--spacing-lg)" }}>
                                     <p style={{ color: "var(--color-text-main)", fontSize: "1.2rem", lineHeight: 1.6 }}>
-                                        ul. Centralna 33a<br />
-                                        45-940 Opole / Chmielowice
+                                        {brand.streetAddress}<br />
+                                        {brand.postalCode} {brand.city}
                                     </p>
                                     <a
-                                        href="https://www.google.com/maps/dir/?api=1&destination=ul.+Centralna+33a,+45-940+Opole"
+                                        href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(brand.streetAddress + ', ' + brand.postalCode + ' ' + brand.city)}`}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         style={{
@@ -64,7 +74,7 @@ export default function ContactPage() {
 
                                 <div style={{ marginBottom: "var(--spacing-lg)" }}>
                                     <div style={{ marginBottom: "1rem" }}>
-                                        <a href="tel:570270470" style={{
+                                        <a href={`tel:+48${phone1Raw}`} style={{
                                             display: "flex",
                                             alignItems: "center",
                                             gap: "1rem",
@@ -73,13 +83,13 @@ export default function ContactPage() {
                                             marginBottom: "0.2rem"
                                         }}>
                                             <AnimatedPhone size={32} color="var(--color-primary)" />
-                                            <span style={{ fontSize: "clamp(1.3rem, 5vw, 2rem)", fontWeight: "bold" }}>570 270 470</span>
+                                            <span style={{ fontSize: "clamp(1.3rem, 5vw, 2rem)", fontWeight: "bold" }}>{brand.phone1}</span>
                                         </a>
                                         <p style={{ paddingLeft: "3rem", color: "var(--color-text-muted)", fontSize: "0.9rem" }}>{t('mainPhone')}</p>
                                     </div>
 
                                     <div>
-                                        <a href="tel:570810800" style={{
+                                        <a href={`tel:+48${phone2Raw}`} style={{
                                             display: "flex",
                                             alignItems: "center",
                                             gap: "1rem",
@@ -88,13 +98,13 @@ export default function ContactPage() {
                                             marginBottom: "0.2rem"
                                         }}>
                                             <AnimatedPhone size={32} color="var(--color-primary)" />
-                                            <span style={{ fontSize: "clamp(1.3rem, 5vw, 2rem)", fontWeight: "bold" }}>570 810 800</span>
+                                            <span style={{ fontSize: "clamp(1.3rem, 5vw, 2rem)", fontWeight: "bold" }}>{brand.phone2}</span>
                                         </a>
                                         <p style={{ paddingLeft: "3rem", color: "var(--color-text-muted)", fontSize: "0.9rem" }}>{t('altPhone')}</p>
                                     </div>
 
                                     <div style={{ marginTop: "1.5rem" }}>
-                                        <a href="mailto:gabinet@mikrostomart.pl" style={{
+                                        <a href={`mailto:${brand.email}`} style={{
                                             display: "flex",
                                             alignItems: "center",
                                             gap: "1rem",
@@ -102,7 +112,7 @@ export default function ContactPage() {
                                             textDecoration: "none"
                                         }}>
                                             <AnimatedAt size={32} color="var(--color-primary)" />
-                                            <span style={{ fontSize: "clamp(0.85rem, 3.5vw, 1.5rem)", wordBreak: "break-all" }}>gabinet@mikrostomart.pl</span>
+                                            <span style={{ fontSize: "clamp(0.85rem, 3.5vw, 1.5rem)", wordBreak: "break-all" }}>{brand.email}</span>
                                         </a>
                                     </div>
                                 </div>
@@ -118,7 +128,7 @@ export default function ContactPage() {
                             </div>
                         </RevealOnScroll>
 
-                        {/* Map Placeholder */}
+                        {/* Map */}
                         <RevealOnScroll delay={200} className="h-full">
                             <div style={{
                                 borderRadius: "2px",
@@ -129,7 +139,7 @@ export default function ContactPage() {
                                 position: "relative"
                             }}>
                                 <iframe
-                                    src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2528.274384666504!2d17.86616297693526!3d50.677682371636184!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x471053a479cde783%3A0xe544973347f32770!2sCentralna%2033a%2C%2045-940%20Opole!5e0!3m2!1spl!2spl!4v1714488800000!5m2!1spl!2spl"
+                                    src={mapSrc}
                                     style={{ border: 0, width: "100%", height: "100%", filter: "grayscale(100%) invert(10%) contrast(80%)" }}
                                     allowFullScreen={true}
                                     loading="lazy"

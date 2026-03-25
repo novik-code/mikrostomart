@@ -7,15 +7,26 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { CheckCircle } from "lucide-react";
 import AppointmentScheduler from "./scheduler/AppointmentScheduler";
 import { useTranslations } from "next-intl";
+import { isDemoMode } from "@/lib/demoMode";
 
-// Specialists Data
-const SPECIALISTS = [
+// Specialists Data — demo shows fictional names
+const PROD_SPECIALISTS = [
     { id: "marcin", name: "lek. dent. Marcin Nowosielski", role: "doctor" },
     { id: "ilona", name: "lek. dent. Ilona Piechaczek", role: "doctor" },
     { id: "katarzyna", name: "lek. dent. Katarzyna Halupczok", role: "doctor" },
     { id: "dominika", name: "lek. dent. Dominika Milicz", role: "doctor" },
     { id: "malgorzata", name: "hig. stom. Małgorzata Maćków-Huras", role: "hygienist" },
 ] as const;
+
+const DEMO_SPECIALISTS = [
+    { id: "jan", name: "lek. dent. Jan Kowalski", role: "doctor" },
+    { id: "anna", name: "lek. dent. Anna Nowak", role: "doctor" },
+    { id: "piotr", name: "lek. dent. Piotr Wiśniewski", role: "doctor" },
+    { id: "maria", name: "lek. dent. Maria Zielińska", role: "doctor" },
+    { id: "katarzyna-demo", name: "hig. stom. Katarzyna Wójcik", role: "hygienist" },
+] as const;
+
+const SPECIALISTS = isDemoMode ? DEMO_SPECIALISTS : PROD_SPECIALISTS;
 
 // Service IDs per role (labels resolved via t())
 const SERVICE_IDS = {

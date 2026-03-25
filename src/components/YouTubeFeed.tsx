@@ -4,14 +4,24 @@ import { useEffect, useState } from "react";
 import RevealOnScroll from "./RevealOnScroll";
 import { Youtube, Instagram, Facebook, UserRound } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { isDemoMode } from "@/lib/demoMode";
 
 // Fallback data if API key is not configured
-const FALLBACK_VIDEOS = [
+const PROD_FALLBACK_VIDEOS = [
     { id: "vGAu6rdJ8WQ", title: "Cinematic Dentistry - Mikrostomart Promo" },
     { id: "sReE0lZ-vK8", title: "Root Canal Treatment Then vs Now ⚔️ Dentist: it's NOT THE PAST!" },
     { id: "8uA6aMhE8rE", title: "FROM ABSCESS TO NEW TOOTH! Dentist: HOW I DESIGN A CROWN ON AN IMPLANT!" },
     { id: "5gQ6Q_jZ-2s", title: "Is an implant like a concrete post? 🏗️ Dentist: WHY REMOVING IT IS NOT THE SAME" },
 ];
+
+const DEMO_FALLBACK_VIDEOS = [
+    { id: "vGAu6rdJ8WQ", title: "Przykładowe wideo stomatologiczne #1" },
+    { id: "sReE0lZ-vK8", title: "Przykładowe wideo stomatologiczne #2" },
+    { id: "8uA6aMhE8rE", title: "Przykładowe wideo stomatologiczne #3" },
+    { id: "5gQ6Q_jZ-2s", title: "Przykładowe wideo stomatologiczne #4" },
+];
+
+const FALLBACK_VIDEOS = isDemoMode ? DEMO_FALLBACK_VIDEOS : PROD_FALLBACK_VIDEOS;
 
 export default function YouTubeFeed() {
     const [videos, setVideos] = useState<any[]>(FALLBACK_VIDEOS);
@@ -240,7 +250,7 @@ export default function YouTubeFeed() {
                                     hoverColor: "rgba(255,255,255,0.1)",
                                     badge: "user"
                                 },
-                            ].map((social, idx) => (
+                            ].filter(social => !isDemoMode || !social.url.includes('mikrostomart')).map((social, idx) => (
                                 <a
                                     key={idx}
                                     href={social.url}
