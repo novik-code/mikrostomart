@@ -109,13 +109,13 @@ export default function VisualEditorOverlay() {
     const [videoId, setVideoId] = useState('');
     const [videoOpacity, setVideoOpacity] = useState(0.3);
     const [isDragging, setIsDragging] = useState(false);
-    const [pendingDrop, setPendingDrop] = useState<{
+    // Move history stack — each entry is a move that can be undone
+    const moveHistory = useRef<{
         dragEl: HTMLElement;
-        originalParent: HTMLElement;
-        originalNext: Node | null;
-        targetParent: HTMLElement;
-        targetBefore: HTMLElement | null;
-    } | null>(null);
+        fromParent: HTMLElement;
+        fromNext: Node | null;
+    }[]>([]);
+    const [moveHistoryLen, setMoveHistoryLen] = useState(0); // for reactivity
 
     const dropRef = useRef<HTMLDivElement | null>(null);
     const resizeRef = useRef<{ w: number; h: number; x: number; y: number } | null>(null);
@@ -450,19 +450,17 @@ export default function VisualEditorOverlay() {
                     document.removeEventListener('mouseup', onUp);
                     return;
                 }
-                // Make element glow to show new position
+                // Push to move history stack
                 dragEl.style.setProperty('opacity', '1', 'important');
                 dragEl.style.setProperty('outline', '3px solid rgba(99,102,241,0.8)', 'important');
                 dragEl.style.setProperty('box-shadow', '0 0 20px rgba(99,102,241,0.4)', 'important');
-
-                setPendingDrop({
+                moveHistory.current.push({
                     dragEl,
-                    originalParent,
-                    originalNext: originalNext,
-                    targetParent: dropTarget.parent,
-                    targetBefore: dropTarget.before,
+                    fromParent: originalParent,
+                    fromNext: originalNext,
                 });
-                flash('📍 Podgląd — zatwierdź lub anuluj');
+                setMoveHistoryLen(moveHistory.current.length);
+                flash(`📍 Przesunięto (${moveHistory.current.length} w historii)`);
             } else {
                 dragEl.style.removeProperty('opacity');
                 dragEl.style.removeProperty('outline');
@@ -476,35 +474,52 @@ export default function VisualEditorOverlay() {
         document.addEventListener('mouseup', onUp);
     }
 
-    // ---- Confirm / Cancel pending drop ----
-    function confirmDrop() {
-        if (!pendingDrop) return;
-        const { dragEl } = pendingDrop;
-        dragEl.style.removeProperty('opacity');
-        dragEl.style.removeProperty('outline');
-        dragEl.style.removeProperty('box-shadow');
-        setPendingDrop(null);
-        posToolbar(dragEl);
-        flash('✅ Przesunięto!');
+    // ---- Confirm / Undo move history ----
+    function confirmAllMoves() {
+        // Clear history — moves are now permanent
+        moveHistory.current.forEach(entry => {
+            entry.dragEl.style.removeProperty('outline');
+            entry.dragEl.style.removeProperty('box-shadow');
+        });
+        moveHistory.current = [];
+        setMoveHistoryLen(0);
+        flash('✅ Wszystkie przesunięcia zatwierdzone!');
     }
 
-    function cancelDrop() {
-        if (!pendingDrop) return;
-        const { dragEl, originalParent, originalNext } = pendingDrop;
-        // Move back to original position
+    function undoLastMove() {
+        if (moveHistory.current.length === 0) return;
+        const last = moveHistory.current.pop()!;
+        setMoveHistoryLen(moveHistory.current.length);
+        const { dragEl, fromParent, fromNext } = last;
         try {
-            if (originalNext) {
-                originalParent.insertBefore(dragEl, originalNext);
+            if (fromNext && fromNext.parentNode === fromParent) {
+                fromParent.insertBefore(dragEl, fromNext);
             } else {
-                originalParent.appendChild(dragEl);
+                fromParent.appendChild(dragEl);
             }
         } catch {}
-        dragEl.style.removeProperty('opacity');
         dragEl.style.removeProperty('outline');
         dragEl.style.removeProperty('box-shadow');
-        setPendingDrop(null);
         posToolbar(dragEl);
-        flash('↩️ Anulowano');
+        flash(`↩️ Cofnięto (pozostało: ${moveHistory.current.length})`);
+    }
+
+    function undoAllMoves() {
+        while (moveHistory.current.length > 0) {
+            const entry = moveHistory.current.pop()!;
+            const { dragEl, fromParent, fromNext } = entry;
+            try {
+                if (fromNext && fromNext.parentNode === fromParent) {
+                    fromParent.insertBefore(dragEl, fromNext);
+                } else {
+                    fromParent.appendChild(dragEl);
+                }
+            } catch {}
+            dragEl.style.removeProperty('outline');
+            dragEl.style.removeProperty('box-shadow');
+        }
+        setMoveHistoryLen(0);
+        flash('↩️ Cofnięto wszystko do stanu początkowego');
     }
 
     // ---- Resize ----
@@ -814,29 +829,36 @@ export default function VisualEditorOverlay() {
 
             {toast && <div className="ve-toast" data-ve-ui="true">{toast}</div>}
 
-            {/* ---- PENDING DROP CONFIRM BAR ---- */}
-            {pendingDrop && (
+            {/* ---- MOVE HISTORY BAR ---- */}
+            {moveHistoryLen > 0 && (
                 <div data-ve-ui="true" style={{
                     position: 'fixed', bottom: '2rem', left: '50%', transform: 'translateX(-50%)',
                     background: 'rgba(10,12,18,0.95)', border: '2px solid rgba(99,102,241,0.5)',
                     borderRadius: '14px', padding: '0.75rem 1.5rem', zIndex: 100020,
-                    display: 'flex', gap: '1rem', alignItems: 'center',
+                    display: 'flex', gap: '0.75rem', alignItems: 'center',
                     boxShadow: '0 12px 40px rgba(0,0,0,0.5)', fontFamily: '-apple-system, sans-serif',
                     backdropFilter: 'blur(12px)',
                 }}>
                     <span style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.85rem', fontWeight: 500 }}>
-                        📍 Element przesunięty — akcja:
+                        📍 {moveHistoryLen} przesunię{moveHistoryLen === 1 ? 'cie' : moveHistoryLen < 5 ? 'cia' : 'ć'}
                     </span>
-                    <button onClick={confirmDrop} style={{
-                        padding: '0.5rem 1.25rem', background: 'rgba(34,197,94,0.8)',
+                    <button onClick={undoLastMove} style={{
+                        padding: '0.45rem 1rem', background: 'rgba(249,115,22,0.8)',
                         color: 'white', border: 'none', borderRadius: '8px',
-                        fontWeight: 700, cursor: 'pointer', fontSize: '0.85rem',
+                        fontWeight: 700, cursor: 'pointer', fontSize: '0.8rem',
+                    }}>↩️ Cofnij</button>
+                    {moveHistoryLen > 1 && (
+                        <button onClick={undoAllMoves} style={{
+                            padding: '0.45rem 1rem', background: 'rgba(239,68,68,0.8)',
+                            color: 'white', border: 'none', borderRadius: '8px',
+                            fontWeight: 700, cursor: 'pointer', fontSize: '0.8rem',
+                        }}>↩️↩️ Cofnij wszystko</button>
+                    )}
+                    <button onClick={confirmAllMoves} style={{
+                        padding: '0.45rem 1rem', background: 'rgba(34,197,94,0.8)',
+                        color: 'white', border: 'none', borderRadius: '8px',
+                        fontWeight: 700, cursor: 'pointer', fontSize: '0.8rem',
                     }}>✅ Zatwierdź</button>
-                    <button onClick={cancelDrop} style={{
-                        padding: '0.5rem 1.25rem', background: 'rgba(239,68,68,0.8)',
-                        color: 'white', border: 'none', borderRadius: '8px',
-                        fontWeight: 700, cursor: 'pointer', fontSize: '0.85rem',
-                    }}>↩️ Anuluj</button>
                 </div>
             )}
 
@@ -861,7 +883,11 @@ export default function VisualEditorOverlay() {
                     display: 'block', marginBottom: '4px',
                 };
                 return (
-                    <div data-ve-ui="true" onClick={e => e.stopPropagation()} style={{
+                    <div data-ve-ui="true"
+                        onClick={e => e.stopPropagation()}
+                        onMouseDownCapture={e => e.stopPropagation()}
+                        onPointerDownCapture={e => e.stopPropagation()}
+                        style={{
                         position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
                         width: '380px', maxHeight: '80vh', overflow: 'auto',
                         background: 'rgba(10,12,18,0.97)', borderRadius: '16px',
