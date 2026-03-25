@@ -114,6 +114,7 @@ export default function VisualEditorOverlay() {
         dragEl: HTMLElement;
         fromParent: HTMLElement;
         fromNext: Node | null;
+        prevTransform: string;
     }[]>([]);
     const [moveHistoryLen, setMoveHistoryLen] = useState(0); // for reactivity
 
@@ -333,139 +334,66 @@ export default function VisualEditorOverlay() {
         };
     }, [isEditorOpen, hov, sel, colorTgt, ctx, closeEditor, isDragging, videoPopup]);
 
-    // ---- DOM-based drag (ghost clone + confirm/cancel) ----
-    function doReflowDrag(dragEl: HTMLElement) {
-        // Save original position for undo
-        const originalParent = dragEl.parentElement!;
-        const originalNext = dragEl.nextSibling;
-
+    // ---- CSS Transform drag (pixel-perfect free-form) ----
+    function doReflowDrag(dragEl: HTMLElement, startEvent?: MouseEvent) {
         setIsDragging(true);
-        const ind = dropRef.current;
-        let dropTarget: { parent: HTMLElement; before: HTMLElement | null } | null = null;
 
-        // Make original translucent
-        dragEl.style.setProperty('opacity', '0.3', 'important');
-        dragEl.style.setProperty('outline', '2px dashed rgba(99,102,241,0.5)', 'important');
+        // Get current transform offset (if any previous drags)
+        const existingTransform = dragEl.style.transform || '';
+        const match = existingTransform.match(/translate\(([\d.-]+)px,\s*([\d.-]+)px\)/);
+        const baseX = match ? parseFloat(match[1]) : 0;
+        const baseY = match ? parseFloat(match[2]) : 0;
 
-        // Create ghost clone
-        const ghost = document.createElement('div');
-        ghost.setAttribute('data-ve-ui', 'true');
-        const rect = dragEl.getBoundingClientRect();
-        ghost.style.cssText = `
-            position: fixed; z-index: 100020; pointer-events: none;
-            width: ${Math.min(rect.width, 300)}px; height: ${Math.min(rect.height, 80)}px;
-            background: rgba(99,102,241,0.15); border: 2px solid rgba(99,102,241,0.8);
-            border-radius: 8px; backdrop-filter: blur(4px);
-            box-shadow: 0 8px 32px rgba(99,102,241,0.3);
-            display: flex; align-items: center; justify-content: center;
-            color: white; font-size: 12px; font-weight: 600; font-family: -apple-system, sans-serif;
-            transition: none;
-        `;
-        const label = getLabel(dragEl);
-        ghost.textContent = `⊞ ${label.slice(0, 25)}`;
-        document.body.appendChild(ghost);
-        ghostRef.current = ghost;
+        // Record start mouse position
+        const startMX = startEvent ? startEvent.clientX : 0;
+        const startMY = startEvent ? startEvent.clientY : 0;
 
-        const offsetX = rect.width > 300 ? 150 : rect.width / 2;
-        const offsetY = rect.height > 80 ? 40 : rect.height / 2;
-
-        function getDropTargets(): HTMLElement[] {
-            const targets: HTMLElement[] = [];
-            document.body.querySelectorAll('*').forEach(raw => {
-                const el = raw as HTMLElement;
-                if (el === dragEl || dragEl.contains(el) || el.closest('[data-ve-ui]')) return;
-                const cs = getComputedStyle(el);
-                if (cs.display === 'none' || cs.visibility === 'hidden') return;
-                const r = el.getBoundingClientRect();
-                if (r.width < 20 || r.height < 10) return;
-                targets.push(el);
-            });
-            return targets;
-        }
+        // Visual feedback
+        dragEl.style.setProperty('outline', '2px solid rgba(99,102,241,0.8)', 'important');
+        dragEl.style.setProperty('z-index', '9999', 'important');
+        dragEl.style.setProperty('transition', 'none', 'important');
+        dragEl.style.cursor = 'grabbing';
 
         const onMove = (e: MouseEvent) => {
-            // Move ghost to follow mouse
-            ghost.style.left = `${e.clientX - offsetX}px`;
-            ghost.style.top = `${e.clientY - offsetY}px`;
-
-            if (!ind) return;
-            const mx = e.clientX, my = e.clientY;
-            const targets = getDropTargets();
-
-            let best: { el: HTMLElement; dist: number; above: boolean } | null = null;
-            for (const el of targets) {
-                const r = el.getBoundingClientRect();
-                if (mx < r.left - 50 || mx > r.right + 50) continue;
-                const dTop = Math.abs(my - r.top);
-                const dBot = Math.abs(my - r.bottom);
-                const minD = Math.min(dTop, dBot);
-                if (!best || minD < best.dist) {
-                    best = { el, dist: minD, above: dTop < dBot };
-                }
-            }
-
-            if (best && best.dist < 60) {
-                const r = best.el.getBoundingClientRect();
-                const par = best.el.parentElement;
-                ind.style.display = 'block';
-                const pLeft = par ? Math.min(r.left, par.getBoundingClientRect().left) : r.left;
-                const pWidth = par ? Math.max(r.width, par.getBoundingClientRect().width) : r.width;
-                ind.style.left = `${pLeft}px`;
-                ind.style.width = `${pWidth}px`;
-                ind.style.top = best.above
-                    ? `${r.top + scrollY - 2}px`
-                    : `${r.bottom + scrollY - 1}px`;
-                dropTarget = {
-                    parent: best.el.parentElement || document.body,
-                    before: best.above ? best.el : best.el.nextElementSibling as HTMLElement | null,
-                };
-            } else {
-                ind.style.display = 'none';
-                dropTarget = null;
-            }
+            const dx = e.clientX - startMX;
+            const dy = e.clientY - startMY;
+            const newX = baseX + dx;
+            const newY = baseY + dy;
+            dragEl.style.setProperty('transform', `translate(${newX}px, ${newY}px)`, 'important');
         };
 
-        const onUp = () => {
-            // Remove ghost
-            ghost.remove();
-            ghostRef.current = null;
-            if (ind) ind.style.display = 'none';
+        const onUp = (e: MouseEvent) => {
             setIsDragging(false);
+            dragEl.style.cursor = '';
 
-            if (dropTarget) {
-                // Don't commit yet — show confirm bar
-                // Preview the move
-                try {
-                    if (dropTarget.before) {
-                        dropTarget.parent.insertBefore(dragEl, dropTarget.before);
-                    } else {
-                        dropTarget.parent.appendChild(dragEl);
-                    }
-                } catch {
-                    // Restore if preview fails
-                    dragEl.style.removeProperty('opacity');
-                    dragEl.style.removeProperty('outline');
-                    flash('❌ Nie można przenieść tutaj');
-                    document.removeEventListener('mousemove', onMove);
-                    document.removeEventListener('mouseup', onUp);
-                    return;
-                }
-                // Push to move history stack
-                dragEl.style.setProperty('opacity', '1', 'important');
-                dragEl.style.setProperty('outline', '3px solid rgba(99,102,241,0.8)', 'important');
-                dragEl.style.setProperty('box-shadow', '0 0 20px rgba(99,102,241,0.4)', 'important');
+            const dx = e.clientX - startMX;
+            const dy = e.clientY - startMY;
+
+            if (Math.abs(dx) < 3 && Math.abs(dy) < 3) {
+                // Too small — treat as click, don't save
+                dragEl.style.removeProperty('outline');
+                dragEl.style.removeProperty('z-index');
+                dragEl.style.removeProperty('transition');
+            } else {
+                const finalX = baseX + dx;
+                const finalY = baseY + dy;
+                dragEl.style.setProperty('transform', `translate(${finalX}px, ${finalY}px)`, 'important');
+                dragEl.style.setProperty('outline', '3px solid rgba(99,102,241,0.6)', 'important');
+                dragEl.style.setProperty('box-shadow', '0 0 16px rgba(99,102,241,0.3)', 'important');
+                dragEl.style.removeProperty('z-index');
+                dragEl.style.removeProperty('transition');
+
+                // Push to move history (store previous transform for undo)
                 moveHistory.current.push({
                     dragEl,
-                    fromParent: originalParent,
-                    fromNext: originalNext,
+                    fromParent: dragEl.parentElement!, // not used for transform undo
+                    fromNext: null, // not used for transform undo
+                    prevTransform: existingTransform,
                 });
                 setMoveHistoryLen(moveHistory.current.length);
-                flash(`📍 Przesunięto (${moveHistory.current.length} w historii)`);
-            } else {
-                dragEl.style.removeProperty('opacity');
-                dragEl.style.removeProperty('outline');
-                flash('❌ Przeciągnij nad element docelowy');
+                flash(`📍 Przesunięto o ${Math.round(dx)}px, ${Math.round(dy)}px`);
             }
+            posToolbar(dragEl);
             document.removeEventListener('mousemove', onMove);
             document.removeEventListener('mouseup', onUp);
         };
@@ -476,7 +404,6 @@ export default function VisualEditorOverlay() {
 
     // ---- Confirm / Undo move history ----
     function confirmAllMoves() {
-        // Clear history — moves are now permanent
         moveHistory.current.forEach(entry => {
             entry.dragEl.style.removeProperty('outline');
             entry.dragEl.style.removeProperty('box-shadow');
@@ -490,14 +417,13 @@ export default function VisualEditorOverlay() {
         if (moveHistory.current.length === 0) return;
         const last = moveHistory.current.pop()!;
         setMoveHistoryLen(moveHistory.current.length);
-        const { dragEl, fromParent, fromNext } = last;
-        try {
-            if (fromNext && fromNext.parentNode === fromParent) {
-                fromParent.insertBefore(dragEl, fromNext);
-            } else {
-                fromParent.appendChild(dragEl);
-            }
-        } catch {}
+        const { dragEl, prevTransform } = last;
+        // Restore previous transform
+        if (prevTransform) {
+            dragEl.style.setProperty('transform', prevTransform, 'important');
+        } else {
+            dragEl.style.removeProperty('transform');
+        }
         dragEl.style.removeProperty('outline');
         dragEl.style.removeProperty('box-shadow');
         posToolbar(dragEl);
@@ -507,14 +433,12 @@ export default function VisualEditorOverlay() {
     function undoAllMoves() {
         while (moveHistory.current.length > 0) {
             const entry = moveHistory.current.pop()!;
-            const { dragEl, fromParent, fromNext } = entry;
-            try {
-                if (fromNext && fromNext.parentNode === fromParent) {
-                    fromParent.insertBefore(dragEl, fromNext);
-                } else {
-                    fromParent.appendChild(dragEl);
-                }
-            } catch {}
+            const { dragEl, prevTransform } = entry;
+            if (prevTransform) {
+                dragEl.style.setProperty('transform', prevTransform, 'important');
+            } else {
+                dragEl.style.removeProperty('transform');
+            }
             dragEl.style.removeProperty('outline');
             dragEl.style.removeProperty('box-shadow');
         }
@@ -703,7 +627,7 @@ export default function VisualEditorOverlay() {
                             onMouseDown={e => {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                doReflowDrag(sel);
+                                doReflowDrag(sel, e.nativeEvent);
                             }}
                         >⊞</div>
 
@@ -883,10 +807,21 @@ export default function VisualEditorOverlay() {
                     display: 'block', marginBottom: '4px',
                 };
                 return (
+                    <>
+                    {/* Full-screen backdrop to block editor events */}
+                    <div data-ve-ui="true" style={{
+                        position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+                        background: 'rgba(0,0,0,0.4)', zIndex: 100029, cursor: 'default',
+                    }} onClick={() => setSplashPopup(false)}
+                       onMouseDown={e => { e.stopPropagation(); e.preventDefault(); }}
+                       onMouseUp={e => e.stopPropagation()}
+                       onMouseMove={e => e.stopPropagation()}
+                    />
                     <div data-ve-ui="true"
+                        onMouseDown={e => e.stopPropagation()}
+                        onMouseUp={e => e.stopPropagation()}
                         onClick={e => e.stopPropagation()}
-                        onMouseDownCapture={e => e.stopPropagation()}
-                        onPointerDownCapture={e => e.stopPropagation()}
+                        onPointerDown={e => e.stopPropagation()}
                         style={{
                         position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
                         width: '380px', maxHeight: '80vh', overflow: 'auto',
@@ -992,6 +927,7 @@ export default function VisualEditorOverlay() {
                             </>
                         )}
                     </div>
+                    </>
                 );
             })()}
 
