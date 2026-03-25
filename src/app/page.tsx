@@ -211,24 +211,31 @@ function TextBlockSection({ config }: { config: Record<string, any> }) {
 // ===================== SECTION RENDERER =====================
 
 function renderSection(section: PageSection, onInteraction: () => void, features: any) {
+    let content: React.ReactNode = null;
     switch (section.type) {
         case 'hero':
-            return <HeroSection key={section.id} />;
+            content = <HeroSection />; break;
         case 'values':
-            return <ValuesSection key={section.id} />;
+            content = <ValuesSection />; break;
         case 'narrative':
-            return <NarrativeSection key={section.id} onInteraction={onInteraction} />;
+            content = <NarrativeSection onInteraction={onInteraction} />; break;
         case 'youtube':
-            return features.youtubeSection ? <YouTubeFeed key={section.id} /> : null;
+            content = features.youtubeSection ? <YouTubeFeed /> : null; break;
         case 'reviews':
-            return features.googleReviews ? <GoogleReviews key={section.id} /> : null;
+            content = features.googleReviews ? <GoogleReviews /> : null; break;
         case 'cta-banner':
-            return <CTABannerSection key={section.id} config={section.config} />;
+            content = <CTABannerSection config={section.config} />; break;
         case 'text-block':
-            return <TextBlockSection key={section.id} config={section.config} />;
+            content = <TextBlockSection config={section.config} />; break;
         default:
-            return null;
+            content = null;
     }
+    if (!content) return null;
+    return (
+        <div key={section.id} data-section={section.id}>
+            {content}
+        </div>
+    );
 }
 
 // ===================== DEFAULT SECTIONS =====================

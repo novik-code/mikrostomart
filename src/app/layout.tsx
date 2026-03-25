@@ -7,8 +7,11 @@ import { CartProvider } from "@/context/CartContext";
 import { AssistantProvider } from "@/context/AssistantContext";
 import { SimulatorProvider } from "@/context/SimulatorContext";
 import { OpinionProvider } from "@/context/OpinionContext";
+import { VisualEditorProvider } from "@/context/VisualEditorContext";
 import ThemeLayout from "@/components/ThemeLayout";
 import DemoBanner from "@/components/DemoBanner";
+import AdminFloatingBar from "@/components/AdminFloatingBar";
+import VisualEditorOverlay from "@/components/editor/VisualEditorOverlay";
 import { isDemoMode } from "@/lib/demoMode";
 import { brand, demoSanitize } from "@/lib/brandConfig";
 import "./globals.css";
@@ -186,17 +189,21 @@ export default async function RootLayout({
                 <DemoBanner />
                 <SchemaOrg />
                 <NextIntlClientProvider locale={locale} messages={messages}>
-                    <CartProvider>
-                        <AssistantProvider>
-                            <SimulatorProvider>
-                                <OpinionProvider>
-                                    <ThemeLayout>
-                                        {children}
-                                    </ThemeLayout>
-                                </OpinionProvider>
-                            </SimulatorProvider>
-                        </AssistantProvider>
-                    </CartProvider>
+                    <VisualEditorProvider>
+                        <CartProvider>
+                            <AssistantProvider>
+                                <SimulatorProvider>
+                                    <OpinionProvider>
+                                        <ThemeLayout>
+                                            {children}
+                                        </ThemeLayout>
+                                    </OpinionProvider>
+                                </SimulatorProvider>
+                            </AssistantProvider>
+                        </CartProvider>
+                        <AdminFloatingBar />
+                        <VisualEditorOverlay />
+                    </VisualEditorProvider>
                 </NextIntlClientProvider>
             </body>
         </html>
