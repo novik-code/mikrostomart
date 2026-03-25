@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useVisualEditor } from '@/context/VisualEditorContext';
 import { createBrowserClient } from '@supabase/ssr';
+import { useTheme, SplashScreenConfig, DEFAULT_THEME } from '@/context/ThemeContext';
 import TemplateManager from './TemplateManager';
 import './editor.css';
 
@@ -82,6 +83,7 @@ function isUI(el: HTMLElement): boolean {
 
 export default function VisualEditorOverlay() {
     const { isEditorOpen, closeEditor } = useVisualEditor();
+    const { theme: veTheme, setTheme: veSetTheme } = useTheme();
     const [ov, setOv] = useState<PageOverrides>(EMPTY);
     const [orig, setOrig] = useState<PageOverrides>(EMPTY);
     const [dirty, setDirty] = useState(false);
@@ -100,16 +102,25 @@ export default function VisualEditorOverlay() {
     const [ctx, setCtx] = useState<{ x: number; y: number } | null>(null);
     const [ctxEl, setCtxEl] = useState<HTMLElement | null>(null);
 
-    // MODES — activated by clicking a toolbar button, then interacting with element
+    // MODES
     const [hoverFrozen, setHoverFrozen] = useState(false);
     const [videoPopup, setVideoPopup] = useState(false);
+    const [splashPopup, setSplashPopup] = useState(false);
     const [videoId, setVideoId] = useState('');
     const [videoOpacity, setVideoOpacity] = useState(0.3);
     const [isDragging, setIsDragging] = useState(false);
+    const [pendingDrop, setPendingDrop] = useState<{
+        dragEl: HTMLElement;
+        originalParent: HTMLElement;
+        originalNext: Node | null;
+        targetParent: HTMLElement;
+        targetBefore: HTMLElement | null;
+    } | null>(null);
 
     const dropRef = useRef<HTMLDivElement | null>(null);
     const resizeRef = useRef<{ w: number; h: number; x: number; y: number } | null>(null);
     const frozenEls = useRef<Map<HTMLElement, string>>(new Map());
+    const ghostRef = useRef<HTMLDivElement | null>(null);
 
     const supabase = createBrowserClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -322,44 +333,70 @@ export default function VisualEditorOverlay() {
         };
     }, [isEditorOpen, hov, sel, colorTgt, ctx, closeEditor, isDragging, videoPopup]);
 
-    // ---- DOM-based drag (free-form cross-parent) ----
+    // ---- DOM-based drag (ghost clone + confirm/cancel) ----
     function doReflowDrag(dragEl: HTMLElement) {
+        // Save original position for undo
+        const originalParent = dragEl.parentElement!;
+        const originalNext = dragEl.nextSibling;
+
         setIsDragging(true);
-        dragEl.classList.add('ve-dragging');
         const ind = dropRef.current;
         let dropTarget: { parent: HTMLElement; before: HTMLElement | null } | null = null;
 
-        // Collect all possible drop targets — block/flex/grid containers that are visible
+        // Make original translucent
+        dragEl.style.setProperty('opacity', '0.3', 'important');
+        dragEl.style.setProperty('outline', '2px dashed rgba(99,102,241,0.5)', 'important');
+
+        // Create ghost clone
+        const ghost = document.createElement('div');
+        ghost.setAttribute('data-ve-ui', 'true');
+        const rect = dragEl.getBoundingClientRect();
+        ghost.style.cssText = `
+            position: fixed; z-index: 100020; pointer-events: none;
+            width: ${Math.min(rect.width, 300)}px; height: ${Math.min(rect.height, 80)}px;
+            background: rgba(99,102,241,0.15); border: 2px solid rgba(99,102,241,0.8);
+            border-radius: 8px; backdrop-filter: blur(4px);
+            box-shadow: 0 8px 32px rgba(99,102,241,0.3);
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-size: 12px; font-weight: 600; font-family: -apple-system, sans-serif;
+            transition: none;
+        `;
+        const label = getLabel(dragEl);
+        ghost.textContent = `⊞ ${label.slice(0, 25)}`;
+        document.body.appendChild(ghost);
+        ghostRef.current = ghost;
+
+        const offsetX = rect.width > 300 ? 150 : rect.width / 2;
+        const offsetY = rect.height > 80 ? 40 : rect.height / 2;
+
         function getDropTargets(): HTMLElement[] {
             const targets: HTMLElement[] = [];
-            const all = document.body.querySelectorAll('*');
-            all.forEach(raw => {
+            document.body.querySelectorAll('*').forEach(raw => {
                 const el = raw as HTMLElement;
                 if (el === dragEl || dragEl.contains(el) || el.closest('[data-ve-ui]')) return;
-                // Only consider elements with children (containers) or siblings of dragEl
                 const cs = getComputedStyle(el);
                 if (cs.display === 'none' || cs.visibility === 'hidden') return;
                 const r = el.getBoundingClientRect();
-                if (r.width < 10 || r.height < 5) return;
+                if (r.width < 20 || r.height < 10) return;
                 targets.push(el);
             });
             return targets;
         }
 
         const onMove = (e: MouseEvent) => {
+            // Move ghost to follow mouse
+            ghost.style.left = `${e.clientX - offsetX}px`;
+            ghost.style.top = `${e.clientY - offsetY}px`;
+
             if (!ind) return;
             const mx = e.clientX, my = e.clientY;
             const targets = getDropTargets();
 
-            // Find nearest element edge to the mouse position
             let best: { el: HTMLElement; dist: number; above: boolean } | null = null;
             for (const el of targets) {
                 const r = el.getBoundingClientRect();
-                // Check if mouse is horizontally within this element's bounds (with some tolerance)
                 if (mx < r.left - 50 || mx > r.right + 50) continue;
-                // Distance to top edge
                 const dTop = Math.abs(my - r.top);
-                // Distance to bottom edge
                 const dBot = Math.abs(my - r.bottom);
                 const minD = Math.min(dTop, dBot);
                 if (!best || minD < best.dist) {
@@ -369,29 +406,19 @@ export default function VisualEditorOverlay() {
 
             if (best && best.dist < 60) {
                 const r = best.el.getBoundingClientRect();
-                const parent = best.el.parentElement;
+                const par = best.el.parentElement;
                 ind.style.display = 'block';
-                if (parent) {
-                    const pr = parent.getBoundingClientRect();
-                    ind.style.left = `${Math.min(r.left, pr.left)}px`;
-                    ind.style.width = `${Math.max(r.width, pr.width)}px`;
-                } else {
-                    ind.style.left = `${r.left}px`;
-                    ind.style.width = `${r.width}px`;
-                }
-                if (best.above) {
-                    ind.style.top = `${r.top + scrollY - 2}px`;
-                    dropTarget = {
-                        parent: best.el.parentElement || document.body,
-                        before: best.el,
-                    };
-                } else {
-                    ind.style.top = `${r.bottom + scrollY - 1}px`;
-                    dropTarget = {
-                        parent: best.el.parentElement || document.body,
-                        before: best.el.nextElementSibling as HTMLElement | null,
-                    };
-                }
+                const pLeft = par ? Math.min(r.left, par.getBoundingClientRect().left) : r.left;
+                const pWidth = par ? Math.max(r.width, par.getBoundingClientRect().width) : r.width;
+                ind.style.left = `${pLeft}px`;
+                ind.style.width = `${pWidth}px`;
+                ind.style.top = best.above
+                    ? `${r.top + scrollY - 2}px`
+                    : `${r.bottom + scrollY - 1}px`;
+                dropTarget = {
+                    parent: best.el.parentElement || document.body,
+                    before: best.above ? best.el : best.el.nextElementSibling as HTMLElement | null,
+                };
             } else {
                 ind.style.display = 'none';
                 dropTarget = null;
@@ -399,32 +426,85 @@ export default function VisualEditorOverlay() {
         };
 
         const onUp = () => {
-            dragEl.classList.remove('ve-dragging');
+            // Remove ghost
+            ghost.remove();
+            ghostRef.current = null;
             if (ind) ind.style.display = 'none';
             setIsDragging(false);
 
             if (dropTarget) {
+                // Don't commit yet — show confirm bar
+                // Preview the move
                 try {
                     if (dropTarget.before) {
                         dropTarget.parent.insertBefore(dragEl, dropTarget.before);
                     } else {
                         dropTarget.parent.appendChild(dragEl);
                     }
-                    flash('📍 Przesunięto');
-                } catch (err) {
-                    flash('❌ Nie udało się przesunąć');
-                    console.error('[VE] move error:', err);
+                } catch {
+                    // Restore if preview fails
+                    dragEl.style.removeProperty('opacity');
+                    dragEl.style.removeProperty('outline');
+                    flash('❌ Nie można przenieść tutaj');
+                    document.removeEventListener('mousemove', onMove);
+                    document.removeEventListener('mouseup', onUp);
+                    return;
                 }
+                // Make element glow to show new position
+                dragEl.style.setProperty('opacity', '1', 'important');
+                dragEl.style.setProperty('outline', '3px solid rgba(99,102,241,0.8)', 'important');
+                dragEl.style.setProperty('box-shadow', '0 0 20px rgba(99,102,241,0.4)', 'important');
+
+                setPendingDrop({
+                    dragEl,
+                    originalParent,
+                    originalNext: originalNext,
+                    targetParent: dropTarget.parent,
+                    targetBefore: dropTarget.before,
+                });
+                flash('📍 Podgląd — zatwierdź lub anuluj');
             } else {
-                flash('❌ Przeciągnij nad element aby tam upusćcić');
+                dragEl.style.removeProperty('opacity');
+                dragEl.style.removeProperty('outline');
+                flash('❌ Przeciągnij nad element docelowy');
             }
-            posToolbar(dragEl);
             document.removeEventListener('mousemove', onMove);
             document.removeEventListener('mouseup', onUp);
         };
 
         document.addEventListener('mousemove', onMove);
         document.addEventListener('mouseup', onUp);
+    }
+
+    // ---- Confirm / Cancel pending drop ----
+    function confirmDrop() {
+        if (!pendingDrop) return;
+        const { dragEl } = pendingDrop;
+        dragEl.style.removeProperty('opacity');
+        dragEl.style.removeProperty('outline');
+        dragEl.style.removeProperty('box-shadow');
+        setPendingDrop(null);
+        posToolbar(dragEl);
+        flash('✅ Przesunięto!');
+    }
+
+    function cancelDrop() {
+        if (!pendingDrop) return;
+        const { dragEl, originalParent, originalNext } = pendingDrop;
+        // Move back to original position
+        try {
+            if (originalNext) {
+                originalParent.insertBefore(dragEl, originalNext);
+            } else {
+                originalParent.appendChild(dragEl);
+            }
+        } catch {}
+        dragEl.style.removeProperty('opacity');
+        dragEl.style.removeProperty('outline');
+        dragEl.style.removeProperty('box-shadow');
+        setPendingDrop(null);
+        posToolbar(dragEl);
+        flash('↩️ Anulowano');
     }
 
     // ---- Resize ----
@@ -542,6 +622,7 @@ export default function VisualEditorOverlay() {
                     <div className="ve-toolbar-sep" />
                     <button className="ve-toolbar-btn ve-primary" onClick={() => setShowTpl(true)}>📁</button>
                     <button className="ve-toolbar-btn" onClick={() => setVideoPopup(true)}>🎬</button>
+                    <button className="ve-toolbar-btn" onClick={() => setSplashPopup(true)} title="Konfiguracja Splash Screen">🌟</button>
                     <div className="ve-toolbar-sep" />
                     <button className="ve-toolbar-btn ve-danger" onClick={closeEditor}>✕</button>
                 </div>
@@ -732,6 +813,161 @@ export default function VisualEditorOverlay() {
             {sel && <div className="ve-breadcrumb" data-ve-ui="true">{bc.map((b, i) => <span key={i} className={i === bc.length - 1 ? 've-bc-active' : ''}>{i > 0 && ' › '}{b}</span>)}</div>}
 
             {toast && <div className="ve-toast" data-ve-ui="true">{toast}</div>}
+
+            {/* ---- PENDING DROP CONFIRM BAR ---- */}
+            {pendingDrop && (
+                <div data-ve-ui="true" style={{
+                    position: 'fixed', bottom: '2rem', left: '50%', transform: 'translateX(-50%)',
+                    background: 'rgba(10,12,18,0.95)', border: '2px solid rgba(99,102,241,0.5)',
+                    borderRadius: '14px', padding: '0.75rem 1.5rem', zIndex: 100020,
+                    display: 'flex', gap: '1rem', alignItems: 'center',
+                    boxShadow: '0 12px 40px rgba(0,0,0,0.5)', fontFamily: '-apple-system, sans-serif',
+                    backdropFilter: 'blur(12px)',
+                }}>
+                    <span style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.85rem', fontWeight: 500 }}>
+                        📍 Element przesunięty — akcja:
+                    </span>
+                    <button onClick={confirmDrop} style={{
+                        padding: '0.5rem 1.25rem', background: 'rgba(34,197,94,0.8)',
+                        color: 'white', border: 'none', borderRadius: '8px',
+                        fontWeight: 700, cursor: 'pointer', fontSize: '0.85rem',
+                    }}>✅ Zatwierdź</button>
+                    <button onClick={cancelDrop} style={{
+                        padding: '0.5rem 1.25rem', background: 'rgba(239,68,68,0.8)',
+                        color: 'white', border: 'none', borderRadius: '8px',
+                        fontWeight: 700, cursor: 'pointer', fontSize: '0.85rem',
+                    }}>↩️ Anuluj</button>
+                </div>
+            )}
+
+            {/* ---- SPLASH SCREEN CONFIG POPUP ---- */}
+            {splashPopup && (() => {
+                const sc: SplashScreenConfig = veTheme.features.splashScreenConfig || DEFAULT_THEME.features.splashScreenConfig;
+                const updateSC = (patch: Partial<SplashScreenConfig>) => veSetTheme(prev => ({
+                    ...prev,
+                    features: {
+                        ...prev.features,
+                        splashScreen: patch.enabled !== undefined ? patch.enabled : prev.features.splashScreen,
+                        splashScreenConfig: { ...prev.features.splashScreenConfig, ...patch }
+                    }
+                }));
+                const inputStyle: React.CSSProperties = {
+                    width: '100%', padding: '0.4rem 0.5rem',
+                    background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)',
+                    borderRadius: '6px', color: 'white', fontSize: '0.85rem',
+                };
+                const labelStyle: React.CSSProperties = {
+                    fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)',
+                    display: 'block', marginBottom: '4px',
+                };
+                return (
+                    <div data-ve-ui="true" onClick={e => e.stopPropagation()} style={{
+                        position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+                        width: '380px', maxHeight: '80vh', overflow: 'auto',
+                        background: 'rgba(10,12,18,0.97)', borderRadius: '16px',
+                        border: '1px solid rgba(99,102,241,0.3)',
+                        boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
+                        padding: '1.5rem', zIndex: 100030,
+                        fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
+                    }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                            <h3 style={{ margin: 0, color: 'white', fontSize: '1rem' }}>🌟 Splash Screen</h3>
+                            <button onClick={() => setSplashPopup(false)} style={{
+                                background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)',
+                                fontSize: '1.2rem', cursor: 'pointer',
+                            }}>✕</button>
+                        </div>
+
+                        {/* Enable/Disable */}
+                        <div onClick={() => updateSC({ enabled: !sc.enabled })} style={{
+                            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                            padding: '0.5rem 0.5rem', marginBottom: '0.75rem', cursor: 'pointer',
+                            background: 'rgba(255,255,255,0.03)', borderRadius: '8px',
+                        }}>
+                            <span style={{ color: 'white', fontSize: '0.85rem' }}>Włącz splash</span>
+                            <div style={{
+                                width: 36, height: 20, borderRadius: 10,
+                                background: sc.enabled ? 'rgba(99,102,241,0.8)' : 'rgba(255,255,255,0.15)',
+                                position: 'relative', transition: 'background 0.2s',
+                            }}>
+                                <div style={{
+                                    width: 14, height: 14, borderRadius: '50%', background: 'white',
+                                    position: 'absolute', top: 3, left: sc.enabled ? 19 : 3,
+                                    transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+                                }} />
+                            </div>
+                        </div>
+
+                        {sc.enabled && (
+                            <>
+                                {/* Animation Type */}
+                                <div style={{ marginBottom: '0.75rem' }}>
+                                    <label style={labelStyle}>Typ animacji</label>
+                                    <select value={sc.animationType} onChange={e => updateSC({ animationType: e.target.value as any })} style={inputStyle}>
+                                        <option value="particles">🌟 Nebula (cząsteczki)</option>
+                                        <option value="fade">🌊 Fade</option>
+                                        <option value="slide">📐 Slide</option>
+                                        <option value="none">⚡ Brak</option>
+                                    </select>
+                                </div>
+
+                                {/* Duration */}
+                                <div style={{ marginBottom: '0.75rem' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                        <label style={labelStyle}>Czas trwania</label>
+                                        <span style={{ fontSize: '0.75rem', color: 'rgba(99,102,241,0.8)', fontFamily: 'monospace' }}>{sc.duration}s</span>
+                                    </div>
+                                    <input type="range" min={1} max={10} step={0.5} value={sc.duration}
+                                        onChange={e => updateSC({ duration: parseFloat(e.target.value) })}
+                                        style={{ width: '100%', accentColor: 'rgb(99,102,241)' }} />
+                                </div>
+
+                                {/* Frequency */}
+                                <div style={{ marginBottom: '0.75rem' }}>
+                                    <label style={labelStyle}>Częstotliwość</label>
+                                    <select value={sc.frequency} onChange={e => updateSC({ frequency: e.target.value as any })} style={inputStyle}>
+                                        <option value="always">Zawsze</option>
+                                        <option value="once_session">Raz na sesję</option>
+                                        <option value="once_ever">Raz na zawsze</option>
+                                        <option value="daily">Raz dziennie</option>
+                                        <option value="weekly">Raz w tygodniu</option>
+                                    </select>
+                                </div>
+
+                                {/* Sections */}
+                                <div style={{ marginBottom: '0.5rem' }}>
+                                    <label style={labelStyle}>Sekcje</label>
+                                    {(['public', 'admin', 'employee', 'patient'] as const).map(s => (
+                                        <div key={s} onClick={() => updateSC({ sections: { ...sc.sections, [s]: !sc.sections[s] } })}
+                                            style={{
+                                                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                                padding: '0.35rem 0.5rem', cursor: 'pointer',
+                                                background: 'rgba(255,255,255,0.02)', borderRadius: '6px',
+                                                marginBottom: '0.25rem',
+                                            }}>
+                                            <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.8rem' }}>
+                                                {{ public: '🌐 Publiczna', admin: '👑 Admin', employee: '👷 Pracownik', patient: '🦿 Pacjent' }[s]}
+                                            </span>
+                                            <div style={{
+                                                width: 14, height: 14, borderRadius: 3,
+                                                border: sc.sections[s] ? '2px solid rgba(99,102,241,0.8)' : '2px solid rgba(255,255,255,0.2)',
+                                                background: sc.sections[s] ? 'rgba(99,102,241,0.6)' : 'transparent',
+                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                fontSize: '10px', color: 'white',
+                                            }}>{sc.sections[s] ? '✓' : ''}</div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* Save hint */}
+                                <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', textAlign: 'center', marginTop: '0.5rem' }}>
+                                    Zmiany zapisz przyciskiem 💾 w pasku lub w panelu admin → Motyw
+                                </div>
+                            </>
+                        )}
+                    </div>
+                );
+            })()}
 
             <TemplateManager isOpen={showTpl} onClose={() => setShowTpl(false)}
                 onApplied={() => { setShowTpl(false); flash('✅ Załadowany'); window.location.reload(); }} />

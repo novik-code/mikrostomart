@@ -221,11 +221,13 @@ export const THEME_PRESETS: Record<string, Partial<ThemeConfig>> = {
 interface ThemeContextValue {
     theme: ThemeConfig;
     isLoaded: boolean;
+    setTheme: React.Dispatch<React.SetStateAction<ThemeConfig>>;
 }
 
 const ThemeContext = createContext<ThemeContextValue>({
     theme: DEFAULT_THEME,
     isLoaded: false,
+    setTheme: () => {},
 });
 
 export function useTheme() {
@@ -367,7 +369,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }, []);
 
     return (
-        <ThemeContext.Provider value={{ theme, isLoaded }}>
+        <ThemeContext.Provider value={{ theme, isLoaded, setTheme }}>
             {children}
         </ThemeContext.Provider>
     );
