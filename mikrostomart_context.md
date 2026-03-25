@@ -1,6 +1,6 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-03-23  
+> **Last Updated:** 2026-03-25  
 > **Version:** Production + Demo (Dual Vercel Deployment)  
 > **Status:** Active Development
 
@@ -59,7 +59,37 @@ When `isDemoMode` is `true` (from `src/lib/demoMode.ts`):
 - **Telegram** — skipped entirely
 - **19 cron jobs** — early return with log message
 - **Prodentis API** — mocked in 3 endpoints (login, /me, /me/visits): patient data comes from Supabase
+- **Deep Debranding** — runtime sanitization replaces ALL Mikrostomart branding with generic demo equivalents
 - **All other features** — work normally against the demo Supabase DB
+
+**Deep Debranding Architecture (March 2026):**
+
+The demo environment is fully neutralized — no Mikrostomart-specific text, contact info, or staff data leaks through. This is implemented via two sanitizer layers:
+
+1. **`demoSanitize(text)`** (`src/lib/brandConfig.ts`) — centralized string replacement function. Identity function in production, replaces ~15 Mikrostomart-specific patterns in demo:
+   - Company name: `Mikrostomart` → `Klinika Demo`, `MIKROSTOMART` → `KLINIKA DEMO`
+   - Domain: `mikrostomart.pl` → `demo.densflow.ai`
+   - Email: `gabinet@mikrostomart.pl` → `kontakt@demo.densflow.ai`
+   - Address: `ul. Centralna 33a` → `ul. Przykładowa 1`
+   - City: `Opole` → `Warszawa`, `Opolu` → `Warszawie`
+   - Phone: `570-270-470` / `570-810-800` → `000-000-000`
+   - Legal: `ELMAR SP. Z O.O.` → `Demo Dental Sp. z o.o.`, `NIP: 7543251709` → `NIP: 0000000000`
+
+2. **`deepSanitize(messages)`** (`src/app/layout.tsx`) — recursively applies `demoSanitize()` to all i18n translation message strings before passing to `NextIntlClientProvider`. Covers all ~104 Mikrostomart references in 8 translation JSON files without modifying them.
+
+**Sanitization chokepoints** (single-point wrapping covers all downstream content):
+- `emailTemplates.ts` → `getEmailTemplate()` return value wrapped
+- `emailService.ts` → `makeHtml()` output + `FROM_ADDRESS` wrapped
+- `icsGenerator.ts` → `generateICS()` return value wrapped
+- `layout.tsx` → all translation messages wrapped via `deepSanitize()`
+
+**Additional debranding layers:**
+- `brandConfig.ts` → `brand` object provides conditional metadata (name, title, description, SchemaOrg)
+- `DemoPagePlaceholder.tsx` → replaces legal pages (regulamin, RODO, cookies, polityka prywatności) with generic notices
+- 80+ API routes/components/lib files → `from:`, `subject:`, `to:`, `html:` email fields wrapped with `demoSanitize()`
+- Logo: conditional loading (`/demo-logo.png` vs `/logo-transparent.png`) in Navbar, SplashScreen, Footer
+- Reservation form: fictional `DEMO_SPECIALISTS` instead of real doctors
+- 24 `layout.tsx` metadata files: conditional SEO titles/descriptions via `generateMetadata()`
 
 **Demo Supabase DB contents:**
 - 66 base tables (generated from production OpenAPI spec)
@@ -76,8 +106,10 @@ When `isDemoMode` is `true` (from `src/lib/demoMode.ts`):
 
 **Key files:**
 - `src/lib/demoMode.ts` — `isDemoMode` flag
+- `src/lib/brandConfig.ts` — `brand` config object, `demoSanitize()` function, `isDemoMode` re-export
 - `src/components/DemoBanner.tsx` — banner component
-- `src/app/layout.tsx` — renders DemoBanner when demo
+- `src/components/DemoPagePlaceholder.tsx` — generic placeholder for legal/policy pages in demo
+- `src/app/layout.tsx` — renders DemoBanner + `deepSanitize()` for translations
 - `src/app/api/patients/login/route.ts` — Prodentis mock
 - `src/app/api/patients/me/route.ts` — Prodentis mock
 - `src/app/api/patients/me/visits/route.ts` — empty visits mock
@@ -265,6 +297,8 @@ mikrostomart/
 │   │   ├── SimulatorContext.tsx # Smile simulator open/close state
 │   │   └── OpinionContext.tsx  # Review survey popup state + timed trigger
 │   ├── lib/                    # Utilities & services
+│   │   ├── brandConfig.ts      # Branding config (brand object), demoSanitize() function
+│   │   ├── demoMode.ts         # isDemoMode flag (reads NEXT_PUBLIC_DEMO_MODE)
 │   │   ├── smsService.ts       # SMS integration
 │   │   ├── productService.ts   # Product management
 │   │   ├── githubService.ts    # GitHub blog integration
@@ -273,7 +307,9 @@ mikrostomart/
 │   │   ├── telegram.ts         # Telegram multi-bot notification routing
 │   │   ├── appointmentTypeMapper.ts  # Maps Prodentis appointment types
 │   │   ├── auth.ts             # Authentication helpers (verifyAdmin)
-│   │   ├── emailService.ts     # Centralized patient email service (booking confirm/reject, chat reply, status change)
+│   │   ├── emailTemplates.ts   # Localized email templates (4 languages, demoSanitize at return)
+│   │   ├── emailService.ts     # Centralized patient email service (demoSanitize in makeHtml)
+│   │   ├── icsGenerator.ts     # ICS calendar file generator (demoSanitize on output)
 │   │   ├── cronHeartbeat.ts    # Cron heartbeat logging to Supabase
 │   │   ├── jwt.ts              # JWT token utilities
 │   │   ├── auditLog.ts         # GDPR audit logging + password strength validation
@@ -2204,6 +2240,51 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### March 24–25, 2026
+**Deep Demo Debranding — Full Neutralization of demo.densflow.ai**
+
+#### Commits:
+- `e307977` — feat: full demo debranding — remove ALL Mikrostomart from demo.densflow.ai (34 files)
+- `c8eaef3` — fix: remaining debranding — footer watermark, hero text, nested layouts, ocen-nas (11 files)
+- `09cb396` — feat: deep debranding — demoSanitize across 80 files + translation wrapper (80 files)
+
+#### Architecture:
+- **`demoSanitize(text: string)`** in `brandConfig.ts` — centralized runtime string replacement. Identity in production, swaps ~15 Mikrostomart-specific patterns (company name, domain, email, address, phone, legal entity, NIP) with generic demo equivalents.
+- **`deepSanitize(messages)`** in `layout.tsx` — recursively applies `demoSanitize()` to ALL i18n translation messages before `NextIntlClientProvider`, covering ~104 translation JSON references without modifying the JSON files themselves.
+- **Service chokepoints** — `demoSanitize` applied at single return-points in `emailTemplates.ts`, `emailService.ts`, `icsGenerator.ts` to cover all downstream content automatically.
+- **80+ batch-processed files** — API routes (`from:`, `subject:`, `to:`, `html:` fields), components, lib utilities all wrapped with `demoSanitize()` import.
+
+#### Coverage (~430 references neutralized):
+| Layer | Files | Refs | Method |
+|-------|-------|------|--------|
+| Email Templates | 1 | 24 | `getEmailTemplate()` chokepoint |
+| Email Service | 1 | 13 | `makeHtml()` + `FROM_ADDRESS` wrapping |
+| ICS Generator | 1 | 6 | `generateICS()` chokepoint |
+| SMS Service | 1 | 4 | Demo mode blocks SMS entirely |
+| API Routes | 46 | ~60 | Import + field wrapping |
+| Components/Pages | 28 | ~40 | Import + conditional rendering |
+| Translation JSON | 8 | 104 | `deepSanitize()` in layout.tsx |
+| Brand Config | 1 | 25 | Source of truth |
+
+#### Additional UI changes:
+- Conditional logo (`/demo-logo.png`) in Navbar, SplashScreen, Footer
+- `DemoPagePlaceholder.tsx` replaces all legal pages with generic notices
+- Fictional `DEMO_SPECIALISTS` in reservation form
+- 24 `layout.tsx` files with conditional SEO metadata via `generateMetadata()`
+- Homepage hero text overridden for demo
+- `ocen-nas` page text and QR alt made conditional
+
+#### Key new/modified files:
+- `src/lib/brandConfig.ts` — brand config + `demoSanitize()` function (NEW)
+- `src/components/DemoPagePlaceholder.tsx` — generic legal page wrapper (NEW)
+- `src/app/layout.tsx` — `deepSanitize()` for translations, DemoBanner
+- `src/lib/emailTemplates.ts` — `demoSanitize()` at `getEmailTemplate` return
+- `src/lib/emailService.ts` — `demoSanitize()` at `makeHtml()` + FROM_ADDRESS
+- `src/lib/icsGenerator.ts` — `demoSanitize()` at `generateICS()` return
+- 80+ API route/component/lib files — `import { demoSanitize }` + field wrapping
+
+---
 
 ### March 21–22, 2026
 **Social Media AI Posting System — Full Generate & Publish Pipeline**
