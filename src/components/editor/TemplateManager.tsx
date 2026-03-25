@@ -127,12 +127,13 @@ export default function TemplateManager({ isOpen, onClose, onApplied }: Template
 
     return (
         <div
+            data-ve-ui="true"
             style={{
                 position: 'fixed',
                 inset: 0,
                 background: 'rgba(0,0,0,0.6)',
                 backdropFilter: 'blur(4px)',
-                zIndex: 10005,
+                zIndex: 100015,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',

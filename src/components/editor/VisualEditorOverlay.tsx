@@ -75,11 +75,7 @@ function getLabel(el: HTMLElement): string {
 }
 
 function isUI(el: HTMLElement): boolean {
-    return !!(el.closest('.ve-toolbar') || el.closest('.ve-float-toolbar') ||
-        el.closest('.ve-color-popover') || el.closest('.ve-context-menu') ||
-        el.closest('.ve-toast') || el.closest('.ve-template-modal') ||
-        el.closest('.ve-breadcrumb') || el.closest('.ve-drop-indicator') ||
-        el.closest('.ve-resize-handle') || el.closest('.ve-video-popup'));
+    return !!el.closest('[data-ve-ui]');
 }
 
 // ===================== COMPONENT =====================
@@ -485,7 +481,7 @@ export default function VisualEditorOverlay() {
     return (
         <>
             {/* ---- TOP TOOLBAR ---- */}
-            <div className="ve-toolbar">
+            <div className="ve-toolbar" data-ve-ui="true">
                 <div className="ve-toolbar-group">
                     <span className="ve-toolbar-title">✏️ Edytor</span>
                     {dirty && <div className="ve-unsaved-dot" />}
@@ -515,7 +511,7 @@ export default function VisualEditorOverlay() {
 
             {/* ---- FLOATING ELEMENT TOOLBAR ---- */}
             {sel && fPos && (
-                <div className="ve-float-toolbar" style={{ left: fPos.x, top: fPos.y }}>
+                <div className="ve-float-toolbar" data-ve-ui="true" style={{ left: fPos.x, top: fPos.y }}>
                     {/* HIDE */}
                     <button className={curOv.hidden ? 've-active' : ''} title={curOv.hidden ? 'Pokaż' : 'Ukryj'}
                         onClick={e => { e.stopPropagation(); const h = !curOv.hidden; upd(selPath, 'hidden', h); if (h) sel.classList.add('ve-hidden-element'); else sel.classList.remove('ve-hidden-element'); }}>
@@ -551,7 +547,7 @@ export default function VisualEditorOverlay() {
 
             {/* ---- COLOR PICKER ---- */}
             {colorTgt && colorPos && sel && (
-                <div className="ve-color-popover" style={{ left: colorPos.x, top: colorPos.y }} onClick={e => e.stopPropagation()}>
+                <div className="ve-color-popover" data-ve-ui="true" style={{ left: colorPos.x, top: colorPos.y }} onClick={e => e.stopPropagation()}>
                     <div className="ve-color-popover-label">{colorTgt === 'bg' ? 'Kolor tła' : 'Kolor tekstu'}</div>
                     <div className="ve-color-grid">
                         {COLORS.map(c => (
@@ -577,7 +573,7 @@ export default function VisualEditorOverlay() {
 
             {/* ---- VIDEO POPUP ---- */}
             {videoPopup && (
-                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100015, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                <div data-ve-ui="true" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100015, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                     onClick={() => setVideoPopup(false)}>
                     <div className="ve-video-popup" onClick={e => e.stopPropagation()} style={{
                         background: 'rgba(10,12,16,0.98)', border: '1px solid rgba(99,102,241,0.25)', borderRadius: 14, padding: '1.25rem', width: '90%', maxWidth: 420,
@@ -608,7 +604,7 @@ export default function VisualEditorOverlay() {
 
             {/* ---- CONTEXT MENU ---- */}
             {ctx && ctxEl && (
-                <div className="ve-context-menu" style={{ left: ctx.x, top: ctx.y }} onClick={e => e.stopPropagation()}>
+                <div className="ve-context-menu" data-ve-ui="true" style={{ left: ctx.x, top: ctx.y }} onClick={e => e.stopPropagation()}>
                     <button className="ve-ctx-item" onClick={() => { upd(ctxP, 'hidden', true); ctxEl.classList.add('ve-hidden-element'); setCtx(null); flash('🙈 Ukryty'); }}>✕ Ukryj</button>
                     <button className="ve-ctx-item" onClick={() => {
                         setSel(ctxEl); setSelPath(ctxP); ctxEl.classList.add('ve-selected'); posToolbar(ctxEl);
@@ -640,9 +636,9 @@ export default function VisualEditorOverlay() {
             )}
 
             {/* ---- BREADCRUMB ---- */}
-            {sel && <div className="ve-breadcrumb">{bc.map((b, i) => <span key={i} className={i === bc.length - 1 ? 've-bc-active' : ''}>{i > 0 && ' › '}{b}</span>)}</div>}
+            {sel && <div className="ve-breadcrumb" data-ve-ui="true">{bc.map((b, i) => <span key={i} className={i === bc.length - 1 ? 've-bc-active' : ''}>{i > 0 && ' › '}{b}</span>)}</div>}
 
-            {toast && <div className="ve-toast">{toast}</div>}
+            {toast && <div className="ve-toast" data-ve-ui="true">{toast}</div>}
 
             <TemplateManager isOpen={showTpl} onClose={() => setShowTpl(false)}
                 onApplied={() => { setShowTpl(false); flash('✅ Załadowany'); window.location.reload(); }} />

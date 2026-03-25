@@ -34,6 +34,7 @@ export default function AdminFloatingBar() {
 
     return (
         <div
+            data-ve-ui="true"
             onMouseEnter={() => setIsExpanded(true)}
             onMouseLeave={() => setIsExpanded(false)}
             style={{
