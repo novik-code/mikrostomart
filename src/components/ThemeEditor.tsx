@@ -467,7 +467,7 @@ export default function ThemeEditor() {
                                             fontSize: '0.85rem',
                                         }}
                                     >
-                                        {['Inter', 'Roboto', 'Open Sans', 'Lato', 'Poppins', 'Montserrat', 'Outfit', 'DM Sans'].map(f => (
+                                        {['Inter', 'Roboto', 'Open Sans', 'Lato', 'Poppins', 'Montserrat', 'Outfit', 'DM Sans', 'Urbanist'].map(f => (
                                             <option key={f} value={f}>{f}</option>
                                         ))}
                                     </select>
@@ -487,7 +487,7 @@ export default function ThemeEditor() {
                                             fontSize: '0.85rem',
                                         }}
                                     >
-                                        {['Playfair Display', 'Merriweather', 'Roboto Slab', 'Lora', 'Cormorant Garamond', 'DM Serif Display', 'Outfit'].map(f => (
+                                        {['Playfair Display', 'Merriweather', 'Roboto Slab', 'Lora', 'Cormorant Garamond', 'DM Serif Display', 'Outfit', 'Urbanist'].map(f => (
                                             <option key={f} value={f}>{f}</option>
                                         ))}
                                     </select>
@@ -660,6 +660,35 @@ export default function ThemeEditor() {
                                 ))}
                             </div>
                         </div>
+                        <div style={{ marginTop: '1.25rem' }}>
+                            <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)', marginBottom: '8px', display: 'block' }}>Układ nawigacji</span>
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                {([
+                                    { id: 'hamburger', label: '☰ Hamburger', desc: 'Menu otwierane po najechaniu' },
+                                    { id: 'inline', label: '━━ Inline', desc: 'Linki zawsze widoczne (LePerle)' },
+                                ] as const).map(l => (
+                                    <button
+                                        key={l.id}
+                                        onClick={() => updateNavbar('layout', l.id)}
+                                        style={{
+                                            flex: 1,
+                                            padding: '0.75rem',
+                                            background: theme.navbar.layout === l.id ? 'rgba(var(--color-primary-rgb),0.15)' : 'rgba(255,255,255,0.03)',
+                                            border: theme.navbar.layout === l.id ? '2px solid rgba(var(--color-primary-rgb),0.5)' : '1px solid rgba(255,255,255,0.1)',
+                                            borderRadius: '8px',
+                                            color: theme.navbar.layout === l.id ? 'var(--color-primary)' : 'rgba(255,255,255,0.6)',
+                                            cursor: 'pointer',
+                                            fontWeight: theme.navbar.layout === l.id ? '700' : '400',
+                                            transition: 'all 0.15s',
+                                            textAlign: 'center',
+                                        }}
+                                    >
+                                        <div style={{ fontWeight: '600', marginBottom: '4px' }}>{l.label}</div>
+                                        <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)' }}>{l.desc}</div>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
                     </div>
                 )}
 
@@ -759,56 +788,194 @@ export default function ThemeEditor() {
                     </div>
                 )}
 
-                {/* PRESETS */}
+                {/* PRESETS — Visual Thumbnail Picker */}
                 {activeSection === 'presets' && (
                     <div>
                         <SectionHeader icon={Eye} title="Gotowe szablony motywów" />
-                        <p style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', marginBottom: '1rem' }}>
-                            Kliknij szablon, aby zastosować go natychmiast. Pamiętaj, aby zapisać po wyborze.
+                        <p style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', marginBottom: '1.25rem' }}>
+                            Kliknij szablon, aby zmienić cały wygląd strony: nawigację, sekcje, kolory i układ.
                         </p>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.25rem' }}>
                             {[
-                                { id: 'default-gold', name: 'Domyślne Złoto', colors: ['#08090a', '#dcb14a', '#f0c975'] },
-                                { id: 'densflow-light', name: 'DensFlow Light', colors: ['#FAFAFA', '#9D7D5D', '#B89B7A'] },
-                                { id: 'dental-luxe', name: 'Dental Luxe', colors: ['#0A0A0A', '#C5A55A', '#D4BA78'] },
-                                { id: 'fresh-smile', name: 'Fresh Smile', colors: ['#FFFFFF', '#8B5CF6', '#A78BFA'] },
-                                { id: 'nordic-dental', name: 'Nordic Dental', colors: ['#F7F5F2', '#8B7355', '#A69178'] },
-                                { id: 'warm-care', name: 'Warm Care', colors: ['#F5EDE4', '#3B82F6', '#60A5FA'] },
+                                {
+                                    id: 'default-gold', name: 'Mikrostomart Gold', desc: 'Ciemny, kinowy styl z hamburger menu',
+                                    bg: '#08090a', primary: '#dcb14a', text: '#f0c975', surface: '#141519',
+                                    navType: 'hamburger' as const, heroType: 'centered' as const,
+                                },
+                                {
+                                    id: 'densflow-light', name: 'DensFlow Light', desc: 'Jasny, butikowy styl inspirowany LePerle',
+                                    bg: '#FAFAFA', primary: '#9D7D5D', text: '#1A1A1A', surface: '#FFFFFF',
+                                    navType: 'inline' as const, heroType: 'split' as const,
+                                },
+                                {
+                                    id: 'dental-luxe', name: 'Dental Luxe', desc: 'Ultra-luksusowy ciemny motyw kina',
+                                    bg: '#0A0A0A', primary: '#C5A55A', text: '#D4BA78', surface: '#151515',
+                                    navType: 'hamburger' as const, heroType: 'video' as const,
+                                },
+                                {
+                                    id: 'fresh-smile', name: 'Fresh Smile', desc: 'Nowoczesny, fioletowy, edukacyjny',
+                                    bg: '#FFFFFF', primary: '#8B5CF6', text: '#374151', surface: '#F9FAFB',
+                                    navType: 'hamburger' as const, heroType: 'compact' as const,
+                                },
+                                {
+                                    id: 'nordic-dental', name: 'Nordic Dental', desc: 'Ciepły minimalizm, portfolio styl',
+                                    bg: '#F7F5F2', primary: '#8B7355', text: '#2C2C2C', surface: '#FFFFFF',
+                                    navType: 'hamburger' as const, heroType: 'split' as const,
+                                },
+                                {
+                                    id: 'warm-care', name: 'Warm Care', desc: 'Przyjazny, ciepłe odcienie, dużo treści',
+                                    bg: '#F5EDE4', primary: '#3B82F6', text: '#1E293B', surface: '#FFFFFF',
+                                    navType: 'hamburger' as const, heroType: 'centered' as const,
+                                },
                             ].map(preset => (
                                 <button
                                     key={preset.id}
                                     onClick={() => applyPreset(preset.id)}
                                     style={{
-                                        padding: '1rem',
+                                        padding: '0',
                                         background: 'rgba(255,255,255,0.03)',
                                         border: '1px solid rgba(255,255,255,0.1)',
-                                        borderRadius: '10px',
+                                        borderRadius: '12px',
                                         cursor: 'pointer',
-                                        textAlign: 'center',
-                                        transition: 'all 0.2s',
+                                        textAlign: 'left',
+                                        transition: 'all 0.25s ease',
                                         color: 'white',
+                                        overflow: 'hidden',
                                     }}
                                     onMouseEnter={(e) => {
-                                        (e.target as HTMLElement).style.borderColor = 'rgba(var(--color-primary-rgb),0.4)';
-                                        (e.target as HTMLElement).style.transform = 'translateY(-2px)';
+                                        const el = e.currentTarget;
+                                        el.style.borderColor = preset.primary;
+                                        el.style.transform = 'translateY(-3px)';
+                                        el.style.boxShadow = `0 8px 24px ${preset.primary}22`;
                                     }}
                                     onMouseLeave={(e) => {
-                                        (e.target as HTMLElement).style.borderColor = 'rgba(255,255,255,0.1)';
-                                        (e.target as HTMLElement).style.transform = 'translateY(0)';
+                                        const el = e.currentTarget;
+                                        el.style.borderColor = 'rgba(255,255,255,0.1)';
+                                        el.style.transform = 'translateY(0)';
+                                        el.style.boxShadow = 'none';
                                     }}
                                 >
-                                    <div style={{ display: 'flex', justifyContent: 'center', gap: '6px', marginBottom: '0.75rem' }}>
-                                        {preset.colors.map((c, i) => (
-                                            <div key={i} style={{
-                                                width: '28px',
-                                                height: '28px',
-                                                borderRadius: '50%',
-                                                background: c,
-                                                border: c === '#ffffff' ? '2px solid #ccc' : '2px solid rgba(255,255,255,0.15)',
+                                    {/* Mini website mockup */}
+                                    <div style={{
+                                        background: preset.bg,
+                                        padding: '12px',
+                                        borderRadius: '12px 12px 0 0',
+                                        minHeight: '120px',
+                                        position: 'relative',
+                                        overflow: 'hidden',
+                                    }}>
+                                        {/* Mini navbar */}
+                                        <div style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'space-between',
+                                            marginBottom: '10px',
+                                            padding: '4px 8px',
+                                            background: preset.surface,
+                                            borderRadius: '6px',
+                                        }}>
+                                            {/* Logo placeholder */}
+                                            <div style={{ width: '30px', height: '6px', background: preset.primary, borderRadius: '3px' }} />
+                                            {preset.navType === 'inline' ? (
+                                                /* Inline nav links */
+                                                <div style={{ display: 'flex', gap: '4px' }}>
+                                                    {[1,2,3].map(n => (
+                                                        <div key={n} style={{ width: '16px', height: '3px', background: preset.text, borderRadius: '2px', opacity: 0.4 }} />
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                /* Hamburger icon */
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                                    {[1,2,3].map(n => (
+                                                        <div key={n} style={{ width: '10px', height: '1.5px', background: preset.primary, borderRadius: '1px' }} />
+                                                    ))}
+                                                </div>
+                                            )}
+                                            {/* CTA button */}
+                                            <div style={{
+                                                width: '24px', height: '8px',
+                                                background: preset.primary,
+                                                borderRadius: preset.navType === 'inline' ? '100px' : '3px',
                                             }} />
-                                        ))}
+                                        </div>
+
+                                        {/* Mini hero area */}
+                                        {preset.heroType === 'split' ? (
+                                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                                <div style={{ flex: 1 }}>
+                                                    <div style={{ width: '60%', height: '5px', background: preset.text, borderRadius: '3px', marginBottom: '4px', opacity: 0.7 }} />
+                                                    <div style={{ width: '80%', height: '8px', background: preset.primary, borderRadius: '3px', marginBottom: '6px' }} />
+                                                    <div style={{ width: '40%', height: '3px', background: preset.text, borderRadius: '2px', opacity: 0.3 }} />
+                                                    <div style={{ display: 'flex', gap: '4px', marginTop: '6px' }}>
+                                                        <div style={{ width: '28px', height: '8px', background: preset.primary, borderRadius: '100px' }} />
+                                                        <div style={{ width: '28px', height: '8px', border: `1px solid ${preset.primary}`, borderRadius: '100px' }} />
+                                                    </div>
+                                                </div>
+                                                <div style={{
+                                                    width: '45px', height: '50px',
+                                                    background: `linear-gradient(135deg, ${preset.surface}, ${preset.primary}33)`,
+                                                    borderRadius: '6px',
+                                                }} />
+                                            </div>
+                                        ) : preset.heroType === 'video' ? (
+                                            <div style={{
+                                                background: `linear-gradient(135deg, ${preset.bg}, ${preset.primary}22)`,
+                                                borderRadius: '6px', padding: '10px', textAlign: 'center',
+                                            }}>
+                                                <div style={{ width: '50%', height: '6px', background: preset.primary, borderRadius: '3px', margin: '0 auto 4px' }} />
+                                                <div style={{ width: '30%', height: '3px', background: preset.text, borderRadius: '2px', margin: '0 auto', opacity: 0.4 }} />
+                                                <div style={{ fontSize: '10px', color: preset.primary, marginTop: '4px', opacity: 0.6 }}>▶</div>
+                                            </div>
+                                        ) : preset.heroType === 'compact' ? (
+                                            <div style={{ textAlign: 'center', padding: '6px 0' }}>
+                                                <div style={{ width: '50%', height: '6px', background: preset.primary, borderRadius: '3px', margin: '0 auto 4px' }} />
+                                                <div style={{ width: '70%', height: '3px', background: preset.text, borderRadius: '2px', margin: '0 auto 6px', opacity: 0.3 }} />
+                                                <div style={{ width: '32px', height: '8px', background: preset.primary, borderRadius: '100px', margin: '0 auto' }} />
+                                            </div>
+                                        ) : (
+                                            /* centered */
+                                            <div style={{ textAlign: 'center', padding: '8px 0' }}>
+                                                <div style={{ width: '60%', height: '8px', background: preset.primary, borderRadius: '3px', margin: '0 auto 4px' }} />
+                                                <div style={{ width: '40%', height: '4px', background: preset.text, borderRadius: '2px', margin: '0 auto 6px', opacity: 0.3 }} />
+                                                <div style={{ display: 'flex', justifyContent: 'center', gap: '4px' }}>
+                                                    <div style={{ width: '28px', height: '8px', background: preset.primary, borderRadius: '3px' }} />
+                                                    <div style={{ width: '28px', height: '8px', border: `1px solid ${preset.primary}`, borderRadius: '3px' }} />
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Mini section bars at bottom */}
+                                        <div style={{ display: 'flex', gap: '4px', marginTop: '8px' }}>
+                                            {[1,2,3].map(n => (
+                                                <div key={n} style={{
+                                                    flex: 1, height: '12px',
+                                                    background: n === 2 ? preset.primary + '15' : preset.surface,
+                                                    borderRadius: '3px',
+                                                    border: `1px solid ${preset.text}11`,
+                                                }} />
+                                            ))}
+                                        </div>
                                     </div>
-                                    <div style={{ fontWeight: '600', fontSize: '0.85rem' }}>{preset.name}</div>
+
+                                    {/* Template info */}
+                                    <div style={{ padding: '0.75rem 1rem' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                                            <span style={{ fontWeight: '700', fontSize: '0.9rem' }}>{preset.name}</span>
+                                            <span style={{
+                                                fontSize: '0.6rem',
+                                                padding: '2px 6px',
+                                                background: preset.navType === 'inline' ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.08)',
+                                                color: preset.navType === 'inline' ? '#10B981' : 'rgba(255,255,255,0.5)',
+                                                borderRadius: '4px',
+                                                textTransform: 'uppercase',
+                                                letterSpacing: '0.05em',
+                                                fontWeight: '600',
+                                            }}>
+                                                {preset.navType === 'inline' ? 'inline nav' : 'hamburger'}
+                                            </span>
+                                        </div>
+                                        <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', lineHeight: 1.3 }}>{preset.desc}</div>
+                                    </div>
                                 </button>
                             ))}
                         </div>

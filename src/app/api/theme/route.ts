@@ -13,11 +13,11 @@ const DENSFLOW_LIGHT_PRESET = {
         primary: '#9D7D5D', primaryLight: '#B89B7A', primaryDark: '#7A5F42',
         textMain: '#1A1A1A', textMuted: '#6B6B6B', success: '#22C55E', error: '#EF4444',
     },
-    typography: { fontBody: 'DM Sans', fontHeading: 'Outfit', baseFontSize: 16, headingScale: 1.05, lineHeight: 1.7 },
-    layout: { containerMaxWidth: 1200, borderRadius: 'rounded', spacingScale: 1.1 },
+    typography: { fontBody: 'Urbanist', fontHeading: 'Urbanist', baseFontSize: 16, headingScale: 1.1, lineHeight: 1.7 },
+    layout: { containerMaxWidth: 1200, borderRadius: 'rounded', spacingScale: 1.2 },
     animations: { enableScrollAnimations: true, enablePageTransitions: true, animationSpeed: 0.9 },
     hero: { minHeight: '85vh', backgroundVideoId: '', backgroundVideoOpacity: 0 },
-    navbar: { style: 'glassmorphism', logoText: 'DENSFLOW' },
+    navbar: { style: 'solid', layout: 'inline', logoText: 'DENSFLOW' },
     features: {
         splashScreen: true,
         splashScreenConfig: {

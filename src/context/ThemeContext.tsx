@@ -46,6 +46,7 @@ export interface ThemeHero {
 
 export interface ThemeNavbar {
     style: 'transparent' | 'solid' | 'glassmorphism';
+    layout: 'hamburger' | 'inline';
     logoText: string;
 }
 
@@ -133,6 +134,7 @@ export const DEFAULT_THEME: ThemeConfig = {
     },
     navbar: {
         style: 'transparent',
+        layout: 'hamburger',
         logoText: 'MIKROSTOMART',
     },
     features: {
@@ -186,16 +188,16 @@ export const THEME_PRESETS: Record<string, Partial<ThemeConfig>> = {
             error: '#EF4444',
         },
         typography: {
-            fontBody: 'DM Sans',
-            fontHeading: 'Outfit',     // modern geometric like LePerle
+            fontBody: 'Urbanist',      // LePerle uses Urbanist
+            fontHeading: 'Urbanist',   // same for headings
             baseFontSize: 16,
-            headingScale: 1.05,
+            headingScale: 1.1,
             lineHeight: 1.7,
         },
         layout: {
             containerMaxWidth: 1200,
-            borderRadius: 'rounded',   // LePerle uses rounded cards
-            spacingScale: 1.1,
+            borderRadius: 'rounded',   // LePerle uses 40px rounded cards
+            spacingScale: 1.2,         // generous spacing like LePerle
         },
         animations: {
             enableScrollAnimations: true,
@@ -208,7 +210,8 @@ export const THEME_PRESETS: Record<string, Partial<ThemeConfig>> = {
             backgroundVideoOpacity: 0,
         },
         navbar: {
-            style: 'glassmorphism',    // LePerle: floating white card navbar
+            style: 'solid',            // LePerle: white solid navbar
+            layout: 'inline',          // LePerle: logo-left, links-center, CTA-right
             logoText: 'DENSFLOW',
         },
         features: {
@@ -282,6 +285,7 @@ export const THEME_PRESETS: Record<string, Partial<ThemeConfig>> = {
         },
         navbar: {
             style: 'transparent',      // Nawrocki: transparent nav over video
+            layout: 'hamburger',
             logoText: 'DENTAL LUXE',
         },
         features: {
@@ -355,6 +359,7 @@ export const THEME_PRESETS: Record<string, Partial<ThemeConfig>> = {
         },
         navbar: {
             style: 'solid',           // Ambasada: solid white navbar
+            layout: 'hamburger',
             logoText: 'FRESH SMILE',
         },
         features: {
@@ -429,6 +434,7 @@ export const THEME_PRESETS: Record<string, Partial<ThemeConfig>> = {
         },
         navbar: {
             style: 'glassmorphism',   // One&Only: integrated top bar
+            layout: 'hamburger',
             logoText: 'NORDIC DENTAL',
         },
         features: {
@@ -503,6 +509,7 @@ export const THEME_PRESETS: Record<string, Partial<ThemeConfig>> = {
         },
         navbar: {
             style: 'solid',           // Malottki: solid navbar
+            layout: 'hamburger',
             logoText: 'WARM CARE',
         },
         features: {

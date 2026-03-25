@@ -16,8 +16,23 @@ function ThemedContent({ children }: { children: ReactNode }) {
     const { theme } = useTheme();
     const f = theme.features;
 
+    // Dynamically load Google Fonts based on theme typography
+    const fontsToLoad = new Set([theme.typography.fontBody, theme.typography.fontHeading]);
+    const googleFontsUrl = `https://fonts.googleapis.com/css2?${[...fontsToLoad].map(f => `family=${f.replace(/ /g, '+')}:wght@300;400;500;600;700`).join('&')}&display=swap`;
+
     const content = (
         <>
+            {/* Dynamic Google Font loader */}
+            {/* eslint-disable-next-line @next/next/no-page-custom-font */}
+            <link rel="stylesheet" href={googleFontsUrl} />
+            <style>{`
+                :root {
+                    --font-body: '${theme.typography.fontBody}', sans-serif;
+                    --font-heading: '${theme.typography.fontHeading}', sans-serif;
+                }
+                body { font-family: var(--font-body); }
+                h1, h2, h3, h4, h5, h6 { font-family: var(--font-heading); }
+            `}</style>
             {f.backgroundVideo && <BackgroundVideo videoId={theme.hero.backgroundVideoId} />}
             {f.cookieConsent && <CookieConsent />}
             <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>

@@ -133,6 +133,80 @@ export default function Navbar() {
     const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
     const closeMenu = () => setIsMenuOpen(false);
 
+    // ================================================================
+    // INLINE LAYOUT (LePerle-style): logo-left, links-center, pill CTA-right
+    // ================================================================
+    if (theme.navbar.layout === 'inline') {
+        return (
+            <nav className={styles.navbarInline}>
+                <div className={`container ${styles.containerInline}`}>
+                    {/* Logo — left */}
+                    <Link href="/" className={styles.logoInline} onClick={closeMenu}>
+                        <Image
+                            src={isDemoMode ? "/demo-logo.png" : "/logo-transparent.png"}
+                            alt={brand.logoAlt}
+                            width={220}
+                            height={70}
+                            style={{ width: 'auto', height: '40px' }}
+                            priority
+                        />
+                    </Link>
+
+                    {/* Desktop links — center, always visible */}
+                    <div className={styles.inlineLinks}>
+                        <Link href="/o-nas" className={styles.inlineLink}>{t('about')}</Link>
+                        <Link href="/oferta" className={styles.inlineLink}>{t('services')}</Link>
+                        {f.metamorphoses && <Link href="/metamorfozy" className={styles.inlineLink}>{t('transformations')}</Link>}
+                        <Link href="/cennik" className={styles.inlineLink}>{t('pricing')}</Link>
+                        <Link href="/kontakt" className={styles.inlineLink}>{t('contact')}</Link>
+                    </div>
+
+                    {/* Desktop CTA — right, pill shaped */}
+                    <div className={styles.inlineCta}>
+                        <Link href="/rezerwacja" className={styles.inlineCtaButton}>
+                            {t('booking')}
+                        </Link>
+                    </div>
+
+                    {/* Language Switcher */}
+                    <div className={styles.langSwitcherWrapper}>
+                        <LanguageSwitcher hidden={isMenuOpen} />
+                    </div>
+
+                    {/* Mobile hamburger */}
+                    <button
+                        className={styles.hamburger}
+                        onClick={toggleMenu}
+                        aria-label="Menu"
+                        aria-expanded={isMenuOpen}
+                    >
+                        <span className={`${styles.barInline} ${isMenuOpen ? styles.barInlineOpen : ''}`}></span>
+                        <span className={`${styles.barInline} ${isMenuOpen ? styles.barInlineOpen : ''}`}></span>
+                        <span className={`${styles.barInline} ${isMenuOpen ? styles.barInlineOpen : ''}`}></span>
+                    </button>
+
+                    {/* Mobile Menu Overlay — same as hamburger layout */}
+                    <div className={`${styles.mobileMenuInline} ${isMenuOpen ? styles.mobileMenuInlineOpen : ''}`}>
+                        <div className={styles.mobileLinksInline}>
+                            <Link href="/o-nas" className={styles.mobileLinkInline} onClick={closeMenu}>{t('about')}</Link>
+                            <Link href="/oferta" className={styles.mobileLinkInline} onClick={closeMenu}>{t('services')}</Link>
+                            {f.metamorphoses && <Link href="/metamorfozy" className={styles.mobileLinkInline} onClick={closeMenu}>{t('transformations')}</Link>}
+                            <Link href="/cennik" className={styles.mobileLinkInline} onClick={closeMenu}>{t('pricing')}</Link>
+                            <Link href="/kontakt" className={styles.mobileLinkInline} onClick={closeMenu}>{t('contact')}</Link>
+                            <Link href="/strefa-pacjenta/" className={styles.mobileLinkInline} onClick={closeMenu}>{t('patientZone')}</Link>
+                            <Link href="/rezerwacja" className={styles.inlineCtaButton} onClick={closeMenu} style={{ marginTop: '1rem', display: 'inline-block', textAlign: 'center' }}>
+                                {t('booking')}
+                            </Link>
+                        </div>
+                    </div>
+                </div>
+            </nav>
+        );
+    }
+
+    // ================================================================
+    // HAMBURGER LAYOUT (default mikrostomart): centered hamburger burst
+    // ================================================================
     return (
         <nav className={styles.navbar}>
             <div className={`container ${styles.container}`}>
@@ -347,7 +421,6 @@ export default function Navbar() {
 
                 {/* ═══════════════════════════════════════════════════
                     MOBILE: Classic Hamburger + Full-screen Overlay
-                    Completely unchanged from previous implementation
                     ═══════════════════════════════════════════════════ */}
                 <button
                     className={styles.hamburger}
