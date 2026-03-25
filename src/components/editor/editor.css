@@ -273,3 +273,13 @@
 }
 .ve-breadcrumb span { color: rgba(255,255,255,0.5); }
 .ve-breadcrumb .ve-bc-active { color: #a5b4fc; font-weight: 600; }
+
+/* Active toolbar button (mode active) */
+.ve-active-btn { background: rgba(99,102,241,0.25) !important; border-color: rgba(99,102,241,0.5) !important; color: #a5b4fc !important; }
+
+/* Resize mode: dashed green outline */
+[data-ve-editing] .ve-resize-active {
+    outline: 2px dashed rgba(16,185,129,0.6) !important;
+    outline-offset: 2px;
+    cursor: nwse-resize !important;
+}

@@ -18,20 +18,20 @@ interface ElementOverride {
     borderRadius?: string;
     width?: string;
     height?: string;
-    // Reorder: CSS order property (works with flex/grid parents)
     order?: number;
 }
 
 interface PageOverrides {
     elements: Record<string, ElementOverride>;
     bodyBg?: string;
-    // Track which parent elements we've made flex for reordering
     flexParents?: string[];
+    heroVideoId?: string;
+    heroVideoOpacity?: number;
 }
 
-const EMPTY_OVERRIDES: PageOverrides = { elements: {}, flexParents: [] };
+const EMPTY: PageOverrides = { elements: {}, flexParents: [] };
 
-const COLOR_PRESETS = [
+const COLORS = [
     '#08090a', '#121418', '#1a1a2e', '#0a0e1a', '#0a1208', '#1a0f0f',
     '#1e293b', '#1f2937', '#292524', '#27272a',
     '#dcb14a', '#3b82f6', '#22c55e', '#ef4444', '#8b5cf6', '#ec4899',
@@ -39,81 +39,100 @@ const COLOR_PRESETS = [
     '#ffffff', '#f5f5f5', '#e5e7eb', '#d1d5db', '#9ca3af', '#6b7280',
 ];
 
-// ===================== SELECTOR PATH =====================
+// ===================== PATH UTILS =====================
 
-function getElementPath(el: HTMLElement): string {
+function getPath(el: HTMLElement): string {
     const parts: string[] = [];
-    let current: HTMLElement | null = el;
-    while (current && current !== document.body && current !== document.documentElement) {
-        let selector = current.tagName.toLowerCase();
-        const section = current.getAttribute('data-section');
-        if (section) {
-            parts.unshift(`[data-section="${section}"]`);
-            break;
+    let cur: HTMLElement | null = el;
+    while (cur && cur !== document.body && cur !== document.documentElement) {
+        let sel = cur.tagName.toLowerCase();
+        const sec = cur.getAttribute('data-section');
+        if (sec) { parts.unshift(`[data-section="${sec}"]`); break; }
+        if (cur.id) { parts.unshift(`#${cur.id}`); break; }
+        const cls = Array.from(cur.classList).filter(c => !c.startsWith('ve-') && c.length < 30).slice(0, 2);
+        if (cls.length) sel += '.' + cls.join('.');
+        const p = cur.parentElement;
+        if (p) {
+            const sibs = Array.from(p.children).filter(s => s.tagName === cur!.tagName);
+            if (sibs.length > 1) sel += `:nth-child(${sibs.indexOf(cur) + 1})`;
         }
-        if (current.id) {
-            parts.unshift(`#${current.id}`);
-            break;
-        }
-        const classes = Array.from(current.classList)
-            .filter(c => !c.startsWith('ve-') && c.length < 30)
-            .slice(0, 2);
-        if (classes.length > 0) selector += '.' + classes.join('.');
-        const parent = current.parentElement;
-        if (parent) {
-            const siblings = Array.from(parent.children).filter(s => s.tagName === current!.tagName);
-            if (siblings.length > 1) {
-                const idx = siblings.indexOf(current) + 1;
-                selector += `:nth-child(${idx})`;
-            }
-        }
-        parts.unshift(selector);
-        current = current.parentElement;
+        parts.unshift(sel);
+        cur = cur.parentElement;
     }
     return parts.join(' > ');
 }
 
-function getElementLabel(el: HTMLElement): string {
+function getLabel(el: HTMLElement): string {
     const tag = el.tagName.toLowerCase();
-    const section = el.getAttribute('data-section');
-    if (section) return `section[${section}]`;
+    const sec = el.getAttribute('data-section');
+    if (sec) return `[${sec}]`;
     if (el.id) return `#${el.id}`;
     const cls = Array.from(el.classList).filter(c => !c.startsWith('ve-')).slice(0, 2).join('.');
-    const text = el.textContent?.trim().slice(0, 20);
+    const txt = el.textContent?.trim().slice(0, 18);
     if (cls) return `${tag}.${cls}`;
-    if (text) return `${tag} "${text}…"`;
+    if (txt) return `${tag} "${txt}…"`;
     return tag;
+}
+
+function isUI(el: HTMLElement): boolean {
+    return !!(el.closest('.ve-toolbar') || el.closest('.ve-float-toolbar') ||
+        el.closest('.ve-color-popover') || el.closest('.ve-context-menu') ||
+        el.closest('.ve-toast') || el.closest('.ve-template-modal') ||
+        el.closest('.ve-breadcrumb') || el.closest('.ve-drop-indicator') ||
+        el.closest('.ve-resize-handle') || el.closest('.ve-video-popup'));
 }
 
 // ===================== COMPONENT =====================
 
 export default function VisualEditorOverlay() {
     const { isEditorOpen, closeEditor } = useVisualEditor();
-    const [overrides, setOverrides] = useState<PageOverrides>(EMPTY_OVERRIDES);
-    const [original, setOriginal] = useState<PageOverrides>(EMPTY_OVERRIDES);
-    const [hasChanges, setHasChanges] = useState(false);
+    const [ov, setOv] = useState<PageOverrides>(EMPTY);
+    const [orig, setOrig] = useState<PageOverrides>(EMPTY);
+    const [dirty, setDirty] = useState(false);
     const [saving, setSaving] = useState(false);
     const [toast, setToast] = useState<string | null>(null);
-    const [showTemplates, setShowTemplates] = useState(false);
+    const [showTpl, setShowTpl] = useState(false);
 
-    const [hoveredEl, setHoveredEl] = useState<HTMLElement | null>(null);
-    const [selectedEl, setSelectedEl] = useState<HTMLElement | null>(null);
-    const [selectedPath, setSelectedPath] = useState<string>('');
-    const [breadcrumb, setBreadcrumb] = useState<string[]>([]);
-    const [floatPos, setFloatPos] = useState<{ x: number; y: number } | null>(null);
-    const [colorTarget, setColorTarget] = useState<'bg' | 'text' | null>(null);
+    // Selection
+    const [hov, setHov] = useState<HTMLElement | null>(null);
+    const [sel, setSel] = useState<HTMLElement | null>(null);
+    const [selPath, setSelPath] = useState('');
+    const [bc, setBc] = useState<string[]>([]);
+    const [fPos, setFPos] = useState<{ x: number; y: number } | null>(null);
+    const [colorTgt, setColorTgt] = useState<'bg' | 'text' | null>(null);
     const [colorPos, setColorPos] = useState<{ x: number; y: number } | null>(null);
-    const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null);
+    const [ctx, setCtx] = useState<{ x: number; y: number } | null>(null);
     const [ctxEl, setCtxEl] = useState<HTMLElement | null>(null);
-    const [isDragging, setIsDragging] = useState(false);
-    const [isResizing, setIsResizing] = useState(false);
 
-    const dropIndicatorRef = useRef<HTMLDivElement | null>(null);
+    // MODES — activated by clicking a toolbar button, then interacting with element
+    const [moveMode, setMoveMode] = useState(false);
+    const [resizeMode, setResizeMode] = useState(false);
+    const [hoverFrozen, setHoverFrozen] = useState(false);
+    const [videoPopup, setVideoPopup] = useState(false);
+    const [videoId, setVideoId] = useState('');
+    const [videoOpacity, setVideoOpacity] = useState(0.3);
+    const [isDragging, setIsDragging] = useState(false);
+
+    const dropRef = useRef<HTMLDivElement | null>(null);
+    const resizeRef = useRef<{ w: number; h: number; x: number; y: number } | null>(null);
 
     const supabase = createBrowserClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     );
+
+    // ---- Show toast ----
+    const flash = useCallback((m: string) => { setToast(m); setTimeout(() => setToast(null), 2500); }, []);
+
+    // ---- Update override ----
+    function upd(path: string, key: keyof ElementOverride, val: string | boolean | number | undefined) {
+        setOv(p => ({ ...p, elements: { ...p.elements, [path]: { ...p.elements[path], [key]: val } } }));
+    }
+
+    function posToolbar(el: HTMLElement) {
+        const r = el.getBoundingClientRect();
+        setFPos({ x: Math.max(0, Math.min(r.left, innerWidth - 400)), y: Math.max(48, r.top > 60 ? r.top - 38 : r.bottom + 6) });
+    }
 
     // ---- Load ----
     useEffect(() => {
@@ -122,60 +141,53 @@ export default function VisualEditorOverlay() {
             try {
                 const { data: { session } } = await supabase.auth.getSession();
                 if (!session) return;
-                const res = await fetch('/api/admin/page-overrides', {
-                    headers: { Authorization: `Bearer ${session.access_token}` },
-                });
+                const res = await fetch('/api/admin/page-overrides', { headers: { Authorization: `Bearer ${session.access_token}` } });
                 if (res.ok) {
                     const d = await res.json();
-                    const val = d?.value && typeof d.value === 'object' ? d.value : EMPTY_OVERRIDES;
-                    if (!val.elements) val.elements = {};
-                    if (!val.flexParents) val.flexParents = [];
-                    setOverrides(val);
-                    setOriginal(val);
-                    applyOverridesToDOM(val);
+                    const v = d?.value && typeof d.value === 'object' ? d.value : EMPTY;
+                    if (!v.elements) v.elements = {};
+                    if (!v.flexParents) v.flexParents = [];
+                    setOv(v);
+                    setOrig(v);
+                    applyDOM(v);
+                    if (v.heroVideoId) setVideoId(v.heroVideoId);
+                    if (v.heroVideoOpacity !== undefined) setVideoOpacity(v.heroVideoOpacity);
                 }
-            } catch (e) { console.error('[VE] load:', e); }
+            } catch (e) { console.error('[VE]', e); }
         })();
     }, [isEditorOpen]);
 
+    // ---- Toggle editing attr ----
     useEffect(() => {
-        if (isEditorOpen) {
-            document.documentElement.setAttribute('data-ve-editing', '');
-        } else {
+        if (isEditorOpen) document.documentElement.setAttribute('data-ve-editing', '');
+        else {
             document.documentElement.removeAttribute('data-ve-editing');
-            document.querySelectorAll('.ve-highlight,.ve-selected,.ve-hidden-element').forEach(e =>
-                e.classList.remove('ve-highlight', 've-selected', 've-hidden-element'));
+            document.querySelectorAll('.ve-highlight,.ve-selected,.ve-hidden-element,.ve-resize-active').forEach(e =>
+                e.classList.remove('ve-highlight', 've-selected', 've-hidden-element', 've-resize-active'));
         }
         return () => { document.documentElement.removeAttribute('data-ve-editing'); };
     }, [isEditorOpen]);
 
-    useEffect(() => { setHasChanges(JSON.stringify(overrides) !== JSON.stringify(original)); }, [overrides, original]);
+    useEffect(() => { setDirty(JSON.stringify(ov) !== JSON.stringify(orig)); }, [ov, orig]);
 
-    // ---- Apply overrides ----
-    function applyOverridesToDOM(ov: PageOverrides) {
-        if (ov.bodyBg) document.body.style.backgroundColor = ov.bodyBg;
-        // Make flex parents
-        for (const path of (ov.flexParents || [])) {
+    // ---- Apply DOM ----
+    function applyDOM(o: PageOverrides) {
+        if (o.bodyBg) document.body.style.backgroundColor = o.bodyBg;
+        for (const path of (o.flexParents || [])) {
             try {
                 const el = document.querySelector(path) as HTMLElement | null;
-                if (el) {
-                    el.style.display = 'flex';
-                    el.style.flexDirection = 'column';
-                }
+                if (el) { el.style.display = 'flex'; el.style.flexDirection = 'column'; }
             } catch {}
         }
-        for (const [path, s] of Object.entries(ov.elements || {})) {
+        for (const [path, s] of Object.entries(o.elements || {})) {
             try {
                 const el = document.querySelector(path) as HTMLElement | null;
                 if (!el) continue;
-                if (s.hidden) el.classList.add('ve-hidden-element');
-                else el.classList.remove('ve-hidden-element');
+                if (s.hidden) el.classList.add('ve-hidden-element'); else el.classList.remove('ve-hidden-element');
                 if (s.bgColor) el.style.backgroundColor = s.bgColor;
                 if (s.textColor) el.style.color = s.textColor;
                 if (s.opacity) el.style.opacity = s.opacity;
                 if (s.fontSize) el.style.fontSize = s.fontSize;
-                if (s.fontWeight) el.style.fontWeight = s.fontWeight;
-                if (s.borderRadius) el.style.borderRadius = s.borderRadius;
                 if (s.width) el.style.width = s.width;
                 if (s.height) el.style.height = s.height;
                 if (s.order !== undefined) el.style.order = String(s.order);
@@ -183,530 +195,457 @@ export default function VisualEditorOverlay() {
         }
     }
 
-    useEffect(() => { if (isEditorOpen) applyOverridesToDOM(overrides); }, [overrides, isEditorOpen]);
+    useEffect(() => { if (isEditorOpen) applyDOM(ov); }, [ov, isEditorOpen]);
 
-    // ---- Helpers ----
-    const showToast = useCallback((msg: string) => {
-        setToast(msg);
-        setTimeout(() => setToast(null), 2500);
-    }, []);
-
-    function isEditorUI(el: HTMLElement): boolean {
-        return !!(el.closest('.ve-toolbar') || el.closest('.ve-float-toolbar') ||
-            el.closest('.ve-color-popover') || el.closest('.ve-context-menu') ||
-            el.closest('.ve-toast') || el.closest('.ve-template-modal') ||
-            el.closest('.ve-breadcrumb') || el.closest('.ve-drop-indicator') ||
-            el.closest('.ve-resize-handle'));
-    }
-
-    function updateOverride(path: string, key: keyof ElementOverride, value: string | boolean | number | undefined) {
-        setOverrides(prev => ({
-            ...prev,
-            elements: {
-                ...prev.elements,
-                [path]: { ...prev.elements[path], [key]: value },
-            },
-        }));
-    }
-
-    function positionToolbar(el: HTMLElement) {
-        const rect = el.getBoundingClientRect();
-        const x = Math.min(rect.left, window.innerWidth - 360);
-        const y = rect.top > 60 ? rect.top - 38 : rect.bottom + 6;
-        setFloatPos({ x: Math.max(0, x), y: Math.max(48, y) });
-    }
-
-    // ---- Create drop indicator ----
+    // ---- Freeze hover: force all hidden elements visible ----
     useEffect(() => {
-        const div = document.createElement('div');
-        div.className = 've-drop-indicator';
-        div.style.cssText = 'position:absolute;left:0;right:0;height:3px;background:#6366f1;border-radius:2px;z-index:100010;pointer-events:none;display:none;box-shadow:0 0 8px rgba(99,102,241,0.5);';
-        document.body.appendChild(div);
-        dropIndicatorRef.current = div;
-        return () => { div.remove(); };
+        if (!isEditorOpen) return;
+        if (hoverFrozen) {
+            // Add a style tag that forces all elements visible
+            const style = document.createElement('style');
+            style.id = 've-freeze-hover';
+            style.textContent = `
+                [data-ve-editing] * { 
+                    visibility: visible !important; 
+                    opacity: 1 !important; 
+                    pointer-events: auto !important;
+                    max-height: none !important;
+                    overflow: visible !important;
+                }
+                [data-ve-editing] .ve-hidden-element { 
+                    opacity: 0.15 !important; 
+                }
+            `;
+            document.head.appendChild(style);
+            flash('📌 Hover zamrożony — rozwijane menu widoczne');
+        } else {
+            document.getElementById('ve-freeze-hover')?.remove();
+        }
+        return () => { document.getElementById('ve-freeze-hover')?.remove(); };
+    }, [hoverFrozen, isEditorOpen]);
+
+    // ---- Drop indicator ----
+    useEffect(() => {
+        const d = document.createElement('div');
+        d.className = 've-drop-indicator';
+        d.style.cssText = 'position:absolute;left:0;right:0;height:3px;background:#6366f1;border-radius:2px;z-index:100010;pointer-events:none;display:none;box-shadow:0 0 8px rgba(99,102,241,0.5);';
+        document.body.appendChild(d);
+        dropRef.current = d;
+        return () => { d.remove(); };
     }, []);
 
-    // ---- Hover/Click/ContextMenu ----
+    // ---- Hover / Click / Context ----
     useEffect(() => {
         if (!isEditorOpen) return;
 
-        function onMouseOver(e: MouseEvent) {
-            if (isDragging || isResizing) return;
+        function onOver(e: MouseEvent) {
+            if (isDragging) return;
             const t = e.target as HTMLElement;
-            if (isEditorUI(t)) return;
-            hoveredEl?.classList.remove('ve-highlight');
-            if (t !== selectedEl) t.classList.add('ve-highlight');
-            setHoveredEl(t);
+            if (isUI(t)) return;
+            hov?.classList.remove('ve-highlight');
+            if (t !== sel) t.classList.add('ve-highlight');
+            setHov(t);
         }
-
-        function onMouseOut(e: MouseEvent) {
-            (e.target as HTMLElement).classList.remove('ve-highlight');
-        }
+        function onOut(e: MouseEvent) { (e.target as HTMLElement).classList.remove('ve-highlight'); }
 
         function onClick(e: MouseEvent) {
-            if (isDragging || isResizing) return;
+            if (isDragging) return;
             const t = e.target as HTMLElement;
-            if (isEditorUI(t)) return;
-            e.preventDefault();
-            e.stopPropagation();
-            selectedEl?.classList.remove('ve-selected');
+            if (isUI(t)) return;
+            e.preventDefault(); e.stopPropagation();
+
+            // If in MOVE MODE and clicking the selected element → start drag
+            if (moveMode && sel && (t === sel || sel.contains(t))) {
+                doReflowDrag(sel);
+                return;
+            }
+
+            // If in RESIZE MODE and clicking the selected element → start resize
+            if (resizeMode && sel && (t === sel || sel.contains(t))) {
+                doResize(sel, e);
+                return;
+            }
+
+            // Normal select
+            sel?.classList.remove('ve-selected');
             t.classList.remove('ve-highlight');
             t.classList.add('ve-selected');
-            setSelectedEl(t);
-            setSelectedPath(getElementPath(t));
-            const bc: string[] = [];
-            let cur: HTMLElement | null = t;
-            while (cur && cur !== document.body) { bc.unshift(getElementLabel(cur)); cur = cur.parentElement; }
-            setBreadcrumb(bc.slice(-5));
-            positionToolbar(t);
-            setColorTarget(null); setColorPos(null); setCtxMenu(null);
+            setSel(t);
+            setSelPath(getPath(t));
+            const b: string[] = [];
+            let c: HTMLElement | null = t;
+            while (c && c !== document.body) { b.unshift(getLabel(c)); c = c.parentElement; }
+            setBc(b.slice(-5));
+            posToolbar(t);
+            setColorTgt(null); setColorPos(null); setCtx(null);
+            setMoveMode(false); setResizeMode(false);
         }
 
-        function onContextMenu(e: MouseEvent) {
+        function onCtx(e: MouseEvent) {
             const t = e.target as HTMLElement;
-            if (isEditorUI(t)) return;
+            if (isUI(t)) return;
             e.preventDefault();
-            setCtxEl(t); setCtxMenu({ x: e.clientX, y: e.clientY });
+            setCtxEl(t); setCtx({ x: e.clientX, y: e.clientY });
         }
 
-        function onKeyDown(e: KeyboardEvent) {
+        function onKey(e: KeyboardEvent) {
             if (e.key === 'Escape') {
-                if (colorTarget) { setColorTarget(null); setColorPos(null); }
-                else if (ctxMenu) { setCtxMenu(null); }
-                else if (selectedEl) { selectedEl.classList.remove('ve-selected'); setSelectedEl(null); setFloatPos(null); }
-                else { closeEditor(); }
+                if (moveMode) { setMoveMode(false); flash('Tryb przesuwania wyłączony'); return; }
+                if (resizeMode) { setResizeMode(false); flash('Tryb rozmiaru wyłączony'); return; }
+                if (videoPopup) { setVideoPopup(false); return; }
+                if (colorTgt) { setColorTgt(null); setColorPos(null); return; }
+                if (ctx) { setCtx(null); return; }
+                if (sel) { sel.classList.remove('ve-selected'); setSel(null); setFPos(null); return; }
+                closeEditor();
             }
-            if (e.key === 'Delete' && selectedEl && !isEditorUI(selectedEl)) {
-                updateOverride(getElementPath(selectedEl), 'hidden', true);
-                selectedEl.classList.add('ve-hidden-element');
-                showToast('🙈 Element ukryty');
+            if (e.key === 'Delete' && sel && !isUI(sel)) {
+                upd(getPath(sel), 'hidden', true);
+                sel.classList.add('ve-hidden-element');
+                flash('🙈 Ukryty');
             }
         }
 
-        document.addEventListener('mouseover', onMouseOver, true);
-        document.addEventListener('mouseout', onMouseOut, true);
+        document.addEventListener('mouseover', onOver, true);
+        document.addEventListener('mouseout', onOut, true);
         document.addEventListener('click', onClick, true);
-        document.addEventListener('contextmenu', onContextMenu, true);
-        document.addEventListener('keydown', onKeyDown);
-
+        document.addEventListener('contextmenu', onCtx, true);
+        document.addEventListener('keydown', onKey);
         return () => {
-            document.removeEventListener('mouseover', onMouseOver, true);
-            document.removeEventListener('mouseout', onMouseOut, true);
+            document.removeEventListener('mouseover', onOver, true);
+            document.removeEventListener('mouseout', onOut, true);
             document.removeEventListener('click', onClick, true);
-            document.removeEventListener('contextmenu', onContextMenu, true);
-            document.removeEventListener('keydown', onKeyDown);
+            document.removeEventListener('contextmenu', onCtx, true);
+            document.removeEventListener('keydown', onKey);
         };
-    }, [isEditorOpen, hoveredEl, selectedEl, colorTarget, ctxMenu, closeEditor, isDragging, isResizing]);
+    }, [isEditorOpen, hov, sel, moveMode, resizeMode, colorTgt, ctx, closeEditor, isDragging, videoPopup]);
 
-    // ---- Reflow-based drag ----
-    const startDrag = useCallback((dragEl: HTMLElement) => {
-        if (!dragEl || !dragEl.parentElement) return;
+    // ---- Reflow drag ----
+    function doReflowDrag(dragEl: HTMLElement) {
         const parent = dragEl.parentElement;
-        const parentPath = getElementPath(parent);
+        if (!parent) return;
+        const parentPath = getPath(parent);
 
-        // Ensure parent is flex (needed for CSS order to work)
-        const computedDisplay = window.getComputedStyle(parent).display;
-        if (!computedDisplay.includes('flex') && !computedDisplay.includes('grid')) {
+        // Ensure parent is flex
+        const disp = getComputedStyle(parent).display;
+        if (!disp.includes('flex') && !disp.includes('grid')) {
             parent.style.display = 'flex';
             parent.style.flexDirection = 'column';
-            setOverrides(prev => ({
-                ...prev,
-                flexParents: [...new Set([...(prev.flexParents || []), parentPath])],
-            }));
+            setOv(p => ({ ...p, flexParents: [...new Set([...(p.flexParents || []), parentPath])] }));
         }
 
         const siblings = Array.from(parent.children).filter(
-            c => c !== dragEl && !c.classList.contains('ve-drop-indicator') && !c.classList.contains('ve-float-toolbar')
+            c => c !== dragEl && !c.classList.contains('ve-drop-indicator')
         ) as HTMLElement[];
 
         setIsDragging(true);
         dragEl.classList.add('ve-dragging');
-        const indicator = dropIndicatorRef.current;
+        const ind = dropRef.current;
+        let insertRef: HTMLElement | null = null;
 
-        let insertBefore: HTMLElement | null = null;
-
-        const onMouseMove = (e: MouseEvent) => {
-            if (!indicator) return;
-            const mouseY = e.clientY;
-            let closestSibling: HTMLElement | null = null;
-            let closestDist = Infinity;
-            let above = true;
-
-            for (const sib of siblings) {
-                const rect = sib.getBoundingClientRect();
-                const midY = rect.top + rect.height / 2;
-                const dist = Math.abs(mouseY - midY);
-                if (dist < closestDist) {
-                    closestDist = dist;
-                    closestSibling = sib;
-                    above = mouseY < midY;
-                }
+        const onMove = (e: MouseEvent) => {
+            if (!ind) return;
+            const my = e.clientY;
+            let closest: HTMLElement | null = null, dist = Infinity, above = true;
+            for (const s of siblings) {
+                const r = s.getBoundingClientRect();
+                const mid = r.top + r.height / 2;
+                const d = Math.abs(my - mid);
+                if (d < dist) { dist = d; closest = s; above = my < mid; }
             }
-
-            if (closestSibling) {
-                const rect = closestSibling.getBoundingClientRect();
-                const parentRect = parent.getBoundingClientRect();
-                indicator.style.display = 'block';
-                indicator.style.left = `${parentRect.left}px`;
-                indicator.style.width = `${parentRect.width}px`;
-                if (above) {
-                    indicator.style.top = `${rect.top + window.scrollY - 2}px`;
-                    insertBefore = closestSibling;
-                } else {
-                    indicator.style.top = `${rect.bottom + window.scrollY - 1}px`;
-                    insertBefore = closestSibling.nextElementSibling as HTMLElement | null;
-                }
+            if (closest) {
+                const r = closest.getBoundingClientRect();
+                const pr = parent.getBoundingClientRect();
+                ind.style.display = 'block';
+                ind.style.left = `${pr.left}px`;
+                ind.style.width = `${pr.width}px`;
+                ind.style.top = above ? `${r.top + scrollY - 2}px` : `${r.bottom + scrollY - 1}px`;
+                insertRef = above ? closest : closest.nextElementSibling as HTMLElement | null;
             }
         };
 
-        const onMouseUp = () => {
+        const onUp = () => {
             dragEl.classList.remove('ve-dragging');
-            if (indicator) indicator.style.display = 'none';
+            if (ind) ind.style.display = 'none';
             setIsDragging(false);
+            setMoveMode(false);
 
-            // Perform DOM reorder via CSS order
-            if (insertBefore !== null || siblings.length > 0) {
-                // Assign order values to all children
-                const allChildren = Array.from(parent.children).filter(
-                    c => !c.classList.contains('ve-drop-indicator') && !c.classList.contains('ve-float-toolbar')
-                ) as HTMLElement[];
-
-                // Build new order based on current DOM positions
-                const newOrder: HTMLElement[] = [];
-                for (const child of allChildren) {
-                    if (child === dragEl) continue;
-                    if (insertBefore && child === insertBefore) {
-                        newOrder.push(dragEl);
-                    }
-                    newOrder.push(child);
-                }
-                if (!insertBefore) {
-                    newOrder.push(dragEl); // append at end
-                }
-
-                // Set CSS order
-                newOrder.forEach((child, i) => {
-                    (child as HTMLElement).style.order = String(i);
-                    const path = getElementPath(child as HTMLElement);
-                    setOverrides(prev => ({
-                        ...prev,
-                        elements: { ...prev.elements, [path]: { ...prev.elements[path], order: i } },
-                    }));
-                });
-
-                showToast('📐 Element przesunięty');
-                // Re-position toolbar
-                positionToolbar(dragEl);
+            // Reorder via CSS order
+            const all = Array.from(parent.children).filter(
+                c => !c.classList.contains('ve-drop-indicator')
+            ) as HTMLElement[];
+            const ordered: HTMLElement[] = [];
+            for (const ch of all) {
+                if (ch === dragEl) continue;
+                if (insertRef && ch === insertRef) ordered.push(dragEl);
+                ordered.push(ch);
             }
-
-            document.removeEventListener('mousemove', onMouseMove);
-            document.removeEventListener('mouseup', onMouseUp);
+            if (!insertRef) ordered.push(dragEl);
+            ordered.forEach((ch, i) => {
+                (ch as HTMLElement).style.order = String(i);
+                const p = getPath(ch as HTMLElement);
+                setOv(prev => ({ ...prev, elements: { ...prev.elements, [p]: { ...prev.elements[p], order: i } } }));
+            });
+            flash('📐 Przesunięto');
+            posToolbar(dragEl);
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
         };
 
-        document.addEventListener('mousemove', onMouseMove);
-        document.addEventListener('mouseup', onMouseUp);
-    }, [showToast, overrides]);
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+    }
 
     // ---- Resize ----
-    const startResize = useCallback((el: HTMLElement, corner: string) => {
-        const startRect = el.getBoundingClientRect();
-        const startW = startRect.width;
-        const startH = startRect.height;
-        setIsResizing(true);
+    function doResize(el: HTMLElement, startEvent: MouseEvent) {
+        const startR = el.getBoundingClientRect();
+        resizeRef.current = { w: startR.width, h: startR.height, x: startEvent.clientX, y: startEvent.clientY };
+        el.classList.add('ve-resize-active');
 
-        const onMouseMove = (e: MouseEvent) => {
-            const dx = e.clientX - startRect.right;
-            const dy = e.clientY - startRect.bottom;
-            const newW = Math.max(40, startW + dx);
-            const newH = Math.max(20, startH + dy);
-            el.style.width = `${newW}px`;
-            el.style.height = `${newH}px`;
+        const onMove = (e: MouseEvent) => {
+            if (!resizeRef.current) return;
+            const dx = e.clientX - resizeRef.current.x;
+            const dy = e.clientY - resizeRef.current.y;
+            el.style.width = `${Math.max(30, resizeRef.current.w + dx)}px`;
+            el.style.height = `${Math.max(15, resizeRef.current.h + dy)}px`;
         };
 
-        const onMouseUp = () => {
-            setIsResizing(false);
-            const path = getElementPath(el);
-            updateOverride(path, 'width', el.style.width);
-            updateOverride(path, 'height', el.style.height);
-            showToast('📏 Rozmiar zmieniony');
-            document.removeEventListener('mousemove', onMouseMove);
-            document.removeEventListener('mouseup', onMouseUp);
+        const onUp = () => {
+            el.classList.remove('ve-resize-active');
+            resizeRef.current = null;
+            setResizeMode(false);
+            const path = getPath(el);
+            upd(path, 'width', el.style.width);
+            upd(path, 'height', el.style.height);
+            flash('📏 Rozmiar zmieniony');
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
         };
 
-        document.addEventListener('mousemove', onMouseMove);
-        document.addEventListener('mouseup', onMouseUp);
-    }, [showToast]);
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+    }
 
     // ---- Save ----
     const handleSave = async () => {
         setSaving(true);
         try {
             const { data: { session } } = await supabase.auth.getSession();
-            if (!session) throw new Error('Not authenticated');
-            const res = await fetch('/api/admin/page-overrides', {
+            if (!session) throw new Error('Brak sesji');
+            // Save overrides
+            let res = await fetch('/api/admin/page-overrides', {
                 method: 'PUT',
                 headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify(overrides),
+                body: JSON.stringify(ov),
             });
-            if (!res.ok) throw new Error('Save failed');
-            setOriginal(overrides);
-            setHasChanges(false);
-            showToast('✅ Zapisano!');
-        } catch (err: any) { showToast('❌ ' + err.message); }
+            if (!res.ok) throw new Error('Zapis nie powiódł się');
+
+            // Save video to theme
+            if (videoId || videoOpacity !== 0.3) {
+                res = await fetch('/api/admin/theme', {
+                    method: 'PUT',
+                    headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ hero: { backgroundVideoId: videoId, backgroundVideoOpacity: videoOpacity } }),
+                });
+            }
+
+            setOrig(ov);
+            setDirty(false);
+            flash('✅ Zapisano!');
+        } catch (err: any) { flash('❌ ' + err.message); }
         setSaving(false);
     };
 
     // ---- Discard ----
     const handleDiscard = () => {
-        for (const path of Object.keys(overrides.elements)) {
+        for (const path of Object.keys(ov.elements)) {
             try {
                 const el = document.querySelector(path) as HTMLElement | null;
                 if (el) {
                     el.classList.remove('ve-hidden-element');
-                    el.style.backgroundColor = '';
-                    el.style.color = '';
-                    el.style.opacity = '';
-                    el.style.fontSize = '';
-                    el.style.fontWeight = '';
-                    el.style.borderRadius = '';
-                    el.style.width = '';
-                    el.style.height = '';
-                    el.style.order = '';
+                    ['backgroundColor', 'color', 'opacity', 'fontSize', 'fontWeight', 'borderRadius', 'width', 'height', 'order'].forEach(
+                        p => (el.style as any)[p] = ''
+                    );
                 }
             } catch {}
         }
-        // Restore flex parents
-        for (const path of (overrides.flexParents || [])) {
+        for (const path of (ov.flexParents || [])) {
             try {
                 const el = document.querySelector(path) as HTMLElement | null;
                 if (el) { el.style.display = ''; el.style.flexDirection = ''; }
             } catch {}
         }
-        setOverrides(original);
-        applyOverridesToDOM(original);
-        showToast('↩️ Zmiany odrzucone');
+        setOv(orig); applyDOM(orig); flash('↩️ Odrzucone');
     };
 
     if (!isEditorOpen) return null;
 
-    const currentOv = selectedPath ? (overrides.elements[selectedPath] || {}) : {};
-    const ctxPath = ctxEl ? getElementPath(ctxEl) : '';
+    const curOv = selPath ? (ov.elements[selPath] || {}) : {};
+    const ctxP = ctxEl ? getPath(ctxEl) : '';
 
     return (
         <>
-            {/* ---- Top Toolbar ---- */}
+            {/* ---- TOP TOOLBAR ---- */}
             <div className="ve-toolbar">
                 <div className="ve-toolbar-group">
                     <span className="ve-toolbar-title">✏️ Edytor</span>
-                    {hasChanges && <div className="ve-unsaved-dot" />}
-                    {hasChanges && <span style={{ fontSize: '0.7rem', color: '#f59e0b' }}>Niezapisane</span>}
+                    {dirty && <div className="ve-unsaved-dot" />}
+                    {dirty && <span style={{ fontSize: '0.7rem', color: '#f59e0b' }}>●</span>}
+                    <div className="ve-toolbar-sep" />
+                    {moveMode && <span style={{ fontSize: '0.7rem', color: '#a5b4fc', fontWeight: 600 }}>↕️ TRYB PRZESUWANIA — kliknij element</span>}
+                    {resizeMode && <span style={{ fontSize: '0.7rem', color: '#a5b4fc', fontWeight: 600 }}>↘️ TRYB ROZMIARU — kliknij i ciągnij element</span>}
                 </div>
                 <div className="ve-toolbar-group">
-                    <button className="ve-toolbar-btn" onClick={handleDiscard} disabled={!hasChanges}>↩️ Odrzuć</button>
-                    <button className="ve-toolbar-btn ve-success" onClick={handleSave} disabled={saving || !hasChanges}>
-                        {saving ? '⏳...' : '💾 Zapisz'}
+                    <button className={`ve-toolbar-btn ${hoverFrozen ? 've-active-btn' : ''}`}
+                        onClick={() => setHoverFrozen(!hoverFrozen)}
+                        title="Zamroź hover — pokaż rozwijane menu">
+                        📌 {hoverFrozen ? 'Odmroź' : 'Zamroź hover'}
                     </button>
                     <div className="ve-toolbar-sep" />
-                    <button className="ve-toolbar-btn ve-primary" onClick={() => setShowTemplates(true)}>📁 Szablony</button>
+                    <button className="ve-toolbar-btn" onClick={handleDiscard} disabled={!dirty}>↩️</button>
+                    <button className="ve-toolbar-btn ve-success" onClick={handleSave} disabled={saving || !dirty}>
+                        {saving ? '⏳' : '💾'}
+                    </button>
+                    <div className="ve-toolbar-sep" />
+                    <button className="ve-toolbar-btn ve-primary" onClick={() => setShowTpl(true)}>📁</button>
+                    <button className="ve-toolbar-btn" onClick={() => setVideoPopup(true)}>🎬</button>
                     <div className="ve-toolbar-sep" />
                     <button className="ve-toolbar-btn ve-danger" onClick={closeEditor}>✕</button>
                 </div>
             </div>
 
-            {/* ---- Floating Element Toolbar ---- */}
-            {selectedEl && floatPos && (
-                <div className="ve-float-toolbar" style={{ left: floatPos.x, top: floatPos.y }}>
-                    {/* HIDE/SHOW */}
-                    <button
-                        className={currentOv.hidden ? 've-active' : ''}
-                        title={currentOv.hidden ? 'Pokaż' : 'Ukryj'}
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            const h = !currentOv.hidden;
-                            updateOverride(selectedPath, 'hidden', h);
-                            if (h) selectedEl.classList.add('ve-hidden-element');
-                            else selectedEl.classList.remove('ve-hidden-element');
-                        }}
-                    >{currentOv.hidden ? '👁' : '✕'}</button>
-
+            {/* ---- FLOATING ELEMENT TOOLBAR ---- */}
+            {sel && fPos && (
+                <div className="ve-float-toolbar" style={{ left: fPos.x, top: fPos.y }}>
+                    {/* HIDE */}
+                    <button className={curOv.hidden ? 've-active' : ''} title={curOv.hidden ? 'Pokaż' : 'Ukryj'}
+                        onClick={e => { e.stopPropagation(); const h = !curOv.hidden; upd(selPath, 'hidden', h); if (h) sel.classList.add('ve-hidden-element'); else sel.classList.remove('ve-hidden-element'); }}>
+                        {curOv.hidden ? '👁' : '✕'}
+                    </button>
                     <div className="ve-float-sep" />
-
-                    {/* BG COLOR */}
-                    <button className={colorTarget === 'bg' ? 've-active' : ''} title="Kolor tła"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            const rect = (e.target as HTMLElement).getBoundingClientRect();
-                            setColorTarget(colorTarget === 'bg' ? null : 'bg');
-                            setColorPos({ x: rect.left, y: rect.bottom + 6 });
-                        }}>🎨</button>
-
-                    {/* TEXT COLOR */}
-                    <button className={colorTarget === 'text' ? 've-active' : ''} title="Kolor tekstu"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            const rect = (e.target as HTMLElement).getBoundingClientRect();
-                            setColorTarget(colorTarget === 'text' ? null : 'text');
-                            setColorPos({ x: rect.left, y: rect.bottom + 6 });
-                        }}>🔤</button>
-
+                    {/* COLORS */}
+                    <button className={colorTgt === 'bg' ? 've-active' : ''} title="Kolor tła"
+                        onClick={e => { e.stopPropagation(); const r = (e.target as HTMLElement).getBoundingClientRect(); setColorTgt(colorTgt === 'bg' ? null : 'bg'); setColorPos({ x: r.left, y: r.bottom + 6 }); }}>🎨</button>
+                    <button className={colorTgt === 'text' ? 've-active' : ''} title="Kolor tekstu"
+                        onClick={e => { e.stopPropagation(); const r = (e.target as HTMLElement).getBoundingClientRect(); setColorTgt(colorTgt === 'text' ? null : 'text'); setColorPos({ x: r.left, y: r.bottom + 6 }); }}>🔤</button>
                     <div className="ve-float-sep" />
-
-                    {/* DRAG TO REORDER — starts sibling reorder from this button */}
-                    <button title="Przesuń (złap i przeciągnij)" style={{ cursor: 'grab' }}
-                        onMouseDown={(e) => {
-                            e.stopPropagation(); e.preventDefault();
-                            startDrag(selectedEl);
-                        }}>↕️</button>
-
-                    {/* RESIZE */}
-                    <button title="Zmień rozmiar (złap i ciągnij)"
-                        onMouseDown={(e) => {
-                            e.stopPropagation(); e.preventDefault();
-                            startResize(selectedEl, 'se');
-                        }}>↘️</button>
-
+                    {/* MOVE MODE */}
+                    <button className={moveMode ? 've-active' : ''} title="Przesuń: kliknij, potem złap element"
+                        onClick={e => { e.stopPropagation(); setMoveMode(!moveMode); setResizeMode(false); flash(moveMode ? 'Tryb wyłączony' : '↕️ Kliknij element aby go przesunąć'); }}>↕️</button>
+                    {/* RESIZE MODE */}
+                    <button className={resizeMode ? 've-active' : ''} title="Rozmiar: kliknij, potem ciągnij element"
+                        onClick={e => { e.stopPropagation(); setResizeMode(!resizeMode); setMoveMode(false); flash(resizeMode ? 'Tryb wyłączony' : '↘️ Kliknij i ciągnij element'); }}>↘️</button>
                     <div className="ve-float-sep" />
-
                     {/* FONT SIZE */}
-                    <button title="Zmniejsz czcionkę"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            const cur = parseFloat(window.getComputedStyle(selectedEl).fontSize);
-                            const newSize = `${Math.max(8, cur - 2)}px`;
-                            selectedEl.style.fontSize = newSize;
-                            updateOverride(selectedPath, 'fontSize', newSize);
-                        }}>A-</button>
-                    <button title="Powiększ czcionkę"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            const cur = parseFloat(window.getComputedStyle(selectedEl).fontSize);
-                            const newSize = `${Math.min(120, cur + 2)}px`;
-                            selectedEl.style.fontSize = newSize;
-                            updateOverride(selectedPath, 'fontSize', newSize);
-                        }}>A+</button>
-
+                    <button title="Mniejsza czcionka" onClick={e => { e.stopPropagation(); const s = Math.max(8, parseFloat(getComputedStyle(sel).fontSize) - 2); sel.style.fontSize = s + 'px'; upd(selPath, 'fontSize', s + 'px'); }}>A-</button>
+                    <button title="Większa czcionka" onClick={e => { e.stopPropagation(); const s = Math.min(120, parseFloat(getComputedStyle(sel).fontSize) + 2); sel.style.fontSize = s + 'px'; upd(selPath, 'fontSize', s + 'px'); }}>A+</button>
                     <div className="ve-float-sep" />
-
                     {/* RESET */}
-                    <button title="Resetuj element"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            setOverrides(prev => { const el = { ...prev.elements }; delete el[selectedPath]; return { ...prev, elements: el }; });
-                            selectedEl.classList.remove('ve-hidden-element');
-                            selectedEl.style.backgroundColor = '';
-                            selectedEl.style.color = '';
-                            selectedEl.style.width = '';
-                            selectedEl.style.height = '';
-                            selectedEl.style.fontSize = '';
-                            selectedEl.style.order = '';
-                            selectedEl.style.opacity = '';
-                            selectedEl.style.borderRadius = '';
-                            showToast('↩️ Reset');
-                        }}>↩️</button>
+                    <button title="Reset elementu" onClick={e => { e.stopPropagation();
+                        setOv(p => { const el = { ...p.elements }; delete el[selPath]; return { ...p, elements: el }; });
+                        sel.classList.remove('ve-hidden-element');
+                        ['backgroundColor', 'color', 'width', 'height', 'fontSize', 'order', 'opacity', 'borderRadius'].forEach(p => (sel.style as any)[p] = '');
+                        flash('↩️ Reset');
+                    }}>↩️</button>
                 </div>
             )}
 
-            {/* ---- Color Picker ---- */}
-            {colorTarget && colorPos && selectedEl && (
+            {/* ---- COLOR PICKER ---- */}
+            {colorTgt && colorPos && sel && (
                 <div className="ve-color-popover" style={{ left: colorPos.x, top: colorPos.y }} onClick={e => e.stopPropagation()}>
-                    <div className="ve-color-popover-label">{colorTarget === 'bg' ? 'Kolor tła' : 'Kolor tekstu'}</div>
+                    <div className="ve-color-popover-label">{colorTgt === 'bg' ? 'Kolor tła' : 'Kolor tekstu'}</div>
                     <div className="ve-color-grid">
-                        {COLOR_PRESETS.map(c => (
+                        {COLORS.map(c => (
                             <button key={c}
-                                className={`ve-color-swatch ${(colorTarget === 'bg' ? currentOv.bgColor : currentOv.textColor) === c ? 'active' : ''}`}
+                                className={`ve-color-swatch ${(colorTgt === 'bg' ? curOv.bgColor : curOv.textColor) === c ? 'active' : ''}`}
                                 style={{ background: c, border: c === '#ffffff' ? '2px solid #999' : undefined }}
                                 onClick={() => {
-                                    const key = colorTarget === 'bg' ? 'bgColor' : 'textColor';
-                                    updateOverride(selectedPath, key, c);
-                                    if (colorTarget === 'bg') selectedEl.style.backgroundColor = c;
-                                    else selectedEl.style.color = c;
-                                }}
-                            />
+                                    const k = colorTgt === 'bg' ? 'bgColor' : 'textColor';
+                                    upd(selPath, k, c);
+                                    if (colorTgt === 'bg') sel.style.backgroundColor = c; else sel.style.color = c;
+                                }} />
                         ))}
                     </div>
                     <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                        <input type="color"
-                            value={(colorTarget === 'bg' ? currentOv.bgColor : currentOv.textColor) || '#08090a'}
-                            onChange={(e) => {
-                                const key = colorTarget === 'bg' ? 'bgColor' : 'textColor';
-                                updateOverride(selectedPath, key, e.target.value);
-                                if (colorTarget === 'bg') selectedEl.style.backgroundColor = e.target.value;
-                                else selectedEl.style.color = e.target.value;
-                            }}
-                            style={{ width: 30, height: 24, border: 'none', borderRadius: 3, cursor: 'pointer', padding: 0 }}
-                        />
+                        <input type="color" value={(colorTgt === 'bg' ? curOv.bgColor : curOv.textColor) || '#08090a'}
+                            onChange={e => { const k = colorTgt === 'bg' ? 'bgColor' : 'textColor'; upd(selPath, k, e.target.value); if (colorTgt === 'bg') sel.style.backgroundColor = e.target.value; else sel.style.color = e.target.value; }}
+                            style={{ width: 30, height: 24, border: 'none', borderRadius: 3, cursor: 'pointer', padding: 0 }} />
                         <button className="ve-toolbar-btn" style={{ padding: '0.2rem 0.4rem', fontSize: '0.7rem' }}
-                            onClick={() => {
-                                const key = colorTarget === 'bg' ? 'bgColor' : 'textColor';
-                                updateOverride(selectedPath, key, '');
-                                if (colorTarget === 'bg') selectedEl.style.backgroundColor = '';
-                                else selectedEl.style.color = '';
-                                setColorTarget(null);
-                            }}>↩️</button>
+                            onClick={() => { const k = colorTgt === 'bg' ? 'bgColor' : 'textColor'; upd(selPath, k, ''); if (colorTgt === 'bg') sel.style.backgroundColor = ''; else sel.style.color = ''; setColorTgt(null); }}>↩️</button>
                     </div>
                 </div>
             )}
 
-            {/* ---- Context Menu ---- */}
-            {ctxMenu && ctxEl && (
-                <div className="ve-context-menu" style={{ left: ctxMenu.x, top: ctxMenu.y }} onClick={e => e.stopPropagation()}>
+            {/* ---- VIDEO POPUP ---- */}
+            {videoPopup && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100015, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    onClick={() => setVideoPopup(false)}>
+                    <div className="ve-video-popup" onClick={e => e.stopPropagation()} style={{
+                        background: 'rgba(10,12,16,0.98)', border: '1px solid rgba(99,102,241,0.25)', borderRadius: 14, padding: '1.25rem', width: '90%', maxWidth: 420,
+                        boxShadow: '0 20px 50px rgba(0,0,0,0.5)', fontFamily: '-apple-system, sans-serif',
+                    }}>
+                        <h3 style={{ color: '#a5b4fc', fontSize: '0.95rem', margin: '0 0 1rem', fontWeight: 700 }}>🎬 Film tła (Hero)</h3>
+                        <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: 4 }}>YouTube Video ID</label>
+                        <input type="text" value={videoId} onChange={e => { setVideoId(e.target.value); setOv(p => ({ ...p, heroVideoId: e.target.value })); }}
+                            placeholder="np. vGAu6rdJ8WQ" style={{ width: '100%', padding: '0.5rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6, color: 'white', fontSize: '0.85rem', marginBottom: '0.75rem', fontFamily: 'monospace' }} />
+                        <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: 4 }}>Przeźroczystość: {Math.round(videoOpacity * 100)}%</label>
+                        <input type="range" min="0" max="1" step="0.05" value={videoOpacity}
+                            onChange={e => { const v = parseFloat(e.target.value); setVideoOpacity(v); setOv(p => ({ ...p, heroVideoOpacity: v })); }}
+                            style={{ width: '100%', marginBottom: '1rem' }} />
+                        {videoId && (
+                            <div style={{ borderRadius: 8, overflow: 'hidden', marginBottom: '0.75rem', border: '1px solid rgba(255,255,255,0.08)' }}>
+                                <img src={`https://img.youtube.com/vi/${videoId}/mqdefault.jpg`} alt="preview"
+                                    style={{ width: '100%', display: 'block', opacity: videoOpacity }} />
+                            </div>
+                        )}
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <button className="ve-toolbar-btn ve-success" style={{ flex: 1 }}
+                                onClick={() => { setVideoPopup(false); flash('🎬 Film zaktualizowany — zapisz aby utrwalić'); }}>✅ OK</button>
+                            <button className="ve-toolbar-btn" onClick={() => setVideoPopup(false)}>Anuluj</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ---- CONTEXT MENU ---- */}
+            {ctx && ctxEl && (
+                <div className="ve-context-menu" style={{ left: ctx.x, top: ctx.y }} onClick={e => e.stopPropagation()}>
+                    <button className="ve-ctx-item" onClick={() => { upd(ctxP, 'hidden', true); ctxEl.classList.add('ve-hidden-element'); setCtx(null); flash('🙈 Ukryty'); }}>✕ Ukryj</button>
                     <button className="ve-ctx-item" onClick={() => {
-                        updateOverride(ctxPath, 'hidden', true);
-                        ctxEl.classList.add('ve-hidden-element'); setCtxMenu(null);
-                        showToast('🙈 Ukryty');
-                    }}>✕ Ukryj element</button>
-                    <button className="ve-ctx-item" onClick={() => {
-                        setSelectedEl(ctxEl); setSelectedPath(ctxPath);
-                        ctxEl.classList.add('ve-selected'); positionToolbar(ctxEl);
-                        setColorTarget('bg'); setColorPos({ x: ctxMenu.x, y: ctxMenu.y + 30 });
-                        setCtxMenu(null);
+                        setSel(ctxEl); setSelPath(ctxP); ctxEl.classList.add('ve-selected'); posToolbar(ctxEl);
+                        setColorTgt('bg'); setColorPos({ x: ctx.x, y: ctx.y + 30 }); setCtx(null);
                     }}>🎨 Kolor tła</button>
                     <button className="ve-ctx-item" onClick={() => {
-                        setSelectedEl(ctxEl); setSelectedPath(ctxPath);
-                        ctxEl.classList.add('ve-selected'); positionToolbar(ctxEl);
-                        setColorTarget('text'); setColorPos({ x: ctxMenu.x, y: ctxMenu.y + 30 });
-                        setCtxMenu(null);
+                        setSel(ctxEl); setSelPath(ctxP); ctxEl.classList.add('ve-selected'); posToolbar(ctxEl);
+                        setColorTgt('text'); setColorPos({ x: ctx.x, y: ctx.y + 30 }); setCtx(null);
                     }}>🔤 Kolor tekstu</button>
                     <div className="ve-ctx-divider" />
                     <button className="ve-ctx-item" onClick={() => {
-                        startDrag(ctxEl); setCtxMenu(null);
+                        setSel(ctxEl); setSelPath(ctxP); ctxEl.classList.add('ve-selected'); posToolbar(ctxEl);
+                        setMoveMode(true); setCtx(null); flash('↕️ Kliknij element aby przesunąć');
                     }}>↕️ Przesuń</button>
                     <button className="ve-ctx-item" onClick={() => {
-                        startResize(ctxEl, 'se'); setCtxMenu(null);
-                    }}>↘️ Zmień rozmiar</button>
+                        setSel(ctxEl); setSelPath(ctxP); ctxEl.classList.add('ve-selected'); posToolbar(ctxEl);
+                        setResizeMode(true); setCtx(null); flash('↘️ Kliknij i ciągnij');
+                    }}>↘️ Rozmiar</button>
                     <div className="ve-ctx-divider" />
                     <button className="ve-ctx-item" onClick={() => {
-                        setOverrides(prev => { const el = { ...prev.elements }; delete el[ctxPath]; return { ...prev, elements: el }; });
+                        setOv(p => { const el = { ...p.elements }; delete el[ctxP]; return { ...p, elements: el }; });
                         ctxEl.classList.remove('ve-hidden-element');
-                        ctxEl.style.backgroundColor = ''; ctxEl.style.color = '';
-                        ctxEl.style.width = ''; ctxEl.style.height = ''; ctxEl.style.order = '';
-                        setCtxMenu(null); showToast('↩️ Reset');
-                    }}>↩️ Resetuj</button>
+                        ['backgroundColor', 'color', 'width', 'height', 'order'].forEach(p => (ctxEl.style as any)[p] = '');
+                        setCtx(null); flash('↩️ Reset');
+                    }}>↩️ Reset</button>
                     <div className="ve-ctx-divider" />
-                    <button className="ve-ctx-item" onClick={() => {
-                        if (confirm('Resetować WSZYSTKIE?')) { handleDiscard(); setCtxMenu(null); }
-                    }}>🗑 Reset wszystkiego</button>
+                    <button className="ve-ctx-item" onClick={() => { if (confirm('Resetować WSZYSTKIE?')) { handleDiscard(); setCtx(null); } }}>🗑 Reset all</button>
                 </div>
             )}
 
-            {/* ---- Breadcrumb ---- */}
-            {selectedEl && (
-                <div className="ve-breadcrumb">
-                    {breadcrumb.map((bc, i) => (
-                        <span key={i} className={i === breadcrumb.length - 1 ? 've-bc-active' : ''}>
-                            {i > 0 && ' › '}{bc}
-                        </span>
-                    ))}
-                </div>
-            )}
+            {/* ---- BREADCRUMB ---- */}
+            {sel && <div className="ve-breadcrumb">{bc.map((b, i) => <span key={i} className={i === bc.length - 1 ? 've-bc-active' : ''}>{i > 0 && ' › '}{b}</span>)}</div>}
 
             {toast && <div className="ve-toast">{toast}</div>}
 
-            <TemplateManager
-                isOpen={showTemplates}
-                onClose={() => setShowTemplates(false)}
-                onApplied={() => { setShowTemplates(false); showToast('✅ Załadowany'); window.location.reload(); }}
-            />
+            <TemplateManager isOpen={showTpl} onClose={() => setShowTpl(false)}
+                onApplied={() => { setShowTpl(false); flash('✅ Załadowany'); window.location.reload(); }} />
         </>
     );
 }
