@@ -38,7 +38,7 @@ export default function Footer() {
                 filter: 'grayscale(100%)' // Optional: make it purely textural
             }}>
                 <Image
-                    src="/logo-transparent.png"
+                    src={isDemoMode ? "/demo-logo.png" : "/logo-transparent.png"}
                     alt="Watermark"
                     fill
                     style={{ objectFit: 'contain', transform: 'scale(1.5)' }}

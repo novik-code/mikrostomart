@@ -8,6 +8,7 @@ import BeforeAfterSlider from "@/components/BeforeAfterSlider";
 import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { useTheme } from "@/context/ThemeContext";
+import { isDemoMode } from "@/lib/demoMode";
 import type { PageSection } from "@/lib/sections";
 
 // ===================== SECTION COMPONENTS =====================
@@ -36,7 +37,7 @@ function HeroSection() {
                         fontSize: "0.9rem",
                         marginBottom: "var(--spacing-sm)"
                     }}>
-                        {tHero('tagline')}
+                        {isDemoMode ? 'System zarządzania gabinetem' : tHero('tagline')}
                     </p>
                 </RevealOnScroll>
                 <RevealOnScroll animation="blur-in" delay={100}>
@@ -58,7 +59,9 @@ function HeroSection() {
                         margin: "0 auto var(--spacing-lg)",
                         lineHeight: 1.8
                     }}>
-                        {tHero('description')}
+                        {isDemoMode
+                            ? 'Odkryj DensFlow — kompleksowy system do zarządzania gabinetem stomatologicznym. Rezerwacje, panel pacjenta, zarządzanie zespołem i automatyzacja.'
+                            : tHero('description')}
                     </p>
                     <div style={{ display: "flex", gap: "var(--spacing-md)", justifyContent: "center" }}>
                         <Link href="/rezerwacja" className="btn-primary" style={{ padding: "1rem 2.5rem", fontSize: "1rem" }}>

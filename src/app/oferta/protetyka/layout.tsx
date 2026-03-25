@@ -1,10 +1,19 @@
 import type { Metadata } from 'next';
+import { isDemoMode } from '@/lib/demoMode';
 
-export const metadata: Metadata = {
+const prodMetadata: Metadata = {
     title: 'Protetyka Opole - Korony, Mosty, Protezy',
     description: 'Protetyka stomatologiczna w Opolu. Korony pełnoceramiczne, cyrkonowe, mosty i protezy. Cyfrowe skanowanie 3D bez wycisków. Gabinet Mikrostomart.',
     keywords: 'protetyka opole, korony zębowe opole, mosty stomatologiczne opole, protezy opole, korona cyrkonowa opole',
 };
+
+const demoMetadata: Metadata = {
+    title: 'Protetyka  - Korony, Mosty, Protezy',
+    description: 'Protetyka stomatologiczna w . Korony pełnoceramiczne, cyrkonowe, mosty i protezy. Cyfrowe skanowanie 3D bez wycisków. Gabinet DensFlow Demo.',
+    keywords: 'protetyka opole, korony zębowe opole, mosty stomatologiczne opole, protezy opole, korona cyrkonowa opole',
+};
+
+export const metadata: Metadata = isDemoMode ? demoMetadata : prodMetadata;
 
 const faqSchema = {
     "@context": "https://schema.org", "@type": "FAQPage",

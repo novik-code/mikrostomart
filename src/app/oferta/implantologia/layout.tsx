@@ -1,10 +1,19 @@
 import type { Metadata } from 'next';
+import { isDemoMode } from '@/lib/demoMode';
 
-export const metadata: Metadata = {
+const prodMetadata: Metadata = {
     title: 'Implanty Opole - implanty zębów Opole, implanty cennik Opole',
     description: 'Profesjonalne zabiegi implantacji w Opolu. Precyzja, cyfrowe planowanie i bezbolesne leczenie w Mikrostomart. Sprawdź cennik i umów się na wizytę.',
     keywords: 'implanty opole, implanty zębów opole, implant cennik opole, implantacja opole, dentysta implanty opole',
 };
+
+const demoMetadata: Metadata = {
+    title: 'Implanty  - implanty zębów , implanty cennik ',
+    description: 'Profesjonalne zabiegi implantacji w . Precyzja, cyfrowe planowanie i bezbolesne leczenie w DensFlow Demo. Sprawdź cennik i umów się na wizytę.',
+    keywords: 'implanty opole, implanty zębów opole, implant cennik opole, implantacja opole, dentysta implanty opole',
+};
+
+export const metadata: Metadata = isDemoMode ? demoMetadata : prodMetadata;
 
 /**
  * FAQ structured data for implantologia page.

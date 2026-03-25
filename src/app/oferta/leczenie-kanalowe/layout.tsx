@@ -1,10 +1,19 @@
 import type { Metadata } from 'next';
+import { isDemoMode } from '@/lib/demoMode';
 
-export const metadata: Metadata = {
+const prodMetadata: Metadata = {
     title: 'Leczenie Kanałowe Opole - Endodoncja Mikroskopowa',
     description: 'Leczenie kanałowe pod mikroskopem w Opolu. Bezbolesne, precyzyjne, często na jednej wizycie. Gabinet Mikrostomart — powiększenie 25x, komputerowe znieczulenie.',
     keywords: 'leczenie kanałowe opole, endodoncja opole, leczenie kanałowe pod mikroskopem, root canal opole, dentysta kanałowe opole',
 };
+
+const demoMetadata: Metadata = {
+    title: 'Leczenie Kanałowe  - Endodoncja Mikroskopowa',
+    description: 'Leczenie kanałowe pod mikroskopem w . Bezbolesne, precyzyjne, często na jednej wizycie. Gabinet DensFlow Demo — powiększenie 25x, komputerowe znieczulenie.',
+    keywords: 'leczenie kanałowe opole, endodoncja opole, leczenie kanałowe pod mikroskopem, root canal opole, dentysta kanałowe opole',
+};
+
+export const metadata: Metadata = isDemoMode ? demoMetadata : prodMetadata;
 
 const faqSchema = {
     "@context": "https://schema.org",

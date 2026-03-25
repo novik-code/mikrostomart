@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { usePatientAuth } from '@/hooks/usePatientAuth';
+import { isDemoMode } from '@/lib/demoMode';
 
 const GOOGLE_REVIEW_URL = 'https://g.page/r/CSYarbrDoYcDEAE/review';
 
@@ -55,7 +56,7 @@ export default function OcenNas() {
                         maxWidth: '550px',
                         margin: '0 auto',
                     }}>
-                        Jesteśmy dumni z jakości naszych usług i dbamy o komfort każdego pacjenta. Jeśli jesteś zadowolony/a z wizyty w Mikrostomart — będziemy wdzięczni za Twoją opinię w Google!
+                        Jesteśmy dumni z jakości naszych usług i dbamy o komfort każdego pacjenta. Jeśli jesteś zadowolony/a z wizyty {isDemoMode ? 'w naszym gabinecie' : 'w Mikrostomart'} — będziemy wdzięczni za Twoją opinię w Google!
                     </p>
                 </div>
 
@@ -90,7 +91,7 @@ export default function OcenNas() {
                         <a href={GOOGLE_REVIEW_URL} target="_blank" rel="noopener noreferrer">
                             <Image
                                 src="/qr-ocen-nas.png"
-                                alt="Kod QR — Oceń Mikrostomart w Google"
+                                alt={isDemoMode ? 'Kod QR — Oceń gabinet w Google' : 'Kod QR — Oceń Mikrostomart w Google'}
                                 width={200}
                                 height={200}
                                 style={{

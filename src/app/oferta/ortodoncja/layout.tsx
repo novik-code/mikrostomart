@@ -1,10 +1,19 @@
 import type { Metadata } from 'next';
+import { isDemoMode } from '@/lib/demoMode';
 
-export const metadata: Metadata = {
+const prodMetadata: Metadata = {
     title: 'Ortodoncja Opole - Nakładki Clear Correct, Prostowanie Zębów',
     description: 'Ortodoncja w Opolu. Przezroczyste nakładki Clear Correct — prostowanie zębów bez aparatu metalowego. Symulacja 3D efektu. Gabinet Mikrostomart.',
     keywords: 'ortodoncja opole, prostowanie zębów opole, nakładki ortodontyczne opole, clear correct opole, aparat ortodontyczny opole',
 };
+
+const demoMetadata: Metadata = {
+    title: 'Ortodoncja  - Nakładki Clear Correct, Prostowanie Zębów',
+    description: 'Ortodoncja w . Przezroczyste nakładki Clear Correct — prostowanie zębów bez aparatu metalowego. Symulacja 3D efektu. Gabinet DensFlow Demo.',
+    keywords: 'ortodoncja opole, prostowanie zębów opole, nakładki ortodontyczne opole, clear correct opole, aparat ortodontyczny opole',
+};
+
+export const metadata: Metadata = isDemoMode ? demoMetadata : prodMetadata;
 
 const faqSchema = {
     "@context": "https://schema.org", "@type": "FAQPage",

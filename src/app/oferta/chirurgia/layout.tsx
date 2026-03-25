@@ -1,10 +1,19 @@
 import type { Metadata } from 'next';
+import { isDemoMode } from '@/lib/demoMode';
 
-export const metadata: Metadata = {
+const prodMetadata: Metadata = {
     title: 'Chirurgia Stomatologiczna Opole - Usuwanie Zębów, Ósemki',
     description: 'Chirurgia stomatologiczna w Opolu. Bezbolesne usuwanie zębów i ósemek z zastosowaniem PRF. Szybkie gojenie. Gabinet Mikrostomart Opole.',
     keywords: 'chirurgia stomatologiczna opole, usuwanie zębów opole, usuwanie ósemek opole, ekstrakcja zęba opole, PRF opole',
 };
+
+const demoMetadata: Metadata = {
+    title: 'Chirurgia Stomatologiczna  - Usuwanie Zębów, Ósemki',
+    description: 'Chirurgia stomatologiczna w . Bezbolesne usuwanie zębów i ósemek z zastosowaniem PRF. Szybkie gojenie. Gabinet DensFlow Demo .',
+    keywords: 'chirurgia stomatologiczna opole, usuwanie zębów opole, usuwanie ósemek opole, ekstrakcja zęba opole, PRF opole',
+};
+
+export const metadata: Metadata = isDemoMode ? demoMetadata : prodMetadata;
 
 const faqSchema = {
     "@context": "https://schema.org", "@type": "FAQPage",

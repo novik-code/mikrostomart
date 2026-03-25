@@ -1,10 +1,19 @@
 import type { Metadata } from 'next';
+import { isDemoMode } from '@/lib/demoMode';
 
-export const metadata: Metadata = {
+const prodMetadata: Metadata = {
     title: 'Stomatologia Estetyczna Opole - Licówki, Wybielanie, Bonding',
     description: 'Stomatologia estetyczna w Opolu. Licówki porcelanowe, wybielanie zębów, bonding kompozytowy. Piękny uśmiech w Mikrostomart — gabinet stomatologiczny Opole.',
     keywords: 'stomatologia estetyczna opole, licówki opole, wybielanie zębów opole, bonding opole, hollywood smile opole',
 };
+
+const demoMetadata: Metadata = {
+    title: 'Stomatologia Estetyczna  - Licówki, Wybielanie, Bonding',
+    description: 'Stomatologia estetyczna w . Licówki porcelanowe, wybielanie zębów, bonding kompozytowy. Piękny uśmiech w DensFlow Demo — gabinet stomatologiczny .',
+    keywords: 'stomatologia estetyczna opole, licówki opole, wybielanie zębów opole, bonding opole, hollywood smile opole',
+};
+
+export const metadata: Metadata = isDemoMode ? demoMetadata : prodMetadata;
 
 const faqSchema = {
     "@context": "https://schema.org", "@type": "FAQPage",
