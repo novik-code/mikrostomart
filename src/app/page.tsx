@@ -345,7 +345,7 @@ function OfferSection() {
                     gap: 'var(--spacing-md)',
                 }}>
                     {services.map((s, i) => (
-                        <RevealOnScroll key={i} delay={i * 80}>
+                        <RevealOnScroll key={i} delay={([0, 100, 200, 300] as const)[i % 4]}>
                             <Link href="/oferta" style={{ textDecoration: 'none', color: 'inherit' }}>
                                 <div style={{
                                     padding: 'var(--spacing-md)',
@@ -390,7 +390,7 @@ function FAQSection() {
                 </RevealOnScroll>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                     {faqs.map((faq, i) => (
-                        <RevealOnScroll key={i} delay={i * 60}>
+                        <RevealOnScroll key={i} delay={([0, 100, 200, 300] as const)[i % 4]}>
                             <div style={{
                                 borderRadius: 'var(--radius-md)',
                                 border: '1px solid var(--color-surface-hover)',
@@ -459,7 +459,7 @@ function TeamSection() {
                     gap: 'var(--spacing-md)',
                 }}>
                     {team.map((member, i) => (
-                        <RevealOnScroll key={i} delay={i * 100}>
+                        <RevealOnScroll key={i} delay={([0, 100, 200, 300] as const)[i % 4]}>
                             <div style={{
                                 textAlign: 'center', padding: 'var(--spacing-lg) var(--spacing-md)',
                                 background: 'var(--color-background)',
@@ -591,7 +591,7 @@ function GallerySection() {
                     gap: 'var(--spacing-sm)',
                 }}>
                     {images.map((img, i) => (
-                        <RevealOnScroll key={i} delay={i * 60}>
+                        <RevealOnScroll key={i} delay={([0, 100, 200, 300] as const)[i % 4]}>
                             <div style={{
                                 aspectRatio: '4/3', borderRadius: 'var(--radius-md)',
                                 background: `linear-gradient(135deg, var(--color-surface), var(--color-surface-hover))`,
