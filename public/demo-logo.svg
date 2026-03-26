@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 200" width="800" height="200">
+  <!-- Tooth icon -->
+  <g transform="translate(20, 20) scale(0.8)">
+    <!-- Outer tooth shape -->
+    <path d="M55 15 C75 15, 95 15, 115 15 C135 25, 145 50, 140 80 C138 95, 130 110, 125 130 C122 145, 120 160, 115 175 C112 185, 105 190, 100 175 C95 155, 90 140, 85 130 C82 125, 78 125, 75 130 C70 140, 65 155, 60 175 C55 190, 48 185, 45 175 C40 160, 38 145, 35 130 C30 110, 22 95, 20 80 C15 50, 25 25, 55 15 Z" 
+          fill="none" stroke="#3BB5C4" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+    <!-- Inner tooth detail -->
+    <path d="M60 40 C70 35, 90 35, 100 40 C110 50, 115 65, 110 85 C108 92, 105 100, 102 108" 
+          fill="none" stroke="#2DA8B7" stroke-width="4" stroke-linecap="round" opacity="0.7"/>
+  </g>
+  <!-- DENS text - white -->
+  <text x="190" y="125" font-family="'Inter', 'Helvetica Neue', Arial, sans-serif" font-size="72" font-weight="700" fill="#FFFFFF" letter-spacing="4">DENS</text>
+  <!-- FLOW text - lighter gray -->
+  <text x="462" y="125" font-family="'Inter', 'Helvetica Neue', Arial, sans-serif" font-size="72" font-weight="300" fill="#A0A0A0" letter-spacing="4">FLOW</text>
+</svg>

@@ -217,6 +217,7 @@ export default async function RootLayout({
                             if(c.textMuted) r.setProperty('--color-text-muted', c.textMuted);
                             if(c.success) r.setProperty('--color-success', c.success);
                             if(c.error) r.setProperty('--color-error', c.error);
+                            ${isDemoMode ? `document.documentElement.classList.add('splash-pending');` : ''}
                         } catch(e){}
                     })();
                 ` }} />

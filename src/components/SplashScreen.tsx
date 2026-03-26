@@ -113,6 +113,8 @@ export default function SplashScreen({ children }: { children: React.ReactNode }
 
     useEffect(() => {
         setMounted(true);
+        // Remove splash-pending class — SplashScreen overlay takes over visibility control
+        document.documentElement.classList.remove('splash-pending');
         if (typeof window !== 'undefined') {
             if (shouldShowSplash(cfg, pathname)) {
                 setPhase('idle');
@@ -369,7 +371,7 @@ export default function SplashScreen({ children }: { children: React.ReactNode }
                             </span>
                         ) : (
                             <Image
-                                src={isDemoMode ? "/demo-logo.png" : "/logo-transparent.png"}
+                                src={isDemoMode ? (isLight ? "/demo-logo-dark.svg" : "/demo-logo.svg") : "/logo-transparent.png"}
                                 alt={brand.logoAlt}
                                 width={440}
                                 height={140}
