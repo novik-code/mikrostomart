@@ -354,8 +354,8 @@ export default function SplashScreen({ children }: { children: React.ReactNode }
                             }}
                         />
 
-                        {/* The logo — text for light themes, image for dark */}
-                        {isLight ? (
+                        {/* The logo — text or image based on logoMode setting */}
+                        {theme.navbar.logoMode === 'text' ? (
                             <span style={{
                                 fontSize: '2.5rem',
                                 fontWeight: 700,

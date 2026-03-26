@@ -630,6 +630,40 @@ export default function ThemeEditor() {
                                 }}
                             />
                         </div>
+                        <div style={{ marginBottom: '1rem' }}>
+                            <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)', marginBottom: '8px', display: 'block' }}>Tryb logo</span>
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                {([
+                                    { id: 'image', label: '🖼️ Grafika', desc: 'Logo jako obraz (PNG/SVG)' },
+                                    { id: 'text', label: '✏️ Tekst', desc: 'Logo jako stylizowany tekst' },
+                                ] as const).map(m => (
+                                    <button
+                                        key={m.id}
+                                        onClick={() => updateNavbar('logoMode', m.id)}
+                                        style={{
+                                            flex: 1,
+                                            padding: '0.75rem',
+                                            background: theme.navbar.logoMode === m.id ? 'rgba(var(--color-primary-rgb),0.15)' : 'rgba(255,255,255,0.03)',
+                                            border: theme.navbar.logoMode === m.id ? '2px solid rgba(var(--color-primary-rgb),0.5)' : '1px solid rgba(255,255,255,0.1)',
+                                            borderRadius: '8px',
+                                            color: theme.navbar.logoMode === m.id ? 'var(--color-primary)' : 'rgba(255,255,255,0.6)',
+                                            cursor: 'pointer',
+                                            fontWeight: theme.navbar.logoMode === m.id ? '700' : '400',
+                                            transition: 'all 0.15s',
+                                            textAlign: 'center',
+                                        }}
+                                    >
+                                        <div style={{ fontWeight: '600', marginBottom: '4px' }}>{m.label}</div>
+                                        <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)' }}>{m.desc}</div>
+                                    </button>
+                                ))}
+                            </div>
+                            {theme.navbar.logoMode === 'text' && (
+                                <p style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.35)', marginTop: '6px', fontStyle: 'italic' }}>
+                                    Tekst logo pochodzi z pola &quot;Tekst logo&quot; powyżej i używa czcionki nagłówków motywu.
+                                </p>
+                            )}
+                        </div>
                         <div>
                             <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)', marginBottom: '8px', display: 'block' }}>Styl nawigacji</span>
                             <div style={{ display: 'flex', gap: '0.5rem' }}>

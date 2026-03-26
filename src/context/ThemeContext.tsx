@@ -48,6 +48,7 @@ export interface ThemeNavbar {
     style: 'transparent' | 'solid' | 'glassmorphism';
     layout: 'hamburger' | 'inline';
     logoText: string;
+    logoMode: 'image' | 'text';
 }
 
 export interface SplashScreenConfig {
@@ -136,6 +137,7 @@ export const DEFAULT_THEME: ThemeConfig = {
         style: 'transparent',
         layout: 'hamburger',
         logoText: 'MIKROSTOMART',
+        logoMode: 'image',
     },
     features: {
         splashScreen: true,
@@ -213,6 +215,7 @@ export const THEME_PRESETS: Record<string, Partial<ThemeConfig>> = {
             style: 'solid',            // LePerle: white solid navbar
             layout: 'inline',          // LePerle: logo-left, links-center, CTA-right
             logoText: 'DENSFLOW',
+            logoMode: 'text',
         },
         features: {
             ...DEFAULT_THEME.features,
@@ -287,6 +290,7 @@ export const THEME_PRESETS: Record<string, Partial<ThemeConfig>> = {
             style: 'transparent',      // Nawrocki: transparent nav over video
             layout: 'hamburger',
             logoText: 'DENTAL LUXE',
+            logoMode: 'image',
         },
         features: {
             ...DEFAULT_THEME.features,
@@ -361,6 +365,7 @@ export const THEME_PRESETS: Record<string, Partial<ThemeConfig>> = {
             style: 'solid',           // Ambasada: solid white navbar
             layout: 'hamburger',
             logoText: 'FRESH SMILE',
+            logoMode: 'image',
         },
         features: {
             ...DEFAULT_THEME.features,
@@ -436,6 +441,7 @@ export const THEME_PRESETS: Record<string, Partial<ThemeConfig>> = {
             style: 'glassmorphism',   // One&Only: integrated top bar
             layout: 'hamburger',
             logoText: 'NORDIC DENTAL',
+            logoMode: 'image',
         },
         features: {
             ...DEFAULT_THEME.features,
@@ -511,6 +517,7 @@ export const THEME_PRESETS: Record<string, Partial<ThemeConfig>> = {
             style: 'solid',           // Malottki: solid navbar
             layout: 'hamburger',
             logoText: 'WARM CARE',
+            logoMode: 'image',
         },
         features: {
             ...DEFAULT_THEME.features,

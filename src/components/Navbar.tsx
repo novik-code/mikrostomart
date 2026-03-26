@@ -129,11 +129,7 @@ export default function Navbar() {
     const { theme } = useTheme();
     const f = theme.features;
     const t = useTranslations('nav');
-
-    // Detect light theme to adjust logo rendering
-    const bgHex = theme.colors.background.replace('#', '');
-    const lum = (0.299 * parseInt(bgHex.substring(0,2),16) + 0.587 * parseInt(bgHex.substring(2,4),16) + 0.114 * parseInt(bgHex.substring(4,6),16)) / 255;
-    const isLight = lum > 0.5;
+    const useTextLogo = theme.navbar.logoMode === 'text';
 
     const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
     const closeMenu = () => setIsMenuOpen(false);
@@ -147,7 +143,7 @@ export default function Navbar() {
                 <div className={`container ${styles.containerInline}`}>
                     {/* Logo — left */}
                     <Link href="/" className={styles.logoInline} onClick={closeMenu}>
-                        {isLight ? (
+                        {useTextLogo ? (
                             <span style={{
                                 fontSize: '1.3rem',
                                 fontWeight: 700,
@@ -237,7 +233,7 @@ export default function Navbar() {
                     }}
                 >
                     <Link href="/" className={styles.logo} onClick={closeMenu}>
-                        {isLight ? (
+                        {useTextLogo ? (
                             <span style={{
                                 fontSize: '1.5rem',
                                 fontWeight: 700,

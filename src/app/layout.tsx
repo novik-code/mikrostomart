@@ -191,11 +191,18 @@ export default async function RootLayout({
                 <script dangerouslySetInnerHTML={{ __html: `
                     (function(){
                         try {
+                            var c = null;
                             var raw = localStorage.getItem('densflow_theme');
-                            if (!raw) return;
-                            var t = JSON.parse(raw);
-                            if (!t || !t.colors) return;
-                            var c = t.colors, r = document.documentElement.style;
+                            if (raw) {
+                                var t = JSON.parse(raw);
+                                if (t && t.colors) c = t.colors;
+                            }
+                            ${isDemoMode ? `
+                            if (!c) {
+                                c = {background:'#FAFAFA',surface:'#FFFFFF',surfaceHover:'#F5F0EB',primary:'#9D7D5D',primaryLight:'#B89B7A',primaryDark:'#7A5F42',textMain:'#1A1A1A',textMuted:'#6B6B6B',success:'#22C55E',error:'#EF4444'};
+                            }` : ''}
+                            if (!c) return;
+                            var r = document.documentElement.style;
                             function hexRgb(h) {
                                 h = h.replace('#','');
                                 return parseInt(h.substring(0,2),16)+','+parseInt(h.substring(2,4),16)+','+parseInt(h.substring(4,6),16);
