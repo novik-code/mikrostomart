@@ -80,6 +80,35 @@ async function refreshTikTokToken(platformId: string, refreshToken: string): Pro
     return null;
 }
 
+// ── Get public URL for video ──────────────────────────────────────
+// Supabase Storage private bucket URLs need signed URLs for external access
+async function getPublicVideoUrl(url: string): Promise<string> {
+    // If it's already a fully public URL (not Supabase Storage), return as-is
+    if (!url.includes('/storage/v1/object/')) return url;
+    
+    // If it's a public bucket URL, return as-is
+    if (url.includes('/storage/v1/object/public/')) return url;
+    
+    // Extract bucket name and path from Supabase Storage URL
+    const storageMatch = url.match(/\/storage\/v1\/object\/(?:sign\/)?([^/]+)\/(.+)/);
+    if (!storageMatch) return url;
+    
+    const [, bucket, path] = storageMatch;
+    
+    // Generate a signed URL valid for 1 hour
+    const { data, error } = await supabase.storage
+        .from(bucket)
+        .createSignedUrl(decodeURIComponent(path), 3600);
+    
+    if (error || !data?.signedUrl) {
+        console.warn(`[VideoPublish] Could not create signed URL for ${bucket}/${path}: ${error?.message || 'unknown'}. Using original URL.`);
+        return url;
+    }
+    
+    console.log(`[VideoPublish] Generated signed URL for ${bucket}/${path} (valid 1h)`);
+    return data.signedUrl;
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // Exported: publishVideoToPlatforms
 // Called by both the POST handler (manual) and the cron (auto-publish)
@@ -100,8 +129,12 @@ export async function publishVideoToPlatforms(
         throw new Error(`Status musi być "ready", jest "${video.status}"`);
     }
 
-    const videoUrl = video.processed_video_url || video.compressed_video_url || video.raw_video_url;
-    if (!videoUrl) throw new Error('Brak wideo do publikacji');
+    const rawVideoUrl = video.processed_video_url || video.compressed_video_url || video.raw_video_url;
+    if (!rawVideoUrl) throw new Error('Brak wideo do publikacji');
+
+    // Generate public URL for platforms that need to download video from URL (FB, IG, TikTok)
+    // Supabase Storage private bucket URLs are not accessible by external services
+    const videoUrl = await getPublicVideoUrl(rawVideoUrl);
 
     // 2. Get selected platforms by their IDs
     let platformQuery = supabase
@@ -156,6 +189,7 @@ export async function publishVideoToPlatforms(
                     if (!token || !pageId) { result.error = 'Brak tokenu FB / Page ID'; break; }
                     
                     const fullText = hashtags.length > 0 ? `${text}\n\n${hashtags.map((h: string) => `#${h}`).join(' ')}` : text;
+                    console.log(`[VideoPublish] FB: uploading video from URL: ${videoUrl.substring(0, 100)}...`);
                     const res = await fetch(`https://graph.facebook.com/v21.0/${pageId}/videos`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -166,8 +200,11 @@ export async function publishVideoToPlatforms(
                             access_token: token,
                         }),
                     });
-                    const data = await res.json();
-                    if (data.error) throw new Error(data.error.message);
+                    const fbText = await res.text();
+                    console.log(`[VideoPublish] FB response: HTTP ${res.status} — ${fbText.substring(0, 300)}`);
+                    let data: any;
+                    try { data = JSON.parse(fbText); } catch { throw new Error(`FB video: HTTP ${res.status} — ${fbText.substring(0, 200)}`); }
+                    if (!res.ok || data.error) throw new Error(data.error?.message || `FB HTTP ${res.status}`);
                     result.success = true;
                     result.post_id = data.id;
                     break;
@@ -181,6 +218,7 @@ export async function publishVideoToPlatforms(
                     const caption = hashtags.length > 0 ? `${text}\n\n${hashtags.map((h: string) => `#${h}`).join(' ')}` : text;
                     
                     // Create Reels container
+                    console.log(`[VideoPublish] IG: creating Reels container with video URL: ${videoUrl.substring(0, 100)}...`);
                     const containerRes = await fetch(`https://graph.facebook.com/v21.0/${igId}/media`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -192,8 +230,11 @@ export async function publishVideoToPlatforms(
                             access_token: token,
                         }),
                     });
-                    const containerData = await containerRes.json();
-                    if (containerData.error) throw new Error(containerData.error.message);
+                    const containerText = await containerRes.text();
+                    console.log(`[VideoPublish] IG container response: HTTP ${containerRes.status} — ${containerText.substring(0, 300)}`);
+                    let containerData: any;
+                    try { containerData = JSON.parse(containerText); } catch { throw new Error(`IG container: HTTP ${containerRes.status} — ${containerText.substring(0, 200)}`); }
+                    if (!containerRes.ok || containerData.error) throw new Error(containerData.error?.message || `IG HTTP ${containerRes.status}`);
                     
                     // Wait for processing (max ~100s, polling every 5s)
                     const containerId = containerData.id;
