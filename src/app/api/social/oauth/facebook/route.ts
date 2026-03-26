@@ -108,7 +108,7 @@ export async function GET(req: NextRequest) {
         // Step 6: Save tokens to DB
         const tokenExpiry = new Date(Date.now() + expiresIn * 1000).toISOString();
 
-        // Update all Facebook platforms
+        // Update all Facebook/Instagram platforms — MATCH by account_name
         const { data: fbPlatforms } = await supabase
             .from('social_platforms')
             .select('id, platform, account_name')
@@ -116,30 +116,44 @@ export async function GET(req: NextRequest) {
 
         for (const plat of (fbPlatforms || [])) {
             if (plat.platform === 'facebook') {
-                // Use first page token
-                const page = pages[0];
-                if (page) {
+                // Match page by name (case-insensitive partial match)
+                const matchedPage = pages.find((p: any) => 
+                    plat.account_name && (
+                        p.name?.toLowerCase().includes(plat.account_name.toLowerCase()) ||
+                        plat.account_name.toLowerCase().includes(p.name?.toLowerCase())
+                    )
+                ) || pages[0]; // fallback to first page
+                
+                if (matchedPage) {
+                    console.log(`[FB OAuth] Matching FB platform '${plat.account_name}' → page '${matchedPage.name}' (${matchedPage.id})`);
                     await supabase
                         .from('social_platforms')
                         .update({
-                            access_token: page.access_token,
+                            access_token: matchedPage.access_token,
                             token_expires_at: tokenExpiry,
-                            account_id: page.id,
+                            account_id: matchedPage.id,
                             config: { pages, user_token: longLivedToken },
                         })
                         .eq('id', plat.id);
                 }
             } else if (plat.platform === 'instagram') {
-                // Use IG account token
-                const ig = igAccounts[0];
-                if (ig) {
+                // Match IG account by username (case-insensitive)
+                const matchedIg = igAccounts.find((ig: any) => 
+                    plat.account_name && (
+                        ig.ig_username?.toLowerCase() === plat.account_name.toLowerCase() ||
+                        ig.ig_username?.toLowerCase().replace(/_/g, '') === plat.account_name.toLowerCase().replace(/_/g, '')
+                    )
+                ) || igAccounts[0]; // fallback to first IG account
+                
+                if (matchedIg) {
+                    console.log(`[FB OAuth] Matching IG platform '${plat.account_name}' → @${matchedIg.ig_username} (${matchedIg.ig_id})`);
                     await supabase
                         .from('social_platforms')
                         .update({
-                            access_token: ig.page_token,
+                            access_token: matchedIg.page_token,
                             token_expires_at: tokenExpiry,
-                            account_id: ig.ig_id,
-                            config: { ig_username: ig.ig_username, page_id: ig.page_id, page_name: ig.page_name },
+                            account_id: matchedIg.ig_id,
+                            config: { ig_username: matchedIg.ig_username, page_id: matchedIg.page_id, page_name: matchedIg.page_name },
                         })
                         .eq('id', plat.id);
                 }
@@ -148,17 +162,36 @@ export async function GET(req: NextRequest) {
 
         // If we have a specific platformId from state, update that too
         if (platformId) {
-            const page = pages[0];
-            if (page) {
+            // Check if it's an IG platform
+            const targetPlat = (fbPlatforms || []).find((p: any) => p.id === platformId);
+            if (targetPlat?.platform === 'instagram' && igAccounts.length > 0) {
+                const ig = igAccounts.find((a: any) => 
+                    targetPlat.account_name && a.ig_username?.toLowerCase().includes(targetPlat.account_name.toLowerCase())
+                ) || igAccounts[0];
                 await supabase
                     .from('social_platforms')
                     .update({
-                        access_token: page.access_token,
+                        access_token: ig.page_token,
                         token_expires_at: tokenExpiry,
-                        account_id: page.id,
-                        config: { pages, igAccounts, user_token: longLivedToken },
+                        account_id: ig.ig_id,
+                        config: { ig_username: ig.ig_username, page_id: ig.page_id, page_name: ig.page_name },
                     })
                     .eq('id', platformId);
+            } else {
+                const page = pages.find((p: any) => 
+                    targetPlat?.account_name && p.name?.toLowerCase().includes(targetPlat.account_name.toLowerCase())
+                ) || pages[0];
+                if (page) {
+                    await supabase
+                        .from('social_platforms')
+                        .update({
+                            access_token: page.access_token,
+                            token_expires_at: tokenExpiry,
+                            account_id: page.id,
+                            config: { pages, igAccounts, user_token: longLivedToken },
+                        })
+                        .eq('id', platformId);
+                }
             }
         }
 

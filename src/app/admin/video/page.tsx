@@ -1029,9 +1029,41 @@ export default function VideoPage() {
                                                 marginBottom: 10,
                                             }}>
                                                 {video.status === "done" ? (
-                                                    <p style={{ fontSize: 14, color: "#22c55e", margin: 0, fontWeight: 700, textAlign: "center" }}>
-                                                        🎉 Opublikowano{video.published_at ? ` • ${formatTime(video.published_at)}` : ""}
-                                                    </p>
+                                                    <div>
+                                                        <p style={{ fontSize: 14, color: "#22c55e", margin: "0 0 8px", fontWeight: 700, textAlign: "center" }}>
+                                                            🎉 Opublikowano{video.published_at ? ` • ${formatTime(video.published_at)}` : ""}
+                                                        </p>
+                                                        {video.error_message && (
+                                                            <div style={{
+                                                                padding: "8px 10px",
+                                                                background: "rgba(239,68,68,0.08)",
+                                                                border: "1px solid rgba(239,68,68,0.15)",
+                                                                borderRadius: 6,
+                                                                fontSize: 11,
+                                                                color: "#f87171",
+                                                                marginBottom: 8,
+                                                            }}>
+                                                                ⚠️ Częściowe błędy: {video.error_message}
+                                                            </div>
+                                                        )}
+                                                        <button
+                                                            onClick={() => handleForceStatus(video.id, "ready")}
+                                                            disabled={publishing}
+                                                            style={{
+                                                                width: "100%",
+                                                                padding: "12px 16px",
+                                                                background: "linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.15))",
+                                                                border: "1px solid rgba(99,102,241,0.3)",
+                                                                borderRadius: 8,
+                                                                color: "#a5b4fc",
+                                                                fontSize: 13,
+                                                                fontWeight: 700,
+                                                                cursor: "pointer",
+                                                            }}
+                                                        >
+                                                            🔄 Publikuj ponownie
+                                                        </button>
+                                                    </div>
                                                 ) : (
                                                     <>
                                                         <p style={{ fontSize: 13, color: "#34d399", margin: "0 0 10px", fontWeight: 600 }}>
