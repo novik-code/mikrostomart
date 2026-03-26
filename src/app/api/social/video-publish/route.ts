@@ -49,6 +49,37 @@ async function refreshGoogleToken(platformId: string, refreshToken: string): Pro
     return null;
 }
 
+// ── Refresh TikTok token if expired ────────────────────────────────
+async function refreshTikTokToken(platformId: string, refreshToken: string): Promise<string | null> {
+    try {
+        const res = await fetch('https://open.tiktokapis.com/v2/oauth/token/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+                client_key: process.env.TIKTOK_CLIENT_KEY!,
+                client_secret: process.env.TIKTOK_CLIENT_SECRET!,
+                refresh_token: refreshToken,
+                grant_type: 'refresh_token',
+            }),
+        });
+        const data = await res.json();
+        if (data.access_token) {
+            await supabase
+                .from('social_platforms')
+                .update({
+                    access_token: data.access_token,
+                    refresh_token: data.refresh_token || refreshToken,
+                    token_expires_at: new Date(Date.now() + (data.expires_in || 86400) * 1000).toISOString(),
+                })
+                .eq('id', platformId);
+            return data.access_token;
+        }
+    } catch (err) {
+        console.error('[VideoPublish] Failed to refresh TikTok token:', err);
+    }
+    return null;
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // Exported: publishVideoToPlatforms
 // Called by both the POST handler (manual) and the cron (auto-publish)
@@ -125,7 +156,7 @@ export async function publishVideoToPlatforms(
                     if (!token || !pageId) { result.error = 'Brak tokenu FB / Page ID'; break; }
                     
                     const fullText = hashtags.length > 0 ? `${text}\n\n${hashtags.map((h: string) => `#${h}`).join(' ')}` : text;
-                    const res = await fetch(`https://graph.facebook.com/v19.0/${pageId}/videos`, {
+                    const res = await fetch(`https://graph.facebook.com/v21.0/${pageId}/videos`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -150,7 +181,7 @@ export async function publishVideoToPlatforms(
                     const caption = hashtags.length > 0 ? `${text}\n\n${hashtags.map((h: string) => `#${h}`).join(' ')}` : text;
                     
                     // Create Reels container
-                    const containerRes = await fetch(`https://graph.facebook.com/v19.0/${igId}/media`, {
+                    const containerRes = await fetch(`https://graph.facebook.com/v21.0/${igId}/media`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -168,7 +199,7 @@ export async function publishVideoToPlatforms(
                     const containerId = containerData.id;
                     for (let i = 0; i < 20; i++) {
                         await new Promise(r => setTimeout(r, 5000));
-                        const sRes = await fetch(`https://graph.facebook.com/v19.0/${containerId}?fields=status_code&access_token=${token}`);
+                        const sRes = await fetch(`https://graph.facebook.com/v21.0/${containerId}?fields=status_code&access_token=${token}`);
                         const sData = await sRes.json();
                         console.log(`[VideoPublish] IG processing status: ${sData.status_code} (attempt ${i + 1})`);
                         if (sData.status_code === 'FINISHED') break;
@@ -176,7 +207,7 @@ export async function publishVideoToPlatforms(
                     }
                     
                     // Publish
-                    const pubRes = await fetch(`https://graph.facebook.com/v19.0/${igId}/media_publish`, {
+                    const pubRes = await fetch(`https://graph.facebook.com/v21.0/${igId}/media_publish`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ creation_id: containerId, access_token: token }),
@@ -250,8 +281,17 @@ export async function publishVideoToPlatforms(
                 }
 
                 case 'tiktok': {
-                    const token = platform.access_token;
+                    let token = platform.access_token;
                     if (!token) { result.error = 'Brak tokenu TikTok'; break; }
+                    
+                    // Auto-refresh expired TikTok token
+                    if (platform.token_expires_at && new Date(platform.token_expires_at) < new Date()) {
+                        if (platform.refresh_token) {
+                            const newToken = await refreshTikTokToken(platform.id, platform.refresh_token);
+                            if (newToken) token = newToken;
+                            else { result.error = 'Token TikTok wygasł i nie udało się go odświeżyć'; break; }
+                        }
+                    }
                     
                     const initRes = await fetch('https://open.tiktokapis.com/v2/post/publish/video/init/', {
                         method: 'POST',

@@ -6,6 +6,7 @@
  */
 
 import OpenAI from 'openai';
+import { createClient } from '@supabase/supabase-js';
 import { demoSanitize } from '@/lib/brandConfig';
 
 // ── Types ──────────────────────────────────────────────────────────
@@ -136,6 +137,10 @@ export async function generateSocialText(
 ): Promise<GeneratedContent> {
     const model = process.env.SOCIAL_AI_MODEL || 'gpt-4o';
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const db = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    );
 
     // Pick topic: custom prompt > DB topics > hardcoded fallback
     let topic = customPrompt;
@@ -148,14 +153,43 @@ export async function generateSocialText(
 
     const platformInstructions = platforms.map(p => PLATFORM_GUIDELINES[p]).join('\n\n');
 
-    const systemPrompt = `Jesteś Marcinem Nowosielskim — dentystą z Opola, prowadzącym klinikę Mikrostomart.
+    // Load AI style notes from DB (learned from admin edits)
+    let styleContext = '';
+    try {
+        const { data: styleNotes } = await db
+            .from('social_ai_style_notes')
+            .select('note, category')
+            .order('created_at', { ascending: false })
+            .limit(10);
+        if (styleNotes && styleNotes.length > 0) {
+            styleContext = `\n\nNAUCZONE PREFERENCJE STYLU (wyciągnięte z wcześniejszych edycji adminów):\n${styleNotes.map((n: any) => `- ${n.note}`).join('\n')}\nStosuj się do tych preferencji w generowanym tekście.`;
+        }
+    } catch { /* style notes table may not exist yet */ }
+
+    // Load recent edit feedback for few-shot learning
+    let editContext = '';
+    try {
+        const { data: recentEdits } = await db
+            .from('social_posts')
+            .select('original_ai_text, text_content, edit_feedback')
+            .not('edit_feedback', 'is', null)
+            .order('updated_at', { ascending: false })
+            .limit(3);
+        if (recentEdits && recentEdits.length > 0) {
+            editContext = `\n\nPRZYKŁADY EDYCJI ADMINA (ucz się z nich):\n${recentEdits.map((e: any) => `Feedback: ${e.edit_feedback}`).join('\n')}\nUwzględnij te uwagi w nowym poście.`;
+        }
+    } catch { /* columns may not exist yet */ }
+
+    const systemPrompt = `Jesteś członkiem zespołu gabinetu stomatologicznego Mikrostomart w Opolu.
 Tworzysz treści na social media. Twój styl:
-- Piszesz w PIERWSZEJ OSOBIE (ja, mój gabinet, moi pacjenci)
+- Piszesz w imieniu ZESPOŁU gabinetu („nasz gabinet”, „nasz zespół”, „u nas”, „zapraszamy”)
+- NIGDY nie pisz w pierwszej osobie liczby pojedynczej („ja”, „mój”, „moi”)
 - Język jest przystępny, ciepły i profesjonalny
 - Używasz porównań z życia codziennego
-- Wspominasz o swoim doświadczeniu
-- Jesteś pasjonatem stomatologii mikroskopowej, implantologii i laserów
-- Twój gabinet jest w Opolu, pracujesz z mikroskopem, laserem Fotona LightWalker, drukarką 3D
+- Wspominasz o doświadczeniu zespołu
+- Gabinet specjalizuje się w stomatologii mikroskopowej, implantologii i laserach
+- Gabinet jest w Opolu, pracujemy z mikroskopem, laserem Fotona LightWalker, drukarką 3D
+${styleContext}${editContext}
 
 PLATFORMY DOCELOWE:
 ${platformInstructions}

@@ -122,10 +122,51 @@ export async function transcribeVideo(videoUrl: string): Promise<TranscriptionRe
         
         // Extract audio as MP3 (mono, 64kbps = very small file, perfect for speech)
         console.log('[VideoAI] Extracting audio with ffmpeg...');
-        execSync(
-            `${ffmpegBinPath} -i "${videoPath}" -vn -ac 1 -ar 16000 -ab 64k -f mp3 "${audioPath}" -y`,
-            { timeout: 120000 } // 2 min timeout
-        );
+        
+        // Validate video first with ffprobe-like check
+        try {
+            const probeResult = execSync(
+                `${ffmpegBinPath} -v error -i "${videoPath}" -f null - 2>&1 | head -5`,
+                { timeout: 30000 }
+            ).toString();
+            console.log(`[VideoAI] Probe result: ${probeResult.trim().substring(0, 200)}`);
+        } catch (probeErr: any) {
+            const probeOutput = probeErr.stderr?.toString() || probeErr.stdout?.toString() || probeErr.message || '';
+            console.warn(`[VideoAI] Probe warning: ${probeOutput.substring(0, 300)}`);
+            // If moov atom not found, the file is incomplete/corrupt
+            if (probeOutput.includes('moov atom not found') || probeOutput.includes('Invalid data found')) {
+                console.warn('[VideoAI] Video file is corrupt (moov atom not found). Returning empty transcription.');
+                return {
+                    text: '',
+                    srt: '',
+                    language: 'pl',
+                    duration: 0,
+                    words: [],
+                };
+            }
+        }
+        
+        try {
+            execSync(
+                `${ffmpegBinPath} -i "${videoPath}" -vn -ac 1 -ar 16000 -ab 64k -f mp3 "${audioPath}" -y`,
+                { timeout: 120000 } // 2 min timeout
+            );
+        } catch (ffmpegErr: any) {
+            const errMsg = ffmpegErr.stderr?.toString() || ffmpegErr.message || '';
+            console.warn(`[VideoAI] FFmpeg audio extraction failed: ${errMsg.substring(0, 300)}`);
+            // If audio extraction fails (moov atom, no audio stream, etc.), return empty
+            if (errMsg.includes('moov atom not found') || errMsg.includes('Invalid data found') || errMsg.includes('does not contain any stream')) {
+                console.warn('[VideoAI] Cannot extract audio. Returning empty transcription.');
+                return {
+                    text: '',
+                    srt: '',
+                    language: 'pl',
+                    duration: 0,
+                    words: [],
+                };
+            }
+            throw ffmpegErr;
+        }
         
         const audioBuffer = readFileSync(audioPath);
         console.log(`[VideoAI] Audio extracted: ${(audioBuffer.length / 1024 / 1024).toFixed(1)}MB`);
@@ -288,7 +329,7 @@ PLATFORMY:
 - Instagram Reels: inspirujące, 80-120 słów, dużo hashtagów
 - Facebook: ciepło i profesjonalnie, 100-200 słów, zachęta do komentarza
 
-Pisz w PIERWSZEJ OSOBIE jako Marcin Nowosielski, dentysta.
+Pisz w imieniu ZESPOŁU gabinetu stomatologicznego Mikrostomart ("nasz gabinet", "nasz zespół", "u nas").
 
 Odpowiedz WYŁĄCZNIE w formacie JSON:
 {

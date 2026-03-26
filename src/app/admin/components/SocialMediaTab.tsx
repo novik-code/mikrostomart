@@ -48,6 +48,8 @@ interface SocialPost {
     platform_post_ids: any;
     publish_errors: any;
     admin_notes: string | null;
+    original_ai_text: string | null;
+    edit_feedback: string | null;
     created_at: string;
 }
 
@@ -924,6 +926,30 @@ export default function SocialMediaTab() {
                                             <button onClick={() => handlePostAction(post.id, 'approve')} style={{ ...btnStyle('#22c55e'), padding: '0.3rem 0.6rem', fontSize: '0.78rem', color: 'white' }}>♻️ Przywróć</button>
                                         )}
                                         <button onClick={() => { setEditingPost(post); setEditPostText(post.text_content || ''); }} style={{ ...btnStyle('#3b82f6'), padding: '0.3rem 0.6rem', fontSize: '0.78rem', color: 'white' }}>✏️</button>
+                                        {/* AI Learning button — only show for edited posts */}
+                                        {post.original_ai_text && post.original_ai_text !== post.text_content && !post.edit_feedback && (
+                                            <button
+                                                onClick={async () => {
+                                                    if (!confirm('Wysłać edytowany post do analizy AI? AI nauczy się Twoich preferencji stylu.')) return;
+                                                    try {
+                                                        const res = await fetch('/api/social/posts/learn', {
+                                                            method: 'POST',
+                                                            headers: { 'Content-Type': 'application/json' },
+                                                            body: JSON.stringify({ post_id: post.id }),
+                                                        });
+                                                        const data = await res.json();
+                                                        if (data.error) { alert('❌ ' + data.error); return; }
+                                                        alert(`✅ AI przeanalizowało edycję!\n\n${data.feedback}\n\nNowe zasady stylu (${data.style_notes?.length || 0}):\n${(data.style_notes || []).join('\n')}`);
+                                                        fetchPosts();
+                                                    } catch (e: any) { alert('❌ ' + e.message); }
+                                                }}
+                                                style={{ ...btnStyle('#8b5cf6'), padding: '0.3rem 0.6rem', fontSize: '0.78rem', color: 'white' }}
+                                                title="Wyślij edycję do analizy AI"
+                                            >🧠</button>
+                                        )}
+                                        {post.edit_feedback && (
+                                            <span style={{ fontSize: '0.7rem', color: '#a78bfa', padding: '0.15rem 0.4rem', background: 'rgba(139,92,246,0.1)', borderRadius: '0.3rem' }} title={post.edit_feedback}>🧠 Przeanalizowano</span>
+                                        )}
                                         <button onClick={() => handleDeletePost(post.id)} style={{ ...btnStyle('#555'), padding: '0.3rem 0.6rem', fontSize: '0.78rem', color: 'white' }}>🗑️</button>
                                     </div>
                                 </div>

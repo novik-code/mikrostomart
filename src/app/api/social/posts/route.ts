@@ -98,6 +98,20 @@ export async function PUT(req: NextRequest) {
             return NextResponse.json({ post: data });
         }
 
+        // If text_content is being updated, save original AI text first (for AI learning)
+        if (updates.text_content) {
+            const { data: existing } = await supabase
+                .from('social_posts')
+                .select('text_content, original_ai_text')
+                .eq('id', id)
+                .single();
+            
+            // Only save original if not already saved (first edit)
+            if (existing && !existing.original_ai_text && existing.text_content) {
+                updates.original_ai_text = existing.text_content;
+            }
+        }
+
         // Generic update
         const { data, error } = await supabase
             .from('social_posts')

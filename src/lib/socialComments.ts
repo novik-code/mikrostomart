@@ -137,7 +137,7 @@ export async function fetchCommentsForPost(
 // ── Facebook comments ──────────────────────────────────────────────
 
 async function fetchFacebookComments(postId: string, token: string): Promise<FetchedComment[]> {
-    const url = `https://graph.facebook.com/v19.0/${postId}/comments?fields=id,message,from,created_time&limit=50&access_token=${token}`;
+    const url = `https://graph.facebook.com/v21.0/${postId}/comments?fields=id,message,from,created_time&limit=50&access_token=${token}`;
     const res = await fetch(url);
     const data = await res.json();
 
@@ -169,7 +169,7 @@ async function fetchInstagramComments(
     token: string,
     accountId?: string,
 ): Promise<FetchedComment[]> {
-    const url = `https://graph.facebook.com/v19.0/${mediaId}/comments?fields=id,text,username,timestamp&limit=50&access_token=${token}`;
+    const url = `https://graph.facebook.com/v21.0/${mediaId}/comments?fields=id,text,username,timestamp&limit=50&access_token=${token}`;
     const res = await fetch(url);
     const data = await res.json();
 
@@ -204,7 +204,7 @@ async function fetchInstagramComments(
 async function getIgUsername(igId: string, token: string): Promise<string | null> {
     try {
         const res = await fetch(
-            `https://graph.facebook.com/v19.0/${igId}?fields=username&access_token=${token}`,
+            `https://graph.facebook.com/v21.0/${igId}?fields=username&access_token=${token}`,
         );
         const data = await res.json();
         return data.username || null;
@@ -253,11 +253,12 @@ export async function generateCommentReply(
     const model = process.env.SOCIAL_AI_MODEL || 'gpt-4o';
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-    const systemPrompt = `Jesteś Marcinem Nowosielskim — dentystą z Opola, prowadzącym klinikę Mikrostomart.
-Odpowiadasz na komentarze pod swoimi postami w mediach społecznościowych.
+    const systemPrompt = `Jesteś członkiem zespołu gabinetu stomatologicznego Mikrostomart w Opolu.
+Odpowiadasz na komentarze pod postami gabinetu w mediach społecznościowych.
 
 ZASADY:
-- Pisz w PIERWSZEJ OSOBIE (ja, mój gabinet)
+- Pisz w imieniu ZESPOŁU gabinetu ("nasz gabinet", "nasz zespół", "u nas", "zapraszamy")
+- NIGDY nie pisz w pierwszej osobie liczby pojedynczej ("ja", "mój")
 - Ton: ciepły, profesjonalny, przyjazny — jak rozmowa z pacjentem
 - Odpowiedź KRÓTKA: 1-3 zdania (max 200 znaków)
 - Po polsku
@@ -349,26 +350,38 @@ export async function publishReply(
 // ── Facebook reply ─────────────────────────────────────────────────
 
 async function publishFacebookReply(commentId: string, message: string, token: string): Promise<string> {
-    const res = await fetch(`https://graph.facebook.com/v19.0/${commentId}/comments`, {
+    console.log(`[Comments] Publishing FB reply to comment ${commentId}: "${message.substring(0, 50)}..."`);
+    const res = await fetch(`https://graph.facebook.com/v21.0/${commentId}/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message, access_token: token }),
     });
-    const data = await res.json();
-    if (data.error) throw new Error(data.error.message);
+    const text = await res.text();
+    console.log(`[Comments] FB reply response: HTTP ${res.status} — ${text.substring(0, 300)}`);
+    let data: any;
+    try { data = JSON.parse(text); } catch { throw new Error(`FB reply: HTTP ${res.status} — ${text.substring(0, 200)}`); }
+    if (!res.ok || data.error) {
+        throw new Error(`FB reply error: ${data.error?.message || data.error?.code || text.substring(0, 200)}`);
+    }
     return data.id;
 }
 
 // ── Instagram reply ────────────────────────────────────────────────
 
 async function publishInstagramReply(commentId: string, message: string, token: string): Promise<string> {
-    const res = await fetch(`https://graph.facebook.com/v19.0/${commentId}/replies`, {
+    console.log(`[Comments] Publishing IG reply to comment ${commentId}: "${message.substring(0, 50)}..."`);
+    const res = await fetch(`https://graph.facebook.com/v21.0/${commentId}/replies`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message, access_token: token }),
     });
-    const data = await res.json();
-    if (data.error) throw new Error(data.error.message);
+    const text = await res.text();
+    console.log(`[Comments] IG reply response: HTTP ${res.status} — ${text.substring(0, 300)}`);
+    let data: any;
+    try { data = JSON.parse(text); } catch { throw new Error(`IG reply: HTTP ${res.status} — ${text.substring(0, 200)}`); }
+    if (!res.ok || data.error) {
+        throw new Error(`IG reply error: ${data.error?.message || data.error?.code || text.substring(0, 200)}`);
+    }
     return data.id;
 }
 
@@ -403,7 +416,7 @@ async function publishYouTubeReply(commentId: string, text: string, token: strin
 /** Fetch ALL posts from a Facebook Page (paginated, max 200) */
 async function fetchAllFacebookPagePosts(pageId: string, token: string): Promise<{ id: string; message: string }[]> {
     const allPosts: { id: string; message: string }[] = [];
-    let url: string | null = `https://graph.facebook.com/v19.0/${pageId}/posts?fields=id,message,created_time&limit=100&access_token=${token}`;
+    let url: string | null = `https://graph.facebook.com/v21.0/${pageId}/posts?fields=id,message,created_time&limit=100&access_token=${token}`;
 
     while (url && allPosts.length < 50) {
         const res: Response = await fetch(url);
@@ -425,7 +438,7 @@ async function fetchAllFacebookPagePosts(pageId: string, token: string): Promise
 /** Fetch ALL media from an Instagram Business account (paginated, max 200) */
 async function fetchAllInstagramMedia(igAccountId: string, token: string): Promise<{ id: string; caption: string }[]> {
     const allMedia: { id: string; caption: string }[] = [];
-    let url: string | null = `https://graph.facebook.com/v19.0/${igAccountId}/media?fields=id,caption,timestamp&limit=100&access_token=${token}`;
+    let url: string | null = `https://graph.facebook.com/v21.0/${igAccountId}/media?fields=id,caption,timestamp&limit=100&access_token=${token}`;
 
     while (url && allMedia.length < 50) {
         const res: Response = await fetch(url);
