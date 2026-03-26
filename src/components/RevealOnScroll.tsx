@@ -5,9 +5,17 @@ import { useEffect, useRef, useState } from "react";
 interface RevealOnScrollProps {
     children: React.ReactNode;
     animation?: "fade-up" | "blur-in";
-    delay?: 0 | 100 | 200 | 300;
+    delay?: number;
     className?: string;
     style?: React.CSSProperties; // Add style support
+}
+
+// Map arbitrary delay values to nearest valid CSS class
+function getDelayClass(delay: number): string {
+    if (delay <= 0) return "";
+    if (delay <= 150) return "reveal-delay-100";
+    if (delay <= 250) return "reveal-delay-200";
+    return "reveal-delay-300";
 }
 
 export default function RevealOnScroll({
@@ -42,7 +50,7 @@ export default function RevealOnScroll({
     return (
         <div
             ref={ref}
-            className={`reveal ${animation} ${isActive ? "active" : ""} ${delay > 0 ? `reveal-delay-${delay}` : ""} ${className}`}
+            className={`reveal ${animation} ${isActive ? "active" : ""} ${getDelayClass(delay)} ${className}`}
             style={style}
         >
             {children}

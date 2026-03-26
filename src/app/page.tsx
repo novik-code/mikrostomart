@@ -11,6 +11,10 @@ import { useTheme, usePresetId } from "@/context/ThemeContext";
 import { isDemoMode } from "@/lib/demoMode";
 import { getPresetContent } from "@/lib/presetContent";
 import DensFlowLightPage from "@/components/DensFlowLightPage";
+import DentalLuxePage from "@/components/DentalLuxePage";
+import FreshSmilePage from "@/components/FreshSmilePage";
+import NordicDentalPage from "@/components/NordicDentalPage";
+import WarmCarePage from "@/components/WarmCarePage";
 import type { PageSection } from "@/lib/sections";
 
 // ===================== HERO VARIANTS =====================
@@ -686,14 +690,11 @@ export default function Home() {
     const [sections, setSections] = useState<PageSection[]>(DEFAULT_ORDER);
     const tNotification = useTranslations('notification');
     const { theme } = useTheme();
+    const presetId = usePresetId();
     const f = theme.features;
 
-    // DensFlow Light template — render a completely different page
-    if (theme.navbar.layout === 'inline') {
-        return <DensFlowLightPage />;
-    }
-
-    // Load sections config
+    // Load sections config — MUST be called before any conditional returns
+    // to satisfy React's rules of hooks (hooks called in same order every render)
     useEffect(() => {
         fetch('/api/sections', { cache: 'no-store' })
             .then(r => r.json())
@@ -704,6 +705,18 @@ export default function Home() {
             })
             .catch(() => { /* use defaults */ });
     }, []);
+
+    // ═══ Template routing by presetId ═══
+    // Each preset gets its own standalone full-page component
+    if (presetId === 'dental-luxe') return <DentalLuxePage />;
+    if (presetId === 'fresh-smile') return <FreshSmilePage />;
+    if (presetId === 'nordic-dental') return <NordicDentalPage />;
+    if (presetId === 'warm-care') return <WarmCarePage />;
+
+    // DensFlow Light template — render a completely different page
+    if (theme.navbar.layout === 'inline') {
+        return <DensFlowLightPage />;
+    }
 
     return (
         <main>
