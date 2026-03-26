@@ -136,13 +136,14 @@ export async function publishVideoToPlatforms(
     // Supabase Storage private bucket URLs are not accessible by external services
     const videoUrl = await getPublicVideoUrl(rawVideoUrl);
 
-    // 2. Get selected platforms by their IDs
+    // 2. Get selected platforms — ONLY those configured for video content
     let platformQuery = supabase
         .from('social_platforms')
         .select('*')
-        .eq('is_active', true);
+        .eq('is_active', true)
+        .in('content_type', ['video', 'all']); // 🔑 Only video-enabled platforms
 
-    // Use provided IDs, fallback to target_platform_ids from DB, then all active
+    // Use provided IDs, fallback to target_platform_ids from DB, then all video platforms
     const ids = platformIds && platformIds.length > 0
         ? platformIds
         : (video.target_platform_ids && video.target_platform_ids.length > 0 ? video.target_platform_ids : null);
@@ -154,8 +155,12 @@ export async function publishVideoToPlatforms(
     const { data: platforms } = await platformQuery;
 
     if (!platforms || platforms.length === 0) {
-        throw new Error('Brak podłączonych platform. Podłącz konta w zakładce Social Media.');
+        throw new Error('Brak platform skonfigurowanych na wideo. Sprawdź content_type w ustawieniach platform.');
     }
+
+    // Safety: double-check content_type filtering (in case of manual platform ID overrides)
+    const videoPlatforms = platforms.filter((p: any) => p.content_type === 'video' || p.content_type === 'all');
+    console.log(`[VideoPublish] Selected ${videoPlatforms.length} video-enabled platforms (filtered from ${platforms.length}): ${videoPlatforms.map((p: any) => `${p.platform}/${p.account_name}[${p.content_type}]`).join(', ')}`);
 
     // 3. Update video status to publishing
     await supabase
@@ -168,12 +173,12 @@ export async function publishVideoToPlatforms(
     const hashtags: string[] = video.hashtags || [];
     const title = video.title || 'Mikrostomart';
 
-    console.log(`[VideoPublish] Publishing to ${platforms.length} selected platforms: ${platforms.map((p: any) => `${p.platform}(${p.account_name || p.account_id})`).join(', ')}`);
+    console.log(`[VideoPublish] Publishing to ${videoPlatforms.length} video platforms: ${videoPlatforms.map((p: any) => `${p.platform}(${p.account_name || p.account_id})`).join(', ')}`);
 
     // 5. Publish to each selected platform
     const results: any[] = [];
 
-    for (const platform of platforms) {
+    for (const platform of videoPlatforms) {
         console.log(`[VideoPublish] Publishing to ${platform.platform}...`);
         
         // Get platform-specific description
