@@ -356,7 +356,7 @@ export default function Navbar() {
                                                     }}
                                                 >
                                                     <div style={{
-                                                        background: 'rgba(18, 20, 24, 0.95)',
+                                                        background: 'var(--color-surface, rgba(18, 20, 24, 0.95))',
                                                         border: '1px solid rgba(var(--color-primary-dark-rgb), 0.15)',
                                                         borderRadius: 'var(--radius-md)',
                                                         padding: '0.5rem 0',
