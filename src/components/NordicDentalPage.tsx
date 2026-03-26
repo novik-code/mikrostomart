@@ -86,11 +86,39 @@ function NordicNav({ content }: { content: PresetContent }) {
                 </span>
             </div>
 
-            {/* Right: Phone, CTA, Hamburger */}
+            {/* Center: Inline nav links */}
             <div style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '2rem',
+                gap: '1.75rem',
+            }}>
+                {[
+                    { label: 'Oferta', href: '/oferta' },
+                    { label: 'Metamorfozy', href: '/metamorfozy' },
+                    { label: 'Cennik', href: '/cennik' },
+                    { label: 'O Nas', href: '/o-nas' },
+                    { label: 'FAQ', href: '/faq' },
+                    { label: 'Kontakt', href: '/kontakt' },
+                ].map(item => (
+                    <Link key={item.label} href={item.href} style={{
+                        color: '#2C2420',
+                        textDecoration: 'none',
+                        fontSize: '0.82rem',
+                        fontWeight: 400,
+                        fontFamily: 'Lato, sans-serif',
+                        letterSpacing: '0.03em',
+                        transition: 'color 0.2s',
+                    }}>
+                        {item.label}
+                    </Link>
+                ))}
+            </div>
+
+            {/* Right: Phone + CTA */}
+            <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '1.5rem',
             }}>
                 <a href={`tel:${content.contact.phone.replace(/\s/g, '')}`} style={{
                     color: '#7A6E64',
@@ -104,30 +132,18 @@ function NordicNav({ content }: { content: PresetContent }) {
                     📞 {content.contact.phone}
                 </a>
                 <Link href="/rezerwacja" style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    color: '#7A6E64',
+                    background: 'var(--color-primary, #8B7355)',
+                    color: '#FFFFFF',
+                    padding: '10px 24px',
+                    borderRadius: '8px',
                     textDecoration: 'none',
-                    fontSize: '0.85rem',
+                    fontSize: '0.82rem',
+                    fontWeight: 600,
                     fontFamily: 'Lato, sans-serif',
+                    transition: 'all 0.3s',
                 }}>
-                    📅 Umów wizytę
+                    Umów wizytę
                 </Link>
-                {/* Hamburger */}
-                <button style={{
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '5px',
-                    padding: '8px',
-                }}>
-                    <span style={{ width: '24px', height: '1.5px', background: '#2C2420', display: 'block' }} />
-                    <span style={{ width: '24px', height: '1.5px', background: '#2C2420', display: 'block' }} />
-                    <span style={{ width: '16px', height: '1.5px', background: '#2C2420', display: 'block' }} />
-                </button>
             </div>
         </nav>
     );

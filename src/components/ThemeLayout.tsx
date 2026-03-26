@@ -1,6 +1,6 @@
 "use client";
 
-import { ThemeProvider, useTheme } from '@/context/ThemeContext';
+import { ThemeProvider, useTheme, usePresetId } from '@/context/ThemeContext';
 import { ReactNode } from 'react';
 import BackgroundVideo from '@/components/BackgroundVideo';
 import CookieConsent from '@/components/CookieConsent';
@@ -15,6 +15,13 @@ import Footer from '@/components/Footer';
 function ThemedContent({ children }: { children: ReactNode }) {
     const { theme } = useTheme();
     const f = theme.features;
+    const presetId = usePresetId();
+
+    // Standalone templates render their own nav/footer — skip global ones
+    const STANDALONE_TEMPLATES = ['dental-luxe', 'fresh-smile', 'nordic-dental', 'warm-care'];
+    const isStandalone = STANDALONE_TEMPLATES.includes(presetId);
+    // DensFlow Light uses inline nav layout — also skip global nav/footer
+    const skipGlobalChrome = isStandalone || theme.navbar.layout === 'inline';
 
     // Dynamically load Google Fonts based on theme typography
     const fontsToLoad = new Set([theme.typography.fontBody, theme.typography.fontHeading]);
@@ -33,14 +40,14 @@ function ThemedContent({ children }: { children: ReactNode }) {
                 body { font-family: var(--font-body); }
                 h1, h2, h3, h4, h5, h6 { font-family: var(--font-heading); }
             `}</style>
-            {f.backgroundVideo && <BackgroundVideo videoId={theme.hero.backgroundVideoId} />}
+            {!skipGlobalChrome && f.backgroundVideo && <BackgroundVideo videoId={theme.hero.backgroundVideoId} />}
             {f.cookieConsent && <CookieConsent />}
             <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-                <Navbar />
+                {!skipGlobalChrome && <Navbar />}
                 {children}
                 {f.assistantTeaser && <AssistantTeaser />}
                 {f.pwaInstallPrompt && <PWAInstallPrompt />}
-                <Footer />
+                {!skipGlobalChrome && <Footer />}
                 {f.simulatorModal && <SimulatorModal />}
                 {f.opinionSurvey && <OpinionSurvey />}
             </div>

@@ -41,8 +41,34 @@ function HeroLePerle({ content }: { content: PresetContent }) {
             alignItems: 'center',
             textAlign: 'center',
             padding: '120px 24px 80px',
-            background: 'var(--color-background, #FAFAFA)',
+            position: 'relative',
+            overflow: 'hidden',
         }}>
+            {/* Background video */}
+            <video
+                autoPlay
+                muted
+                loop
+                playsInline
+                style={{
+                    position: 'absolute',
+                    inset: 0,
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    zIndex: 0,
+                }}
+            >
+                <source src="https://cdn.pixabay.com/video/2024/09/14/231426_large.mp4" type="video/mp4" />
+            </video>
+            {/* Warm cream overlay — high opacity for readability on light theme */}
+            <div style={{
+                position: 'absolute',
+                inset: 0,
+                background: 'linear-gradient(180deg, rgba(250,250,250,0.92) 0%, rgba(250,250,250,0.85) 40%, rgba(250,250,250,0.92) 100%)',
+                zIndex: 1,
+            }} />
+            <div style={{ position: 'relative', zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             <RevealOnScroll animation="blur-in">
                 <p style={{
                     textTransform: 'uppercase',
@@ -65,6 +91,7 @@ function HeroLePerle({ content }: { content: PresetContent }) {
                     maxWidth: '800px',
                     marginBottom: '1.5rem',
                     letterSpacing: '-0.01em',
+                    textAlign: 'center',
                 }}>
                     {content.hero.title1}{' '}
                     <span style={{
@@ -84,6 +111,7 @@ function HeroLePerle({ content }: { content: PresetContent }) {
                     maxWidth: '550px',
                     lineHeight: 1.8,
                     marginBottom: '2.5rem',
+                    textAlign: 'center',
                 }}>
                     {content.hero.description}
                 </p>
@@ -120,6 +148,7 @@ function HeroLePerle({ content }: { content: PresetContent }) {
                     </Link>
                 </div>
             </RevealOnScroll>
+            </div>
         </section>
     );
 }
