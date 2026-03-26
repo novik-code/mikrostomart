@@ -130,6 +130,11 @@ export default function Navbar() {
     const f = theme.features;
     const t = useTranslations('nav');
 
+    // Detect light theme to adjust logo rendering
+    const bgHex = theme.colors.background.replace('#', '');
+    const lum = (0.299 * parseInt(bgHex.substring(0,2),16) + 0.587 * parseInt(bgHex.substring(2,4),16) + 0.114 * parseInt(bgHex.substring(4,6),16)) / 255;
+    const isLight = lum > 0.5;
+
     const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
     const closeMenu = () => setIsMenuOpen(false);
 
@@ -147,7 +152,7 @@ export default function Navbar() {
                             alt={brand.logoAlt}
                             width={220}
                             height={70}
-                            style={{ width: 'auto', height: '40px' }}
+                            style={{ width: 'auto', height: '40px', filter: isLight ? 'brightness(0)' : 'none' }}
                             priority
                         />
                     </Link>
@@ -225,7 +230,7 @@ export default function Navbar() {
                             alt={brand.logoAlt}
                             width={220}
                             height={70}
-                            style={{ width: 'auto', height: '50px' }}
+                            style={{ width: 'auto', height: '50px', filter: isLight ? 'brightness(0)' : 'none' }}
                             priority
                         />
                     </Link>

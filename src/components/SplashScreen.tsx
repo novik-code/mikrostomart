@@ -90,11 +90,21 @@ function shouldShowSplash(cfg: SplashScreenConfig, pathname: string): boolean {
     }
 }
 
+// Helper: is a hex color "light" (luminance > 0.5)?
+function isLightHex(hex: string): boolean {
+    const c = hex.replace('#', '');
+    const r = parseInt(c.substring(0, 2), 16) / 255;
+    const g = parseInt(c.substring(2, 4), 16) / 255;
+    const b = parseInt(c.substring(4, 6), 16) / 255;
+    return (0.299 * r + 0.587 * g + 0.114 * b) > 0.5;
+}
+
 export default function SplashScreen({ children }: { children: React.ReactNode }) {
     const { theme } = useTheme();
     const pathname = usePathname();
     const cfg: SplashScreenConfig = theme.features.splashScreenConfig || DEFAULT_THEME.features.splashScreenConfig;
     const durationScale = (cfg.duration || 6) / 6; // normalize to default 6s
+    const isLight = isLightHex(theme.colors.background);
 
     // Default to 'done' so SSR output shows content
     const [phase, setPhase] = useState<Phase>('done');
@@ -180,7 +190,7 @@ export default function SplashScreen({ children }: { children: React.ReactNode }
                     position: 'fixed',
                     inset: 0,
                     zIndex: 9999,
-                    background: '#08090a',
+                    background: 'var(--color-background, #08090a)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -238,10 +248,12 @@ export default function SplashScreen({ children }: { children: React.ReactNode }
                             width: p.size,
                             height: p.size,
                             borderRadius: '50%',
-                            background: p.size > 3
-                                ? `radial-gradient(circle, rgba(255,235,130,0.95), rgba(var(--color-primary-dark-rgb),0.3))`
-                                : `radial-gradient(circle, rgba(255,255,220,0.9), rgba(var(--color-primary-dark-rgb),0.2))`,
-                            boxShadow: `0 0 ${p.size * 2}px rgba(var(--color-primary-dark-rgb),${p.opacity * 0.4})`,
+                            background: isLight
+                                ? `radial-gradient(circle, var(--color-primary), rgba(var(--color-primary-rgb),0.3))`
+                                : p.size > 3
+                                    ? `radial-gradient(circle, rgba(255,235,130,0.95), rgba(var(--color-primary-dark-rgb),0.3))`
+                                    : `radial-gradient(circle, rgba(255,255,220,0.9), rgba(var(--color-primary-dark-rgb),0.2))`,
+                            boxShadow: `0 0 ${p.size * 2}px rgba(var(--color-primary-rgb),${p.opacity * 0.4})`,
                             pointerEvents: 'none',
                         }}
                     />
@@ -342,7 +354,7 @@ export default function SplashScreen({ children }: { children: React.ReactNode }
                             }}
                         />
 
-                        {/* The logo image */}
+                        {/* The logo image — invert for light themes */}
                         <Image
                             src={isDemoMode ? "/demo-logo.png" : "/logo-transparent.png"}
                             alt={brand.logoAlt}
@@ -353,6 +365,7 @@ export default function SplashScreen({ children }: { children: React.ReactNode }
                                 height: '100px',
                                 position: 'relative',
                                 zIndex: 2,
+                                filter: isLight ? 'brightness(0)' : 'none',
                             }}
                             priority
                         />
@@ -388,7 +401,7 @@ export default function SplashScreen({ children }: { children: React.ReactNode }
                             position: 'absolute',
                             bottom: '2rem',
                             fontSize: '0.75rem',
-                            color: 'rgba(255,255,255,0.4)',
+                            color: 'var(--color-text-muted, rgba(255,255,255,0.4))',
                             letterSpacing: '0.15em',
                             textTransform: 'uppercase',
                             pointerEvents: 'none',
