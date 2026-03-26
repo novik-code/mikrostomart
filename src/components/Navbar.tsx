@@ -157,9 +157,9 @@ export default function Navbar() {
                             <Image
                                 src={isDemoMode ? "/demo-logo.png" : "/logo-transparent.png"}
                                 alt={brand.logoAlt}
-                                width={320}
-                                height={100}
-                                style={{ width: 'auto', height: '45px' }}
+                                width={574}
+                                height={139}
+                                style={{ width: 'auto', height: '55px' }}
                                 priority
                             />
                         )}
@@ -247,9 +247,9 @@ export default function Navbar() {
                             <Image
                                 src={isDemoMode ? "/demo-logo.png" : "/logo-transparent.png"}
                                 alt={brand.logoAlt}
-                                width={320}
-                                height={100}
-                                style={{ width: 'auto', height: '50px' }}
+                                width={574}
+                                height={139}
+                                style={{ width: 'auto', height: '60px' }}
                                 priority
                             />
                         )}

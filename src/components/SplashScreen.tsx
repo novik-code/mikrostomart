@@ -373,11 +373,11 @@ export default function SplashScreen({ children }: { children: React.ReactNode }
                             <Image
                                 src={isDemoMode ? "/demo-logo.png" : "/logo-transparent.png"}
                                 alt={brand.logoAlt}
-                                width={640}
-                                height={200}
+                                width={574}
+                                height={139}
                                 style={{
                                     width: 'auto',
-                                    height: '100px',
+                                    height: '120px',
                                     position: 'relative',
                                     zIndex: 2,
                                 }}
