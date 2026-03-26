@@ -19,9 +19,7 @@ function ThemedContent({ children }: { children: ReactNode }) {
 
     // Standalone templates render their own nav/footer — skip global ones
     const STANDALONE_TEMPLATES = ['dental-luxe', 'fresh-smile', 'nordic-dental', 'warm-care'];
-    const isStandalone = STANDALONE_TEMPLATES.includes(presetId);
-    // DensFlow Light uses inline nav layout — also skip global nav/footer
-    const skipGlobalChrome = isStandalone || theme.navbar.layout === 'inline';
+    const skipGlobalChrome = STANDALONE_TEMPLATES.includes(presetId);
 
     // Dynamically load Google Fonts based on theme typography
     const fontsToLoad = new Set([theme.typography.fontBody, theme.typography.fontHeading]);
