@@ -39,15 +39,18 @@ export async function GET(req: NextRequest) {
             'pages_manage_posts',
             'pages_read_engagement',
             'pages_show_list',
+            'pages_read_user_content',
+            'business_management',
             'instagram_basic',
             'instagram_content_publish',
         ].join(',');
 
-        const authUrl = `https://www.facebook.com/v19.0/dialog/oauth?` +
+        const authUrl = `https://www.facebook.com/v21.0/dialog/oauth?` +
             `client_id=${APP_ID}` +
             `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
             `&state=${state}` +
             `&scope=${scopes}` +
+            `&auth_type=rerequest` +
             `&response_type=code`;
 
         return NextResponse.redirect(authUrl);
@@ -55,7 +58,7 @@ export async function GET(req: NextRequest) {
 
     // Step 2: Exchange code for short-lived token
     try {
-        const tokenUrl = `https://graph.facebook.com/v19.0/oauth/access_token?` +
+        const tokenUrl = `https://graph.facebook.com/v21.0/oauth/access_token?` +
             `client_id=${APP_ID}` +
             `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
             `&client_secret=${APP_SECRET}` +
@@ -71,7 +74,7 @@ export async function GET(req: NextRequest) {
         const shortLivedToken = tokenData.access_token;
 
         // Step 3: Exchange for long-lived token (60 days)
-        const longLivedUrl = `https://graph.facebook.com/v19.0/oauth/access_token?` +
+        const longLivedUrl = `https://graph.facebook.com/v21.0/oauth/access_token?` +
             `grant_type=fb_exchange_token` +
             `&client_id=${APP_ID}` +
             `&client_secret=${APP_SECRET}` +
