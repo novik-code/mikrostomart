@@ -25,7 +25,7 @@ import {
     downloadCaptionedVideo,
 } from '@/lib/captionsAI';
 import { publishVideoToPlatforms } from '@/app/api/social/video-publish/route';
-import { readFileSync, writeFileSync, unlinkSync, existsSync, readdirSync } from 'fs';
+import { readFileSync, unlinkSync, existsSync, readdirSync } from 'fs';
 import { execSync } from 'child_process';
 
 export const maxDuration = 300;
@@ -242,17 +242,43 @@ export async function GET(req: NextRequest) {
                     const tmpOutput = `/tmp/out_${Date.now()}.mp4`;
 
                     // Download video to /tmp (cleanTmp ensures space)
-                    // 80MB ffmpeg + 217MB raw + 10MB output = 307MB < 512MB limit
                     console.log(`[VideoCron] Downloading ${inputSizeMB.toFixed(1)}MB...`);
                     const dlStart = Date.now();
                     execSync(`curl -sL -o "${tmpInput}" "${videoUrl}"`, { timeout: 200000 });
                     console.log(`[VideoCron] Downloaded in ${((Date.now() - dlStart) / 1000).toFixed(0)}s`);
 
-                    // Compress with ffmpeg — capture stderr for diagnostics
+                    // Get video duration for bitrate calculation
+                    let durationSec = 60; // fallback
+                    try {
+                        const ffprobePath = ffmpeg.replace(/ffmpeg$/, 'ffprobe');
+                        const probeOut = execSync(
+                            `"${ffprobePath}" -v error -show_entries format=duration -of csv=p=0 "${tmpInput}" 2>/dev/null`,
+                            { timeout: 15000 }
+                        ).toString().trim();
+                        const parsed = parseFloat(probeOut);
+                        if (parsed > 0) durationSec = parsed;
+                    } catch { /* use fallback */ }
+                    console.log(`[VideoCron] Duration: ${durationSec.toFixed(0)}s`);
+
+                    // Determine ffmpeg settings based on file size
+                    let ffmpegArgs: string;
+                    if (inputSizeMB > 48) {
+                        // Large file: use target bitrate to guarantee output <45MB
+                        const targetMB = 45;
+                        const targetBitrateKbps = Math.floor((targetMB * 8 * 1024) / durationSec);
+                        const audioBitrate = 96;
+                        const videoBitrate = Math.max(targetBitrateKbps - audioBitrate, 400);
+                        console.log(`[VideoCron] Large file → target: ${targetMB}MB, video bitrate: ${videoBitrate}kbps`);
+                        ffmpegArgs = `-c:v libx264 -preset fast -crf 30 -maxrate ${videoBitrate}k -bufsize ${videoBitrate * 2}k -c:a aac -b:a ${audioBitrate}k -movflags +faststart`;
+                    } else {
+                        // Normal file: quality-based compression
+                        ffmpegArgs = `-c:v libx264 -preset ultrafast -crf 28 -c:a aac -b:a 128k -movflags +faststart`;
+                    }
+
+                    // Compress with ffmpeg
                     console.log(`[VideoCron] Compressing...`);
                     const compStart = Date.now();
                     try {
-                        // Test ffmpeg binary first
                         const ver = execSync(`"${ffmpeg}" -version 2>&1 | head -1`, { timeout: 5000 }).toString().trim();
                         console.log(`[VideoCron] ffmpeg: ${ver}`);
                     } catch (e: any) {
@@ -262,7 +288,7 @@ export async function GET(req: NextRequest) {
                     
                     try {
                         execSync(
-                            `"${ffmpeg}" -i "${tmpInput}" -c:v libx264 -preset ultrafast -crf 28 -c:a aac -b:a 128k -movflags +faststart "${tmpOutput}" -y 2>/tmp/ffmpeg_err.log`,
+                            `"${ffmpeg}" -i "${tmpInput}" ${ffmpegArgs} "${tmpOutput}" -y 2>/tmp/ffmpeg_err.log`,
                             { timeout: 250000 }
                         );
                     } catch (ffErr: any) {
@@ -320,75 +346,11 @@ export async function GET(req: NextRequest) {
                 const compUrl = video.compressed_video_url || video.raw_video_url;
                 const res = await fetch(compUrl);
                 if (!res.ok) throw new Error(`Download failed: ${res.status}`);
-                let buffer = Buffer.from(await res.arrayBuffer());
-                let sizeMB = buffer.length / (1024 * 1024);
+                const buffer = Buffer.from(await res.arrayBuffer());
+                const sizeMB = buffer.length / (1024 * 1024);
 
                 if (sizeMB > 50) {
-                    // Auto re-compress oversized videos with more aggressive settings
-                    console.log(`[VideoCron] Step 4: Video too large (${sizeMB.toFixed(1)}MB), re-compressing to <50MB...`);
-                    
-                    const ffmpeg = await ensureFfmpeg();
-                    const tmpInput = `/tmp/recomp_in_${Date.now()}.mp4`;
-                    const tmpOutput = `/tmp/recomp_out_${Date.now()}.mp4`;
-                    
-                    writeFileSync(tmpInput, buffer);
-                    
-                    // Get video duration for bitrate calculation
-                    let durationSec = 60; // fallback
-                    try {
-                        const probeOut = execSync(
-                            `"${ffmpeg.replace('ffmpeg', 'ffprobe')}" -v error -show_entries format=duration -of csv=p=0 "${tmpInput}" 2>/dev/null`,
-                            { timeout: 15000 }
-                        ).toString().trim();
-                        const parsed = parseFloat(probeOut);
-                        if (parsed > 0) durationSec = parsed;
-                    } catch { /* use fallback */ }
-                    
-                    // Target: 45MB to have some margin (45 * 8 * 1024 kbit)
-                    const targetBitrateKbps = Math.floor((45 * 8 * 1024) / durationSec);
-                    const audioBitrate = 96; // kbps
-                    const videoBitrate = Math.max(targetBitrateKbps - audioBitrate, 500);
-                    
-                    console.log(`[VideoCron] Duration: ${durationSec.toFixed(0)}s, target video bitrate: ${videoBitrate}kbps`);
-                    
-                    try {
-                        execSync(
-                            `"${ffmpeg}" -i "${tmpInput}" -c:v libx264 -preset fast -crf 32 -maxrate ${videoBitrate}k -bufsize ${videoBitrate * 2}k -c:a aac -b:a ${audioBitrate}k -movflags +faststart "${tmpOutput}" -y 2>/tmp/ffmpeg_recomp.log`,
-                            { timeout: 300000 }
-                        );
-                    } catch (ffErr: any) {
-                        let errLog = '';
-                        try { errLog = readFileSync('/tmp/ffmpeg_recomp.log', 'utf-8').slice(-500); } catch {}
-                        try { unlinkSync(tmpInput); } catch {}
-                        throw new Error(`Re-compress failed: ${errLog.slice(-200) || ffErr.message?.slice(0, 200)}`);
-                    }
-                    
-                    try { unlinkSync(tmpInput); } catch {}
-                    const recompBuffer = readFileSync(tmpOutput);
-                    const recompMB = recompBuffer.length / (1024 * 1024);
-                    try { unlinkSync(tmpOutput); } catch {}
-                    
-                    console.log(`[VideoCron] Re-compressed: ${sizeMB.toFixed(1)}MB → ${recompMB.toFixed(1)}MB`);
-                    
-                    if (recompMB > 50) {
-                        throw new Error(`Still too large after re-compression: ${recompMB.toFixed(1)}MB (max 50MB). Try a shorter video.`);
-                    }
-                    
-                    // Upload re-compressed version
-                    const recompFileName = `videos/recompressed_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.mp4`;
-                    const { error: upErr } = await supabase.storage
-                        .from('social-media')
-                        .upload(recompFileName, recompBuffer, { contentType: 'video/mp4', upsert: false });
-                    if (upErr) throw new Error(`Upload recompressed: ${upErr.message}`);
-                    
-                    const { data: recompUrl } = supabase.storage.from('social-media').getPublicUrl(recompFileName);
-                    await supabase.from('social_video_queue')
-                        .update({ compressed_video_url: recompUrl.publicUrl })
-                        .eq('id', video.id);
-                    
-                    // Use re-compressed buffer for captioning
-                    buffer = recompBuffer;
-                    sizeMB = recompMB;
+                    throw new Error(`Too large after compression: ${sizeMB.toFixed(1)}MB (max 50MB). Reset to 'analyzed' to re-compress with new bitrate settings.`);
                 }
 
                 await supabase.from('social_video_queue')
