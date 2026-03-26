@@ -371,16 +371,15 @@ export default function SplashScreen({ children }: { children: React.ReactNode }
                             </span>
                         ) : (
                             <Image
-                                src={isDemoMode ? "/densflow-logo-vertical.png" : "/logo-transparent.png"}
+                                src={isDemoMode ? "/demo-logo.png" : "/logo-transparent.png"}
                                 alt={brand.logoAlt}
-                                width={440}
-                                height={440}
+                                width={640}
+                                height={200}
                                 style={{
                                     width: 'auto',
-                                    height: '160px',
+                                    height: '100px',
                                     position: 'relative',
                                     zIndex: 2,
-                                    filter: isLight ? 'brightness(0.3)' : 'none',
                                 }}
                                 priority
                             />

@@ -131,12 +131,6 @@ export default function Navbar() {
     const t = useTranslations('nav');
     const useTextLogo = theme.navbar.logoMode === 'text';
 
-    // Detect light theme for image logo variant selection
-    const bgHex = theme.colors.background.replace('#', '');
-    const lum = (0.299 * parseInt(bgHex.substring(0,2),16) + 0.587 * parseInt(bgHex.substring(2,4),16) + 0.114 * parseInt(bgHex.substring(4,6),16)) / 255;
-    const isLight = lum > 0.5;
-    const demoLogoSrc = '/densflow-logo-vertical.png';
-
     const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
     const closeMenu = () => setIsMenuOpen(false);
 
@@ -161,11 +155,11 @@ export default function Navbar() {
                             </span>
                         ) : (
                             <Image
-                                src={isDemoMode ? demoLogoSrc : "/logo-transparent.png"}
+                                src={isDemoMode ? "/demo-logo.png" : "/logo-transparent.png"}
                                 alt={brand.logoAlt}
-                                width={220}
-                                height={220}
-                                style={{ width: 'auto', height: '50px', filter: isLight ? 'brightness(0.3)' : 'none' }}
+                                width={320}
+                                height={100}
+                                style={{ width: 'auto', height: '45px' }}
                                 priority
                             />
                         )}
@@ -251,11 +245,11 @@ export default function Navbar() {
                             </span>
                         ) : (
                             <Image
-                                src={isDemoMode ? demoLogoSrc : "/logo-transparent.png"}
+                                src={isDemoMode ? "/demo-logo.png" : "/logo-transparent.png"}
                                 alt={brand.logoAlt}
-                                width={220}
-                                height={220}
-                                style={{ width: 'auto', height: '55px', filter: isLight ? 'brightness(0.3)' : 'none' }}
+                                width={320}
+                                height={100}
+                                style={{ width: 'auto', height: '50px' }}
                                 priority
                             />
                         )}
