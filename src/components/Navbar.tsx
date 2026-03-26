@@ -147,14 +147,26 @@ export default function Navbar() {
                 <div className={`container ${styles.containerInline}`}>
                     {/* Logo — left */}
                     <Link href="/" className={styles.logoInline} onClick={closeMenu}>
-                        <Image
-                            src={isDemoMode ? "/demo-logo.png" : "/logo-transparent.png"}
-                            alt={brand.logoAlt}
-                            width={220}
-                            height={70}
-                            style={{ width: 'auto', height: '40px', filter: isLight ? 'brightness(0)' : 'none' }}
-                            priority
-                        />
+                        {isLight ? (
+                            <span style={{
+                                fontSize: '1.3rem',
+                                fontWeight: 700,
+                                letterSpacing: '0.12em',
+                                color: 'var(--color-text-main, #1A1A1A)',
+                                fontFamily: 'var(--font-heading, inherit)',
+                            }}>
+                                {theme.navbar.logoText}
+                            </span>
+                        ) : (
+                            <Image
+                                src={isDemoMode ? "/demo-logo.png" : "/logo-transparent.png"}
+                                alt={brand.logoAlt}
+                                width={220}
+                                height={70}
+                                style={{ width: 'auto', height: '40px' }}
+                                priority
+                            />
+                        )}
                     </Link>
 
                     {/* Desktop links — center, always visible */}
@@ -225,14 +237,26 @@ export default function Navbar() {
                     }}
                 >
                     <Link href="/" className={styles.logo} onClick={closeMenu}>
-                        <Image
-                            src={isDemoMode ? "/demo-logo.png" : "/logo-transparent.png"}
-                            alt={brand.logoAlt}
-                            width={220}
-                            height={70}
-                            style={{ width: 'auto', height: '50px', filter: isLight ? 'brightness(0)' : 'none' }}
-                            priority
-                        />
+                        {isLight ? (
+                            <span style={{
+                                fontSize: '1.5rem',
+                                fontWeight: 700,
+                                letterSpacing: '0.12em',
+                                color: 'var(--color-text-main, #1A1A1A)',
+                                fontFamily: 'var(--font-heading, inherit)',
+                            }}>
+                                {theme.navbar.logoText}
+                            </span>
+                        ) : (
+                            <Image
+                                src={isDemoMode ? "/demo-logo.png" : "/logo-transparent.png"}
+                                alt={brand.logoAlt}
+                                width={220}
+                                height={70}
+                                style={{ width: 'auto', height: '50px' }}
+                                priority
+                            />
+                        )}
                     </Link>
                 </motion.div>
 

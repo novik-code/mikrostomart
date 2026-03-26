@@ -187,6 +187,32 @@ export default async function RootLayout({
     return (
         <html lang={locale}>
             <body className={`${inter.variable} ${playfair.variable}`} style={isDemoMode ? { paddingTop: '2rem' } : undefined}>
+                {/* Blocking script: Apply cached theme CSS vars BEFORE React hydrates to prevent flash */}
+                <script dangerouslySetInnerHTML={{ __html: `
+                    (function(){
+                        try {
+                            var raw = localStorage.getItem('densflow_theme');
+                            if (!raw) return;
+                            var t = JSON.parse(raw);
+                            if (!t || !t.colors) return;
+                            var c = t.colors, r = document.documentElement.style;
+                            function hexRgb(h) {
+                                h = h.replace('#','');
+                                return parseInt(h.substring(0,2),16)+','+parseInt(h.substring(2,4),16)+','+parseInt(h.substring(4,6),16);
+                            }
+                            if(c.background) r.setProperty('--color-background', c.background);
+                            if(c.surface) r.setProperty('--color-surface', c.surface);
+                            if(c.surfaceHover) r.setProperty('--color-surface-hover', c.surfaceHover);
+                            if(c.primary) { r.setProperty('--color-primary', c.primary); r.setProperty('--color-primary-rgb', hexRgb(c.primary)); }
+                            if(c.primaryLight) r.setProperty('--color-primary-light', c.primaryLight);
+                            if(c.primaryDark) { r.setProperty('--color-primary-dark', c.primaryDark); r.setProperty('--color-primary-dark-rgb', hexRgb(c.primaryDark)); }
+                            if(c.textMain) r.setProperty('--color-text-main', c.textMain);
+                            if(c.textMuted) r.setProperty('--color-text-muted', c.textMuted);
+                            if(c.success) r.setProperty('--color-success', c.success);
+                            if(c.error) r.setProperty('--color-error', c.error);
+                        } catch(e){}
+                    })();
+                ` }} />
                 <DemoBanner />
                 <SchemaOrg />
                 <NextIntlClientProvider locale={locale} messages={messages}>

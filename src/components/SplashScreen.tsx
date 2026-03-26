@@ -354,21 +354,34 @@ export default function SplashScreen({ children }: { children: React.ReactNode }
                             }}
                         />
 
-                        {/* The logo image — invert for light themes */}
-                        <Image
-                            src={isDemoMode ? "/demo-logo.png" : "/logo-transparent.png"}
-                            alt={brand.logoAlt}
-                            width={440}
-                            height={140}
-                            style={{
-                                width: 'auto',
-                                height: '100px',
+                        {/* The logo — text for light themes, image for dark */}
+                        {isLight ? (
+                            <span style={{
+                                fontSize: '2.5rem',
+                                fontWeight: 700,
+                                letterSpacing: '0.15em',
+                                color: 'var(--color-text-main, #1A1A1A)',
+                                fontFamily: 'var(--font-heading, inherit)',
                                 position: 'relative',
                                 zIndex: 2,
-                                filter: isLight ? 'brightness(0)' : 'none',
-                            }}
-                            priority
-                        />
+                            }}>
+                                {theme.navbar.logoText}
+                            </span>
+                        ) : (
+                            <Image
+                                src={isDemoMode ? "/demo-logo.png" : "/logo-transparent.png"}
+                                alt={brand.logoAlt}
+                                width={440}
+                                height={140}
+                                style={{
+                                    width: 'auto',
+                                    height: '100px',
+                                    position: 'relative',
+                                    zIndex: 2,
+                                }}
+                                priority
+                            />
+                        )}
                     </motion.div>
                 )}
 
