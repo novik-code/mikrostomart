@@ -269,7 +269,7 @@ export async function GET(req: NextRequest) {
                         const audioBitrate = 96;
                         const videoBitrate = Math.max(targetBitrateKbps - audioBitrate, 400);
                         console.log(`[VideoCron] Large file → target: ${targetMB}MB, video bitrate: ${videoBitrate}kbps`);
-                        ffmpegArgs = `-c:v libx264 -preset fast -crf 30 -maxrate ${videoBitrate}k -bufsize ${videoBitrate * 2}k -c:a aac -b:a ${audioBitrate}k -movflags +faststart`;
+                        ffmpegArgs = `-c:v libx264 -preset ultrafast -crf 30 -maxrate ${videoBitrate}k -bufsize ${videoBitrate * 2}k -c:a aac -b:a ${audioBitrate}k -movflags +faststart`;
                     } else {
                         // Normal file: quality-based compression
                         ffmpegArgs = `-c:v libx264 -preset ultrafast -crf 28 -c:a aac -b:a 128k -movflags +faststart`;
