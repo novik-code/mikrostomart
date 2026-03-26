@@ -557,17 +557,26 @@ export const THEME_PRESETS: Record<string, Partial<ThemeConfig>> = {
 interface ThemeContextValue {
     theme: ThemeConfig;
     isLoaded: boolean;
+    presetId: string;
     setTheme: React.Dispatch<React.SetStateAction<ThemeConfig>>;
+    setPresetId: (id: string) => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue>({
     theme: DEFAULT_THEME,
     isLoaded: false,
+    presetId: 'default-gold',
     setTheme: () => {},
+    setPresetId: () => {},
 });
 
 export function useTheme() {
     return useContext(ThemeContext);
+}
+
+/** Convenience hook to get just the active preset ID */
+export function usePresetId(): string {
+    return useContext(ThemeContext).presetId;
 }
 
 // ===================== APPLY THEME =====================
@@ -662,6 +671,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     // Demo mode uses DensFlow Light preset as default
     const isDemo = typeof window !== 'undefined' && process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
     const DEMO_DEFAULT = isDemo ? mergeTheme(THEME_PRESETS['densflow-light'] || {}) : DEFAULT_THEME;
+    const DEMO_DEFAULT_PRESET = isDemo ? 'densflow-light' : 'default-gold';
 
     const [theme, setTheme] = useState<ThemeConfig>(() => {
         if (typeof window !== 'undefined') {
@@ -677,7 +687,21 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         }
         return DEMO_DEFAULT;
     });
+    const [presetId, setPresetIdState] = useState<string>(() => {
+        if (typeof window !== 'undefined') {
+            try {
+                const cached = localStorage.getItem('densflow_preset_id');
+                if (cached) return cached;
+            } catch {}
+        }
+        return DEMO_DEFAULT_PRESET;
+    });
     const [isLoaded, setIsLoaded] = useState(false);
+
+    const setPresetId = (id: string) => {
+        setPresetIdState(id);
+        try { localStorage.setItem('densflow_preset_id', id); } catch {}
+    };
 
     // Apply theme to DOM immediately on first render
     useEffect(() => {
@@ -695,6 +719,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
                         const merged = mergeTheme(overrides);
                         setTheme(merged);
                         applyThemeToDOM(merged);
+                        // Detect preset ID from returned theme
+                        if (overrides._presetId) {
+                            setPresetId(overrides._presetId);
+                        }
                         // Cache for next page load
                         try { localStorage.setItem('densflow_theme', JSON.stringify(overrides)); } catch {}
                     }
@@ -708,7 +736,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }, []);
 
     return (
-        <ThemeContext.Provider value={{ theme, isLoaded, setTheme }}>
+        <ThemeContext.Provider value={{ theme, isLoaded, presetId, setTheme, setPresetId }}>
             {children}
         </ThemeContext.Provider>
     );

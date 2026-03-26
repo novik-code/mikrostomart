@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import RevealOnScroll from "@/components/RevealOnScroll";
+import { usePresetId } from "@/context/ThemeContext";
+import { getPresetContent, type PresetContent } from "@/lib/presetContent";
 
 // ═══════════════════════════════════════════════════════════════
 // DensFlowLightPage — A completely standalone luxury clinic page
@@ -9,15 +11,18 @@ import RevealOnScroll from "@/components/RevealOnScroll";
 // ═══════════════════════════════════════════════════════════════
 
 export default function DensFlowLightPage() {
+    const presetId = usePresetId();
+    const content = getPresetContent(presetId);
+
     return (
         <main style={{ background: 'var(--color-background, #FAFAFA)' }}>
-            <HeroLePerle />
-            <StatsBar />
-            <ServicesSection />
-            <PhilosophySection />
-            <TeamSection />
-            <DarkCTASection />
-            <TestimonialsSection />
+            <HeroLePerle content={content} />
+            <StatsBar content={content} />
+            <ServicesSection content={content} />
+            <PhilosophySection content={content} />
+            <TeamSection content={content} />
+            <DarkCTASection content={content} />
+            <TestimonialsSection content={content} />
         </main>
     );
 }
@@ -26,7 +31,7 @@ export default function DensFlowLightPage() {
 // 1. HERO — Centered, large elegant text, dual pill CTAs
 // ═══════════════════════════════════════════════════════════════
 
-function HeroLePerle() {
+function HeroLePerle({ content }: { content: PresetContent }) {
     return (
         <section style={{
             minHeight: '90vh',
@@ -47,7 +52,7 @@ function HeroLePerle() {
                     marginBottom: '1.5rem',
                     fontWeight: 500,
                 }}>
-                    Stomatologia estetyczna
+                    {content.hero.label}
                 </p>
             </RevealOnScroll>
 
@@ -61,13 +66,13 @@ function HeroLePerle() {
                     marginBottom: '1.5rem',
                     letterSpacing: '-0.01em',
                 }}>
-                    Twoja droga do{' '}
+                    {content.hero.title1}{' '}
                     <span style={{
                         fontWeight: 500,
                         fontStyle: 'italic',
                         color: 'var(--color-primary, #9D7D5D)',
                     }}>
-                        pięknego uśmiechu
+                        {content.hero.title2}
                     </span>
                 </h1>
             </RevealOnScroll>
@@ -80,8 +85,7 @@ function HeroLePerle() {
                     lineHeight: 1.8,
                     marginBottom: '2.5rem',
                 }}>
-                    Łączymy precyzję stomatologii z indywidualnym podejściem.
-                    Każdy uśmiech projektujemy z dbałością o naturalne piękno.
+                    {content.hero.description}
                 </p>
             </RevealOnScroll>
 
@@ -124,14 +128,7 @@ function HeroLePerle() {
 // 2. STATS BAR — 4 large numbers with labels
 // ═══════════════════════════════════════════════════════════════
 
-function StatsBar() {
-    const stats = [
-        { number: '527+', label: 'Metamorfoz uśmiechu' },
-        { number: '15', label: 'Lat doświadczenia' },
-        { number: '98%', label: 'Zadowolonych pacjentów' },
-        { number: '12', label: 'Specjalistów w zespole' },
-    ];
-
+function StatsBar({ content }: { content: PresetContent }) {
     return (
         <section style={{
             padding: '60px 24px',
@@ -147,7 +144,7 @@ function StatsBar() {
                 gap: '2rem',
                 textAlign: 'center',
             }}>
-                {stats.map((stat, i) => (
+                {content.stats.map((stat, i) => (
                     <RevealOnScroll key={i} delay={([0, 100, 200, 300] as const)[i % 4]}>
                         <div>
                             <div style={{
@@ -181,38 +178,14 @@ function StatsBar() {
 // 3. SERVICES — Dark rounded cards, 3-column grid
 // ═══════════════════════════════════════════════════════════════
 
-function ServicesSection() {
-    const services = [
-        {
-            title: 'Metamorfozy uśmiechu',
-            desc: 'Kompleksowe planowanie i realizacja nowego uśmiechu — od projektu cyfrowego po efekt końcowy, który zmienia życie.',
-            gradient: 'linear-gradient(135deg, #2C2C2C, #1A1A1A)',
-        },
-        {
-            title: 'Licówki porcelanowe',
-            desc: 'Ultra-cienkie licówki, które odtwarzają naturalną strukturę zęba. Trwałość i estetyka na najwyższym poziomie.',
-            gradient: 'linear-gradient(135deg, #3A3A3A, #1A1A1A)',
-        },
-        {
-            title: 'Invisalign',
-            desc: 'Niewidoczne nakładki prostujące zęby. Komfort noszenia i doskonałe efekty w dyskretnej formie.',
-            gradient: 'linear-gradient(135deg, #2C2C2C, #1F1F1F)',
-        },
-        {
-            title: 'Implanty zębowe',
-            desc: 'Najnowocześniejsze systemy implantologiczne. Precyzyjne wszczepienie z nawigacją 3D dla optymalnych efektów.',
-            gradient: 'linear-gradient(135deg, #333333, #1A1A1A)',
-        },
-        {
-            title: 'Wybielanie zębów',
-            desc: 'Profesjonalne wybielanie z ochroną szkliwa. Natychmiastowy efekt świetlistego, naturalnego uśmiechu.',
-            gradient: 'linear-gradient(135deg, #2E2E2E, #1A1A1A)',
-        },
-        {
-            title: 'Protetyka cyfrowa',
-            desc: 'Korony i mosty projektowane cyfrowo. Idealnie dopasowane, wytrzymałe i estetyczne odbudowy protetyczne.',
-            gradient: 'linear-gradient(135deg, #353535, #1A1A1A)',
-        },
+function ServicesSection({ content }: { content: PresetContent }) {
+    const gradients = [
+        'linear-gradient(135deg, #2C2C2C, #1A1A1A)',
+        'linear-gradient(135deg, #3A3A3A, #1A1A1A)',
+        'linear-gradient(135deg, #2C2C2C, #1F1F1F)',
+        'linear-gradient(135deg, #333333, #1A1A1A)',
+        'linear-gradient(135deg, #2E2E2E, #1A1A1A)',
+        'linear-gradient(135deg, #353535, #1A1A1A)',
     ];
 
     return (
@@ -249,11 +222,11 @@ function ServicesSection() {
                     gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
                     gap: '1.25rem',
                 }}>
-                    {services.map((service, i) => (
+                    {content.services.map((service, i) => (
                         <RevealOnScroll key={i} delay={([0, 100, 200, 300] as const)[i % 4]}>
                             <Link href="/oferta" style={{ textDecoration: 'none' }}>
                                 <div style={{
-                                    background: service.gradient,
+                                    background: gradients[i % gradients.length],
                                     borderRadius: '20px',
                                     padding: '40px 32px',
                                     minHeight: '220px',
@@ -305,24 +278,7 @@ function ServicesSection() {
 // 4. PHILOSOPHY — Large rounded capsule cards
 // ═══════════════════════════════════════════════════════════════
 
-function PhilosophySection() {
-    const values = [
-        {
-            title: 'Bezbolesne leczenie',
-            desc: 'Stosujemy najnowocześniejsze metody znieczulenia i sedacji. Komfort pacjenta jest naszym priorytetem podczas każdego zabiegu.',
-            number: '01',
-        },
-        {
-            title: 'Indywidualne podejście',
-            desc: 'Każdy pacjent jest wyjątkowy. Projektujemy plan leczenia dopasowany do Twoich potrzeb, oczekiwań i naturalnej anatomii uśmiechu.',
-            number: '02',
-        },
-        {
-            title: 'Nowoczesna technologia',
-            desc: 'Skaner 3D, mikroskop endodontyczny, nawigacja chirurgiczna. Pracujemy z najlepszą technologią, aby zapewnić precyzję i bezpieczeństwo.',
-            number: '03',
-        },
-    ];
+function PhilosophySection({ content }: { content: PresetContent }) {
 
     return (
         <section style={{
@@ -356,7 +312,7 @@ function PhilosophySection() {
                 </RevealOnScroll>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                    {values.map((value, i) => (
+                    {content.philosophy.map((value, i) => (
                         <RevealOnScroll key={i} delay={([0, 100, 200, 300] as const)[i % 4]}>
                             <div style={{
                                 display: 'flex',
@@ -409,13 +365,7 @@ function PhilosophySection() {
 // 5. TEAM — Horizontal cards on warm beige background
 // ═══════════════════════════════════════════════════════════════
 
-function TeamSection() {
-    const team = [
-        { name: 'Dr Anna Kowalska', role: 'Stomatologia estetyczna', initials: 'AK' },
-        { name: 'Dr Jan Nowak', role: 'Implantologia i chirurgia', initials: 'JN' },
-        { name: 'Dr Maria Wiśniewska', role: 'Ortodoncja i Invisalign', initials: 'MW' },
-        { name: 'Dr Piotr Zieliński', role: 'Endodoncja mikroskopowa', initials: 'PZ' },
-    ];
+function TeamSection({ content }: { content: PresetContent }) {
 
     return (
         <section style={{
@@ -453,7 +403,7 @@ function TeamSection() {
                     gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
                     gap: '1.5rem',
                 }}>
-                    {team.map((member, i) => (
+                    {content.team.map((member, i) => (
                         <RevealOnScroll key={i} delay={([0, 100, 200, 300] as const)[i % 4]}>
                             <div style={{
                                 background: 'var(--color-surface, #FFFFFF)',
@@ -508,7 +458,7 @@ function TeamSection() {
 // 6. DARK CTA — Full-width black rounded container
 // ═══════════════════════════════════════════════════════════════
 
-function DarkCTASection() {
+function DarkCTASection({ content }: { content: PresetContent }) {
     return (
         <section style={{ padding: '40px 24px', background: 'var(--color-background, #FAFAFA)' }}>
             <RevealOnScroll>
@@ -592,24 +542,7 @@ function DarkCTASection() {
 // 7. TESTIMONIALS — Clean text quotes
 // ═══════════════════════════════════════════════════════════════
 
-function TestimonialsSection() {
-    const testimonials = [
-        {
-            quote: 'Pierwszy raz w życiu nie bałam się wizyty u dentysty. Atmosfera, podejście i efekty — wszystko na najwyższym poziomie.',
-            name: 'Katarzyna M.',
-            treatment: 'Licówki porcelanowe',
-        },
-        {
-            quote: 'Po latach kompleksów w końcu mogę się uśmiechać bez skrępowania. Metamorfoza zmieniła moje życie.',
-            name: 'Marcin W.',
-            treatment: 'Metamorfoza uśmiechu',
-        },
-        {
-            quote: 'Profesjonalizm i cierpliwość na każdym etapie leczenia. Efekty Invisalign przerosły moje oczekiwania.',
-            name: 'Agnieszka K.',
-            treatment: 'Invisalign',
-        },
-    ];
+function TestimonialsSection({ content }: { content: PresetContent }) {
 
     return (
         <section style={{
@@ -643,7 +576,7 @@ function TestimonialsSection() {
                 </RevealOnScroll>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-                    {testimonials.map((t, i) => (
+                    {content.testimonials.map((t, i) => (
                         <RevealOnScroll key={i} delay={([0, 100, 200, 300] as const)[i % 4]}>
                             <div style={{
                                 padding: '40px',

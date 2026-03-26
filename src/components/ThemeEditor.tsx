@@ -227,6 +227,11 @@ export default function ThemeEditor() {
                     partial[section] = current;
                 }
             }
+            // Include active preset ID for content differentiation
+            try {
+                const pid = localStorage.getItem('densflow_preset_id');
+                if (pid) partial._presetId = pid;
+            } catch {}
 
             const res = await fetch('/api/admin/theme', {
                 method: 'PUT',
@@ -282,6 +287,8 @@ export default function ThemeEditor() {
         if (!preset) return;
         const merged = mergeTheme(preset);
         setTheme(merged);
+        // Save preset ID for content differentiation
+        try { localStorage.setItem('densflow_preset_id', presetName); } catch {}
     };
 
     const sections = [

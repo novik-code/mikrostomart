@@ -7,8 +7,9 @@ import RevealOnScroll from "@/components/RevealOnScroll";
 import BeforeAfterSlider from "@/components/BeforeAfterSlider";
 import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
-import { useTheme } from "@/context/ThemeContext";
+import { useTheme, usePresetId } from "@/context/ThemeContext";
 import { isDemoMode } from "@/lib/demoMode";
+import { getPresetContent } from "@/lib/presetContent";
 import DensFlowLightPage from "@/components/DensFlowLightPage";
 import type { PageSection } from "@/lib/sections";
 
@@ -19,13 +20,13 @@ type HeroLayout = 'centered' | 'split-right' | 'split-left' | 'fullscreen-video'
 function HeroSection({ layout = 'centered' }: { layout?: HeroLayout }) {
     const tHero = useTranslations('hero');
     const tCta = useTranslations();
+    const presetId = usePresetId();
+    const pc = getPresetContent(presetId);
 
-    const tagline = isDemoMode ? 'System zarządzania gabinetem' : tHero('tagline');
-    const title1 = tHero('title1');
-    const title2 = tHero('title2');
-    const desc = isDemoMode
-        ? 'Odkryj DensFlow — kompleksowy system do zarządzania gabinetem stomatologicznym. Rezerwacje, panel pacjenta, zarządzanie zespołem i automatyzacja.'
-        : tHero('description');
+    const tagline = isDemoMode ? pc.hero.label : tHero('tagline');
+    const title1 = isDemoMode ? pc.hero.title1 : tHero('title1');
+    const title2 = isDemoMode ? pc.hero.title2 : tHero('title2');
+    const desc = isDemoMode ? pc.hero.description : tHero('description');
     const ctaText = tCta('bookConsultationCta');
 
     const textBlock = (
@@ -321,7 +322,9 @@ function TextBlockSection({ config }: { config: Record<string, any> }) {
 // ===================== NEW SECTIONS =====================
 
 function OfferSection() {
-    const services = [
+    const presetId = usePresetId();
+    const content = getPresetContent(presetId);
+    const services = isDemoMode ? content.services : [
         { icon: '🦷', title: 'Stomatologia zachowawcza', desc: 'Leczenie próchnicy, wypełnienia, endodoncja' },
         { icon: '✨', title: 'Stomatologia estetyczna', desc: 'Licówki, bonding, wybielanie zębów' },
         { icon: '🔧', title: 'Implantologia', desc: 'Implanty zębowe, odbudowa uzębienia' },
@@ -371,7 +374,9 @@ function OfferSection() {
 
 function FAQSection() {
     const [openIdx, setOpenIdx] = useState<number | null>(null);
-    const faqs = [
+    const presetId = usePresetId();
+    const content = getPresetContent(presetId);
+    const faqs = isDemoMode ? content.faqs : [
         { q: 'Jak umówić się na wizytę?', a: 'Możesz zarezerwować wizytę online przez nasz formularz rezerwacyjny, zadzwonić do rejestracji lub napisać do nas przez formularz kontaktowy.' },
         { q: 'Czy przyjmujecie pacjentów z bólem zęba w trybie pilnym?', a: 'Tak, staramy się przyjmować pacjentów z ostrym bólem w dniu zgłoszenia. Prosimy o kontakt telefoniczny.' },
         { q: 'Jakie metody płatności akceptujecie?', a: 'Akceptujemy gotówkę, karty płatnicze, BLIK oraz oferujemy możliwość płatności ratalnej.' },
@@ -431,11 +436,13 @@ function FAQSection() {
 }
 
 function TeamSection() {
-    const team = [
-        { name: 'Dr Anna Kowalska', role: 'Stomatologia estetyczna', emoji: '👩‍⚕️' },
-        { name: 'Dr Jan Nowak', role: 'Implantologia', emoji: '👨‍⚕️' },
-        { name: 'Dr Maria Wiśniewska', role: 'Ortodoncja', emoji: '👩‍⚕️' },
-        { name: 'Dr Piotr Zieliński', role: 'Chirurgia stomatologiczna', emoji: '👨‍⚕️' },
+    const presetId = usePresetId();
+    const content = getPresetContent(presetId);
+    const team = isDemoMode ? content.team : [
+        { name: 'Dr Anna Kowalska', role: 'Stomatologia estetyczna', initials: 'AK', emoji: '👩‍⚕️' },
+        { name: 'Dr Jan Nowak', role: 'Implantologia', initials: 'JN', emoji: '👨‍⚕️' },
+        { name: 'Dr Maria Wiśniewska', role: 'Ortodoncja', initials: 'MW', emoji: '👩‍⚕️' },
+        { name: 'Dr Piotr Zieliński', role: 'Chirurgia stomatologiczna', initials: 'PZ', emoji: '👨‍⚕️' },
     ];
     return (
         <section className="section" style={{ background: 'var(--color-surface)' }}>
@@ -487,6 +494,14 @@ function TeamSection() {
 }
 
 function ContactSection() {
+    const presetId = usePresetId();
+    const content = getPresetContent(presetId);
+    const ci = isDemoMode ? content.contact : {
+        address: 'ul. Przykładowa 12, 00-000 Miasto',
+        phone: '+48 123 456 789',
+        email: 'kontakt@gabinet.pl',
+        hours: 'Pon-Pt: 8:00-20:00, Sob: 9:00-14:00',
+    };
     return (
         <section className="section">
             <div className="container">
@@ -506,10 +521,10 @@ function ContactSection() {
                     <RevealOnScroll>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
                             {[
-                                { icon: '📍', label: 'Adres', value: 'ul. Przykładowa 12, 00-000 Miasto' },
-                                { icon: '📞', label: 'Telefon', value: '+48 123 456 789' },
-                                { icon: '✉️', label: 'Email', value: 'kontakt@gabinet.pl' },
-                                { icon: '🕐', label: 'Godziny', value: 'Pon-Pt: 8:00-20:00, Sob: 9:00-14:00' },
+                                { icon: '📍', label: 'Adres', value: ci.address },
+                                { icon: '📞', label: 'Telefon', value: ci.phone },
+                                { icon: '✉️', label: 'Email', value: ci.email },
+                                { icon: '🕐', label: 'Godziny', value: ci.hours },
                             ].map((item, i) => (
                                 <div key={i} style={{
                                     display: 'flex', gap: '1rem', alignItems: 'flex-start',
@@ -567,7 +582,9 @@ const inputStyle: React.CSSProperties = {
 };
 
 function GallerySection() {
-    const images = [
+    const presetId = usePresetId();
+    const content = getPresetContent(presetId);
+    const images = isDemoMode ? content.gallery : [
         { emoji: '🏥', label: 'Recepcja' },
         { emoji: '💺', label: 'Gabinet' },
         { emoji: '🔬', label: 'Laboratorium' },
