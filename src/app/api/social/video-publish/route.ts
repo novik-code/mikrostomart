@@ -339,34 +339,58 @@ export async function publishVideoToPlatforms(
                         }
                     }
                     
-                    // Step 1: Download video for direct upload
+                    // Step 1: Query creator info for privacy_level_options
+                    console.log(`[VideoPublish] TikTok: querying creator info...`);
+                    let privacyLevel = 'SELF_ONLY'; // safe default
+                    try {
+                        const creatorRes = await fetch('https://open.tiktokapis.com/v2/post/publish/creator_info/query/', {
+                            method: 'POST',
+                            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json; charset=UTF-8' },
+                            body: JSON.stringify({}),
+                        });
+                        const creatorData = await creatorRes.json();
+                        console.log(`[VideoPublish] TikTok creator info: ${JSON.stringify(creatorData).substring(0, 300)}`);
+                        const options = creatorData.data?.privacy_level_options || [];
+                        // Prefer PUBLIC, fallback to FOLLOWERS, then SELF
+                        if (options.includes('PUBLIC_TO_EVERYONE')) privacyLevel = 'PUBLIC_TO_EVERYONE';
+                        else if (options.includes('FOLLOWER_OF_CREATOR')) privacyLevel = 'FOLLOWER_OF_CREATOR';
+                        else if (options.includes('MUTUAL_FOLLOW_FRIENDS')) privacyLevel = 'MUTUAL_FOLLOW_FRIENDS';
+                    } catch (e: any) {
+                        console.log(`[VideoPublish] TikTok creator info failed: ${e.message}, using ${privacyLevel}`);
+                    }
+                    
+                    // Step 2: Download video for direct upload
                     console.log(`[VideoPublish] TikTok: downloading video for FILE_UPLOAD...`);
                     const ttVidRes = await fetch(videoUrl);
                     if (!ttVidRes.ok) throw new Error(`TikTok video download failed: ${ttVidRes.status}`);
                     const ttVidBuf = Buffer.from(await ttVidRes.arrayBuffer());
                     const ttVideoSize = ttVidBuf.length;
-                    console.log(`[VideoPublish] TikTok: video size ${(ttVideoSize / 1024 / 1024).toFixed(1)}MB`);
+                    console.log(`[VideoPublish] TikTok: video size ${(ttVideoSize / 1024 / 1024).toFixed(1)}MB, privacy: ${privacyLevel}`);
                     
-                    // Step 2: Init upload with FILE_UPLOAD source
+                    // Step 3: Init upload with FILE_UPLOAD source + required fields
                     const initRes = await fetch('https://open.tiktokapis.com/v2/post/publish/video/init/', {
                         method: 'POST',
-                        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json; charset=UTF-8' },
                         body: JSON.stringify({
                             post_info: {
-                                title: title.substring(0, 150),
-                                privacy_level: 'PUBLIC_TO_EVERYONE',
-                                disable_duet: false, disable_comment: false, disable_stitch: false,
+                                title: title.substring(0, 2200),
+                                privacy_level: privacyLevel,
+                                disable_duet: false,
+                                disable_comment: false,
+                                disable_stitch: false,
+                                brand_content_toggle: false,
+                                brand_organic_toggle: false,
                             },
                             source_info: {
                                 source: 'FILE_UPLOAD',
                                 video_size: ttVideoSize,
-                                chunk_size: ttVideoSize, // single chunk upload
+                                chunk_size: ttVideoSize,
                                 total_chunk_count: 1,
                             },
                         }),
                     });
                     const initText = await initRes.text();
-                    console.log(`[VideoPublish] TikTok init response: ${initText.substring(0, 300)}`);
+                    console.log(`[VideoPublish] TikTok init response: ${initText.substring(0, 500)}`);
                     let initData: any;
                     try { initData = JSON.parse(initText); } catch { throw new Error(`TikTok init parse: ${initText.substring(0, 200)}`); }
                     if (initData.error?.code) throw new Error(initData.error.message || `TikTok init: ${initData.error.code}`);
@@ -375,7 +399,7 @@ export async function publishVideoToPlatforms(
                     const publishId = initData.data?.publish_id;
                     if (!uploadUrl) throw new Error('TikTok: no upload_url returned');
                     
-                    // Step 3: Upload video chunk
+                    // Step 4: Upload video chunk
                     console.log(`[VideoPublish] TikTok: uploading to ${uploadUrl.substring(0, 80)}...`);
                     const uploadRes = await fetch(uploadUrl, {
                         method: 'PUT',
