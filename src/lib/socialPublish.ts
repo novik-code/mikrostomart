@@ -427,7 +427,7 @@ export async function publishPost(postId: string): Promise<PublishResult[]> {
         .single();
 
     if (postErr || !post) throw new Error('Post nie znaleziony');
-    if (post.status !== 'approved') throw new Error('Post musi mieć status "approved"');
+    if (!['approved', 'failed', 'published'].includes(post.status)) throw new Error('Post musi mieć status "approved" lub "failed"');
 
     // 2. Update status to publishing
     await supabase.from('social_posts').update({ status: 'publishing' }).eq('id', postId);

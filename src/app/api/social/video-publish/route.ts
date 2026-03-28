@@ -378,7 +378,9 @@ export async function publishVideoToPlatforms(
                         totalChunks = 1;
                     } else {
                         chunkSize = CHUNK_SIZE;
-                        totalChunks = Math.ceil(ttVideoSize / chunkSize);
+                        // Per TikTok docs: total_chunk_count = floor(video_size / chunk_size)
+                        // Last chunk absorbs trailing bytes (can be up to 128MB)
+                        totalChunks = Math.max(1, Math.floor(ttVideoSize / chunkSize));
                     }
                     
                     console.log(`[VideoPublish] TikTok: video ${(ttVideoSize / 1024 / 1024).toFixed(1)}MB, ${totalChunks} chunks of ${(chunkSize / 1024 / 1024).toFixed(1)}MB, privacy: ${privacyLevel}`);
