@@ -1018,7 +1018,7 @@ export default function VideoPage() {
                                             </div>
                                         )}
 
-                                        {(video.status === "ready" || video.status === "done") && (
+                                        {(video.status === "ready" || video.status === "done" || video.status === "failed") && (
                                             <div style={{
                                                 padding: 14,
                                                 background: video.status === "done" 

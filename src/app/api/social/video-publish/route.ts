@@ -152,7 +152,18 @@ export async function publishVideoToPlatforms(
         platformQuery = platformQuery.in('id', ids);
     }
 
-    const { data: platforms } = await platformQuery;
+    let { data: platforms } = await platformQuery;
+
+    // Fallback: if target_platform_ids are stale (migration changed UUIDs), get ALL video platforms
+    if ((!platforms || platforms.length === 0) && ids) {
+        console.log(`[VideoPublish] No platforms found by IDs, falling back to all video platforms`);
+        const { data: fallback } = await supabase
+            .from('social_platforms')
+            .select('*')
+            .eq('is_active', true)
+            .in('content_type', ['video', 'all']);
+        platforms = fallback;
+    }
 
     if (!platforms || platforms.length === 0) {
         throw new Error('Brak platform skonfigurowanych na wideo. Sprawdź content_type w ustawieniach platform.');
@@ -487,8 +498,8 @@ export async function publishVideoToPlatforms(
     await supabase
         .from('social_video_queue')
         .update({
-            status: anySuccess ? 'done' : 'failed',
-            published_at: anySuccess ? new Date().toISOString() : null,
+            status: anySuccess ? 'done' : 'ready',  // Keep 'ready' on failure so user can retry
+            published_at: anySuccess ? new Date().toISOString() : undefined,
             error_message: Object.keys(errors).length > 0 
                 ? Object.entries(errors).map(([k, v]) => `${k}: ${v}`).join('; ') 
                 : null,
