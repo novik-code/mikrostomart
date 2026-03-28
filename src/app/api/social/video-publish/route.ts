@@ -350,92 +350,46 @@ export async function publishVideoToPlatforms(
                         }
                     }
                     
-                    // Step 1: Query creator info for privacy_level_options
-                    console.log(`[VideoPublish] TikTok: querying creator info...`);
-                    let privacyLevel = 'SELF_ONLY'; // safe default
-                    try {
-                        const creatorRes = await fetch('https://open.tiktokapis.com/v2/post/publish/creator_info/query/', {
-                            method: 'POST',
-                            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json; charset=UTF-8' },
-                            body: JSON.stringify({}),
-                        });
-                        const creatorData = await creatorRes.json();
-                        console.log(`[VideoPublish] TikTok creator info: ${JSON.stringify(creatorData).substring(0, 300)}`);
-                        const options = creatorData.data?.privacy_level_options || [];
-                        if (options.includes('PUBLIC_TO_EVERYONE')) privacyLevel = 'PUBLIC_TO_EVERYONE';
-                        else if (options.includes('FOLLOWER_OF_CREATOR')) privacyLevel = 'FOLLOWER_OF_CREATOR';
-                        else if (options.includes('MUTUAL_FOLLOW_FRIENDS')) privacyLevel = 'MUTUAL_FOLLOW_FRIENDS';
-                    } catch (e: any) {
-                        console.log(`[VideoPublish] TikTok creator info failed: ${e.message}, using ${privacyLevel}`);
-                    }
-                    
-                    // Step 2: Download video for direct upload
-                    console.log(`[VideoPublish] TikTok: downloading video for FILE_UPLOAD...`);
+                    // Step 1: Download video
+                    console.log(`[VideoPublish] TikTok: downloading video for Inbox Upload...`);
                     const ttVidRes = await fetch(videoUrl);
                     if (!ttVidRes.ok) throw new Error(`TikTok video download failed: ${ttVidRes.status}`);
                     const ttVidBuf = Buffer.from(await ttVidRes.arrayBuffer());
                     const ttVideoSize = ttVidBuf.length;
                     
-                    // Calculate chunk parameters per TikTok requirements:
-                    // <5MB: whole upload (chunk_size = video_size, count = 1)
-                    // >=5MB: use 10MB chunks (min 5MB, max 64MB per chunk)
+                    // Calculate chunks: <5MB whole, >=5MB use 10MB chunks
                     const CHUNK_SIZE = 10 * 1024 * 1024; // 10MB
                     let chunkSize: number;
                     let totalChunks: number;
                     
                     if (ttVideoSize < 5 * 1024 * 1024) {
-                        // < 5MB: upload as whole
                         chunkSize = ttVideoSize;
                         totalChunks = 1;
                     } else {
                         chunkSize = CHUNK_SIZE;
-                        // Per TikTok docs: total_chunk_count = floor(video_size / chunk_size)
-                        // Last chunk absorbs trailing bytes (can be up to 128MB)
                         totalChunks = Math.max(1, Math.floor(ttVideoSize / chunkSize));
                     }
                     
-                    console.log(`[VideoPublish] TikTok: video ${(ttVideoSize / 1024 / 1024).toFixed(1)}MB, ${totalChunks} chunks of ${(chunkSize / 1024 / 1024).toFixed(1)}MB, privacy: ${privacyLevel}`);
+                    console.log(`[VideoPublish] TikTok: video ${(ttVideoSize / 1024 / 1024).toFixed(1)}MB, ${totalChunks} chunks`);
                     
-                    // Step 3: Init upload — retry with SELF_ONLY if unaudited error
-                    const tryInit = async (pl: string) => {
-                        const res = await fetch('https://open.tiktokapis.com/v2/post/publish/video/init/', {
-                            method: 'POST',
-                            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json; charset=UTF-8' },
-                            body: JSON.stringify({
-                                post_info: {
-                                    title: title.substring(0, 2200),
-                                    privacy_level: pl,
-                                    disable_duet: false,
-                                    disable_comment: false,
-                                    disable_stitch: false,
-                                    brand_content_toggle: false,
-                                    brand_organic_toggle: false,
-                                },
-                                source_info: {
-                                    source: 'FILE_UPLOAD',
-                                    video_size: ttVideoSize,
-                                    chunk_size: chunkSize,
-                                    total_chunk_count: totalChunks,
-                                },
-                            }),
-                        });
-                        const text = await res.text();
-                        console.log(`[VideoPublish] TikTok init (${pl}): ${text.substring(0, 500)}`);
-                        let data: any;
-                        try { data = JSON.parse(text); } catch { throw new Error(`TikTok init parse: ${text.substring(0, 200)}`); }
-                        return data;
-                    };
-
-                    let initData = await tryInit(privacyLevel);
-                    let usedPrivacy = privacyLevel;
-                    
-                    // If unaudited app error, retry with SELF_ONLY
-                    if (initData.error?.code === 'unaudited_client_can_only_post_to_private_accounts' && privacyLevel !== 'SELF_ONLY') {
-                        console.log(`[VideoPublish] TikTok: unaudited app, retrying with SELF_ONLY...`);
-                        initData = await tryInit('SELF_ONLY');
-                        usedPrivacy = 'SELF_ONLY';
-                    }
-                    
+                    // Step 2: Init INBOX upload (no audit needed, goes to creator's drafts)
+                    // Uses /inbox/video/init/ instead of /video/init/ (Direct Post requires audit)
+                    const initRes = await fetch('https://open.tiktokapis.com/v2/post/publish/inbox/video/init/', {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json; charset=UTF-8' },
+                        body: JSON.stringify({
+                            source_info: {
+                                source: 'FILE_UPLOAD',
+                                video_size: ttVideoSize,
+                                chunk_size: chunkSize,
+                                total_chunk_count: totalChunks,
+                            },
+                        }),
+                    });
+                    const initText = await initRes.text();
+                    console.log(`[VideoPublish] TikTok inbox init: ${initText.substring(0, 500)}`);
+                    let initData: any;
+                    try { initData = JSON.parse(initText); } catch { throw new Error(`TikTok init parse: ${initText.substring(0, 200)}`); }
                     if (initData.error?.code && initData.error.code !== 'ok') {
                         throw new Error(initData.error.message || `TikTok init: ${initData.error.code}`);
                     }
@@ -444,14 +398,14 @@ export async function publishVideoToPlatforms(
                     const publishId = initData.data?.publish_id;
                     if (!uploadUrl) throw new Error('TikTok: no upload_url returned');
                     
-                    // Step 4: Upload video chunks sequentially
+                    // Step 3: Upload video chunks sequentially
                     for (let i = 0; i < totalChunks; i++) {
                         const start = i * chunkSize;
                         const end = Math.min(start + chunkSize, ttVideoSize);
                         const chunk = ttVidBuf.subarray(start, end);
                         const chunkLen = end - start;
                         
-                        console.log(`[VideoPublish] TikTok: uploading chunk ${i + 1}/${totalChunks} (${start}-${end - 1}/${ttVideoSize})`);
+                        console.log(`[VideoPublish] TikTok: chunk ${i + 1}/${totalChunks} (${start}-${end - 1}/${ttVideoSize})`);
                         const uploadRes = await fetch(uploadUrl, {
                             method: 'PUT',
                             headers: {
@@ -461,17 +415,16 @@ export async function publishVideoToPlatforms(
                             },
                             body: chunk,
                         });
-                        console.log(`[VideoPublish] TikTok chunk ${i + 1} response: ${uploadRes.status}`);
+                        console.log(`[VideoPublish] TikTok chunk ${i + 1}: ${uploadRes.status}`);
                         
-                        // 201 = all done, 206 = partial (more chunks expected)
                         if (uploadRes.status !== 201 && uploadRes.status !== 206) {
                             const errText = await uploadRes.text();
-                            throw new Error(`TikTok upload chunk ${i + 1} failed: ${uploadRes.status} — ${errText.substring(0, 200)}`);
+                            throw new Error(`TikTok chunk ${i + 1} failed: ${uploadRes.status} — ${errText.substring(0, 200)}`);
                         }
                     }
                     
                     result.success = true;
-                    result.post_id = publishId + (usedPrivacy === 'SELF_ONLY' ? ' (prywatne — zmień widoczność na TikToku)' : '');
+                    result.post_id = publishId + ' (w skrzynce TikTok — dokończ publikację w aplikacji)';
                     break;
                 }
 
