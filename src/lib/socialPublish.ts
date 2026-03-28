@@ -432,14 +432,30 @@ export async function publishPost(postId: string): Promise<PublishResult[]> {
     // 2. Update status to publishing
     await supabase.from('social_posts').update({ status: 'publishing' }).eq('id', postId);
 
-    // 3. Get target platforms
-    const { data: platforms } = await supabase
-        .from('social_platforms')
-        .select('*')
-        .in('id', post.platform_ids || [])
-        .eq('is_active', true);
+    // 3. Get target platforms — try by ID first, fallback to content_type
+    let platforms: any[] = [];
+    
+    if (post.platform_ids && post.platform_ids.length > 0) {
+        const { data } = await supabase
+            .from('social_platforms')
+            .select('*')
+            .in('id', post.platform_ids)
+            .eq('is_active', true);
+        platforms = data || [];
+    }
+    
+    // Fallback: if platform_ids are stale (e.g. after migration), find by content_type
+    if (platforms.length === 0) {
+        console.log(`[PublishPost] No platforms found by IDs, falling back to content_type='posts'`);
+        const { data } = await supabase
+            .from('social_platforms')
+            .select('*')
+            .eq('content_type', 'posts')
+            .eq('is_active', true);
+        platforms = data || [];
+    }
 
-    if (!platforms || platforms.length === 0) {
+    if (platforms.length === 0) {
         await supabase.from('social_posts').update({
             status: 'failed',
             publish_errors: { message: 'Brak aktywnych platform' },

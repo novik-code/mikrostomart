@@ -364,7 +364,24 @@ export async function publishVideoToPlatforms(
                     if (!ttVidRes.ok) throw new Error(`TikTok video download failed: ${ttVidRes.status}`);
                     const ttVidBuf = Buffer.from(await ttVidRes.arrayBuffer());
                     const ttVideoSize = ttVidBuf.length;
-                    console.log(`[VideoPublish] TikTok: video size ${(ttVideoSize / 1024 / 1024).toFixed(1)}MB, privacy: ${privacyLevel}`);
+                    
+                    // Calculate chunk parameters per TikTok requirements:
+                    // <5MB: whole upload (chunk_size = video_size, count = 1)
+                    // >=5MB: use 10MB chunks (min 5MB, max 64MB per chunk)
+                    const CHUNK_SIZE = 10 * 1024 * 1024; // 10MB
+                    let chunkSize: number;
+                    let totalChunks: number;
+                    
+                    if (ttVideoSize < 5 * 1024 * 1024) {
+                        // < 5MB: upload as whole
+                        chunkSize = ttVideoSize;
+                        totalChunks = 1;
+                    } else {
+                        chunkSize = CHUNK_SIZE;
+                        totalChunks = Math.ceil(ttVideoSize / chunkSize);
+                    }
+                    
+                    console.log(`[VideoPublish] TikTok: video ${(ttVideoSize / 1024 / 1024).toFixed(1)}MB, ${totalChunks} chunks of ${(chunkSize / 1024 / 1024).toFixed(1)}MB, privacy: ${privacyLevel}`);
                     
                     // Step 3: Init upload — retry with SELF_ONLY if unaudited error
                     const tryInit = async (pl: string) => {
@@ -384,8 +401,8 @@ export async function publishVideoToPlatforms(
                                 source_info: {
                                     source: 'FILE_UPLOAD',
                                     video_size: ttVideoSize,
-                                    chunk_size: ttVideoSize,
-                                    total_chunk_count: 1,
+                                    chunk_size: chunkSize,
+                                    total_chunk_count: totalChunks,
                                 },
                             }),
                         });
@@ -414,21 +431,30 @@ export async function publishVideoToPlatforms(
                     const publishId = initData.data?.publish_id;
                     if (!uploadUrl) throw new Error('TikTok: no upload_url returned');
                     
-                    // Step 4: Upload video chunk
-                    console.log(`[VideoPublish] TikTok: uploading to ${uploadUrl.substring(0, 80)}...`);
-                    const uploadRes = await fetch(uploadUrl, {
-                        method: 'PUT',
-                        headers: {
-                            'Content-Type': 'video/mp4',
-                            'Content-Range': `bytes 0-${ttVideoSize - 1}/${ttVideoSize}`,
-                            'Content-Length': ttVideoSize.toString(),
-                        },
-                        body: ttVidBuf,
-                    });
-                    console.log(`[VideoPublish] TikTok upload response: ${uploadRes.status}`);
-                    if (!uploadRes.ok) {
-                        const errText = await uploadRes.text();
-                        throw new Error(`TikTok upload failed: ${uploadRes.status} — ${errText.substring(0, 200)}`);
+                    // Step 4: Upload video chunks sequentially
+                    for (let i = 0; i < totalChunks; i++) {
+                        const start = i * chunkSize;
+                        const end = Math.min(start + chunkSize, ttVideoSize);
+                        const chunk = ttVidBuf.subarray(start, end);
+                        const chunkLen = end - start;
+                        
+                        console.log(`[VideoPublish] TikTok: uploading chunk ${i + 1}/${totalChunks} (${start}-${end - 1}/${ttVideoSize})`);
+                        const uploadRes = await fetch(uploadUrl, {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'video/mp4',
+                                'Content-Range': `bytes ${start}-${end - 1}/${ttVideoSize}`,
+                                'Content-Length': chunkLen.toString(),
+                            },
+                            body: chunk,
+                        });
+                        console.log(`[VideoPublish] TikTok chunk ${i + 1} response: ${uploadRes.status}`);
+                        
+                        // 201 = all done, 206 = partial (more chunks expected)
+                        if (uploadRes.status !== 201 && uploadRes.status !== 206) {
+                            const errText = await uploadRes.text();
+                            throw new Error(`TikTok upload chunk ${i + 1} failed: ${uploadRes.status} — ${errText.substring(0, 200)}`);
+                        }
                     }
                     
                     result.success = true;
