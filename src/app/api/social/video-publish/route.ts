@@ -125,7 +125,7 @@ export async function publishVideoToPlatforms(
         .single();
 
     if (vErr || !video) throw new Error('Wideo nie znalezione');
-    if (video.status !== 'ready' && video.status !== 'publishing') {
+    if (!['ready', 'failed', 'done', 'publishing'].includes(video.status)) {
         throw new Error(`Status musi być "ready", jest "${video.status}"`);
     }
 

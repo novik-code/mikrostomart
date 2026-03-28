@@ -444,7 +444,7 @@ export async function GET(req: NextRequest) {
             } catch (err: any) {
                 console.error(`[VideoCron] Auto-publish error:`, err);
                 await supabase.from('social_video_queue')
-                    .update({ status: 'failed', error_message: `AutoPublish: ${err.message}` })
+                    .update({ status: 'ready', error_message: `AutoPublish: ${err.message}` })
                     .eq('id', video.id);
                 results.push({ id: video.id, action: 'auto_publish_failed', error: err.message });
             }
