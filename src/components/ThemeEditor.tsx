@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import {
     ThemeConfig,
@@ -9,7 +9,8 @@ import {
     mergeTheme,
     applyThemeToDOM,
 } from '@/context/ThemeContext';
-import { Save, RotateCcw, Palette, Type, Layout, Sparkles, Monitor, Navigation, ToggleLeft, Eye } from 'lucide-react';
+import { type BrandConfig, setBrand as setBrandGlobal } from '@/lib/brandConfig';
+import { Save, RotateCcw, Palette, Type, Layout, Sparkles, Monitor, Navigation, ToggleLeft, Eye, Building2, Upload } from 'lucide-react';
 
 // ===================== HELPERS =====================
 
@@ -138,6 +139,32 @@ function SectionHeader({ icon: Icon, title }: { icon: any; title: string }) {
 
 // ===================== MAIN COMPONENT =====================
 
+// Text input helper for brand fields
+function TextInput({ label, value, onChange, placeholder, type = 'text' }: {
+    label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string;
+}) {
+    return (
+        <div style={{ marginBottom: '0.75rem' }}>
+            <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)', marginBottom: '4px' }}>{label}</div>
+            <input
+                type={type}
+                value={value || ''}
+                onChange={(e) => onChange(e.target.value)}
+                placeholder={placeholder}
+                style={{
+                    width: '100%',
+                    padding: '0.5rem 0.75rem',
+                    background: 'rgba(255,255,255,0.05)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    borderRadius: '6px',
+                    color: 'white',
+                    fontSize: '0.85rem',
+                }}
+            />
+        </div>
+    );
+}
+
 export default function ThemeEditor() {
     const [theme, setTheme] = useState<ThemeConfig>(DEFAULT_THEME);
     const [originalTheme, setOriginalTheme] = useState<ThemeConfig>(DEFAULT_THEME);
@@ -146,12 +173,18 @@ export default function ThemeEditor() {
     const [activeSection, setActiveSection] = useState<string>('colors');
     const [hasChanges, setHasChanges] = useState(false);
 
+    // Brand state
+    const [brandData, setBrandData] = useState<Partial<BrandConfig>>({});
+    const [originalBrand, setOriginalBrand] = useState<Partial<BrandConfig>>({});
+    const [uploadingLogo, setUploadingLogo] = useState(false);
+    const logoInputRef = useRef<HTMLInputElement>(null);
+
     const supabase = createBrowserClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     );
 
-    // Load current theme
+    // Load current theme + brand
     useEffect(() => {
         async function load() {
             try {
@@ -168,6 +201,12 @@ export default function ThemeEditor() {
                         setTheme(merged);
                         setOriginalTheme(merged);
                     }
+                    // Load brand data
+                    if (data?.brand && Object.keys(data.brand).length > 0) {
+                        setBrandData(data.brand);
+                        setOriginalBrand(data.brand);
+                        setBrandGlobal(data.brand);
+                    }
                 }
             } catch (err) {
                 console.error('Failed to load theme:', err);
@@ -179,8 +218,10 @@ export default function ThemeEditor() {
     // Live preview
     useEffect(() => {
         applyThemeToDOM(theme);
-        setHasChanges(JSON.stringify(theme) !== JSON.stringify(originalTheme));
-    }, [theme]);
+        const themeChanged = JSON.stringify(theme) !== JSON.stringify(originalTheme);
+        const brandChanged = JSON.stringify(brandData) !== JSON.stringify(originalBrand);
+        setHasChanges(themeChanged || brandChanged);
+    }, [theme, brandData]);
 
     // Update helpers
     const updateColors = useCallback((key: keyof ThemeConfig['colors'], value: string) => {
@@ -211,6 +252,14 @@ export default function ThemeEditor() {
         setTheme(prev => ({ ...prev, features: { ...prev.features, [key]: value } }));
     }, []);
 
+    const updateBrand = useCallback((key: keyof BrandConfig, value: string) => {
+        setBrandData(prev => {
+            const updated = { ...prev, [key]: value };
+            setBrandGlobal(updated); // Live preview
+            return updated;
+        });
+    }, []);
+
     // Save
     const handleSave = async () => {
         setSaving(true);
@@ -233,6 +282,11 @@ export default function ThemeEditor() {
                 if (pid) partial._presetId = pid;
             } catch {}
 
+            // Include brand data if it has content
+            if (Object.keys(brandData).length > 0) {
+                partial.brand = brandData;
+            }
+
             const res = await fetch('/api/admin/theme', {
                 method: 'PUT',
                 headers: {
@@ -245,8 +299,9 @@ export default function ThemeEditor() {
             if (!res.ok) throw new Error('Failed to save');
 
             setOriginalTheme(theme);
+            setOriginalBrand(brandData);
             setHasChanges(false);
-            setMessage({ text: '✅ Motyw zapisany!', type: 'success' });
+            setMessage({ text: '✅ Motyw i dane gabinetu zapisane!', type: 'success' });
         } catch (err: any) {
             setMessage({ text: `❌ Błąd: ${err.message}`, type: 'error' });
         }
@@ -272,6 +327,9 @@ export default function ThemeEditor() {
             setTheme(DEFAULT_THEME);
             setOriginalTheme(DEFAULT_THEME);
             applyThemeToDOM(DEFAULT_THEME);
+            setBrandData({});
+            setOriginalBrand({});
+            setBrandGlobal({});
             setHasChanges(false);
             setMessage({ text: '✅ Motyw przywrócony do domyślnego!', type: 'success' });
         } catch (err: any) {
@@ -300,7 +358,40 @@ export default function ThemeEditor() {
         { id: 'navbar', label: '🧭 Nawigacja', icon: Navigation },
         { id: 'features', label: '⚙️ Funkcje', icon: ToggleLeft },
         { id: 'presets', label: '🎭 Szablony', icon: Eye },
+        { id: 'brand', label: '🏢 Gabinet', icon: Building2 },
     ];
+
+    // Logo upload handler
+    const handleLogoUpload = async (file: File) => {
+        setUploadingLogo(true);
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) throw new Error('Not authenticated');
+
+            const formData = new FormData();
+            formData.append('logo', file);
+
+            const res = await fetch('/api/admin/brand-logo', {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${session.access_token}` },
+                body: formData,
+            });
+
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || 'Upload failed');
+            }
+
+            const data = await res.json();
+            updateBrand('logoUrl', data.url);
+            setMessage({ text: '✅ Logo przesłane!', type: 'success' });
+            setTimeout(() => setMessage(null), 3000);
+        } catch (err: any) {
+            setMessage({ text: `❌ Błąd uploadu: ${err.message}`, type: 'error' });
+            setTimeout(() => setMessage(null), 3000);
+        }
+        setUploadingLogo(false);
+    };
 
     return (
         <div>
@@ -1019,6 +1110,143 @@ export default function ThemeEditor() {
                                     </div>
                                 </button>
                             ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* BRAND / GABINET */}
+                {activeSection === 'brand' && (
+                    <div>
+                        <SectionHeader icon={Building2} title="Dane gabinetu" />
+                        <p style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', marginBottom: '1.5rem', lineHeight: 1.5 }}>
+                            Tutaj konfigurujesz dane Twojego gabinetu — nazwa, adres, kontakt, logo. Te dane wyświetlają się na stronie, w e-mailach, SMS-ach i dokumentach.
+                        </p>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
+                            {/* Dane podstawowe */}
+                            <div>
+                                <h4 style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Dane podstawowe</h4>
+                                <TextInput label="Nazwa gabinetu" value={brandData.name || ''} onChange={(v) => updateBrand('name', v)} placeholder="np. DentClinic" />
+                                <TextInput label="Pełna nazwa" value={brandData.fullName || ''} onChange={(v) => updateBrand('fullName', v)} placeholder="np. DentClinic — Stomatologia Estetyczna" />
+                                <TextInput label="Slogan" value={brandData.slogan || ''} onChange={(v) => updateBrand('slogan', v)} placeholder="np. Nowoczesna Stomatologia" />
+                            </div>
+
+                            {/* Kontakt */}
+                            <div>
+                                <h4 style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Kontakt</h4>
+                                <TextInput label="Telefon 1" value={brandData.phone1 || ''} onChange={(v) => updateBrand('phone1', v)} placeholder="570-270-470" type="tel" />
+                                <TextInput label="Telefon 2" value={brandData.phone2 || ''} onChange={(v) => updateBrand('phone2', v)} placeholder="570-810-800" type="tel" />
+                                <TextInput label="Email" value={brandData.email || ''} onChange={(v) => updateBrand('email', v)} placeholder="gabinet@example.pl" type="email" />
+                            </div>
+
+                            {/* Adres */}
+                            <div>
+                                <h4 style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Adres</h4>
+                                <TextInput label="Ulica" value={brandData.streetAddress || ''} onChange={(v) => updateBrand('streetAddress', v)} placeholder="ul. Przykładowa 1" />
+                                <TextInput label="Miasto" value={brandData.city || ''} onChange={(v) => updateBrand('city', v)} placeholder="Warszawa" />
+                                <TextInput label="Kod pocztowy" value={brandData.postalCode || ''} onChange={(v) => updateBrand('postalCode', v)} placeholder="00-001" />
+                                <TextInput label="Województwo" value={brandData.region || ''} onChange={(v) => updateBrand('region', v)} placeholder="mazowieckie" />
+                            </div>
+
+                            {/* Firma */}
+                            <div>
+                                <h4 style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Firma</h4>
+                                <TextInput label="Nazwa firmy" value={brandData.companyName || ''} onChange={(v) => updateBrand('companyName', v)} placeholder="Klinika Sp. z o.o." />
+                                <TextInput label="NIP" value={brandData.nip || ''} onChange={(v) => updateBrand('nip', v)} placeholder="0000000000" />
+                            </div>
+
+                            {/* Online */}
+                            <div>
+                                <h4 style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Online</h4>
+                                <TextInput label="Domena (URL)" value={brandData.metadataBase || ''} onChange={(v) => updateBrand('metadataBase', v)} placeholder="https://mojgabinet.pl" type="url" />
+                                <TextInput label="Facebook URL" value={brandData.facebookUrl || ''} onChange={(v) => updateBrand('facebookUrl', v)} placeholder="https://facebook.com/..." type="url" />
+                            </div>
+
+                            {/* Logo */}
+                            <div>
+                                <h4 style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Logo</h4>
+                                
+                                {/* Current logo preview */}
+                                {brandData.logoUrl && (
+                                    <div style={{
+                                        marginBottom: '1rem',
+                                        padding: '1rem',
+                                        background: 'rgba(255,255,255,0.05)',
+                                        borderRadius: '8px',
+                                        textAlign: 'center',
+                                    }}>
+                                        <img
+                                            src={brandData.logoUrl}
+                                            alt="Logo gabinetu"
+                                            style={{ maxWidth: '200px', maxHeight: '80px', objectFit: 'contain' }}
+                                        />
+                                    </div>
+                                )}
+
+                                {/* Upload button */}
+                                <input
+                                    ref={logoInputRef}
+                                    type="file"
+                                    accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                                    style={{ display: 'none' }}
+                                    onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) handleLogoUpload(file);
+                                    }}
+                                />
+                                <button
+                                    onClick={() => logoInputRef.current?.click()}
+                                    disabled={uploadingLogo}
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.5rem',
+                                        padding: '0.7rem 1.25rem',
+                                        background: 'rgba(255,255,255,0.05)',
+                                        color: 'rgba(255,255,255,0.7)',
+                                        border: '1px dashed rgba(255,255,255,0.2)',
+                                        borderRadius: '8px',
+                                        cursor: uploadingLogo ? 'wait' : 'pointer',
+                                        fontSize: '0.85rem',
+                                        width: '100%',
+                                        justifyContent: 'center',
+                                        transition: 'all 0.15s',
+                                    }}
+                                >
+                                    <Upload size={16} />
+                                    {uploadingLogo ? 'Przesyłanie...' : 'Prześlij logo (PNG, JPG, SVG, max 2MB)'}
+                                </button>
+
+                                {/* Manual URL input*/}
+                                <div style={{ marginTop: '0.75rem' }}>
+                                    <TextInput label="lub wpisz URL logo" value={brandData.logoUrl || ''} onChange={(v) => updateBrand('logoUrl', v)} placeholder="https://..." type="url" />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Preview */}
+                        <div style={{
+                            marginTop: '2rem',
+                            padding: '1.25rem',
+                            background: 'rgba(255,255,255,0.03)',
+                            borderRadius: '10px',
+                            border: '1px solid rgba(255,255,255,0.08)',
+                        }}>
+                            <h4 style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)', marginBottom: '1rem' }}>PODGLĄD</h4>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.75rem' }}>
+                                {brandData.logoUrl && (
+                                    <img src={brandData.logoUrl} alt="" style={{ height: '40px', objectFit: 'contain' }} />
+                                )}
+                                <div>
+                                    <div style={{ fontSize: '1.1rem', fontWeight: '700', color: 'white' }}>{brandData.name || '(nazwa gabinetu)'}</div>
+                                    <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)' }}>{brandData.slogan || '(slogan)'}</div>
+                                </div>
+                            </div>
+                            <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', lineHeight: 1.6 }}>
+                                📞 {brandData.phone1 || '—'} &nbsp;|&nbsp; ✉️ {brandData.email || '—'}<br />
+                                📍 {brandData.streetAddress || '—'}, {brandData.postalCode || '—'} {brandData.city || '—'}
+                                {brandData.companyName && (<><br />🏢 {brandData.companyName}{brandData.nip ? ` · NIP: ${brandData.nip}` : ''}</>)}
+                            </div>
                         </div>
                     </div>
                 )}

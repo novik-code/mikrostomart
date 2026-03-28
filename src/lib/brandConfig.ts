@@ -1,6 +1,6 @@
 import { isDemoMode } from './demoMode';
 
-interface BrandConfig {
+export interface BrandConfig {
     name: string;
     fullName: string;
     slogan: string;
@@ -32,6 +32,10 @@ interface BrandConfig {
     geoPlacename: string;
     geoPosition: string;
     icbm: string;
+    // Optional fields for branding wizard
+    logoUrl?: string;
+    companyName?: string;
+    nip?: string;
 }
 
 const PROD_BRAND: BrandConfig = {
@@ -102,7 +106,57 @@ const DEMO_BRAND: BrandConfig = {
     icbm: '52.229676, 21.012229',
 };
 
-export const brand: BrandConfig = isDemoMode ? DEMO_BRAND : PROD_BRAND;
+// ===================== DYNAMIC BRAND =====================
+
+const DEFAULT_BRAND: BrandConfig = isDemoMode ? DEMO_BRAND : PROD_BRAND;
+
+/**
+ * The active brand configuration.
+ * Starts with hardcoded defaults (PROD_BRAND or DEMO_BRAND).
+ * Updated at runtime via setBrand() on client or loadBrandFromDB() on server.
+ * 
+ * SAFETY CONTRACT: If DB is empty/errored, this always equals the hardcoded default.
+ */
+export let brand: BrandConfig = { ...DEFAULT_BRAND };
+
+/**
+ * Client-side: update brand from fetched data.
+ * Merges overrides with defaults — never wipes fields.
+ * Called by ThemeProvider after loading /api/theme.
+ */
+export function setBrand(overrides: Partial<BrandConfig>): void {
+    if (!overrides || typeof overrides !== 'object') return;
+    brand = { ...DEFAULT_BRAND, ...overrides };
+}
+
+/**
+ * Server-side: load brand config from Supabase site_settings.
+ * Returns full BrandConfig (DB values merged with defaults).
+ * On ANY error, returns hardcoded defaults — production is never broken.
+ */
+export async function loadBrandFromDB(): Promise<BrandConfig> {
+    try {
+        const { createClient } = await import('@supabase/supabase-js');
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        if (!supabaseUrl || !supabaseKey) return { ...DEFAULT_BRAND };
+
+        const supabase = createClient(supabaseUrl, supabaseKey);
+        const { data, error } = await supabase
+            .from('site_settings')
+            .select('value')
+            .eq('key', 'brand')
+            .maybeSingle();
+
+        if (error || !data?.value) return { ...DEFAULT_BRAND };
+
+        const dbBrand = data.value as Partial<BrandConfig>;
+        return { ...DEFAULT_BRAND, ...dbBrand };
+    } catch {
+        // SAFETY: on any error, return hardcoded defaults
+        return { ...DEFAULT_BRAND };
+    }
+}
 
 /**
  * Sanitizes text by replacing Mikrostomart-specific references with generic demo equivalents.
@@ -136,3 +190,4 @@ export function demoSanitize(text: string): string {
         .replace(/NIP:\s*7543251709/gi, 'NIP: 0000000000')
         .replace(/7543251709/g, '0000000000');
 }
+

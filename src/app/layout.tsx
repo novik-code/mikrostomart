@@ -14,15 +14,17 @@ import AdminFloatingBar from "@/components/AdminFloatingBar";
 import VisualEditorOverlay from "@/components/editor/VisualEditorOverlay";
 import PageOverridesApplier from "@/components/editor/PageOverridesApplier";
 import { isDemoMode } from "@/lib/demoMode";
-import { brand, demoSanitize } from "@/lib/brandConfig";
+import { brand, demoSanitize, loadBrandFromDB } from "@/lib/brandConfig";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 const playfair = Playfair_Display({ subsets: ["latin"], variable: "--font-heading" });
 
-export function generateMetadata(): Metadata {
+export async function generateMetadata(): Promise<Metadata> {
+    // Load brand from DB (falls back to hardcoded defaults on error)
+    const b = await loadBrandFromDB();
     return {
-        metadataBase: new URL(brand.metadataBase),
+        metadataBase: new URL(b.metadataBase),
         alternates: {
             canonical: './',
             languages: {
@@ -34,11 +36,11 @@ export function generateMetadata(): Metadata {
             },
         },
         title: {
-            default: brand.titleDefault,
-            template: brand.titleTemplate,
+            default: b.titleDefault,
+            template: b.titleTemplate,
         },
-        description: brand.description,
-        keywords: brand.keywords,
+        description: b.description,
+        keywords: b.keywords,
         manifest: "/manifest.json",
         icons: {
             icon: '/icon.png',
@@ -48,12 +50,12 @@ export function generateMetadata(): Metadata {
         openGraph: {
             type: 'website',
             locale: 'pl_PL',
-            siteName: brand.ogSiteName,
+            siteName: b.ogSiteName,
             images: [{
                 url: '/opengraph-image.png',
                 width: 1200,
                 height: 630,
-                alt: brand.ogImageAlt,
+                alt: b.ogImageAlt,
             }],
         },
         twitter: {
@@ -61,10 +63,10 @@ export function generateMetadata(): Metadata {
             images: ['/opengraph-image.png'],
         },
         other: isDemoMode ? undefined : {
-            "geo.region": brand.geoRegion,
-            "geo.placename": brand.geoPlacename,
-            "geo.position": brand.geoPosition,
-            "ICBM": brand.icbm,
+            "geo.region": b.geoRegion,
+            "geo.placename": b.geoPlacename,
+            "geo.position": b.geoPosition,
+            "ICBM": b.icbm,
         },
     };
 }

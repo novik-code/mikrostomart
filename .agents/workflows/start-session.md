@@ -88,7 +88,11 @@ State ALL of the following:
 - Already-implemented features (avoid duplicating work)
 - Changed DB schema (check DB Schema section)
 - **SEO: Every new page needs sitemap.ts + layout.tsx metadata + Footer link** (see SEO Architecture section)
+- **Feature branches**: For architectural/risky changes, work on `git checkout -b feat/xxx` — never push directly to `main`
+- **Tests**: Run `npm test` before pushing (Vitest tests in `src/lib/__tests__/`)
+- **Build verification**: Run `npm run build` before merging feature branches to `main`
 - **Golden copy sync: ALWAYS run after EVERY `git push`:**
   ```bash
   git -C /Users/marcinnowosielskimedit/Desktop/mikrostomart pull origin main
   ```
+

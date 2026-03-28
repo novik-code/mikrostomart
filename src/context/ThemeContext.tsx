@@ -716,15 +716,24 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
                 if (res.ok) {
                     const overrides = await res.json();
                     if (overrides && Object.keys(overrides).length > 0) {
-                        const merged = mergeTheme(overrides);
+                        // Extract brand data before merging theme
+                        const { _brand, ...themeOverrides } = overrides;
+
+                        const merged = mergeTheme(themeOverrides);
                         setTheme(merged);
                         applyThemeToDOM(merged);
                         // Detect preset ID from returned theme
-                        if (overrides._presetId) {
-                            setPresetId(overrides._presetId);
+                        if (themeOverrides._presetId) {
+                            setPresetId(themeOverrides._presetId);
                         }
                         // Cache for next page load
-                        try { localStorage.setItem('densflow_theme', JSON.stringify(overrides)); } catch {}
+                        try { localStorage.setItem('densflow_theme', JSON.stringify(themeOverrides)); } catch {}
+
+                        // Apply brand config if present
+                        if (_brand && Object.keys(_brand).length > 0) {
+                            const { setBrand } = await import('@/lib/brandConfig');
+                            setBrand(_brand);
+                        }
                     }
                 }
             } catch {

@@ -34,26 +34,35 @@ const DENSFLOW_LIGHT_PRESET = {
 
 const isDemo = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
 
-// Public GET — returns current theme config
+// Public GET — returns current theme config + brand data
 export async function GET() {
     try {
         const { data, error } = await supabase
             .from('site_settings')
-            .select('value')
-            .eq('key', 'theme')
-            .single();
+            .select('key, value')
+            .in('key', ['theme', 'brand']);
 
-        if (error || !data) {
-            // No theme saved — return demo preset or empty
+        if (error || !data || data.length === 0) {
+            // No settings saved — return demo preset or empty
             return NextResponse.json(isDemo ? DENSFLOW_LIGHT_PRESET : {}, {
                 headers: { 'Cache-Control': 'no-store, max-age=0' }
             });
         }
 
-        return NextResponse.json(data.value, {
+        const themeRow = data.find(r => r.key === 'theme');
+        const brandRow = data.find(r => r.key === 'brand');
+
+        const themeValue = themeRow?.value || (isDemo ? DENSFLOW_LIGHT_PRESET : {});
+        const brandValue = brandRow?.value || {};
+
+        // Merge brand into the response as _brand
+        const response = { ...themeValue, _brand: brandValue };
+
+        return NextResponse.json(response, {
             headers: { 'Cache-Control': 'no-store, max-age=0' }
         });
     } catch {
         return NextResponse.json(isDemo ? DENSFLOW_LIGHT_PRESET : {});
     }
 }
+

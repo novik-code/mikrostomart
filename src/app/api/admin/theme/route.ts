@@ -52,27 +52,30 @@ async function saveSetting(key: string, value: any) {
     return insertError;
 }
 
-// Admin GET — returns current theme config
+// Admin GET — returns current theme config + brand config
 export async function GET() {
     const user = await checkAdmin();
     if (!user) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Load both theme and brand from site_settings
     const { data, error } = await supabase
         .from('site_settings')
-        .select('value')
-        .eq('key', 'theme')
-        .maybeSingle();
+        .select('key, value')
+        .in('key', ['theme', 'brand']);
 
     if (error) {
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json(data || { value: {} });
+    const theme = data?.find(r => r.key === 'theme')?.value || {};
+    const brand = data?.find(r => r.key === 'brand')?.value || {};
+
+    return NextResponse.json({ value: theme, brand });
 }
 
-// Admin PUT — save full theme config
+// Admin PUT — save full theme config + optional brand config
 export async function PUT(request: NextRequest) {
     const user = await checkAdmin();
     if (!user) {
@@ -80,11 +83,21 @@ export async function PUT(request: NextRequest) {
     }
 
     try {
-        const theme = await request.json();
-        const error = await saveSetting('theme', theme);
+        const body = await request.json();
 
-        if (error) {
-            return NextResponse.json({ error: error.message }, { status: 500 });
+        // Save theme (everything except 'brand' field)
+        const { brand: brandData, ...theme } = body;
+        const themeError = await saveSetting('theme', theme);
+        if (themeError) {
+            return NextResponse.json({ error: themeError.message }, { status: 500 });
+        }
+
+        // Save brand if provided
+        if (brandData && typeof brandData === 'object' && Object.keys(brandData).length > 0) {
+            const brandError = await saveSetting('brand', brandData);
+            if (brandError) {
+                return NextResponse.json({ error: brandError.message }, { status: 500 });
+            }
         }
 
         return NextResponse.json({ success: true });
@@ -100,11 +113,16 @@ export async function POST() {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const error = await saveSetting('theme', {});
-
-    if (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    const themeError = await saveSetting('theme', {});
+    if (themeError) {
+        return NextResponse.json({ error: themeError.message }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, message: 'Theme reset to defaults' });
+    // Also reset brand
+    const brandError = await saveSetting('brand', {});
+    if (brandError) {
+        return NextResponse.json({ error: brandError.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true, message: 'Theme and brand reset to defaults' });
 }

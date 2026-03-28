@@ -51,6 +51,36 @@ Same codebase (`novik-code/mikrostomart`) serves **two independent deployments**
 
 **Every `git push origin main` → auto-deploys to BOTH environments.**
 
+### 🌐 DensFlow.Ai Sales Landing Page (`densflow.ai`)
+
+A **separate marketing/pre-sale landing page** exists at `densflow.ai` (outside the mikrostomart repo). It serves as the commercial front for the DensFlow.Ai SaaS product.
+
+**Structure:**
+- **Hero** — "Cyfrowy Gabinet Stomatologiczny w 5 Minut" + countdown timer
+- **Problemy** — 9 pain points with solutions
+- **Features** — 4 categories × 6 functions (Strona WWW, Zarządzanie Pacjentami, AI, Automatyzacja)
+- **Unikalne narzędzia** — Mapa Bólu, Symulator Uśmiechu, Kalkulator Leczenia, Porównywarka, E-karta
+- **Social proof** — "Battle-Tested w Prawdziwym Gabinecie" (3+ months in production)
+- **Współtworzenie** — zgłaszaj funkcje, głosuj na priorytety, beta dostęp, dedykowany kanał
+- **Cennik** — licencja dożywotnia + tabela subskrypcji po premierze
+- **FAQ** — 7 pytań z odpowiedziami
+- **CTA** — "Kup Licencję Dożywotnią" / "Zapisz się do przedsprzedaży"
+- **Footer** — ELMAR Sp. z o.o., NIP, kontakt, regulamin, polityki
+
+**Pre-sale model:**
+| Oferta | Cena | Dostępność |
+|--------|------|-----------|
+| Licencja dożywotnia | **9 999 PLN jednorazowo** | Tylko do 1 września 2026 |
+| Starter (po premierze) | ~599 PLN/mies. | Od 1.09.2026 |
+| Professional (po premierze) | ~999 PLN/mies. | Od 1.09.2026 |
+| Enterprise (po premierze) | ~1 499 PLN/mies. | Od 1.09.2026 |
+
+**Key links from landing page:**
+- Demo: `https://demo.densflow.ai`
+- Regulamin: `https://densflow.ai/densflow/regulamin`
+- Polityka prywatności: `https://densflow.ai/densflow/polityka-prywatnosci`
+- Polityka cookies: `https://densflow.ai/densflow/polityka-cookies`
+
 ### 🧪 Demo Mode (`NEXT_PUBLIC_DEMO_MODE=true`)
 
 When `isDemoMode` is `true` (from `src/lib/demoMode.ts`):
@@ -4871,12 +4901,24 @@ OpenAI gpt-image-1 regenerates the entire masked area from scratch (+ forces 102
 - [ ] Comprehensive testing of all workflows
 - [ ] Performance optimization
 
+### 🛒 Commercialization Status
+- [x] **`densflow.ai` landing page** — hero, features, cennik, FAQ, CTA, regulamin, polityki
+- [x] **Pre-sale model** — licencja dożywotnia 9 999 PLN (do 1.09.2026), potem subskrypcja 599–1 499 PLN/mies.
+- [x] **`demo.densflow.ai`** — pełne demo z deep debrandingiem, 3 role, 20 pacjentów
+- [ ] **Video walkthrough** — nagranie głównych flow (admin, pracownik, pacjent)
+- [ ] **Bramka płatności** — Stripe checkout dla licencji dożywotniej
+- [ ] **Multi-tenancy** — tenant_id, RLS per tenant, env per klient
+- [ ] **PMS adapter pattern** — abstrakcja Prodentis + "No PMS" mode
+- [ ] **Self-service onboarding wizard** — klient sam konfiguruje gabinet
+
 ### 📋 Future Enhancements (Not Started)
 - [ ] Mobile app (React Native)
 - [ ] Advanced analytics dashboard
 - [ ] Multi-language support
 - [ ] Payment plan management
 - [ ] SMS date filters (last 7 days, 30 days, etc.)
+- [ ] Marketplace integracji (PMS, SMS providers, payment gateways)
+- [ ] Public API (REST/GraphQL)
 
 ---
 
