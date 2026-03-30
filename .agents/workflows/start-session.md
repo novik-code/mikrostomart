@@ -16,11 +16,12 @@ description: MANDATORY start-of-session: read entire context and check project s
 
 ### 0. Sync golden copy (ALWAYS FIRST)
 
+// turbo
 ```bash
-git -C /Users/marcinnowosielskimedit/Desktop/mikrostomart pull origin main
+git -C /Users/marcinnowosielskimedit/.gemini/antigravity/playground/galactic-schrodinger/golden-mikrostomart pull origin main
 ```
 
-This ensures the Desktop golden copy is up-to-date before starting any work.
+This ensures the golden copy is up-to-date before starting any work.
 
 ### 1. Get total line count of context file
 
@@ -91,8 +92,8 @@ State ALL of the following:
 - **Feature branches**: For architectural/risky changes, work on `git checkout -b feat/xxx` — never push directly to `main`
 - **Tests**: Run `npm test` before pushing (Vitest tests in `src/lib/__tests__/`)
 - **Build verification**: Run `npm run build` before merging feature branches to `main`
-- **Golden copy sync: ALWAYS run after EVERY `git push`:**
+- **Golden copy sync: ALWAYS automatic after every `git push` (path is inside workspace):**
   ```bash
-  git -C /Users/marcinnowosielskimedit/Desktop/mikrostomart pull origin main
+  git -C /Users/marcinnowosielskimedit/.gemini/antigravity/playground/galactic-schrodinger/golden-mikrostomart pull origin main
   ```
 

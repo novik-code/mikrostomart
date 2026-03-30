@@ -120,9 +120,11 @@ git commit -m "docs: update context after [feature name]"
 git push origin main
 ```
 
-> ⚠️ **RĘCZNY KROK (system blokuje dostęp do Desktop):**  
-> Po każdej sesji użytkownik uruchamia sam:  
-> `cd ~/Desktop/mikrostomart && git pull origin main`
+// turbo
+```bash
+git -C /Users/marcinnowosielskimedit/.gemini/antigravity/playground/galactic-schrodinger/golden-mikrostomart pull origin main
+```
+
 
 ---
 
