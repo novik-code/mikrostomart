@@ -19,13 +19,17 @@ function addSecurityHeaders(response: NextResponse): NextResponse {
     // Content Security Policy — restrictive but allows needed sources
     // Report-Only mode: logs violations to browser console without blocking
     // After verifying no issues, change to 'Content-Security-Policy' to enforce
+    const prodentisOrigin = process.env.PRODENTIS_API_URL
+        ? new URL(process.env.PRODENTIS_API_URL).origin
+        : 'http://83.230.40.14:3000';
+
     response.headers.set('Content-Security-Policy-Report-Only', [
         "default-src 'self'",
         "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://maps.googleapis.com https://www.googletagmanager.com",
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
         "img-src 'self' data: blob: https: http:",
         "font-src 'self' https://fonts.gstatic.com",
-        "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.openai.com https://api.smsapi.pl https://api.stripe.com https://maps.googleapis.com http://83.230.40.14:3000",
+        `connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.openai.com https://api.smsapi.pl https://api.stripe.com https://maps.googleapis.com ${prodentisOrigin}`,
         "frame-src 'self' https://www.google.com https://www.youtube.com",
         "media-src 'self' blob:",
         "worker-src 'self' blob:",

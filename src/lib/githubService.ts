@@ -1,8 +1,8 @@
 import { demoSanitize } from '@/lib/brandConfig';
 
 const GITHUB_TOKEN = process.env.GITHUB_ACCESS_TOKEN;
-const REPO_OWNER = 'novik-code'; // Hardcoded based on remote url or env? Better to env or simple extraction
-const REPO_NAME = 'mikrostomart';
+const REPO_OWNER = process.env.GITHUB_OWNER || 'novik-code';
+const REPO_NAME = process.env.GITHUB_REPO || 'mikrostomart';
 
 // Simple helper to get current file SHA (if exists) to allow updates
 async function getFileSha(path: string) {
