@@ -58,13 +58,23 @@ export async function GET() {
             return NextResponse.json({ specialists: FALLBACK_PROD_SPECIALISTS, source: 'fallback_empty' });
         }
 
-        const specialists = data.map((emp) => ({
-            id: emp.prodentis_id || emp.id,   // use prodentis_id as key (matches AppointmentScheduler)
-            dbId: emp.id,                      // employees UUID for future use
-            name: emp.name,
-            role: emp.booking_role || 'doctor',
-            durationMin: emp.booking_duration_minutes || 30,
-        }));
+        // Deduplicate by prodentis_id — Prodentis auto-scan can create multiple
+        // employee rows for the same doctor (one manual + one auto-created)
+        const seen = new Set<string>();
+        const specialists = data
+            .filter((emp) => {
+                const key = emp.prodentis_id || emp.id;
+                if (seen.has(key)) return false;
+                seen.add(key);
+                return true;
+            })
+            .map((emp) => ({
+                id: emp.prodentis_id || emp.id,
+                dbId: emp.id,
+                name: emp.name,
+                role: emp.booking_role || 'doctor',
+                durationMin: emp.booking_duration_minutes || 30,
+            }));
 
         return NextResponse.json({ specialists, source: 'db' });
     } catch (err: any) {
