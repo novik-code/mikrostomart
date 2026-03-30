@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import bcrypt from 'bcryptjs';
 import { verifyTokenFromRequest } from '@/lib/jwt';
 import { demoSanitize } from '@/lib/brandConfig';
+import { sendEmail } from '@/lib/emailSender';
 
 export const dynamic = 'force-dynamic';
 
@@ -88,12 +89,9 @@ export async function POST(request: NextRequest) {
                 .single();
 
             if (patientData?.email) {
-                const { Resend } = await import('resend');
-                const resend = new Resend(process.env.RESEND_API_KEY);
-                await resend.emails.send({
-                    from: demoSanitize('Mikrostomart <noreply@mikrostomart.pl>'),
+                await sendEmail({
                     to: patientData.email,
-                    subject: demoSanitize('Hasło zostało zmienione — Mikrostomart'),
+                    subject: 'Hasło zostało zmienione — Mikrostomart',
                     html: demoSanitize(`
                         <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px;">
                             <h2 style="color: #dcb14a;">🔒 Zmiana hasła</h2>
@@ -101,7 +99,7 @@ export async function POST(request: NextRequest) {
                             <p>Twoje hasło do portalu pacjenta Mikrostomart zostało właśnie zmienione.</p>
                             <p style="color: #999; font-size: 0.9em;">
                                 Jeśli to nie Ty zmieniałeś/aś hasło, natychmiast skontaktuj się z nami 
-                                pod numerem <strong>728 943 943</strong>.
+                                pod numerem <strong>570-270-470</strong>.
                             </p>
                             <hr style="border: 1px solid #eee; margin: 20px 0;" />
                             <p style="color: #aaa; font-size: 0.8em;">Mikrostomart — Gabinet Stomatologiczny</p>

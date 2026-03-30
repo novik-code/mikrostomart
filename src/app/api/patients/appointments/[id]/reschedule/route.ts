@@ -1,19 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { Resend } from 'resend';
 import { verifyTokenFromRequest } from '@/lib/jwt';
 import { sendTelegramNotification } from '@/lib/telegram';
 import { broadcastPush } from '@/lib/webpush';
 import { sendSMS } from '@/lib/smsService';
 import type { RescheduleAppointmentRequest, AppointmentActionResponse, AppointmentAction } from '@/types/appointmentActions';
 import { demoSanitize } from '@/lib/brandConfig';
+import { sendEmail } from '@/lib/emailSender';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const resend = new Resend(process.env.RESEND_API_KEY!);
 const PRODENTIS_API = process.env.PRODENTIS_API_URL || 'http://83.230.40.14:3000';
 const PRODENTIS_KEY = process.env.PRODENTIS_API_KEY || '';
 
@@ -230,11 +229,10 @@ export async function POST(
                 </p>
             `;
 
-            await resend.emails.send({
-                from: demoSanitize('Strefa Pacjenta <noreply@mikrostomart.pl>'),
-                to: [demoSanitize(demoSanitize('gabinet@mikrostomart.pl'))],
+            await sendEmail({
+                to: demoSanitize('gabinet@mikrostomart.pl'),
                 subject: '📅 Wizyta przełożona przez pacjenta',
-                html: emailHtml
+                html: emailHtml,
             });
             emailSent = true;
         } catch (emailError) {

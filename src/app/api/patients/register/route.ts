@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import bcrypt from 'bcryptjs';
-import { Resend } from 'resend';
 import { broadcastPush } from '@/lib/webpush';
 import { sendTelegramNotification } from '@/lib/telegram';
 import { getEmailTemplate } from '@/lib/emailTemplates';
 import { demoSanitize } from '@/lib/brandConfig';
+import { sendEmail } from '@/lib/emailSender';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,7 +14,6 @@ const supabase = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const resend = new Resend(process.env.RESEND_API_KEY!);
 
 export async function POST(request: Request) {
     try {
@@ -114,12 +113,7 @@ export async function POST(request: Request) {
                 year: String(new Date().getFullYear()),
             });
 
-            await resend.emails.send({
-                from: demoSanitize('Mikrostomart <noreply@mikrostomart.pl>'),
-                to: email,
-                subject,
-                html,
-            });
+            await sendEmail({ to: email, subject, html });
 
             console.log('[Register] Verification email sent successfully');
         } catch (emailError) {
