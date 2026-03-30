@@ -111,11 +111,19 @@ At the TOP of Recent Changes section (line ~2030+):
 
 ---
 
-## Step 11 — Commit the context update
+## Step 11 — Commit and push (ALWAYS auto-run)
+
+// turbo
 ```bash
-git add mikrostomart_context.md
+git add -A
 git commit -m "docs: update context after [feature name]"
-git push
+git push origin main
+```
+
+// turbo
+```bash
+# Sync golden copy on Desktop (always run after push)
+cd /Users/marcinnowosielskimedit/Desktop/mikrostomart && git pull origin main
 ```
 
 ---
