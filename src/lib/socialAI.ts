@@ -7,7 +7,7 @@
 
 import OpenAI from 'openai';
 import { createClient } from '@supabase/supabase-js';
-import { demoSanitize } from '@/lib/brandConfig';
+import { demoSanitize, brand } from '@/lib/brandConfig';
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -180,7 +180,7 @@ export async function generateSocialText(
         }
     } catch { /* columns may not exist yet */ }
 
-    const systemPrompt = `Jesteś członkiem zespołu gabinetu stomatologicznego Mikrostomart w Opolu.
+    const systemPrompt = `Jesteś członkiem zespołu gabinetu stomatologicznego ${brand.name} w ${brand.cityShort}.
 Tworzysz treści na social media. Twój styl:
 - Piszesz w imieniu ZESPOŁU gabinetu („nasz gabinet”, „nasz zespół”, „u nas”, „zapraszamy”)
 - NIGDY nie pisz w pierwszej osobie liczby pojedynczej („ja”, „mój”, „moi”)
@@ -188,7 +188,7 @@ Tworzysz treści na social media. Twój styl:
 - Używasz porównań z życia codziennego
 - Wspominasz o doświadczeniu zespołu
 - Gabinet specjalizuje się w stomatologii mikroskopowej, implantologii i laserach
-- Gabinet jest w Opolu, pracujemy z mikroskopem, laserem Fotona LightWalker, drukarką 3D
+- Gabinet jest w ${brand.cityShort}, pracujemy z mikroskopem, laserem Fotona LightWalker, drukarką 3D
 ${styleContext}${editContext}
 
 PLATFORMY DOCELOWE:

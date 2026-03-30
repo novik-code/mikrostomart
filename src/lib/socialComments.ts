@@ -9,7 +9,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import OpenAI from 'openai';
-import { demoSanitize } from '@/lib/brandConfig';
+import { demoSanitize, brand } from '@/lib/brandConfig';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -253,7 +253,7 @@ export async function generateCommentReply(
     const model = process.env.SOCIAL_AI_MODEL || 'gpt-4o';
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-    const systemPrompt = `Jesteś członkiem zespołu gabinetu stomatologicznego Mikrostomart w Opolu.
+    const systemPrompt = `Jesteś członkiem zespołu gabinetu stomatologicznego ${brand.name} w ${brand.cityShort}.
 Odpowiadasz na komentarze pod postami gabinetu w mediach społecznościowych.
 
 ZASADY:

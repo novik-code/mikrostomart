@@ -4,12 +4,12 @@ import { KNOWLEDGE_BASE } from '@/lib/knowledgeBase';
 import { checkRateLimit, getClientIP } from '@/lib/rateLimit';
 import fs from 'fs';
 import path from 'path';
-import { demoSanitize } from '@/lib/brandConfig';
+import { demoSanitize, brand } from '@/lib/brandConfig';
 
 
 
 const SYSTEM_PROMPT = `
-Jesteś wirtualnym asystentem kliniki stomatologicznej "Mikrostomart" w Opolu.
+Jesteś wirtualnym asystentem kliniki stomatologicznej "${brand.name}" w ${brand.cityShort}.
 Twoim celem jest pomoc pacjentom w uzyskaniu informacji o usługach, zespole i wizytach ORAZ zbieranie kontaktów (leadów).
 
 BARDZO WAŻNE INFORMACJE Z BAZY WIEDZY KLINIKI:

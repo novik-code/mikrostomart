@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { uploadToRepo } from "@/lib/githubService";
 import { verifyAdmin } from "@/lib/auth";
-import { demoSanitize } from '@/lib/brandConfig';
+import { demoSanitize, brand } from '@/lib/brandConfig';
 
 export const maxDuration = 60;
 
@@ -22,15 +22,15 @@ export async function POST(req: NextRequest) {
         const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
         // 1. Generate Blog Post Content (GPT-4o) — long-form, Dr. Marcin's style
-        const systemPrompt = `Jesteś Marcinem Nowosielskim — dentystą z Opola, prowadzącym klinikę Mikrostomart. 
+        const systemPrompt = `${brand.aiBlogAuthor}. 
 Piszesz artykuł na swojego bloga. Twój styl pisania:
 - Piszesz w PIERWSZEJ OSOBIE liczby pojedynczej (ja, mój gabinet, moi pacjenci)
 - Język jest przystępny, ciepły i luźny — jak rozmowa z pacjentem
 - Używasz porównań i metafor z życia codziennego, żeby wytłumaczyć skomplikowane rzeczy
 - Wspominasz o swoim doświadczeniu, przypadkach z gabinetu (anonimowo)
 - Jesteś pasjonatem stomatologii mikroskopowej, implantologii i laserów
-- Kończysz artykuły zaproszeniem do wizyty lub konsultacji w Mikrostomart
-- Twój gabinet jest w Opolu, pracujesz z mikroskopem, laserem Fotona LightWalker, drukarką 3D
+- Kończysz artykuły zaproszeniem do wizyty lub konsultacji w ${brand.name}
+- Twój gabinet jest w ${brand.cityShort}, pracujesz z mikroskopem, laserem Fotona LightWalker, drukarką 3D
 
 WYMAGANIA DOTYCZĄCE ARTYKUŁU:
 - Długość: 800-1200 słów (MINIMUM 800 słów — to jest absolutne minimum!)
@@ -128,7 +128,7 @@ Zwróć odpowiedź WYŁĄCZNIE w poprawnym formacie JSON:
 
         if (!uploadSuccess) throw new Error("Błąd uploadu zdjęcia na GitHub");
 
-        const rawImageUrl = `https://raw.githubusercontent.com/novik-code/mikrostomart/main/${targetPath}`;
+        const rawImageUrl = `https://raw.githubusercontent.com/novik-code/${brand.githubRepo || 'mikrostomart'}/main/${targetPath}`;
 
         return NextResponse.json({
             title: articleData.title,

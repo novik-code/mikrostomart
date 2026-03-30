@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
 import { executeAction } from '@/lib/assistantActions';
-import { demoSanitize } from '@/lib/brandConfig';
+import { demoSanitize, brand } from '@/lib/brandConfig';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,7 +20,7 @@ function buildSystemPrompt(memory: Record<string, string> = {}): string {
         ? `\n\nTWÓJ KONTEKST O UŻYTKOWNIKU (zapamiętane fakty):\n${Object.entries(memory).map(([k, v]) => `- ${k}: ${v}`).join('\n')}\n- Używaj tych danych naturalnie — np. jeśli znasz adres fryzjera, dodaj go do opisu zadania/kalendarza.`
         : '';
 
-    return `Jesteś asystentem głosowym Mikrostomart — kliniki stomatologicznej w Opolu.
+    return `Jesteś asystentem głosowym ${brand.name} — kliniki stomatologicznej w ${brand.cityShort}.
 Mówisz po polsku. Jesteś rzeczowy, ciepły i naturalny — jak dobry współpracownik, nie robot.
 
 TWOJE MOŻLIWOŚCI:
