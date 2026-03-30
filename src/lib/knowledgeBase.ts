@@ -316,3 +316,41 @@ Klinika udziela **2-letniej rękojmi** na wypełnienia i protetykę, pod warunki
 - **Warunek**: Wizyty kontrolne i higienizacja co 6 miesięcy.
 - **Sterylność**: Autoklaw Klasy B (szpitalny), pakiety otwierane przy pacjencie. Bezpieczeństwo to priorytet.
 `;
+
+/**
+ * getKnowledgeBase()
+ *
+ * Returns the active knowledge base for AI prompts.
+ * Priority: Supabase site_settings.ai_knowledge_base > static KNOWLEDGE_BASE fallback.
+ *
+ * This is the single source of truth for all AI chat routes.
+ * Admin/employee can update it via /pracownik → Email AI → Baza Wiedzy.
+ *
+ * Used by:
+ *   - /api/chat
+ *   - /api/cennik-chat
+ *   - /api/employee/email-generate-reply
+ *   - /api/employee/email-ai-config
+ *   - /api/cron/email-ai-drafts
+ */
+export async function getKnowledgeBase(): Promise<string> {
+    try {
+        const { createClient } = await import('@supabase/supabase-js');
+        const supabase = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        );
+        const { data } = await supabase
+            .from('site_settings')
+            .select('value')
+            .eq('key', 'ai_knowledge_base')
+            .maybeSingle();
+
+        if (data?.value && typeof data.value === 'string' && data.value.trim().length > 100) {
+            return data.value;
+        }
+    } catch (e) {
+        console.warn('[knowledgeBase] DB fetch failed, using static fallback:', e);
+    }
+    return KNOWLEDGE_BASE;
+}

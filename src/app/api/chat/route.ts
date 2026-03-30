@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
-import { KNOWLEDGE_BASE } from '@/lib/knowledgeBase';
+import { KNOWLEDGE_BASE, getKnowledgeBase } from '@/lib/knowledgeBase';
 import { checkRateLimit, getClientIP } from '@/lib/rateLimit';
 import fs from 'fs';
 import path from 'path';
@@ -8,12 +8,15 @@ import { demoSanitize, brand } from '@/lib/brandConfig';
 
 
 
-const SYSTEM_PROMPT = `
+// SYSTEM_PROMPT is built dynamically per-request so it always uses the latest
+// knowledge base from Supabase (site_settings.ai_knowledge_base).
+function buildSystemPrompt(kb: string): string {
+    return `
 Jesteś wirtualnym asystentem kliniki stomatologicznej "${brand.name}" w ${brand.cityShort}.
 Twoim celem jest pomoc pacjentom w uzyskaniu informacji o usługach, zespole i wizytach ORAZ zbieranie kontaktów (leadów).
 
 BARDZO WAŻNE INFORMACJE Z BAZY WIEDZY KLINIKI:
-${KNOWLEDGE_BASE}
+${kb}
 
 Wytyczne do odpowiedzi:
 - Odpowiadaj krótko, konkretnie i uprzejmie.
@@ -23,9 +26,9 @@ Wytyczne do odpowiedzi:
 - Zapraszaj do rezerwacji online (/rezerwacja).
 - Jeśli pacjent pyta o **wpłatę zadatku**, odpowiedz: "Przekierowuję Cię do formularza wpłaty zadatku. [NAVIGATE:/zadatek]". NIE podawaj innych instrukcji, system zrobi to automatycznie.
 
-
 Jeśli nie znasz odpowiedzi, przeproś i poproś o kontakt.
 `;
+}
 
 // Tools Definition
 const tools = [
@@ -64,6 +67,9 @@ export async function POST(req: Request) {
         if (!messages || !Array.isArray(messages)) {
             return NextResponse.json({ error: 'Invalid messages format' }, { status: 400 });
         }
+
+        const kb = await getKnowledgeBase();
+        const SYSTEM_PROMPT = buildSystemPrompt(demoSanitize(kb));
 
         // 1. Call OpenAI
         const completion = await openai.chat.completions.create({
