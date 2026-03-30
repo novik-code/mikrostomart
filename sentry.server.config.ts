@@ -23,6 +23,9 @@ Sentry.init({
     ignoreErrors: [
         'NEXT_NOT_FOUND',
         'NEXT_REDIRECT',
+        // SW registration errors from bots/crawlers
+        'Failed to register a ServiceWorker',
+        'Script .*/sw.js load failed',
     ],
 
     // Attach release for source maps
