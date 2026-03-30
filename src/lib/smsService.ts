@@ -8,6 +8,38 @@
 import { isDemoMode } from './demoMode';
 import { brand } from './brandConfig';
 
+/**
+ * Fetch SMS provider config from clinic_settings (DB-first, env fallback).
+ * Always safe: wrapped in try/catch — env is used if DB unavailable.
+ * Called once per sendSMS() call (no per-module caching needed for Next.js edge).
+ */
+async function getSmsConfig(): Promise<{ token: string; senderName: string }> {
+    try {
+        const { createClient } = await import('@supabase/supabase-js');
+        const supabase = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!
+        );
+        const { data } = await supabase
+            .from('clinic_settings')
+            .select('value')
+            .eq('key', 'sms_settings')
+            .maybeSingle();
+
+        const settings = (data?.value || {}) as Record<string, string>;
+        return {
+            token: settings.token || process.env.SMSAPI_TOKEN || '',
+            senderName: settings.sender_name || process.env.SMSAPI_FROM || brand.smsSenderName,
+        };
+    } catch {
+        // DB unavailable — fall back to env (no disruption to existing SMS)
+        return {
+            token: process.env.SMSAPI_TOKEN || '',
+            senderName: process.env.SMSAPI_FROM || brand.smsSenderName,
+        };
+    }
+}
+
 export interface SMSOptions {
     to: string;           // Phone number (format: 48XXXXXXXXX for Polish numbers)
     message: string;      // SMS content (recommended: under 160 chars for single SMS)
@@ -80,7 +112,9 @@ export function toGSM7(text: string): string {
  * }
  */
 export async function sendSMS(options: SMSOptions): Promise<SMSResponse> {
-    const { to, message, from = process.env.SMSAPI_FROM || brand.smsSenderName } = options;
+    // Load config: DB first (clinic_settings), env fallback — always safe
+    const smsConfig = await getSmsConfig();
+    const { to, message, from = smsConfig.senderName } = options;
 
     // Demo mode: log but don't send real SMS
     if (isDemoMode) {
@@ -108,12 +142,12 @@ export async function sendSMS(options: SMSOptions): Promise<SMSResponse> {
         };
     }
 
-    // Check if SMS provider is configured
-    if (!process.env.SMSAPI_TOKEN) {
-        console.warn('⚠️  SMSAPI_TOKEN not configured - SMS send skipped');
+    // Check if SMS provider is configured (DB token or env fallback)
+    if (!smsConfig.token) {
+        console.warn('⚠️  SMSAPI_TOKEN not configured (checked DB + env) - SMS send skipped');
         return {
             success: false,
-            error: 'SMS provider not configured. Set SMSAPI_TOKEN environment variable.'
+            error: 'SMS provider not configured. Set SMSAPI_TOKEN in environment or Admin Panel → SMS API.'
         };
     }
 
@@ -137,7 +171,7 @@ export async function sendSMS(options: SMSOptions): Promise<SMSResponse> {
         const response = await fetch('https://api.smsapi.pl/sms.do', {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${process.env.SMSAPI_TOKEN}`,
+                'Authorization': `Bearer ${smsConfig.token}`,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify(requestBody)
