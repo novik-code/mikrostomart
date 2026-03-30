@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { Resend } from 'resend';
 import { verifyAdmin } from '@/lib/auth';
 import { logAudit } from '@/lib/auditLog';
 import { demoSanitize } from '@/lib/brandConfig';
+import { sendEmail } from '@/lib/emailSender';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,7 +12,6 @@ const supabase = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(request: Request) {
     try {
@@ -68,8 +67,7 @@ export async function POST(request: Request) {
         // Send rejection email
         if (patient.email) {
             try {
-                await resend.emails.send({
-                    from: demoSanitize('Mikrostomart <noreply@mikrostomart.pl>'),
+                await sendEmail({
                     to: patient.email,
                     subject: 'Rejestracja w Strefie Pacjenta - wymagane wyjaśnienie',
                     html: demoSanitize(`

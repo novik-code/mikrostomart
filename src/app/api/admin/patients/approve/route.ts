@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { Resend } from 'resend';
 import { verifyAdmin } from '@/lib/auth';
 import { logAudit } from '@/lib/auditLog';
 import { demoSanitize } from '@/lib/brandConfig';
+import { sendEmail } from '@/lib/emailSender';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,7 +12,6 @@ const supabase = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(request: Request) {
     try {
@@ -65,10 +64,9 @@ export async function POST(request: Request) {
         // Send approval email
         if (patient.email) {
             try {
-                await resend.emails.send({
-                    from: demoSanitize('Mikrostomart <noreply@mikrostomart.pl>'),
+                await sendEmail({
                     to: patient.email,
-                    subject: demoSanitize('Konto zatwierdzone - Mikrostomart Strefa Pacjenta'),
+                    subject: 'Konto zatwierdzone - Mikrostomart Strefa Pacjenta',
                     html: demoSanitize(`
                         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                             <h2 style="color: #dcb14a;">Witaj ${firstName}!</h2>

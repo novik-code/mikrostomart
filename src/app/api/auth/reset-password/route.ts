@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { Resend } from 'resend';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,6 +10,7 @@ const supabase = createClient(
 
 import { checkRateLimit } from '@/lib/rateLimit';
 import { demoSanitize } from '@/lib/brandConfig';
+import { sendEmail } from '@/lib/emailSender';
 
 /**
  * POST /api/auth/reset-password
@@ -75,12 +75,9 @@ export async function POST(request: NextRequest) {
 
         console.log('[ResetPassword] Generated direct recovery URL for', normalizedEmail);
 
-        // Send email via Resend
-        const resend = new Resend(process.env.RESEND_API_KEY!);
-        const { error: emailError } = await resend.emails.send({
-            from: demoSanitize('Mikrostomart <noreply@mikrostomart.pl>'),
+        const result = await sendEmail({
             to: normalizedEmail,
-            subject: demoSanitize('Resetowanie hasła — Mikrostomart'),
+            subject: 'Resetowanie hasła — Mikrostomart',
             html: demoSanitize(`
                 <!DOCTYPE html><html><head><meta charset="utf-8"></head>
                 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
@@ -107,8 +104,8 @@ export async function POST(request: NextRequest) {
             `),
         });
 
-        if (emailError) {
-            console.error('[ResetPassword] Resend error:', emailError);
+        if (!result.success) {
+            console.error('[ResetPassword] Resend error:', result.error);
             return NextResponse.json(
                 { error: 'Nie udało się wysłać emaila. Spróbuj ponownie.' },
                 { status: 500 }

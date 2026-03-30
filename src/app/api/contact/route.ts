@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Resend } from "resend";
 import fs from "fs";
 import path from "path";
 import { sendTelegramNotification } from '@/lib/telegram';
 import { broadcastPush } from '@/lib/webpush';
-import { demoSanitize } from '@/lib/brandConfig';
+import { demoSanitize, brand } from '@/lib/brandConfig';
+import { sendEmail } from '@/lib/emailSender';
 
 export const runtime = 'nodejs';
 
@@ -143,17 +143,13 @@ export async function POST(req: NextRequest) {
         let emailSent = false;
 
         if (resendKey) {
-            const resend = new Resend(resendKey);
             const adminEmail = demoSanitize("gabinet@mikrostomart.pl");
-            const fromEmail = "powiadomienia@mikrostomart.pl";
-
-
-            await resend.emails.send({
-                from: fromEmail,
+            await sendEmail({
+                from: brand.notificationEmail,
                 to: adminEmail,
                 subject: emailSubject,
                 html: emailHtml,
-                attachments: emailAttachments
+                attachments: emailAttachments.length > 0 ? emailAttachments : undefined,
             });
             emailSent = true;
         } else {

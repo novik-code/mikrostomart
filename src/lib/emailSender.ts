@@ -39,6 +39,8 @@ export interface SendEmailOptions {
     from?: string;
     /** Reply-to address (optional) */
     replyTo?: string;
+    /** File attachments (optional) */
+    attachments?: Array<{ filename: string; content: Buffer | string }>;
 }
 
 export interface SendEmailResult {
@@ -82,6 +84,7 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendEmailRes
             subject,
             html,
             ...(options.replyTo ? { replyTo: options.replyTo } : {}),
+            ...(options.attachments ? { attachments: options.attachments } : {}),
         });
 
         if (result.error) {

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { Resend } from 'resend';
 import { demoSanitize } from '@/lib/brandConfig';
+import { sendEmail } from '@/lib/emailSender';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,7 +10,6 @@ const supabase = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const resend = new Resend(process.env.RESEND_API_KEY!);
 
 const MAX_RESET_ATTEMPTS = 3;
 const WINDOW_MINUTES = 15;
@@ -107,8 +106,7 @@ export async function POST(request: NextRequest) {
         console.log('[Password Reset] Reset URL:', resetUrl);
 
         try {
-            const emailResult = await resend.emails.send({
-                from: demoSanitize('Mikrostomart <noreply@mikrostomart.pl>'),
+            const emailResult = await sendEmail({
                 to: patient.email,
                 subject: 'Resetowanie hasła - Strefa Pacjenta',
                 html: demoSanitize(`
