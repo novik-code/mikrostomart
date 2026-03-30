@@ -35,7 +35,7 @@ function makeHtml(bodyContent: string): string {
         
         <!-- Footer -->
         <div style="padding: 1.5rem 2rem; background: rgba(0,0,0,0.2); text-align: center; font-size: 0.75rem; color: rgba(255,255,255,0.4);">
-            <p style="margin: 0;">Mikrostomart — ul. Ozimska 25, 45-058 Opole</p>
+            <p style="margin: 0;">Mikrostomart — ul. Centralna 33a, 45-940 Opole</p>
             <p style="margin: 0.25rem 0 0;">📞 570 270 470 | 
                 <a href="https://mikrostomart.pl" style="color: #dcb14a; text-decoration: none;">mikrostomart.pl</a>
             </p>

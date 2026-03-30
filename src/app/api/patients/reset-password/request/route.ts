@@ -162,7 +162,7 @@ export async function POST(request: NextRequest) {
                             </div>
                             <div class="footer">
                                 <p>© ${new Date().getFullYear()} Mikrostomart - Gabinet Stomatologiczny</p>
-                                <p>ul. Centralna 15, 45-362 Opole</p>
+                                <p>ul. Centralna 33a, 45-940 Opole</p>
                             </div>
                         </div>
                     </body>

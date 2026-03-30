@@ -60,7 +60,7 @@ const templates: Record<string, Record<EmailTemplateType, EmailTemplate>> = {
                         </div>
                         <div class="footer">
                             <p>© ${p.year} Mikrostomart - Gabinet Stomatologiczny</p>
-                            <p>ul. Centralna 15, 45-362 Opole</p>
+                            <p>ul. Centralna 33a, 45-940 Opole</p>
                         </div>
                     </div>
                 </body>
@@ -149,7 +149,7 @@ const templates: Record<string, Record<EmailTemplateType, EmailTemplate>> = {
                         </div>
                         <div class="footer">
                             <p>© ${p.year} Mikrostomart - Dental Clinic</p>
-                            <p>ul. Centralna 15, 45-362 Opole, Poland</p>
+                            <p>ul. Centralna 33a, 45-940 Opole, Poland</p>
                         </div>
                     </div>
                 </body>
@@ -238,7 +238,7 @@ const templates: Record<string, Record<EmailTemplateType, EmailTemplate>> = {
                         </div>
                         <div class="footer">
                             <p>© ${p.year} Mikrostomart - Zahnarztpraxis</p>
-                            <p>ul. Centralna 15, 45-362 Opole, Polen</p>
+                            <p>ul. Centralna 33a, 45-940 Opole, Polen</p>
                         </div>
                     </div>
                 </body>
@@ -327,7 +327,7 @@ const templates: Record<string, Record<EmailTemplateType, EmailTemplate>> = {
                         </div>
                         <div class="footer">
                             <p>© ${p.year} Mikrostomart - Стоматологічна клініка</p>
-                            <p>ul. Centralna 15, 45-362 Opole, Польща</p>
+                            <p>ul. Centralna 33a, 45-940 Opole, Польща</p>
                         </div>
                     </div>
                 </body>

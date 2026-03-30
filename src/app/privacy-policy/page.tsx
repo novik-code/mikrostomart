@@ -92,7 +92,7 @@ export default function PrivacyPolicyPage() {
                                 Email: <a href="mailto:kontakt@mikrostomart.pl" style={{ color: "var(--color-primary)" }}>kontakt@mikrostomart.pl</a>
                             </p>
                             <p>
-                                Phone: <a href="tel:+48774539250" style={{ color: "var(--color-primary)" }}>+48 77 453 92 50</a>
+                                Phone: <a href="tel:+48570270470" style={{ color: "var(--color-primary)" }}>+48 570 270 470</a>
                             </p>
                         </div>
                     </PolicySection>
@@ -317,7 +317,7 @@ export default function PrivacyPolicyPage() {
                         </p>
                         <ul>
                             <li>Email: <a href="mailto:kontakt@mikrostomart.pl" style={{ color: "var(--color-primary)" }}>kontakt@mikrostomart.pl</a></li>
-                            <li>Phone: <a href="tel:+48774539250" style={{ color: "var(--color-primary)" }}>+48 77 453 92 50</a></li>
+                            <li>Phone: <a href="tel:+48570270470" style={{ color: "var(--color-primary)" }}>+48 570 270 470</a></li>
                             <li>Address: ul. Ozimska 25/4, 45-057 Opole, Poland</li>
                         </ul>
                         <p style={{ marginTop: "0.75rem" }}>
