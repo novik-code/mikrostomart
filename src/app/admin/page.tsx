@@ -35,10 +35,12 @@ import {
     Fingerprint,
     ClipboardList,
     Send,
-    Share2
+    Share2,
+    Plug
 } from "lucide-react";
 import { Product } from './components/AdminTypes';
 import SocialMediaTab from './components/SocialMediaTab';
+import PmsSettingsTab from './components/PmsSettingsTab';
 import { demoSanitize } from '@/lib/brandConfig';
 
 export default function AdminPage() {
@@ -65,7 +67,7 @@ export default function AdminPage() {
     const [products, setProducts] = useState<Product[]>([]);
     const [error, setError] = useState<string | null>(null);
 
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'questions' | 'articles' | 'news' | 'orders' | 'reservations' | 'blog' | 'patients' | 'sms-reminders' | 'sms-post-visit' | 'sms-week-after-visit' | 'appointment-instructions' | 'roles' | 'employees' | 'chat' | 'theme' | 'page-builder' | 'push' | 'booking-settings' | 'online-bookings' | 'cancelled-appointments' | 'social-media'>('dashboard');
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'questions' | 'articles' | 'news' | 'orders' | 'reservations' | 'blog' | 'patients' | 'sms-reminders' | 'sms-post-visit' | 'sms-week-after-visit' | 'appointment-instructions' | 'roles' | 'employees' | 'chat' | 'theme' | 'page-builder' | 'push' | 'booking-settings' | 'online-bookings' | 'cancelled-appointments' | 'social-media' | 'pms-settings'>('dashboard');
     // Cancelled appointments state
     const [cancelledAppointments, setCancelledAppointments] = useState<any[]>([]);
     const [cancelledLoading, setCancelledLoading] = useState(false);
@@ -4956,6 +4958,7 @@ export default function AdminPage() {
                     <NavItem id="reservations" label="Rezerwacje (formularz)" icon={Calendar} />
                     <NavItem id="cancelled-appointments" label="Odwołane wizyty" icon={CalendarX} />
                     <NavItem id="booking-settings" label="Ustawienia rezerwacji" icon={Settings} />
+                    <NavItem id="pms-settings" label="Integracja PMS" icon={Plug} />
                     <NavItem id="appointment-instructions" label="Instrukcje wizyt" icon={ClipboardList} />
 
                     <NavSection title="Komunikacja" />
@@ -5314,6 +5317,7 @@ export default function AdminPage() {
                     {activeTab === 'chat' && <AdminChat />}
                     {activeTab === 'theme' && <ThemeEditor />}
                     {activeTab === 'social-media' && <SocialMediaTab />}
+                    {activeTab === 'pms-settings' && <PmsSettingsTab />}
                     {activeTab === 'page-builder' && <PageBuilderTab />}
                     {activeTab === 'online-bookings' && renderOnlineBookingsTab()}
                     {activeTab === 'cancelled-appointments' && (() => {
