@@ -86,7 +86,7 @@ export default function PrivacyPolicyPage() {
                                 Mikrostomart Gabinet Stomatologiczny
                             </p>
                             <p>Marcin Nowosielski</p>
-                            <p>ul. Ozimska 25/4, 45-057 Opole, Poland</p>
+                            <p>ul. Centralna 33a, 45-940 Opole, Poland</p>
                             <p>NIP: 7542680826</p>
                             <p style={{ marginTop: "0.5rem" }}>
                                 Email: <a href="mailto:kontakt@mikrostomart.pl" style={{ color: "var(--color-primary)" }}>kontakt@mikrostomart.pl</a>
@@ -318,7 +318,7 @@ export default function PrivacyPolicyPage() {
                         <ul>
                             <li>Email: <a href="mailto:kontakt@mikrostomart.pl" style={{ color: "var(--color-primary)" }}>kontakt@mikrostomart.pl</a></li>
                             <li>Phone: <a href="tel:+48570270470" style={{ color: "var(--color-primary)" }}>+48 570 270 470</a></li>
-                            <li>Address: ul. Ozimska 25/4, 45-057 Opole, Poland</li>
+                            <li>Address: ul. Centralna 33a, 45-940 Opole, Poland</li>
                         </ul>
                         <p style={{ marginTop: "0.75rem" }}>
                             We may update this Privacy Policy from time to time. Changes will be posted on this page with an updated &quot;Last updated&quot; date. We encourage you to review this page periodically.
