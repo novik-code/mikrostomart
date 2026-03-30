@@ -1,8 +1,8 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-03-25  
+> **Last Updated:** 2026-03-30  
 > **Version:** Production + Demo (Dual Vercel Deployment)  
-> **Status:** Active Development
+> **Status:** Active Development — Multi-Tenant Architecture (Phases 1-10 complete)
 
 ---
 
@@ -311,33 +311,25 @@ mikrostomart/
 │   │   ├── baza-wiedzy/        # Knowledge base articles
 │   │   ├── faq/                # FAQ page
 │   │   └── zadatek/            # Deposit payment
-│   ├── components/             # React components (33 files + 3 subdirs)
-│   │   ├── modals/             # Appointment modals (Cancel, Confirm, Reschedule)
-│   │   ├── scheduler/          # AppointmentScheduler (Prodentis live slots)
-│   │   ├── simulator/          # Smile simulator studio (Capture, MaskEditor, Results)
-│   │   ├── SplashScreen.tsx     # Cinematic intro animation (particles, logo, phases)
-│   │   ├── AssistantTeaser.tsx  # AI chat assistant (full chat mode, suggestions, file upload)
-│   │   ├── NovikCodeCredit.tsx  # Footer credit with fullscreen takeover animation
-│   │   ├── OverlayEditor.tsx    # Image alignment/overlay editor (simulator)
-│   │   ├── SimulatorModal.tsx   # Smile simulator main modal
-│   │   └── ...                 # (+ 24 more components)
+│   ├── components/             # React components
+│   │   ├── modals/             # Appointment modals
+│   │   ├── scheduler/          # AppointmentScheduler
+│   │   ├── SplashScreen.tsx     # Cinematic intro animation
+│   │   ├── AssistantTeaser.tsx  # AI chat assistant
+│   │   ├── NovikCodeCredit.tsx  # Footer credit
+│   │   ├── OverlayEditor.tsx    # Image alignment/overlay editor
+│   │   └── SimulatorModal.tsx   # Smile simulator main modal
 │   ├── context/                # React Context providers
-│   │   ├── CartContext.tsx      # Shopping cart state
-│   │   ├── AssistantContext.tsx # AI assistant open/close state
-│   │   ├── SimulatorContext.tsx # Smile simulator open/close state
-│   │   └── OpinionContext.tsx  # Review survey popup state + timed trigger
 │   ├── lib/                    # Utilities & services
 │   │   ├── brandConfig.ts      # Branding config (brand object), demoSanitize() function
-│   │   ├── demoMode.ts         # isDemoMode flag (reads NEXT_PUBLIC_DEMO_MODE)
+│   │   ├── demoMode.ts         # isDemoMode flag
 │   │   ├── smsService.ts       # SMS integration
 │   │   ├── productService.ts   # Product management
 │   │   ├── githubService.ts    # GitHub blog integration
-│   │   ├── knowledgeBase.ts    # AI assistant knowledge (20KB)
-│   │   ├── roles.ts            # Role management (RBAC: admin/employee/patient)
+│   │   ├── knowledgeBase.ts    # AI assistant knowledge (20KB + getKnowledgeBase() async helper — reads from DB)
+│   │   ├── roles.ts            # Role management
 │   │   ├── telegram.ts         # Telegram multi-bot notification routing
 │   │   ├── appointmentTypeMapper.ts  # Maps Prodentis appointment types
-│   │   ├── auth.ts             # Authentication helpers (verifyAdmin)
-│   │   ├── emailTemplates.ts   # Localized email templates (4 languages, demoSanitize at return)
 │   │   ├── emailService.ts     # Centralized patient email service (demoSanitize in makeHtml)
 │   │   ├── icsGenerator.ts     # ICS calendar file generator (demoSanitize on output)
 │   │   ├── cronHeartbeat.ts    # Cron heartbeat logging to Supabase
@@ -359,7 +351,7 @@ mikrostomart/
 │   ├── en/common.json          # English
 │   ├── de/common.json          # German
 │   └── ua/common.json          # Ukrainian
-├── supabase_migrations/        # Database migrations (82 files: 003-082, some gaps)
+├── supabase_migrations/        # Database migrations (99 files: 003-099, sequential numeric)
 ├── public/                     # Static assets (incl. qr-ocen-nas.png)
 ├── scripts/                    # Utility scripts (13 files)
 └── vercel.json                 # Deployment configuration (17 cron jobs: see Cron section)
@@ -2270,6 +2262,86 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### March 30, 2026
+**Multi-Tenant Architecture — Phases 6b through 10**
+
+#### Commits:
+- `a6e8971` — feat(phase6b-6c): Knowledge Base + Pricing to DB — dynamic AI context
+- `f1b2877` — feat(phase10): Domain/URL + external services parameterization
+- `8854862` — feat(phase9): i18n parameterization — replace hardcoded clinic strings with {brandName} tokens
+- `49ef4af` — feat(phase7-ui): PMS admin panel — Integracja PMS tab
+- `5e28866` — feat(phase7): PMS Adapter Layer — extensible architecture for future PMS
+- `89ea00c` — fix(phase6a): getDoctorInfo accepts both slug and prodentis_id
+- `228fc28` — fix(phase6a): deduplicate specialists + correct show_in_booking scope
+- `0b0af79` — feat(phase6a): dynamic specialist list in ReservationForm
+- `2579e46` — feat(phase5): inject brand tokens into AI system prompts
+- `66cb863` — feat(phase4): abstract SEO metadata via brandConfig
+
+#### Phase 6a — Specialists from DB (commits 0b0af79–89ea00c):
+- Migration `097_add_show_in_booking.sql` — column `employees.show_in_booking` (boolean, default false)
+- Migration `098_fix_booking_specialists.sql` — fix operator-only filter, deduplicate
+- `/api/specialists` route — filters by `position IN ('Lekarz','Higienistka') AND show_in_booking=true`
+- `ReservationForm.tsx` — fetches from DB instead of hardcoded DEMO_SPECIALISTS
+- `getDoctorInfo()` — accepts both `prodentis_id` and `slug` lookup
+
+#### Phase 6b — Knowledge Base to DB (commit a6e8971):
+- `src/lib/knowledgeBase.ts` — new `getKnowledgeBase(): Promise<string>` async function
+  - Reads `site_settings.ai_knowledge_base` from Supabase
+  - Falls back to static KNOWLEDGE_BASE constant if DB empty/unavailable
+- `/api/chat/route.ts` — `SYSTEM_PROMPT` now built per-request via `buildSystemPrompt(await getKnowledgeBase())`
+- `/api/cennik-chat/route.ts` — `PRICING_SYSTEM_PROMPT` now built per-request via `buildPricingPrompt(await getKnowledgeBase())`
+- All 5 AI routes now DB-backed: `/api/chat`, `/api/cennik-chat`, `email-generate-reply`, `email-ai-config`, `email-ai-drafts`
+- Update KB without deploy: `/pracownik` → Email AI → 📚 Baza wiedzy
+
+#### Phase 6c — Pricing to DB:
+- Pricing data lives inside KNOWLEDGE_BASE markdown (KB → DB covers AI pricing context)
+- Page-level pricing in TSX offer pages deferred to Phase 11 (requires admin UI sprint)
+
+#### Phase 7 — PMS Adapter Layer (commit 5e28866):
+- `src/lib/pms/types.ts` — `PmsAdapter` contract interface
+- `src/lib/pms/factory.ts` — lazy-loading factory reads `NEXT_PUBLIC_PMS_PROVIDER` env
+- `src/lib/pms/prodentis.adapter.ts` — production Prodentis implementation
+- `src/lib/pms/standalone.adapter.ts` — Supabase-native implementation for non-Prodentis clients
+- New clients: set `NEXT_PUBLIC_PMS_PROVIDER=standalone` in Vercel env, no code change needed
+
+#### Phase 7-UI — PMS Admin Panel (commit 49ef4af):
+- Migration `099_create_clinic_settings.sql` — `clinic_settings` table (key-value store for per-clinic config)
+- `src/app/admin/components/PmsSettingsTab.tsx` — new "Integracja PMS" tab in Admin Panel
+  - Shows active adapter, connection health check, internal notes/audit trail
+  - Roadmap of planned integrations (Mediporta, KamSoft, eStomatolog)
+- `/api/admin/pms-settings/route.ts` — GET (current config) + PATCH (update) + POST?action=health (test)
+- Admin Panel: added 23rd tab "Integracja PMS" with Plug icon
+
+#### Phase 9 — i18n Parameterization (commit 8854862):
+- **8 JSON files** (pl/en/de/ua × common.json + pages.json) — 0 hardcoded Mikrostomart strings outside legal HTML blocks
+- Tokens introduced: `{brandName}`, `{cityShort}`, `{phone1}`, `{legalName}`, `{email}`
+- `src/lib/brandConfig.ts` — new `brandI18nParams(): Record<string, string>` helper for next-intl interpolation
+- **14 consumer components** updated to pass `brandI18nParams()` to `t()` calls
+  - AssistantTeaser, OpinionSurvey, ReservationForm, ProductModal, cennik, mapa-bolu, rodo, strefa-pacjenta/wiadomosci, o-nas, baza-wiedzy (x2), oferta, rezerwacja, metamorfozy
+- Preserved (legal HTML blocks in regulamin/RODO/prywatność) — per-client at onboarding
+
+#### Phase 10 — Domain/URL + External Services (commit f1b2877):
+- `src/lib/githubService.ts` — `REPO_OWNER`/`REPO_NAME` → `GITHUB_OWNER`/`GITHUB_REPO` env vars
+- `src/middleware.ts` — CSP `connect-src` IP → dynamic from `new URL(PRODENTIS_API_URL).origin`
+- `src/lib/googleCalendar.ts` — redirect URI fallback → `NEXT_PUBLIC_APP_URL`
+- `src/app/kontakt/page.tsx` — Maps iframe → `brand.mapsEmbedUrl` with isDemoMode fallback
+
+#### New env vars for new clients:
+| Env Var | Default | Notes |
+|---------|---------|-------|
+| `GITHUB_OWNER` | `novik-code` | GitHub org/user owning the repo |
+| `GITHUB_REPO` | `mikrostomart` | GitHub repo name |
+| `NEXT_PUBLIC_APP_URL` | `https://mikrostomart.pl` | Used for Google OAuth redirect URI |
+| `NEXT_PUBLIC_PMS_PROVIDER` | `prodentis` | PMS adapter: `prodentis` or `standalone` |
+| `mapsEmbedUrl` | *(Opole embed)* | Set in clinic_settings via Supabase |
+
+#### Migration Numbering Fixed:
+- Migrations 095-099 renamed from date-based (`20260214_...`, `20260330_...`) to sequential numeric
+- Correct directory: `supabase_migrations/` (not `supabase/migrations/`)
+- See section below for full list
+
+---
 
 ### March 25, 2026
 **Visual Editor Drag-and-Drop Overhaul + DensFlow Light Template**
