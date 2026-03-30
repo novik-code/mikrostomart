@@ -7,26 +7,24 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { CheckCircle } from "lucide-react";
 import AppointmentScheduler from "./scheduler/AppointmentScheduler";
 import { useTranslations } from "next-intl";
-import { isDemoMode } from "@/lib/demoMode";
 
-// Specialists Data — demo shows fictional names
-const PROD_SPECIALISTS = [
-    { id: "marcin", name: "lek. dent. Marcin Nowosielski", role: "doctor" },
-    { id: "ilona", name: "lek. dent. Ilona Piechaczek", role: "doctor" },
-    { id: "katarzyna", name: "lek. dent. Katarzyna Halupczok", role: "doctor" },
-    { id: "dominika", name: "lek. dent. Dominika Milicz", role: "doctor" },
-    { id: "malgorzata", name: "hig. stom. Małgorzata Maćków-Huras", role: "hygienist" },
-] as const;
+// Specialist type (matches /api/specialists response)
+interface Specialist {
+    id: string;         // prodentis_id — used by AppointmentScheduler
+    dbId?: string;      // employees UUID
+    name: string;       // display name
+    role: string;       // 'doctor' | 'hygienist'
+    durationMin: number; // appointment duration in minutes
+}
 
-const DEMO_SPECIALISTS = [
-    { id: "jan", name: "lek. dent. Jan Kowalski", role: "doctor" },
-    { id: "anna", name: "lek. dent. Anna Nowak", role: "doctor" },
-    { id: "piotr", name: "lek. dent. Piotr Wiśniewski", role: "doctor" },
-    { id: "maria", name: "lek. dent. Maria Zielińska", role: "doctor" },
-    { id: "katarzyna-demo", name: "hig. stom. Katarzyna Wójcik", role: "hygienist" },
-] as const;
-
-const SPECIALISTS = isDemoMode ? DEMO_SPECIALISTS : PROD_SPECIALISTS;
+// Fallback list — shown while API loads or if API fails
+const FALLBACK_SPECIALISTS: Specialist[] = [
+    { id: 'marcin',     name: 'lek. dent. Marcin Nowosielski',      role: 'doctor',    durationMin: 30 },
+    { id: 'ilona',      name: 'lek. dent. Ilona Piechaczek',        role: 'doctor',    durationMin: 30 },
+    { id: 'katarzyna',  name: 'lek. dent. Katarzyna Hałupczok',     role: 'doctor',    durationMin: 30 },
+    { id: 'dominika',   name: 'lek. dent. Dominika Milicz',         role: 'doctor',    durationMin: 30 },
+    { id: 'malgorzata', name: 'hig. stom. Małgorzata Maćków-Huras', role: 'hygienist', durationMin: 60 },
+];
 
 // Service IDs per role (labels resolved via t())
 const SERVICE_IDS = {
@@ -49,7 +47,20 @@ export default function ReservationForm() {
     const [error, setError] = useState<string | null>(null);
     const [rodoConsent, setRodoConsent] = useState(false);
     const [intakeUrl, setIntakeUrl] = useState<string | null>(null);
+    const [specialists, setSpecialists] = useState<Specialist[]>(FALLBACK_SPECIALISTS);
     const t = useTranslations('reservationForm');
+
+    // Load specialists from DB (per-tenant dynamic list)
+    useEffect(() => {
+        fetch('/api/specialists')
+            .then(r => r.json())
+            .then(data => {
+                if (data.specialists && data.specialists.length > 0) {
+                    setSpecialists(data.specialists);
+                }
+            })
+            .catch(() => { /* keep FALLBACK_SPECIALISTS */ });
+    }, []);
 
     // Build schema with translated validation messages
     const reservationSchema = z.object({
@@ -100,9 +111,9 @@ export default function ReservationForm() {
     const selectedTime = watch("time");
 
     // Derived values
-    const selectedSpecialist = SPECIALISTS.find(s => s.id === selectedSpecialistId);
+    const selectedSpecialist = specialists.find(s => s.id === selectedSpecialistId);
     const availableServices = selectedSpecialist
-        ? (SERVICE_IDS[selectedSpecialist.role as keyof typeof SERVICE_IDS] || []).map(svc => ({ id: svc.id, label: t(svc.id) }))
+        ? (SERVICE_IDS[selectedSpecialist.role as keyof typeof SERVICE_IDS] || SERVICE_IDS.doctor).map(svc => ({ id: svc.id, label: t(svc.id) }))
         : [];
 
     // Reset service & slots when specialist changes
@@ -128,7 +139,7 @@ export default function ReservationForm() {
         setError(null);
 
         // Find formatted names for email
-        const specialistName = SPECIALISTS.find(s => s.id === data.specialist)?.name || data.specialist;
+        const specialistName = specialists.find(s => s.id === data.specialist)?.name || data.specialist;
 
         let attachmentData = null;
         if (data.attachment && data.attachment.length > 0) {
@@ -350,7 +361,7 @@ export default function ReservationForm() {
                     }}
                 >
                     <option value="">{t('selectSpecialist')}</option>
-                    {SPECIALISTS.map(spec => (
+                    {specialists.map(spec => (
                         <option key={spec.id} value={spec.id}>{spec.name}</option>
                     ))}
                 </select>
@@ -390,7 +401,7 @@ export default function ReservationForm() {
                 selectedSpecialist && (
                     <div className="form-group">
                         <label style={{ display: "block", marginBottom: "0.5rem", fontSize: "0.9rem", color: "var(--color-text-muted)" }}>
-                            {t('availableSlots')} * <span className="text-xs text-[var(--color-primary)]">({t('duration', { duration: selectedSpecialist.id === 'malgorzata' ? '60min' : '30min' })})</span>
+                        {t('availableSlots')} * <span className="text-xs text-[var(--color-primary)]">({t('duration', { duration: `${selectedSpecialist.durationMin}min` })})</span>
                         </label>
                         <AppointmentScheduler
                             specialistId={selectedSpecialist.id}
