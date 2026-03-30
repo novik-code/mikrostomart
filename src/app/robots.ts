@@ -1,5 +1,5 @@
 import { MetadataRoute } from 'next';
-import { demoSanitize } from '@/lib/brandConfig';
+import { demoSanitize, brand } from '@/lib/brandConfig';
 
 export default function robots(): MetadataRoute.Robots {
     return {
@@ -15,6 +15,6 @@ export default function robots(): MetadataRoute.Robots {
                 '/mapa-bolu/editor',
             ],
         },
-        sitemap: 'https://mikrostomart.pl/sitemap.xml',
+        sitemap: `${brand.appUrl}/sitemap.xml`,
     };
 }

@@ -1,19 +1,11 @@
 import type { Metadata } from 'next';
-import { isDemoMode } from '@/lib/demoMode';
+import { brand } from '@/lib/brandConfig';
 
-const prodMetadata: Metadata = {
-    title: 'Ortodoncja Opole - Nakładki Clear Correct, Prostowanie Zębów',
-    description: 'Ortodoncja w Opolu. Przezroczyste nakładki Clear Correct — prostowanie zębów bez aparatu metalowego. Symulacja 3D efektu. Gabinet Mikrostomart.',
-    keywords: 'ortodoncja opole, prostowanie zębów opole, nakładki ortodontyczne opole, clear correct opole, aparat ortodontyczny opole',
+export const metadata: Metadata = {
+    title: `Ortodoncja ${brand.cityShort} - Nakładki Clear Correct, Prostowanie Zębów`,
+    description: `Ortodoncja w ${brand.cityShort}. Przeźroczyste nakładki Clear Correct — prostowanie zębów bez aparatu metalowego. Symulacja 3D efektu. Gabinet ${brand.name}.`,
+    keywords: `ortodoncja ${brand.cityShort.toLowerCase()}, prostowanie zębów ${brand.cityShort.toLowerCase()}, nakładki ortodontyczne ${brand.cityShort.toLowerCase()}, clear correct ${brand.cityShort.toLowerCase()}, aparat ortodontyczny ${brand.cityShort.toLowerCase()}`,
 };
-
-const demoMetadata: Metadata = {
-    title: 'Ortodoncja  - Nakładki Clear Correct, Prostowanie Zębów',
-    description: 'Ortodoncja w . Przezroczyste nakładki Clear Correct — prostowanie zębów bez aparatu metalowego. Symulacja 3D efektu. Gabinet DensFlow Demo.',
-    keywords: 'ortodoncja opole, prostowanie zębów opole, nakładki ortodontyczne opole, clear correct opole, aparat ortodontyczny opole',
-};
-
-export const metadata: Metadata = isDemoMode ? demoMetadata : prodMetadata;
 
 const faqSchema = {
     "@context": "https://schema.org", "@type": "FAQPage",
@@ -28,8 +20,8 @@ const faqSchema = {
 const breadcrumbSchema = {
     "@context": "https://schema.org", "@type": "BreadcrumbList",
     "itemListElement": [
-        { "@type": "ListItem", "position": 1, "name": "Strona główna", "item": "https://mikrostomart.pl" },
-        { "@type": "ListItem", "position": 2, "name": "Oferta", "item": "https://mikrostomart.pl/oferta" },
+        { "@type": "ListItem", "position": 1, "name": "Strona główna", "item": brand.appUrl },
+        { "@type": "ListItem", "position": 2, "name": "Oferta", "item": `${brand.appUrl}/oferta` },
         { "@type": "ListItem", "position": 3, "name": "Ortodoncja" }
     ]
 };

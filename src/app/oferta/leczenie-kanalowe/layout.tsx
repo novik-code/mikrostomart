@@ -1,19 +1,11 @@
 import type { Metadata } from 'next';
-import { isDemoMode } from '@/lib/demoMode';
+import { brand } from '@/lib/brandConfig';
 
-const prodMetadata: Metadata = {
-    title: 'Leczenie Kanałowe Opole - Endodoncja Mikroskopowa',
-    description: 'Leczenie kanałowe pod mikroskopem w Opolu. Bezbolesne, precyzyjne, często na jednej wizycie. Gabinet Mikrostomart — powiększenie 25x, komputerowe znieczulenie.',
-    keywords: 'leczenie kanałowe opole, endodoncja opole, leczenie kanałowe pod mikroskopem, root canal opole, dentysta kanałowe opole',
+export const metadata: Metadata = {
+    title: `Leczenie Kanałowe ${brand.cityShort} - Endodoncja Mikroskopowa`,
+    description: `Leczenie kanałowe pod mikroskopem w ${brand.cityShort}. Bezbolesne, precyzyjne, często na jednej wizycie. Gabinet ${brand.name} — powiększenie 25x, komputerowe znieczulenie.`,
+    keywords: `leczenie kanałowe ${brand.cityShort.toLowerCase()}, endodoncja ${brand.cityShort.toLowerCase()}, leczenie kanałowe pod mikroskopem, root canal ${brand.cityShort.toLowerCase()}, dentysta kanałowe ${brand.cityShort.toLowerCase()}`,
 };
-
-const demoMetadata: Metadata = {
-    title: 'Leczenie Kanałowe  - Endodoncja Mikroskopowa',
-    description: 'Leczenie kanałowe pod mikroskopem w . Bezbolesne, precyzyjne, często na jednej wizycie. Gabinet DensFlow Demo — powiększenie 25x, komputerowe znieczulenie.',
-    keywords: 'leczenie kanałowe opole, endodoncja opole, leczenie kanałowe pod mikroskopem, root canal opole, dentysta kanałowe opole',
-};
-
-export const metadata: Metadata = isDemoMode ? demoMetadata : prodMetadata;
 
 const faqSchema = {
     "@context": "https://schema.org",
@@ -58,8 +50,8 @@ const breadcrumbSchema = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     "itemListElement": [
-        { "@type": "ListItem", "position": 1, "name": "Strona główna", "item": "https://mikrostomart.pl" },
-        { "@type": "ListItem", "position": 2, "name": "Oferta", "item": "https://mikrostomart.pl/oferta" },
+        { "@type": "ListItem", "position": 1, "name": "Strona główna", "item": brand.appUrl },
+        { "@type": "ListItem", "position": 2, "name": "Oferta", "item": `${brand.appUrl}/oferta` },
         { "@type": "ListItem", "position": 3, "name": "Leczenie Kanałowe" }
     ]
 };

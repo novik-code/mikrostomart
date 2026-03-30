@@ -1,19 +1,11 @@
 import type { Metadata } from 'next';
-import { isDemoMode } from '@/lib/demoMode';
+import { brand } from '@/lib/brandConfig';
 
-const prodMetadata: Metadata = {
-    title: 'Chirurgia Stomatologiczna Opole - Usuwanie Zębów, Ósemki',
-    description: 'Chirurgia stomatologiczna w Opolu. Bezbolesne usuwanie zębów i ósemek z zastosowaniem PRF. Szybkie gojenie. Gabinet Mikrostomart Opole.',
-    keywords: 'chirurgia stomatologiczna opole, usuwanie zębów opole, usuwanie ósemek opole, ekstrakcja zęba opole, PRF opole',
+export const metadata: Metadata = {
+    title: `Chirurgia Stomatologiczna ${brand.cityShort} - Usuwanie Zębów, Ósemki`,
+    description: `Chirurgia stomatologiczna w ${brand.cityShort}. Bezbolesne usuwanie zębów i ósemek z zastosowaniem PRF. Szybkie gojenie. Gabinet ${brand.name} ${brand.cityShort}.`,
+    keywords: `chirurgia stomatologiczna ${brand.cityShort.toLowerCase()}, usuwanie zębów ${brand.cityShort.toLowerCase()}, usuwanie ósemek ${brand.cityShort.toLowerCase()}, ekstrakcja zęba ${brand.cityShort.toLowerCase()}, PRF ${brand.cityShort.toLowerCase()}`,
 };
-
-const demoMetadata: Metadata = {
-    title: 'Chirurgia Stomatologiczna  - Usuwanie Zębów, Ósemki',
-    description: 'Chirurgia stomatologiczna w . Bezbolesne usuwanie zębów i ósemek z zastosowaniem PRF. Szybkie gojenie. Gabinet DensFlow Demo .',
-    keywords: 'chirurgia stomatologiczna opole, usuwanie zębów opole, usuwanie ósemek opole, ekstrakcja zęba opole, PRF opole',
-};
-
-export const metadata: Metadata = isDemoMode ? demoMetadata : prodMetadata;
 
 const faqSchema = {
     "@context": "https://schema.org", "@type": "FAQPage",
@@ -28,8 +20,8 @@ const faqSchema = {
 const breadcrumbSchema = {
     "@context": "https://schema.org", "@type": "BreadcrumbList",
     "itemListElement": [
-        { "@type": "ListItem", "position": 1, "name": "Strona główna", "item": "https://mikrostomart.pl" },
-        { "@type": "ListItem", "position": 2, "name": "Oferta", "item": "https://mikrostomart.pl/oferta" },
+        { "@type": "ListItem", "position": 1, "name": "Strona główna", "item": brand.appUrl },
+        { "@type": "ListItem", "position": 2, "name": "Oferta", "item": `${brand.appUrl}/oferta` },
         { "@type": "ListItem", "position": 3, "name": "Chirurgia Stomatologiczna" }
     ]
 };

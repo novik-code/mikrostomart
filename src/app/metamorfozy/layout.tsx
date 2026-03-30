@@ -1,16 +1,10 @@
 import type { Metadata } from 'next';
-import { isDemoMode } from '@/lib/demoMode';
+import { brand } from '@/lib/brandConfig';
 
 export function generateMetadata(): Metadata {
-    if (isDemoMode) {
-        return {
-            title: 'Metamorfozy | DensFlow Demo Opole',
-            description: 'Zobacz niesamowite efekty leczenia w DensFlow Demo. Galeria zdjęć przed i po zabiegach.',
-        };
-    }
     return {
-        title: 'Metamorfozy | Mikrostomart Opole',
-        description: 'Zobacz niesamowite efekty leczenia w Mikrostomart. Galeria zdjęć przed i po zabiegach.',
+        title: `Metamorfozy | ${brand.name} ${brand.cityShort}`,
+        description: `Zobacz niesamowite efekty leczenia w ${brand.name}. Galeria zdjęć przed i po zabiegach.`,
     };
 }
 

@@ -1,17 +1,11 @@
 import type { Metadata } from 'next';
-import { isDemoMode } from '@/lib/demoMode';
+import { brand } from '@/lib/brandConfig';
 
 export function generateMetadata(): Metadata {
-    if (isDemoMode) {
-        return {
-            title: 'Kontakt | DensFlow Demo - Gabinet Demo',
-            description: 'Skontaktuj się z gabinetem demonstracyjnym DensFlow. Umów wizytę online.',
-        };
-    }
     return {
-        title: 'Kontakt | Mikrostomart - Dentysta Opole',
-        description: 'Skontaktuj się z gabinetem Mikrostomart w Opolu. Adres: ul. Centralna 33a, Opole-Chmielowice. Telefon: 570-270-470. Umów wizytę online.',
-        keywords: 'kontakt, dentysta opole, mikrostomart telefon, umów wizytę opole, gabinet stomatologiczny chmielowice'
+        title: `Kontakt | ${brand.name} - Dentysta ${brand.cityShort}`,
+        description: `Skontaktuj się z gabinetem ${brand.name} w ${brand.cityShort}. Adres: ${brand.streetAddress}. Telefon: ${brand.phone1}. Umów wizytę online.`,
+        keywords: `kontakt, dentysta ${brand.cityShort.toLowerCase()}, ${brand.name.toLowerCase()} telefon, umów wizytę ${brand.cityShort.toLowerCase()}, gabinet stomatologiczny`
     };
 }
 

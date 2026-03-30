@@ -1,16 +1,10 @@
 import type { Metadata } from 'next';
-import { isDemoMode } from '@/lib/demoMode';
+import { brand } from '@/lib/brandConfig';
 
 export function generateMetadata(): Metadata {
-    if (isDemoMode) {
-        return {
-            title: 'Polityka Cookies | DensFlow Demo Opole',
-            description: 'Informacje o plikach cookies używanych na stronie gabinetu stomatologicznego DensFlow Demo .',
-        };
-    }
     return {
-        title: 'Polityka Cookies | Mikrostomart Opole',
-        description: 'Informacje o plikach cookies używanych na stronie gabinetu stomatologicznego Mikrostomart w Opolu.',
+        title: `Polityka Cookies | ${brand.name} ${brand.cityShort}`,
+        description: `Informacje o plikach cookies używanych na stronie gabinetu stomatologicznego ${brand.name} w ${brand.cityShort}.`,
     };
 }
 

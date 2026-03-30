@@ -1,19 +1,11 @@
 import type { Metadata } from 'next';
-import { isDemoMode } from '@/lib/demoMode';
+import { brand } from '@/lib/brandConfig';
 
-const prodMetadata: Metadata = {
-    title: 'Stomatologia Estetyczna Opole - Licówki, Wybielanie, Bonding',
-    description: 'Stomatologia estetyczna w Opolu. Licówki porcelanowe, wybielanie zębów, bonding kompozytowy. Piękny uśmiech w Mikrostomart — gabinet stomatologiczny Opole.',
-    keywords: 'stomatologia estetyczna opole, licówki opole, wybielanie zębów opole, bonding opole, hollywood smile opole',
+export const metadata: Metadata = {
+    title: `Stomatologia Estetyczna ${brand.cityShort} - Licówki, Wybielanie, Bonding`,
+    description: `Stomatologia estetyczna w ${brand.cityShort}. Licówki porcelanowe, wybielanie zębów, bonding kompozytowy. Piękny uśmiech w ${brand.name} — gabinet stomatologiczny ${brand.cityShort}.`,
+    keywords: `stomatologia estetyczna ${brand.cityShort.toLowerCase()}, licówki ${brand.cityShort.toLowerCase()}, wybielanie zębów ${brand.cityShort.toLowerCase()}, bonding ${brand.cityShort.toLowerCase()}, hollywood smile ${brand.cityShort.toLowerCase()}`,
 };
-
-const demoMetadata: Metadata = {
-    title: 'Stomatologia Estetyczna  - Licówki, Wybielanie, Bonding',
-    description: 'Stomatologia estetyczna w . Licówki porcelanowe, wybielanie zębów, bonding kompozytowy. Piękny uśmiech w DensFlow Demo — gabinet stomatologiczny .',
-    keywords: 'stomatologia estetyczna opole, licówki opole, wybielanie zębów opole, bonding opole, hollywood smile opole',
-};
-
-export const metadata: Metadata = isDemoMode ? demoMetadata : prodMetadata;
 
 const faqSchema = {
     "@context": "https://schema.org", "@type": "FAQPage",
@@ -28,8 +20,8 @@ const faqSchema = {
 const breadcrumbSchema = {
     "@context": "https://schema.org", "@type": "BreadcrumbList",
     "itemListElement": [
-        { "@type": "ListItem", "position": 1, "name": "Strona główna", "item": "https://mikrostomart.pl" },
-        { "@type": "ListItem", "position": 2, "name": "Oferta", "item": "https://mikrostomart.pl/oferta" },
+        { "@type": "ListItem", "position": 1, "name": "Strona główna", "item": brand.appUrl },
+        { "@type": "ListItem", "position": 2, "name": "Oferta", "item": `${brand.appUrl}/oferta` },
         { "@type": "ListItem", "position": 3, "name": "Stomatologia Estetyczna" }
     ]
 };

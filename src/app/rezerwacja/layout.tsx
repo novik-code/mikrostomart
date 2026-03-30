@@ -1,17 +1,11 @@
 import type { Metadata } from 'next';
-import { isDemoMode } from '@/lib/demoMode';
+import { brand } from '@/lib/brandConfig';
 
 export function generateMetadata(): Metadata {
-    if (isDemoMode) {
-        return {
-            title: 'Rezerwacja Online | DensFlow Demo - Gabinet Demo',
-            description: 'Umów wizytę u dentysty online. Szybka rezerwacja w gabinecie DensFlow Demo — wybierz specjalistę, datę i godzinę.',
-        };
-    }
     return {
-        title: 'Rezerwacja Online | Mikrostomart - Dentysta Opole',
-        description: 'Umów wizytę u dentysty w Opolu online. Szybka rezerwacja w gabinecie Mikrostomart — wybierz specjalistę, datę i godzinę.',
-        keywords: 'rezerwacja dentysta opole, umów wizytę online opole, wizyta stomatolog opole, mikrostomart rezerwacja'
+        title: `Rezerwacja Online | ${brand.name} - Dentysta ${brand.cityShort}`,
+        description: `Umów wizytę u dentysty w ${brand.cityShort} online. Szybka rezerwacja w gabinecie ${brand.name} — wybierz specjalistę, datę i godzinę.`,
+        keywords: `rezerwacja dentysta ${brand.cityShort.toLowerCase()}, umów wizytę online ${brand.cityShort.toLowerCase()}, wizyta stomatolog ${brand.cityShort.toLowerCase()}, ${brand.name.toLowerCase()} rezerwacja`
     };
 }
 

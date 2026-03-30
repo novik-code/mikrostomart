@@ -1,17 +1,11 @@
 import type { Metadata } from 'next';
-import { isDemoMode } from '@/lib/demoMode';
+import { brand } from '@/lib/brandConfig';
 
 export function generateMetadata(): Metadata {
-    if (isDemoMode) {
-        return {
-            title: 'Zespół | DensFlow Demo - Gabinet Demo',
-            description: 'Poznaj zespół specjalistów gabinetu DensFlow Demo . Doświadczeni dentyści, chirurdzy i higienistki stomatologiczne.',
-        };
-    }
     return {
-        title: 'Zespół | Mikrostomart - Dentysta Opole',
-        description: 'Poznaj zespół specjalistów gabinetu Mikrostomart w Opolu. Doświadczeni dentyści, chirurdzy i higienistki stomatologiczne.',
-        keywords: 'zespół dentysta opole, lekarze mikrostomart, specjaliści stomatologia opole'
+        title: `Zespół | ${brand.name} - Dentysta ${brand.cityShort}`,
+        description: `Poznaj zespół specjalistów gabinetu ${brand.name} w ${brand.cityShort}. Doświadczeni dentyści, chirurdzy i higienistki stomatologiczne.`,
+        keywords: `dentysta ${brand.cityShort.toLowerCase()}, zespół stomatologów, ${brand.name.toLowerCase()} lekarze, specjaliści stomatologia`
     };
 }
 

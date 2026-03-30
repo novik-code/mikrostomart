@@ -1,16 +1,10 @@
 import type { Metadata } from 'next';
-import { isDemoMode } from '@/lib/demoMode';
+import { brand } from '@/lib/brandConfig';
 
 export function generateMetadata(): Metadata {
-    if (isDemoMode) {
-        return {
-            title: 'Privacy Policy | DensFlow Demo Dental Clinic',
-            description: 'Privacy Policy for DensFlow Demo dental clinic. Information about data processing, social media content publishing, TikTok API usage, video processing, and GDPR compliance.',
-        };
-    }
     return {
-        title: 'Privacy Policy | Mikrostomart Dental Clinic',
-        description: 'Privacy Policy for Mikrostomart dental clinic. Information about data processing, social media content publishing, TikTok API usage, video processing, and GDPR compliance.',
+        title: `Privacy Policy | ${brand.name} Dental Clinic`,
+        description: `Privacy Policy for ${brand.name} dental clinic. Information about data processing, social media content publishing, TikTok API usage, video processing, and GDPR compliance.`,
     };
 }
 

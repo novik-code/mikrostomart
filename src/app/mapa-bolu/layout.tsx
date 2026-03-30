@@ -1,17 +1,11 @@
 import type { Metadata } from 'next';
-import { isDemoMode } from '@/lib/demoMode';
+import { brand } from '@/lib/brandConfig';
 
 export function generateMetadata(): Metadata {
-    if (isDemoMode) {
-        return {
-            title: 'Mapa Bólu | DensFlow Demo - Gabinet Demo',
-            description: 'Interaktywna mapa bólu zębów. Kliknij na ząb, opisz objawy i dowiedz się, co może być przyczyną. Narzędzie diagnostyczne gabinetu DensFlow Demo.',
-        };
-    }
     return {
-        title: 'Mapa Bólu | Mikrostomart - Dentysta Opole',
-        description: 'Interaktywna mapa bólu zębów. Kliknij na ząb, opisz objawy i dowiedz się, co może być przyczyną. Narzędzie diagnostyczne gabinetu Mikrostomart.',
-        keywords: 'mapa bólu zęba, ból zęba przyczyny, diagnostyka stomatologiczna, ból zęba co robić, mikrostomart'
+        title: `Mapa Bólu | ${brand.name} - Dentysta ${brand.cityShort}`,
+        description: `Interaktywna mapa bólu zębów. Kliknij na ząb, opisz objawy i dowiedz się, co może być przyczyną. Narzędzie diagnostyczne gabinetu ${brand.name}.`,
+        keywords: `mapa bólu zęba, ból zęba przyczyny, diagnostyka stomatologiczna, ból zęba co robić, ${brand.name.toLowerCase()}`
     };
 }
 

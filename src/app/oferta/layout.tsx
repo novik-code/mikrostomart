@@ -1,17 +1,11 @@
 import type { Metadata } from 'next';
-import { isDemoMode } from '@/lib/demoMode';
+import { brand } from '@/lib/brandConfig';
 
 export function generateMetadata(): Metadata {
-    if (isDemoMode) {
-        return {
-            title: 'Oferta | DensFlow Demo - Gabinet Demo',
-            description: 'Pełna oferta usług stomatologicznych gabinetu DensFlow Demo . Implanty, leczenie kanałowe, stomatologia mikroskopowa, estetyka, ortodoncja.',
-        };
-    }
     return {
-        title: 'Oferta | Mikrostomart - Dentysta Opole',
-        description: 'Pełna oferta usług stomatologicznych gabinetu Mikrostomart w Opolu. Implanty, leczenie kanałowe, stomatologia mikroskopowa, estetyka, ortodoncja.',
-        keywords: 'oferta dentysta opole, usługi stomatologiczne opole, implanty opole, leczenie kanałowe opole, stomatologia estetyczna opole'
+        title: `Oferta | ${brand.name} - Dentysta ${brand.cityShort}`,
+        description: `Pełna oferta usług stomatologicznych gabinetu ${brand.name} w ${brand.cityShort}. Implanty, leczenie kanałowe, stomatologia mikroskopowa, estetyka, ortodoncja.`,
+        keywords: `oferta dentysta ${brand.cityShort.toLowerCase()}, usługi stomatologiczne ${brand.cityShort.toLowerCase()}, implanty ${brand.cityShort.toLowerCase()}, leczenie kanałowe ${brand.cityShort.toLowerCase()}, stomatologia estetyczna ${brand.cityShort.toLowerCase()}`
     };
 }
 

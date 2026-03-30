@@ -1,17 +1,11 @@
 import type { Metadata } from 'next';
-import { isDemoMode } from '@/lib/demoMode';
+import { brand } from '@/lib/brandConfig';
 
 export function generateMetadata(): Metadata {
-    if (isDemoMode) {
-        return {
-            title: 'Sklep | DensFlow Demo - Gabinet Demo',
-            description: 'Sklep internetowy gabinetu DensFlow Demo. Produkty do higieny jamy ustnej, szczoteczki, pasty i akcesoria rekomendowane przez dentystów.',
-        };
-    }
     return {
-        title: 'Sklep | Mikrostomart - Dentysta Opole',
-        description: 'Sklep internetowy gabinetu Mikrostomart. Produkty do higieny jamy ustnej, szczoteczki, pasty i akcesoria rekomendowane przez dentystów.',
-        keywords: 'sklep stomatologiczny, produkty higiena jamy ustnej, szczoteczka dentysta, mikrostomart sklep'
+        title: `Sklep | ${brand.name} - Dentysta ${brand.cityShort}`,
+        description: `Sklep internetowy gabinetu ${brand.name}. Produkty do higieny jamy ustnej, szczoteczki, pasty i akcesoria rekomendowane przez dentystów.`,
+        keywords: `sklep stomatologiczny, produkty higiena jamy ustnej, szczoteczka dentysta, ${brand.name.toLowerCase()} sklep`
     };
 }
 

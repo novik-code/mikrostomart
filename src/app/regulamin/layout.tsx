@@ -1,16 +1,10 @@
 import type { Metadata } from 'next';
-import { isDemoMode } from '@/lib/demoMode';
+import { brand } from '@/lib/brandConfig';
 
 export function generateMetadata(): Metadata {
-    if (isDemoMode) {
-        return {
-            title: 'Regulamin | DensFlow Demo - Gabinet Demo',
-            description: 'Regulamin korzystania z serwisu mikrostomart.pl i usług gabinetu stomatologicznego DensFlow Demo .',
-        };
-    }
     return {
-        title: 'Regulamin | Mikrostomart - Dentysta Opole',
-        description: 'Regulamin korzystania z serwisu mikrostomart.pl i usług gabinetu stomatologicznego Mikrostomart w Opolu.',
+        title: `Regulamin | ${brand.name} - Dentysta ${brand.cityShort}`,
+        description: `Regulamin korzystania z serwisu i usług gabinetu stomatologicznego ${brand.name} w ${brand.cityShort}.`,
     };
 }
 

@@ -1,19 +1,11 @@
 import type { Metadata } from 'next';
-import { isDemoMode } from '@/lib/demoMode';
+import { brand } from '@/lib/brandConfig';
 
-const prodMetadata: Metadata = {
-    title: 'Implanty Opole - implanty zębów Opole, implanty cennik Opole',
-    description: 'Profesjonalne zabiegi implantacji w Opolu. Precyzja, cyfrowe planowanie i bezbolesne leczenie w Mikrostomart. Sprawdź cennik i umów się na wizytę.',
-    keywords: 'implanty opole, implanty zębów opole, implant cennik opole, implantacja opole, dentysta implanty opole',
+export const metadata: Metadata = {
+    title: `Implanty ${brand.cityShort} - implanty zębów ${brand.cityShort}, implanty cennik ${brand.cityShort}`,
+    description: `Profesjonalne zabiegi implantacji w ${brand.cityShort}. Precyzja, cyfrowe planowanie i bezbolesne leczenie w ${brand.name}. Sprawdź cennik i umów się na wizytę.`,
+    keywords: `implanty ${brand.cityShort.toLowerCase()}, implanty zębów ${brand.cityShort.toLowerCase()}, implant cennik ${brand.cityShort.toLowerCase()}, implantacja ${brand.cityShort.toLowerCase()}, dentysta implanty ${brand.cityShort.toLowerCase()}`,
 };
-
-const demoMetadata: Metadata = {
-    title: 'Implanty  - implanty zębów , implanty cennik ',
-    description: 'Profesjonalne zabiegi implantacji w . Precyzja, cyfrowe planowanie i bezbolesne leczenie w DensFlow Demo. Sprawdź cennik i umów się na wizytę.',
-    keywords: 'implanty opole, implanty zębów opole, implant cennik opole, implantacja opole, dentysta implanty opole',
-};
-
-export const metadata: Metadata = isDemoMode ? demoMetadata : prodMetadata;
 
 /**
  * FAQ structured data for implantologia page.
@@ -69,7 +61,7 @@ const faqSchema = {
 const medicalServiceSchema = {
     "@context": "https://schema.org",
     "@type": "MedicalWebPage",
-    "name": "Implanty zębów Opole - Mikrostomart",
+    "name": `Implanty zębów ${brand.cityShort} - ${brand.name}`,
     "about": {
         "@type": "MedicalProcedure",
         "name": "Implantacja zębów",

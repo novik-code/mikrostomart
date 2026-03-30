@@ -1,16 +1,10 @@
 import type { Metadata } from 'next';
-import { isDemoMode } from '@/lib/demoMode';
+import { brand } from '@/lib/brandConfig';
 
 export function generateMetadata(): Metadata {
-    if (isDemoMode) {
-        return {
-            title: 'Polityka Prywatności | DensFlow Demo Opole',
-            description: 'Polityka prywatności gabinetu stomatologicznego DensFlow Demo — jak przetwarzamy Twoje dane osobowe.',
-        };
-    }
     return {
-        title: 'Polityka Prywatności | Mikrostomart Opole',
-        description: 'Polityka prywatności gabinetu stomatologicznego Mikrostomart w Opolu — jak przetwarzamy Twoje dane osobowe.',
+        title: `Polityka Prywatności | ${brand.name} ${brand.cityShort}`,
+        description: `Polityka prywatności gabinetu stomatologicznego ${brand.name} w ${brand.cityShort} — jak przetwarzamy Twoje dane osobowe.`,
     };
 }
 

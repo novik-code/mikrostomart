@@ -1,19 +1,11 @@
 import type { Metadata } from 'next';
-import { isDemoMode } from '@/lib/demoMode';
+import { brand } from '@/lib/brandConfig';
 
-const prodMetadata: Metadata = {
-    title: 'Protetyka Opole - Korony, Mosty, Protezy',
-    description: 'Protetyka stomatologiczna w Opolu. Korony pełnoceramiczne, cyrkonowe, mosty i protezy. Cyfrowe skanowanie 3D bez wycisków. Gabinet Mikrostomart.',
-    keywords: 'protetyka opole, korony zębowe opole, mosty stomatologiczne opole, protezy opole, korona cyrkonowa opole',
+export const metadata: Metadata = {
+    title: `Protetyka ${brand.cityShort} - Korony, Mosty, Protezy`,
+    description: `Protetyka stomatologiczna w ${brand.cityShort}. Korony pełnoceramiczne, cyrkonowe, mosty i protezy. Cyfrowe skanowanie 3D bez wycisków. Gabinet ${brand.name}.`,
+    keywords: `protetyka ${brand.cityShort.toLowerCase()}, korony zębowe ${brand.cityShort.toLowerCase()}, mosty stomatologiczne ${brand.cityShort.toLowerCase()}, protezy ${brand.cityShort.toLowerCase()}, korona cyrkonowa ${brand.cityShort.toLowerCase()}`,
 };
-
-const demoMetadata: Metadata = {
-    title: 'Protetyka  - Korony, Mosty, Protezy',
-    description: 'Protetyka stomatologiczna w . Korony pełnoceramiczne, cyrkonowe, mosty i protezy. Cyfrowe skanowanie 3D bez wycisków. Gabinet DensFlow Demo.',
-    keywords: 'protetyka opole, korony zębowe opole, mosty stomatologiczne opole, protezy opole, korona cyrkonowa opole',
-};
-
-export const metadata: Metadata = isDemoMode ? demoMetadata : prodMetadata;
 
 const faqSchema = {
     "@context": "https://schema.org", "@type": "FAQPage",
@@ -28,8 +20,8 @@ const faqSchema = {
 const breadcrumbSchema = {
     "@context": "https://schema.org", "@type": "BreadcrumbList",
     "itemListElement": [
-        { "@type": "ListItem", "position": 1, "name": "Strona główna", "item": "https://mikrostomart.pl" },
-        { "@type": "ListItem", "position": 2, "name": "Oferta", "item": "https://mikrostomart.pl/oferta" },
+        { "@type": "ListItem", "position": 1, "name": "Strona główna", "item": brand.appUrl },
+        { "@type": "ListItem", "position": 2, "name": "Oferta", "item": `${brand.appUrl}/oferta` },
         { "@type": "ListItem", "position": 3, "name": "Protetyka" }
     ]
 };

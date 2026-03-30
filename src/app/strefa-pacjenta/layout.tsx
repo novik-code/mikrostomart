@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import styles from './patient.module.css';
-import { demoSanitize } from '@/lib/brandConfig';
+import { demoSanitize, brand } from '@/lib/brandConfig';
 
 // Pages that don't need the authenticated layout shell
 const PUBLIC_PATHS = [
@@ -186,7 +186,7 @@ function AuthenticatedLayout({ children, pathname }: { children: React.ReactNode
                             </p>
                             <p style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: '0.9rem', lineHeight: '1.6' }}>
                                 Otrzymasz powiadomienie email po zatwierdzeniu konta.<br />
-                                W razie pytań: 📞 <strong>570 270 470</strong> lub 📧 <strong>gabinet@mikrostomart.pl</strong>
+                                W razie pytań: 📞 <strong>{brand.phone1}</strong> lub 📧 <strong>{brand.senderEmail}</strong>
                             </p>
                         </div>
                     </div>
@@ -212,7 +212,7 @@ function AuthenticatedLayout({ children, pathname }: { children: React.ReactNode
                                 Niestety nie mogliśmy zatwierdzić Twojej rejestracji.
                             </p>
                             <p style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: '0.9rem', lineHeight: '1.6' }}>
-                                Skontaktuj się z recepcją: 📞 <strong>570 270 470</strong>
+                                Skontaktuj się z recepcją: 📞 <strong>{brand.phone1}</strong>
                             </p>
                         </div>
                     </div>

@@ -1,9 +1,9 @@
 import { MetadataRoute } from 'next';
 import { articles } from '@/data/articles'; // News
 import { supabase } from '@/lib/supabaseClient';
-import { demoSanitize } from '@/lib/brandConfig';
+import { demoSanitize, brand } from '@/lib/brandConfig';
 
-const BASE_URL = 'https://mikrostomart.pl';
+const BASE_URL = brand.appUrl;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const { data: kbArticlesRaw } = await supabase.from('articles').select('slug, published_date');
