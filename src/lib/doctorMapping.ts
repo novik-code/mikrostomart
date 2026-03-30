@@ -62,10 +62,20 @@ export const DOCTOR_MAPPING: Record<string, DoctorInfo> = {
 };
 
 /**
- * Get doctor info by specialist ID
+ * Get doctor info by specialist ID (slug key like 'marcin') OR by Prodentis ID.
+ * Accepts both forms — allows /api/specialists to return prodentis_id as id
+ * without breaking the 3 reservation routes that call getDoctorInfo().
  */
-export function getDoctorInfo(specialistId: string): DoctorInfo | null {
-    return DOCTOR_MAPPING[specialistId] || null;
+export function getDoctorInfo(specialistIdOrProdentisId: string): DoctorInfo | null {
+    // 1. Direct slug lookup (legacy: 'marcin', 'ilona', etc.)
+    if (DOCTOR_MAPPING[specialistIdOrProdentisId]) {
+        return DOCTOR_MAPPING[specialistIdOrProdentisId];
+    }
+    // 2. Fallback: search by prodentis_id (new DB-driven flow returns prodentis_id as id)
+    for (const info of Object.values(DOCTOR_MAPPING)) {
+        if (info.prodentisId === specialistIdOrProdentisId) return info;
+    }
+    return null;
 }
 
 /**
