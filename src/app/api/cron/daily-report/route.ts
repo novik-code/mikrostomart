@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sendTelegramNotification } from '@/lib/telegram';
 import { logCronHeartbeat } from '@/lib/cronHeartbeat';
-import { demoSanitize } from '@/lib/brandConfig';
+import { demoSanitize, brand } from '@/lib/brandConfig';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -198,7 +198,7 @@ export async function GET(req: NextRequest) {
         // ═══════════════════════════════════════════════════
         // FOOTER
         // ═══════════════════════════════════════════════════
-        msg += `🔗 <a href="https://mikrostomart.pl/admin">Panel admina</a> | <a href="https://mikrostomart.pl/pracownik">Panel pracownika</a>`;
+        msg += `🔗 <a href="${brand.appUrl}/admin">Panel admina</a> | <a href="${brand.appUrl}/pracownik">Panel pracownika</a>`;
 
         // Send via Telegram
         const sent = await sendTelegramNotification(msg, 'default');

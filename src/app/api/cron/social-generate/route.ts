@@ -13,7 +13,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { generateSocialText, generateSocialImage, uploadImageToStorage } from '@/lib/socialAI';
 import type { Platform, ContentType } from '@/lib/socialAI';
-import { demoSanitize } from '@/lib/brandConfig';
+import { demoSanitize, brand } from '@/lib/brandConfig';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
@@ -192,7 +192,7 @@ export async function GET(req: NextRequest) {
                     model: 'gpt-4o',
                     messages: [{
                         role: 'system',
-                        content: `Jesteś redaktorem bloga stomatologicznego kliniki Mikrostomart w Opolu.
+                        content: `Jesteś redaktorem bloga stomatologicznego kliniki ${brand.smsSenderName} w ${brand.cityShort}.
 Wygeneruj 15 UNIKALNYCH tematów na posty w social media.
 Tematy powinny obejmować różne aspekty stomatologii.
 

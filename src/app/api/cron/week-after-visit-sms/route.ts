@@ -5,12 +5,12 @@ import { formatSMSMessage } from '@/lib/smsService';
 import { sendPushToUser } from '@/lib/webpush';
 import { randomUUID } from 'crypto';
 import { isSmsTypeEnabled } from '@/lib/smsSettings';
-import { demoSanitize } from '@/lib/brandConfig';
+import { demoSanitize, brand } from '@/lib/brandConfig';
 
 export const maxDuration = 120;
 
 const PRODENTIS_API_URL = process.env.PRODENTIS_API_URL || 'http://83.230.40.14:3000';
-const APP_URL = 'https://mikrostomart.pl/aplikacja';
+const APP_URL = `${brand.appUrl}/aplikacja`;
 
 const REMINDER_DOCTORS = process.env.REMINDER_DOCTORS?.split(',').map(d => d.trim()) || [
     'Marcin Nowosielski',
@@ -51,7 +51,7 @@ function isDoctorInList(apiDoctorName: string, doctorList: string[]): boolean {
     });
 }
 
-const FALLBACK_TEMPLATE = `Dziekujemy ze jestes naszym pacjentem! Pobierz nasza aplikacje: {appUrl} Mikrostomart`;
+const FALLBACK_TEMPLATE = `Dziekujemy ze jestes naszym pacjentem! Pobierz nasza aplikacje: {appUrl} ${brand.smsSenderName}`;
 
 /**
  * WEEK-AFTER-VISIT SMS Cron — Stage 1: Generate DRAFTS

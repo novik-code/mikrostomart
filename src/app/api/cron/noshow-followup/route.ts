@@ -5,7 +5,7 @@ import { sendSMS } from '@/lib/smsService';
 import { sendTelegramNotification } from '@/lib/telegram';
 import { logCronHeartbeat } from '@/lib/cronHeartbeat';
 import { isSmsTypeEnabled } from '@/lib/smsSettings';
-import { demoSanitize } from '@/lib/brandConfig';
+import { demoSanitize, brand } from '@/lib/brandConfig';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -153,7 +153,7 @@ export async function GET(req: NextRequest) {
             // Get first name for personalized SMS
             const firstName = patientName.split(' ')[0] || 'Pacjencie';
 
-            const smsMessage = `${firstName}, nie udalo sie dotrzec na wizyte? Chetnie pomozemy umowic nowy termin: https://mikrostomart.pl/strefa-pacjenta Mikrostomart`;
+            const smsMessage = `${firstName}, nie udalo sie dotrzec na wizyte? Chetnie pomozemy umowic nowy termin: ${brand.appUrl}/strefa-pacjenta ${brand.smsSenderName}`;
 
             try {
                 const result = await sendSMS({ to: phone, message: smsMessage });

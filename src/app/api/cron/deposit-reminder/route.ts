@@ -6,7 +6,7 @@ import { sendTranslatedPushToUser } from '@/lib/webpush';
 import { sendTelegramNotification } from '@/lib/telegram';
 import { logCronHeartbeat } from '@/lib/cronHeartbeat';
 import { isSmsTypeEnabled } from '@/lib/smsSettings';
-import { demoSanitize } from '@/lib/brandConfig';
+import { demoSanitize, brand } from '@/lib/brandConfig';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -120,7 +120,7 @@ export async function GET(req: NextRequest) {
             const doctor = action.doctor_name || 'lekarz';
 
             // ── Send SMS ──
-            const smsMessage = `Przypominamy o wplacie zadatku przed wizyta (${dayName} ${dateStr} o ${timeStr}). Wiecej: https://mikrostomart.pl/zadatek Mikrostomart`;
+            const smsMessage = `Przypominamy o wplacie zadatku przed wizyta (${dayName} ${dateStr} o ${timeStr}). Wiecej: ${brand.appUrl}/zadatek ${brand.smsSenderName}`;
 
             try {
                 const smsResult = await sendSMS({ to: patient.phone, message: smsMessage });

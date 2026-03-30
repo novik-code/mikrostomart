@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 import { sendSMS } from '@/lib/smsService';
 import { sendTelegramNotification } from '@/lib/telegram';
 import { isSmsTypeEnabled } from '@/lib/smsSettings';
-import { demoSanitize } from '@/lib/brandConfig';
+import { demoSanitize, brand } from '@/lib/brandConfig';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -149,7 +149,7 @@ export async function GET(req: NextRequest) {
             const firstName = patientName.split(' ')[0] || 'Pacjencie';
 
             // Birthday message
-            const smsMessage = `${firstName}, z okazji urodzin zyczymy duzo zdrowia i pieknego usmiechu! Zespol Mikrostomart`;
+            const smsMessage = `${firstName}, z okazji urodzin zyczymy duzo zdrowia i pieknego usmiechu! Zespol ${brand.smsSenderName}`;
 
             let smsSuccess = false;
             let smsError = '';

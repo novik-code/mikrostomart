@@ -7,7 +7,7 @@ import { sendTranslatedPushToUser } from '@/lib/webpush';
 import { logCronHeartbeat } from '@/lib/cronHeartbeat';
 import { randomUUID } from 'crypto';
 import { nanoid } from 'nanoid';
-import { demoSanitize } from '@/lib/brandConfig';
+import { demoSanitize, brand } from '@/lib/brandConfig';
 
 export const maxDuration = 120; // Vercel function timeout (increased: many appointments + multiple DB queries per appointment)
 
@@ -366,7 +366,7 @@ export async function GET(req: Request) {
                     const typeKey = `bytype:${normalizedType}`;
                     template = cachedTemplates.get(typeKey)
                         || cachedTemplates.get('default')
-                        || 'Gabinet Mikrostomart przypomina o wizycie {date} o {time}. Prosimy o potwierdzenie:';
+                        || `Gabinet ${brand.smsSenderName} przypomina o wizycie {date} o {time}. Prosimy o potwierdzenie:`;
                 } else {
                     template = await getSMSTemplate(doctorName, appointmentType);
                 }
@@ -496,7 +496,7 @@ export async function GET(req: Request) {
 
                         // 10. Generate short link for landing page
                         const appointmentSlug = mapAppointmentTypeToSlug(appointmentType);
-                        const fullUrl = `https://mikrostomart.pl/wizyta/${appointmentSlug}?appointmentId=${finalActionId}&date=${targetDateStr}&time=${appointmentTime}&doctor=${encodeURIComponent(doctorName)}`;
+                        const fullUrl = `${brand.appUrl}/wizyta/${appointmentSlug}?appointmentId=${finalActionId}&date=${targetDateStr}&time=${appointmentTime}&doctor=${encodeURIComponent(doctorName)}`;
 
                         const shortCode = nanoid(6);
 
@@ -520,7 +520,7 @@ export async function GET(req: Request) {
                         if (shortLinkError) {
                             console.error(`   ⚠️  Failed to create short link:`, shortLinkError);
                         } else {
-                            const shortUrl = `https://mikrostomart.pl/s/${shortCode}`;
+                            const shortUrl = `${brand.appUrl}/s/${shortCode}`;
                             console.log(`   ✅ Short link created: ${shortUrl}`);
 
                             // Update SMS draft with short link

@@ -1,5 +1,5 @@
 {
-    "default": "Gabinet Mikrostomart przypomina o jutrzejszej wizycie o {time}. Prosimy o potwierdzenie:",
+    "default": "Gabinet {brandName} przypomina o jutrzejszej wizycie o {time}. Prosimy o potwierdzenie:",
     "byAppointmentType": {
         "pierwsza wizyta": "Witamy! Pierwsza wizyta jutro o {time}. Prosimy zabrac dowod.",
         "chirurgia": "PRZYPOMNIENIE: Zabieg chirurgiczny jutro o {time}. Prosimy NIE jesc 2h przed.",
@@ -13,7 +13,7 @@
     },
     "byDoctor": {
         "Marcin Nowosielski": {
-            "default": "Gabinet Mikrostomart przypomina o jutrzejszej wizycie u Dr Nowosielskiego o {time}. Prosimy o potwierdzenie:"
+            "default": "Gabinet {brandName} przypomina o jutrzejszej wizycie u Dr Nowosielskiego o {time}. Prosimy o potwierdzenie:"
         }
     }
 }

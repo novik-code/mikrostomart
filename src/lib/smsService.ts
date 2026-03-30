@@ -6,6 +6,7 @@
  */
 
 import { isDemoMode } from './demoMode';
+import { brand } from './brandConfig';
 
 export interface SMSOptions {
     to: string;           // Phone number (format: 48XXXXXXXXX for Polish numbers)
@@ -79,7 +80,7 @@ export function toGSM7(text: string): string {
  * }
  */
 export async function sendSMS(options: SMSOptions): Promise<SMSResponse> {
-    const { to, message, from = process.env.SMSAPI_FROM || 'Mikrostomart' } = options;
+    const { to, message, from = process.env.SMSAPI_FROM || brand.smsSenderName } = options;
 
     // Demo mode: log but don't send real SMS
     if (isDemoMode) {
@@ -242,9 +243,9 @@ export async function getSMSTemplate(
         if (templates.byAppointmentType?.[normalizedType]) {
             return templates.byAppointmentType[normalizedType];
         }
-        return templates.default || 'Mikrostomart: wizyta u {doctor} jutro o {time}. Potwierdz:';
+        return templates.default || `${brand.smsSenderName}: wizyta u {doctor} jutro o {time}. Potwierdz:`;
     } catch {
-        return 'Mikrostomart: wizyta u {doctor} jutro o {time}. Potwierdz:';
+        return `${brand.smsSenderName}: wizyta u {doctor} jutro o {time}. Potwierdz:`;
     }
 }
 

@@ -6,7 +6,7 @@ import { sendPushToUser } from '@/lib/webpush';
 import { logCronHeartbeat } from '@/lib/cronHeartbeat';
 import { randomUUID } from 'crypto';
 import { isSmsTypeEnabled } from '@/lib/smsSettings';
-import { demoSanitize } from '@/lib/brandConfig';
+import { demoSanitize, brand } from '@/lib/brandConfig';
 
 export const maxDuration = 120;
 
@@ -21,7 +21,7 @@ const REMINDER_DOCTORS = process.env.REMINDER_DOCTORS?.split(',').map(d => d.tri
     'Elżbieta Nowosielska'
 ];
 
-const SURVEY_URL = 'https://mikrostomart.pl/strefa-pacjenta/ocen-nas';
+const SURVEY_URL = `${brand.appUrl}/strefa-pacjenta/ocen-nas`;
 
 /**
  * Detect whether a Polish first name is female.
@@ -75,8 +75,8 @@ function patientAlreadyReviewed(patientName: string, reviewerNames: string[]): b
 }
 
 // Default templates (ASCII-safe for GSM-7 encoding, ≤160 chars)
-const FALLBACK_TEMPLATE_REVIEW = `Dziekujemy za wizyte, {salutation}! Prosimy o krotka ocene: {surveyUrl} Mikrostomart`;
-const FALLBACK_TEMPLATE_REVIEWED = `Dziekujemy za wizyte, {salutation}! Do zobaczenia na kolejnej wizycie. Mikrostomart`;
+const FALLBACK_TEMPLATE_REVIEW = `Dziekujemy za wizyte, {salutation}! Prosimy o krotka ocene: {surveyUrl} ${brand.smsSenderName}`;
+const FALLBACK_TEMPLATE_REVIEWED = `Dziekujemy za wizyte, {salutation}! Do zobaczenia na kolejnej wizycie. ${brand.smsSenderName}`;
 
 /**
  * POST-VISIT SMS Cron — Stage 1: Generate DRAFTS

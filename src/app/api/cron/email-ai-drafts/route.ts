@@ -15,7 +15,7 @@ import { listEmails, getEmail } from '@/lib/imapService';
 import { KNOWLEDGE_BASE } from '@/lib/knowledgeBase';
 import { sendTelegramNotification } from '@/lib/telegram';
 import { logCronHeartbeat } from '@/lib/cronHeartbeat';
-import { demoSanitize } from '@/lib/brandConfig';
+import { demoSanitize, brand } from '@/lib/brandConfig';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
@@ -37,9 +37,9 @@ function classifyEmailServer(email: { from: { address: string; name: string }; s
     const name = email.from.name.toLowerCase();
     const subj = email.subject.toLowerCase();
 
-    const isAppSender = addr.includes('noreply@mikrostomart')
+    const isAppSender = addr.includes(brand.senderEmail.split('@')[1])
         || addr.includes('noreply@')
-        || name.includes('mikrostomart')
+        || name.includes(brand.smsSenderName.toLowerCase())
         || name.includes('strefa pacjenta');
 
     if (isAppSender) {
@@ -399,16 +399,16 @@ export async function GET(req: NextRequest) {
                         messages: [
                             {
                                 role: 'system',
-                                content: `Jesteś asystentem recepcji gabinetu stomatologicznego Mikrostomart w Opolu.
+                                content: `Jesteś asystentem recepcji gabinetu stomatologicznego ${brand.smsSenderName} w ${brand.cityShort}.
 
 TWOJE ZADANIE:
 1. Przeanalizuj poniższy email i oceń czy jest to WAŻNA wiadomość operacyjna (zapytanie pacjenta o leczenie, o ceny, o umówienie wizyty, reklamacja, roszczenie, korespondencja z pacjentem) czy NIEWAŻNA (reklama, spam, oferta firmy, newsletter, mailing marketingowy, powiadomienia systemowe, faktury od dostawców).
 
-2. Jeśli wiadomość jest WAŻNA — przygotuj DRAFT odpowiedzi po polsku w imieniu recepcji kliniki Mikrostomart. Odpowiedź powinna być:
+2. Jeśli wiadomość jest WAŻNA — przygotuj DRAFT odpowiedzi po polsku w imieniu recepcji kliniki ${brand.smsSenderName}. Odpowiedź powinna być:
    - Profesjonalna ale ciepła
    - Zawierać KONKRETNE ceny z cennika kliniki gdy pacjent pyta o koszty (dodaj "ceny orientacyjne, ostateczna wycena po konsultacji")
    - Gdy pacjent pyta o termin wizyty — sprawdź WOLNE TERMINY poniżej i zaproponuj konkretne daty
-   - Zakończona zachętą do kontaktu telefonicznego (+48 570 270 470) lub rezerwacji online (/rezerwacja)
+   - Zakończona zachętą do kontaktu telefonicznego (${brand.phone1}) lub rezerwacji online (/rezerwacja)
    - W formacie HTML (proste <p>, <br>, <strong> — bez stylów inline)
 
 3. Jeśli wiadomość jest NIEWAŻNA — odpowiedz "SKIP".
