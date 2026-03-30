@@ -7,6 +7,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createEvent, listEvents, isCalendarConnected } from './googleCalendar';
 import { sendPushToUser } from './webpush';
 import { demoSanitize } from '@/lib/brandConfig';
+import { sendEmail } from '@/lib/emailSender';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -367,15 +368,11 @@ Odpowiedz TYLKO gotowym, zredagowanym tekstem.`
 
         const processedText = completion.choices[0].message.content || args.raw_text;
 
-        // Send email with Resend
-        const { Resend } = await import('resend');
-        const resend = new Resend(process.env.RESEND_API_KEY);
-
+        // Send email
         const recipientEmail = args.recipient_email || userEmail;
         const subject = args.subject || 'Dokumentacja — Asystent AI';
 
-        await resend.emails.send({
-            from: demoSanitize('Mikrostomart <noreply@mikrostomart.pl>'),
+        await sendEmail({
             to: recipientEmail,
             subject: `📝 ${subject}`,
             html: `

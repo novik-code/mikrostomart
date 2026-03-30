@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Resend } from "resend";
 import { sendTelegramNotification } from '@/lib/telegram';
 import { broadcastPush } from '@/lib/webpush';
 import { getEmailTemplate } from '@/lib/emailTemplates';
 import { getDoctorInfo, normalizePhone, fuzzyNameMatch, extractFirstName, extractLastName, findBestPatientMatch, nameMatchScore } from '@/lib/doctorMapping';
 import type { PatientCandidate } from '@/lib/doctorMapping';
-import { demoSanitize } from '@/lib/brandConfig';
+import { demoSanitize, brand } from '@/lib/brandConfig';
+import { sendEmail } from '@/lib/emailSender';
 
 export const runtime = 'nodejs';
 
@@ -109,35 +109,29 @@ export async function POST(req: NextRequest) {
             name, specialist: specialistName || '', date: date || '', time: time || '',
         }, '/pracownik').catch(console.error);
 
-        // Send Emails (Resend)
+        // Send Emails
         const resendKey = process.env.RESEND_API_KEY;
         if (resendKey) {
-            const resend = new Resend(resendKey);
-            const adminEmail = demoSanitize("gabinet@mikrostomart.pl");
-            const fromEmail = "powiadomienia@mikrostomart.pl";
+            const adminEmail = demoSanitize('gabinet@mikrostomart.pl');
 
-            const emailData: any = {
-                from: fromEmail,
+            const adminAttachments = attachment && attachment.content
+                ? [{ filename: attachment.name, content: attachment.content.split(',')[1] }]
+                : undefined;
+
+            await sendEmail({
+                from: brand.notificationEmail,
                 to: adminEmail,
                 subject: adminSubject,
-                html: adminHtml
-            };
+                html: adminHtml,
+                attachments: adminAttachments,
+            });
 
-            if (attachment && attachment.content) {
-                emailData.attachments = [{
-                    filename: attachment.name,
-                    content: attachment.content.split(',')[1],
-                }];
-            }
-
-            await resend.emails.send(emailData);
-
-            await resend.emails.send({
+            await sendEmail({
                 from: `Gabinet Mikrostomart <${adminEmail}>`,
                 replyTo: adminEmail,
                 to: email,
                 subject: patientSubject,
-                html: patientHtml
+                html: patientHtml,
             });
         }
 

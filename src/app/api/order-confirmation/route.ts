@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Resend } from "resend";
 import { sendTelegramNotification } from '@/lib/telegram';
 import { broadcastPush } from '@/lib/webpush';
 import { getEmailTemplate } from '@/lib/emailTemplates';
-import { demoSanitize } from '@/lib/brandConfig';
+import { demoSanitize, brand } from '@/lib/brandConfig';
+import { sendEmail } from '@/lib/emailSender';
 
 export const runtime = 'nodejs';
 
@@ -100,24 +100,22 @@ export async function POST(req: NextRequest) {
         // 3. Send Emails (Resend)
         const resendKey = process.env.RESEND_API_KEY;
         if (resendKey) {
-            const resend = new Resend(resendKey);
-            const adminEmail = demoSanitize("gabinet@mikrostomart.pl");
-            const fromEmail = "powiadomienia@mikrostomart.pl"; // Nowa, zweryfikowana domena
+            const adminEmail = demoSanitize('gabinet@mikrostomart.pl');
 
             // Email to Seller
-            await resend.emails.send({
-                from: fromEmail,
+            await sendEmail({
+                from: brand.notificationEmail,
                 to: adminEmail,
                 subject: sellerSubject,
-                html: sellerHtml
+                html: sellerHtml,
             });
 
             // Email to Buyer
-            await resend.emails.send({
-                from: fromEmail,
+            await sendEmail({
+                from: brand.notificationEmail,
                 to: email,
                 subject: buyerSubject,
-                html: buyerHtml
+                html: buyerHtml,
             });
         }
 

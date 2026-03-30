@@ -2,9 +2,9 @@ import { NextResponse } from 'next/server';
 import { verifyAdmin } from '@/lib/auth';
 import { grantRole, type UserRole } from '@/lib/roles';
 import { createClient } from '@supabase/supabase-js';
-import { Resend } from 'resend';
 import crypto from 'crypto';
 import { demoSanitize } from '@/lib/brandConfig';
+import { sendEmail } from '@/lib/emailSender';
 
 export const dynamic = 'force-dynamic';
 
@@ -75,11 +75,9 @@ export async function POST(request: Request) {
                     if (!linkError && linkData?.properties?.hashed_token) {
                         const tokenHash = linkData.properties.hashed_token;
                         const recoveryUrl = `${siteUrl}/admin/update-password?token_hash=${encodeURIComponent(tokenHash)}&type=recovery`;
-                        const resend = new Resend(process.env.RESEND_API_KEY!);
-                        await resend.emails.send({
-                            from: demoSanitize('Mikrostomart <noreply@mikrostomart.pl>'),
+                        await sendEmail({
                             to: patientEmail,
-                            subject: demoSanitize('Ustaw hasło do panelu Mikrostomart'),
+                            subject: 'Ustaw hasło do panelu Mikrostomart',
                             html: demoSanitize(`
                                 <!DOCTYPE html><html><head><meta charset="utf-8"></head>
                                 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
@@ -97,7 +95,7 @@ export async function POST(request: Request) {
                                         <p>📞 570 270 470<br>📧 gabinet@mikrostomart.pl</p>
                                     </div>
                                 </div></body></html>
-                            `)
+                            `),
                         });
                         console.log('[Promote] Recovery email sent to existing user', patientEmail);
                     }
@@ -139,15 +137,13 @@ export async function POST(request: Request) {
                     if (linkError || !linkData?.properties?.hashed_token) {
                         console.error('[Promote] Failed to generate recovery link:', linkError);
                     } else {
-                        // Send direct link via Resend (no Supabase redirect)
-                        const resend = new Resend(process.env.RESEND_API_KEY!);
+                        // Send direct link via sendEmail (no Supabase redirect)
                         const tokenHash = linkData.properties.hashed_token;
                         const recoveryUrl = `${siteUrl}/admin/update-password?token_hash=${encodeURIComponent(tokenHash)}&type=recovery`;
 
-                        await resend.emails.send({
-                            from: demoSanitize('Mikrostomart <noreply@mikrostomart.pl>'),
+                        await sendEmail({
                             to: patientEmail,
-                            subject: demoSanitize('Ustaw hasło do panelu Mikrostomart'),
+                            subject: 'Ustaw hasło do panelu Mikrostomart',
                             html: demoSanitize(`
                                 <!DOCTYPE html>
                                 <html>
@@ -174,7 +170,7 @@ export async function POST(request: Request) {
                                     </div>
                                 </body>
                                 </html>
-                            `)
+                            `),
                         });
                         console.log('[Promote] Password setup email sent to', patientEmail);
                     }
