@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabaseClient';
+import { brandI18nParams } from '@/lib/brandConfig';
 import RevealOnScroll from '@/components/RevealOnScroll';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -29,7 +30,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
     if (!article) return { title: t('notFound') };
     return {
-        title: `${article.title} | ${t('metaSuffix')}`,
+        title: `${article.title} | ${t('metaSuffix', brandI18nParams())}`,
         description: article.excerpt,
     };
 }

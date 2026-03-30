@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { brandI18nParams } from '@/lib/brandConfig';
 import RevealOnScroll from "@/components/RevealOnScroll";
 import ReservationForm from "@/components/ReservationForm";
 
@@ -16,7 +17,7 @@ export default function ReservationPage() {
                             {t('title')}
                         </h1>
                         <p style={{ textAlign: "center", color: "var(--color-text-muted)", marginBottom: "var(--spacing-xl)" }}>
-                            {t('description')}
+                            {t('description', brandI18nParams())}
                         </p>
                     </RevealOnScroll>
 

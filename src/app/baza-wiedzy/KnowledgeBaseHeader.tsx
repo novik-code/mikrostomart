@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { brandI18nParams } from '@/lib/brandConfig';
 import AskExpertButton from "@/components/AskExpertButton";
 
 export default function KnowledgeBaseHeader() {
@@ -25,7 +26,7 @@ export default function KnowledgeBaseHeader() {
                 margin: "0 auto 2rem",
                 fontSize: "1.1rem"
             }}>
-                {t('description')}
+                {t('description', brandI18nParams())}
                 <br />
                 <span style={{ fontSize: '0.95rem', opacity: 0.9 }}>
                     {t('noAnswer')}

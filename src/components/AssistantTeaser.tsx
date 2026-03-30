@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { brandI18nParams } from '@/lib/brandConfig';
 import { X, Send, User, Loader2, Paperclip, MessageCircle } from "lucide-react";
 import Image from "next/image";
 import { useRouter, usePathname } from "next/navigation";
@@ -35,7 +36,7 @@ export default function AssistantTeaser() {
 
     // Chat State
     const [messages, setMessages] = useState<Message[]>([
-        { role: "assistant", content: t('greeting') }
+        { role: "assistant", content: t('greeting', brandI18nParams()) }
     ]);
     const [input, setInput] = useState("");
     const [isLoading, setIsLoading] = useState(false);
@@ -312,7 +313,7 @@ export default function AssistantTeaser() {
                                 </div>
                                 <div style={{ flex: 1 }}>
                                     <h3 style={{ color: 'white', margin: 0, fontSize: '16px' }}>{t('headerTitle')}</h3>
-                                    <p style={{ color: '#9ca3af', margin: 0, fontSize: '11px' }}>{t('headerSubtitle')}</p>
+                                    <p style={{ color: '#9ca3af', margin: 0, fontSize: '11px' }}>{t('headerSubtitle', brandI18nParams())}</p>
                                 </div>
                                 <button
                                     onClick={closeChat}

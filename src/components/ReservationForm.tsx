@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { brandI18nParams } from '@/lib/brandConfig';
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -470,7 +471,7 @@ export default function ReservationForm() {
 
             {/* INFO TEXT */}
             <p style={{ fontSize: "0.8rem", color: "var(--color-text-muted)", lineHeight: 1.5 }}>
-                {t('dataAdmin')}
+                {t('dataAdmin', brandI18nParams())}
             </p>
 
             {/* RODO CONSENT CHECKBOX */}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { brandI18nParams } from '@/lib/brandConfig';
 import { Send, Mic, MicOff, Volume2, VolumeX } from "lucide-react";
 import { useTranslations } from "next-intl";
 import styles from "./cennik.module.css";
@@ -29,7 +30,7 @@ export default function CennikPage() {
     const [messages, setMessages] = useState<Message[]>([
         {
             role: "assistant",
-            content: t('welcomeMessage'),
+            content: t('welcomeMessage', brandI18nParams()),
         },
     ]);
     const [input, setInput] = useState("");
@@ -242,7 +243,7 @@ export default function CennikPage() {
                         <span className={styles.chatHeaderIcon}>💰</span>
                         <div>
                             <h2 className={styles.chatHeaderTitle}>{t('chatTitle')}</h2>
-                            <p className={styles.chatHeaderSubtitle}>{t('chatSubtitle')}</p>
+                            <p className={styles.chatHeaderSubtitle}>{t('chatSubtitle', brandI18nParams())}</p>
                         </div>
                         <div className={styles.onlineBadge} />
                     </div>

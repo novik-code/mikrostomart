@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { brandI18nParams } from '@/lib/brandConfig';
 import RevealOnScroll from "@/components/RevealOnScroll";
 import { Suspense } from "react";
 import MetamorphosisContent from "./MetamorphosisContent";
@@ -25,7 +26,7 @@ export default function MetamorfozyPage() {
                             {t('title')}
                         </h1>
                         <p style={{ color: "var(--color-text-muted)", maxWidth: "600px", margin: "0 auto" }}>
-                            {t('description')}
+                            {t('description', brandI18nParams())}
                         </p>
                     </header>
                 </RevealOnScroll>

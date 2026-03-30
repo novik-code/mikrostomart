@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { brandI18nParams } from '@/lib/brandConfig';
 import { useOpinion } from '@/context/OpinionContext';
 import { X, Star, ChevronRight, ChevronLeft, Loader2, Copy, ExternalLink, MessageSquareHeart, Check } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -103,7 +104,7 @@ export default function OpinionSurvey() {
     const questions = [
         // Q0: isPatient
         {
-            title: t('q0Title'),
+            title: t('q0Title', brandI18nParams()),
             render: () => (
                 <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '0.5rem' }}>
                     {[t('q0Opt1'), t('q0Opt2')].map(opt => (
@@ -305,7 +306,7 @@ export default function OpinionSurvey() {
                                 {t('headerTitle')}
                             </h2>
                             <p style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', marginTop: '0.3rem' }}>
-                                {t('headerSubtitle')}
+                                {t('headerSubtitle', brandI18nParams())}
                             </p>
                         </div>
 

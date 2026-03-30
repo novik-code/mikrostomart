@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { brandI18nParams } from '@/lib/brandConfig';
 import RevealOnScroll from "@/components/RevealOnScroll";
 import OfferCarousel from "@/components/OfferCarousel";
 
@@ -30,7 +31,7 @@ export default function OfferPage() {
                             {t('title')}
                         </h1>
                         <p style={{ maxWidth: "600px", margin: "0 auto", color: "var(--color-text-muted)", fontSize: "1.1rem" }}>
-                            {t('description')}
+                            {t('description', brandI18nParams())}
                         </p>
                     </RevealOnScroll>
                 </div>

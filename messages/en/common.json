@@ -26,7 +26,7 @@
         "tagline": "Microscopic Artistic Dentistry",
         "title1": "We create smiles",
         "title2": "that change lives.",
-        "description": "At Mikrostomart, we combine the precision of technology with the sensitivity of art. Discover dentistry that restores confidence."
+        "description": "At {brandName}, we combine the precision of technology with the sensitivity of art. Discover dentistry that restores confidence."
     },
     "values": {
         "precision": "Precision",
@@ -54,7 +54,7 @@
         "monThu": "Mon - Thu: 9:00 AM - 8:00 PM",
         "fri": "Fri: 9:00 AM - 4:00 PM",
         "sat": "Sat: Selected dates",
-        "copyright": "© {year} Mikrostomart. All rights reserved.",
+        "copyright": "© {year} {brandName}. All rights reserved.",
         "terms": "Terms & Conditions",
         "cookiePolicy": "Cookie Policy",
         "backstage": "Backstage",
@@ -134,7 +134,7 @@
         "validationSpecialist": "Select a specialist",
         "validationService": "Select a service type",
         "validationDate": "Select a date from the calendar",
-        "dataAdmin": "Mikrostomart is the controller of your personal data. Data will be processed for the purpose of handling your request.",
+        "dataAdmin": "{brandName} is the controller of your personal data. Data will be processed for the purpose of handling your request.",
         "rodoConsent": "I consent to the processing of my personal data to book an appointment, in accordance with the",
         "rodoClause": "GDPR Clause",
         "rodoAnd": "and the",
@@ -201,7 +201,7 @@
         "offer1full": "Root canal treatment under the microscope is our specialty. Up to 25x magnification allows us to find hidden canals and precisely clean each one, giving your tooth a new lease of life.",
         "offer2title": "Implantology",
         "offer2short": "Rebuild your smile permanently. Implants are the finest alternative to natural teeth.",
-        "offer2full": "At Mikrostomart, implant placement is always digitally planned. Based on 3D tomography, we prepare a custom template that guarantees millimetre precision and a predictable aesthetic result.",
+        "offer2full": "At {brandName}, implant placement is always digitally planned. Based on 3D tomography, we prepare a custom template that guarantees millimetre precision and a predictable aesthetic result.",
         "offer3title": "Laser Surgery",
         "offer3short": "Modern, scalpel-free procedures. Faster healing, less swelling, minimal pain.",
         "offer3full": "Diode and ErYAG lasers enable bloodless procedures on soft and hard oral tissues. Laser treatments accelerate healing and in many cases eliminate the need for sutures.",
@@ -216,7 +216,7 @@
         "offer6full": "The Wand/STA system delivers anaesthetic at a controlled, minimal speed — eliminating pain and pressure. Patients often say they 'didn't feel when it started'.",
         "offer7title": "Premium Preventive Care",
         "offer7short": "Healthy teeth for years. Professional cleaning, scaling and air-polishing.",
-        "offer7full": "Regular visits to the hygienist are the foundation of oral health. Scaling, air-polishing, fluoridation and hygiene instruction — at Mikrostomart every preventive visit is a comprehensive treatment.",
+        "offer7full": "Regular visits to the hygienist are the foundation of oral health. Scaling, air-polishing, fluoridation and hygiene instruction — at {brandName} every preventive visit is a comprehensive treatment.",
         "offer8title": "Aligner Orthodontics",
         "offer8short": "Straight teeth without metal braces. Invisible Clear Correct aligners.",
         "offer8full": "Orthodontic aligners are transparent, removable trays that straighten teeth without metal braces. Ideal for adults who value discretion. At the first appointment we'll show you a 3D simulation of the final result."
@@ -338,7 +338,7 @@
         "lowerRightArc": "Lower Right Arch",
         "softTissues": "Soft Tissues",
         "softTissuesSub": "Tongue · Palate · Throat",
-        "metaTitle": "Tooth Pain Map | Mikrostomart",
+        "metaTitle": "Tooth Pain Map | {brandName}",
         "metaDescription": "Interactive tooth pain map — point to the tooth that hurts and we'll suggest possible causes."
     },
     "language": {
@@ -348,7 +348,7 @@
         "ua": "Українська"
     },
     "assistant": {
-        "greeting": "Hello! I'm the virtual assistant of the Mikrostomart clinic. How can I help you?",
+        "greeting": "Hello! I'm the virtual assistant of {brandName}. How can I help you?",
         "suggestion1": "What are your opening hours?",
         "suggestion2": "Do you provide microscope treatment?",
         "suggestion3": "Who works at the clinic?",
@@ -361,7 +361,7 @@
         "ariaOpenAssistant": "Open AI assistant",
         "tooltipAI": "AI Assistant 💬",
         "headerTitle": "Virtual Assistant",
-        "headerSubtitle": "Mikrostomart Opole",
+        "headerSubtitle": "{brandName} {cityShort}",
         "imageAdded": "Photo added",
         "inputPlaceholder": "Type a message..."
     },
@@ -385,7 +385,7 @@
         "generateReview": "Generate Review ✨",
         "loading": "Generating your review...",
         "close": "Close",
-        "q0Title": "Are you a patient of Mikrostomart?",
+        "q0Title": "Are you a patient of {brandName}?",
         "q0Opt1": "Yes, I'm a patient",
         "q0Opt2": "No, I'm considering a visit",
         "q1Title": "How long have you been treated with us?",
@@ -438,7 +438,7 @@
         "profile": "My profile",
         "messages": "💬 Messages",
         "rateUs": "⭐ Rate us",
-        "receptionTitle": "Mikrostomart Reception",
+        "receptionTitle": "{brandName} Reception",
         "workingHours": "Replies during working hours: Mon-Fri 8:00-20:00",
         "writeToUs": "Write to us!",
         "emptyHint": "E.g. \"Can I change my appointment time?\" or \"What documents should I bring?\"",
@@ -498,7 +498,7 @@
             "sync": "Sync",
             "syncing": "Syncing...",
             "syncHistory": "Sync history with Prodentis",
-            "syncDesc": "Fetch latest visit data from the Mikrostomart system",
+            "syncDesc": "Fetch latest visit data from the {brandName} system",
             "appointments": "Your appointments",
             "appointmentsDesc": "Upcoming visits at our clinic",
             "loadingAppointments": "Loading appointment information...",
@@ -545,7 +545,7 @@
             "name": "Full name",
             "phone": "Phone",
             "address": "Address",
-            "personalDataNote": "Personal data is synced from the Mikrostomart system and cannot be changed in the portal. To update, please contact reception.",
+            "personalDataNote": "Personal data is synced from the {brandName} system and cannot be changed in the portal. To update, please contact reception.",
             "contactData": "Contact information",
             "email": "Email",
             "language": "Preferred language",

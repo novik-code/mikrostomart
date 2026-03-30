@@ -323,3 +323,20 @@ export function demoSanitize(text: string): string {
         .replace(/7543251709/g, '0000000000');
 }
 
+/**
+ * Returns interpolation params for next-intl t() calls that use {brandName},
+ * {cityShort}, {phone1}, {legalName}, or {email} tokens.
+ *
+ * Usage:
+ *   t('greeting', brandI18nParams())          // server component
+ *   t('copyright', { ...brandI18nParams(), year: new Date().getFullYear() })
+ */
+export function brandI18nParams(): Record<string, string> {
+    return {
+        brandName: brand.name,
+        cityShort: brand.cityShort,
+        phone1: brand.phone1,
+        legalName: brand.legalEntity?.name || brand.name,
+        email: brand.senderEmail,
+    };
+}

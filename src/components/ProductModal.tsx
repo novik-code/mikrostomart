@@ -1,6 +1,7 @@
 "use client";
 
 import { X, ShoppingCart, CreditCard, ChevronLeft, ChevronRight, CheckCircle, ArrowLeft } from "lucide-react";
+import { brandI18nParams } from '@/lib/brandConfig';
 import { useState } from "react";
 import { useCart } from "@/context/CartContext";
 import { useTranslations, useLocale } from "next-intl";
@@ -340,7 +341,7 @@ export default function ProductModal({ product, initialStep = "PRODUCT", onClose
                             </button>
                         </div>
                         <p style={{ fontSize: '12px', color: '#6b7280', textAlign: 'center' }}>
-                            {t('safePurchase')}
+                            {t('safePurchase', brandI18nParams())}
                         </p>
                     </div>
                 </div>

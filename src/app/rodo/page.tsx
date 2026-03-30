@@ -1,6 +1,7 @@
 "use client";
 
 import { Download, Shield } from "lucide-react";
+import { brandI18nParams } from '@/lib/brandConfig';
 import { useTranslations } from "next-intl";
 import RevealOnScroll from "@/components/RevealOnScroll";
 import DemoPagePlaceholder from "@/components/DemoPagePlaceholder";
@@ -78,7 +79,7 @@ export default function RodoPage() {
                         boxShadow: "0 4px 30px rgba(0,0,0,0.3)"
                     }}>
                         <p style={{ color: "var(--color-text-muted)", lineHeight: 1.8, marginBottom: "1.5rem" }}>
-                            {t('greeting')}
+                            {t('greeting', brandI18nParams())}
                         </p>
                         <p style={{ color: "var(--color-text-muted)", lineHeight: 1.8, marginBottom: "2.5rem" }}>
                             {t('intro')}

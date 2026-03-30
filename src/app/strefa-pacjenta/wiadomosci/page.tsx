@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { brandI18nParams } from '@/lib/brandConfig';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 import { useTranslations, useLocale } from 'next-intl';
@@ -235,7 +236,7 @@ export default function PatientChat() {
                         </div>
                         <div>
                             <h2 style={{ color: '#fff', fontSize: '1.1rem', fontWeight: 'bold', margin: 0 }}>
-                                {t('receptionTitle')}
+                                {t('receptionTitle', brandI18nParams())}
                             </h2>
                             <p style={{ color: 'rgba(255, 255, 255, 0.5)', fontSize: '0.8rem', margin: 0 }}>
                                 {t('workingHours')}

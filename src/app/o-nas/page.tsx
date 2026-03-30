@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { brandI18nParams } from '@/lib/brandConfig';
 import { useTranslations } from "next-intl";
 import RevealOnScroll from "@/components/RevealOnScroll";
 import InteriorCollage from "@/components/InteriorCollage";
@@ -65,7 +66,7 @@ export default function AboutPage() {
                                     {t('missionText1')}
                                 </p>
                                 <p style={{ color: "var(--color-text-muted)", fontSize: "1.1rem", lineHeight: 1.8 }}>
-                                    {t('missionText2')}
+                                    {t('missionText2', brandI18nParams())}
                                 </p>
                             </RevealOnScroll>
                         </div>
