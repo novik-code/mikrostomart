@@ -383,21 +383,52 @@ export async function sendEmail(params: {
             });
 
             await withImap(async (client) => {
-                // Find the Sent folder (try specialUse first, then common names)
+                // Find the Sent folder
                 const folders = await client.list();
-                let sentPath = 'Sent';  // fallback
-                const sentFolderNames = ['Sent', 'INBOX.Sent', 'Sent Messages', 'Sent Items'];
+                const folderPaths = folders.map(f => `${f.path} (${f.specialUse || 'no-special'})`);
+                console.log('[SMTP] IMAP folders:', folderPaths.join(', '));
+
+                let sentPath: string | null = null;
+
+                // 1. specialUse flag
                 for (const f of folders) {
                     if (f.specialUse === '\\Sent') {
                         sentPath = f.path;
                         break;
                     }
-                    if (sentFolderNames.includes(f.path)) {
-                        sentPath = f.path;
-                        // Don't break — keep looking for specialUse match
+                }
+
+                // 2. Common folder names
+                if (!sentPath) {
+                    for (const name of ['Sent', 'INBOX.Sent', 'Sent Messages', 'Sent Items']) {
+                        if (folders.find(f => f.path === name)) {
+                            sentPath = name;
+                            break;
+                        }
                     }
                 }
+
+                // 3. Partial match
+                if (!sentPath) {
+                    const match = folders.find(f => f.path.toLowerCase().includes('sent'));
+                    if (match) sentPath = match.path;
+                }
+
+                // 4. Create if missing
+                if (!sentPath) {
+                    sentPath = 'INBOX.Sent';
+                    console.log('[SMTP] No Sent folder found, creating:', sentPath);
+                    try {
+                        await client.mailboxCreate(sentPath);
+                    } catch {
+                        sentPath = 'Sent';
+                        try { await client.mailboxCreate(sentPath); } catch { /* last resort */ }
+                    }
+                }
+
+                console.log('[SMTP] Appending sent message to:', sentPath);
                 await client.append(sentPath, rawBuffer, ['\\Seen']);
+                console.log('[SMTP] Saved to Sent folder OK');
             });
         } catch (appendErr: any) {
             // Don't fail the send — the message was already delivered
