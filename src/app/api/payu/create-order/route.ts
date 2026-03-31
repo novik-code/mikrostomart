@@ -60,9 +60,7 @@ export async function POST(request: NextRequest) {
                     quantity: 1,
                 },
             ],
-            payMethods: {
-                payMethod: { type: 'PBL' } // Polish bank/BLIK redirect
-            },
+            // Removed payMethods to allow PayU to show the generic payment wall (BLIK, card, transfer)
         };
 
         // PayU returns 302 redirect — we must NOT follow it, capture the redirect URL
@@ -76,26 +74,26 @@ export async function POST(request: NextRequest) {
             redirect: 'manual', // Don't follow redirects
         });
 
-        // PayU 302: Location header = payment page URL
-        if (res.status === 302) {
-            const redirectUrl = res.headers.get('location');
+        const status = res.status;
+
+        // PayU 302 or 201: Extract redirectUri from JSON body (fallback to Location header)
+        if (status === 302 || status === 201 || status === 200) {
             const data = await res.text();
+            let redirectUrl = res.headers.get('location');
             let payuOrderId = '';
+
             try {
                 const json = JSON.parse(data);
                 payuOrderId = json.orderId || '';
-            } catch { /* ok */ }
-            return NextResponse.json({ redirectUrl, payuOrderId, sessionId });
-        }
+                // JSON redirectUri takes precedence if missing in headers
+                if (json.redirectUri) {
+                    redirectUrl = json.redirectUri;
+                }
+            } catch { /* if not JSON, ignore */ }
 
-        // PayU 201: JSON with redirectUri
-        if (res.status === 200 || res.status === 201) {
-            const data = await res.json();
-            return NextResponse.json({
-                redirectUrl: data.redirectUri,
-                payuOrderId: data.orderId,
-                sessionId,
-            });
+            if (redirectUrl) {
+                return NextResponse.json({ redirectUrl, payuOrderId, sessionId });
+            }
         }
 
         const err = await res.text();
