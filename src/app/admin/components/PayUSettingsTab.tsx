@@ -256,8 +256,9 @@ export default function PayUSettingsTab() {
                     <li><strong>POS ID</strong> i <strong>Client ID</strong> — Panel PayU → Ustawienia POS</li>
                     <li><strong>Client Secret</strong> — Panel PayU → Ustawienia POS → OAuth Protocol</li>
                     <li><strong>Second Key</strong> — Panel PayU → Ustawienia POS → Klucz (Drugi klucz)</li>
-                    <li>Sandbox: <a href="https://sandbox.payu.com" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-primary)' }}>sandbox.payu.com</a></li>
-                    <li>Panel: <a href="https://panel.payu.com" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-primary)' }}>panel.payu.com</a></li>
+                    <li>Sandbox rejestracja: <a href="https://registration-merch-prod.snd.payu.com/boarding/#/registerSandbox/" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-primary)' }}>registerSandbox</a></li>
+                    <li>Panel sandbox: <a href="https://merch-prod.snd.payu.com" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-primary)' }}>merch-prod.snd.payu.com</a></li>
+                    <li>Panel produkcja: <a href="https://panel.payu.com" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-primary)' }}>panel.payu.com</a></li>
                 </ul>
                 <div style={{ marginTop: '0.75rem', padding: '0.6rem 0.8rem', background: 'rgba(99,102,241,0.1)', borderRadius: '8px', border: '1px solid rgba(99,102,241,0.2)' }}>
                     🧪 <strong>Demo sandbox aktywny</strong> — w środowisku testowym PayU dostarcza gotowe kredencjały demo (POS ID: 300746). Test możesz wykonać od razu bez konfiguracji.
