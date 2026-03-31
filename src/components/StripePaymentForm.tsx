@@ -15,12 +15,14 @@ export default function StripePaymentForm({ amount, onSuccess, onBack }: StripeP
     const elements = useElements();
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
+    const [isElementReady, setIsElementReady] = useState(false);
     const t = useTranslations('stripePayment');
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (!stripe || !elements) {
+        // Guard: Stripe or PaymentElement not ready yet (prevents IntegrationError on double-submit)
+        if (!stripe || !elements || !isElementReady || isProcessing) {
             return;
         }
 
@@ -53,7 +55,10 @@ export default function StripePaymentForm({ amount, onSuccess, onBack }: StripeP
             </h4>
 
             {/* Stripe UI */}
-            <PaymentElement options={{ layout: "tabs" }} />
+            <PaymentElement
+                options={{ layout: "tabs" }}
+                onReady={() => setIsElementReady(true)}
+            />
 
             {errorMessage && (
                 <div style={{ color: "#ef4444", fontSize: "0.9rem", marginTop: "0.5rem" }}>
@@ -78,7 +83,7 @@ export default function StripePaymentForm({ amount, onSuccess, onBack }: StripeP
                     </button>
                     <button
                         type="submit"
-                        disabled={!stripe || isProcessing}
+                        disabled={!stripe || !isElementReady || isProcessing}
                         className="btn-primary"
                         style={{ flex: 2, opacity: isProcessing ? 0.7 : 1 }}
                     >

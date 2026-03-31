@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import styles from './appointment.module.css';
 
@@ -18,6 +18,7 @@ interface AppointmentInstruction {
 export default function AppointmentPreparationPage() {
     const params = useParams<{ type: string }>();
     const searchParams = useSearchParams();
+    const videoRef = useRef<HTMLVideoElement>(null);
     const [instruction, setInstruction] = useState<AppointmentInstruction | null>(null);
     const [loading, setLoading] = useState(true);
     const [notFound, setNotFound] = useState(false);
@@ -154,7 +155,18 @@ export default function AppointmentPreparationPage() {
         <div className={styles.page}>
             {/* Video Background */}
             <div className={styles.videoContainer}>
-                <video autoPlay loop muted playsInline>
+                <video
+                    ref={videoRef}
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    onError={() => { /* swallow video load errors */ }}
+                    onCanPlay={() => {
+                        // Catch autoplay rejection (Safari iOS throws unhandled rejection)
+                        videoRef.current?.play().catch(() => {});
+                    }}
+                >
                     <source src="/videos/background.mp4" type="video/mp4" />
                 </video>
             </div>

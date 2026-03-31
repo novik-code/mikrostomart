@@ -9,14 +9,26 @@ export default function CookieConsent() {
     const t = useTranslations('cookies');
 
     useEffect(() => {
-        const consent = localStorage.getItem("cookie_consent");
-        if (!consent) {
-            setIsVisible(true);
+        try {
+            const consent = typeof window !== 'undefined' && window.localStorage
+                ? localStorage.getItem("cookie_consent")
+                : 'accepted'; // treat restricted storage as already accepted
+            if (!consent) {
+                setIsVisible(true);
+            }
+        } catch {
+            // localStorage blocked (private mode / strict settings) — hide banner
         }
     }, []);
 
     const acceptCookies = () => {
-        localStorage.setItem("cookie_consent", "true");
+        try {
+            if (typeof window !== 'undefined' && window.localStorage) {
+                localStorage.setItem("cookie_consent", "true");
+            }
+        } catch {
+            // ignore write errors in restricted contexts
+        }
         setIsVisible(false);
     };
 
