@@ -82,6 +82,23 @@ export default function P24SettingsTab() {
         } finally { setTesting(false); }
     };
 
+    // Test using already-saved DB credentials (no need to re-enter)
+    const handleTestSaved = async () => {
+        setTesting(true);
+        setTestResult(null);
+        try {
+            const res = await fetch('/api/admin/p24-settings?action=test', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: '{}',
+            });
+            const data = await res.json();
+            setTestResult({ ok: data.ok, message: data.message, error: data.error });
+        } catch (e: unknown) {
+            setTestResult({ ok: false, error: e instanceof Error ? e.message : 'Błąd sieci' });
+        } finally { setTesting(false); }
+    };
+
     const sourceLabel = (s: P24Status) => {
         if (s.source === 'db') return { icon: '🗄️', label: 'Baza danych', color: '#10b981' };
         if (s.source === 'env') return { icon: '⚙️', label: 'Zmienna ENV', color: '#f59e0b' };
@@ -175,6 +192,23 @@ export default function P24SettingsTab() {
                                 <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>API Key</span>
                                 <div style={{ fontFamily: 'monospace', fontSize: '0.85rem' }}>{status.api_key_masked || '—'}</div>
                             </div>
+                        </div>
+                    )}
+                    {/* Test saved credentials — always visible after save */}
+                    {status.source !== 'none' && (
+                        <div style={{ marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                            <button
+                                onClick={handleTestSaved}
+                                disabled={testing}
+                                style={{ ...btnStyle(false), opacity: testing ? 0.5 : 1, fontSize: '0.85rem' }}
+                            >
+                                {testing ? '⏳ Testowanie...' : '🔍 Testuj zapisane klucze'}
+                            </button>
+                            {testResult && (
+                                <div style={{ marginTop: '0.5rem' }}>
+                                    {alertBox(testResult.ok, testResult.ok ? testResult.message! : `❌ ${testResult.error}`)}
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>

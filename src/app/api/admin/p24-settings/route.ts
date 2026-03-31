@@ -89,9 +89,20 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
         }
 
-        const { pos_id, api_key, sandbox } = await request.json();
+        let body: { pos_id?: string | number; api_key?: string; sandbox?: boolean } = {};
+        try { body = await request.json(); } catch { /* empty body is ok */ }
+
+        let { pos_id, api_key, sandbox } = body;
+
+        // If credentials not provided in body — use saved DB config
         if (!pos_id || !api_key) {
-            return NextResponse.json({ error: 'pos_id i api_key wymagane' }, { status: 400 });
+            const saved = await getP24Config();
+            if (!saved.posId || !saved.apiKey) {
+                return NextResponse.json({ error: 'Brak zapisanych danych P24 — wpisz dane i zapisz najpierw' }, { status: 400 });
+            }
+            pos_id = saved.posId;
+            api_key = saved.apiKey;
+            sandbox = saved.sandbox;
         }
 
         const baseUrl = getP24BaseUrl(sandbox ?? true);
@@ -99,25 +110,16 @@ export async function POST(request: Request) {
 
         const res = await fetch(`${baseUrl}/api/v1/testAccess`, {
             method: 'GET',
-            headers: {
-                'Authorization': `Basic ${credentials}`,
-            },
+            headers: { 'Authorization': `Basic ${credentials}` },
         });
 
         const data = await res.json();
         const mode = sandbox ? 'SANDBOX' : 'LIVE';
 
         if (res.ok && data.data === true) {
-            return NextResponse.json({
-                ok: true,
-                mode,
-                message: `Połączenie ${mode} działa poprawnie ✅`,
-            });
+            return NextResponse.json({ ok: true, mode, message: `Połączenie ${mode} działa poprawnie ✅` });
         } else {
-            return NextResponse.json({
-                ok: false,
-                error: data.error || 'Błąd autentykacji P24',
-            }, { status: 400 });
+            return NextResponse.json({ ok: false, error: data.error || 'Błąd autentykacji P24' }, { status: 400 });
         }
     } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Unknown error';
