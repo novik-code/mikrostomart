@@ -2263,6 +2263,12 @@ NODE_ENV=production
 
 ## 📝 Recent Changes
 
+### March 31, 2026
+**PayU Redirect Flow Fix**
+- `a727457` — fix(payu): remove payMethods to enable universal payment wall and fix 302 redirectUri parsing
+  - Removed `payMethods` object from the `/api/payu/create-order` body, enabling the PayU generic payment wall.
+  - Improved HTTP 302 handling to parse the `redirectUri` correctly from the response body JSON.
+
 ### March 30, 2026
 **Multi-Tenant Architecture — Phases 6b through 10**
 
