@@ -2264,10 +2264,22 @@ NODE_ENV=production
 ## 📝 Recent Changes
 
 ### March 31, 2026
-**PayU Redirect Flow Fix**
+**PayU & Przelewy24 Multi-Gateway Integration**
+- `e1c4af1` — fix(payu): dynamically resolve appUrl to prevent empty NEXT_PUBLIC_APP_URL blocking orders
+- `f3051d3` — docs: update context with PayU redirect fix
 - `a727457` — fix(payu): remove payMethods to enable universal payment wall and fix 302 redirectUri parsing
-  - Removed `payMethods` object from the `/api/payu/create-order` body, enabling the PayU generic payment wall.
-  - Improved HTTP 302 handling to parse the `redirectUri` correctly from the response body JSON.
+- `35bb9e6` — feat(etap2-6): payment method selector — ADDRESS→METHOD→PAYMENT, PayU/P24 redirect, /platnosc return page
+- `95ed297` — feat(etap2-5): PayU integration — OAuth2 + create-order + webhook + Admin Panel tab + sandbox defaults
+- `e9e663c` — fix(p24): test button UX — add test-saved button in status card, server uses DB config when body empty
+- `be69b4e` — feat(etap2-4b): Przelewy24 integration — Admin Panel UI + register/webhook API + p24Service
+- `61164ee` — feat(etap2-4): Stripe per-tenant config — Admin Panel UI + DB + service layer
+
+#### Multi-Gateway Payment System Rollout:
+- **Architecture**: DB-first `clinic_settings` storage with environment variable fallbacks for Stripe, P24, and PayU.
+- **Admin Panel**: Replaced single Stripe tab with robust tabbed UI (`StripeSettingsTab`, `P24SettingsTab`, `PayUSettingsTab`) featuring test-connection buttons.
+- **Checkout UI**: Enhanced `CheckoutForm.tsx` to 3-step flow (ADDRESS → METHOD → PAYMENT). Added animated `PaymentMethodPicker.tsx`.
+- **Return Page**: Created universal `/platnosc` page holding `success`, `cancel`, and `verify` states for external provider redirects.
+- **PayU Fixes**: Repaired `create-order` endpoint by removing strict PBL payMethods block to enable full payment wall, correctly extracting JSON-body `redirectUri` during 302/201 responses, and deriving absolute `notifyUrl`/`continueUrl` via request headers (bypassing empty Vercel app-URL env variables).
 
 ### March 30, 2026
 **Multi-Tenant Architecture — Phases 6b through 10**
