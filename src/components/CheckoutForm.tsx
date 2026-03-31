@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useCart } from "@/context/CartContext";
 import { useTranslations } from "next-intl";
 
@@ -8,8 +8,6 @@ import { loadStripe } from "@stripe/stripe-js";
 import { Elements } from "@stripe/react-stripe-js";
 import StripePaymentForm from "./StripePaymentForm";
 
-// Replace with your Stripe Publishable Key
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "");
 
 interface CheckoutFormProps {
     onSuccess: () => void;
@@ -29,7 +27,24 @@ export default function CheckoutForm({ onSuccess, initialValues }: CheckoutFormP
     const { clearCart, total, items } = useCart();
     const [step, setStep] = useState<'ADDRESS' | 'PAYMENT'>('ADDRESS');
     const [clientSecret, setClientSecret] = useState<string>("");
+    const [stripePublishableKey, setStripePublishableKey] = useState<string | null>(null);
     const t = useTranslations('checkoutForm');
+
+    // Load Stripe publishable key dynamically (DB-first, env fallback)
+    useEffect(() => {
+        fetch('/api/stripe-config')
+            .then(r => r.json())
+            .then(d => setStripePublishableKey(d.publishableKey || null))
+            .catch(() => {
+                // fallback to env if API fails
+                setStripePublishableKey(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || null);
+            });
+    }, []);
+
+    const stripePromise = useMemo(
+        () => stripePublishableKey ? loadStripe(stripePublishableKey) : null,
+        [stripePublishableKey]
+    );
 
     const [formData, setFormData] = useState({
         name: initialValues?.name || '',

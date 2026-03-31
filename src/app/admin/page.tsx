@@ -42,6 +42,7 @@ import { Product } from './components/AdminTypes';
 import SocialMediaTab from './components/SocialMediaTab';
 import PmsSettingsTab from './components/PmsSettingsTab';
 import SmsSettingsTab from './components/SmsSettingsTab';
+import StripeSettingsTab from './components/StripeSettingsTab';
 import { demoSanitize } from '@/lib/brandConfig';
 
 export default function AdminPage() {
@@ -68,7 +69,7 @@ export default function AdminPage() {
     const [products, setProducts] = useState<Product[]>([]);
     const [error, setError] = useState<string | null>(null);
 
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'questions' | 'articles' | 'news' | 'orders' | 'reservations' | 'blog' | 'patients' | 'sms-reminders' | 'sms-post-visit' | 'sms-week-after-visit' | 'appointment-instructions' | 'roles' | 'employees' | 'chat' | 'theme' | 'page-builder' | 'push' | 'booking-settings' | 'online-bookings' | 'cancelled-appointments' | 'social-media' | 'pms-settings' | 'sms-provider'>('dashboard');
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'questions' | 'articles' | 'news' | 'orders' | 'reservations' | 'blog' | 'patients' | 'sms-reminders' | 'sms-post-visit' | 'sms-week-after-visit' | 'appointment-instructions' | 'roles' | 'employees' | 'chat' | 'theme' | 'page-builder' | 'push' | 'booking-settings' | 'online-bookings' | 'cancelled-appointments' | 'social-media' | 'pms-settings' | 'sms-provider' | 'stripe-settings'>('dashboard');
     // Cancelled appointments state
     const [cancelledAppointments, setCancelledAppointments] = useState<any[]>([]);
     const [cancelledLoading, setCancelledLoading] = useState(false);
@@ -4961,6 +4962,7 @@ export default function AdminPage() {
                     <NavItem id="booking-settings" label="Ustawienia rezerwacji" icon={Settings} />
                     <NavItem id="pms-settings" label="Integracja PMS" icon={Plug} />
                     <NavItem id="sms-provider" label="SMS API" icon={MessageCircle} />
+                    <NavItem id="stripe-settings" label="Stripe" icon={ShoppingBag} />
                     <NavItem id="appointment-instructions" label="Instrukcje wizyt" icon={ClipboardList} />
 
                     <NavSection title="Komunikacja" />
@@ -5321,6 +5323,7 @@ export default function AdminPage() {
                     {activeTab === 'social-media' && <SocialMediaTab />}
                     {activeTab === 'pms-settings' && <PmsSettingsTab />}
                     {activeTab === 'sms-provider' && <SmsSettingsTab />}
+                    {activeTab === 'stripe-settings' && <StripeSettingsTab />}
                     {activeTab === 'page-builder' && <PageBuilderTab />}
                     {activeTab === 'online-bookings' && renderOnlineBookingsTab()}
                     {activeTab === 'cancelled-appointments' && (() => {
