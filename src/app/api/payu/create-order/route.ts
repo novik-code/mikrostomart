@@ -36,7 +36,9 @@ export async function POST(request: NextRequest) {
         const baseUrl = getPayUBaseUrl(config.sandbox);
         const amountInGrosze = Math.round(amount * 100);
         const sessionId = orderId || `session_${Date.now()}`;
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
+        const protocol = request.headers.get('x-forwarded-proto') || 'https';
+        const host = request.headers.get('host') || request.nextUrl.host;
+        const appUrl = `${protocol}://${host}`;
 
         const orderBody = {
             notifyUrl: `${appUrl}/api/payu/webhook`,
