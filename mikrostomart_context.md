@@ -1,6 +1,6 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-03-30  
+> **Last Updated:** 2026-04-01  
 > **Version:** Production + Demo (Dual Vercel Deployment)  
 > **Status:** Active Development — Multi-Tenant Architecture (Phases 1-10 complete)
 
@@ -164,7 +164,8 @@ The demo environment is fully neutralized — no Mikrostomart-specific text, con
 ### External Integrations
 | Service | Purpose | Status |
 |---------|---------|--------|
-| **Prodentis API** | Appointment synchronization | ✅ Active |
+| **Prodentis API** | Appointment synchronization (via Cloudflare Tunnel) | ✅ Active |
+| **Cloudflare Tunnel** | Resilient Prodentis API access (`pms.mikrostomartapi.com`) | ✅ Active |
 | **SMSAPI.pl** | SMS notifications | ✅ Active (link blocking resolved) |
 | **Resend** | Email notifications | ✅ Active |
 | **Stripe** | Payment processing | ✅ Active |
@@ -323,6 +324,7 @@ mikrostomart/
 │   ├── lib/                    # Utilities & services
 │   │   ├── brandConfig.ts      # Branding config (brand object), demoSanitize() function
 │   │   ├── demoMode.ts         # isDemoMode flag
+│   │   ├── prodentisFetch.ts   # Resilient Prodentis fetch: Cloudflare Tunnel primary + direct IP fallback
 │   │   ├── smsService.ts       # SMS integration
 │   │   ├── productService.ts   # Product management
 │   │   ├── githubService.ts    # GitHub blog integration
@@ -351,7 +353,7 @@ mikrostomart/
 │   ├── en/common.json          # English
 │   ├── de/common.json          # German
 │   └── ua/common.json          # Ukrainian
-├── supabase_migrations/        # Database migrations (99 files: 003-099, sequential numeric)
+├── supabase_migrations/        # Database migrations (103 files: 003-103, sequential numeric)
 ├── public/                     # Static assets (incl. qr-ocen-nas.png)
 ├── scripts/                    # Utility scripts (13 files)
 └── vercel.json                 # Deployment configuration (17 cron jobs: see Cron section)
@@ -1433,7 +1435,7 @@ Features:
 | `/api/intake/verify/[token]` | GET | Verify token validity + return prefill data |
 | `/api/intake/submit` | POST | Submit patient form → Supabase + Prodentis |
 
-### Prodentis APIs (external: `83.230.40.14:3000`, API v9.1)
+### Prodentis APIs (via Cloudflare Tunnel: `pms.mikrostomartapi.com`, fallback: `83.230.40.14:3000`, API v9.1)
 
 **Read Endpoints (no API Key):**
 
@@ -1649,6 +1651,14 @@ Features:
 **Purpose:** Appointment calendar synchronization + patient management + appointment management
 
 **Current Version:** v9.1 (as of March 3, 2026)
+
+**Connectivity (as of April 1, 2026):**
+- **Primary:** Cloudflare Tunnel → `https://pms.mikrostomartapi.com` (domain: `mikrostomartapi.com`, registered on Cloudflare)
+- **Fallback:** Direct IP → `http://83.230.40.14:3000` (requires port forwarding on Multiplay router)
+- **Architecture:** `prodentis-adapter.ts` uses dual-URL fetch with automatic failover. `prodentisFetch.ts` provides shared utility for API routes.
+- **Why:** Router Multiplay resets port forwarding rules after hard reboot → intermittent connectivity. Cloudflare Tunnel bypasses router entirely (outgoing connection from server → Cloudflare).
+- **Server:** `cloudflared.exe` installed as Windows service on Prodentis server (auto-starts with system).
+- **Monitoring:** BetterStack monitor checks `http://83.230.40.14:3000/api/doctors` every 3 minutes with keyword matching.
 
 **Read Endpoints (no auth):**
 - `GET /api/patients/search?q=&limit=` — Patient search by name
@@ -2262,6 +2272,55 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### April 1, 2026
+**Cloudflare Tunnel, Email Fix, Supabase Security**
+
+#### Commits:
+- `7e2b050` — fix(pms): prioritize tunnel URL over PRODENTIS_API_URL env var
+- `459675a` — fix(pms): update ALL Prodentis API paths to Cloudflare Tunnel
+- `7da3775` — feat(pms): Cloudflare Tunnel as primary Prodentis API connection
+- `b17b485` — feat(blog): add image for usmiech-bez-tajemnic article
+- `2bb127e` — fix(email): improve Sent folder discovery for IMAP append
+
+#### Features Added / Fixed:
+1. **Cloudflare Tunnel for Prodentis API**
+   - **Problem:** Multiplay router port forwarding rules reset after hard reboot, causing intermittent Prodentis API outages
+   - **Solution:** Set up Cloudflare Tunnel as primary connection path, with direct IP as fallback
+   - Domain `mikrostomartapi.com` registered on Cloudflare, tunnel `prodentis-api` created
+   - `cloudflared.exe` installed as Windows service on server (auto-starts)
+   - `prodentis-adapter.ts` rewritten with dual-URL fetch: tunnel first, fallback to `83.230.40.14:3000`
+   - All 47 API route files updated from hardcoded IP to `PRODENTIS_TUNNEL_URL` env var
+   - Created shared `src/lib/prodentisFetch.ts` utility with `prodentisFetch()` and `getProdentisUrl()` exports
+   - Fixed URL priority bug: `PRODENTIS_API_URL` env var was overriding tunnel URL in 46 files
+   - Key files: `src/lib/pms/prodentis-adapter.ts`, `src/lib/prodentisFetch.ts`, `src/lib/assistantActions.ts`
+
+2. **BetterStack Monitoring for Prodentis API**
+   - Added "Prodentis API" monitor: checks `http://83.230.40.14:3000/api/doctors` every 3 minutes
+   - Keyword matching: alerts if response doesn't contain `"doctors"`
+   - Notifications: email to team
+
+3. **IMAP Sent Folder Fix**
+   - Emails sent from employee zone were not appearing in IMAP Sent folder
+   - Implemented 4-stage folder discovery: specialUse `\Sent` → common names → partial match → auto-create
+   - Added diagnostic logging for folder resolution
+   - Key file: `src/lib/imapService.ts`
+
+4. **Supabase Security Fixes**
+   - **Mikrostomart (Production):** Fixed `search_path` in `update_clinic_settings_updated_at` function, enabled Leaked Password Protection (HaveIBeenPwned). Result: **0 errors, 0 warnings**
+   - **DensFlow-Demo:** Enabled RLS on all 58 public tables, added 4 permissive policies per table (demo_select for all, demo_write/update/delete for authenticated). Result: **0 errors** (209 warnings — expected "always true" policies for demo)
+
+#### New Environment Variables:
+- `PRODENTIS_TUNNEL_URL` — Cloudflare Tunnel URL (default: `https://pms.mikrostomartapi.com`)
+
+#### Files Modified:
+- `src/lib/pms/prodentis-adapter.ts` — dual-URL fetch with tunnel primary + IP fallback
+- `src/lib/prodentisFetch.ts` — **NEW** shared utility for resilient Prodentis fetch
+- `src/lib/assistantActions.ts` — updated to use `prodentisFetch()` helper
+- `src/lib/imapService.ts` — 4-stage Sent folder discovery
+- 47 API route files — updated from direct IP/localhost to Cloudflare Tunnel URL
+
+---
 
 ### March 31, 2026
 **PayU & Przelewy24 Multi-Gateway Integration**
@@ -3834,7 +3893,7 @@ Emails sent from the employee zone email client (`EmailTab.tsx`) were successful
 - **Dependency:** `qrcode.react` (nowa)
 
 **`12d65d6` — Prodentis Write-Back Integration (Feb 25):**
-- **Prodentis API:** `http://83.230.40.14:3000` (external IP), key `PRODENTIS_API_KEY` env var
+- **Prodentis API:** Primary: `https://pms.mikrostomartapi.com` (Cloudflare Tunnel), Fallback: `http://83.230.40.14:3000` (direct IP), key `PRODENTIS_API_KEY` env var
 - **Endpoints:** POST /api/patients (create), PATCH /api/patients/:id (update), POST /api/patients/:id/notes (medical notes → "Uwagi dla lekarza" in Prodentis XML)
 - **Flow:** submit → POST patient → 409 PESEL exists → PATCH + POST notes → status=sent
 - **Fix:** fire-and-forget async → synchronous (Vercel kills async), all 5 routes updated 192.168.1.5 → 83.230.40.14
