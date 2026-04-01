@@ -203,13 +203,20 @@ WAŻNE:
 - Hashtagi powinny być bez # (sam tekst), system doda # automatycznie
 - Tekst NIE powinien zawierać hashtagów — podaj je osobno
 - Dla wideo: tekst to opis/caption, nie skrypt
-- imagePrompt: szczegółowy prompt po angielsku do wygenerowania grafiki pasującej do posta
+- imagePrompt: BARDZO WAŻNE ZASADY dla imagePrompt:
+  * Pisz PO ANGIELSKU
+  * Opisuj WYŁĄCZNIE scenę wizualną, obiekty, oświetlenie, kolorystykę, nastrój
+  * NIGDY nie pisz o tekście, tytułach, napisach, słowach, nagłówkach, cytatach
+  * NIGDY nie dodawaj instrukcji typu "with text saying...", "title overlay", "caption", "headline"
+  * To jest prompt do generatora obrazów który renderuje każde słowo jako tekst na grafice!
+  * Skup się na: obiekty stomatologiczne, gabinet, uśmiech, twarz pacjenta, narzędzia, technologie
+  * Styl: dark moody, gold accent lighting, bokeh, photorealistic, premium, cinematic
 
 Odpowiedz WYŁĄCZNIE w formacie JSON:
 {
     "text": "Treść posta/opisu",
     "hashtags": ["stomatologia", "dentysta", "opole", "zdrowie", ...],
-    "imagePrompt": "Detailed English prompt for a premium social media image. Dark moody background, gold accent lighting, modern dental clinic aesthetic, photorealistic, cinematic, 1080x1080 square format.",
+    "imagePrompt": "Close-up of a modern dental clinic interior with dark moody atmosphere, gold accent lighting reflecting off dental equipment, bokeh background, premium medical brand aesthetic, photorealistic, cinematic lighting, shallow depth of field",
     "title": "Tytuł (tylko dla YouTube, opcjonalny)"
 }`;
 
@@ -238,6 +245,32 @@ Odpowiedz WYŁĄCZNIE w formacie JSON:
     };
 }
 
+// ── Image Prompt Sanitizer ─────────────────────────────────────────
+
+/**
+ * Strip text-rendering keywords from AI-generated image prompts.
+ * Flux and DALL-E literally render any "text", "title", "words" etc.
+ * as garbled text on the image.
+ */
+function sanitizeImagePrompt(prompt: string): string {
+    // Remove phrases like: "with text saying 'XYZ'", "text overlay: XYZ", "titled 'XYZ'"
+    let cleaned = prompt
+        .replace(/with\s+text\s+(saying|reading|that\s+says|showing|displaying)[^.,;]*/gi, '')
+        .replace(/text\s+overlay[^.,;]*/gi, '')
+        .replace(/title[d]?\s+(text|overlay|reading|saying)[^.,;]*/gi, '')
+        .replace(/caption[^.,;]*/gi, '')
+        .replace(/headline[^.,;]*/gi, '')
+        .replace(/typography[^.,;]*/gi, '')
+        .replace(/lettering[^.,;]*/gi, '')
+        .replace(/"[^"]{3,}"/g, '') // Remove quoted strings (likely text to render)
+        .replace(/'[^']{3,}'/g, '') // Remove single-quoted strings
+        .replace(/words?\s+(saying|reading|that|on)[^.,;]*/gi, '')
+        .replace(/\s{2,}/g, ' ') // Collapse double spaces
+        .trim();
+
+    return cleaned;
+}
+
 // ── Image Generation ───────────────────────────────────────────────
 
 export async function generateSocialImage(
@@ -251,9 +284,14 @@ export async function generateSocialImage(
     const aspectRatio = format === 'square' ? '1:1' : format === 'portrait' ? '9:16' : '16:9';
     const dalleSize = format === 'square' ? '1024x1024' as const : format === 'portrait' ? '1024x1792' as const : '1792x1024' as const;
 
-    const enhancedPrompt = imagePrompt +
+    // Sanitize prompt: remove any text/title/caption references
+    const sanitized = sanitizeImagePrompt(imagePrompt);
+
+    // IMPORTANT: Lead with anti-text instructions (Flux weights early tokens more heavily)
+    const enhancedPrompt = 'Photographic image only, absolutely no text, no words, no letters, no numbers, no watermarks, no captions, no titles, no typography anywhere in the image. ' +
+        sanitized +
         ' Ultra-premium dental photography, dark moody atmosphere, gold accent lighting, ' +
-        'bokeh background, magazine cover quality, luxury medical brand aesthetic, no text overlays, no watermarks';
+        'bokeh background, magazine cover quality, luxury medical brand aesthetic, shallow depth of field';
 
     if (imageModel === 'flux-dev' || imageModel === 'flux') {
         try {
