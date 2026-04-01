@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
         const offset = searchParams.get('offset') || '0';
 
         // Fetch visits from Prodentis
-        const prodentisUrl = process.env.PRODENTIS_API_URL || process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
+        const prodentisUrl = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
         const url = `${prodentisUrl}/api/patient/${payload.prodentisId}/appointments?limit=${limit}&offset=${offset}`;
 
         console.log('[Visits] Fetching from:', url);

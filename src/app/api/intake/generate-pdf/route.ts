@@ -11,7 +11,7 @@ const supabase = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const PRODENTIS_API = process.env.PRODENTIS_API_URL || process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
+const PRODENTIS_API = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
 const PRODENTIS_API_KEY = process.env.PRODENTIS_API_KEY || '';
 
 // ─── Helpers ─────────────────────────────────────────────

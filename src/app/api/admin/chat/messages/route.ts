@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
 
                     if (!patientRec?.prodentis_id) return;
 
-                    const PRODENTIS_API = process.env.PRODENTIS_API_URL || process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
+                    const PRODENTIS_API = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
                     const detRes = await fetch(`${PRODENTIS_API}/api/patient/${patientRec.prodentis_id}/details`, {
                         signal: AbortSignal.timeout(5000),
                     });

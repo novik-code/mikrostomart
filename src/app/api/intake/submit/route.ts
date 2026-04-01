@@ -187,7 +187,7 @@ export async function POST(req: Request) {
         .eq('id', tokenRow.id);
 
     // 5. Send to Prodentis API (synchronous — Vercel kills fire-and-forget)
-    const prodentisUrl = process.env.PRODENTIS_API_URL || process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
+    const prodentisUrl = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
     const prodentisKey = process.env.PRODENTIS_API_KEY || '';
 
     let prodentisStatus = 'pending';

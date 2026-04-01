@@ -143,7 +143,7 @@ export async function POST(req: NextRequest) {
 
         if (supabase) {
             try {
-                const prodentisUrl = process.env.PRODENTIS_API_URL || process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
+                const prodentisUrl = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
                 const prodentisKey = process.env.PRODENTIS_API_KEY || '';
                 const doctorInfo = getDoctorInfo(specialist);
                 const normalizedPhone = normalizePhone(phone);

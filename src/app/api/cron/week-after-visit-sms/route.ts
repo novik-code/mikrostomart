@@ -9,7 +9,7 @@ import { demoSanitize, brand } from '@/lib/brandConfig';
 
 export const maxDuration = 120;
 
-const PRODENTIS_API_URL = process.env.PRODENTIS_API_URL || process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
+const PRODENTIS_API_URL = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
 const APP_URL = `${brand.appUrl}/aplikacja`;
 
 const REMINDER_DOCTORS = process.env.REMINDER_DOCTORS?.split(',').map(d => d.trim()) || [

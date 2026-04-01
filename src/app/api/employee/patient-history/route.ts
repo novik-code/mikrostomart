@@ -4,7 +4,7 @@ import { hasRole } from '@/lib/roles';
 
 export const dynamic = 'force-dynamic';
 
-const PRODENTIS_API_URL = process.env.PRODENTIS_API_URL || process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
+const PRODENTIS_API_URL = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
 
 /**
  * GET /api/employee/patient-history?patientId={prodentisId}&limit=50

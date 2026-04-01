@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
         let patientFirstName = '';
         let patientLastName = '';
         try {
-            const prodentisUrl = process.env.PRODENTIS_API_URL || process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
+            const prodentisUrl = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
             const detailsRes = await fetch(`${prodentisUrl}/api/patient/${payload.prodentisId}/details`, {
                 signal: AbortSignal.timeout(5000),
             });

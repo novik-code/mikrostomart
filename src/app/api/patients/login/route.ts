@@ -142,7 +142,7 @@ export async function POST(request: Request) {
                 appointments: [],
             };
         } else {
-            const prodentisUrl = process.env.PRODENTIS_API_URL || process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
+            const prodentisUrl = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
             const detailsUrl = `${prodentisUrl}/api/patient/${patient.prodentis_id}/details`;
 
             const prodentisResponse = await fetch(detailsUrl);
