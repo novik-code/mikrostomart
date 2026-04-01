@@ -3,7 +3,7 @@ import { verifyAdmin } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
-const PRODENTIS_API = process.env.PRODENTIS_API_URL || 'http://83.230.40.14:3000';
+const PRODENTIS_API = process.env.PRODENTIS_API_URL || process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
 
 /**
  * GET /api/admin/prodentis-schedule/icons

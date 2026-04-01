@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
         }
 
         // Fetch patient details from Prodentis
-        const prodentisUrl = process.env.PRODENTIS_API_URL || 'http://localhost:3000';
+        const prodentisUrl = process.env.PRODENTIS_API_URL || process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
         const url = `${prodentisUrl}/api/patient/${payload.prodentisId}/details`;
 
         const response = await fetch(url);

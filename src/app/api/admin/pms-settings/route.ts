@@ -110,7 +110,7 @@ export async function POST(req: NextRequest) {
     }
 
     // prodentis — ping health endpoint
-    const prodentisUrl = process.env.PRODENTIS_API_URL || 'http://83.230.40.14:3000';
+    const prodentisUrl = process.env.PRODENTIS_API_URL || process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
     try {
         const res = await fetch(`${prodentisUrl}/api/health`, {
             signal: AbortSignal.timeout(5000),

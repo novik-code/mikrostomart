@@ -40,7 +40,7 @@ export async function POST(request: Request) {
         // Get firstName for email
         let firstName = 'Pacjencie';
         try {
-            const prodentisUrl = process.env.PRODENTIS_API_URL || 'http://localhost:3000';
+            const prodentisUrl = process.env.PRODENTIS_API_URL || process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
             const res = await fetch(`${prodentisUrl}/api/patient/${patient.prodentis_id}/details`);
             if (res.ok) {
                 const details = await res.json();

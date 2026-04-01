@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
         // Get patient name from Prodentis API
         let patientName = 'Pacjent';
         try {
-            const prodentisUrl = process.env.PRODENTIS_API_URL || 'http://localhost:3000';
+            const prodentisUrl = process.env.PRODENTIS_API_URL || process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
             const detailsRes = await fetch(`${prodentisUrl}/api/patient/${payload.prodentisId}/details`);
             if (detailsRes.ok) {
                 const details = await detailsRes.json();

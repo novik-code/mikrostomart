@@ -7,7 +7,7 @@ const supabase = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const PRODENTIS_API = process.env.PRODENTIS_API_URL || 'http://83.230.40.14:3000';
+const PRODENTIS_API = process.env.PRODENTIS_API_URL || process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
 
 /**
  * POST /api/consents/verify

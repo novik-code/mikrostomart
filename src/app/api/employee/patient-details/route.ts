@@ -26,7 +26,7 @@ export async function GET(request: Request) {
         return NextResponse.json({ error: 'Missing patientId' }, { status: 400 });
     }
 
-    const apiUrl = process.env.PRODENTIS_API_URL || 'http://83.230.40.14:3000';
+    const apiUrl = process.env.PRODENTIS_API_URL || process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
 
     try {
         const res = await fetch(`${apiUrl}/api/patient/${patientId}/details`, {

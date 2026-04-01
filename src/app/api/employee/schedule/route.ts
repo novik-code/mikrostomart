@@ -6,7 +6,7 @@ import { demoSanitize } from '@/lib/brandConfig';
 
 export const dynamic = 'force-dynamic';
 
-const PRODENTIS_API_URL = process.env.PRODENTIS_API_URL || 'http://localhost:3000';
+const PRODENTIS_API_URL = process.env.PRODENTIS_API_URL || process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!

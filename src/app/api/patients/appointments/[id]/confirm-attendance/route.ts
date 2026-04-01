@@ -188,7 +188,7 @@ export async function POST(
         // Add "Pacjent potwierdzony" icon in Prodentis (icon ID 0000000010)
         let iconAdded = false;
         try {
-            const PRODENTIS_API = process.env.PRODENTIS_API_URL || 'http://83.230.40.14:3000';
+            const PRODENTIS_API = process.env.PRODENTIS_API_URL || process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
             const PRODENTIS_KEY = process.env.PRODENTIS_API_KEY || '';
             const prodentisAptId = appointmentAction.prodentis_id;
 

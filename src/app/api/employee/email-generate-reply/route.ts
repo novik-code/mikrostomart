@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
         // Fetch available appointment slots from Prodentis (next 7 days)
         let appointmentSlotsContext = '';
         try {
-            const PRODENTIS_API_URL = process.env.PRODENTIS_API_URL || 'http://83.230.40.14:3000';
+            const PRODENTIS_API_URL = process.env.PRODENTIS_API_URL || process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
             const slotsByDay: string[] = [];
             for (let dayOffset = 1; dayOffset <= 7; dayOffset++) {
                 const d = new Date();

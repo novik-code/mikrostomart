@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyTokenFromRequest } from '@/lib/jwt';
 
 // Prodentis API base URL
-const PRODENTIS_API_URL = process.env.PRODENTIS_API_URL || 'http://localhost:3000';
+const PRODENTIS_API_URL = process.env.PRODENTIS_API_URL || process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
 
 export async function GET(
     request: NextRequest,

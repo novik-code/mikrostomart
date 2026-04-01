@@ -44,7 +44,7 @@ export async function POST(request: Request) {
         // Normalize inputs
         const normalizedPhone = phone.replace(/[\s-]/g, '');
         const normalizedPesel = pesel.trim();
-        const prodentisUrl = process.env.PRODENTIS_API_URL || 'http://localhost:3000';
+        const prodentisUrl = process.env.PRODENTIS_API_URL || process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
 
         // ── Attempt 1: Direct verify with normalized phone ──
         console.log('[Verify] Attempt 1: normalized phone', normalizedPhone);

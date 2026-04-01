@@ -3,7 +3,7 @@ import { verifyTokenFromRequest } from '@/lib/jwt';
 
 export const dynamic = 'force-dynamic';
 
-const PRODENTIS_API = process.env.PRODENTIS_API_URL || 'http://localhost:3000';
+const PRODENTIS_API = process.env.PRODENTIS_API_URL || process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
 
 /**
  * GET /api/patients/upcoming-appointments
