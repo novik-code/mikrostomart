@@ -203,20 +203,25 @@ WAŻNE:
 - Hashtagi powinny być bez # (sam tekst), system doda # automatycznie
 - Tekst NIE powinien zawierać hashtagów — podaj je osobno
 - Dla wideo: tekst to opis/caption, nie skrypt
-- imagePrompt: BARDZO WAŻNE ZASADY dla imagePrompt:
+- imagePrompt: KRYTYCZNE ZASADY dla imagePrompt:
   * Pisz PO ANGIELSKU
-  * Opisuj WYŁĄCZNIE scenę wizualną, obiekty, oświetlenie, kolorystykę, nastrój
-  * NIGDY nie pisz o tekście, tytułach, napisach, słowach, nagłówkach, cytatach
-  * NIGDY nie dodawaj instrukcji typu "with text saying...", "title overlay", "caption", "headline"
-  * To jest prompt do generatora obrazów który renderuje każde słowo jako tekst na grafice!
-  * Skup się na: obiekty stomatologiczne, gabinet, uśmiech, twarz pacjenta, narzędzia, technologie
-  * Styl: dark moody, gold accent lighting, bokeh, photorealistic, premium, cinematic
+  * Grafika MUSI bezpośrednio ilustrować TEMAT posta! Jeśli post o implantach → obraz implantu. Jeśli o wybielaniu → białe zęby. Jeśli o bruksizmie → zaciśnięta szczęka.
+  * Opisuj KONKRETNĄ scenę wizualną dopasowaną do tematu, NIE generyczny gabinet stomatologiczny!
+  * NIGDY nie pisz o tekście, tytułach, napisach, słowach — generator renderuje każde słowo jako tekst na grafice!
+  * NIGDY nie dodawaj instrukcji typu "with text...", "title overlay", "caption", "headline", "poster", "banner"
+  * Styl ZAWSZE: dark moody, gold accent lighting, bokeh, photorealistic, premium, cinematic, shallow depth of field
+
+PRZYKŁADY dopasowania imagePrompt do tematu (NIE kopiuj ich dosłownie, twórz własne!):
+- Temat "Implanty" → "Photorealistic close-up of a titanium dental implant being placed into jawbone model, surgical gloves, dark moody operating room, gold accent lighting, bokeh, premium medical aesthetic"
+- Temat "Wybielanie" → "Stunning close-up of a woman's bright white smile, lips slightly parted, sparkling teeth, dark background, gold rim lighting, beauty photography, shallow depth of field"
+- Temat "Bruksizm" → "Dramatic close-up of a clenched jaw with visible tension in masseter muscle, moody side lighting, dark background, medical photography, gold accent, cinematic"
+- Temat "Higiena" → "Professional dental hygienist performing scaling procedure, ultrasonic scaler tip near teeth, water mist, dark clinical setting, gold accent lighting, photorealistic"
 
 Odpowiedz WYŁĄCZNIE w formacie JSON:
 {
     "text": "Treść posta/opisu",
     "hashtags": ["stomatologia", "dentysta", "opole", "zdrowie", ...],
-    "imagePrompt": "Close-up of a modern dental clinic interior with dark moody atmosphere, gold accent lighting reflecting off dental equipment, bokeh background, premium medical brand aesthetic, photorealistic, cinematic lighting, shallow depth of field",
+    "imagePrompt": "[KONKRETNY prompt dopasowany do tematu, NIE generyczny gabinet]",
     "title": "Tytuł (tylko dla YouTube, opcjonalny)"
 }`;
 
