@@ -203,28 +203,15 @@ WAŻNE:
 - Hashtagi powinny być bez # (sam tekst), system doda # automatycznie
 - Tekst NIE powinien zawierać hashtagów — podaj je osobno
 - Dla wideo: tekst to opis/caption, nie skrypt
-- imagePrompt: KRYTYCZNE ZASADY dla imagePrompt:
-  * Pisz PO ANGIELSKU
-  * Grafika MUSI bezpośrednio ilustrować TEMAT posta! Jeśli post o implantach → obraz implantu. Jeśli o wybielaniu → białe zęby. Jeśli o bruksizmie → zaciśnięta szczęka.
-  * Opisuj KONKRETNĄ scenę wizualną dopasowaną do tematu, NIE generyczny gabinet stomatologiczny!
-  * NIGDY nie pisz o tekście, tytułach, napisach, słowach — generator renderuje każde słowo jako tekst na grafice!
-  * NIGDY nie dodawaj instrukcji typu "with text...", "title overlay", "caption", "headline", "poster", "banner"
-  * Styl ZAWSZE: dark moody, gold accent lighting, bokeh, photorealistic, premium, cinematic, shallow depth of field
-
-PRZYKŁADY dopasowania imagePrompt do tematu (NIE kopiuj ich dosłownie, twórz własne!):
-- Temat "Implanty" → "Photorealistic close-up of a titanium dental implant being placed into jawbone model, surgical gloves, dark moody operating room, gold accent lighting, bokeh, premium medical aesthetic"
-- Temat "Wybielanie" → "Stunning close-up of a woman's bright white smile, lips slightly parted, sparkling teeth, dark background, gold rim lighting, beauty photography, shallow depth of field"
-- Temat "Bruksizm" → "Dramatic close-up of a clenched jaw with visible tension in masseter muscle, moody side lighting, dark background, medical photography, gold accent, cinematic"
-- Temat "Higiena" → "Professional dental hygienist performing scaling procedure, ultrasonic scaler tip near teeth, water mist, dark clinical setting, gold accent lighting, photorealistic"
 
 Odpowiedz WYŁĄCZNIE w formacie JSON:
 {
     "text": "Treść posta/opisu",
     "hashtags": ["stomatologia", "dentysta", "opole", "zdrowie", ...],
-    "imagePrompt": "[KONKRETNY prompt dopasowany do tematu, NIE generyczny gabinet]",
     "title": "Tytuł (tylko dla YouTube, opcjonalny)"
 }`;
 
+    // ── STEP 1: Generate text content ──────────────────────────────
     const completion = await openai.chat.completions.create({
         model,
         messages: [
@@ -241,10 +228,57 @@ Odpowiedz WYŁĄCZNIE w formacie JSON:
 
     if (!data.text) throw new Error('AI nie wygenerowało treści');
 
+    // ── STEP 2: Generate image prompt based on FULL post content ───
+    let imagePrompt = '';
+    try {
+        const imagePromptCompletion = await openai.chat.completions.create({
+            model,
+            messages: [
+                {
+                    role: 'system',
+                    content: `Jesteś ekspertem od prompt engineering dla generatorów obrazów (Flux, DALL-E).
+Twoim zadaniem jest przeczytać treść posta na social media i wygenerować PRECYZYJNY prompt po angielsku do wygenerowania grafiki, która będzie IDEALNIE pasować do treści posta.
+
+KRYTYCZNE ZASADY:
+1. Przeczytaj UWAŻNIE treść posta i zidentyfikuj GŁÓWNY temat/zabieg/problem medyczny
+2. Grafika MUSI wizualnie ilustrować ten konkretny temat — NIE generyczny gabinet stomatologiczny!
+3. Opisuj KONKRETNE obiekty, sceny, detale związane z tematem:
+   - Implanty → tytanowy implant w kości, śruba, koronka
+   - Wybielanie → lśniące białe zęby, uśmiech
+   - Bruksizm → napięta szczęka, szyna okluzalna
+   - Mikroskop → oko lekarza w okularze mikroskopowym, powiększona tkanka
+   - Laser → promień lasera, Fotona LightWalker, nowoczesne urządzenie
+   - Higiena → skalowanie, narzędzia ultradźwiękowe, czyste zęby
+   - Protetyka → korona, most, piękne uzupełnienie
+   - Osseointegracja → implant wrastający w kość, cross-section kości szczęki z implantem
+4. ABSOLUTNIE ZERO tekstu, napisów, słów, liter, tytułów w promptie! Generator dosłownie renderuje każde słowo jako tekst na grafice!
+5. Styl: dark moody atmosphere, gold accent lighting, bokeh background, photorealistic, cinematic, premium medical aesthetic, shallow depth of field
+
+Odpowiedz WYŁĄCZNIE w JSON:
+{ "imagePrompt": "..." }`
+                },
+                {
+                    role: 'user',
+                    content: `Temat posta: ${topic}\n\nPełna treść posta:\n${data.text}`
+                },
+            ],
+            response_format: { type: 'json_object' },
+            temperature: 0.7,
+            max_tokens: 500,
+        });
+
+        const imgData = JSON.parse(imagePromptCompletion.choices[0].message.content || '{}');
+        imagePrompt = imgData.imagePrompt || '';
+        console.log('[SocialAI] Step 2 — imagePrompt generated from full post content');
+    } catch (imgPromptErr: any) {
+        console.error('[SocialAI] Step 2 failed, using fallback imagePrompt:', imgPromptErr.message);
+        imagePrompt = `Photorealistic dental photography related to ${topic}, dark moody atmosphere, gold accent lighting, bokeh, premium medical aesthetic, cinematic`;
+    }
+
     return {
         text: data.text,
         hashtags: data.hashtags || [],
-        imagePrompt: data.imagePrompt || '',
+        imagePrompt,
         title: data.title,
         videoDescription: data.videoDescription,
     };
