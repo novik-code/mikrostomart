@@ -21,7 +21,13 @@ import type {
 export class ProdentisAdapter implements PmsAdapter {
     readonly name = 'prodentis';
 
-    private get baseUrl(): string {
+    /** Primary: Cloudflare Tunnel (bypasses router port forwarding) */
+    private get primaryUrl(): string {
+        return process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
+    }
+
+    /** Fallback: direct IP (requires port forwarding on router) */
+    private get fallbackUrl(): string {
         return process.env.PRODENTIS_API_URL || 'http://83.230.40.14:3000';
     }
 
@@ -29,12 +35,12 @@ export class ProdentisAdapter implements PmsAdapter {
         return process.env.PRODENTIS_API_KEY || '';
     }
 
-    private async fetch<T>(path: string, options: RequestInit = {}, timeoutMs = 8000): Promise<T> {
+    private async fetchSingle<T>(baseUrl: string, path: string, options: RequestInit, timeoutMs: number): Promise<T> {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
         try {
-            const res = await fetch(`${this.baseUrl}${path}`, {
+            const res = await fetch(`${baseUrl}${path}`, {
                 ...options,
                 headers: {
                     'Content-Type': 'application/json',
@@ -52,6 +58,25 @@ export class ProdentisAdapter implements PmsAdapter {
         } catch (err) {
             clearTimeout(timeoutId);
             throw err;
+        }
+    }
+
+    private async fetch<T>(path: string, options: RequestInit = {}, timeoutMs = 8000): Promise<T> {
+        // Try primary (Cloudflare Tunnel) first
+        try {
+            return await this.fetchSingle<T>(this.primaryUrl, path, options, timeoutMs);
+        } catch (primaryErr: any) {
+            console.warn(`[Prodentis] Tunnel failed (${primaryErr.message}), trying fallback...`);
+        }
+
+        // Fallback to direct IP
+        try {
+            const result = await this.fetchSingle<T>(this.fallbackUrl, path, options, timeoutMs);
+            console.log(`[Prodentis] Fallback (direct IP) succeeded for ${path}`);
+            return result;
+        } catch (fallbackErr: any) {
+            console.error(`[Prodentis] Both tunnel and fallback failed for ${path}`);
+            throw fallbackErr;
         }
     }
 

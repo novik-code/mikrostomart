@@ -14,7 +14,19 @@ const supabase = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const PRODENTIS_API_URL = process.env.PRODENTIS_API_URL || 'http://83.230.40.14:3000';
+const PRODENTIS_TUNNEL_URL = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
+const PRODENTIS_FALLBACK_URL = process.env.PRODENTIS_API_URL || 'http://83.230.40.14:3000';
+
+/** Fetch from Prodentis with automatic tunnel→direct-IP fallback */
+async function prodentisFetch(path: string): Promise<Response> {
+    try {
+        const res = await fetch(`${PRODENTIS_TUNNEL_URL}${path}`);
+        if (res.ok) return res;
+        throw new Error(`Tunnel: ${res.status}`);
+    } catch {
+        return fetch(`${PRODENTIS_FALLBACK_URL}${path}`);
+    }
+}
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -410,7 +422,7 @@ async function searchPatient(args: {
     query: string;
 }): Promise<ActionResult> {
     try {
-        const res = await fetch(`${PRODENTIS_API_URL}/api/patients/search?q=${encodeURIComponent(args.query)}&limit=5`);
+        const res = await prodentisFetch(`/api/patients/search?q=${encodeURIComponent(args.query)}&limit=5`);
 
         if (!res.ok) {
             return { success: false, action: 'searchPatient', message: 'Nie udało się wyszukać pacjenta w systemie Prodentis.' };
@@ -450,7 +462,7 @@ async function checkSchedule(args: {
     try {
         const targetDate = args.date || new Date().toISOString().split('T')[0];
 
-        const res = await fetch(`${PRODENTIS_API_URL}/api/appointments/by-date?date=${targetDate}`);
+        const res = await prodentisFetch(`/api/appointments/by-date?date=${targetDate}`);
 
         if (!res.ok) {
             return { success: false, action: 'checkSchedule', message: 'Nie udało się pobrać grafiku z Prodentis.' };
