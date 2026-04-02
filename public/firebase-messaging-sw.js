@@ -11,8 +11,8 @@ firebase.initializeApp({
     apiKey: 'AIzaSyDZUDCx7UBjY48xduhOX3BhS3pdlFoW1i4',
     authDomain: 'mikrostomart-13bf8.firebaseapp.com',
     projectId: 'mikrostomart-13bf8',
-    messagingSenderId: '1090159677335',
-    appId: '1:1090159677335:web:86e24694b29bb7591604a1',
+    messagingSenderId: '621550915975',
+    appId: '1:621550915975:web:c70681465a502042050322',
 });
 
 const messaging = firebase.messaging();
