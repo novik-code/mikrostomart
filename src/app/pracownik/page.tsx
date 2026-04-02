@@ -361,10 +361,10 @@ export default function EmployeePage() {
                     <LogOut size={16} />
                     Wyloguj
                 </button>
-                {userId && (
+                {currentUserId && (
                     <PushNotificationPrompt
                         userType="employee"
-                        userId={userId}
+                        userId={currentUserId}
                         locale="pl"
                         compact
                     />
