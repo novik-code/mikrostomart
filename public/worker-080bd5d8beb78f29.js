@@ -1,1 +1,9 @@
-!function(){try{var e="undefined"!=typeof window?window:"undefined"!=typeof global?global:"undefined"!=typeof globalThis?globalThis:"undefined"!=typeof self?self:{},t=(new e.Error).stack;t&&(e._sentryDebugIds=e._sentryDebugIds||{},e._sentryDebugIds[t]="97a0eed4-fb56-42aa-961f-c74cfeae568f",e._sentryDebugIdIdentifier="sentry-dbid-97a0eed4-fb56-42aa-961f-c74cfeae568f")}catch(e){}}(),self.addEventListener("push",function(e){if(e.data)try{let t=e.data.json(),n={body:t.body||"",icon:t.icon||"/icon-192x192.png",badge:"/icon-192x192.png",tag:t.tag||"mikrostomart-notification",data:{url:t.url||"/"},vibrate:[200,100,200],requireInteraction:t.requireInteraction||!1};e.waitUntil(self.registration.showNotification(t.title||"Mikrostomart",n))}catch(e){console.error("[SW Push] Failed to parse push data:",e)}}),self.addEventListener("notificationclick",function(e){e.notification.close();let t=e.notification.data?.url||"/";e.waitUntil(self.clients.matchAll({type:"window",includeUncontrolled:!0}).then(function(e){for(let n of e)if(n.url.includes(self.location.origin)&&"focus"in n)return n.navigate(t),n.focus();return self.clients.openWindow(t)}))});
+// This service worker was replaced by Firebase Cloud Messaging.
+// It self-unregisters to clean up from the old VAPID push system.
+self.addEventListener('install', function () {
+    self.skipWaiting();
+});
+
+self.addEventListener('activate', function () {
+    self.registration.unregister();
+});
