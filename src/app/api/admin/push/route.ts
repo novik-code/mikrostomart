@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAdmin } from '@/lib/auth';
 import { createClient } from '@supabase/supabase-js';
-import { sendPushToGroups, sendPushToSpecificUsers, type PushGroup } from '@/lib/webpush';
+import { pushToGroups, pushToUsers, type PushGroup } from '@/lib/pushService';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,9 +13,8 @@ const supabase = createClient(
 /**
  * GET /api/admin/push
  * Returns:
- *   - employees: all employees with their push_groups and subscription count
- *   - patientSubsCount: how many patient subscriptions exist
- *   - adminSubs: admin subscriptions list
+ *   - employees: all employees with subscription count (from fcm_tokens)
+ *   - patientSubsCount: how many patient tokens exist
  *   - stats: group-level counts
  */
 export async function GET() {
@@ -29,10 +28,10 @@ export async function GET() {
         .eq('is_active', true)
         .order('name', { ascending: true });
 
-    // 2. Fetch ALL push subscriptions
-    const { data: subs, error } = await supabase
-        .from('push_subscriptions')
-        .select('id, user_type, user_id, employee_group, employee_groups, locale, created_at')
+    // 2. Fetch ALL FCM tokens
+    const { data: tokens, error } = await supabase
+        .from('fcm_tokens')
+        .select('id, user_type, user_id, device_label, last_active_at, created_at')
         .order('created_at', { ascending: false });
 
     if (error) {
@@ -40,46 +39,50 @@ export async function GET() {
         return NextResponse.json({ error: 'DB error' }, { status: 500 });
     }
 
-    // 3. Count subscriptions per user
-    const subCountPerUser: Record<string, number> = {};
-    for (const s of subs || []) {
-        subCountPerUser[s.user_id] = (subCountPerUser[s.user_id] || 0) + 1;
+    // 3. Count tokens per user
+    const tokenCountPerUser: Record<string, number> = {};
+    for (const t of tokens || []) {
+        tokenCountPerUser[t.user_id] = (tokenCountPerUser[t.user_id] || 0) + 1;
     }
 
-    // 4. Build employees response — every employee, with groups and sub count
+    // 4. Build employees response
     const employees = (allEmployees || []).map(emp => ({
         user_id: emp.user_id,
         name: emp.name,
         email: emp.email,
         position: emp.position,
         push_groups: emp.push_groups || [],
-        subscription_count: subCountPerUser[emp.user_id] || 0,
+        subscription_count: tokenCountPerUser[emp.user_id] || 0,
     }));
 
-    // 5. Admin subscriptions
-    const adminSubs = (subs || [])
-        .filter(s => s.user_type === 'admin')
-        .map(s => ({ ...s }));
+    // 5. Admin tokens
+    const adminSubs = (tokens || [])
+        .filter(t => t.user_type === 'admin')
+        .map(t => ({ ...t }));
 
-    // 6. Patient sub count
-    const patientSubsCount = (subs || []).filter(s => s.user_type === 'patient').length;
+    // 6. Patient token count
+    const patientSubsCount = (tokens || []).filter(t => t.user_type === 'patient').length;
 
-    // 7. Stats
-    const employeeSubs = (subs || []).filter(s => s.user_type === 'employee');
+    // 7. Stats — based on employee push_groups from employees table
+    const empGroupCounts: Record<string, number> = { doctors: 0, hygienists: 0, reception: 0, assistant: 0, unassigned: 0 };
+    for (const emp of allEmployees || []) {
+        if (!emp.user_id || !tokenCountPerUser[emp.user_id]) continue; // only count those with tokens
+        const groups = emp.push_groups || [];
+        if (groups.length === 0) {
+            empGroupCounts.unassigned++;
+        } else {
+            if (groups.includes('doctor')) empGroupCounts.doctors++;
+            if (groups.includes('hygienist')) empGroupCounts.hygienists++;
+            if (groups.includes('reception')) empGroupCounts.reception++;
+            if (groups.includes('assistant')) empGroupCounts.assistant++;
+        }
+    }
+
     const stats = {
-        total: subs?.length || 0,
+        total: tokens?.length || 0,
         patients: patientSubsCount,
-        doctors: employeeSubs.filter(s =>
-            (s.employee_groups || []).includes('doctor') || s.employee_group === 'doctor').length,
-        hygienists: employeeSubs.filter(s =>
-            (s.employee_groups || []).includes('hygienist') || s.employee_group === 'hygienist').length,
-        reception: employeeSubs.filter(s =>
-            (s.employee_groups || []).includes('reception') || s.employee_group === 'reception').length,
-        assistant: employeeSubs.filter(s =>
-            (s.employee_groups || []).includes('assistant') || s.employee_group === 'assistant').length,
+        ...empGroupCounts,
         admin: adminSubs.length,
-        unassigned: employeeSubs.filter(s =>
-            !s.employee_group && (!s.employee_groups || s.employee_groups.length === 0)).length,
     };
 
     return NextResponse.json({ employees, adminSubs, patientSubsCount, stats });
@@ -89,8 +92,6 @@ export async function GET() {
 /**
  * POST /api/admin/push
  * Send push notification to specified groups and/or individual users.
- * Body: { title, body, url?, groups?: PushGroup[], userIds?: string[] }
- * At least one of groups or userIds must be non-empty.
  */
 export async function POST(request: NextRequest) {
     const adminUser = await verifyAdmin();
@@ -128,7 +129,7 @@ export async function POST(request: NextRequest) {
 
             if (filteredGroups.length > 0) {
                 console.log(`[Admin/Push] Sending to groups: ${filteredGroups.join(', ')} by ${adminUser.email}`);
-                const result = await sendPushToGroups(filteredGroups, payload);
+                const result = await pushToGroups(filteredGroups, payload);
                 totalSent += result.sent;
                 totalFailed += result.failed;
                 Object.assign(byGroup, result.byGroup);
@@ -138,7 +139,7 @@ export async function POST(request: NextRequest) {
         // Send to individual users
         if (hasUsers) {
             console.log(`[Admin/Push] Sending to ${userIds.length} individual users by ${adminUser.email}`);
-            const result = await sendPushToSpecificUsers(userIds, payload);
+            const result = await pushToUsers(userIds, payload);
             totalSent += result.sent;
             totalFailed += result.failed;
             byGroup['individuals'] = result;
@@ -155,8 +156,7 @@ export async function POST(request: NextRequest) {
 
 /**
  * DELETE /api/admin/push
- * Remove a push subscription by ID
- * Body: { id: string }
+ * Remove an FCM token by ID.
  */
 export async function DELETE(request: NextRequest) {
     const adminUser = await verifyAdmin();
@@ -167,7 +167,7 @@ export async function DELETE(request: NextRequest) {
         if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
 
         const { error } = await supabase
-            .from('push_subscriptions')
+            .from('fcm_tokens')
             .delete()
             .eq('id', id);
 

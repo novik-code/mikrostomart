@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { sendPushByConfig } from '@/lib/webpush';
+import { sendPushByConfig } from '@/lib/pushService';
 
 export const dynamic = 'force-dynamic';
 

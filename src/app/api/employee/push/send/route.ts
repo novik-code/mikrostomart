@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
-import { sendPushToSpecificUsers } from '@/lib/webpush';
+import { sendPushToSpecificUsers } from '@/lib/pushService';
 import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';

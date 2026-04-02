@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { verifyTokenFromRequest } from '@/lib/jwt';
 import { getDoctorInfo } from '@/lib/doctorMapping';
 import { sendTelegramNotification } from '@/lib/telegram';
-import { broadcastPush } from '@/lib/webpush';
+import { broadcastPush } from '@/lib/pushService';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

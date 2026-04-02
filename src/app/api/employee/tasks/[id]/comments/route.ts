@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
 import { createClient } from '@supabase/supabase-js';
-import { sendPushByConfig } from '@/lib/webpush';
+import { sendPushByConfig } from '@/lib/pushService';
 
 export const dynamic = 'force-dynamic';
 

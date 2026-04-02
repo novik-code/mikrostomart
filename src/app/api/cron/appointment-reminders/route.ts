@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sendSMS, getSMSTemplate, formatSMSMessage } from '@/lib/smsService';
 import { mapAppointmentTypeToSlug } from '@/lib/appointmentTypeMapper';
-import { sendTranslatedPushToUser } from '@/lib/webpush';
+import { sendTranslatedPushToUser } from '@/lib/pushService';
 import { logCronHeartbeat } from '@/lib/cronHeartbeat';
 import { randomUUID } from 'crypto';
 import { nanoid } from 'nanoid';

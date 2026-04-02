@@ -2,7 +2,7 @@ import { isDemoMode } from '@/lib/demoMode';
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sendTelegramNotification } from '@/lib/telegram';
-import { sendPushToGroups, sendPushToSpecificUsers, type PushGroup } from '@/lib/webpush';
+import { sendPushToGroups, sendPushToSpecificUsers, type PushGroup } from '@/lib/pushService';
 import { logCronHeartbeat } from '@/lib/cronHeartbeat';
 
 export const dynamic = 'force-dynamic';

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { verifyTokenFromRequest } from '@/lib/jwt';
 import { sendTelegramNotification } from '@/lib/telegram';
-import { broadcastPush } from '@/lib/webpush';
+import { broadcastPush } from '@/lib/pushService';
 import { sendSMS } from '@/lib/smsService';
 import type { RescheduleAppointmentRequest, AppointmentActionResponse, AppointmentAction } from '@/types/appointmentActions';
 import { demoSanitize } from '@/lib/brandConfig';

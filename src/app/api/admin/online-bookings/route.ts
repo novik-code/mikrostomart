@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getDoctorInfo } from '@/lib/doctorMapping';
 import { verifyAdmin } from '@/lib/auth';
-import { sendTranslatedPushToUser } from '@/lib/webpush';
+import { sendTranslatedPushToUser } from '@/lib/pushService';
 import { sendSMS } from '@/lib/smsService';
 import { sendBookingConfirmedEmail, sendBookingRejectedEmail } from '@/lib/emailService';
 import { demoSanitize } from '@/lib/brandConfig';

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { sendPushToUser } from '@/lib/webpush';
+import { pushToUser } from '@/lib/pushService';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,7 +13,7 @@ export async function POST(request: Request) {
 
         console.log(`[Push Test] Sending test push to ${userType}:${userId}`);
 
-        const result = await sendPushToUser(
+        const result = await pushToUser(
             userId,
             userType,
             {

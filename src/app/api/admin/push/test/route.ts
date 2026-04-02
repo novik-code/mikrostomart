@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAdmin } from '@/lib/auth';
 import { createClient } from '@supabase/supabase-js';
-import { sendPushByConfig, sendPushToSpecificUsers, sendPushToGroups, type PushGroup } from '@/lib/webpush';
+import { pushByConfig, pushToUsers, pushToGroups, type PushGroup } from '@/lib/pushService';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,14 +40,14 @@ export async function POST(request: NextRequest) {
 
         if (configKey) {
             // Test a specific notification type — uses its own config (groups, enabled)
-            const result = await sendPushByConfig(configKey, testPayload);
+            const result = await pushByConfig(configKey, testPayload);
             console.log(`[Admin/PushTest] configKey="${configKey}" result:`, result);
             return NextResponse.json({ mode: 'config', configKey, ...result });
         }
 
         if (userId) {
             // Test push to a specific user
-            const result = await sendPushToSpecificUsers([userId], testPayload);
+            const result = await pushToUsers([userId], testPayload);
             console.log(`[Admin/PushTest] userId="${userId}" result:`, result);
             return NextResponse.json({ mode: 'user', userId, ...result });
         }

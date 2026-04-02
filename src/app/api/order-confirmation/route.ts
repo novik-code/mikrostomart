@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sendTelegramNotification } from '@/lib/telegram';
-import { broadcastPush } from '@/lib/webpush';
+import { broadcastPush } from '@/lib/pushService';
 import { getEmailTemplate } from '@/lib/emailTemplates';
 import { demoSanitize, brand } from '@/lib/brandConfig';
 import { sendEmail } from '@/lib/emailSender';

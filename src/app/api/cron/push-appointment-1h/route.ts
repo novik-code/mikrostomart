@@ -1,7 +1,7 @@
 import { isDemoMode } from '@/lib/demoMode';
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { sendTranslatedPushToUser } from '@/lib/webpush';
+import { sendTranslatedPushToUser } from '@/lib/pushService';
 
 export const maxDuration = 30;
 

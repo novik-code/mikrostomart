@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import bcrypt from 'bcryptjs';
-import { broadcastPush } from '@/lib/webpush';
+import { broadcastPush } from '@/lib/pushService';
 import { sendTelegramNotification } from '@/lib/telegram';
 import { getEmailTemplate } from '@/lib/emailTemplates';
 import { demoSanitize } from '@/lib/brandConfig';

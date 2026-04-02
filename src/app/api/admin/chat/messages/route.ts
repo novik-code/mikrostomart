@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
-import { sendTranslatedPushToUser } from '@/lib/webpush';
+import { sendTranslatedPushToUser } from '@/lib/pushService';
 import { sendChatReplyEmail } from '@/lib/emailService';
 
 const supabase = createClient(

@@ -2,7 +2,7 @@ import { isDemoMode } from '@/lib/demoMode';
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { formatSMSMessage } from '@/lib/smsService';
-import { sendPushToUser } from '@/lib/webpush';
+import { sendPushToUser } from '@/lib/pushService';
 import { logCronHeartbeat } from '@/lib/cronHeartbeat';
 import { randomUUID } from 'crypto';
 import { isSmsTypeEnabled } from '@/lib/smsSettings';

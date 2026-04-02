@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import OpenAI from "openai";
 import { verifyAdmin } from "@/lib/auth";
-import { broadcastPush } from '@/lib/webpush';
+import { broadcastPush } from '@/lib/pushService';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
