@@ -291,6 +291,10 @@ export async function GET(req: Request) {
             const existingNormalised = new Set(
                 (existingEmployees || []).map(e => normalizeName(e.name || '')).filter(Boolean)
             );
+            // Also track existing prodentis_ids to avoid duplicates by operator ID
+            const existingProdentisIds = new Set(
+                (existingEmployees || []).map(e => e.prodentis_id).filter(Boolean)
+            );
 
             // Collect doctor→id mapping from all days' appointments
             const doctorIdMap = new Map<string, string>();
@@ -305,20 +309,23 @@ export async function GET(req: Request) {
             const toInsert: { name: string; email: string; prodentis_id: string; is_active: boolean }[] = [];
             for (const doctorName of allDoctors) {
                 const norm = normalizeName(doctorName);
-                if (!existingNormalised.has(norm)) {
-                    // Generate a unique placeholder email (email is NOT NULL + UNIQUE in DB)
-                    const prodId = doctorIdMap.get(doctorName) || '';
-                    const slug = norm.replace(/\s+/g, '.') || 'unknown';
-                    const email = prodId
-                        ? `prodentis-${prodId}@auto.mikrostomart.pl`
-                        : `${slug}-${Date.now()}@auto.mikrostomart.pl`;
-                    toInsert.push({
-                        name: doctorName,
-                        email,
-                        prodentis_id: prodId,
-                        is_active: true,
-                    });
-                }
+                const prodId = doctorIdMap.get(doctorName) || '';
+
+                // Skip if already exists by name OR by prodentis_id
+                if (existingNormalised.has(norm)) continue;
+                if (prodId && existingProdentisIds.has(prodId)) continue;
+
+                // Generate a unique placeholder email (email is NOT NULL + UNIQUE in DB)
+                const slug = norm.replace(/\s+/g, '.') || 'unknown';
+                const email = prodId
+                    ? `prodentis-${prodId}@auto.mikrostomart.pl`
+                    : `${slug}-${Date.now()}@auto.mikrostomart.pl`;
+                toInsert.push({
+                    name: doctorName,
+                    email,
+                    prodentis_id: prodId,
+                    is_active: true,
+                });
             }
 
             if (toInsert.length > 0) {
