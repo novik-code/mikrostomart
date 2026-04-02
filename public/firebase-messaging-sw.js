@@ -8,11 +8,11 @@ importScripts('https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-com
 // Firebase config — these values are public (safe to hardcode in SW).
 // They will be updated during deployment with actual values.
 firebase.initializeApp({
-    apiKey: '__FIREBASE_API_KEY__',
-    authDomain: '__FIREBASE_AUTH_DOMAIN__',
-    projectId: '__FIREBASE_PROJECT_ID__',
-    messagingSenderId: '__FIREBASE_MESSAGING_SENDER_ID__',
-    appId: '__FIREBASE_APP_ID__',
+    apiKey: 'AIzaSyDZUDCx7UBjy48xduhOX3BhS3pdlFoW1i4',
+    authDomain: 'mikrostomart-13bf8.firebaseapp.com',
+    projectId: 'mikrostomart-13bf8',
+    messagingSenderId: '1090159677335',
+    appId: '1:1090159677335:web:86e24694b29bb7591604a1',
 });
 
 const messaging = firebase.messaging();
