@@ -46,6 +46,7 @@ import SmsSettingsTab from './components/SmsSettingsTab';
 import StripeSettingsTab from './components/StripeSettingsTab';
 import P24SettingsTab from './components/P24SettingsTab';
 import PayUSettingsTab from './components/PayUSettingsTab';
+import AIEducationTab from './components/AIEducationTab';
 import { demoSanitize } from '@/lib/brandConfig';
 
 export default function AdminPage() {
@@ -72,7 +73,7 @@ export default function AdminPage() {
     const [products, setProducts] = useState<Product[]>([]);
     const [error, setError] = useState<string | null>(null);
 
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'questions' | 'articles' | 'news' | 'orders' | 'reservations' | 'blog' | 'patients' | 'sms-reminders' | 'sms-post-visit' | 'sms-week-after-visit' | 'appointment-instructions' | 'roles' | 'employees' | 'chat' | 'theme' | 'page-builder' | 'push' | 'booking-settings' | 'online-bookings' | 'cancelled-appointments' | 'social-media' | 'pms-settings' | 'sms-provider' | 'stripe-settings' | 'p24-settings' | 'payu-settings'>('dashboard');
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'questions' | 'articles' | 'news' | 'orders' | 'reservations' | 'blog' | 'patients' | 'sms-reminders' | 'sms-post-visit' | 'sms-week-after-visit' | 'appointment-instructions' | 'roles' | 'employees' | 'chat' | 'theme' | 'page-builder' | 'push' | 'booking-settings' | 'online-bookings' | 'cancelled-appointments' | 'social-media' | 'pms-settings' | 'sms-provider' | 'stripe-settings' | 'p24-settings' | 'payu-settings' | 'ai-education'>('dashboard');
     // Cancelled appointments state
     const [cancelledAppointments, setCancelledAppointments] = useState<any[]>([]);
     const [cancelledLoading, setCancelledLoading] = useState(false);
@@ -4977,6 +4978,9 @@ export default function AdminPage() {
                     <NavItem id="push" label="Powiadomienia Push" icon={Bell} />
                     <NavItem id="chat" label="Czat z pacjentami" icon={MessageCircle} />
 
+                    <NavSection title="AI Asystent" />
+                    <NavItem id="ai-education" label="🧠 AI Edukacja" icon={BookOpen} />
+
                     <NavSection title="Social Media" />
                     <NavItem id="social-media" label="Social Media" icon={Share2} />
 
@@ -5063,6 +5067,7 @@ export default function AdminPage() {
                             {activeTab === 'online-bookings' && '📅 Wizyty Umówione Online'}
                             {activeTab === 'cancelled-appointments' && '❌ Odwołane Wizyty'}
                             {activeTab === 'page-builder' && '🏗️ Kreator Strony Głównej'}
+                            {activeTab === 'ai-education' && '🧠 AI Asystent — Edukacja'}
                         </h1>
                         <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
                             {/* Header Actions if needed */}
@@ -5332,6 +5337,7 @@ export default function AdminPage() {
                     {activeTab === 'p24-settings' && <P24SettingsTab />}
                     {activeTab === 'payu-settings' && <PayUSettingsTab />}
                     {activeTab === 'page-builder' && <PageBuilderTab />}
+                    {activeTab === 'ai-education' && <AIEducationTab />}
                     {activeTab === 'online-bookings' && renderOnlineBookingsTab()}
                     {activeTab === 'cancelled-appointments' && (() => {
                         // Fetch on first render
