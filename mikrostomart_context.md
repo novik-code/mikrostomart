@@ -1,8 +1,8 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-04-01  
+> **Last Updated:** 2026-04-08  
 > **Version:** Production + Demo (Dual Vercel Deployment)  
-> **Status:** Active Development — Multi-Tenant Architecture (Phases 1-10 complete)
+> **Status:** Active Development — Unified AI Ecosystem + Multi-Tenant Architecture
 
 ---
 
@@ -123,7 +123,7 @@ The demo environment is fully neutralized — no Mikrostomart-specific text, con
 
 **Demo Supabase DB contents:**
 - 66 base tables (generated from production OpenAPI spec)
-- 88 migration files applied
+- 107 migration files applied
 - 5 employees, 20 demo patients, settings, products, SMS templates
 - 3 Supabase Auth users (admin, pracownik) + 20 patients with bcrypt hashes
 
@@ -156,7 +156,7 @@ The demo environment is fully neutralized — no Mikrostomart-specific text, con
 
 ### Backend & Database
 - **Supabase** (PostgreSQL database, authentication, storage)
-  - Database: 86 migrations (003-086: email verification, appointment actions, SMS reminders, user_roles, employee tasks, task history, comments, labels, status fix, google reviews cache, chat, push subscriptions, employee_group, push_notification_config, employee_groups array, news/articles/blog/products i18n, calendar tokens, private tasks + reminders, SMS post-visit/week-after-visit, SMS unique constraint fix, task multi-images, push_notifications_log, google_event_id on employee_tasks, patient_intake_tokens, feature_suggestions, online_bookings, patient_match_confidence, consent_tokens/patient_consents, staff_signatures, intake_pdf_url, birthday_wishes, cancelled_appointments, login_attempts, patient_notification_prefs, biometric_signature, employee_audit_log, consent_field_mappings, rate_limit_table, cron_heartbeats, sms_settings, email_ai_drafts, email_ai_config, email_compose_drafts, email_label_overrides, email_ai_drafts_skipped, compose_drafts_ai_text, email_ai_knowledge_files, fix_nowosielska_role, employee_notification_prefs, cleanup_duplicate_push_subs, security_advisor_fixes, merge_duplicate_employees, **social_media, video_queue, storage_video_upload, video_captions_api**)
+  - Database: 107 migrations (003-107: email verification, appointment actions, SMS reminders, user_roles, employee tasks, task history, comments, labels, status fix, google reviews cache, chat, push subscriptions, employee_group, push_notification_config, employee_groups array, news/articles/blog/products i18n, calendar tokens, private tasks + reminders, SMS post-visit/week-after-visit, SMS unique constraint fix, task multi-images, push_notifications_log, google_event_id on employee_tasks, patient_intake_tokens, feature_suggestions, online_bookings, patient_match_confidence, consent_tokens/patient_consents, staff_signatures, intake_pdf_url, birthday_wishes, cancelled_appointments, login_attempts, patient_notification_prefs, biometric_signature, employee_audit_log, consent_field_mappings, rate_limit_table, cron_heartbeats, sms_settings, email_ai_drafts, email_ai_config, email_compose_drafts, email_label_overrides, email_ai_drafts_skipped, compose_drafts_ai_text, email_ai_knowledge_files, fix_nowosielska_role, employee_notification_prefs, cleanup_duplicate_push_subs, security_advisor_fixes, merge_duplicate_employees, **social_media, video_queue, storage_video_upload, video_captions_api**, fcm_push_rebuild, dedup_employees, fix_employee_reactivate, **unified_ai_knowledge_base**)
   - Auth: Email/password, magic links, JWT tokens
   - Storage: Product images, patient documents, task images, **social media videos** (bucket: `social-media`)
   - **Social Media**: `social_platforms`, `social_posts`, `social_schedules`, `social_topics` tables + cron auto-publish
@@ -328,7 +328,8 @@ mikrostomart/
 │   │   ├── smsService.ts       # SMS integration
 │   │   ├── productService.ts   # Product management
 │   │   ├── githubService.ts    # GitHub blog integration
-│   │   ├── knowledgeBase.ts    # AI assistant knowledge (20KB + getKnowledgeBase() async helper — reads from DB)
+│   │   ├── knowledgeBase.ts    # AI knowledge (LEGACY fallback — replaced by unifiedAI.ts)
+│   │   ├── unifiedAI.ts        # ✨ Unified AI Service Layer — single entry for ALL AI operations (Supabase-backed KB, context-aware prompts, 14 contexts)
 │   │   ├── roles.ts            # Role management
 │   │   ├── telegram.ts         # Telegram multi-bot notification routing
 │   │   ├── appointmentTypeMapper.ts  # Maps Prodentis appointment types
@@ -353,7 +354,7 @@ mikrostomart/
 │   ├── en/common.json          # English
 │   ├── de/common.json          # German
 │   └── ua/common.json          # Ukrainian
-├── supabase_migrations/        # Database migrations (103 files: 003-103, sequential numeric)
+├── supabase_migrations/        # Database migrations (105 files: 003-107, sequential numeric)
 ├── public/                     # Static assets (incl. qr-ocen-nas.png)
 ├── scripts/                    # Utility scripts (13 files)
 └── vercel.json                 # Deployment configuration (17 cron jobs: see Cron section)
@@ -919,6 +920,23 @@ Video processing pipeline queue for social media content.
 **Auto-recovery:** Videos stuck in intermediate statuses (transcribing/analyzing/generating/rendering) are auto-reset to `uploaded` on next cron run (max 3 retries → `failed`).
 Storage: `social-media` bucket on Supabase Storage.
 
+#### 40. **ai_knowledge_base** (migration 107)
+Centralized AI knowledge base — admin-editable sections for all AI assistants.
+```sql
+- id (uuid, PK, DEFAULT gen_random_uuid())
+- section (text, NOT NULL, UNIQUE) -- e.g. 'clinic_info', 'pricing', 'services'
+- title (text, NOT NULL)
+- content (text, NOT NULL) -- the actual KB content (markdown/plain text)
+- context_tags (text[], DEFAULT '{}') -- which AI contexts use this section
+- priority (integer, DEFAULT 50) -- ordering priority (higher = more important)
+- updated_at (timestamptz, DEFAULT NOW())
+- updated_by (text) -- email of last editor
+- created_at (timestamptz, DEFAULT NOW())
+```
+Seeded with 12 sections: `clinic_info`, `services`, `pricing`, `team`, `equipment`, `social_guidelines`, `email_guidelines`, `patient_communication`, `appointments`, `faq`, `brand_voice`, `medical_info`.
+Trigger: `update_ai_kb_updated_at` auto-sets `updated_at` on row update.
+Used by: `src/lib/unifiedAI.ts` (5-min cached reads), `/api/admin/ai-knowledge` (CRUD), `/api/admin/ai-trainer` (AI modifications).
+
 
 ## ✨ Feature Catalog
 
@@ -1054,7 +1072,7 @@ Full-featured AI chat assistant (441 lines, 22KB).
 - **File attachments** — users can attach images to questions (📎 Paperclip icon)
 - **Auto-hiding** — hidden on `/mapa-bolu` and `/symulator` paths (HIDDEN_PATHS)
 - **Dismissable** — teaser can be closed, remembers state
-- **Backend** — `/api/chat` (OpenAI GPT-4) with `knowledgeBase.ts`
+- **Backend** — `/api/chat` (GPT-4o via `unifiedAI.ts`) with Supabase-backed knowledge base
 - **Context** — `AssistantContext.tsx` for global open/close state
 
 #### Ask Expert (`AskExpertButton.tsx`, `AskExpertModal.tsx`)
@@ -1842,24 +1860,57 @@ Centralized via `src/lib/telegram.ts` with `sendTelegramNotification(message, ch
 ---
 
 ### 6. OpenAI
-**Purpose:** AI chat assistant
+**Purpose:** AI chat assistant, content generation, email drafts, social media, voice assistant
 
 **Configuration:**
 - API Key: `OPENAI_API_KEY`
-- Model: GPT-4 (assumed)
+- Models: GPT-4o (patient chat, pricing, social, voice) / GPT-4o-mini (email, task parser, reviews)
 
-**Knowledge Base:** `src/lib/knowledgeBase.ts` (11KB)
-- Clinic information
-- Services
-- Pricing
-- Contact details
+**Unified AI Service Layer (April 2026):** `src/lib/unifiedAI.ts`
+
+All AI operations use a centralized service that automatically loads relevant knowledge base sections from Supabase and builds context-aware prompts. The system supports 14 contexts:
+
+| Context | Purpose | Model |
+|---------|---------|-------|
+| `patient_chat` | Website chatbot + tool calling (save_lead) | GPT-4o |
+| `pricing` | Pricing assistant on /cennik | GPT-4o |
+| `email_draft` | Email reply generation + cron drafts | GPT-4o-mini |
+| `social_post` | Social media post text generation | GPT-4o |
+| `social_comment` | Social media comment replies | GPT-4o |
+| `voice_assistant` | Employee voice assistant (tasks, calendar, memory) | GPT-4o |
+| `blog_generator` | Blog article generation | GPT-4o |
+| `news_generator` | News/aktualności generation | GPT-4o |
+| `video_metadata` | Video titles, descriptions, hashtags | GPT-4o |
+| `review_generator` | Google review generation | GPT-4o-mini |
+| `translator` | Medical text translation | GPT-4o |
+| `task_parser` | NLP → structured tasks | GPT-4o-mini |
+| `content_moderator` | Content moderation/filtering | GPT-4o |
+| `ai_trainer` | Meta-AI that modifies KB sections | GPT-4o |
+
+**Knowledge Base Architecture:**
+- **Storage:** `ai_knowledge_base` table in Supabase (12 sections: clinic_info, services, pricing, team, equipment, social_guidelines, email_guidelines, patient_communication, appointments, faq, brand_voice, medical_info)
+- **Caching:** 5-minute in-memory cache (server-side) to minimize DB reads
+- **Fallback:** Static `knowledgeBase.ts` content used if Supabase is unreachable
+- **Admin Panel:** `AIEducationTab.tsx` in admin area — browse/edit all KB sections
+- **AI Trainer:** POST `/api/admin/ai-trainer` — natural language instructions to modify KB via meta-AI
+- **Migration:** `107_unified_ai_knowledge_base.sql`
+
+**Key exports:** `getAICompletion(options)`, `buildContextPrompt(context)`, `AIContext` type
 
 **Integration Files:**
-- `/api/chat/route.ts`
+- `src/lib/unifiedAI.ts` — core service (369 LOC)
+- `src/lib/knowledgeBase.ts` — legacy fallback only
+- `/api/chat/route.ts` — patient chatbot (uses `getAICompletion` + tool_calls)
+- `/api/cennik-chat/route.ts` — pricing assistant
+- `/api/cron/email-ai-drafts/route.ts` — email cron (uses `buildContextPrompt`)
+- `/api/employee/email-generate-reply/route.ts` — email reply (uses `buildContextPrompt`)
+- `/api/employee/email-ai-config/route.ts` — email config
+- `/api/employee/assistant/route.ts` — voice assistant (KB injected into system prompt)
+- `src/lib/socialAI.ts` — social post generation
+- `src/lib/socialComments.ts` — social comment replies
+- `/api/admin/ai-knowledge/route.ts` — CRUD API for KB sections
+- `/api/admin/ai-trainer/route.ts` — AI Trainer natural language API
 - `src/context/AssistantContext.tsx`
-- `src/components/Assistant.tsx` (assumed)
-
----
 
 ### 7. Replicate
 **Purpose:** AI image generation for products/content
@@ -2272,6 +2323,71 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### April 8, 2026
+**Unified AI Ecosystem — Centralized AI Service Layer + Admin Education Panel**
+
+#### Commits:
+- `316b9a9` — feat: voice assistant now loads clinic KB from Supabase
+- `af518ab` — feat: Phase 3 — migrate 7 routes to unified AI service
+- `8f087ea` — feat: unified AI system — knowledge base, admin education panel, AI trainer
+- `c506af4` — feat: add /api/health/ai endpoint — centralized AI dependency health check
+
+#### Architecture: Unified AI Service (`src/lib/unifiedAI.ts`)
+All AI-powered features now use a single, centralized service layer that:
+1. **Auto-loads KB sections** from Supabase `ai_knowledge_base` table (12 sections, 5-min cache)
+2. **Builds context-aware prompts** — each call specifies a `context` (e.g., `patient_chat`, `pricing`, `social_post`) and the service automatically selects the right model, role prompt, and relevant KB sections
+3. **Falls back gracefully** — if Supabase is unreachable, static `knowledgeBase.ts` content is used
+4. **Supports 14 AI contexts** — patient chat, pricing, email drafts, social posts, social comments, voice assistant, blog, news, video metadata, reviews, translation, task parsing, content moderation, AI trainer
+
+#### Phase 1 — Infrastructure:
+- Created `src/lib/unifiedAI.ts` (369 LOC) — exports `getAICompletion()`, `buildContextPrompt()`, `AIContext`
+- Migration `107_unified_ai_knowledge_base.sql` — `ai_knowledge_base` table with 12 seeded sections (~20,790 chars total)
+- Context → model mapping (GPT-4o for critical, GPT-4o-mini for bulk)
+- Context → role prompt mapping (14 specialized prompts)
+- Context → KB section tag routing
+
+#### Phase 2 — Admin Education Panel:
+- `AIEducationTab.tsx` — browse/edit all KB sections in admin panel
+- `/api/admin/ai-knowledge` — full CRUD API for KB sections
+- `/api/admin/ai-trainer` — AI Trainer: natural language instructions → KB modifications via meta-AI (GPT-4o)
+
+#### Phase 3 — Route Migration (8 routes):
+| Route | Context | Migration Type |
+|-------|---------|---------------|
+| `/api/chat` (patient chatbot) | `patient_chat` | Full — `getAICompletion` + tool_calls |
+| `/api/cennik-chat` (pricing) | `pricing` | Full — `getAICompletion` |
+| `/api/cron/email-ai-drafts` | `email_draft` | KB source — `buildContextPrompt` |
+| `/api/employee/email-generate-reply` | `email_draft` | KB source — `buildContextPrompt` |
+| `/api/employee/email-ai-config` (GET) | `email_draft` | KB source — `buildContextPrompt` + static fallback |
+| `lib/socialAI.ts` (post gen) | `social_post` | Partial — text gen only, image prompt stays OpenAI |
+| `lib/socialComments.ts` (replies) | `social_comment` | Full — `getAICompletion` |
+| `/api/employee/assistant` (voice) | `voice_assistant` | KB injection into system prompt |
+
+#### Files Created:
+- `src/lib/unifiedAI.ts` — unified AI service layer
+- `src/app/admin/components/AIEducationTab.tsx` — admin KB editor
+- `src/app/api/admin/ai-knowledge/route.ts` — KB CRUD API
+- `src/app/api/admin/ai-trainer/route.ts` — AI Trainer API
+- `src/app/api/health/ai/route.ts` — AI health check endpoint
+- `supabase_migrations/107_unified_ai_knowledge_base.sql`
+
+#### Files Modified:
+- `src/app/api/chat/route.ts` — migrated to `getAICompletion`
+- `src/app/api/cennik-chat/route.ts` — migrated to `getAICompletion`
+- `src/app/api/cron/email-ai-drafts/route.ts` — KB from `buildContextPrompt`
+- `src/app/api/employee/email-generate-reply/route.ts` — KB from `buildContextPrompt`
+- `src/app/api/employee/email-ai-config/route.ts` — KB from `buildContextPrompt`
+- `src/app/api/employee/assistant/route.ts` — KB injected into system prompt
+- `src/lib/socialAI.ts` — text gen via `getAICompletion`
+- `src/lib/socialComments.ts` — comment replies via `getAICompletion`
+
+#### Net Impact:
+- **-85 lines of code** across migrated routes (83 added, 168 removed)
+- **All AI assistants** now share a single, admin-editable knowledge base
+- **Zero TypeScript errors** after all migrations
+
+---
 
 ### April 1, 2026
 **Cloudflare Tunnel, Email Fix, Supabase Security**
