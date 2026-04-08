@@ -250,28 +250,9 @@ export async function generateCommentReply(
     platform: string,
     postContext: string,
 ): Promise<string> {
-    const model = process.env.SOCIAL_AI_MODEL || 'gpt-4o';
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const { getAICompletion } = await import('@/lib/unifiedAI');
 
-    const systemPrompt = `Jesteś członkiem zespołu gabinetu stomatologicznego ${brand.name} w ${brand.cityShort}.
-Odpowiadasz na komentarze pod postami gabinetu w mediach społecznościowych.
-
-ZASADY:
-- Pisz w imieniu ZESPOŁU gabinetu ("nasz gabinet", "nasz zespół", "u nas", "zapraszamy")
-- NIGDY nie pisz w pierwszej osobie liczby pojedynczej ("ja", "mój")
-- Ton: ciepły, profesjonalny, przyjazny — jak rozmowa z pacjentem
-- Odpowiedź KRÓTKA: 1-3 zdania (max 200 znaków)
-- Po polsku
-- NIE używaj hashtagów w odpowiedzi
-- NIE powtarzaj treści komentarza dosłownie
-- Jeśli komentarz jest pozytywny: podziękuj i dodaj coś merytorycznego lub ciepłego
-- Jeśli komentarz to pytanie: odpowiedz konkretnie, zachęć do kontaktu/wizyty
-- Jeśli komentarz jest neutralny/emoji: krótkie podziękowanie
-- Jeśli komentarz jest negatywny: zachowaj profesjonalizm, zaproponuj kontakt prywatny
-- Jeśli komentarz to spam/nieistotny: odpowiedz "SKIP" (dokładnie to słowo)
-- Dodaj emoji: 1-2 pasujące emoji
-
-KONTEKST POSTA (na który jest komentarz):
+    const extraContext = `KONTEKST POSTA (na który jest komentarz):
 ${postContext}
 
 PLATFORMA: ${platform}
@@ -279,17 +260,16 @@ PLATFORMA: ${platform}
 Odpowiedz WYŁĄCZNIE tekstem odpowiedzi (bez cudzysłowów, bez JSON, bez wyjaśnień).
 Jeśli komentarz to spam — odpowiedz dokładnie: SKIP`;
 
-    const completion = await openai.chat.completions.create({
-        model,
+    const result = await getAICompletion({
+        context: 'social_comment',
         messages: [
-            { role: 'system', content: systemPrompt },
             { role: 'user', content: `Komentarz od @${comment.author}: "${comment.text}"` },
         ],
-        temperature: 0.7,
-        max_tokens: 256,
+        extraSystemContext: extraContext,
+        maxTokens: 256,
     });
 
-    const reply = completion.choices[0].message.content?.trim() || '';
+    const reply = result.reply?.trim() || '';
     return reply;
 }
 

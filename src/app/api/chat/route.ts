@@ -1,39 +1,13 @@
 import { NextResponse } from 'next/server';
-import OpenAI from 'openai';
-import { KNOWLEDGE_BASE, getKnowledgeBase } from '@/lib/knowledgeBase';
 import { checkRateLimit, getClientIP } from '@/lib/rateLimit';
 import fs from 'fs';
 import path from 'path';
-import { demoSanitize, brand } from '@/lib/brandConfig';
-
-
-
-// SYSTEM_PROMPT is built dynamically per-request so it always uses the latest
-// knowledge base from Supabase (site_settings.ai_knowledge_base).
-function buildSystemPrompt(kb: string): string {
-    return `
-Jesteś wirtualnym asystentem kliniki stomatologicznej "${brand.name}" w ${brand.cityShort}.
-Twoim celem jest pomoc pacjentom w uzyskaniu informacji o usługach, zespole i wizytach ORAZ zbieranie kontaktów (leadów).
-
-BARDZO WAŻNE INFORMACJE Z BAZY WIEDZY KLINIKI:
-${kb}
-
-Wytyczne do odpowiedzi:
-- Odpowiadaj krótko, konkretnie i uprzejmie.
-- Jeśli pacjent pyta o złożony zabieg lub cenę, zaproponuj kontakt telefoniczny.
-- UŻYWAJ NARZĘDZIA 'save_lead' jeśli pacjent poda numer telefonu lub wyrazi chęć kontaktu!
-- Jeśli pacjent prześle zdjęcie, przeanalizuj je wizualnie (np. "Widzę przebarwienia...", "Zęby wydają się starte..."), ale ZAWSZE dodaj disclaimer: "To tylko wstępna analiza AI, konieczna jest wizyta lekarska".
-- Zapraszaj do rezerwacji online (/rezerwacja).
-- Jeśli pacjent pyta o **wpłatę zadatku**, odpowiedz: "Przekierowuję Cię do formularza wpłaty zadatku. [NAVIGATE:/zadatek]". NIE podawaj innych instrukcji, system zrobi to automatycznie.
-
-Jeśli nie znasz odpowiedzi, przeproś i poproś o kontakt.
-`;
-}
+import { getAICompletion } from '@/lib/unifiedAI';
 
 // Tools Definition
 const tools = [
     {
-        type: "function",
+        type: "function" as const,
         function: {
             name: "save_lead",
             description: "Zapisz numer telefonu i temat rozmowy pacjenta, aby recepcja mogła oddzwonić.",
@@ -58,38 +32,31 @@ export async function POST(req: Request) {
     }
 
     try {
-        const openai = new OpenAI({
-            apiKey: process.env.OPENAI_API_KEY,
-        });
-
         const { messages } = await req.json();
 
         if (!messages || !Array.isArray(messages)) {
             return NextResponse.json({ error: 'Invalid messages format' }, { status: 400 });
         }
 
-        const kb = await getKnowledgeBase();
-        const SYSTEM_PROMPT = buildSystemPrompt(demoSanitize(kb));
+        // Use unified AI with patient_chat context — KB loaded automatically from Supabase
+        const extraContext = `Dodatkowe wytyczne:
+- UŻYWAJ NARZĘDZIA 'save_lead' jeśli pacjent poda numer telefonu lub wyrazi chęć kontaktu!
+- Jeśli pacjent prześle zdjęcie, przeanalizuj je wizualnie (np. "Widzę przebarwienia...", "Zęby wydają się starte..."), ale ZAWSZE dodaj disclaimer: "To tylko wstępna analiza AI, konieczna jest wizyta lekarska".
+- Jeśli pacjent pyta o **wpłatę zadatku**, odpowiedz: "Przekierowuję Cię do formularza wpłaty zadatku. [NAVIGATE:/zadatek]". NIE podawaj innych instrukcji, system zrobi to automatycznie.
+- Jeśli nie znasz odpowiedzi, przeproś i poproś o kontakt.`;
 
-        // 1. Call OpenAI
-        const completion = await openai.chat.completions.create({
-            model: "gpt-4o", // Vision + Tools support
-            messages: [
-                { role: "system", content: SYSTEM_PROMPT },
-                ...messages
-            ],
+        const result = await getAICompletion({
+            context: 'patient_chat',
+            messages,
             tools: tools as any,
-            tool_choice: "auto",
-            temperature: 0.7,
+            extraSystemContext: extraContext,
         });
 
-        const choice = completion.choices[0];
-        const message = choice.message;
-        let reply = message.content;
+        let reply = result.reply;
 
         // 2. Handle Tool Calls (Function Calling)
-        if (message.tool_calls) {
-            for (const toolCall of message.tool_calls) {
+        if (result.toolCalls) {
+            for (const toolCall of result.toolCalls) {
                 // Determine if it's a standard function tool call
                 if (toolCall.type === 'function' && toolCall.function) {
                     if (toolCall.function.name === 'save_lead') {

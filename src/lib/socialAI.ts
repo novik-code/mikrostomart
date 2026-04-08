@@ -180,25 +180,16 @@ export async function generateSocialText(
         }
     } catch { /* columns may not exist yet */ }
 
-    const systemPrompt = `Jesteś członkiem zespołu gabinetu stomatologicznego ${brand.name} w ${brand.cityShort}.
-Tworzysz treści na social media. Twój styl:
-- Piszesz w imieniu ZESPOŁU gabinetu („nasz gabinet”, „nasz zespół”, „u nas”, „zapraszamy”)
-- NIGDY nie pisz w pierwszej osobie liczby pojedynczej („ja”, „mój”, „moi”)
-- Język jest przystępny, ciepły i profesjonalny
-- Używasz porównań z życia codziennego
-- Wspominasz o doświadczeniu zespołu
-- Gabinet specjalizuje się w stomatologii mikroskopowej, implantologii i laserach
-- Gabinet jest w ${brand.cityShort}, pracujemy z mikroskopem, laserem Fotona LightWalker, drukarką 3D
-${styleContext}${editContext}
-
-PLATFORMY DOCELOWE:
-${platformInstructions}
-
-TYP TREŚCI: ${contentType === 'post_text_image' ? 'Post z grafiką' : contentType === 'video_short' ? 'Opis do krótkiego wideo (Reel/Short/TikTok)' : 'Karuzela (seria slajdów)'}
-
-${customPrompt ? `DODATKOWE INSTRUKCJE OD ADMINA:\n${customPrompt}\n` : ''}
-
-WAŻNE:
+    // Build extra context from learned styles and feedback
+    const extraParts: string[] = [];
+    if (styleContext) extraParts.push(styleContext);
+    if (editContext) extraParts.push(editContext);
+    extraParts.push(`PLATFORMY DOCELOWE:
+${platformInstructions}`);
+    extraParts.push(`TYP TREŚCI: ${contentType === 'post_text_image' ? 'Post z grafiką' : contentType === 'video_short' ? 'Opis do krótkiego wideo (Reel/Short/TikTok)' : 'Karuzela (seria slajdów)'}`);
+    if (customPrompt) extraParts.push(`DODATKOWE INSTRUKCJE OD ADMINA:
+${customPrompt}`);
+    extraParts.push(`WAŻNE:
 - Wygeneruj JEDNĄ treść, która będzie pasować do wszystkich wymienionych platform
 - Hashtagi powinny być bez # (sam tekst), system doda # automatycznie
 - Tekst NIE powinien zawierać hashtagów — podaj je osobno
@@ -209,22 +200,25 @@ Odpowiedz WYŁĄCZNIE w formacie JSON:
     "text": "Treść posta/opisu",
     "hashtags": ["stomatologia", "dentysta", "opole", "zdrowie", ...],
     "title": "Tytuł (tylko dla YouTube, opcjonalny)"
-}`;
+}`);
+
+    const { getAICompletion } = await import('@/lib/unifiedAI');
 
     // ── STEP 1: Generate text content ──────────────────────────────
-    const completion = await openai.chat.completions.create({
-        model,
+    const textResult = await getAICompletion({
+        context: 'social_post',
         messages: [
-            { role: 'system', content: systemPrompt },
             { role: 'user', content: `Temat: ${topic}` },
         ],
-        response_format: { type: 'json_object' },
+        extraSystemContext: extraParts.join('\n\n'),
+        responseFormat: 'json',
         temperature: 0.85,
-        max_tokens: 2048,
+        maxTokens: 2048,
     });
 
-    const raw = completion.choices[0].message.content || '{}';
+    const raw = textResult.reply || '{}';
     const data = JSON.parse(raw);
+
 
     if (!data.text) throw new Error('AI nie wygenerowało treści');
 

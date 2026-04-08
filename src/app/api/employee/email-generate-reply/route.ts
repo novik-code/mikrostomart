@@ -9,8 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
-import { KNOWLEDGE_BASE } from '@/lib/knowledgeBase';
-import { demoSanitize } from '@/lib/brandConfig';
+import { buildContextPrompt } from '@/lib/unifiedAI';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30; // AI generation can take a few seconds
@@ -41,7 +40,7 @@ export async function POST(req: NextRequest) {
         // Load training context (resilient — works even if migration 072 tables missing)
         let activeInstructions: any[] = [];
         let recentFeedback: any[] = [];
-        let effectiveKnowledgeBase = KNOWLEDGE_BASE;
+        let effectiveKnowledgeBase = '';
 
         try {
             const { data } = await supabase.from('email_ai_instructions').select('*').eq('is_active', true);
@@ -57,9 +56,11 @@ export async function POST(req: NextRequest) {
         } catch { /* table may not exist */ }
 
         try {
-            const { data: kbRow } = await supabase.from('site_settings').select('value').eq('key', 'ai_knowledge_base').maybeSingle();
-            if (kbRow?.value) effectiveKnowledgeBase = kbRow.value;
-        } catch { /* fallback to static */ }
+            effectiveKnowledgeBase = await buildContextPrompt('email_draft');
+        } catch {
+            // fallback — will use empty string, route-specific prompt still works
+            console.warn('[Generate Reply] Could not load KB from unifiedAI');
+        }
 
         // Load uploaded knowledge files
         let knowledgeFilesContext = '';

@@ -12,7 +12,7 @@ import { isDemoMode } from '@/lib/demoMode';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { listEmails, getEmail } from '@/lib/imapService';
-import { KNOWLEDGE_BASE } from '@/lib/knowledgeBase';
+import { buildContextPrompt } from '@/lib/unifiedAI';
 import { sendTelegramNotification } from '@/lib/telegram';
 import { logCronHeartbeat } from '@/lib/cronHeartbeat';
 import { demoSanitize, brand } from '@/lib/brandConfig';
@@ -136,7 +136,7 @@ export async function GET(req: NextRequest) {
         let senderRules: any[] = [];
         let activeInstructions: any[] = [];
         let recentFeedback: any[] = [];
-        let effectiveKnowledgeBase = KNOWLEDGE_BASE;
+        let effectiveKnowledgeBase = '';
 
         try {
             const { data } = await supabase.from('email_ai_sender_rules').select('*');
@@ -154,9 +154,10 @@ export async function GET(req: NextRequest) {
         } catch { /* table may not exist */ }
 
         try {
-            const { data: kbRow } = await supabase.from('site_settings').select('value').eq('key', 'ai_knowledge_base').maybeSingle();
-            if (kbRow?.value) effectiveKnowledgeBase = kbRow.value;
-        } catch { /* fallback to static */ }
+            effectiveKnowledgeBase = await buildContextPrompt('email_draft');
+        } catch {
+            console.warn('[Email AI Drafts] Could not load KB from unifiedAI');
+        }
 
         // Load uploaded knowledge files (PDFs, TXTs)
         let knowledgeFilesContext = '';

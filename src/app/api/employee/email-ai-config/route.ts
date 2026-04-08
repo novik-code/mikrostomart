@@ -14,6 +14,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
+import { buildContextPrompt } from '@/lib/unifiedAI';
 import { KNOWLEDGE_BASE } from '@/lib/knowledgeBase';
 
 export const dynamic = 'force-dynamic';
@@ -81,16 +82,14 @@ export async function GET() {
             })(),
         };
 
-        // Fetch knowledge base (DB override or static file) — always works
-        let knowledgeBase = KNOWLEDGE_BASE;
+        // Fetch knowledge base from unified AI system (Supabase sections)
+        let knowledgeBase = '';
         try {
-            const { data: kbRow } = await supabase
-                .from('site_settings')
-                .select('value')
-                .eq('key', 'ai_knowledge_base')
-                .maybeSingle();
-            if (kbRow?.value) knowledgeBase = kbRow.value;
-        } catch { /* fallback to static */ }
+            knowledgeBase = await buildContextPrompt('email_draft');
+        } catch {
+            // Fallback to static KB
+            knowledgeBase = KNOWLEDGE_BASE;
+        }
 
         return NextResponse.json({
             rules,
