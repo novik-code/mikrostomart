@@ -5,6 +5,7 @@ import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
 import { executeAction } from '@/lib/assistantActions';
 import { demoSanitize, brand } from '@/lib/brandConfig';
+import { buildContextPrompt } from '@/lib/unifiedAI';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,7 +16,7 @@ const supabase = createClient(
 
 // ─── System Prompt (injected with per-user memory) ───────────
 
-function buildSystemPrompt(memory: Record<string, string> = {}): string {
+function buildSystemPrompt(memory: Record<string, string> = {}, kbContext: string = ''): string {
     const memorySection = Object.keys(memory).length > 0
         ? `\n\nTWÓJ KONTEKST O UŻYTKOWNIKU (zapamiętane fakty):\n${Object.entries(memory).map(([k, v]) => `- ${k}: ${v}`).join('\n')}\n- Używaj tych danych naturalnie — np. jeśli znasz adres fryzjera, dodaj go do opisu zadania/kalendarza.`
         : '';
@@ -52,6 +53,10 @@ WNIOSKOWANIE DAT:
 - Strefa czasowa: Europe/Warsaw — ISO format: ${new Date().toISOString().split('T')[0]}T16:00:00+01:00
 
 DZIŚ: ${new Date().toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}, godz. ${new Date().toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}
+
+
+WIEDZA O KLINICE (usługi, ceny, zespół):
+${kbContext}
 
 TYPY ZADAŃ KLINICZNYCH: Laboratorium, Zamówienia, Recepcja, Modele Archiwalne, Skanowanie, Inne
 
@@ -242,7 +247,13 @@ export async function POST(req: Request) {
         } catch { /* memory is optional */ }
 
         // Build full conversation context with personalized system prompt
-        const systemPrompt = buildSystemPrompt(userMemory);
+        // Load clinic KB for voice assistant context
+        let kbContext = '';
+        try {
+            kbContext = await buildContextPrompt('voice_assistant');
+        } catch { /* KB is optional — falls back to role prompt only */ }
+
+        const systemPrompt = buildSystemPrompt(userMemory, kbContext);
         const conversationMessages: any[] = [
             { role: 'system', content: systemPrompt },
             ...messages,
