@@ -1,6 +1,6 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-04-08  
+> **Last Updated:** 2026-04-09  
 > **Version:** Production + Demo (Dual Vercel Deployment)  
 > **Status:** Active Development — Unified AI Ecosystem + Multi-Tenant Architecture
 
@@ -123,7 +123,7 @@ The demo environment is fully neutralized — no Mikrostomart-specific text, con
 
 **Demo Supabase DB contents:**
 - 66 base tables (generated from production OpenAPI spec)
-- 107 migration files applied
+- 108 migration files applied
 - 5 employees, 20 demo patients, settings, products, SMS templates
 - 3 Supabase Auth users (admin, pracownik) + 20 patients with bcrypt hashes
 
@@ -156,7 +156,7 @@ The demo environment is fully neutralized — no Mikrostomart-specific text, con
 
 ### Backend & Database
 - **Supabase** (PostgreSQL database, authentication, storage)
-  - Database: 107 migrations (003-107: email verification, appointment actions, SMS reminders, user_roles, employee tasks, task history, comments, labels, status fix, google reviews cache, chat, push subscriptions, employee_group, push_notification_config, employee_groups array, news/articles/blog/products i18n, calendar tokens, private tasks + reminders, SMS post-visit/week-after-visit, SMS unique constraint fix, task multi-images, push_notifications_log, google_event_id on employee_tasks, patient_intake_tokens, feature_suggestions, online_bookings, patient_match_confidence, consent_tokens/patient_consents, staff_signatures, intake_pdf_url, birthday_wishes, cancelled_appointments, login_attempts, patient_notification_prefs, biometric_signature, employee_audit_log, consent_field_mappings, rate_limit_table, cron_heartbeats, sms_settings, email_ai_drafts, email_ai_config, email_compose_drafts, email_label_overrides, email_ai_drafts_skipped, compose_drafts_ai_text, email_ai_knowledge_files, fix_nowosielska_role, employee_notification_prefs, cleanup_duplicate_push_subs, security_advisor_fixes, merge_duplicate_employees, **social_media, video_queue, storage_video_upload, video_captions_api**, fcm_push_rebuild, dedup_employees, fix_employee_reactivate, **unified_ai_knowledge_base**)
+  - Database: 108 migrations (003-108: email verification, appointment actions, SMS reminders, user_roles, employee tasks, task history, comments, labels, status fix, google reviews cache, chat, push subscriptions, employee_group, push_notification_config, employee_groups array, news/articles/blog/products i18n, calendar tokens, private tasks + reminders, SMS post-visit/week-after-visit, SMS unique constraint fix, task multi-images, push_notifications_log, google_event_id on employee_tasks, patient_intake_tokens, feature_suggestions, online_bookings, patient_match_confidence, consent_tokens/patient_consents, staff_signatures, intake_pdf_url, birthday_wishes, cancelled_appointments, login_attempts, patient_notification_prefs, biometric_signature, employee_audit_log, consent_field_mappings, rate_limit_table, cron_heartbeats, sms_settings, email_ai_drafts, email_ai_config, email_compose_drafts, email_label_overrides, email_ai_drafts_skipped, compose_drafts_ai_text, email_ai_knowledge_files, fix_nowosielska_role, employee_notification_prefs, cleanup_duplicate_push_subs, security_advisor_fixes, merge_duplicate_employees, **social_media, video_queue, storage_video_upload, video_captions_api**, fcm_push_rebuild, dedup_employees, fix_employee_reactivate, **unified_ai_knowledge_base**, ai_trainer_conversations)
   - Auth: Email/password, magic links, JWT tokens
   - Storage: Product images, patient documents, task images, **social media videos** (bucket: `social-media`)
   - **Social Media**: `social_platforms`, `social_posts`, `social_schedules`, `social_topics` tables + cron auto-publish
@@ -354,7 +354,7 @@ mikrostomart/
 │   ├── en/common.json          # English
 │   ├── de/common.json          # German
 │   └── ua/common.json          # Ukrainian
-├── supabase_migrations/        # Database migrations (105 files: 003-107, sequential numeric)
+├── supabase_migrations/        # Database migrations (106 files: 003-108, sequential numeric)
 ├── public/                     # Static assets (incl. qr-ocen-nas.png)
 ├── scripts/                    # Utility scripts (13 files)
 └── vercel.json                 # Deployment configuration (17 cron jobs: see Cron section)
@@ -936,6 +936,19 @@ Centralized AI knowledge base — admin-editable sections for all AI assistants.
 Seeded with 12 sections: `clinic_info`, `services`, `pricing`, `team`, `equipment`, `social_guidelines`, `email_guidelines`, `patient_communication`, `appointments`, `faq`, `brand_voice`, `medical_info`.
 Trigger: `update_ai_kb_updated_at` auto-sets `updated_at` on row update.
 Used by: `src/lib/unifiedAI.ts` (5-min cached reads), `/api/admin/ai-knowledge` (CRUD), `/api/admin/ai-trainer` (AI modifications).
+
+#### 41. **ai_trainer_messages** (migration 108)
+Persistent AI Trainer conversation history — never-ending education chat between admin and AI Trainer.
+```sql
+- id (uuid, PK, DEFAULT gen_random_uuid())
+- role (text, NOT NULL) -- 'user' | 'assistant' | 'system'
+- content (text, NOT NULL)
+- message_type (text, DEFAULT 'general') -- 'general' | 'style_example' | 'style_analysis' | 'kb_proposal' | 'kb_applied' | 'kb_rejected'
+- metadata (jsonb, DEFAULT '{}') -- proposed_changes, style_diff, original_draft, corrected_version
+- created_by (text) -- admin email or 'ai_trainer'
+- created_at (timestamptz, DEFAULT NOW())
+```
+Used by: `/api/admin/ai-trainer` (GET: load history, POST: save messages, PATCH: approve/reject), `AIEducationTab.tsx`.
 
 
 ## ✨ Feature Catalog
@@ -1891,9 +1904,14 @@ All AI operations use a centralized service that automatically loads relevant kn
 - **Storage:** `ai_knowledge_base` table in Supabase (12 sections: clinic_info, services, pricing, team, equipment, social_guidelines, email_guidelines, patient_communication, appointments, faq, brand_voice, medical_info)
 - **Caching:** 5-minute in-memory cache (server-side) to minimize DB reads
 - **Fallback:** Static `knowledgeBase.ts` content used if Supabase is unreachable
-- **Admin Panel:** `AIEducationTab.tsx` in admin area — browse/edit all KB sections
-- **AI Trainer:** POST `/api/admin/ai-trainer` — natural language instructions to modify KB via meta-AI
-- **Migration:** `107_unified_ai_knowledge_base.sql`
+- **Admin Panel:** `AIEducationTab.tsx` in admin area — browse/edit all KB sections + persistent AI Trainer chat
+- **AI Trainer:** `/api/admin/ai-trainer` — persistent conversational education chat (GET/POST/PATCH)
+  - **Style Learning:** admin pastes AI draft + corrected version → AI analyzes style differences, extracts rules
+  - **Persistent History:** all messages stored in `ai_trainer_messages` table, loaded on mount
+  - **Proactive Follow-ups:** AI asks clarifying questions after each style analysis
+  - **Sliding Window:** last 50 messages as GPT context + all `style_analysis` messages as learned rules
+  - **Quick Actions:** 📧 email / 📱 post / 💬 comment / 🤖 chatbot style learning modes
+- **Migration:** `107_unified_ai_knowledge_base.sql`, `108_ai_trainer_conversations.sql`
 
 **Key exports:** `getAICompletion(options)`, `buildContextPrompt(context)`, `AIContext` type
 
@@ -1909,7 +1927,7 @@ All AI operations use a centralized service that automatically loads relevant kn
 - `src/lib/socialAI.ts` — social post generation
 - `src/lib/socialComments.ts` — social comment replies
 - `/api/admin/ai-knowledge/route.ts` — CRUD API for KB sections
-- `/api/admin/ai-trainer/route.ts` — AI Trainer natural language API
+- `/api/admin/ai-trainer/route.ts` — persistent AI Trainer (GET history + POST message + PATCH approve/reject)
 - `src/context/AssistantContext.tsx`
 
 ### 7. Replicate
@@ -2323,6 +2341,44 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### April 9, 2026
+**Persistent AI Trainer Chat with Style Learning**
+
+#### Commit:
+- `2a4cd3a` — feat: persistent AI Trainer chat with style learning
+
+#### Overview:
+Transformed the one-shot AI Trainer form into a **persistent conversational education chat** that:
+1. **Learns writing style** from draft/correction pairs (admin pastes AI draft + their corrected version)
+2. **Remembers everything** — conversation history stored in `ai_trainer_messages` DB table, loaded on mount
+3. **Proactively asks questions** — AI analyzes style differences and asks follow-up questions
+4. **Accumulates knowledge** — all style lessons are permanently loaded as learned rules for future responses
+
+#### Database:
+- Migration `108_ai_trainer_conversations.sql` — `ai_trainer_messages` table with message type classification (`general`, `style_example`, `style_analysis`, `kb_proposal`, `kb_applied`, `kb_rejected`)
+
+#### Backend (`/api/admin/ai-trainer`):
+- **GET** — load full conversation history + stats (total messages, style lessons, KB changes)
+- **POST** — send message with type detection, sliding window context (last 50 msgs), all style lessons as permanent rules, proactive follow-up questions
+- **PATCH** — approve/reject proposed KB changes with history logging
+
+#### Frontend (`AIEducationTab.tsx`):
+- **StyleCompareInput** — side-by-side textareas (red: AI draft, green: user correction) + optional comment
+- **Quick Action buttons** — 📧 email / 📱 post / 💬 comment / 🤖 chatbot learning modes
+- **Persistent history** — loaded from DB on mount, auto-scroll to bottom
+- **Message type badges** — visual indicators for style examples, analyses, applied/rejected KB changes
+- **Stats display** — "🎨 X lekcji stylu" / "✅ Y zmian KB" badges in header
+- **Textarea input** — multiline with Shift+Enter support (replaces single-line input)
+
+#### Files Created:
+- `supabase_migrations/108_ai_trainer_conversations.sql`
+
+#### Files Modified:
+- `src/app/api/admin/ai-trainer/route.ts` — full rewrite (145 LOC → 230 LOC)
+- `src/app/admin/components/AIEducationTab.tsx` — full rewrite (772 LOC → 580 LOC, leaner + persistent)
+
+---
 
 ### April 8, 2026
 **Unified AI Ecosystem — Centralized AI Service Layer + Admin Education Panel**
