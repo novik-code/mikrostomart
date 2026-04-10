@@ -13,8 +13,9 @@ export const dynamic = 'force-dynamic';
 /**
  * GET /api/employee/push/history
  *
- * Returns the last 7 days of push notifications for the logged-in employee,
- * ordered newest first. Used by the "Powiadomienia" tab in the employee panel.
+ * Returns ALL system notifications from the last 30 days,
+ * deduplicated so each unique event shows once.
+ * Every employee/admin sees the full notification history.
  */
 export async function GET(_req: NextRequest) {
     const user = await verifyAdmin();
@@ -26,18 +27,28 @@ export async function GET(_req: NextRequest) {
         return NextResponse.json({ error: 'Brak uprawnień' }, { status: 403 });
     }
 
+    // Fetch all notifications (not filtered by user), then deduplicate
     const { data, error } = await supabase
         .from('push_notifications_log')
-        .select('id, title, body, url, tag, sent_at')
-        .eq('user_id', user.id)
+        .select('id, title, body, url, tag, sent_at, user_type')
         .gte('sent_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
         .order('sent_at', { ascending: false })
-        .limit(200);
+        .limit(1000);
 
     if (error) {
         console.error('[PushHistory] Query error:', error);
         return NextResponse.json({ error: 'Błąd pobierania historii' }, { status: 500 });
     }
 
-    return NextResponse.json({ notifications: data || [] });
+    // Deduplicate: same title+body within 2 seconds = same event sent to multiple users
+    const seen = new Set<string>();
+    const unique = (data || []).filter(row => {
+        const ts = Math.floor(new Date(row.sent_at).getTime() / 2000); // 2-second window
+        const key = `${row.title}|${row.body}|${ts}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
+
+    return NextResponse.json({ notifications: unique.slice(0, 200) });
 }
