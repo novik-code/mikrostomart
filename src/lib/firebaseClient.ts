@@ -110,25 +110,40 @@ export async function requestFCMToken(): Promise<string | null> {
 }
 
 /**
- * Listen for foreground messages and show a browser notification.
+ * Listen for foreground messages and show a browser notification + trigger popup.
  */
 export function listenForForegroundMessages(callback?: (payload: any) => void): () => void {
     const msg = getFirebaseMessaging();
     return onMessage(msg, (payload) => {
         console.log('[FCM] Foreground message:', payload);
 
-        // Data-only messages: title/body are in payload.data (not payload.notification)
+        // With notification+data messages, payload has both .notification and .data
+        const title = payload.notification?.title || payload.data?.title;
+        const body = payload.notification?.body || payload.data?.body;
         const data = payload.data || {};
-        const title = data.title || payload.notification?.title;
-        const body = data.body || payload.notification?.body;
 
+        // Show browser notification (FCM doesn't auto-show in foreground)
         if (title && Notification.permission === 'granted') {
-            new Notification(title, {
+            const notif = new Notification(title, {
                 body: body || '',
                 icon: '/icon-192x192.png',
                 tag: data.tag || 'mikrostomart-fg',
                 data: data,
             });
+            notif.onclick = () => {
+                window.focus();
+                // Trigger popup
+                window.dispatchEvent(new CustomEvent('push-notification-received', {
+                    detail: { title, body, url: data.url, time: Date.now() }
+                }));
+            };
+        }
+
+        // Dispatch event for the popup in patient zone layout
+        if (title) {
+            window.dispatchEvent(new CustomEvent('push-notification-received', {
+                detail: { title, body, url: data.url, time: Date.now() }
+            }));
         }
 
         callback?.(payload);

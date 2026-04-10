@@ -76,10 +76,14 @@ async function sendToTokens(
             console.log(`[Push] Sending batch (${batch.length} tokens): title="${payload.title}", body="${payload.body?.substring(0, 50)}..."`);
             const response = await messaging.sendEachForMulticast({
                 tokens: batch,
-                // Data-only message — no 'notification' key!
-                // This prevents FCM from auto-displaying a notification,
-                // letting our service worker (background) and onMessage handler
-                // (foreground) be the SOLE handlers. Avoids duplicate notifications.
+                // Include BOTH notification and data keys:
+                // - notification: FCM auto-displays title/body (guaranteed visible)
+                // - data: carries URL and metadata for click handling
+                notification: {
+                    title: payload.title || 'Mikrostomart',
+                    body: payload.body || '',
+                    imageUrl: undefined,
+                },
                 data: {
                     title: payload.title || '',
                     body: payload.body || '',
@@ -87,6 +91,17 @@ async function sendToTokens(
                     tag: payload.tag || 'notification',
                     icon: payload.icon || '/icon-192x192.png',
                     requireInteraction: String(payload.requireInteraction || false),
+                },
+                webpush: {
+                    notification: {
+                        icon: payload.icon || '/icon-192x192.png',
+                        badge: '/icon-192x192.png',
+                        tag: payload.tag || 'mikrostomart-notification',
+                        requireInteraction: payload.requireInteraction || false,
+                    },
+                    fcmOptions: {
+                        link: payload.url || '/',
+                    },
                 },
             });
 

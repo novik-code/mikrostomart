@@ -43,7 +43,36 @@ function AuthenticatedLayout({ children, pathname }: { children: React.ReactNode
     const [supabaseId, setSupabaseId] = useState<string | null>(null);
     const [accountStatus, setAccountStatus] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [pushPopup, setPushPopup] = useState<{ title: string; body: string; time: number } | null>(null);
     const router = useRouter();
+
+    // Listen for push notification events (foreground + click from background)
+    useEffect(() => {
+        // Check URL params (from service worker notificationclick)
+        const params = new URLSearchParams(window.location.search);
+        const pushTitle = params.get('pushTitle');
+        const pushBody = params.get('pushBody');
+        const pushTime = params.get('pushTime');
+        if (pushTitle && pushTime) {
+            setPushPopup({ title: pushTitle, body: pushBody || '', time: Number(pushTime) });
+            // Clean URL without reload
+            const url = new URL(window.location.href);
+            url.searchParams.delete('pushTitle');
+            url.searchParams.delete('pushBody');
+            url.searchParams.delete('pushTime');
+            window.history.replaceState({}, '', url.pathname + url.search);
+        }
+
+        // Listen for foreground push events
+        const handlePushEvent = (e: Event) => {
+            const detail = (e as CustomEvent).detail;
+            if (detail?.title) {
+                setPushPopup({ title: detail.title, body: detail.body || '', time: detail.time || Date.now() });
+            }
+        };
+        window.addEventListener('push-notification-received', handlePushEvent);
+        return () => window.removeEventListener('push-notification-received', handlePushEvent);
+    }, []);
 
     const handleLogout = useCallback(async () => {
         try {
@@ -266,6 +295,178 @@ function AuthenticatedLayout({ children, pathname }: { children: React.ReactNode
                     );
                 })}
             </div>
+
+            {/* Push Notification Popup */}
+            {pushPopup && (
+                <div
+                    onClick={() => setPushPopup(null)}
+                    style={{
+                        position: 'fixed',
+                        inset: 0,
+                        zIndex: 9999,
+                        background: 'rgba(0, 0, 0, 0.7)',
+                        backdropFilter: 'blur(8px)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '1rem',
+                        animation: 'fadeIn 0.25s ease-out',
+                    }}
+                >
+                    <div
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                            background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)',
+                            border: '1px solid rgba(var(--color-primary-rgb), 0.3)',
+                            borderRadius: '1rem',
+                            padding: '2rem',
+                            maxWidth: '450px',
+                            width: '100%',
+                            boxShadow: '0 25px 60px rgba(0, 0, 0, 0.5), 0 0 30px rgba(var(--color-primary-rgb), 0.1)',
+                            animation: 'slideUp 0.3s ease-out',
+                        }}
+                    >
+                        {/* Header */}
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'flex-start',
+                            justifyContent: 'space-between',
+                            marginBottom: '1rem',
+                        }}>
+                            <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.75rem',
+                            }}>
+                                <div style={{
+                                    width: '44px',
+                                    height: '44px',
+                                    borderRadius: '12px',
+                                    background: 'rgba(var(--color-primary-rgb), 0.15)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: '1.4rem',
+                                    flexShrink: 0,
+                                }}>🔔</div>
+                                <div>
+                                    <div style={{
+                                        fontSize: '0.75rem',
+                                        color: 'var(--color-primary)',
+                                        fontWeight: 600,
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '0.05em',
+                                        marginBottom: '0.15rem',
+                                    }}>
+                                        Powiadomienie
+                                    </div>
+                                    <div style={{
+                                        fontSize: '0.75rem',
+                                        color: 'rgba(255,255,255,0.4)',
+                                    }}>
+                                        {new Date(pushPopup.time).toLocaleTimeString('pl-PL', {
+                                            hour: '2-digit',
+                                            minute: '2-digit',
+                                        })}
+                                    </div>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setPushPopup(null)}
+                                style={{
+                                    background: 'rgba(255, 255, 255, 0.1)',
+                                    border: 'none',
+                                    borderRadius: '8px',
+                                    width: '32px',
+                                    height: '32px',
+                                    color: 'rgba(255,255,255,0.6)',
+                                    cursor: 'pointer',
+                                    fontSize: '1.1rem',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    transition: 'all 0.2s',
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)';
+                                    e.currentTarget.style.color = '#ef4444';
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+                                    e.currentTarget.style.color = 'rgba(255,255,255,0.6)';
+                                }}
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        {/* Divider */}
+                        <div style={{
+                            height: '1px',
+                            background: 'linear-gradient(90deg, transparent, rgba(var(--color-primary-rgb), 0.3), transparent)',
+                            margin: '0.75rem 0 1.25rem',
+                        }} />
+
+                        {/* Content */}
+                        <h3 style={{
+                            fontSize: '1.15rem',
+                            fontWeight: 700,
+                            color: '#fff',
+                            margin: '0 0 0.75rem 0',
+                            lineHeight: 1.4,
+                        }}>
+                            {pushPopup.title}
+                        </h3>
+                        <p style={{
+                            fontSize: '0.95rem',
+                            color: 'rgba(255, 255, 255, 0.75)',
+                            margin: '0 0 1.5rem 0',
+                            lineHeight: 1.7,
+                            whiteSpace: 'pre-wrap',
+                        }}>
+                            {pushPopup.body}
+                        </p>
+
+                        {/* Action button */}
+                        <button
+                            onClick={() => setPushPopup(null)}
+                            style={{
+                                width: '100%',
+                                padding: '0.85rem',
+                                background: 'var(--color-primary)',
+                                border: 'none',
+                                borderRadius: '0.75rem',
+                                color: '#fff',
+                                fontWeight: 700,
+                                fontSize: '0.9rem',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s',
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.opacity = '0.85';
+                                e.currentTarget.style.transform = 'translateY(-1px)';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.opacity = '1';
+                                e.currentTarget.style.transform = 'none';
+                            }}
+                        >
+                            OK, rozumiem
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            <style>{`
+                @keyframes fadeIn {
+                    from { opacity: 0; }
+                    to { opacity: 1; }
+                }
+                @keyframes slideUp {
+                    from { opacity: 0; transform: translateY(20px) scale(0.95); }
+                    to { opacity: 1; transform: translateY(0) scale(1); }
+                }
+            `}</style>
 
             {/* Page Content */}
             {children}

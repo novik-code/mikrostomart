@@ -93,6 +93,11 @@ export default function PushNotificationPrompt({
                 }),
             }).catch(() => { /* offline OK */ });
             setStatus('subscribed');
+
+            // Set up foreground listener for existing subscribers
+            import('@/lib/firebaseClient').then(({ listenForForegroundMessages }) => {
+                listenForForegroundMessages();
+            }).catch(() => { /* silent */ });
         } else {
             setStatus('can-subscribe');
         }

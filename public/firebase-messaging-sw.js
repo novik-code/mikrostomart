@@ -1,4 +1,4 @@
-// Firebase Messaging Service Worker
+// Firebase Messaging Service Worker — v2
 // Handles background push notifications via FCM.
 // This file MUST be at the root (/firebase-messaging-sw.js) for Firebase to find it.
 
@@ -16,43 +16,45 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
-// Handle background messages (when the app is not in foreground)
-// We use data-only messages (no 'notification' key) so the SDK does NOT
-// auto-show a notification. This handler is the SOLE display mechanism.
+// Handle background messages
+// With notification+data messages, FCM auto-shows the notification.
+// This handler is called AFTER display — we just log for debugging.
+// Click handling is done via the 'notificationclick' event below.
 messaging.onBackgroundMessage(function (payload) {
-    console.log('[FCM SW] Background message:', payload);
-
-    const data = payload.data || {};
-    const notificationTitle = data.title || 'Mikrostomart';
-    const notificationOptions = {
-        body: data.body || '',
-        icon: data.icon || '/icon-192x192.png',
-        badge: '/icon-192x192.png',
-        tag: data.tag || 'mikrostomart-notification',
-        data: {
-            url: data.url || '/',
-        },
-        vibrate: [200, 100, 200],
-        requireInteraction: data.requireInteraction === 'true',
-    };
-
-    return self.registration.showNotification(notificationTitle, notificationOptions);
+    console.log('[FCM SW v2] Background message received:', JSON.stringify(payload));
+    // FCM already displayed the notification via the 'notification' key.
+    // No need to call showNotification — that would create a duplicate.
 });
 
-// Handle notification clicks — navigate to the URL specified in the notification data
+// Handle notification clicks — navigate to the URL from FCM data
 self.addEventListener('notificationclick', function (event) {
+    console.log('[FCM SW v2] Notification clicked:', event.notification);
     event.notification.close();
-    const url = event.notification.data?.url || '/';
+
+    // FCM puts the link in fcmOptions.link or we fall back to data.url
+    const data = event.notification.data || {};
+    const fcmData = data.FCM_MSG?.data || {};
+    const url = fcmData.url || data.url || event.notification.data?.link || '/strefa-pacjenta/dashboard';
+    
+    // Encode push content in URL params for the popup
+    const pushTitle = fcmData.title || event.notification.title || '';
+    const pushBody = fcmData.body || event.notification.body || '';
+    const separator = url.includes('?') ? '&' : '?';
+    const targetUrl = `${url}${separator}pushTitle=${encodeURIComponent(pushTitle)}&pushBody=${encodeURIComponent(pushBody)}&pushTime=${Date.now()}`;
+
+    console.log('[FCM SW v2] Navigating to:', targetUrl);
 
     event.waitUntil(
         self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (clientList) {
+            // Try to focus an existing window
             for (const client of clientList) {
                 if (client.url.includes(self.location.origin) && 'focus' in client) {
-                    client.navigate(url);
+                    client.navigate(targetUrl);
                     return client.focus();
                 }
             }
-            return self.clients.openWindow(url);
+            // Open new window
+            return self.clients.openWindow(targetUrl);
         })
     );
 });
