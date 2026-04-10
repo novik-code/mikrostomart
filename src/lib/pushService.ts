@@ -82,7 +82,6 @@ async function sendToTokens(
                 notification: {
                     title: payload.title || 'Mikrostomart',
                     body: payload.body || '',
-                    imageUrl: undefined,
                 },
                 data: {
                     title: payload.title || '',

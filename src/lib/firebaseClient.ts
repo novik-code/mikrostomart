@@ -82,11 +82,30 @@ export async function requestFCMToken(): Promise<string | null> {
         // Step D: Register service worker
         console.log('[FCM] Step D: Registering service worker...');
         const swRegistration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
-        console.log('[FCM] SW registered:', swRegistration.scope);
+        console.log('[FCM] SW registered:', swRegistration.scope, 'installing:', !!swRegistration.installing, 'waiting:', !!swRegistration.waiting, 'active:', !!swRegistration.active);
 
-        // Wait for SW to be ready
-        await navigator.serviceWorker.ready;
-        console.log('[FCM] SW ready');
+        // Wait for SW to be ready (with 15s timeout to prevent infinite hang)
+        console.log('[FCM] Waiting for SW to be ready...');
+        const swReady = await Promise.race([
+            navigator.serviceWorker.ready,
+            new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Service Worker nie zainstalował się w ciągu 15 sekund. Spróbuj odświeżyć stronę.')), 15000))
+        ]);
+        console.log('[FCM] SW ready:', swReady.scope);
+
+        // Wait for SW to activate if still installing
+        if (swRegistration.installing || swRegistration.waiting) {
+            console.log('[FCM] Waiting for SW to activate...');
+            await new Promise<void>((resolve) => {
+                const sw = swRegistration.installing || swRegistration.waiting;
+                if (!sw) { resolve(); return; }
+                sw.addEventListener('statechange', () => {
+                    if (sw.state === 'activated') resolve();
+                });
+                // Safety timeout
+                setTimeout(resolve, 5000);
+            });
+            console.log('[FCM] SW activated');
+        }
 
         // Step E: Get token
         console.log('[FCM] Step E: Requesting token...');

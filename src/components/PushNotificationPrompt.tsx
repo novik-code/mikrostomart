@@ -94,10 +94,14 @@ export default function PushNotificationPrompt({
             }).catch(() => { /* offline OK */ });
             setStatus('subscribed');
 
-            // Set up foreground listener for existing subscribers
-            import('@/lib/firebaseClient').then(({ listenForForegroundMessages }) => {
-                listenForForegroundMessages();
-            }).catch(() => { /* silent */ });
+            // Set up foreground listener for existing subscribers (delayed, non-blocking)
+            setTimeout(() => {
+                navigator.serviceWorker?.ready?.then(() => {
+                    import('@/lib/firebaseClient').then(({ listenForForegroundMessages }) => {
+                        listenForForegroundMessages();
+                    }).catch(() => { /* silent */ });
+                }).catch(() => { /* no SW */ });
+            }, 3000);
         } else {
             setStatus('can-subscribe');
         }
