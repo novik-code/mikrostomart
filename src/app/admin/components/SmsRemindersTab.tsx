@@ -15,6 +15,7 @@ export default function SmsRemindersTab() {
     const [editingSmsMessage, setEditingSmsMessage] = useState('');
     const [sendingAll, setSendingAll] = useState(false);
     const [smsTab, setSmsTab] = useState<'drafts' | 'sent' | 'manual'>('drafts');
+    const [manualMode, setManualMode] = useState<'sms' | 'push'>('sms');
     const [sentDateFilter, setSentDateFilter] = useState<string>('');
     const [manualPhone, setManualPhone] = useState('');
     const [manualMessage, setManualMessage] = useState('');
@@ -23,6 +24,11 @@ export default function SmsRemindersTab() {
     const [patientSearchResults, setPatientSearchResults] = useState<any[]>([]);
     const [searchingPatients, setSearchingPatients] = useState(false);
     const [sendingManual, setSendingManual] = useState(false);
+    // Push manual state
+    const [pushTitle, setPushTitle] = useState('');
+    const [pushBody, setPushBody] = useState('');
+    const [pushUrl, setPushUrl] = useState('');
+    const [pushResult, setPushResult] = useState<{ success: boolean; message: string } | null>(null);
     const [manualGenerationStatus, setManualGenerationStatus] = useState<string | null>(null);
     const [skippedPatients, setSkippedPatients] = useState<Array<{
         patientName: string;
@@ -294,6 +300,50 @@ export default function SmsRemindersTab() {
         }
     };
 
+    const handleSendManualPush = async () => {
+        if (!pushTitle || !pushBody) {
+            alert('Wypełnij tytuł i treść powiadomienia');
+            return;
+        }
+        if (!manualPhone && !manualPatientName) {
+            alert('Wyszukaj pacjenta lub podaj numer telefonu');
+            return;
+        }
+        if (!confirm(`Wysłać push do ${manualPatientName || manualPhone}?`)) return;
+
+        setSendingManual(true);
+        setPushResult(null);
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            const res = await fetch('/api/admin/push-send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    phone: manualPhone || undefined,
+                    patient_name: manualPatientName,
+                    title: pushTitle,
+                    body: pushBody,
+                    url: pushUrl || undefined,
+                    sent_by: user?.email || 'admin@mikrostomart.pl'
+                })
+            });
+
+            const result = await res.json();
+            if (result.success) {
+                setPushResult({ success: true, message: `✅ ${result.message}` });
+                setPushTitle('');
+                setPushBody('');
+                setPushUrl('');
+            } else {
+                setPushResult({ success: false, message: `❌ ${result.error}${result.details ? '\n' + result.details : ''}` });
+            }
+        } catch (err: any) {
+            setPushResult({ success: false, message: `❌ Błąd: ${err.message}` });
+        } finally {
+            setSendingManual(false);
+        }
+    };
+
     useEffect(() => { fetchSmsReminders(); }, []);
 
     // SMS Settings Functions
@@ -519,7 +569,7 @@ export default function SmsRemindersTab() {
                     const labels = {
                         drafts: `📝 Szkice (${smsStats.draft})`,
                         sent: `📤 Wysłane (${smsStats.sent})`,
-                        manual: '✉️ Wyślij SMS ręcznie'
+                        manual: '✉️ Wyślij ręcznie'
                     };
                     return (
                         <button
@@ -971,9 +1021,44 @@ export default function SmsRemindersTab() {
             {/* ═══ MANUAL SMS TAB ═══ */}
             {smsTab === 'manual' && (
                 <div style={{ maxWidth: "600px" }}>
-                    <div style={{ background: "var(--color-surface)", padding: "2rem", borderRadius: "var(--radius-md)", border: "1px solid var(--color-border)" }}>
-                        <h3 style={{ margin: "0 0 0.5rem", fontSize: "1.15rem" }}>✉️ Wyślij SMS ręcznie</h3>
-                        <p style={{ margin: "0 0 1.5rem", fontSize: "0.88rem", color: "var(--color-text-muted)" }}>Wyszukaj pacjenta po nazwisku, system automatycznie uzupełni numer telefonu.</p>
+                    {/* SMS / Push mode toggle */}
+                    <div style={{ display: 'flex', gap: '0', marginBottom: '1rem', borderRadius: '8px', overflow: 'hidden', border: '2px solid var(--color-border)' }}>
+                        <button
+                            onClick={() => { setManualMode('sms'); setPushResult(null); }}
+                            style={{
+                                flex: 1, padding: '0.65rem 1rem', border: 'none',
+                                background: manualMode === 'sms' ? 'rgba(56,189,248,0.15)' : 'var(--color-surface)',
+                                color: manualMode === 'sms' ? '#38bdf8' : 'var(--color-text-muted)',
+                                fontWeight: manualMode === 'sms' ? 'bold' : 'normal',
+                                cursor: 'pointer', fontSize: '0.95rem', transition: 'all 0.15s',
+                            }}
+                        >
+                            📱 SMS
+                        </button>
+                        <button
+                            onClick={() => { setManualMode('push'); setPushResult(null); }}
+                            style={{
+                                flex: 1, padding: '0.65rem 1rem', border: 'none',
+                                borderLeft: '2px solid var(--color-border)',
+                                background: manualMode === 'push' ? 'rgba(139,92,246,0.15)' : 'var(--color-surface)',
+                                color: manualMode === 'push' ? '#a78bfa' : 'var(--color-text-muted)',
+                                fontWeight: manualMode === 'push' ? 'bold' : 'normal',
+                                cursor: 'pointer', fontSize: '0.95rem', transition: 'all 0.15s',
+                            }}
+                        >
+                            🔔 Push
+                        </button>
+                    </div>
+
+                    <div style={{ background: "var(--color-surface)", padding: "2rem", borderRadius: "var(--radius-md)", border: `1px solid ${manualMode === 'push' ? 'rgba(139,92,246,0.3)' : 'var(--color-border)'}` }}>
+                        <h3 style={{ margin: "0 0 0.5rem", fontSize: "1.15rem" }}>
+                            {manualMode === 'sms' ? '✉️ Wyślij SMS ręcznie' : '🔔 Wyślij Push ręcznie'}
+                        </h3>
+                        <p style={{ margin: "0 0 1.5rem", fontSize: "0.88rem", color: "var(--color-text-muted)" }}>
+                            {manualMode === 'sms'
+                                ? 'Wyszukaj pacjenta po nazwisku, system automatycznie uzupełni numer telefonu.'
+                                : 'Wyszukaj pacjenta po nazwisku. Push zostanie wysłany jeśli pacjent ma konto i włączone powiadomienia.'}
+                        </p>
 
                         {/* Patient search */}
                         <div style={{ marginBottom: "1.25rem", position: "relative" }}>
@@ -1056,73 +1141,195 @@ export default function SmsRemindersTab() {
                             />
                         </div>
 
-                        {/* Phone (auto-filled or manual) */}
-                        <div style={{ marginBottom: "1rem" }}>
-                            <label style={{ display: "block", marginBottom: "0.35rem", fontSize: "0.85rem", fontWeight: "600" }}>📞 Numer telefonu</label>
-                            <input
-                                type="text"
-                                value={manualPhone}
-                                onChange={(e) => setManualPhone(e.target.value)}
-                                placeholder="48123456789"
-                                style={{
-                                    width: "100%",
-                                    padding: "0.7rem 1rem",
-                                    borderRadius: "6px",
-                                    border: `2px solid ${manualPhone ? 'var(--color-primary)' : 'var(--color-border)'}`,
-                                    background: manualPhone ? "rgba(var(--color-primary-rgb), 0.05)" : "var(--color-background)",
-                                    color: "var(--color-text-main)",
-                                    fontSize: "0.95rem",
-                                    fontFamily: "inherit"
-                                }}
-                            />
-                            <div style={{ marginTop: "0.25rem", fontSize: "0.75rem", color: "var(--color-text-muted)" }}>Format: 48XXXXXXXXX (bez + i spacji)</div>
-                        </div>
-
-                        {/* Message */}
-                        <div style={{ marginBottom: "1.25rem" }}>
-                            <label style={{ display: "block", marginBottom: "0.35rem", fontSize: "0.85rem", fontWeight: "600" }}>💬 Treść SMS</label>
-                            <textarea
-                                value={manualMessage}
-                                onChange={(e) => setManualMessage(e.target.value)}
-                                placeholder="Wpisz treść wiadomości SMS..."
-                                rows={4}
-                                style={{
-                                    width: "100%",
-                                    padding: "0.7rem 1rem",
-                                    borderRadius: "6px",
-                                    border: "2px solid var(--color-border)",
-                                    background: "var(--color-background)",
-                                    color: "var(--color-text-main)",
-                                    fontSize: "0.95rem",
-                                    fontFamily: "inherit",
-                                    resize: "vertical",
-                                    lineHeight: "1.5"
-                                }}
-                            />
-                            <div style={{ marginTop: "0.3rem", fontSize: "0.8rem", color: manualMessage.length > 160 ? 'var(--color-error)' : 'var(--color-text-muted)' }}>
-                                {manualMessage.length} / 160 znaków {manualMessage.length > 160 && `(${Math.ceil(manualMessage.length / 160)} SMS)`}
+                        {/* Push result message */}
+                        {pushResult && (
+                            <div style={{
+                                padding: '0.75rem 1rem',
+                                borderRadius: '6px',
+                                marginBottom: '1rem',
+                                background: pushResult.success ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)',
+                                border: `1px solid ${pushResult.success ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}`,
+                                color: pushResult.success ? '#22c55e' : '#ef4444',
+                                fontSize: '0.88rem',
+                                whiteSpace: 'pre-line',
+                            }}>
+                                {pushResult.message}
                             </div>
-                        </div>
+                        )}
 
-                        {/* Send button */}
-                        <button
-                            onClick={handleSendManualSms}
-                            disabled={sendingManual || !manualPhone || !manualMessage}
-                            style={{
-                                width: "100%",
-                                padding: "0.85rem",
-                                background: (!manualPhone || !manualMessage) ? "#666" : "var(--color-primary)",
-                                border: "none",
-                                borderRadius: "8px",
-                                color: "#1a1a1a",
-                                fontWeight: "700",
-                                fontSize: "1rem",
-                                cursor: (!manualPhone || !manualMessage) ? "not-allowed" : "pointer",
-                                transition: "all 0.2s"
-                            }}
-                        >
-                            {sendingManual ? '⏳ Wysyłanie...' : '📱 Wyślij SMS'}
-                        </button>
+                        {/* SMS-specific fields */}
+                        {manualMode === 'sms' && (
+                            <>
+                                {/* Phone (auto-filled or manual) */}
+                                <div style={{ marginBottom: "1rem" }}>
+                                    <label style={{ display: "block", marginBottom: "0.35rem", fontSize: "0.85rem", fontWeight: "600" }}>📞 Numer telefonu</label>
+                                    <input
+                                        type="text"
+                                        value={manualPhone}
+                                        onChange={(e) => setManualPhone(e.target.value)}
+                                        placeholder="48123456789"
+                                        style={{
+                                            width: "100%",
+                                            padding: "0.7rem 1rem",
+                                            borderRadius: "6px",
+                                            border: `2px solid ${manualPhone ? 'var(--color-primary)' : 'var(--color-border)'}`,
+                                            background: manualPhone ? "rgba(var(--color-primary-rgb), 0.05)" : "var(--color-background)",
+                                            color: "var(--color-text-main)",
+                                            fontSize: "0.95rem",
+                                            fontFamily: "inherit"
+                                        }}
+                                    />
+                                    <div style={{ marginTop: "0.25rem", fontSize: "0.75rem", color: "var(--color-text-muted)" }}>Format: 48XXXXXXXXX (bez + i spacji)</div>
+                                </div>
+
+                                {/* Message */}
+                                <div style={{ marginBottom: "1.25rem" }}>
+                                    <label style={{ display: "block", marginBottom: "0.35rem", fontSize: "0.85rem", fontWeight: "600" }}>💬 Treść SMS</label>
+                                    <textarea
+                                        value={manualMessage}
+                                        onChange={(e) => setManualMessage(e.target.value)}
+                                        placeholder="Wpisz treść wiadomości SMS..."
+                                        rows={4}
+                                        style={{
+                                            width: "100%",
+                                            padding: "0.7rem 1rem",
+                                            borderRadius: "6px",
+                                            border: "2px solid var(--color-border)",
+                                            background: "var(--color-background)",
+                                            color: "var(--color-text-main)",
+                                            fontSize: "0.95rem",
+                                            fontFamily: "inherit",
+                                            resize: "vertical",
+                                            lineHeight: "1.5"
+                                        }}
+                                    />
+                                    <div style={{ marginTop: "0.3rem", fontSize: "0.8rem", color: manualMessage.length > 160 ? 'var(--color-error)' : 'var(--color-text-muted)' }}>
+                                        {manualMessage.length} / 160 znaków {manualMessage.length > 160 && `(${Math.ceil(manualMessage.length / 160)} SMS)`}
+                                    </div>
+                                </div>
+
+                                {/* Send SMS button */}
+                                <button
+                                    onClick={handleSendManualSms}
+                                    disabled={sendingManual || !manualPhone || !manualMessage}
+                                    style={{
+                                        width: "100%",
+                                        padding: "0.85rem",
+                                        background: (!manualPhone || !manualMessage) ? "#666" : "var(--color-primary)",
+                                        border: "none",
+                                        borderRadius: "8px",
+                                        color: "#1a1a1a",
+                                        fontWeight: "700",
+                                        fontSize: "1rem",
+                                        cursor: (!manualPhone || !manualMessage) ? "not-allowed" : "pointer",
+                                        transition: "all 0.2s"
+                                    }}
+                                >
+                                    {sendingManual ? '⏳ Wysyłanie...' : '📱 Wyślij SMS'}
+                                </button>
+                            </>
+                        )}
+
+                        {/* Push-specific fields */}
+                        {manualMode === 'push' && (
+                            <>
+                                {/* Push Title */}
+                                <div style={{ marginBottom: "1rem" }}>
+                                    <label style={{ display: "block", marginBottom: "0.35rem", fontSize: "0.85rem", fontWeight: "600" }}>📌 Tytuł powiadomienia</label>
+                                    <input
+                                        type="text"
+                                        value={pushTitle}
+                                        onChange={(e) => setPushTitle(e.target.value)}
+                                        placeholder="np. Przypomnienie o wizycie"
+                                        style={{
+                                            width: "100%",
+                                            padding: "0.7rem 1rem",
+                                            borderRadius: "6px",
+                                            border: `2px solid ${pushTitle ? 'rgba(139,92,246,0.5)' : 'var(--color-border)'}`,
+                                            background: pushTitle ? "rgba(139,92,246,0.05)" : "var(--color-background)",
+                                            color: "var(--color-text-main)",
+                                            fontSize: "0.95rem",
+                                            fontFamily: "inherit"
+                                        }}
+                                    />
+                                </div>
+
+                                {/* Push Body */}
+                                <div style={{ marginBottom: "1rem" }}>
+                                    <label style={{ display: "block", marginBottom: "0.35rem", fontSize: "0.85rem", fontWeight: "600" }}>💬 Treść powiadomienia</label>
+                                    <textarea
+                                        value={pushBody}
+                                        onChange={(e) => setPushBody(e.target.value)}
+                                        placeholder="Wpisz treść powiadomienia push..."
+                                        rows={3}
+                                        style={{
+                                            width: "100%",
+                                            padding: "0.7rem 1rem",
+                                            borderRadius: "6px",
+                                            border: "2px solid var(--color-border)",
+                                            background: "var(--color-background)",
+                                            color: "var(--color-text-main)",
+                                            fontSize: "0.95rem",
+                                            fontFamily: "inherit",
+                                            resize: "vertical",
+                                            lineHeight: "1.5"
+                                        }}
+                                    />
+                                </div>
+
+                                {/* Push URL (optional) */}
+                                <div style={{ marginBottom: "1.25rem" }}>
+                                    <label style={{ display: "block", marginBottom: "0.35rem", fontSize: "0.85rem", fontWeight: "600" }}>🔗 Link (opcjonalnie)</label>
+                                    <input
+                                        type="text"
+                                        value={pushUrl}
+                                        onChange={(e) => setPushUrl(e.target.value)}
+                                        placeholder="/strefa-pacjenta/dashboard"
+                                        style={{
+                                            width: "100%",
+                                            padding: "0.7rem 1rem",
+                                            borderRadius: "6px",
+                                            border: "2px solid var(--color-border)",
+                                            background: "var(--color-background)",
+                                            color: "var(--color-text-main)",
+                                            fontSize: "0.95rem",
+                                            fontFamily: "inherit"
+                                        }}
+                                    />
+                                    <div style={{ marginTop: "0.25rem", fontSize: "0.75rem", color: "var(--color-text-muted)" }}>Strona, na którą przejdzie pacjent po kliknięciu (np. /strefa-pacjenta/dashboard)</div>
+                                </div>
+
+                                {/* Info badge */}
+                                <div style={{
+                                    padding: '0.6rem 0.8rem', marginBottom: '1rem',
+                                    background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.2)',
+                                    borderRadius: '6px', fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)',
+                                }}>
+                                    ℹ️ Push zostanie wysłany tylko jeśli pacjent ma konto w Strefie Pacjenta i włączone powiadomienia push na urządzeniu.
+                                    {manualPhone && <><br/>📞 Wyszukiwanie po numerze: <strong style={{color: '#a78bfa'}}>{manualPhone}</strong></>}
+                                </div>
+
+                                {/* Send Push button */}
+                                <button
+                                    onClick={handleSendManualPush}
+                                    disabled={sendingManual || !pushTitle || !pushBody || (!manualPhone && !manualPatientName)}
+                                    style={{
+                                        width: "100%",
+                                        padding: "0.85rem",
+                                        background: (!pushTitle || !pushBody) ? "#666" : "linear-gradient(135deg, #8b5cf6, #a78bfa)",
+                                        border: "none",
+                                        borderRadius: "8px",
+                                        color: "white",
+                                        fontWeight: "700",
+                                        fontSize: "1rem",
+                                        cursor: (!pushTitle || !pushBody) ? "not-allowed" : "pointer",
+                                        transition: "all 0.2s"
+                                    }}
+                                >
+                                    {sendingManual ? '⏳ Wysyłanie...' : '🔔 Wyślij Push'}
+                                </button>
+                            </>
+                        )}
                     </div>
                 </div>
             )}
