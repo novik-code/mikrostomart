@@ -68,6 +68,12 @@ export async function generateMetadata(): Promise<Metadata> {
             "geo.position": b.geoPosition,
             "ICBM": b.icbm,
         },
+        appleWebApp: {
+            capable: true,
+            title: 'Mikrostomart',
+            statusBarStyle: 'black-translucent',
+        },
+        applicationName: 'Mikrostomart',
     };
 }
 

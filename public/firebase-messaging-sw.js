@@ -1,4 +1,4 @@
-// Firebase Messaging Service Worker — v2
+// Firebase Messaging Service Worker
 // Handles background push notifications via FCM.
 // This file MUST be at the root (/firebase-messaging-sw.js) for Firebase to find it.
 
@@ -16,44 +16,56 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
-// Handle background messages
-// With notification+data messages, FCM auto-shows the notification.
-// This handler is called AFTER display — we just log for debugging.
-// Click handling is done via the 'notificationclick' event below.
+// Handle background messages (when the app is not in foreground)
 messaging.onBackgroundMessage(function (payload) {
-    console.log('[FCM SW v2] Background message received:', JSON.stringify(payload));
-    // FCM already displayed the notification via the 'notification' key.
-    // No need to call showNotification — that would create a duplicate.
+    console.log('[FCM SW] Background message:', payload);
+
+    // Read from both notification and data keys
+    const title = (payload.notification && payload.notification.title) || (payload.data && payload.data.title) || 'Mikrostomart';
+    const body = (payload.notification && payload.notification.body) || (payload.data && payload.data.body) || '';
+    var dataObj = payload.data || {};
+
+    var notificationOptions = {
+        body: body,
+        icon: dataObj.icon || '/icon-192x192.png',
+        badge: '/icon-192x192.png',
+        tag: dataObj.tag || 'mikrostomart-notification',
+        data: {
+            url: dataObj.url || '/',
+            title: title,
+            body: body,
+        },
+        vibrate: [200, 100, 200],
+    };
+
+    // Only show if FCM didn't auto-show (data-only messages)
+    if (!payload.notification) {
+        return self.registration.showNotification(title, notificationOptions);
+    }
 });
 
-// Handle notification clicks — navigate to the URL from FCM data
+// Handle notification clicks — navigate to the URL specified in the notification data
 self.addEventListener('notificationclick', function (event) {
-    console.log('[FCM SW v2] Notification clicked:', event.notification);
     event.notification.close();
 
-    // FCM puts the link in fcmOptions.link or we fall back to data.url
-    const data = event.notification.data || {};
-    const fcmData = data.FCM_MSG?.data || {};
-    const url = fcmData.url || data.url || event.notification.data?.link || '/strefa-pacjenta/dashboard';
-    
-    // Encode push content in URL params for the popup
-    const pushTitle = fcmData.title || event.notification.title || '';
-    const pushBody = fcmData.body || event.notification.body || '';
-    const separator = url.includes('?') ? '&' : '?';
-    const targetUrl = `${url}${separator}pushTitle=${encodeURIComponent(pushTitle)}&pushBody=${encodeURIComponent(pushBody)}&pushTime=${Date.now()}`;
+    var notifData = event.notification.data || {};
+    var url = notifData.url || '/';
 
-    console.log('[FCM SW v2] Navigating to:', targetUrl);
+    // Build URL with push content for popup
+    var pushTitle = notifData.title || event.notification.title || '';
+    var pushBody = notifData.body || event.notification.body || '';
+    var sep = url.indexOf('?') >= 0 ? '&' : '?';
+    var targetUrl = url + sep + 'pushTitle=' + encodeURIComponent(pushTitle) + '&pushBody=' + encodeURIComponent(pushBody) + '&pushTime=' + Date.now();
 
     event.waitUntil(
         self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (clientList) {
-            // Try to focus an existing window
-            for (const client of clientList) {
-                if (client.url.includes(self.location.origin) && 'focus' in client) {
+            for (var i = 0; i < clientList.length; i++) {
+                var client = clientList[i];
+                if (client.url.indexOf(self.location.origin) >= 0 && 'focus' in client) {
                     client.navigate(targetUrl);
                     return client.focus();
                 }
             }
-            // Open new window
             return self.clients.openWindow(targetUrl);
         })
     );
