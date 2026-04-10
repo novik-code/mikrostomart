@@ -68,20 +68,24 @@ export async function requestFCMToken(): Promise<string | null> {
             throw new Error('VAPID key missing — set NEXT_PUBLIC_VAPID_PUBLIC_KEY in Vercel');
         }
 
-        // Step D0: Clean up old service workers (from previous VAPID push system)
-        console.log('[FCM] Step D0: Cleaning up old service workers...');
+        // Step D0: Nuclear cleanup — unregister ALL existing service workers
+        // After multiple PWA install/uninstall cycles, stale SWs can block registration
+        console.log('[FCM] Step D0: Cleaning up ALL service workers...');
         const existingRegs = await navigator.serviceWorker.getRegistrations();
         for (const reg of existingRegs) {
-            // Unregister any SW that is NOT our Firebase messaging SW
-            if (reg.active?.scriptURL && !reg.active.scriptURL.includes('firebase-messaging-sw.js')) {
-                console.log('[FCM] Unregistering old SW:', reg.active.scriptURL);
-                await reg.unregister();
-            }
+            console.log('[FCM] Unregistering SW:', reg.active?.scriptURL || reg.scope);
+            await reg.unregister();
         }
+        console.log(`[FCM] Cleaned ${existingRegs.length} service workers`);
 
-        // Step D: Register service worker
+        // Small delay to let browser clean up
+        await new Promise(r => setTimeout(r, 500));
+
+        // Step D: Register fresh service worker
         console.log('[FCM] Step D: Registering service worker...');
-        const swRegistration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+        const swRegistration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
+            updateViaCache: 'none', // Always fetch fresh SW from server
+        });
         console.log('[FCM] SW registered:', swRegistration.scope);
 
         // Wait for SW to be ready
