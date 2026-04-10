@@ -75,20 +75,17 @@ async function sendToTokens(
         try {
             const response = await messaging.sendEachForMulticast({
                 tokens: batch,
-                notification: {
+                // Data-only message — no 'notification' key!
+                // This prevents FCM from auto-displaying a notification,
+                // letting our service worker (background) and onMessage handler
+                // (foreground) be the SOLE handlers. Avoids duplicate notifications.
+                data: {
                     title: payload.title,
                     body: payload.body,
-                },
-                data: {
                     url: payload.url || '/',
                     tag: payload.tag || 'notification',
                     icon: payload.icon || '/icon-192x192.png',
                     requireInteraction: String(payload.requireInteraction || false),
-                },
-                webpush: {
-                    fcmOptions: {
-                        link: payload.url || '/',
-                    },
                 },
             });
 

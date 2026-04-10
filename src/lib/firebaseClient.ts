@@ -117,13 +117,17 @@ export function listenForForegroundMessages(callback?: (payload: any) => void): 
     return onMessage(msg, (payload) => {
         console.log('[FCM] Foreground message:', payload);
 
-        // Show a browser notification for foreground messages
-        if (payload.notification && Notification.permission === 'granted') {
-            const { title, body } = payload.notification;
-            new Notification(title || 'Mikrostomart', {
+        // Data-only messages: title/body are in payload.data (not payload.notification)
+        const data = payload.data || {};
+        const title = data.title || payload.notification?.title;
+        const body = data.body || payload.notification?.body;
+
+        if (title && Notification.permission === 'granted') {
+            new Notification(title, {
                 body: body || '',
                 icon: '/icon-192x192.png',
-                data: payload.data,
+                tag: data.tag || 'mikrostomart-fg',
+                data: data,
             });
         }
 

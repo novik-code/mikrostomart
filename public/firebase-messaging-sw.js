@@ -6,7 +6,6 @@ importScripts('https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js
 importScripts('https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js');
 
 // Firebase config — these values are public (safe to hardcode in SW).
-// They will be updated during deployment with actual values.
 firebase.initializeApp({
     apiKey: 'AIzaSyDZUDCx7UBjY48xduhOX3BhS3pdlFoW1i4',
     authDomain: 'mikrostomart-13bf8.firebaseapp.com',
@@ -18,20 +17,23 @@ firebase.initializeApp({
 const messaging = firebase.messaging();
 
 // Handle background messages (when the app is not in foreground)
+// We use data-only messages (no 'notification' key) so the SDK does NOT
+// auto-show a notification. This handler is the SOLE display mechanism.
 messaging.onBackgroundMessage(function (payload) {
     console.log('[FCM SW] Background message:', payload);
 
-    const notificationTitle = payload.notification?.title || payload.data?.title || 'Mikrostomart';
+    const data = payload.data || {};
+    const notificationTitle = data.title || 'Mikrostomart';
     const notificationOptions = {
-        body: payload.notification?.body || payload.data?.body || '',
-        icon: payload.data?.icon || '/icon-192x192.png',
+        body: data.body || '',
+        icon: data.icon || '/icon-192x192.png',
         badge: '/icon-192x192.png',
-        tag: payload.data?.tag || 'mikrostomart-notification',
+        tag: data.tag || 'mikrostomart-notification',
         data: {
-            url: payload.data?.url || '/',
+            url: data.url || '/',
         },
         vibrate: [200, 100, 200],
-        requireInteraction: payload.data?.requireInteraction === 'true',
+        requireInteraction: data.requireInteraction === 'true',
     };
 
     return self.registration.showNotification(notificationTitle, notificationOptions);
