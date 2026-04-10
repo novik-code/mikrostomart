@@ -9,7 +9,6 @@ import { usePatientAuth } from '@/hooks/usePatientAuth';
 import type { PatientData } from '@/hooks/usePatientAuth';
 import type { AppointmentStatusResponse } from '@/types/appointmentActions';
 import { demoSanitize } from '@/lib/brandConfig';
-import PushNotificationPrompt from '@/components/PushNotificationPrompt';
 
 interface PatientDocument {
     id: string;
@@ -386,15 +385,6 @@ export default function PatientDashboard() {
                     margin: '0 auto',
                     padding: '2rem',
                 }}>
-                    {/* Push Notification Prompt — show to all patients on first login */}
-                    {patient?.supabaseId && (
-                        <PushNotificationPrompt
-                            userType="patient"
-                            userId={patient.supabaseId}
-                            locale="pl"
-                        />
-                    )}
-
                     {/* Stats Cards */}
                     <div style={{
                         display: 'grid',

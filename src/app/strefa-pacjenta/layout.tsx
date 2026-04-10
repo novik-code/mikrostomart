@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import styles from './patient.module.css';
 import { demoSanitize, brand } from '@/lib/brandConfig';
+import PushNotificationPrompt from '@/components/PushNotificationPrompt';
 
 // Pages that don't need the authenticated layout shell
 const PUBLIC_PATHS = [
@@ -38,6 +39,7 @@ export default function PatientZoneLayout({ children }: { children: React.ReactN
 
 function AuthenticatedLayout({ children, pathname }: { children: React.ReactNode; pathname: string }) {
     const [patientName, setPatientName] = useState<string | null>(null);
+    const [supabaseId, setSupabaseId] = useState<string | null>(null);
     const [accountStatus, setAccountStatus] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const router = useRouter();
@@ -68,6 +70,7 @@ function AuthenticatedLayout({ children, pathname }: { children: React.ReactNode
             .then(res => { if (!res.ok) throw new Error('Unauthorized'); return res.json(); })
             .then(data => {
                 setPatientName(data.firstName || '');
+                setSupabaseId(data.supabaseId || null);
                 setAccountStatus(data.account_status || null);
             })
             .catch(() => router.push('/strefa-pacjenta/login'))
@@ -149,20 +152,31 @@ function AuthenticatedLayout({ children, pathname }: { children: React.ReactNode
                         {patientName ? `Witaj, ${patientName}! 👋` : 'Moje konto'}
                     </p>
                 </div>
-                <button
-                    onClick={handleLogout}
-                    style={{
-                        padding: '0.75rem 1.5rem',
-                        background: 'rgba(239, 68, 68, 0.1)',
-                        border: '1px solid rgba(239, 68, 68, 0.3)',
-                        borderRadius: '0.5rem',
-                        color: '#ef4444',
-                        fontWeight: 'bold',
-                        cursor: 'pointer',
-                    }}
-                >
-                    Wyloguj
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    {/* Push notification compact toggle */}
+                    {supabaseId && (
+                        <PushNotificationPrompt
+                            userType="patient"
+                            userId={supabaseId}
+                            locale="pl"
+                            compact
+                        />
+                    )}
+                    <button
+                        onClick={handleLogout}
+                        style={{
+                            padding: '0.75rem 1.5rem',
+                            background: 'rgba(239, 68, 68, 0.1)',
+                            border: '1px solid rgba(239, 68, 68, 0.3)',
+                            borderRadius: '0.5rem',
+                            color: '#ef4444',
+                            fontWeight: 'bold',
+                            cursor: 'pointer',
+                        }}
+                    >
+                        Wyloguj
+                    </button>
+                </div>
             </div>
 
             {/* Pending Approval Banner */}
