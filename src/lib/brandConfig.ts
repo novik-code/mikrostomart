@@ -124,7 +124,7 @@ const PROD_BRAND: BrandConfig = {
     metadataBase: 'https://mikrostomart.pl',
 
     // SEO
-    titleDefault: 'Dentysta Opole - Mikrostomart | Implanty i Stomatologia Mikroskopowa',
+    titleDefault: 'Mikrostomart — Dentysta Opole',
     titleTemplate: '%s | Mikrostomart - Dentysta Opole',
     description: 'Szukasz dentysty w Opolu? Mikrostomart to nowoczesny gabinet stomatologiczny. Specjalizujemy się w implantach, leczeniu kanałowym i estetyce. Umów wizytę w Opolu (Chmielowice).',
     keywords: 'dentysta opole, stomatolog opole, implanty opole, leczenie kanałowe opole, mikrostomart, stomatologia mikroskopowa',
