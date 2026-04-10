@@ -20,6 +20,7 @@ export default function SmsRemindersTab() {
     const [manualPhone, setManualPhone] = useState('');
     const [manualMessage, setManualMessage] = useState('');
     const [manualPatientName, setManualPatientName] = useState('');
+    const [manualProdentisId, setManualProdentisId] = useState('');
     const [patientSearchQuery, setPatientSearchQuery] = useState('');
     const [patientSearchResults, setPatientSearchResults] = useState<any[]>([]);
     const [searchingPatients, setSearchingPatients] = useState(false);
@@ -258,6 +259,7 @@ export default function SmsRemindersTab() {
     const handleSelectPatient = (patient: any) => {
         setManualPatientName(`${patient.firstName} ${patient.lastName}`);
         setManualPhone(patient.phone || '');
+        setManualProdentisId(patient.id || '');
         setPatientSearchQuery('');
         setPatientSearchResults([]);
     };
@@ -320,6 +322,7 @@ export default function SmsRemindersTab() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     phone: manualPhone || undefined,
+                    prodentis_id: manualProdentisId || undefined,
                     patient_name: manualPatientName,
                     title: pushTitle,
                     body: pushBody,

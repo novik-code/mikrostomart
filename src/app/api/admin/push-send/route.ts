@@ -56,20 +56,48 @@ export async function POST(req: Request) {
         let patientUserType: 'patient' | 'employee' | 'admin' = 'patient';
 
         // Strategy 1: Look up by phone in patients table
+        // Phone can be stored as '792060718', '48792060718', or '+48792060718'
+        // Prodentis search gives '48XXXXXXXXX'. We try ALL variants.
         if (phone) {
-            const normalizedPhone = phone.replace(/\s+/g, '').replace(/^\+/, '');
-            const phonePlus = `+${normalizedPhone}`;
+            // Strip everything to digits only
+            const digits = phone.replace(/[^\d]/g, '');
+            // Build all possible formats
+            const variants: string[] = [];
+            
+            if (digits.startsWith('48') && digits.length >= 11) {
+                // Input looks like 48XXXXXXXXX
+                const local = digits.slice(2); // XXXXXXXXX
+                variants.push(digits);          // 48XXXXXXXXX
+                variants.push(`+${digits}`);    // +48XXXXXXXXX
+                variants.push(local);           // XXXXXXXXX
+            } else if (digits.length === 9) {
+                // Input looks like XXXXXXXXX (local Polish number)
+                variants.push(digits);           // XXXXXXXXX
+                variants.push(`48${digits}`);    // 48XXXXXXXXX
+                variants.push(`+48${digits}`);   // +48XXXXXXXXX
+            } else {
+                // Unknown format — try as-is and with/without +
+                variants.push(digits);
+                variants.push(`+${digits}`);
+                variants.push(phone.replace(/\s+/g, ''));
+            }
 
-            console.log(`  🔍 Looking up patient by phone: ${normalizedPhone} / ${phonePlus}`);
+            const uniqueVariants = [...new Set(variants)];
+            console.log(`  🔍 Looking up patient by phone variants:`, uniqueVariants);
 
-            // Search in patients table (portal accounts)
+            // Search with OR across all variants
+            const orFilter = uniqueVariants.map(v => `phone.eq.${v}`).join(',');
             const { data: patients, error: phoneErr } = await supabase
                 .from('patients')
                 .select('id, prodentis_id, phone')
-                .or(`phone.eq.${normalizedPhone},phone.eq.${phonePlus}`)
+                .or(orFilter)
                 .limit(1);
 
-            console.log(`  🔍 Phone lookup result:`, { found: patients?.length || 0, error: phoneErr?.message });
+            console.log(`  🔍 Phone lookup result:`, { 
+                found: patients?.length || 0, 
+                error: phoneErr?.message,
+                matchedPhone: patients?.[0]?.phone 
+            });
 
             if (patients && patients.length > 0) {
                 patientUserId = patients[0].id;
