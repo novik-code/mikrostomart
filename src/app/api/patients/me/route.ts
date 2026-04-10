@@ -43,6 +43,7 @@ export async function GET(request: NextRequest) {
 
                 patientData = patientById ? {
                     id: patientById.prodentis_id || patientById.id,
+                    supabaseId: payload.userId,
                     firstName: patientById.first_name || patientById.name?.split(' ')[0] || 'Demo',
                     lastName: patientById.last_name || patientById.name?.split(' ').slice(1).join(' ') || 'Pacjent',
                     phone: patientById.phone,
@@ -51,10 +52,11 @@ export async function GET(request: NextRequest) {
                     appointments: [],
                     account_status: patientById.account_status || 'active',
                     locale: patientById.locale || 'pl',
-                } : { id: payload.prodentisId, firstName: 'Demo', lastName: 'Pacjent', appointments: [] };
+                } : { id: payload.prodentisId, supabaseId: payload.userId, firstName: 'Demo', lastName: 'Pacjent', appointments: [] };
             } else {
                 patientData = {
                     id: patient.prodentis_id || patient.id,
+                    supabaseId: payload.userId,
                     firstName: patient.first_name || patient.name?.split(' ')[0] || 'Demo',
                     lastName: patient.last_name || patient.name?.split(' ').slice(1).join(' ') || 'Pacjent',
                     phone: patient.phone,
@@ -100,6 +102,7 @@ export async function GET(request: NextRequest) {
         // Merge Supabase data (email, phone, account_status) with Prodentis data
         const mergedData = {
             ...patientData,
+            supabaseId: payload.userId,
             email: supabasePatient?.email || patientData.email || null,
             phone: supabasePatient?.phone || patientData.phone || null,
             account_status: supabasePatient?.account_status || null,
