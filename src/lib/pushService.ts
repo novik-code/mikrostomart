@@ -122,16 +122,50 @@ async function sendToTokens(
     return { sent, failed };
 }
 
+// ─── Resolve target users per group (regardless of FCM tokens) ──
+
+async function resolveGroupUsers(group: PushGroup): Promise<{ user_id: string; user_type: string }[]> {
+    if (group === 'patients') {
+        // Patients don't have an employees row — resolve from user_roles
+        const { data } = await supabase
+            .from('user_roles').select('user_id')
+            .eq('role', 'patient');
+        return (data || []).map(r => ({ user_id: r.user_id, user_type: 'patient' }));
+    }
+    if (group === 'admin') {
+        const { data } = await supabase
+            .from('user_roles').select('user_id')
+            .eq('role', 'admin');
+        return (data || []).map(r => ({ user_id: r.user_id, user_type: 'admin' }));
+    }
+    // Employee sub-groups
+    const groupMap: Record<string, string> = {
+        doctors: 'doctor', hygienists: 'hygienist',
+        reception: 'reception', assistant: 'assistant',
+    };
+    const dbGroup = groupMap[group];
+    if (!dbGroup) return [];
+    const { data: employees } = await supabase
+        .from('employees').select('user_id')
+        .eq('is_active', true)
+        .contains('push_groups', [dbGroup]);
+    return (employees || []).filter(e => e.user_id).map(e => ({ user_id: e.user_id, user_type: 'employee' }));
+}
+
 // ─── Public API ──────────────────────────────────────────────
 
 /**
  * Send push notification to a specific user (all their devices).
+ * Always logs to history, even if user has no FCM tokens.
  */
 export async function pushToUser(
     userId: string,
     userType: 'patient' | 'employee' | 'admin',
     payload: PushPayload
 ): Promise<{ sent: number; failed: number }> {
+    // Always log to history regardless of delivery
+    await logPush(userId, userType, payload);
+
     const { data: tokenRows } = await supabase
         .from('fcm_tokens')
         .select('fcm_token')
@@ -141,13 +175,7 @@ export async function pushToUser(
     const tokens = (tokenRows || []).map(r => r.fcm_token);
     if (tokens.length === 0) return { sent: 0, failed: 0 };
 
-    const result = await sendToTokens(tokens, payload);
-
-    if (result.sent > 0) {
-        await logPush(userId, userType, payload);
-    }
-
-    return result;
+    return sendToTokens(tokens, payload);
 }
 
 /**
@@ -174,6 +202,11 @@ export async function pushToUsers(
 ): Promise<{ sent: number; failed: number }> {
     if (!userIds || userIds.length === 0) return { sent: 0, failed: 0 };
 
+    // Log for ALL target users regardless of FCM tokens
+    for (const uid of userIds) {
+        await logPush(uid, 'employee', payload);
+    }
+
     const { data: tokenRows } = await supabase
         .from('fcm_tokens')
         .select('fcm_token, user_id, user_type')
@@ -181,21 +214,11 @@ export async function pushToUsers(
 
     const tokens = (tokenRows || []).map(r => r.fcm_token);
     if (tokens.length === 0) {
-        console.warn('[Push] pushToUsers: no FCM tokens for', userIds.length, 'users');
+        console.log(`[Push] pushToUsers: ${userIds.length} users (logged), no FCM tokens`);
         return { sent: 0, failed: 0 };
     }
 
     const result = await sendToTokens(tokens, payload);
-
-    // Log once per user
-    const loggedUsers = new Set<string>();
-    for (const row of tokenRows || []) {
-        if (!loggedUsers.has(row.user_id)) {
-            loggedUsers.add(row.user_id);
-            await logPush(row.user_id, row.user_type, payload);
-        }
-    }
-
     console.log(`[Push] pushToUsers: ${userIds.length} users → sent=${result.sent} failed=${result.failed}`);
     return result;
 }
@@ -208,6 +231,17 @@ export async function pushToAllEmployees(
     payload: PushPayload,
     excludeUserId?: string
 ): Promise<{ sent: number; failed: number }> {
+    // Log for ALL active employees (regardless of FCM tokens)
+    const { data: allEmps } = await supabase
+        .from('employees').select('user_id')
+        .eq('is_active', true);
+    for (const emp of allEmps || []) {
+        if (emp.user_id && emp.user_id !== excludeUserId) {
+            await logPush(emp.user_id, 'employee', payload);
+        }
+    }
+
+    // Send push only to those with FCM tokens
     let query = supabase
         .from('fcm_tokens')
         .select('fcm_token, user_id, user_type')
@@ -219,18 +253,7 @@ export async function pushToAllEmployees(
 
     const { data: tokenRows } = await query;
     const tokens = (tokenRows || []).map(r => r.fcm_token);
-    const result = await sendToTokens(tokens, payload);
-
-    // Log once per user
-    const loggedUsers = new Set<string>();
-    for (const row of tokenRows || []) {
-        if (!loggedUsers.has(row.user_id)) {
-            loggedUsers.add(row.user_id);
-            await logPush(row.user_id, row.user_type, payload);
-        }
-    }
-
-    return result;
+    return sendToTokens(tokens, payload);
 }
 
 /**
@@ -244,43 +267,26 @@ export async function pushToGroups(
     let totalFailed = 0;
     const byGroup: Record<string, { sent: number; failed: number }> = {};
     const sentTokens = new Set<string>();
+    const loggedUsers = new Set<string>();
 
     for (const group of groups) {
-        let tokenRows: any[] = [];
-
-        if (group === 'patients') {
-            const { data } = await supabase
-                .from('fcm_tokens').select('fcm_token, user_id, user_type')
-                .eq('user_type', 'patient');
-            tokenRows = data || [];
-        } else if (group === 'admin') {
-            const { data } = await supabase
-                .from('fcm_tokens').select('fcm_token, user_id, user_type')
-                .eq('user_type', 'admin');
-            tokenRows = data || [];
-        } else {
-            // Employee sub-groups: map plural → singular DB value
-            const groupMap: Record<string, string> = {
-                doctors: 'doctor', hygienists: 'hygienist',
-                reception: 'reception', assistant: 'assistant',
-            };
-            const dbGroup = groupMap[group];
-            if (!dbGroup) continue;
-
-            // Get employees in this group, then find their FCM tokens
-            const { data: employees } = await supabase
-                .from('employees')
-                .select('user_id')
-                .eq('is_active', true)
-                .contains('push_groups', [dbGroup]);
-
-            const empUserIds = (employees || []).map(e => e.user_id).filter(Boolean);
-            if (empUserIds.length > 0) {
-                const { data } = await supabase
-                    .from('fcm_tokens').select('fcm_token, user_id, user_type')
-                    .in('user_id', empUserIds);
-                tokenRows = data || [];
+        // 1. Resolve ALL target users (for history logging)
+        const allUsers = await resolveGroupUsers(group);
+        for (const u of allUsers) {
+            if (!loggedUsers.has(u.user_id)) {
+                loggedUsers.add(u.user_id);
+                await logPush(u.user_id, u.user_type, payload);
             }
+        }
+
+        // 2. Find FCM tokens for delivery
+        const userIds = allUsers.map(u => u.user_id);
+        let tokenRows: any[] = [];
+        if (userIds.length > 0) {
+            const { data } = await supabase
+                .from('fcm_tokens').select('fcm_token, user_id, user_type')
+                .in('user_id', userIds);
+            tokenRows = data || [];
         }
 
         // Dedup across groups
@@ -295,15 +301,6 @@ export async function pushToGroups(
         byGroup[group] = result;
         totalSent += result.sent;
         totalFailed += result.failed;
-
-        // Log once per user
-        const loggedUsers = new Set<string>();
-        for (const row of uniqueTokens) {
-            if (!loggedUsers.has(row.user_id)) {
-                loggedUsers.add(row.user_id);
-                await logPush(row.user_id, row.user_type || 'employee', payload);
-            }
-        }
     }
 
     return { sent: totalSent, failed: totalFailed, byGroup };
@@ -343,70 +340,37 @@ export async function pushByConfig(
         .contains('muted_keys', [configKey]);
     const mutedUserIds = new Set((mutedPrefs || []).map(p => p.user_id));
 
-    // 3. Collect tokens across groups
-    const sentTokens = new Set<string>();
-    const allTokenRows: any[] = [];
-
-    const groupMap: Record<string, string> = {
-        doctors: 'doctor', doctor: 'doctor',
-        hygienists: 'hygienist', hygienist: 'hygienist',
-        reception: 'reception', assistant: 'assistant',
-    };
+    // 3. Resolve ALL target users and log for history
+    const loggedUsers = new Set<string>();
+    const allTargetUserIds: string[] = [];
 
     for (const group of groups) {
-        let tokenRows: any[] = [];
-
-        if (group === 'patients' || (group as string) === 'patient') {
-            const { data } = await supabase
-                .from('fcm_tokens').select('fcm_token, user_id, user_type')
-                .eq('user_type', 'patient');
-            tokenRows = data || [];
-        } else if (group === 'admin') {
-            const { data } = await supabase
-                .from('fcm_tokens').select('fcm_token, user_id, user_type')
-                .eq('user_type', 'admin');
-            tokenRows = data || [];
-        } else {
-            const dbGroup = groupMap[group];
-            if (!dbGroup) continue;
-
-            const { data: employees } = await supabase
-                .from('employees')
-                .select('user_id')
-                .eq('is_active', true)
-                .contains('push_groups', [dbGroup]);
-
-            const empUserIds = (employees || []).map(e => e.user_id).filter(Boolean);
-            if (empUserIds.length > 0) {
-                const { data } = await supabase
-                    .from('fcm_tokens').select('fcm_token, user_id, user_type')
-                    .in('user_id', empUserIds);
-                tokenRows = data || [];
+        const allUsers = await resolveGroupUsers(group);
+        for (const u of allUsers) {
+            if (excludeUserId && u.user_id === excludeUserId) continue;
+            if (mutedUserIds.has(u.user_id)) continue;
+            if (!loggedUsers.has(u.user_id)) {
+                loggedUsers.add(u.user_id);
+                allTargetUserIds.push(u.user_id);
+                await logPush(u.user_id, u.user_type, payload);
             }
         }
-
-        for (const row of tokenRows) {
-            if (sentTokens.has(row.fcm_token)) continue;
-            if (excludeUserId && row.user_id === excludeUserId) continue;
-            if (mutedUserIds.has(row.user_id)) continue;
-            sentTokens.add(row.fcm_token);
-            allTokenRows.push(row);
-        }
     }
 
-    const tokens = allTokenRows.map(r => r.fcm_token);
+    // 4. Find FCM tokens for delivery
+    if (allTargetUserIds.length === 0) {
+        console.log(`[Push] pushByConfig: key="${configKey}" no target users after filtering`);
+        return { sent: 0, failed: 0 };
+    }
+
+    const { data: tokenRows } = await supabase
+        .from('fcm_tokens').select('fcm_token, user_id, user_type')
+        .in('user_id', allTargetUserIds);
+
+    const tokens = (tokenRows || []).map(r => r.fcm_token);
     const result = await sendToTokens(tokens, payload);
 
-    // Log once per user
-    const loggedUsers = new Set<string>();
-    for (const row of allTokenRows) {
-        if (!loggedUsers.has(row.user_id)) {
-            loggedUsers.add(row.user_id);
-            await logPush(row.user_id, row.user_type || 'employee', payload);
-        }
-    }
-
-    console.log(`[Push] pushByConfig: key="${configKey}" groups=[${groups.join(',')}] → sent=${result.sent} failed=${result.failed}`);
+    console.log(`[Push] pushByConfig: key="${configKey}" groups=[${groups.join(',')}] logged=${loggedUsers.size} → sent=${result.sent} failed=${result.failed}`);
     return result;
 }
 
@@ -426,21 +390,29 @@ export const broadcastPush = async (
     url?: string
 ): Promise<{ sent: number; failed: number }> => {
     const { title, body } = getPushTranslation(notificationType, 'pl', params);
+    const payload = { title, body, url };
+
+    // Log for ALL users of this type (regardless of FCM tokens)
+    if (userType === 'employee') {
+        const { data: allEmps } = await supabase
+            .from('employees').select('user_id').eq('is_active', true);
+        for (const emp of allEmps || []) {
+            if (emp.user_id) await logPush(emp.user_id, 'employee', payload);
+        }
+    } else {
+        const { data: allUsers } = await supabase
+            .from('user_roles').select('user_id').eq('role', userType);
+        for (const u of allUsers || []) {
+            if (u.user_id) await logPush(u.user_id, userType, payload);
+        }
+    }
+
+    // Send push only to those with FCM tokens
     const { data: tokenRows } = await supabase
         .from('fcm_tokens')
         .select('fcm_token, user_id, user_type')
         .eq('user_type', userType);
 
     const tokens = (tokenRows || []).map(r => r.fcm_token);
-    const result = await sendToTokens(tokens, { title, body, url });
-
-    const loggedUsers = new Set<string>();
-    for (const row of tokenRows || []) {
-        if (!loggedUsers.has(row.user_id)) {
-            loggedUsers.add(row.user_id);
-            await logPush(row.user_id, row.user_type || userType, { title, body, url });
-        }
-    }
-
-    return result;
+    return sendToTokens(tokens, payload);
 };
