@@ -26,6 +26,9 @@ export async function GET(_req: NextRequest) {
         return NextResponse.json({ error: 'Brak uprawnień' }, { status: 403 });
     }
 
+    // Debug: check what user_id we're querying with
+    console.log(`[PushHistory] Querying for user_id="${user.id}" (email: ${user.email})`);
+
     const { data, error } = await supabase
         .from('push_notifications_log')
         .select('id, title, body, url, tag, sent_at')
@@ -38,6 +41,12 @@ export async function GET(_req: NextRequest) {
         console.error('[PushHistory] Query error:', error);
         return NextResponse.json({ error: 'Błąd pobierania historii' }, { status: 500 });
     }
+
+    // Debug: check total count in table regardless of user filter
+    const { count } = await supabase
+        .from('push_notifications_log')
+        .select('*', { count: 'exact', head: true });
+    console.log(`[PushHistory] Found ${data?.length || 0} rows for user, ${count} total rows in table`);
 
     return NextResponse.json({ notifications: data || [] });
 }
