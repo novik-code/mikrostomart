@@ -107,10 +107,12 @@ export default function PushNotificationPrompt({
     const subscribe = useCallback(async () => {
         setErrorMessage('');
         setLoading(true);
+        let currentStep = '';
 
         try {
             // Step 1: Request permission
-            console.log('[Push] Step 1: Requesting permission...');
+            currentStep = 'Requesting permission';
+            console.log('[Push] Step 1:', currentStep);
             const perm = await Notification.requestPermission();
             if (perm !== 'granted') {
                 setStatus('denied');
@@ -119,12 +121,19 @@ export default function PushNotificationPrompt({
             }
 
             // Step 2: Dynamically import Firebase (code-split)
-            console.log('[Push] Step 2: Loading Firebase...');
+            currentStep = 'Loading Firebase';
+            console.log('[Push] Step 2:', currentStep);
             const { requestFCMToken, listenForForegroundMessages } = await import('@/lib/firebaseClient');
 
-            // Step 3: Get FCM token
-            console.log('[Push] Step 3: Getting FCM token...');
-            const token = await requestFCMToken();
+            // Step 3: Get FCM token (with 20s timeout)
+            currentStep = 'Getting FCM token';
+            console.log('[Push] Step 3:', currentStep);
+            const token = await Promise.race([
+                requestFCMToken(),
+                new Promise<null>((_, reject) =>
+                    setTimeout(() => reject(new Error('Timeout: rejestracja trwa zbyt długo. Zamknij i otwórz ponownie aplikację.')), 20000)
+                ),
+            ]);
             if (!token) {
                 setErrorMessage('Nie udało się uzyskać tokenu powiadomień. Spróbuj ponownie.');
                 setStatus('error');
@@ -133,7 +142,8 @@ export default function PushNotificationPrompt({
             }
 
             // Step 4: Register token on server
-            console.log('[Push] Step 4: Registering token on server...');
+            currentStep = 'Registering on server';
+            console.log('[Push] Step 4:', currentStep);
             const res = await fetch('/api/push/subscribe', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -155,6 +165,7 @@ export default function PushNotificationPrompt({
             localStorage.setItem(tokenKey, token);
 
             // Step 6: Listen for foreground messages
+            currentStep = 'Setting up listener';
             listenForForegroundMessages();
 
             setStatus('subscribed');
@@ -172,8 +183,9 @@ export default function PushNotificationPrompt({
             }
 
         } catch (error: any) {
-            console.error('[Push] Subscribe error:', error);
-            setErrorMessage(error?.message || 'Wystąpił nieznany błąd');
+            console.error('[Push] Subscribe error at step:', currentStep, error);
+            const msg = error?.message || 'Wystąpił nieznany błąd';
+            setErrorMessage(`Błąd (${currentStep}): ${msg}`);
             setStatus('error');
         } finally {
             setLoading(false);

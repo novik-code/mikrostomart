@@ -68,29 +68,31 @@ export async function requestFCMToken(): Promise<string | null> {
             throw new Error('VAPID key missing — set NEXT_PUBLIC_VAPID_PUBLIC_KEY in Vercel');
         }
 
-        // Step D0: Nuclear cleanup — unregister ALL existing service workers
-        // After multiple PWA install/uninstall cycles, stale SWs can block registration
-        console.log('[FCM] Step D0: Cleaning up ALL service workers...');
-        const existingRegs = await navigator.serviceWorker.getRegistrations();
-        for (const reg of existingRegs) {
-            console.log('[FCM] Unregistering SW:', reg.active?.scriptURL || reg.scope);
-            await reg.unregister();
-        }
-        console.log(`[FCM] Cleaned ${existingRegs.length} service workers`);
-
-        // Small delay to let browser clean up
-        await new Promise(r => setTimeout(r, 500));
-
-        // Step D: Register fresh service worker
+        // Step D: Register service worker (force update to latest version)
         console.log('[FCM] Step D: Registering service worker...');
         const swRegistration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
-            updateViaCache: 'none', // Always fetch fresh SW from server
+            updateViaCache: 'none',
         });
         console.log('[FCM] SW registered:', swRegistration.scope);
 
-        // Wait for SW to be ready
-        await navigator.serviceWorker.ready;
-        console.log('[FCM] SW ready');
+        // If SW is installing/waiting, wait a moment for it to activate
+        if (!swRegistration.active) {
+            console.log('[FCM] Waiting for SW to activate...');
+            await new Promise<void>((resolve) => {
+                const sw = swRegistration.installing || swRegistration.waiting;
+                if (!sw) { resolve(); return; }
+                const onStateChange = () => {
+                    if (sw.state === 'activated' || sw.state === 'redundant') {
+                        sw.removeEventListener('statechange', onStateChange);
+                        resolve();
+                    }
+                };
+                sw.addEventListener('statechange', onStateChange);
+                // Safety timeout - don't wait forever
+                setTimeout(resolve, 5000);
+            });
+            console.log('[FCM] SW activation complete');
+        }
 
         // Step E: Get token
         console.log('[FCM] Step E: Requesting token...');
