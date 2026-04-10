@@ -87,6 +87,10 @@
         {
             "path": "/api/cron/video-process",
             "schedule": "*/5 6-22 * * *"
+        },
+        {
+            "path": "/api/cron/push-escalation",
+            "schedule": "0 9-18 * * *"
         }
     ]
 }

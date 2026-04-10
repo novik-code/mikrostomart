@@ -2,7 +2,8 @@ import { isDemoMode } from '@/lib/demoMode';
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { formatSMSMessage } from '@/lib/smsService';
-import { sendPushToUser } from '@/lib/pushService';
+import { deliverToPatient, updateDeliveryStatus } from '@/lib/patientDelivery';
+import { pushToUser } from '@/lib/pushService';
 import { logCronHeartbeat } from '@/lib/cronHeartbeat';
 import { randomUUID } from 'crypto';
 import { isSmsTypeEnabled } from '@/lib/smsSettings';
@@ -289,6 +290,43 @@ export async function GET(req: Request) {
                 draftsCreated++;
                 console.log(`   📋 Draft: ${patientName} | ${salutation} | already_reviewed=${alreadyReviewed}`);
 
+                // Push-first delivery for post-visit SMS
+                try {
+                    const deliveryResult = await deliverToPatient({
+                        patientId,
+                        prodentisPatientId: String(appointment.id),
+                        phone,
+                        pushPayload: {
+                            title: alreadyReviewed
+                                ? `Dziękujemy za wizytę!`
+                                : `Oceń swoją wizytę ⭐`,
+                            body: alreadyReviewed
+                                ? `Dziękujemy, ${patientFirstName}! Do zobaczenia!`
+                                : `${salutation}, prosimy o krótką ocenę wizyty.`,
+                            url: alreadyReviewed ? '/strefa-pacjenta/dashboard' : '/strefa-pacjenta/ocen-nas',
+                            tag: `post-visit-${appointment.id}`,
+                        },
+                        smsMessage: message,
+                        smsType: 'post_visit',
+                        skipSms: true, // auto-send cron handles SMS for remaining drafts
+                    });
+
+                    // Update draft with delivery channel info
+                    const { error: draftError2 } = await supabase.from('sms_reminders').update({
+                        delivery_channel: deliveryResult.channel === 'none' ? 'pending' : deliveryResult.channel,
+                        push_sent: deliveryResult.pushSent,
+                        push_error: deliveryResult.pushError || null,
+                        push_sent_at: deliveryResult.pushSent ? new Date().toISOString() : null,
+                        patient_has_account: deliveryResult.patientHasAccount,
+                        patient_has_push: deliveryResult.patientHasPush,
+                        status: deliveryResult.pushSent ? 'push_sent' : 'draft',
+                    }).eq('prodentis_id', String(appointment.id)).eq('sms_type', 'post_visit').eq('status', 'draft');
+
+                    console.log(`   📨 Delivery: channel=${deliveryResult.channel} push=${deliveryResult.pushSent}`);
+                } catch (deliveryErr: any) {
+                    console.error(`   ⚠️ Delivery error (non-critical):`, deliveryErr.message);
+                }
+
             } catch (err: any) {
                 // Route INSERT/DB errors to skippedDetails so they are visible in admin panel
                 skippedDetails.push({
@@ -305,10 +343,10 @@ export async function GET(req: Request) {
         if (draftsCreated > 0) {
             try {
                 const { data: adminUsers } = await supabase
-                    .from('push_subscriptions').select('user_id').eq('role', 'admin').limit(10);
+                    .from('fcm_tokens').select('user_id').eq('user_type', 'admin').limit(10);
                 const adminUserIds = [...new Set((adminUsers || []).map((u: any) => u.user_id))];
                 for (const userId of adminUserIds) {
-                    await sendPushToUser(userId, 'admin', {
+                    await pushToUser(userId, 'admin', {
                         title: `✉️ SMS po wizycie: ${draftsCreated} szkiców gotowych`,
                         body: `Sprawdź i zatwierdź w panelu admin. Wyślemy je za 1 godzinę.`,
                         url: '/admin',

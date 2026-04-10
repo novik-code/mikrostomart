@@ -47,6 +47,7 @@ import StripeSettingsTab from './components/StripeSettingsTab';
 import P24SettingsTab from './components/P24SettingsTab';
 import PayUSettingsTab from './components/PayUSettingsTab';
 import AIEducationTab from './components/AIEducationTab';
+import PatientCommunicationTab from './components/PatientCommunicationTab';
 import { demoSanitize } from '@/lib/brandConfig';
 
 export default function AdminPage() {
@@ -73,7 +74,7 @@ export default function AdminPage() {
     const [products, setProducts] = useState<Product[]>([]);
     const [error, setError] = useState<string | null>(null);
 
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'questions' | 'articles' | 'news' | 'orders' | 'reservations' | 'blog' | 'patients' | 'sms-reminders' | 'sms-post-visit' | 'sms-week-after-visit' | 'appointment-instructions' | 'roles' | 'employees' | 'chat' | 'theme' | 'page-builder' | 'push' | 'booking-settings' | 'online-bookings' | 'cancelled-appointments' | 'social-media' | 'pms-settings' | 'sms-provider' | 'stripe-settings' | 'p24-settings' | 'payu-settings' | 'ai-education'>('dashboard');
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'questions' | 'articles' | 'news' | 'orders' | 'reservations' | 'blog' | 'patients' | 'sms-reminders' | 'sms-post-visit' | 'sms-week-after-visit' | 'appointment-instructions' | 'roles' | 'employees' | 'chat' | 'theme' | 'page-builder' | 'push' | 'booking-settings' | 'online-bookings' | 'cancelled-appointments' | 'social-media' | 'pms-settings' | 'sms-provider' | 'stripe-settings' | 'p24-settings' | 'payu-settings' | 'ai-education' | 'patient-communication'>('dashboard');
     // Cancelled appointments state
     const [cancelledAppointments, setCancelledAppointments] = useState<any[]>([]);
     const [cancelledLoading, setCancelledLoading] = useState(false);
@@ -4972,6 +4973,7 @@ export default function AdminPage() {
                     <NavItem id="appointment-instructions" label="Instrukcje wizyt" icon={ClipboardList} />
 
                     <NavSection title="Komunikacja" />
+                    <NavItem id="patient-communication" label="📨 Komunikacja" icon={Send} badge={smsStats.draft} />
                     <NavItem id="sms-reminders" label="SMS Przypomnienia" icon={Phone} badge={smsStats.draft} />
                     <NavItem id="sms-post-visit" label="SMS po wizycie" icon={Send} />
                     <NavItem id="sms-week-after-visit" label="SMS tydzień po" icon={Send} />
@@ -5062,6 +5064,7 @@ export default function AdminPage() {
                             {activeTab === 'push' && '🔔 Powiadomienia Push'}
                             {activeTab === 'sms-post-visit' && '✉️ SMS po wizycie'}
                             {activeTab === 'sms-week-after-visit' && '📱 SMS tydzień po wizycie'}
+                            {activeTab === 'patient-communication' && '📨 Komunikacja z Pacjentem'}
                             {activeTab === 'chat' && '💬 Czat z Pacjentami'}
                             {activeTab === 'booking-settings' && '📅 Rezerwacje'}
                             {activeTab === 'online-bookings' && '📅 Wizyty Umówione Online'}
@@ -5338,6 +5341,7 @@ export default function AdminPage() {
                     {activeTab === 'payu-settings' && <PayUSettingsTab />}
                     {activeTab === 'page-builder' && <PageBuilderTab />}
                     {activeTab === 'ai-education' && <AIEducationTab />}
+                    {activeTab === 'patient-communication' && <PatientCommunicationTab />}
                     {activeTab === 'online-bookings' && renderOnlineBookingsTab()}
                     {activeTab === 'cancelled-appointments' && (() => {
                         // Fetch on first render

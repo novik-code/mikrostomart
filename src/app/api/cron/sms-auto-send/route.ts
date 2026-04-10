@@ -2,6 +2,7 @@ import { isDemoMode } from '@/lib/demoMode';
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sendSMS } from '@/lib/smsService';
+import { hasPatientResponded } from '@/lib/patientDelivery';
 
 export const maxDuration = 120; // Vercel function timeout
 
@@ -45,6 +46,7 @@ export async function GET(req: Request) {
     let processedCount = 0;
     let sentCount = 0;
     let failedCount = 0;
+    let skippedCount = 0;
     const errors: Array<{ id: string; phone: string; error: string }> = [];
 
     try {
@@ -112,6 +114,31 @@ export async function GET(req: Request) {
 
             try {
                 console.log(`📱 [${draft.id.substring(0, 8)}] Sending to ${draft.phone}...`);
+
+                // If this draft was already delivered via push and patient responded — skip SMS
+                if (draft.delivery_channel === 'push' || draft.status === 'push_sent') {
+                    console.log(`   ⏭️ Skipping: already delivered via push`);
+                    skippedCount++;
+                    continue;
+                }
+
+                // For reminder type: check if patient already confirmed/cancelled via push
+                if (draft.sms_type === 'reminder' && draft.prodentis_id && draft.appointment_date) {
+                    const responded = await hasPatientResponded(
+                        String(draft.prodentis_id),
+                        draft.appointment_date
+                    );
+                    if (responded) {
+                        console.log(`   ⏭️ Skipping: patient already responded to appointment`);
+                        await supabase.from('sms_reminders').update({
+                            status: 'cancelled',
+                            send_error: 'Pacjent odpowiedział via push — SMS niepotrzebny',
+                            updated_at: new Date().toISOString(),
+                        }).eq('id', draft.id);
+                        skippedCount++;
+                        continue;
+                    }
+                }
 
                 // 5a. Send SMS
                 const smsResult = await sendSMS({

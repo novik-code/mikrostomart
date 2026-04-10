@@ -78,6 +78,13 @@ export async function GET(req: Request) {
             try {
                 console.log(`📱 Sending to ${draft.phone} (${draft.patient_name}, type: ${draft.sms_type})...`);
 
+                // Skip drafts already delivered via push
+                if (draft.delivery_channel === 'push' || draft.status === 'push_sent') {
+                    console.log(`   ⏭️ Skipping: already delivered via push`);
+                    skippedCount++;
+                    continue;
+                }
+
                 const smsResult = await sendSMS({ to: draft.phone, message: draft.sms_message });
 
                 const updateData: any = { sent_at: new Date().toISOString(), updated_at: new Date().toISOString() };
