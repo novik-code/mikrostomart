@@ -1,6 +1,6 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-04-09  
+> **Last Updated:** 2026-04-10  
 > **Version:** Production + Demo (Dual Vercel Deployment)  
 > **Status:** Active Development — Unified AI Ecosystem + Multi-Tenant Architecture
 
@@ -173,7 +173,7 @@ The demo environment is fully neutralized — no Mikrostomart-specific text, con
 | **Replicate** | AI image generation | ✅ Active |
 | **YouTube Data API** | Video feed | ✅ Active |
 | **Google Places API** | Real Google Reviews (New + Legacy) | ✅ Active |
-| **Web Push (VAPID)** | Browser push notifications (patients + employees) | ✅ Active |
+| **Firebase Cloud Messaging (FCM)** | Push notifications via FCM data-only payload (patients + employees) | ✅ Active |
 | **Captions / Mirage API** | AI video captioning (professional animated subtitles) | ✅ Active |
 | **Whisper (OpenAI)** | Video audio transcription | ✅ Active |
 | **Meta Graph API** | Facebook + Instagram publishing (posts, images, Reels) | ✅ Active |
@@ -636,23 +636,23 @@ Individual messages in chat conversations.
 - created_at (timestamptz)
 ```
 
-#### 20. **push_subscriptions**
-Web Push API subscription metadata for patients, employees, and admins.
+#### 20. **push_subscriptions** *(DEPRECATED — replaced by fcm_tokens)*
+Legacy Web Push API subscription metadata. No longer used for sending.
+
+#### 20b. **fcm_tokens** *(migration 104)*
+Firebase Cloud Messaging token storage for push notifications.
 ```sql
-- id (uuid, PK)
-- user_type (text, NOT NULL, CHECK IN ('patient', 'employee', 'admin'))
+- id (uuid, PK, DEFAULT gen_random_uuid())
 - user_id (text, NOT NULL)
-- endpoint (text, NOT NULL)
-- p256dh (text, NOT NULL)
-- auth (text, NOT NULL)
-- locale (text, DEFAULT 'pl')
-- employee_group (text, CHECK IN ('doctor','hygienist','reception','assistant')) -- legacy single group
-- employee_groups (text[], DEFAULT NULL) -- multi-group array (GIN indexed)
-- created_at (timestamptz)
-- UNIQUE(endpoint)
-- INDEX idx_push_subs_user (user_type, user_id)
-- INDEX idx_push_subs_employee_groups (employee_groups) -- GIN index for array containment
+- user_type (text, NOT NULL, CHECK IN ('employee', 'admin', 'patient'))
+- fcm_token (text, NOT NULL, UNIQUE)
+- device_label (text) -- 'iPhone', 'Android', 'Mac', etc.
+- last_active_at (timestamptz, DEFAULT NOW())
+- created_at (timestamptz, DEFAULT NOW())
+- INDEX idx_fcm_tokens_user (user_id, user_type)
+- INDEX idx_fcm_tokens_type (user_type)
 ```
+RLS: service role full access. Upserted on `fcm_token` conflict.
 
 #### 21. **employees**
 Employee account data (linked to Supabase Auth users).
@@ -1600,11 +1600,11 @@ Features:
 
 | Endpoint | Method | Purpose |
 |----------|--------|---------|
-| `/push/subscribe` | POST | Subscribe to push notifications (upserts into `push_subscriptions`) |
-| `/push/subscribe` | DELETE | Unsubscribe from push notifications |
+| `/push/subscribe` | POST | Register FCM token (upserts into `fcm_tokens`) |
+| `/push/subscribe` | DELETE | Remove FCM token |
 | `/push/test` | POST | Send test push notification to verify delivery |
-| `/push/resubscribe` | POST | SW `pushsubscriptionchange` handler: updates rotated endpoint in DB (no auth required, for service worker use) |
-| `/employee/push/history` | GET | Last 7 days of push notifications for logged-in employee from `push_notifications_log` |
+| `/push/resubscribe` | POST | SW endpoint rotation handler (no auth required, for service worker use) |
+| `/employee/push/history` | GET | Last 30 days of ALL system notifications (deduplicated), visible to every employee/admin |
 
 ### Appointment APIs (`/api/appointments/*`)
 
@@ -1667,7 +1667,7 @@ Features:
 | `/cron/week-after-visit-sms` | Generate week-after-visit follow-up SMS | Daily 9:00 UTC |
 | `/cron/post-visit-auto-send?sms_type=week_after_visit` | Auto-send week-after-visit SMS | Daily 10:00 UTC |
 | `/cron/online-booking-digest` | Telegram digest of unreported online bookings | Daily 6:15 UTC |
-| `/cron/push-cleanup` | Delete `push_notifications_log` entries older than 7 days | Daily 3:15 UTC |
+| `/cron/push-cleanup` | Delete `push_notifications_log` entries older than 30 days | Daily 3:15 UTC |
 | `/cron/daily-report` | Morning digest to Telegram: today's appointments, pending bookings, overdue tasks, birthdays | Daily 5:30 UTC |
 | `/cron/deposit-reminder` | SMS + push reminder for unpaid deposits ~48h before appointment | Daily 7:00 UTC |
 | `/cron/noshow-followup` | Detect no-shows from yesterday, send follow-up SMS offering rescheduling | Daily 8:00 UTC |
@@ -1981,34 +1981,47 @@ All AI operations use a centralized service that automatically loads relevant kn
 
 ---
 
-### 10. Web Push Notifications (VAPID)
-**Purpose:** Browser push notifications for patients and employees
+### 10. Push Notifications (Firebase Cloud Messaging)
+**Purpose:** Browser/mobile push notifications for patients and employees
 
-**Technology:** Web Push API with VAPID (Voluntary Application Server Identification)
+**Technology:** Firebase Cloud Messaging (FCM) with **data-only payload** (no `notification` key)
 
 **Configuration:**
-- Public Key: `NEXT_PUBLIC_VAPID_PUBLIC_KEY`
-- Private Key: `VAPID_PRIVATE_KEY`
-- Email: `VAPID_EMAIL`
+- Firebase API Key: `NEXT_PUBLIC_FIREBASE_API_KEY`
+- Firebase Auth Domain: `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`
+- Firebase Project ID: `NEXT_PUBLIC_FIREBASE_PROJECT_ID`
+- Firebase Messaging Sender ID: `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`
+- Firebase App ID: `NEXT_PUBLIC_FIREBASE_APP_ID` (`1:621550915975:web:c70681465a502042050322`)
+- FCM VAPID Key: `NEXT_PUBLIC_VAPID_PUBLIC_KEY` (from Firebase Console → Cloud Messaging → Web Push certificates)
+- Firebase Admin (server-side): `FIREBASE_SERVICE_ACCOUNT_KEY` (JSON)
 
 **Architecture:**
-- **Service Worker**: Push logic merged into main Workbox SW via `@ducanh2912/next-pwa` `customWorkerSrc` (`worker/index.ts`)
-- **iOS Support**: Requires PWA (Add to Home Screen) — `PushNotificationPrompt` detects Safari vs PWA and shows appropriate UI
-- **Subscription Storage**: `push_subscriptions` table (user_type, user_id, endpoint, keys, locale, employee_group [legacy], employee_groups [])
-- **Sending**: `web-push` npm library via `src/lib/webpush.ts`
-- **Multi-group routing**: employees can belong to multiple push groups simultaneously (e.g. `['reception', 'assistant']`). Stored in `push_subscriptions.employee_groups TEXT[]` (GIN indexed) and `employees.push_groups TEXT[]`. Configurable from Admin Panel Push tab.
-- **Runtime config**: `push_notification_config` table drives which groups receive each automated notification type — editable via Admin Panel without code changes.
+- **Service Worker**: `public/firebase-messaging-sw.js` — standalone Firebase Messaging SW (not Workbox)
+- **Client SDK**: `src/lib/firebaseClient.ts` — `requestFCMToken()`, `listenForForegroundMessages()`
+- **Server SDK**: `src/lib/firebase.ts` — Firebase Admin SDK for server-side sending
+- **iOS Support**: Requires PWA (Add to Home Screen) — `PushNotificationPrompt` detects Safari vs PWA
+- **Token Storage**: `fcm_tokens` table (user_id, user_type, fcm_token UNIQUE, device_label)
+- **Sending**: `firebase-admin` SDK via `src/lib/pushService.ts` (`sendEachForMulticast`)
+- **Data-only payload**: Messages use ONLY `data: {title, body, url, tag, icon}` — NO `notification` key. This prevents FCM from auto-displaying a notification, giving full control to our SW (`onBackgroundMessage`) and foreground handler (`onMessage`). **Prevents duplicate notifications.**
+- **Multi-group routing**: employees belong to multiple push groups (e.g. `['reception', 'assistant']`). Stored in `employees.push_groups TEXT[]`. Configurable from Admin Panel Push tab.
+- **Runtime config**: `push_notification_config` table drives which groups receive each automated notification type.
+
+**Notification History Architecture (April 2026):**
+- **Decoupled from delivery**: `logPush()` is called for ALL target users in a group, regardless of whether they have FCM tokens. Users without push enabled still see events in their Alerts tab.
+- **`resolveGroupUsers(group)`**: helper that resolves ALL user_ids in a push group from `employees` or `user_roles` tables (not from `fcm_tokens`).
+- **Shared history**: `/api/employee/push/history` returns ALL system notifications (not filtered by user_id), deduplicated by title+body within 2-second windows. Every employee sees the complete 30-day history.
+- **Deduplication**: same event sent to N users creates N rows in `push_notifications_log`, but the API deduplicates them so each unique event shows once.
 
 **Employee Group Keys:**
 
-| Config/API group | DB value in employee_groups | Admin label |
+| Config/API group | DB value in push_groups | Admin label |
 |---|---|---|
 | `doctors` | `doctor` | 🦷 Lekarze |
 | `hygienists` | `hygienist` | 💉 Higienistki |
 | `reception` | `reception` | 📞 Recepcja |
 | `assistant` | `assistant` | 🔧 Asysta |
-| `admin` | (admin user_type) | 👑 Admin |
-| `patients` | (patient user_type) | 👥 Pacjenci |
+| `admin` | (admin role in user_roles) | 👑 Admin |
+| `patients` | (patient role in user_roles) | 👥 Pacjenci |
 
 **Push Notification Types** (`src/lib/pushTranslations.ts` — 4 locales pl/en/de/ua):
 | Type key | Trigger | Target | Config key |
@@ -2035,30 +2048,32 @@ All AI operations use a centralized service that automatically loads relevant kn
 | `appointment_1h` | 1h before appointment | Patient (specific user) | `appointment-1h` |
 | `new_blog_post` | Blog post published | All subscribers | — |
 
-**Key Functions** (`src/lib/webpush.ts`):
-- `sendPushToUser(userId, userType, payload)` — send to specific user (all their devices)
-- `sendTranslatedPushToUser(userId, userType, notifType, params, url?)` — localized push using `pushTranslations.ts`
-- `sendPushToAllEmployees(payload, excludeUserId?)` — broadcast to all subscribed employees
-- `broadcastPush(userType, notifType, params, url?)` — broadcast to all subscribers of a type
-- `sendPushToGroups(groups: PushGroup[], payload)` — send to specific employee groups; uses `.or('employee_groups.cs.{"group"},employee_group.eq.group')` array containment with legacy fallback
+**Key Functions** (`src/lib/pushService.ts`):
+- `pushToUser(userId, userType, payload)` — send to specific user; **always logs to history** regardless of tokens
+- `pushTranslatedToUser(userId, userType, notifType, params, url?)` — localized push using `pushTranslations.ts`
+- `pushToAllEmployees(payload, excludeUserId?)` — log for ALL active employees, send only to those with FCM tokens
+- `pushToGroups(groups, payload)` — resolve ALL users per group via `resolveGroupUsers()`, log for all, deliver to FCM tokens
+- `pushByConfig(configKey, payload, excludeUserId?)` — config-driven push with muted preference support
+- `pushToUsers(userIds, payload)` — send to specific user IDs; logs for ALL, delivers to those with tokens
+- `broadcastPush(userType, notifType, params, url?)` — broadcast to all users of a type
 
 **UI Component**: `PushNotificationPrompt` — compact mode (toggle button for employee header) and full banner mode (patient chat page)
 
 **Integration Files:**
-- `src/lib/webpush.ts` — Core push sending logic (5 send functions)
+- `src/lib/pushService.ts` — Core push sending logic (7 send functions + `resolveGroupUsers` + `logPush`)
+- `src/lib/firebase.ts` — Firebase Admin SDK initialization (server-side)
+- `src/lib/firebaseClient.ts` — Firebase Client SDK (browser-side token + foreground messages)
 - `src/lib/pushTranslations.ts` — Localized push templates (20 types × 4 locales)
-- `src/components/PushNotificationPrompt.tsx` — Subscribe/unsubscribe UI
-- `worker/index.ts` — Service worker push + notificationclick handlers
-- `src/app/api/push/subscribe/route.ts` — Subscription management (reads employees.push_groups, stores employee_groups[])
+- `src/components/PushNotificationPrompt.tsx` — Subscribe/unsubscribe UI (FCM token registration)
+- `public/firebase-messaging-sw.js` — Service worker for background FCM messages
+- `src/app/api/push/subscribe/route.ts` — FCM token management (POST upsert, DELETE remove)
 - `src/app/api/push/test/route.ts` — Test push endpoint
-- `src/app/api/admin/push/route.ts` — Admin push: GET all employees+stats, POST send to groups, DELETE remove sub
+- `src/app/api/admin/push/route.ts` — Admin push: GET employees+stats, POST send to groups/users, DELETE remove token
 - `src/app/api/admin/push/config/route.ts` — GET/PATCH push_notification_config table
-- `src/app/api/admin/employees/position/route.ts` — PATCH: set employee push groups[] (updates both tables)
-- `supabase_migrations/033_push_subscriptions.sql` — Base push subscriptions table
-- `supabase_migrations/034_push_employee_group.sql` — Added employee_group TEXT column
-- `supabase_migrations/035_push_notification_config.sql` — push_notification_config table (initial 2 rows)
-- `supabase_migrations/036_push_config_full.sql` — Full 15-type config + recipient_types column ⚠️ **RUN IN SUPABASE**
-- `supabase_migrations/037_employee_groups_array.sql` — employee_groups TEXT[] (GIN indexed) + employees.push_groups ⚠️ **RUN IN SUPABASE**
+- `src/app/api/admin/employees/position/route.ts` — PATCH: set employee push groups[]
+- `src/app/api/employee/push/history/route.ts` — GET all system notifications (deduplicated, 30 days)
+- `supabase_migrations/104_fcm_push_rebuild.sql` — `fcm_tokens` table + RLS policies
+- `supabase_migrations/048_push_notifications_log.sql` — `push_notifications_log` table
 
 
 
@@ -4339,30 +4354,26 @@ Emails sent from the employee zone email client (`EmailTab.tsx`) were successful
 - `pracownik/page.tsx`: `useSearchParams` reads `?tab=` + `?taskId=` on mount via one-shot `useRef` guard; `deepLinkTaskId` state waits for tasks to load before opening modal
 
 **`ea03ea1` — Push logging completeness (Feb 24):**
-- **`sendPushByConfig`**: added `loggedUsers Set` (was declared in wrong scope — lint error) + `logPush()` in `sendBatch`. Main task/config notifications now appear in history tab.
-- **`sendPushToAllEmployees`**: added `sentEndpoints Set` (AI broadcast with 2 subs → 2 notifs) + `logPush()` per user.
+- **`sendPushByConfig`**: added `loggedUsers Set` + `logPush()` in `sendBatch`.
+- **`sendPushToAllEmployees`**: added `sentEndpoints Set` + `logPush()` per user.
 - **`sendTranslatedPushToUser`**: added cross-locale `sentEndpoints Set` + `logPush()` exactly once per user.
 
 **`66f632b` — Push history + last dedup fix (Feb 24):**
-- **sendPushToGroups dedup FIX** (`webpush.ts`): added cross-group `sentEndpoints Set` + `loggedUsers Set` at function scope. Last remaining duplicate source — user in multiple groups received 1 push per matching group passed to `sendPushToGroups`.
-- **`logPush()` helper**: inserts row into `push_notifications_log` fire-and-forget after each successful send in `sendPushToUser`, `sendTranslatedPushToUser`, `sendPushToGroups` — one row per user per send.
-- **Migration 048** `push_notifications_log` table: `(id, user_id, user_type, title, body, url, tag, sent_at)`, RLS policy (employees read own rows), indexed on `(user_id, sent_at DESC)`.
-- **GET `/api/employee/push/history`**: last 7 days of push notifications for logged-in employee.
-- **GET `/api/cron/push-cleanup`**: daily cron (03:15 UTC) deletes entries older than 7 days.
-- **Powiadomienia tab** (`pracownik/page.tsx`): 4th tab 🔔 with grouped-by-day history list, relative timestamps, tag-based icons (📋 task / 📅 appointment / 🤖 assistant / 📣 manual), loading skeleton, empty state, Refresh button.
+- **Migration 048** `push_notifications_log` table: `(id, user_id, user_type, title, body, url, tag, sent_at)`, indexed on `(user_id, sent_at DESC)`.
+- **Powiadomienia tab** (`pracownik/page.tsx`): 4th tab 🔔 with grouped-by-day history list.
 
 **`eb3fb2c` — PWA push reliability (Feb 24):**
-- **Gray bell fix** (`PushNotificationPrompt.tsx`): `serviceWorker.ready` now wrapped in `Promise.race` with 10s timeout → fallback to manual `sw.js` register with activation wait + 5s safety timeout. Eliminates infinite hang on PWA cold-start.
-- **iOS endpoint rotation fix** (`PushNotificationPrompt.tsx` useEffect): every app load re-POSTs active subscription to `/api/push/subscribe` (idempotent upsert). iOS Safari silently rotates endpoint after backgrounding → old endpoint in DB → 410 on send → silence. Re-POST registers new endpoint before any send fails.
-- **SW pushsubscriptionchange** (`push-sw.js`): on Chromium/Firefox, handles endpoint rotation in SW directly via new `/api/push/resubscribe` route (updates DB row by old endpoint). iOS doesn't fire this event — client renewal above covers iOS.
-- **New route** `api/push/resubscribe/route.ts`: no-auth endpoint for SW to update rotated endpoint in `push_subscriptions` table.
-- **Duplicate fix** (`webpush.ts` `sendPushToUser`): now applies `dedupSubsByUser(subs, 2)` + endpoint `Set` before iterating — previously sent to ALL rows with no dedup.
-- **`renotify: true`** in push-sw.js so notifications with same `tag` always appear.
+- Gray bell fix, iOS endpoint rotation fix, SW pushsubscriptionchange handling.
 
 **`807a611` — Push & History fixes (Feb 24):**
-- **Push 8×dup ROOT CAUSE FIX** (`webpush.ts` `sendPushByConfig`): added `sentEndpoints: Set<string>` persisting across all group iterations — a user whose `employee_groups` matched multiple configured groups now receives exactly 1 push instead of 1 per matching group
-- **Task history in detail modal**: `selectedViewTask` popup now shows expandable history section (same `taskHistoryExpanded` toggle as card inline view) — previously only static count was shown
-- **Manual push double-send fix** (`employee/push/send` route): rewrote to collect all target user_ids from groups via DB into a Set, merge with explicit userIds, then call `sendPushToSpecificUsers` once — eliminates group+userId overlap duplication
+- Push 8×dup ROOT CAUSE FIX, manual push double-send fix.
+
+**`220097a` — FCM Push Rebuild + History Decouple (April 2026):**
+- **VAPID → FCM migration**: Replaced `web-push` npm + `push_subscriptions` table with Firebase Cloud Messaging (`firebase-admin` SDK + `fcm_tokens` table). Migration 104.
+- **Data-only payload**: Removed `notification` key from FCM messages — only `data: {title, body, url, tag, icon}`. Prevents FCM auto-display duplicating our manual `showNotification()` in SW/foreground handler.
+- **Notification history decoupled from delivery**: `logPush()` now called for ALL target users via `resolveGroupUsers()` (queries `employees`/`user_roles` tables), not just those with FCM tokens. Users without push enabled see full event history in Alerts tab.
+- **Shared Alerts tab**: `/api/employee/push/history` returns ALL system notifications (no user_id filter), deduplicated by title+body within 2-second windows. Every employee sees complete 30-day history.
+- **Files**: `pushService.ts` (complete rewrite), `firebase.ts` (Admin SDK), `firebaseClient.ts` (Client SDK), `firebase-messaging-sw.js` (background handler), `PushNotificationPrompt.tsx` (FCM token registration)
 
 **`b06893c` — Employee task fixes (Feb 24):**
 - **Comment input in detail modal**: Full comment section (all comments + input field) now visible in `selectedViewTask` popup modal — previously only existed in collapsed task card inline view

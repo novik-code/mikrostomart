@@ -1,8 +1,8 @@
 # PROJECT STATUS - Mikrostomart / DensFlow.Ai
 
-> **Last Updated:** March 23, 2026, 21:30  
+> **Last Updated:** April 10, 2026  
 > **Build Status:** ✅ Production (Vercel)  
-> **Latest Commit:** `4b4c365` - feat: mock Prodentis API in /api/patients/me and /me/visits for demo mode
+> **Latest Commit:** `220097a` - fix: prevent duplicate push notifications (FCM data-only payload)
 
 ---
 
@@ -78,6 +78,7 @@
 - [x] OpenAI (AI assistant)
 - [x] Replicate (AI image generation)
 - [x] YouTube Data API (video feed)
+- [x] **Firebase Cloud Messaging (FCM)** — push notifications (data-only payload, no duplicates)
 
 #### Database
 - [x] 11 migrations applied
@@ -151,7 +152,33 @@
 
 ---
 
-## 🚀 Latest Changes (Mar 23, 2026)
+## 🚀 Latest Changes (Apr 10, 2026)
+
+### FCM Push Notification Rebuild + History Decouple
+- `220097a` — fix: prevent duplicate push notifications (data-only FCM payload)
+- `a40b310` — fix: show ALL system notifications in Alerty tab for every employee
+- `74ae83e` — fix: decouple notification history from push delivery
+- `b98d281` — debug: add logging to push history endpoint
+
+**Kluczowe zmiany:**
+- **VAPID → FCM migration**: `web-push` npm + `push_subscriptions` replaced by `firebase-admin` + `fcm_tokens`
+- **Data-only payload**: Usunięto klucz `notification` z FCM — eliminuje podwójne powiadomienia
+- **Historia oddzielona od dostarczania**: `logPush()` wywoływana dla WSZYSTKICH userów w grupie, nie tylko tych z FCM tokenami
+- **Wspólna historia**: Każdy pracownik widzi WSZYSTKIE powiadomienia systemowe z ostatnich 30 dni (deduplikacja po title+body)
+- **`resolveGroupUsers()`**: nowa funkcja rozwiązująca userów z tabel `employees`/`user_roles` (nie `fcm_tokens`)
+
+**Zmienione pliki:**
+- `src/lib/pushService.ts` — complete rewrite (7 send functions + resolveGroupUsers + logPush)
+- `src/lib/firebase.ts` — Firebase Admin SDK init
+- `src/lib/firebaseClient.ts` — Client SDK (FCM token + foreground handler)
+- `public/firebase-messaging-sw.js` — background FCM handler (data-only)
+- `src/components/PushNotificationPrompt.tsx` — FCM token registration
+- `src/app/api/employee/push/history/route.ts` — shared history (no user_id filter)
+- `src/app/api/push/subscribe/route.ts` — FCM token upsert
+
+---
+
+## 🚀 Previous Changes (Mar 23, 2026)
 
 ### demo.densflow.ai — Wdrożenie wersji demonstracyjnej
 - `83cf3a7` - feat: add demo mode flag, disable integrations, add demo banner
