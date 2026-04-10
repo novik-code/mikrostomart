@@ -51,6 +51,7 @@ export async function POST(req: Request) {
         }
 
         // Find patient's portal account
+        // Note: patients.id IS the user_id used for FCM tokens
         let patientUserId: string | null = null;
         let patientUserType: 'patient' | 'employee' | 'admin' = 'patient';
 
@@ -59,31 +60,37 @@ export async function POST(req: Request) {
             const normalizedPhone = phone.replace(/\s+/g, '').replace(/^\+/, '');
             const phonePlus = `+${normalizedPhone}`;
 
+            console.log(`  🔍 Looking up patient by phone: ${normalizedPhone} / ${phonePlus}`);
+
             // Search in patients table (portal accounts)
-            const { data: patients } = await supabase
+            const { data: patients, error: phoneErr } = await supabase
                 .from('patients')
-                .select('user_id')
+                .select('id, prodentis_id, phone')
                 .or(`phone.eq.${normalizedPhone},phone.eq.${phonePlus}`)
-                .not('user_id', 'is', null)
                 .limit(1);
 
-            if (patients && patients.length > 0 && patients[0].user_id) {
-                patientUserId = patients[0].user_id;
-                console.log(`  📲 Found portal account by phone: ${patientUserId}`);
+            console.log(`  🔍 Phone lookup result:`, { found: patients?.length || 0, error: phoneErr?.message });
+
+            if (patients && patients.length > 0) {
+                patientUserId = patients[0].id;
+                console.log(`  📲 Found portal account by phone: ${patientUserId} (prodentis: ${patients[0].prodentis_id})`);
             }
         }
 
         // Strategy 2: Look up by prodentis_id
         if (!patientUserId && prodentis_id) {
-            const { data: patients } = await supabase
+            console.log(`  🔍 Looking up patient by prodentis_id: ${prodentis_id}`);
+
+            const { data: patients, error: prodErr } = await supabase
                 .from('patients')
-                .select('user_id')
+                .select('id, prodentis_id, phone')
                 .eq('prodentis_id', prodentis_id)
-                .not('user_id', 'is', null)
                 .limit(1);
 
-            if (patients && patients.length > 0 && patients[0].user_id) {
-                patientUserId = patients[0].user_id;
+            console.log(`  🔍 Prodentis lookup result:`, { found: patients?.length || 0, error: prodErr?.message });
+
+            if (patients && patients.length > 0) {
+                patientUserId = patients[0].id;
                 console.log(`  📲 Found portal account by prodentis_id: ${patientUserId}`);
             }
         }
