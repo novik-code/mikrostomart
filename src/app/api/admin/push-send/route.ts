@@ -155,8 +155,10 @@ export async function POST(req: Request) {
         // Send push notification
         const payload: PushPayload = { title, body: pushBody };
         if (url) payload.url = url;
+        else payload.url = '/strefa-pacjenta/powiadomienia';
 
         console.log(`  🔔 Sending push to ${patientUserId} (${tokenCount} devices)...`);
+        console.log(`  📝 Payload: title="${payload.title}", body="${payload.body}", url="${payload.url}"`);
         const pushResult = await pushToUser(patientUserId, patientUserType, payload);
 
         // Log to push_notifications_log (best-effort, table may not exist)

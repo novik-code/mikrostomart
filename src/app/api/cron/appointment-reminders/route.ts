@@ -456,7 +456,7 @@ export async function GET(req: Request) {
                         pushPayload: {
                             title: `Przypomnienie o wizycie`,
                             body: `Wizyta ${appointmentTime} — ${doctorName} (${appointmentType})`,
-                            url: '/strefa-pacjenta/dashboard',
+                            url: '/strefa-pacjenta/powiadomienia',
                             tag: `appointment-${appointment.id}`,
                         },
                         smsMessage: message,

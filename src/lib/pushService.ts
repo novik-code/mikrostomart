@@ -73,6 +73,7 @@ async function sendToTokens(
         const batch = tokens.slice(i, i + batchSize);
 
         try {
+            console.log(`[Push] Sending batch (${batch.length} tokens): title="${payload.title}", body="${payload.body?.substring(0, 50)}..."`);
             const response = await messaging.sendEachForMulticast({
                 tokens: batch,
                 // Data-only message — no 'notification' key!
@@ -80,8 +81,8 @@ async function sendToTokens(
                 // letting our service worker (background) and onMessage handler
                 // (foreground) be the SOLE handlers. Avoids duplicate notifications.
                 data: {
-                    title: payload.title,
-                    body: payload.body,
+                    title: payload.title || '',
+                    body: payload.body || '',
                     url: payload.url || '/',
                     tag: payload.tag || 'notification',
                     icon: payload.icon || '/icon-192x192.png',

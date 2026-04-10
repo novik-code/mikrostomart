@@ -19,6 +19,7 @@ const NAV_LINKS = [
     { href: '/strefa-pacjenta/historia', label: 'Historia wizyt' },
     { href: '/strefa-pacjenta/profil', label: 'Mój profil' },
     { href: '/strefa-pacjenta/wiadomosci', label: '💬 Wiadomości' },
+    { href: '/strefa-pacjenta/powiadomienia', label: '🔔 Powiadomienia' },
     { href: '/strefa-pacjenta/ocen-nas', label: '⭐ Oceń nas' },
 ];
 
