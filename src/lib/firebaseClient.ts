@@ -1,18 +1,13 @@
 /**
  * Firebase Client SDK — browser-side messaging token management.
  *
- * ARCHITECTURE: This project uses @ducanh2912/next-pwa which generates sw.js
- * with Workbox. That SW is auto-registered at scope "/" and handles push/notificationclick
- * via push-sw.js. We MUST use that existing SW registration for getToken() — registering
- * a separate firebase-messaging-sw.js would conflict and cause hangs.
+ * ARCHITECTURE: This project uses @ducanh2912/next-pwa which auto-registers
+ * sw.js at scope "/". Firebase SDK by default registers firebase-messaging-sw.js
+ * at scope "/firebase-cloud-messaging-push-scope" — a DIFFERENT scope, so no conflict.
  *
- * Environment variables (public — exposed to client):
- *   NEXT_PUBLIC_FIREBASE_API_KEY
- *   NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
- *   NEXT_PUBLIC_FIREBASE_PROJECT_ID
- *   NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
- *   NEXT_PUBLIC_FIREBASE_APP_ID
- *   NEXT_PUBLIC_VAPID_PUBLIC_KEY   (FCM VAPID key from Firebase Console → Cloud Messaging)
+ * We let Firebase handle its own SW registration by NOT passing
+ * serviceWorkerRegistration to getToken(). Firebase will auto-register
+ * /firebase-messaging-sw.js at its own scope.
  */
 import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
 import { getMessaging as getFBMessaging, getToken, onMessage, type Messaging } from 'firebase/messaging';
@@ -45,89 +40,29 @@ export function getFirebaseMessaging(): Messaging {
 
 /**
  * Request an FCM token for the current browser/device.
- * Uses the existing next-pwa service worker (sw.js) — NOT a separate Firebase SW.
+ * Lets Firebase SDK handle its own service worker registration.
  */
 export async function requestFCMToken(): Promise<string | null> {
     try {
-        // Step A: Check config
         const config = getFirebaseConfig();
-        console.log('[FCM] Step A: Config check');
+        console.log('[FCM] Config OK');
 
         if (!config.apiKey || !config.projectId || !config.messagingSenderId) {
-            throw new Error('Firebase config incomplete — check NEXT_PUBLIC_ env vars');
+            throw new Error('Firebase config incomplete');
         }
 
-        // Step B: Get messaging instance
-        console.log('[FCM] Step B: Getting messaging');
         const msg = getFirebaseMessaging();
 
-        // Step C: Check VAPID key
         const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
         if (!vapidKey) {
             throw new Error('VAPID key missing');
         }
-        console.log('[FCM] Step C: VAPID OK');
+        console.log('[FCM] VAPID OK');
 
-        // Step D: Get the EXISTING service worker registration (from next-pwa sw.js)
-        // DO NOT register a new SW — next-pwa already registers sw.js at scope "/"
-        // Registering firebase-messaging-sw.js would conflict and cause hangs.
-        console.log('[FCM] Step D: Getting existing SW registration...');
-
-        let swRegistration: ServiceWorkerRegistration | undefined;
-
-        // Wait for the next-pwa SW to be ready (with timeout)
-        try {
-            swRegistration = await Promise.race([
-                navigator.serviceWorker.ready,
-                new Promise<ServiceWorkerRegistration>((_, reject) =>
-                    setTimeout(() => reject(new Error('SW ready timeout')), 10000)
-                ),
-            ]);
-            console.log('[FCM] Step D: Got SW, scope:', swRegistration.scope,
-                'active:', !!swRegistration.active,
-                'installing:', !!swRegistration.installing,
-                'waiting:', !!swRegistration.waiting);
-        } catch (readyErr) {
-            console.log('[FCM] Step D: ready timed out, trying getRegistrations...');
-            const regs = await navigator.serviceWorker.getRegistrations();
-            if (regs.length > 0) {
-                swRegistration = regs[0];
-                console.log('[FCM] Step D: Using first reg, scope:', swRegistration.scope);
-            }
-        }
-
-        // Step D2: Ensure SW has an active worker — Firebase requires this
-        if (swRegistration && !swRegistration.active) {
-            console.log('[FCM] Step D2: Waiting for SW to activate...');
-            await new Promise<void>((resolve) => {
-                const sw = swRegistration!.installing || swRegistration!.waiting;
-                if (!sw) { resolve(); return; }
-                if (sw.state === 'activated') { resolve(); return; }
-
-                const onStateChange = () => {
-                    console.log('[FCM] SW state:', sw.state);
-                    if (sw.state === 'activated' || sw.state === 'redundant') {
-                        sw.removeEventListener('statechange', onStateChange);
-                        resolve();
-                    }
-                };
-                sw.addEventListener('statechange', onStateChange);
-                setTimeout(() => {
-                    sw.removeEventListener('statechange', onStateChange);
-                    resolve();
-                }, 8000);
-            });
-            console.log('[FCM] Step D2: active:', !!swRegistration.active);
-        }
-
-        // Step E: Get token
-        console.log('[FCM] Step E: Requesting token...');
-        const tokenOptions: any = { vapidKey };
-        if (swRegistration) {
-            tokenOptions.serviceWorkerRegistration = swRegistration;
-        }
-
-        const token = await getToken(msg, tokenOptions);
+        // Let Firebase handle SW registration at /firebase-cloud-messaging-push-scope
+        // DO NOT pass serviceWorkerRegistration — this avoids conflict with next-pwa sw.js
+        console.log('[FCM] Calling getToken (Firebase will auto-register its SW)...');
+        const token = await getToken(msg, { vapidKey });
 
         if (!token) {
             throw new Error('Brak tokenu — sprawdź czy powiadomienia nie są zablokowane');
@@ -161,7 +96,6 @@ export function listenForForegroundMessages(callback?: (payload: any) => void): 
             });
         }
 
-        // Dispatch event for popup in patient zone layout
         if (title) {
             window.dispatchEvent(new CustomEvent('push-notification-received', {
                 detail: { title, body, url: data.url, time: Date.now() }
