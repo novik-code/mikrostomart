@@ -3,8 +3,9 @@ import { useState } from "react";
 import SmsRemindersTab from "./SmsRemindersTab";
 import PostVisitSmsTab from "./PostVisitSmsTab";
 import WeekAfterVisitSmsTab from "./WeekAfterVisitSmsTab";
+import PushTab from "./PushTab";
 
-type SubTab = 'reminders' | 'post-visit' | 'week-after' | 'delivery-log';
+type SubTab = 'reminders' | 'post-visit' | 'week-after' | 'push' | 'delivery-log';
 
 export default function PatientCommunicationTab() {
     const [activeSubTab, setActiveSubTab] = useState<SubTab>('reminders');
@@ -16,6 +17,7 @@ export default function PatientCommunicationTab() {
         { id: 'reminders', label: 'Przypomnienia', icon: '📋' },
         { id: 'post-visit', label: 'Po wizycie', icon: '✉️' },
         { id: 'week-after', label: 'Tydzień po', icon: '📱' },
+        { id: 'push', label: 'Push', icon: '🔔' },
         { id: 'delivery-log', label: 'Log dostarczeń', icon: '📊' },
     ];
 
@@ -98,40 +100,38 @@ export default function PatientCommunicationTab() {
             {/* Header */}
             <div style={{
                 background: 'linear-gradient(135deg, rgba(139,92,246,0.08), rgba(56,189,248,0.08))',
-                border: '1px solid rgba(139,92,246,0.2)',
-                borderRadius: '1rem', padding: '1.5rem'
+                border: '1px solid rgba(139,92,246,0.15)',
+                borderRadius: '1rem',
+                padding: '1.25rem 1.5rem',
             }}>
-                <h2 style={{ margin: 0, marginBottom: '0.5rem', fontSize: '1.3rem' }}>
-                    📨 Komunikacja z Pacjentem
+                <h2 style={{ color: 'white', margin: '0 0 0.3rem 0', fontSize: '1.15rem' }}>
+                    📨 Centrum Komunikacji
                 </h2>
-                <p style={{ margin: 0, color: 'rgba(255,255,255,0.5)', fontSize: '0.88rem' }}>
-                    System potwierdzania wizyt i komunikacji — Push-first + SMS fallback
+                <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.8rem', margin: 0 }}>
+                    Zarządzaj SMS-ami, powiadomieniami push i śledź dostarczenie wiadomości
                 </p>
             </div>
 
-            {/* Sub-tabs navigation */}
+            {/* Sub-tabs */}
             <div style={{
-                display: 'flex', gap: '0.5rem', borderBottom: '2px solid rgba(255,255,255,0.08)',
-                paddingBottom: '0.5rem', overflowX: 'auto'
+                display: 'flex', gap: '0.4rem', flexWrap: 'wrap',
+                borderBottom: '1px solid rgba(255,255,255,0.08)',
+                paddingBottom: '0.5rem',
             }}>
                 {subTabs.map(tab => (
                     <button
                         key={tab.id}
-                        onClick={() => {
-                            setActiveSubTab(tab.id);
-                            if (tab.id === 'delivery-log' && deliveryLog.length === 0) {
-                                loadDeliveryLog();
-                            }
-                        }}
+                        onClick={() => setActiveSubTab(tab.id)}
                         style={{
-                            padding: '0.6rem 1.2rem',
-                            background: activeSubTab === tab.id ? 'rgba(139,92,246,0.15)' : 'transparent',
-                            border: `1px solid ${activeSubTab === tab.id ? 'rgba(139,92,246,0.4)' : 'rgba(255,255,255,0.08)'}`,
-                            borderRadius: '0.5rem',
-                            color: activeSubTab === tab.id ? '#a78bfa' : 'rgba(255,255,255,0.5)',
-                            cursor: 'pointer', fontSize: '0.88rem',
+                            padding: '0.5rem 1rem',
+                            background: activeSubTab === tab.id ? 'rgba(139,92,246,0.12)' : 'transparent',
+                            border: `1px solid ${activeSubTab === tab.id ? 'rgba(139,92,246,0.35)' : 'rgba(255,255,255,0.08)'}`,
+                            borderRadius: '0.6rem',
+                            color: activeSubTab === tab.id ? '#a78bfa' : 'rgba(255,255,255,0.45)',
+                            cursor: 'pointer',
+                            fontSize: '0.82rem',
                             fontWeight: activeSubTab === tab.id ? 'bold' : 'normal',
-                            transition: 'all 0.15s', whiteSpace: 'nowrap',
+                            transition: 'all 0.15s',
                         }}
                     >
                         {tab.icon} {tab.label}
@@ -143,6 +143,7 @@ export default function PatientCommunicationTab() {
             {activeSubTab === 'reminders' && <SmsRemindersTab />}
             {activeSubTab === 'post-visit' && <PostVisitSmsTab />}
             {activeSubTab === 'week-after' && <WeekAfterVisitSmsTab />}
+            {activeSubTab === 'push' && <PushTab />}
 
             {/* Delivery Log Tab */}
             {activeSubTab === 'delivery-log' && (
