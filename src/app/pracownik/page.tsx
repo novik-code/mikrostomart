@@ -71,6 +71,23 @@ export default function EmployeePage() {
         return () => mq.removeEventListener('change', handler);
     }, []);
 
+    // URL parameter-based tab routing (e.g. /pracownik?tab=czat from push notification click)
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const tabParam = params.get('tab');
+        const validTabs = ['grafik', 'zadania', 'asystent', 'powiadomienia', 'sugestie', 'pacjenci', 'poczta', 'czat', 'preferencje'] as const;
+        if (tabParam && (validTabs as readonly string[]).includes(tabParam)) {
+            setActiveTab(tabParam as typeof activeTab);
+            // Clean up URL params without reload
+            const url = new URL(window.location.href);
+            url.searchParams.delete('tab');
+            url.searchParams.delete('pushTitle');
+            url.searchParams.delete('pushBody');
+            url.searchParams.delete('pushTime');
+            window.history.replaceState({}, '', url.pathname);
+        }
+    }, []);
+
     // ─── Push Notification History ────────────────────────────────
     const [pushNotifications, setPushNotifications] = useState<{ id: string; title: string; body: string; url: string | null; tag: string | null; sent_at: string }[]>([]);
     const [pushNotifLoading, setPushNotifLoading] = useState(false);

@@ -104,13 +104,13 @@ export async function POST(request: NextRequest) {
             'admin',
             'chat_patient_to_admin',
             { name: patientName, message: content.trim().substring(0, 100) },
-            '/pracownik'
+            '/pracownik?tab=czat'
         ).catch(console.error);
         broadcastPush(
             'employee',
             'chat_patient_to_admin',
             { name: patientName, message: content.trim().substring(0, 100) },
-            '/pracownik'
+            '/pracownik?tab=czat'
         ).catch(console.error);
 
         return NextResponse.json({ message });

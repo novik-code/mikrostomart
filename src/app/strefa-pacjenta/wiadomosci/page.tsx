@@ -42,12 +42,14 @@ export default function PatientChat() {
 
     const loadMessages = useCallback(async () => {
         const token = getAuthToken();
-        if (!token) return;
+        // Build headers — token may be null with httpOnly cookies, browser sends cookie automatically
+        const headers: Record<string, string> = {};
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
 
         try {
-            const res = await fetch('/api/patients/chat', {
-                headers: { 'Authorization': `Bearer ${token}` },
-            });
+            const res = await fetch('/api/patients/chat', { headers });
 
             if (!res.ok) throw new Error('Failed to load');
 
@@ -102,16 +104,29 @@ export default function PatientChat() {
     }, [conversationId]);
 
     // Polling fallback — Supabase Realtime may not work with custom JWT auth (RLS blocks events)
-    // Poll every 5s to ensure messages always refresh
+    // Poll every 4s to ensure messages always refresh, pause when tab not visible
     useEffect(() => {
-        if (isAuthLoading || isLoading) return;
+        if (isAuthLoading) return;
 
         const interval = setInterval(() => {
-            loadMessages();
-        }, 5000);
+            if (document.visibilityState === 'visible') {
+                loadMessages();
+            }
+        }, 4000);
 
-        return () => clearInterval(interval);
-    }, [isAuthLoading, isLoading, loadMessages]);
+        // Also poll immediately when tab becomes visible (e.g. after clicking push notification)
+        const handleVisibility = () => {
+            if (document.visibilityState === 'visible') {
+                loadMessages();
+            }
+        };
+        document.addEventListener('visibilitychange', handleVisibility);
+
+        return () => {
+            clearInterval(interval);
+            document.removeEventListener('visibilitychange', handleVisibility);
+        };
+    }, [isAuthLoading, loadMessages]);
 
     const handleSend = async () => {
         if (!newMessage.trim() || isSending) return;

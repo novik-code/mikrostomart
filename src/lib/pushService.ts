@@ -97,10 +97,16 @@ async function sendToTokens(
                         badge: '/icon-192x192.png',
                         tag: payload.tag || 'mikrostomart-notification',
                         requireInteraction: payload.requireInteraction || false,
+                        data: {
+                            url: payload.url || '/',
+                            title: payload.title || '',
+                            body: payload.body || '',
+                        },
                     },
-                    fcmOptions: {
-                        link: payload.url || '/',
-                    },
+                    // NOTE: fcmOptions.link intentionally omitted — it conflicts with
+                    // our firebase-messaging-sw.js notificationclick handler by making
+                    // the browser handle clicks (just focusing the window) instead of
+                    // letting the SW navigate to the correct URL.
                 },
             });
 
