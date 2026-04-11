@@ -283,6 +283,9 @@ export async function loadBrandFromDB(): Promise<BrandConfig> {
         if (error || !data?.value) return { ...DEFAULT_BRAND };
 
         const dbBrand = data.value as Partial<BrandConfig>;
+        // Never override titleDefault from DB — it controls PWA install name
+        // and must stay short. DB may have stale long SEO title.
+        delete dbBrand.titleDefault;
         return { ...DEFAULT_BRAND, ...dbBrand };
     } catch {
         // SAFETY: on any error, return hardcoded defaults

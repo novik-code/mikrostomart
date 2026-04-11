@@ -46,55 +46,78 @@ export async function requestFCMToken(): Promise<string | null> {
     try {
         // Step A: Check config
         const config = getFirebaseConfig();
-        console.log('[FCM] Config check:', {
-            apiKey: config.apiKey ? '✅ set' : '❌ missing',
-            projectId: config.projectId || '❌ missing',
-            messagingSenderId: config.messagingSenderId || '❌ missing',
-            appId: config.appId || '❌ missing',
-        });
+        console.log('[FCM] Step A: Config check');
 
         if (!config.apiKey || !config.projectId || !config.messagingSenderId) {
-            throw new Error('Firebase config incomplete — check NEXT_PUBLIC_ env vars in Vercel');
+            throw new Error('Firebase config incomplete — check NEXT_PUBLIC_ env vars');
         }
 
         // Step B: Get messaging instance
-        console.log('[FCM] Step B: Getting messaging instance...');
+        console.log('[FCM] Step B: Getting messaging');
         const msg = getFirebaseMessaging();
 
         // Step C: Check VAPID key
         const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-        console.log('[FCM] VAPID key:', vapidKey ? `✅ set (${vapidKey.substring(0, 10)}...)` : '❌ MISSING');
         if (!vapidKey) {
-            throw new Error('VAPID key missing — set NEXT_PUBLIC_VAPID_PUBLIC_KEY in Vercel');
+            throw new Error('VAPID key missing');
+        }
+        console.log('[FCM] Step C: VAPID OK');
+
+        // Step D: Register service worker
+        console.log('[FCM] Step D: Registering SW...');
+        let swRegistration: ServiceWorkerRegistration;
+
+        try {
+            swRegistration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+            console.log('[FCM] Step D: SW registered, scope:', swRegistration.scope);
+        } catch (regErr: any) {
+            throw new Error(`SW registration failed: ${regErr?.message}`);
         }
 
-        // Step D: Register service worker (force update to latest version)
-        console.log('[FCM] Step D: Registering service worker...');
-        const swRegistration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
-            updateViaCache: 'none',
-        });
-        console.log('[FCM] SW registered:', swRegistration.scope);
+        // Step D2: Wait for SW to be active — critical for getToken()
+        // getToken() internally needs an active SW for PushManager.subscribe()
+        console.log('[FCM] Step D2: Ensuring SW active...');
+        const activeState = swRegistration.active?.state;
+        console.log('[FCM] SW state:', activeState || 'no active SW', 
+            'installing:', !!swRegistration.installing, 
+            'waiting:', !!swRegistration.waiting);
 
-        // If SW is installing/waiting, wait a moment for it to activate
-        if (!swRegistration.active) {
-            console.log('[FCM] Waiting for SW to activate...');
+        if (!swRegistration.active || swRegistration.active.state !== 'activated') {
+            // SW is not yet active — wait for activation
             await new Promise<void>((resolve) => {
-                const sw = swRegistration.installing || swRegistration.waiting;
-                if (!sw) { resolve(); return; }
+                const checkSW = swRegistration.installing || swRegistration.waiting || swRegistration.active;
+                if (!checkSW) {
+                    console.log('[FCM] No SW at all, resolving anyway');
+                    resolve();
+                    return;
+                }
+                if (checkSW.state === 'activated') {
+                    resolve();
+                    return;
+                }
+
                 const onStateChange = () => {
-                    if (sw.state === 'activated' || sw.state === 'redundant') {
-                        sw.removeEventListener('statechange', onStateChange);
+                    console.log('[FCM] SW state changed to:', checkSW.state);
+                    if (checkSW.state === 'activated') {
+                        checkSW.removeEventListener('statechange', onStateChange);
                         resolve();
                     }
+                    if (checkSW.state === 'redundant') {
+                        checkSW.removeEventListener('statechange', onStateChange);
+                        resolve(); // resolve anyway, getToken might still work
+                    }
                 };
-                sw.addEventListener('statechange', onStateChange);
-                // Safety timeout - don't wait forever
-                setTimeout(resolve, 5000);
+                checkSW.addEventListener('statechange', onStateChange);
+                // Safety: don't wait forever
+                setTimeout(() => {
+                    console.log('[FCM] SW activation timeout - proceeding anyway');
+                    resolve();
+                }, 8000);
             });
-            console.log('[FCM] SW activation complete');
         }
+        console.log('[FCM] Step D2: SW active state:', swRegistration.active?.state);
 
-        // Step E: Get token
+        // Step E: Get token — this is where the actual FCM subscription happens
         console.log('[FCM] Step E: Requesting token...');
         const token = await getToken(msg, {
             vapidKey,
@@ -102,15 +125,13 @@ export async function requestFCMToken(): Promise<string | null> {
         });
 
         if (!token) {
-            console.warn('[FCM] No token returned — notifications may be blocked');
-            throw new Error('Brak tokenu — upewnij się, że powiadomienia nie są zablokowane w przeglądarce');
+            throw new Error('Brak tokenu — sprawdź czy powiadomienia nie są zablokowane');
         }
 
-        console.log('[FCM] ✅ Token obtained:', token.substring(0, 20) + '...');
+        console.log('[FCM] ✅ Token:', token.substring(0, 20) + '...');
         return token;
     } catch (err: any) {
-        console.error('[FCM] ❌ Failed to get token:', err);
-        // Re-throw with a meaningful message for the UI
+        console.error('[FCM] ❌ Error:', err);
         throw new Error(err?.message || 'Nieznany błąd Firebase');
     }
 }

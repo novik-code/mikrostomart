@@ -5,6 +5,13 @@
 importScripts('https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js');
 
+// CRITICAL: Skip waiting and claim clients immediately.
+// Without this, the SW stays in "waiting" state after install and never
+// activates until ALL tabs/PWA windows are closed. Firebase's getToken()
+// needs an ACTIVE SW — without skipWaiting it hangs forever.
+self.addEventListener('install', function() { self.skipWaiting(); });
+self.addEventListener('activate', function(event) { event.waitUntil(self.clients.claim()); });
+
 // Firebase config — these values are public (safe to hardcode in SW).
 firebase.initializeApp({
     apiKey: 'AIzaSyDZUDCx7UBjY48xduhOX3BhS3pdlFoW1i4',
