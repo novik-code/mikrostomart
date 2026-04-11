@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 import { useRouter } from "next/navigation";
-import { LogOut, ChevronLeft, ChevronRight, Calendar, RefreshCw, CheckSquare, Plus, User, AlertTriangle, Trash2, Clock, X, Bell, Bot, Lightbulb, ThumbsUp, MessageSquare, Send, Menu, Search, Mail, Settings } from "lucide-react";
+import { LogOut, ChevronLeft, ChevronRight, Calendar, RefreshCw, CheckSquare, Plus, User, AlertTriangle, Trash2, Clock, X, Bell, Bot, Lightbulb, ThumbsUp, MessageSquare, MessageCircle, Send, Menu, Search, Mail, Settings } from "lucide-react";
 import VoiceAssistant from "@/components/VoiceAssistant";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import PushNotificationPrompt from "@/components/PushNotificationPrompt";
@@ -25,6 +25,7 @@ import dynamic from 'next/dynamic';
 const ScheduleTab = dynamic(() => import('./components/ScheduleTab'), { ssr: false });
 const TasksTab = dynamic(() => import('./components/TasksTab'), { ssr: false });
 const EmailTab = dynamic(() => import('./components/EmailTab'), { ssr: false });
+const AdminChat = dynamic(() => import('@/components/AdminChat'), { ssr: false });
 
 // ─── Main Component ─────────────────────────────────────────────
 export default function EmployeePage() {
@@ -51,7 +52,7 @@ export default function EmployeePage() {
     const [historyError, setHistoryError] = useState<string | null>(null);
     const [sessionTimeoutWarning, setSessionTimeoutWarning] = useState(false);
     const { userId: currentUserId, email: currentUserEmail, isAdmin } = useUserRoles();
-    const [activeTab, setActiveTab] = useState<'grafik' | 'zadania' | 'asystent' | 'powiadomienia' | 'sugestie' | 'pacjenci' | 'poczta' | 'preferencje'>('grafik');
+    const [activeTab, setActiveTab] = useState<'grafik' | 'zadania' | 'asystent' | 'powiadomienia' | 'sugestie' | 'pacjenci' | 'poczta' | 'czat' | 'preferencje'>('grafik');
     const [loginPopupTasks, setLoginPopupTasks] = useState<EmployeeTask[]>([]);
     const [showLoginPopup, setShowLoginPopup] = useState(false);
 
@@ -406,6 +407,7 @@ export default function EmployeePage() {
                             { id: 'sugestie' as const, label: 'Sugestie', icon: <Lightbulb size={20} />, color: '#fb923c' },
                             { id: 'pacjenci' as const, label: 'Pacjenci', icon: <Search size={20} />, color: '#e879f9' },
                             { id: 'preferencje' as const, label: 'Preferencje', icon: <Settings size={20} />, color: '#94a3b8' },
+                            { id: 'czat' as const, label: 'Czat', icon: <MessageCircle size={20} />, color: '#06b6d4' },
                             ...(isAdmin ? [{ id: 'poczta' as const, label: 'Poczta', icon: <Mail size={20} />, color: '#34d399' }] : []),
                         ].map((tab, i, arr) => {
                             const isActive = activeTab === tab.id;
@@ -522,6 +524,7 @@ export default function EmployeePage() {
                         { id: 'sugestie' as const, label: 'Sugestie', icon: <Lightbulb size={18} /> },
                         { id: 'pacjenci' as const, label: 'Pacjenci', icon: <Search size={18} /> },
                         { id: 'preferencje' as const, label: 'Preferencje', icon: <Settings size={18} /> },
+                        { id: 'czat' as const, label: '💬 Czat', icon: <MessageCircle size={18} /> },
                         ...(isAdmin ? [{ id: 'poczta' as const, label: '📧 Poczta', icon: <Mail size={18} /> }] : []),
                     ].map(tab => {
                         const isActive = activeTab === tab.id;
@@ -649,6 +652,13 @@ export default function EmployeePage() {
             {/* ═══ POCZTA TAB (admin only) ═══ */}
             {activeTab === 'poczta' && isAdmin && (
                 <EmailTab />
+            )}
+
+            {/* ═══ CZAT TAB ═══ */}
+            {activeTab === 'czat' && (
+                <div style={{ padding: '1.5rem 2rem', maxWidth: '1400px', margin: '0 auto', width: '100%' }}>
+                    <AdminChat />
+                </div>
             )}
 
 

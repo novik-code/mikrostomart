@@ -44,6 +44,7 @@ const labels = {
     minAgo: 'min temu',
     hAgo: 'h temu',
     dAgo: 'd temu',
+    back: '← Wstecz',
 };
 
 export default function AdminChat() {
@@ -55,7 +56,17 @@ export default function AdminChat() {
     const [loadingMessages, setLoadingMessages] = useState(false);
     const [sending, setSending] = useState(false);
     const [statusFilter, setStatusFilter] = useState<'open' | 'closed'>('open');
+    const [isMobile, setIsMobile] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+
+    // Detect mobile viewport
+    useEffect(() => {
+        const mq = window.matchMedia('(max-width: 768px)');
+        setIsMobile(mq.matches);
+        const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+        mq.addEventListener('change', handler);
+        return () => mq.removeEventListener('change', handler);
+    }, []);
 
     const supabase = createBrowserClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -212,23 +223,29 @@ export default function AdminChat() {
         return `${diffDays}${labels.dAgo}`;
     };
 
+    // On mobile: show either the list or the thread, not both
+    const showListOnMobile = isMobile && !selectedConv;
+    const showThreadOnMobile = isMobile && !!selectedConv;
+
     return (
         <div style={{
             display: 'flex',
-            gap: '1.5rem',
+            gap: isMobile ? 0 : '1.5rem',
             height: 'calc(100vh - 200px)',
-            minHeight: '500px',
+            minHeight: isMobile ? '400px' : '500px',
+            flexDirection: isMobile ? 'column' : 'row',
         }}>
             {/* Left — Conversation List */}
             <div style={{
-                width: '320px',
-                minWidth: '280px',
+                width: isMobile ? '100%' : '320px',
+                minWidth: isMobile ? undefined : '280px',
                 background: 'var(--color-surface)',
                 borderRadius: 'var(--radius-lg)',
                 border: '1px solid var(--color-surface-hover)',
-                display: 'flex',
+                display: showThreadOnMobile ? 'none' : 'flex',
                 flexDirection: 'column',
                 overflow: 'hidden',
+                flex: isMobile ? 1 : undefined,
             }}>
                 {/* Filter Header */}
                 <div style={{
@@ -370,7 +387,7 @@ export default function AdminChat() {
                 background: 'var(--color-surface)',
                 borderRadius: 'var(--radius-lg)',
                 border: '1px solid var(--color-surface-hover)',
-                display: 'flex',
+                display: showListOnMobile ? 'none' : 'flex',
                 flexDirection: 'column',
                 overflow: 'hidden',
             }}>
@@ -395,8 +412,26 @@ export default function AdminChat() {
                             display: 'flex',
                             justifyContent: 'space-between',
                             alignItems: 'center',
+                            gap: '0.5rem',
                         }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                {isMobile && (
+                                    <button
+                                        onClick={() => setSelectedConv(null)}
+                                        style={{
+                                            padding: '0.4rem 0.6rem',
+                                            background: 'rgba(255,255,255,0.06)',
+                                            border: '1px solid rgba(255,255,255,0.1)',
+                                            borderRadius: 'var(--radius-md)',
+                                            color: 'var(--color-text-muted)',
+                                            cursor: 'pointer',
+                                            fontSize: '0.8rem',
+                                            flexShrink: 0,
+                                        }}
+                                    >
+                                        {labels.back}
+                                    </button>
+                                )}
                                 <div style={{
                                     width: '36px',
                                     height: '36px',

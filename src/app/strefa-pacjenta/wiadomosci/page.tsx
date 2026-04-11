@@ -101,6 +101,18 @@ export default function PatientChat() {
         };
     }, [conversationId]);
 
+    // Polling fallback — Supabase Realtime may not work with custom JWT auth (RLS blocks events)
+    // Poll every 5s to ensure messages always refresh
+    useEffect(() => {
+        if (isAuthLoading || isLoading) return;
+
+        const interval = setInterval(() => {
+            loadMessages();
+        }, 5000);
+
+        return () => clearInterval(interval);
+    }, [isAuthLoading, isLoading, loadMessages]);
+
     const handleSend = async () => {
         if (!newMessage.trim() || isSending) return;
 
