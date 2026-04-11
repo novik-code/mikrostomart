@@ -1,6 +1,11 @@
 /**
  * Firebase Client SDK — browser-side messaging token management.
  *
+ * ARCHITECTURE: This project uses @ducanh2912/next-pwa which generates sw.js
+ * with Workbox. That SW is auto-registered at scope "/" and handles push/notificationclick
+ * via push-sw.js. We MUST use that existing SW registration for getToken() — registering
+ * a separate firebase-messaging-sw.js would conflict and cause hangs.
+ *
  * Environment variables (public — exposed to client):
  *   NEXT_PUBLIC_FIREBASE_API_KEY
  *   NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
@@ -40,7 +45,7 @@ export function getFirebaseMessaging(): Messaging {
 
 /**
  * Request an FCM token for the current browser/device.
- * This also registers the Firebase service worker.
+ * Uses the existing next-pwa service worker (sw.js) — NOT a separate Firebase SW.
  */
 export async function requestFCMToken(): Promise<string | null> {
     try {
@@ -63,66 +68,40 @@ export async function requestFCMToken(): Promise<string | null> {
         }
         console.log('[FCM] Step C: VAPID OK');
 
-        // Step D: Register service worker
-        console.log('[FCM] Step D: Registering SW...');
-        let swRegistration: ServiceWorkerRegistration;
+        // Step D: Get the EXISTING service worker registration (from next-pwa sw.js)
+        // DO NOT register a new SW — next-pwa already registers sw.js at scope "/"
+        // Registering firebase-messaging-sw.js would conflict and cause hangs.
+        console.log('[FCM] Step D: Getting existing SW registration...');
 
+        let swRegistration: ServiceWorkerRegistration | undefined;
+
+        // Wait for the next-pwa SW to be ready (with timeout)
         try {
-            swRegistration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
-            console.log('[FCM] Step D: SW registered, scope:', swRegistration.scope);
-        } catch (regErr: any) {
-            throw new Error(`SW registration failed: ${regErr?.message}`);
+            swRegistration = await Promise.race([
+                navigator.serviceWorker.ready,
+                new Promise<ServiceWorkerRegistration>((_, reject) =>
+                    setTimeout(() => reject(new Error('SW ready timeout')), 10000)
+                ),
+            ]);
+            console.log('[FCM] Step D: Got SW registration, scope:', swRegistration.scope);
+        } catch (readyErr) {
+            // Fallback: try to get any existing registration
+            console.log('[FCM] Step D: ready timed out, trying getRegistrations...');
+            const regs = await navigator.serviceWorker.getRegistrations();
+            if (regs.length > 0) {
+                swRegistration = regs[0];
+                console.log('[FCM] Step D: Using first registration, scope:', swRegistration.scope);
+            }
         }
 
-        // Step D2: Wait for SW to be active — critical for getToken()
-        // getToken() internally needs an active SW for PushManager.subscribe()
-        console.log('[FCM] Step D2: Ensuring SW active...');
-        const activeState = swRegistration.active?.state;
-        console.log('[FCM] SW state:', activeState || 'no active SW', 
-            'installing:', !!swRegistration.installing, 
-            'waiting:', !!swRegistration.waiting);
-
-        if (!swRegistration.active || swRegistration.active.state !== 'activated') {
-            // SW is not yet active — wait for activation
-            await new Promise<void>((resolve) => {
-                const checkSW = swRegistration.installing || swRegistration.waiting || swRegistration.active;
-                if (!checkSW) {
-                    console.log('[FCM] No SW at all, resolving anyway');
-                    resolve();
-                    return;
-                }
-                if (checkSW.state === 'activated') {
-                    resolve();
-                    return;
-                }
-
-                const onStateChange = () => {
-                    console.log('[FCM] SW state changed to:', checkSW.state);
-                    if (checkSW.state === 'activated') {
-                        checkSW.removeEventListener('statechange', onStateChange);
-                        resolve();
-                    }
-                    if (checkSW.state === 'redundant') {
-                        checkSW.removeEventListener('statechange', onStateChange);
-                        resolve(); // resolve anyway, getToken might still work
-                    }
-                };
-                checkSW.addEventListener('statechange', onStateChange);
-                // Safety: don't wait forever
-                setTimeout(() => {
-                    console.log('[FCM] SW activation timeout - proceeding anyway');
-                    resolve();
-                }, 8000);
-            });
-        }
-        console.log('[FCM] Step D2: SW active state:', swRegistration.active?.state);
-
-        // Step E: Get token — this is where the actual FCM subscription happens
+        // Step E: Get token
         console.log('[FCM] Step E: Requesting token...');
-        const token = await getToken(msg, {
-            vapidKey,
-            serviceWorkerRegistration: swRegistration,
-        });
+        const tokenOptions: any = { vapidKey };
+        if (swRegistration) {
+            tokenOptions.serviceWorkerRegistration = swRegistration;
+        }
+
+        const token = await getToken(msg, tokenOptions);
 
         if (!token) {
             throw new Error('Brak tokenu — sprawdź czy powiadomienia nie są zablokowane');
