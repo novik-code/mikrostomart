@@ -83,15 +83,41 @@ export async function requestFCMToken(): Promise<string | null> {
                     setTimeout(() => reject(new Error('SW ready timeout')), 10000)
                 ),
             ]);
-            console.log('[FCM] Step D: Got SW registration, scope:', swRegistration.scope);
+            console.log('[FCM] Step D: Got SW, scope:', swRegistration.scope,
+                'active:', !!swRegistration.active,
+                'installing:', !!swRegistration.installing,
+                'waiting:', !!swRegistration.waiting);
         } catch (readyErr) {
-            // Fallback: try to get any existing registration
             console.log('[FCM] Step D: ready timed out, trying getRegistrations...');
             const regs = await navigator.serviceWorker.getRegistrations();
             if (regs.length > 0) {
                 swRegistration = regs[0];
-                console.log('[FCM] Step D: Using first registration, scope:', swRegistration.scope);
+                console.log('[FCM] Step D: Using first reg, scope:', swRegistration.scope);
             }
+        }
+
+        // Step D2: Ensure SW has an active worker — Firebase requires this
+        if (swRegistration && !swRegistration.active) {
+            console.log('[FCM] Step D2: Waiting for SW to activate...');
+            await new Promise<void>((resolve) => {
+                const sw = swRegistration!.installing || swRegistration!.waiting;
+                if (!sw) { resolve(); return; }
+                if (sw.state === 'activated') { resolve(); return; }
+
+                const onStateChange = () => {
+                    console.log('[FCM] SW state:', sw.state);
+                    if (sw.state === 'activated' || sw.state === 'redundant') {
+                        sw.removeEventListener('statechange', onStateChange);
+                        resolve();
+                    }
+                };
+                sw.addEventListener('statechange', onStateChange);
+                setTimeout(() => {
+                    sw.removeEventListener('statechange', onStateChange);
+                    resolve();
+                }, 8000);
+            });
+            console.log('[FCM] Step D2: active:', !!swRegistration.active);
         }
 
         // Step E: Get token
