@@ -93,6 +93,11 @@ export default function PushNotificationPrompt({
                 }),
             }).catch(() => { /* offline OK */ });
             setStatus('subscribed');
+            // Start foreground message listener (data-only messages
+            // need this to show notifications when app is in foreground)
+            import('@/lib/firebaseClient').then(({ listenForForegroundMessages }) => {
+                listenForForegroundMessages();
+            }).catch(() => { /* Firebase load failed, OK */ });
         } else {
             setStatus('can-subscribe');
         }

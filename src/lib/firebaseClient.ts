@@ -78,22 +78,56 @@ export async function requestFCMToken(): Promise<string | null> {
 
 /**
  * Listen for foreground messages and show a browser notification.
+ * Uses ServiceWorker showNotification when available (supports data for click navigation).
+ * Falls back to Notification API with onclick handler.
  */
 export function listenForForegroundMessages(callback?: (payload: any) => void): () => void {
     const msg = getFirebaseMessaging();
-    return onMessage(msg, (payload) => {
+    return onMessage(msg, async (payload) => {
         console.log('[FCM] Foreground message:', payload);
 
-        const title = payload.notification?.title || payload.data?.title;
-        const body = payload.notification?.body || payload.data?.body;
+        const title = payload.notification?.title || payload.data?.title || 'Mikrostomart';
+        const body = payload.notification?.body || payload.data?.body || '';
         const data = payload.data || {};
 
         if (title && Notification.permission === 'granted') {
-            new Notification(title, {
-                body: body || '',
-                icon: '/icon-192x192.png',
-                tag: data.tag || 'mikrostomart-fg',
-            });
+            // Try SW showNotification first — supports data property for notificationclick
+            try {
+                const swReg = await navigator.serviceWorker.getRegistration('/firebase-cloud-messaging-push-scope');
+                if (swReg) {
+                    await swReg.showNotification(title, {
+                        body,
+                        icon: data.icon || '/icon-192x192.png',
+                        badge: '/icon-192x192.png',
+                        tag: data.tag || 'mikrostomart-fg',
+                        data: {
+                            url: data.url || '/',
+                            title,
+                            body,
+                        },
+                    });
+                } else {
+                    // Fallback: Notification API with onclick
+                    const notif = new Notification(title, {
+                        body,
+                        icon: '/icon-192x192.png',
+                        tag: data.tag || 'mikrostomart-fg',
+                    });
+                    if (data.url) {
+                        notif.onclick = () => {
+                            window.focus();
+                            window.location.href = data.url;
+                        };
+                    }
+                }
+            } catch {
+                // Final fallback
+                new Notification(title, {
+                    body,
+                    icon: '/icon-192x192.png',
+                    tag: data.tag || 'mikrostomart-fg',
+                });
+            }
         }
 
         if (title) {

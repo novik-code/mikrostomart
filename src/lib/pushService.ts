@@ -76,37 +76,22 @@ async function sendToTokens(
             console.log(`[Push] Sending batch (${batch.length} tokens): title="${payload.title}", body="${payload.body?.substring(0, 50)}..."`);
             const response = await messaging.sendEachForMulticast({
                 tokens: batch,
-                // Include BOTH notification and data keys:
-                // - notification: FCM auto-displays title/body (guaranteed visible)
-                // - data: carries URL and metadata for click handling
-                notification: {
-                    title: payload.title || 'Mikrostomart',
-                    body: payload.body || '',
-                },
+                // DATA-ONLY message — no top-level 'notification' key.
+                // Why: FCM auto-display (with notification key) creates notifications
+                // WITHOUT our custom data.url, breaking click navigation. Also,
+                // our SW's onBackgroundMessage skips showNotification() when
+                // notification key exists, making background push invisible in PWA.
+                //
+                // With data-only: SW's onBackgroundMessage ALWAYS fires and calls
+                // showNotification() with proper data.url for notificationclick.
+                // For foreground: onMessage in firebaseClient.ts handles display.
                 data: {
-                    title: payload.title || '',
+                    title: payload.title || 'Mikrostomart',
                     body: payload.body || '',
                     url: payload.url || '/',
                     tag: payload.tag || 'notification',
                     icon: payload.icon || '/icon-192x192.png',
                     requireInteraction: String(payload.requireInteraction || false),
-                },
-                webpush: {
-                    notification: {
-                        icon: payload.icon || '/icon-192x192.png',
-                        badge: '/icon-192x192.png',
-                        tag: payload.tag || 'mikrostomart-notification',
-                        requireInteraction: payload.requireInteraction || false,
-                        data: {
-                            url: payload.url || '/',
-                            title: payload.title || '',
-                            body: payload.body || '',
-                        },
-                    },
-                    // NOTE: fcmOptions.link intentionally omitted — it conflicts with
-                    // our firebase-messaging-sw.js notificationclick handler by making
-                    // the browser handle clicks (just focusing the window) instead of
-                    // letting the SW navigate to the correct URL.
                 },
             });
 
