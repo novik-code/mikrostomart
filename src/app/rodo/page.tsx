@@ -4,13 +4,11 @@ import { Download, Shield } from "lucide-react";
 import { brandI18nParams } from '@/lib/brandConfig';
 import { useTranslations } from "next-intl";
 import RevealOnScroll from "@/components/RevealOnScroll";
-import DemoPagePlaceholder from "@/components/DemoPagePlaceholder";
 
 export default function RodoPage() {
     const t = useTranslations('rodo');
 
     return (
-        <DemoPagePlaceholder pageTitle="RODO" pageDescription="Klauzula informacyjna o przetwarzaniu danych osobowych — treść dostosowana indywidualnie do każdego klienta DensFlow.">
         <main style={{ background: "var(--color-background)", minHeight: "100vh" }}>
 
             {/* Hero Header */}
@@ -149,7 +147,6 @@ export default function RodoPage() {
                 </RevealOnScroll>
             </section>
         </main>
-        </DemoPagePlaceholder>
     );
 }
 

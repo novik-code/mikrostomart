@@ -190,12 +190,12 @@ const DEMO_BRAND: BrandConfig = {
     mapQuery: 'Warszawa',
     mapEmbedUrl: '',
 
-    // Legal Entity
+    // Legal Entity — real company data required by PayU for payment verification
     legalEntity: {
-        name: 'Demo Dental Sp. z o.o.',
-        nip: '0000000000',
-        krs: '0000000000',
-        board: ['Jan Kowalski'],
+        name: 'ELMAR sp. z o.o.',
+        nip: '7543251709',
+        krs: '0000815074',
+        board: ['Marcin Nowosielski', 'Elżbieta Nowosielska'],
     },
 
     // Domain / URLs
