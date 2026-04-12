@@ -159,8 +159,8 @@ export default function Footer() {
                 <div>
                     <h4 style={{ color: 'var(--color-text-main)', marginBottom: '0.75rem', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Prawne</h4>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                        <Link href="/regulamin" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">Regulamin (Terms of Service)</Link>
-                        <Link href="/privacy-policy" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">Privacy Policy</Link>
+                        <Link href="/regulamin" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">Regulamin</Link>
+                        <Link href="/privacy-policy" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">Polityka Prywatności</Link>
                         <Link href="/rodo" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">RODO</Link>
                         <Link href="/polityka-cookies" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">Polityka cookies</Link>
                     </div>
@@ -181,7 +181,7 @@ export default function Footer() {
                 gap: '2rem',
                 flexWrap: 'wrap'
             }}>
-                <span>{isDemoMode ? `© ${new Date().getFullYear()} ${brand.name}. Wszelkie prawa zastrzeżone.` : t('copyright', { year: new Date().getFullYear() })}</span>
+                <span>{t('copyright', { year: new Date().getFullYear() })}</span>
                 <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', justifyContent: 'center' }}>
                     <a
                         href="/faq"

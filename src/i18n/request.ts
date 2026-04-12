@@ -1,6 +1,7 @@
 import { getRequestConfig } from 'next-intl/server';
 import { cookies } from 'next/headers';
 import { routing } from './routing';
+import { brandI18nParams } from '@/lib/brandConfig';
 
 export default getRequestConfig(async () => {
     // Read locale from NEXT_LOCALE cookie (set by LanguageSwitcher)
@@ -18,5 +19,8 @@ export default getRequestConfig(async () => {
     return {
         locale,
         messages: { ...common, ...pages },
+        // Auto-inject brand tokens into ALL translations so {brandName} etc. resolve
+        // without needing manual brandI18nParams() in every component
+        defaultTranslationValues: brandI18nParams(),
     };
 });

@@ -14,7 +14,7 @@ import AdminFloatingBar from "@/components/AdminFloatingBar";
 import VisualEditorOverlay from "@/components/editor/VisualEditorOverlay";
 import PageOverridesApplier from "@/components/editor/PageOverridesApplier";
 import { isDemoMode } from "@/lib/demoMode";
-import { brand, demoSanitize, loadBrandFromDB } from "@/lib/brandConfig";
+import { brand, brandI18nParams, demoSanitize, loadBrandFromDB } from "@/lib/brandConfig";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
@@ -179,6 +179,26 @@ export default async function RootLayout({
     const locale = await getLocale();
     const rawMessages = await getMessages();
 
+    // Recursively replace brand tokens ({brandName}, {cityShort}, etc.) in all translation strings.
+    // next-intl v4 removed defaultTranslationValues from the provider, so we pre-bake them here.
+    const brandParams = brandI18nParams();
+    function deepBrandReplace(obj: any): any {
+        if (typeof obj === 'string') {
+            let s = obj;
+            for (const [key, val] of Object.entries(brandParams)) {
+                s = s.replaceAll(`{${key}}`, val);
+            }
+            return s;
+        }
+        if (Array.isArray(obj)) return obj.map(deepBrandReplace);
+        if (obj && typeof obj === 'object') {
+            const result: any = {};
+            for (const key of Object.keys(obj)) result[key] = deepBrandReplace(obj[key]);
+            return result;
+        }
+        return obj;
+    }
+
     // Recursively sanitize all translation strings for demo mode
     function deepSanitize(obj: any): any {
         if (typeof obj === 'string') return demoSanitize(obj);
@@ -190,7 +210,10 @@ export default async function RootLayout({
         }
         return obj;
     }
-    const messages = isDemoMode ? deepSanitize(rawMessages) : rawMessages;
+
+    // Pipeline: replace brand tokens first, then sanitize for demo if needed
+    const branded = deepBrandReplace(rawMessages);
+    const messages = isDemoMode ? deepSanitize(branded) : branded;
 
     return (
         <html lang={locale}>
