@@ -28,7 +28,6 @@ export default function PatientChat() {
     const [newMessage, setNewMessage] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const [isSending, setIsSending] = useState(false);
-    const messagesEndRef = useRef<HTMLDivElement>(null);
     const router = useRouter();
     const t = useTranslations('chat');
     const locale = useLocale();
@@ -36,9 +35,14 @@ export default function PatientChat() {
     const patientName = patient ? `${patient.firstName || ''} ${patient.lastName || ''}`.trim() : '';
     const patientId = patient?.supabaseId || patient?.id || '';
 
-    const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    };
+    const prevMessageCountRef = useRef(0);
+    const messagesContainerRef = useRef<HTMLDivElement>(null);
+
+    const scrollToBottom = useCallback(() => {
+        if (messagesContainerRef.current) {
+            messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+        }
+    }, []);
 
     const loadMessages = useCallback(async () => {
         const token = getAuthToken();
@@ -68,9 +72,14 @@ export default function PatientChat() {
         loadMessages();
     }, [isAuthLoading, loadMessages]);
 
+    // Only scroll to bottom when NEW messages arrive (count increases),
+    // not on every poll cycle that replaces the array with same data
     useEffect(() => {
-        scrollToBottom();
-    }, [messages]);
+        if (messages.length > prevMessageCountRef.current) {
+            scrollToBottom();
+        }
+        prevMessageCountRef.current = messages.length;
+    }, [messages.length, scrollToBottom]);
 
     // Supabase Realtime subscription
     useEffect(() => {
@@ -273,7 +282,7 @@ export default function PatientChat() {
                 </div>
 
                 {/* Messages */}
-                <div style={{
+                <div ref={messagesContainerRef} style={{
                     flex: 1,
                     background: 'rgba(255, 255, 255, 0.02)',
                     border: '1px solid rgba(255, 255, 255, 0.08)',
@@ -357,7 +366,7 @@ export default function PatientChat() {
                             </div>
                         ))
                     )}
-                    <div ref={messagesEndRef} />
+                    {/* scroll anchor — no longer used for scrollIntoView */}
                 </div>
 
                 {/* Input */}

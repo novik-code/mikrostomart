@@ -58,21 +58,38 @@ self.addEventListener('notificationclick', function (event) {
     var notifData = event.notification.data || {};
     var url = notifData.url || '/';
 
-    // Build URL with push content for popup
+    // Build absolute URL
+    var baseUrl = self.location.origin;
+    var absoluteUrl = url.startsWith('http') ? url : baseUrl + url;
+
+    // Append push context params
     var pushTitle = notifData.title || event.notification.title || '';
     var pushBody = notifData.body || event.notification.body || '';
-    var sep = url.indexOf('?') >= 0 ? '&' : '?';
-    var targetUrl = url + sep + 'pushTitle=' + encodeURIComponent(pushTitle) + '&pushBody=' + encodeURIComponent(pushBody) + '&pushTime=' + Date.now();
+    var sep = absoluteUrl.indexOf('?') >= 0 ? '&' : '?';
+    var targetUrl = absoluteUrl + sep + 'pushTitle=' + encodeURIComponent(pushTitle) + '&pushBody=' + encodeURIComponent(pushBody) + '&pushTime=' + Date.now();
 
     event.waitUntil(
         self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (clientList) {
+            // Try to find an existing window and navigate it
             for (var i = 0; i < clientList.length; i++) {
                 var client = clientList[i];
-                if (client.url.indexOf(self.location.origin) >= 0 && 'focus' in client) {
-                    client.navigate(targetUrl);
-                    return client.focus();
+                if (client.url.indexOf(baseUrl) >= 0 && 'navigate' in client) {
+                    // client.navigate() works when this SW controls the client.
+                    // For uncontrolled clients (different scope), it may fail — catch and fallback.
+                    try {
+                        return client.navigate(targetUrl).then(function(c) {
+                            if (c) return c.focus();
+                            return self.clients.openWindow(targetUrl);
+                        }).catch(function() {
+                            return self.clients.openWindow(targetUrl);
+                        });
+                    } catch (e) {
+                        // Synchronous error — fallback
+                        return self.clients.openWindow(targetUrl);
+                    }
                 }
             }
+            // No existing window — open new
             return self.clients.openWindow(targetUrl);
         })
     );
