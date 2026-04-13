@@ -100,6 +100,16 @@ export default function ScheduleTab({
     const [pdfGenerating, setPdfGenerating] = useState(false);
     const [CONSENT_TYPES, setConsentTypes] = useState(HARDCODED_CONSENT_TYPES);
 
+    // CareFlow enrollment state
+    const [careflowOpen, setCareflowOpen] = useState(false);
+    const [careflowTemplates, setCareflowTemplates] = useState<any[]>([]);
+    const [careflowSelectedTemplate, setCareflowSelectedTemplate] = useState('');
+    const [careflowPrescription, setCareflowPrescription] = useState('');
+    const [careflowNotes, setCareflowNotes] = useState('');
+    const [careflowEnrolling, setCareflowEnrolling] = useState(false);
+    const [careflowResult, setCareflowResult] = useState<{ success: boolean; message: string; token?: string } | null>(null);
+    const [careflowExisting, setCareflowExisting] = useState<any>(null);
+
     // Load consent types from DB on mount (same pattern as zgody/[token]/page.tsx)
     useEffect(() => {
         fetch('/api/admin/consent-mappings')
@@ -1335,6 +1345,51 @@ export default function ScheduleTab({
                             >
                                 📝 Zgody
                             </button>
+                            {/* CareFlow enrollment button */}
+                            <button
+                                onClick={async () => {
+                                    setCareflowOpen(!careflowOpen);
+                                    setCareflowResult(null);
+                                    setCareflowExisting(null);
+                                    if (!careflowOpen) {
+                                        try {
+                                            const [tRes, eRes] = await Promise.all([
+                                                fetch('/api/admin/careflow/templates'),
+                                                selectedAppointment.patientId
+                                                    ? fetch(`/api/employee/careflow/enrollments?patientId=${selectedAppointment.patientId}&status=active`)
+                                                    : Promise.resolve(null),
+                                            ]);
+                                            const tData = await tRes.json();
+                                            setCareflowTemplates((tData.templates || []).filter((t: any) => t.is_active));
+                                            if (eRes) {
+                                                const eData = await eRes.json();
+                                                if (eData.enrollments?.length > 0) {
+                                                    setCareflowExisting(eData.enrollments[0]);
+                                                }
+                                            }
+                                        } catch { }
+                                    }
+                                }}
+                                style={{
+                                    background: careflowOpen
+                                        ? 'linear-gradient(135deg, #10b981, #059669)'
+                                        : 'linear-gradient(135deg, #6366f1, #7c3aed)',
+                                    border: 'none',
+                                    borderRadius: '0.5rem',
+                                    padding: '0.4rem 0.65rem',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.3rem',
+                                    color: '#fff',
+                                    fontSize: '0.72rem',
+                                    fontWeight: '600',
+                                    cursor: 'pointer',
+                                    whiteSpace: 'nowrap',
+                                }}
+                                title="Zakwalifikuj pacjenta do CareFlow"
+                            >
+                                🏥 CareFlow
+                            </button>
                             <button
                                 onClick={() => setSelectedAppointment(null)}
                                 style={{
@@ -1359,6 +1414,207 @@ export default function ScheduleTab({
 
                     {/* Modal Body */}
                     <div style={{ padding: '1.25rem 1.5rem' }}>
+
+                        {/* CareFlow Enrollment Panel */}
+                        {careflowOpen && (
+                            <div style={{
+                                background: 'rgba(99,102,241,0.08)',
+                                border: '1px solid rgba(99,102,241,0.25)',
+                                borderRadius: '0.75rem',
+                                padding: '1rem 1.25rem',
+                                marginBottom: '1rem',
+                            }}>
+                                <div style={{ fontSize: '0.85rem', fontWeight: '600', color: '#818cf8', marginBottom: '0.75rem' }}>
+                                    🏥 CareFlow — Opieka Peri-operacyjna
+                                </div>
+
+                                {/* Already enrolled warning */}
+                                {careflowExisting && (
+                                    <div style={{
+                                        background: 'rgba(245,158,11,0.1)',
+                                        border: '1px solid rgba(245,158,11,0.3)',
+                                        borderRadius: '0.5rem',
+                                        padding: '0.6rem 0.8rem',
+                                        marginBottom: '0.75rem',
+                                        fontSize: '0.8rem',
+                                        color: '#f59e0b',
+                                    }}>
+                                        ⚠️ Pacjent ma aktywny CareFlow: <strong>{careflowExisting.template_name}</strong>
+                                        <br />
+                                        <span style={{ fontSize: '0.75rem', color: 'rgba(245,158,11,0.7)' }}>
+                                            Postęp: {careflowExisting.stats?.completed || 0}/{careflowExisting.stats?.total || 0} • Zabieg: {new Date(careflowExisting.appointment_date).toLocaleDateString('pl-PL')}
+                                        </span>
+                                    </div>
+                                )}
+
+                                {/* Success message */}
+                                {careflowResult && (
+                                    <div style={{
+                                        background: careflowResult.success ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
+                                        border: `1px solid ${careflowResult.success ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}`,
+                                        borderRadius: '0.5rem',
+                                        padding: '0.6rem 0.8rem',
+                                        marginBottom: '0.75rem',
+                                        fontSize: '0.8rem',
+                                        color: careflowResult.success ? '#10b981' : '#ef4444',
+                                    }}>
+                                        {careflowResult.success ? '✅' : '❌'} {careflowResult.message}
+                                        {careflowResult.token && (
+                                            <button
+                                                onClick={() => {
+                                                    navigator.clipboard.writeText(`${window.location.origin}/opieka/${careflowResult.token}`);
+                                                    alert('Link skopiowany!');
+                                                }}
+                                                style={{
+                                                    marginLeft: '0.5rem',
+                                                    background: 'rgba(16,185,129,0.2)',
+                                                    border: '1px solid rgba(16,185,129,0.3)',
+                                                    borderRadius: '4px',
+                                                    padding: '0.15rem 0.4rem',
+                                                    color: '#10b981',
+                                                    fontSize: '0.7rem',
+                                                    cursor: 'pointer',
+                                                }}
+                                            >
+                                                🔗 Kopiuj link
+                                            </button>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Template selection */}
+                                {!careflowResult?.success && (
+                                    <>
+                                        <div style={{ marginBottom: '0.5rem' }}>
+                                            <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: '0.2rem' }}>Szablon protokołu *</label>
+                                            <select
+                                                value={careflowSelectedTemplate}
+                                                onChange={e => setCareflowSelectedTemplate(e.target.value)}
+                                                style={{
+                                                    width: '100%',
+                                                    padding: '0.5rem 0.8rem',
+                                                    borderRadius: '0.5rem',
+                                                    border: '1px solid rgba(255,255,255,0.12)',
+                                                    background: 'rgba(0,0,0,0.3)',
+                                                    color: 'white',
+                                                    fontSize: '0.85rem',
+                                                }}
+                                            >
+                                                <option value="">— Wybierz szablon —</option>
+                                                {careflowTemplates.map((t: any) => (
+                                                    <option key={t.id} value={t.id}>🏥 {t.name} ({t.step_count} kroków)</option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                                            <div>
+                                                <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: '0.2rem' }}>Kod recepty</label>
+                                                <input
+                                                    value={careflowPrescription}
+                                                    onChange={e => setCareflowPrescription(e.target.value)}
+                                                    placeholder="np. 4823"
+                                                    style={{
+                                                        width: '100%',
+                                                        padding: '0.5rem 0.8rem',
+                                                        borderRadius: '0.5rem',
+                                                        border: '1px solid rgba(255,255,255,0.12)',
+                                                        background: 'rgba(0,0,0,0.3)',
+                                                        color: 'white',
+                                                        fontSize: '0.85rem',
+                                                    }}
+                                                />
+                                            </div>
+                                            <div>
+                                                <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: '0.2rem' }}>Notatka</label>
+                                                <input
+                                                    value={careflowNotes}
+                                                    onChange={e => setCareflowNotes(e.target.value)}
+                                                    placeholder="Dodatkowe uwagi..."
+                                                    style={{
+                                                        width: '100%',
+                                                        padding: '0.5rem 0.8rem',
+                                                        borderRadius: '0.5rem',
+                                                        border: '1px solid rgba(255,255,255,0.12)',
+                                                        background: 'rgba(0,0,0,0.3)',
+                                                        color: 'white',
+                                                        fontSize: '0.85rem',
+                                                    }}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <button
+                                            disabled={!careflowSelectedTemplate || careflowEnrolling}
+                                            onClick={async () => {
+                                                if (!selectedAppointment) return;
+                                                setCareflowEnrolling(true);
+                                                try {
+                                                    // Need appointment date — use the day from the grid
+                                                    // Find the date from scheduleData
+                                                    let appointmentDate = '';
+                                                    if (scheduleData) {
+                                                        for (const day of scheduleData.days) {
+                                                            if (day.appointments.some(a => a.id === selectedAppointment.id)) {
+                                                                appointmentDate = `${day.date}T${selectedAppointment.startTime}:00`;
+                                                                break;
+                                                            }
+                                                        }
+                                                    }
+                                                    if (!appointmentDate) {
+                                                        // Fallback: use today + time
+                                                        appointmentDate = `${new Date().toISOString().split('T')[0]}T${selectedAppointment.startTime}:00`;
+                                                    }
+
+                                                    const res = await fetch('/api/employee/careflow/enroll', {
+                                                        method: 'POST',
+                                                        headers: { 'Content-Type': 'application/json' },
+                                                        body: JSON.stringify({
+                                                            patientId: selectedAppointment.patientId,
+                                                            patientName: selectedAppointment.patientName,
+                                                            templateId: careflowSelectedTemplate,
+                                                            appointmentDate,
+                                                            doctorName: selectedAppointment.doctorName,
+                                                            prescriptionCode: careflowPrescription || undefined,
+                                                            customNotes: careflowNotes || undefined,
+                                                        }),
+                                                    });
+                                                    const data = await res.json();
+                                                    if (res.ok) {
+                                                        setCareflowResult({
+                                                            success: true,
+                                                            message: `Pacjent zakwalifikowany! ${data.tasksCreated} zadań utworzonych.`,
+                                                            token: data.accessToken,
+                                                        });
+                                                    } else {
+                                                        setCareflowResult({ success: false, message: data.error || 'Błąd' });
+                                                    }
+                                                } catch (err: any) {
+                                                    setCareflowResult({ success: false, message: err.message || 'Błąd połączenia' });
+                                                }
+                                                setCareflowEnrolling(false);
+                                            }}
+                                            style={{
+                                                width: '100%',
+                                                padding: '0.55rem',
+                                                borderRadius: '0.5rem',
+                                                border: 'none',
+                                                background: !careflowSelectedTemplate
+                                                    ? 'rgba(255,255,255,0.08)'
+                                                    : 'linear-gradient(135deg, #6366f1, #7c3aed)',
+                                                color: !careflowSelectedTemplate ? 'rgba(255,255,255,0.3)' : 'white',
+                                                fontSize: '0.85rem',
+                                                fontWeight: '600',
+                                                cursor: !careflowSelectedTemplate ? 'not-allowed' : 'pointer',
+                                            }}
+                                        >
+                                            {careflowEnrolling ? '⏳ Kwalifikuję...' : '🏥 Zakwalifikuj do CareFlow'}
+                                        </button>
+                                    </>
+                                )}
+                            </div>
+                        )}
+
                         {historyLoading && (
                             <div style={{ textAlign: 'center', padding: '3rem 0' }}>
                                 <div style={{
