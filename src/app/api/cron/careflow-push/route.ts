@@ -37,9 +37,11 @@ export async function GET(req: Request) {
 
     let sent = 0;
     let skipped = 0;
+    let autoCompleted = 0;
 
     try {
         const now = new Date();
+        const currentHour = now.getHours();
 
         // Find pending tasks: scheduled_at <= now, not completed, not skipped
         const { data: pendingTasks, error } = await supabase
@@ -65,6 +67,14 @@ export async function GET(req: Request) {
         for (const task of (pendingTasks || [])) {
             const enrollment = (task as any).care_enrollments;
             if (!enrollment) { skipped++; continue; }
+
+            // Check quiet hours (default 22:00-7:00) — don't disturb patients at night
+            const quietStart = 22;
+            const quietEnd = 7;
+            if (currentHour >= quietStart || currentHour < quietEnd) {
+                // Silent skip — don't log each one
+                continue;
+            }
 
             // Check push limits
             if (task.push_max_count && task.push_sent_count >= task.push_max_count) {
@@ -147,8 +157,48 @@ export async function GET(req: Request) {
             }
         }
 
-        console.log(`🏥 [CareFlow Push] Done: ${sent} sent, ${skipped} skipped`);
-        return NextResponse.json({ success: true, sent, skipped });
+        // ─── Auto-complete enrollments where all tasks are done ───
+        try {
+            // Find active enrollments
+            const { data: activeEnrollments } = await supabase
+                .from('care_enrollments')
+                .select('id')
+                .eq('status', 'active');
+
+            for (const enrollment of (activeEnrollments || [])) {
+                // Check if ALL tasks for this enrollment are completed or skipped
+                const { data: incompleteTasks } = await supabase
+                    .from('care_tasks')
+                    .select('id')
+                    .eq('enrollment_id', enrollment.id)
+                    .is('completed_at', null)
+                    .is('skipped_at', null)
+                    .limit(1);
+
+                if (!incompleteTasks || incompleteTasks.length === 0) {
+                    // All tasks done → mark enrollment as completed
+                    await supabase
+                        .from('care_enrollments')
+                        .update({ status: 'completed', completed_at: now.toISOString() })
+                        .eq('id', enrollment.id);
+
+                    await supabase.from('care_audit_log').insert({
+                        enrollment_id: enrollment.id,
+                        action: 'auto_completed',
+                        actor: 'system',
+                        details: { reason: 'All tasks completed or skipped' },
+                    });
+
+                    autoCompleted++;
+                    console.log(`   ✅ Auto-completed enrollment: ${enrollment.id}`);
+                }
+            }
+        } catch (acErr: any) {
+            console.error('🏥 [CareFlow Push] Auto-complete error:', acErr.message);
+        }
+
+        console.log(`🏥 [CareFlow Push] Done: ${sent} sent, ${skipped} skipped, ${autoCompleted} auto-completed`);
+        return NextResponse.json({ success: true, sent, skipped, autoCompleted });
     } catch (err: any) {
         console.error('🏥 [CareFlow Push] Error:', err);
         return NextResponse.json({ success: false, error: err.message }, { status: 500 });

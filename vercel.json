@@ -94,7 +94,11 @@
         },
         {
             "path": "/api/cron/careflow-push",
-            "schedule": "*/5 * * * *"
+            "schedule": "*/5 7-21 * * *"
+        },
+        {
+            "path": "/api/cron/careflow-auto-qualify",
+            "schedule": "0 8 * * *"
         }
     ]
 }
