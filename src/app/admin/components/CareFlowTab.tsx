@@ -36,6 +36,7 @@ interface Enrollment {
     id: string;
     patient_name: string;
     patient_id: string;
+    patient_phone: string | null;
     template_name: string;
     appointment_date: string;
     doctor_name: string;
@@ -46,7 +47,28 @@ interface Enrollment {
     prescription_code: string | null;
     report_pdf_url: string | null;
     report_generated_at: string | null;
+    report_exported_to_prodentis: boolean;
     stats: { total: number; completed: number; pending: number; progress: number };
+}
+
+interface StatsData {
+    overview: {
+        total: number;
+        active: number;
+        completed: number;
+        cancelled: number;
+        completionRate: number;
+        avgCompletionHours: number;
+        avgCompliance: number;
+        avgResponseMinutes: number;
+        smsFallbackRate: number;
+        exportedToProdentis: number;
+        totalTasks: number;
+        smsSentTasks: number;
+    };
+    byTemplate: { name: string; count: number; completed: number; cancelled: number; completionRate: number }[];
+    byDoctor: { name: string; count: number; completed: number; avgCompliance: number }[];
+    monthlyTimeline: { month: string; count: number }[];
 }
 
 const cardStyle: React.CSSProperties = {
@@ -104,15 +126,16 @@ const labelStyle: React.CSSProperties = {
 };
 
 export default function CareFlowTab() {
-    const [subTab, setSubTab] = useState<'templates' | 'enrollments'>('templates');
+    const [subTab, setSubTab] = useState<'templates' | 'enrollments' | 'stats'>('templates');
 
     return (
         <div>
             {/* Sub-navigation */}
-            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem' }}>
+            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
                 {[
-                    { id: 'templates' as const, label: '📋 Szablony', icon: '📋' },
-                    { id: 'enrollments' as const, label: '📊 Aktywne procesy', icon: '📊' },
+                    { id: 'templates' as const, label: '📋 Szablony' },
+                    { id: 'enrollments' as const, label: '📊 Aktywne procesy' },
+                    { id: 'stats' as const, label: '📈 Statystyki' },
                 ].map(tab => (
                     <button
                         key={tab.id}
@@ -130,6 +153,7 @@ export default function CareFlowTab() {
 
             {subTab === 'templates' && <TemplatesSubTab />}
             {subTab === 'enrollments' && <EnrollmentsSubTab />}
+            {subTab === 'stats' && <StatsSubTab />}
         </div>
     );
 }
@@ -531,6 +555,8 @@ function EnrollmentsSubTab() {
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('active');
     const [generatingReport, setGeneratingReport] = useState<string | null>(null);
+    const [exportingProdentis, setExportingProdentis] = useState<string | null>(null);
+    const [sendingSms, setSendingSms] = useState<string | null>(null);
 
     const fetchEnrollments = useCallback(async () => {
         setLoading(true);
@@ -554,11 +580,43 @@ function EnrollmentsSubTab() {
         fetchEnrollments();
     };
 
+    const handleExportProdentis = async (id: string) => {
+        setExportingProdentis(id);
+        try {
+            const res = await fetch(`/api/admin/careflow/export-prodentis/${id}`, { method: 'POST' });
+            const data = await res.json();
+            if (res.ok) {
+                alert(`✅ ${data.message}`);
+                fetchEnrollments();
+            } else {
+                alert(`❌ Błąd: ${data.error}`);
+            }
+        } catch { alert('❌ Błąd eksportu'); }
+        setExportingProdentis(null);
+    };
+
+    const handleSendSms = async (id: string) => {
+        setSendingSms(id);
+        try {
+            const res = await fetch(`/api/admin/careflow/send-sms/${id}`, { method: 'POST' });
+            const data = await res.json();
+            if (res.ok) {
+                alert(data.smsSent > 0
+                    ? `✅ ${data.message} (${data.smsSent}/${data.totalPending})`
+                    : `⚠️ ${data.message}`);
+                fetchEnrollments();
+            } else {
+                alert(`❌ Błąd: ${data.error}`);
+            }
+        } catch { alert('❌ Błąd wysyłki SMS'); }
+        setSendingSms(null);
+    };
+
     const siteUrl = typeof window !== 'undefined' ? window.location.origin : '';
 
     return (
         <div>
-            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
                 {['active', 'completed', 'cancelled', 'all'].map(f => (
                     <button key={f} style={{ ...btnSecondary, background: filter === f ? 'rgba(99,102,241,0.2)' : undefined, borderColor: filter === f ? '#6366f1' : undefined }} onClick={() => setFilter(f)}>
                         {f === 'active' ? '🟢 Aktywne' : f === 'completed' ? '✅ Zakończone' : f === 'cancelled' ? '❌ Anulowane' : '📊 Wszystkie'}
@@ -589,6 +647,14 @@ function EnrollmentsSubTab() {
                                     }}>
                                         {e.status === 'active' ? '🟢 Aktywny' : e.status === 'completed' ? '✅ Zakończony' : '❌ Anulowany'}
                                     </span>
+                                    {e.report_exported_to_prodentis && (
+                                        <span style={{
+                                            fontSize: '0.65rem', marginLeft: '0.4rem', padding: '0.1rem 0.4rem',
+                                            borderRadius: '6px', background: 'rgba(16,185,129,0.15)', color: '#10b981',
+                                        }}>
+                                            ✅ W Prodentis
+                                        </span>
+                                    )}
                                 </h4>
                                 <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.8rem', marginTop: '0.3rem' }}>
                                     🏥 {e.template_name} • 📅 {new Date(e.appointment_date).toLocaleString('pl-PL')}
@@ -615,9 +681,10 @@ function EnrollmentsSubTab() {
                                 <div style={{ display: 'flex', gap: '0.8rem', marginTop: '0.5rem', fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)' }}>
                                     <span>Zakwalifikował: {e.enrolled_by}</span>
                                     {e.prescription_code && <span>📋 Recepta: {e.prescription_code}</span>}
+                                    {e.patient_phone && <span>📱 {e.patient_phone}</span>}
                                 </div>
                             </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', alignItems: 'flex-end' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', alignItems: 'flex-end', minWidth: '140px' }}>
                                 <button
                                     style={{ ...btnSecondary, fontSize: '0.75rem' }}
                                     onClick={() => {
@@ -627,9 +694,22 @@ function EnrollmentsSubTab() {
                                 >
                                     🔗 Kopiuj link
                                 </button>
+
+                                {/* Manual SMS trigger — only for active enrollments with phone */}
+                                {e.status === 'active' && e.patient_phone && (
+                                    <button
+                                        style={{ ...btnSecondary, fontSize: '0.75rem', background: 'rgba(245,158,11,0.15)', borderColor: '#f59e0b', color: '#fbbf24' }}
+                                        disabled={sendingSms === e.id}
+                                        onClick={() => handleSendSms(e.id)}
+                                    >
+                                        {sendingSms === e.id ? '⏳ Wysyłam...' : '📱 Wyślij SMS'}
+                                    </button>
+                                )}
+
+                                {/* PDF report actions */}
                                 {(e.status === 'completed' || e.status === 'cancelled') && (
                                     e.report_pdf_url ? (
-                                        <div style={{ display: 'flex', gap: '0.3rem' }}>
+                                        <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                                             <a
                                                 href={e.report_pdf_url}
                                                 target="_blank"
@@ -661,6 +741,16 @@ function EnrollmentsSubTab() {
                                             >
                                                 🔄
                                             </button>
+                                            {/* Export to Prodentis */}
+                                            {!e.report_exported_to_prodentis && (
+                                                <button
+                                                    style={{ ...btnSecondary, fontSize: '0.7rem', padding: '0.3rem 0.6rem', background: 'rgba(99,102,241,0.15)', borderColor: '#6366f1', color: '#a5b4fc' }}
+                                                    disabled={exportingProdentis === e.id}
+                                                    onClick={() => handleExportProdentis(e.id)}
+                                                >
+                                                    {exportingProdentis === e.id ? '⏳' : '📤 Prodentis'}
+                                                </button>
+                                            )}
                                         </div>
                                     ) : (
                                         <button
@@ -696,6 +786,210 @@ function EnrollmentsSubTab() {
                     </div>
                 ))
             )}
+        </div>
+    );
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// STATS SUB-TAB
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+function StatsSubTab() {
+    const [stats, setStats] = useState<StatsData | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        (async () => {
+            try {
+                const res = await fetch('/api/admin/careflow/stats');
+                const data = await res.json();
+                if (res.ok) setStats(data);
+            } catch { }
+            setLoading(false);
+        })();
+    }, []);
+
+    if (loading) {
+        return <div style={{ textAlign: 'center', padding: '2rem', color: 'rgba(255,255,255,0.4)' }}>Ładowanie statystyk...</div>;
+    }
+
+    if (!stats) {
+        return <div style={cardStyle}><p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.4)' }}>Błąd ładowania statystyk.</p></div>;
+    }
+
+    const o = stats.overview;
+
+    const formatTime = (minutes: number): string => {
+        if (minutes < 60) return `${minutes} min`;
+        const h = Math.floor(minutes / 60);
+        const m = minutes % 60;
+        return m > 0 ? `${h}h ${m}m` : `${h}h`;
+    };
+
+    const formatHours = (hours: number): string => {
+        if (hours < 24) return `${hours}h`;
+        const d = Math.floor(hours / 24);
+        const h = hours % 24;
+        return h > 0 ? `${d}d ${h}h` : `${d}d`;
+    };
+
+    return (
+        <div>
+            {/* KPI Cards */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.8rem', marginBottom: '1.5rem' }}>
+                <KPICard label="Wszystkie procesy" value={o.total} icon="📊" color="#6366f1" />
+                <KPICard label="Aktywne" value={o.active} icon="🟢" color="#10b981" />
+                <KPICard label="Zakończone" value={o.completed} icon="✅" color="#22c55e" />
+                <KPICard label="Anulowane" value={o.cancelled} icon="❌" color="#ef4444" />
+                <KPICard label="Completion rate" value={`${o.completionRate}%`} icon="🎯" color={o.completionRate >= 80 ? '#10b981' : o.completionRate >= 50 ? '#f59e0b' : '#ef4444'} />
+                <KPICard label="Śr. zgodność zadań" value={`${o.avgCompliance}%`} icon="📋" color={o.avgCompliance >= 80 ? '#10b981' : o.avgCompliance >= 50 ? '#f59e0b' : '#ef4444'} />
+                <KPICard label="Śr. czas odpowiedzi" value={formatTime(o.avgResponseMinutes)} icon="⏱️" color="#8b5cf6" />
+                <KPICard label="Śr. czas ukończenia" value={formatHours(o.avgCompletionHours)} icon="🕐" color="#a78bfa" />
+                <KPICard label="SMS fallback" value={`${o.smsFallbackRate}%`} icon="📱" color="#f59e0b" />
+                <KPICard label="W Prodentis" value={o.exportedToProdentis} icon="📤" color="#06b6d4" />
+            </div>
+
+            {/* Template breakdown */}
+            {stats.byTemplate.length > 0 && (
+                <div style={cardStyle}>
+                    <h4 style={{ margin: '0 0 1rem', color: 'white', fontSize: '0.95rem' }}>📋 Według szablonu</h4>
+                    {stats.byTemplate.map(t => {
+                        const maxCount = Math.max(...stats.byTemplate.map(x => x.count), 1);
+                        return (
+                            <div key={t.name} style={{ marginBottom: '0.8rem' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.3rem' }}>
+                                    <span style={{ color: 'white' }}>{t.name}</span>
+                                    <span style={{ color: 'rgba(255,255,255,0.5)' }}>
+                                        {t.count} procesów • {t.completionRate}% ukończonych
+                                    </span>
+                                </div>
+                                <div style={{ height: '8px', borderRadius: '4px', background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+                                    <div style={{
+                                        height: '100%',
+                                        borderRadius: '4px',
+                                        width: `${(t.count / maxCount) * 100}%`,
+                                        background: `linear-gradient(90deg, #6366f1, ${t.completionRate >= 80 ? '#10b981' : t.completionRate >= 50 ? '#f59e0b' : '#ef4444'})`,
+                                        transition: 'width 0.5s ease',
+                                    }} />
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+
+            {/* Doctor breakdown */}
+            {stats.byDoctor.length > 0 && (
+                <div style={cardStyle}>
+                    <h4 style={{ margin: '0 0 1rem', color: 'white', fontSize: '0.95rem' }}>👨‍⚕️ Według lekarza</h4>
+                    <div style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                            <thead>
+                                <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                                    <th style={{ textAlign: 'left', padding: '0.5rem', color: 'rgba(255,255,255,0.5)', fontWeight: 500 }}>Lekarz</th>
+                                    <th style={{ textAlign: 'center', padding: '0.5rem', color: 'rgba(255,255,255,0.5)', fontWeight: 500 }}>Procesy</th>
+                                    <th style={{ textAlign: 'center', padding: '0.5rem', color: 'rgba(255,255,255,0.5)', fontWeight: 500 }}>Zakończone</th>
+                                    <th style={{ textAlign: 'center', padding: '0.5rem', color: 'rgba(255,255,255,0.5)', fontWeight: 500 }}>Śr. zgodność</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {stats.byDoctor.map(d => (
+                                    <tr key={d.name} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                        <td style={{ padding: '0.5rem', color: 'white' }}>{d.name}</td>
+                                        <td style={{ padding: '0.5rem', textAlign: 'center', color: 'rgba(255,255,255,0.7)' }}>{d.count}</td>
+                                        <td style={{ padding: '0.5rem', textAlign: 'center', color: '#10b981' }}>{d.completed}</td>
+                                        <td style={{ padding: '0.5rem', textAlign: 'center' }}>
+                                            <span style={{
+                                                padding: '0.15rem 0.5rem', borderRadius: '6px',
+                                                background: d.avgCompliance >= 80 ? 'rgba(16,185,129,0.2)' : d.avgCompliance >= 50 ? 'rgba(245,158,11,0.2)' : 'rgba(239,68,68,0.2)',
+                                                color: d.avgCompliance >= 80 ? '#10b981' : d.avgCompliance >= 50 ? '#f59e0b' : '#ef4444',
+                                                fontSize: '0.8rem',
+                                            }}>
+                                                {d.avgCompliance}%
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
+
+            {/* Monthly timeline */}
+            {stats.monthlyTimeline.length > 0 && (
+                <div style={cardStyle}>
+                    <h4 style={{ margin: '0 0 1rem', color: 'white', fontSize: '0.95rem' }}>📈 Trend miesięczny (ostatnie 6 mies.)</h4>
+                    <div style={{ display: 'flex', alignItems: 'flex-end', gap: '0.5rem', height: '120px' }}>
+                        {stats.monthlyTimeline.map(m => {
+                            const maxVal = Math.max(...stats.monthlyTimeline.map(x => x.count), 1);
+                            const height = m.count > 0 ? Math.max(8, (m.count / maxVal) * 100) : 4;
+                            const monthLabel = m.month.slice(5); // "04" from "2026-04"
+                            return (
+                                <div key={m.month} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.3rem' }}>
+                                    <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.5)' }}>{m.count}</span>
+                                    <div style={{
+                                        width: '100%',
+                                        height: `${height}px`,
+                                        borderRadius: '4px 4px 0 0',
+                                        background: m.count > 0 ? 'linear-gradient(180deg, #6366f1, #8b5cf6)' : 'rgba(255,255,255,0.06)',
+                                        transition: 'height 0.5s ease',
+                                    }} />
+                                    <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)' }}>{monthLabel}</span>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+
+            {/* SMS breakdown */}
+            <div style={cardStyle}>
+                <h4 style={{ margin: '0 0 0.5rem', color: 'white', fontSize: '0.95rem' }}>📱 SMS Fallback</h4>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    <div style={{ flex: 1 }}>
+                        <div style={{ height: '12px', borderRadius: '6px', background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+                            <div style={{
+                                height: '100%',
+                                borderRadius: '6px',
+                                width: `${o.smsFallbackRate}%`,
+                                background: 'linear-gradient(90deg, #f59e0b, #f97316)',
+                                transition: 'width 0.5s ease',
+                            }} />
+                        </div>
+                    </div>
+                    <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
+                        {o.smsSentTasks}/{o.totalTasks} zadań z SMS
+                    </span>
+                </div>
+                <p style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.35)', marginTop: '0.4rem' }}>
+                    {o.smsFallbackRate === 0 ? 'Wszystkie powiadomienia dostarczono przez push.' :
+                     o.smsFallbackRate < 20 ? 'Niska potrzeba SMS fallback — push działa dobrze.' :
+                     'Znaczna część zadań wymaga SMS fallback — rozważ zachęcenie pacjentów do instalacji PWA.'}
+                </p>
+            </div>
+        </div>
+    );
+}
+
+function KPICard({ label, value, icon, color }: { label: string; value: string | number; icon: string; color: string }) {
+    return (
+        <div style={{
+            background: 'rgba(255,255,255,0.03)',
+            borderRadius: '14px',
+            border: `1px solid ${color}22`,
+            padding: '1rem 1.2rem',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.3rem',
+        }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.45)' }}>{label}</span>
+                <span style={{ fontSize: '1.1rem' }}>{icon}</span>
+            </div>
+            <span style={{ fontSize: '1.5rem', fontWeight: 700, color, letterSpacing: '-0.02em' }}>
+                {value}
+            </span>
         </div>
     );
 }

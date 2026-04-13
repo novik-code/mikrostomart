@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
 import { generateCareflowReport } from '@/lib/careflowPdf';
+import { prodentisFetch } from '@/lib/prodentisFetch';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
@@ -134,6 +135,45 @@ export async function GET(
                 regenerated: regenerate,
             },
         });
+
+        // ── Auto-export to Prodentis ──
+        const prodentisKey = process.env.PRODENTIS_API_KEY || '';
+        if (prodentisKey && enrollment.patient_id) {
+            try {
+                const pdfBase64 = Buffer.from(pdfBytes).toString('base64');
+                const dateStr = new Date(enrollment.appointment_date).toISOString().slice(0, 10);
+                const safeName = (enrollment.patient_name || 'pacjent').replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_ąćęłńóśźżĄĆĘŁŃÓŚŹŻ]/g, '');
+                const prodFileName = `CareFlow_raport_${safeName}_${dateStr}.pdf`;
+
+                const prodRes = await prodentisFetch(`/api/patients/${enrollment.patient_id}/documents`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-API-Key': prodentisKey },
+                    body: JSON.stringify({
+                        fileBase64: pdfBase64,
+                        fileName: prodFileName,
+                        description: `Raport opieki peri-operacyjnej (CareFlow) — ${enrollment.template_name || ''} — ${dateStr}`,
+                    }),
+                    signal: AbortSignal.timeout(15000),
+                });
+
+                if (prodRes.ok) {
+                    await supabase.from('care_enrollments')
+                        .update({ report_exported_to_prodentis: true })
+                        .eq('id', id);
+                    await supabase.from('care_audit_log').insert({
+                        enrollment_id: id,
+                        action: 'exported_to_prodentis',
+                        actor: user.email || 'admin',
+                        details: { file_name: prodFileName, auto: true },
+                    });
+                    console.log(`[CareFlow Report] Auto-exported to Prodentis: ${prodFileName}`);
+                } else {
+                    console.error(`[CareFlow Report] Prodentis export failed: ${prodRes.status}`);
+                }
+            } catch (prodErr: any) {
+                console.error('[CareFlow Report] Prodentis export error (non-blocking):', prodErr.message);
+            }
+        }
 
         // Return PDF directly
         return new NextResponse(Buffer.from(pdfBytes), {

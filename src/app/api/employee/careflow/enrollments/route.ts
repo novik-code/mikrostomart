@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
 
         let query = supabase
             .from('care_enrollments')
-            .select('*, care_tasks(id, title, sort_order, scheduled_at, completed_at, skipped_at)')
+            .select('*, care_tasks(id, title, sort_order, scheduled_at, completed_at, skipped_at, sms_sent)')
             .order('appointment_date', { ascending: true });
 
         if (status !== 'all') {
