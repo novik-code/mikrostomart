@@ -2,21 +2,23 @@ import { isDemoMode } from '@/lib/demoMode';
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { pushToUser } from '@/lib/pushService';
+import { sendSMS, toGSM7 } from '@/lib/smsService';
 
 export const maxDuration = 30;
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://mikrostomart.pl';
 
 /**
- * CareFlow Push Notification Cron
- * Runs every 5 minutes via Vercel Cron.
+ * CareFlow Push + SMS Fallback Cron
+ * Runs every 5 minutes (7-21 UTC) via Vercel Cron.
  * 
  * Logic:
  * 1. Find tasks where scheduled_at <= NOW() and not completed/skipped
  * 2. Check push_sent_count < push_max_count
  * 3. Check push_last_sent_at + interval <= NOW()
- * 4. Send push with deep link to landing page
- * 5. Update push tracking fields
+ * 4. Try push notification first
+ * 5. If no push subscription → SMS fallback (once per task)
+ * 6. Auto-complete enrollments when all tasks done
  */
 export async function GET(req: Request) {
     if (isDemoMode) {
@@ -35,7 +37,8 @@ export async function GET(req: Request) {
         process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    let sent = 0;
+    let pushSent = 0;
+    let smsSent = 0;
     let skipped = 0;
     let autoCompleted = 0;
 
@@ -43,14 +46,20 @@ export async function GET(req: Request) {
         const now = new Date();
         const currentHour = now.getHours();
 
+        // Quiet hours guard (redundant with vercel.json 7-21, but safe)
+        if (currentHour >= 22 || currentHour < 7) {
+            console.log('🏥 [CareFlow Push] Quiet hours — skipping all');
+            return NextResponse.json({ success: true, skipped: 'quiet_hours' });
+        }
+
         // Find pending tasks: scheduled_at <= now, not completed, not skipped
         const { data: pendingTasks, error } = await supabase
             .from('care_tasks')
             .select(`
                 id, title, description, icon, push_message, scheduled_at,
                 push_sent_count, push_last_sent_at, push_max_count, push_interval_minutes,
-                enrollment_id,
-                care_enrollments!inner(id, patient_db_id, patient_name, status, access_token)
+                sms_sent, enrollment_id,
+                care_enrollments!inner(id, patient_db_id, patient_name, patient_phone, status, access_token)
             `)
             .is('completed_at', null)
             .is('skipped_at', null)
@@ -68,17 +77,13 @@ export async function GET(req: Request) {
             const enrollment = (task as any).care_enrollments;
             if (!enrollment) { skipped++; continue; }
 
-            // Check quiet hours (default 22:00-7:00) — don't disturb patients at night
-            const quietStart = 22;
-            const quietEnd = 7;
-            if (currentHour >= quietStart || currentHour < quietEnd) {
-                // Silent skip — don't log each one
-                continue;
-            }
-
             // Check push limits
             if (task.push_max_count && task.push_sent_count >= task.push_max_count) {
-                // Max pushes reached, skip
+                // Max pushes reached — try SMS fallback if not already sent
+                if (!(task as any).sms_sent && enrollment.patient_phone) {
+                    await sendSmsFallback(supabase, task, enrollment, now);
+                    smsSent++;
+                }
                 continue;
             }
 
@@ -87,86 +92,99 @@ export async function GET(req: Request) {
                 const lastSent = new Date(task.push_last_sent_at);
                 const nextAllowed = new Date(lastSent.getTime() + task.push_interval_minutes * 60 * 1000);
                 if (now < nextAllowed) {
-                    // Too soon since last push
                     continue;
                 }
             }
 
-            // Need patient DB UUID for push
             const patientDbId = enrollment.patient_db_id;
-            if (!patientDbId) {
-                console.log(`   ⏭ Skipping ${enrollment.patient_name}: no DB ID for push`);
-                skipped++;
-                continue;
-            }
-
-            // Check push subscription exists
-            const { data: subs } = await supabase
-                .from('push_subscriptions')
-                .select('id')
-                .eq('user_id', patientDbId)
-                .eq('user_type', 'patient')
-                .limit(1);
-
-            if (!subs || subs.length === 0) {
-                console.log(`   ⏭ Skipping ${enrollment.patient_name}: no push subscription`);
-                skipped++;
-                continue;
-            }
-
-            // Build push message
             const landingUrl = `${SITE_URL}/opieka/${enrollment.access_token}`;
             const pushTitle = task.icon ? `${task.icon} CareFlow` : '🏥 CareFlow';
             const pushBody = (task as any).push_message || task.title;
 
-            // Send push
-            try {
-                const result = await pushToUser(
-                    patientDbId,
-                    'patient',
-                    { title: pushTitle, body: pushBody, url: landingUrl }
-                );
+            // Check if patient has push subscription
+            let hasPushSub = false;
+            if (patientDbId) {
+                const { data: subs } = await supabase
+                    .from('push_subscriptions')
+                    .select('id')
+                    .eq('user_id', patientDbId)
+                    .eq('user_type', 'patient')
+                    .limit(1);
+                hasPushSub = !!(subs && subs.length > 0);
+            }
 
-                if (result.sent > 0) {
-                    sent++;
-                    console.log(`   ✅ Push sent to ${enrollment.patient_name}: "${task.title}"`);
+            if (hasPushSub && patientDbId) {
+                // Try push notification
+                try {
+                    const result = await pushToUser(
+                        patientDbId,
+                        'patient',
+                        { title: pushTitle, body: pushBody, url: landingUrl }
+                    );
 
-                    // Update push tracking
-                    await supabase
-                        .from('care_tasks')
-                        .update({
-                            push_sent_count: (task.push_sent_count || 0) + 1,
-                            push_last_sent_at: now.toISOString(),
-                        })
-                        .eq('id', task.id);
+                    if (result.sent > 0) {
+                        pushSent++;
+                        console.log(`   ✅ Push sent to ${enrollment.patient_name}: "${task.title}"`);
 
-                    // Audit log
-                    await supabase.from('care_audit_log').insert({
-                        enrollment_id: task.enrollment_id,
-                        task_id: task.id,
-                        action: 'push_sent',
-                        actor: 'system',
-                        details: { push_count: (task.push_sent_count || 0) + 1, title: task.title },
-                    });
-                } else {
-                    skipped++;
+                        // Update push tracking
+                        await supabase
+                            .from('care_tasks')
+                            .update({
+                                push_sent_count: (task.push_sent_count || 0) + 1,
+                                push_last_sent_at: now.toISOString(),
+                            })
+                            .eq('id', task.id);
+
+                        // Audit log
+                        await supabase.from('care_audit_log').insert({
+                            enrollment_id: task.enrollment_id,
+                            task_id: task.id,
+                            action: 'push_sent',
+                            actor: 'system',
+                            details: { push_count: (task.push_sent_count || 0) + 1, title: task.title },
+                        });
+                    } else {
+                        // Push failed — try SMS fallback
+                        if (!(task as any).sms_sent && enrollment.patient_phone) {
+                            await sendSmsFallback(supabase, task, enrollment, now);
+                            smsSent++;
+                        } else {
+                            skipped++;
+                        }
+                    }
+                } catch (pushErr: any) {
+                    console.error(`   ❌ Push failed for ${enrollment.patient_name}:`, pushErr.message);
+                    // Push error — try SMS fallback
+                    if (!(task as any).sms_sent && enrollment.patient_phone) {
+                        await sendSmsFallback(supabase, task, enrollment, now);
+                        smsSent++;
+                    } else {
+                        skipped++;
+                    }
                 }
-            } catch (pushErr: any) {
-                console.error(`   ❌ Push failed for ${enrollment.patient_name}:`, pushErr.message);
-                skipped++;
+            } else {
+                // No push subscription — SMS fallback (only once per task)
+                if (!(task as any).sms_sent && enrollment.patient_phone) {
+                    await sendSmsFallback(supabase, task, enrollment, now);
+                    smsSent++;
+                } else if (!(task as any).sms_sent) {
+                    console.log(`   ⏭ ${enrollment.patient_name}: no push sub, no phone — cannot notify`);
+                    skipped++;
+                } else {
+                    // SMS already sent for this task, just skip
+                    continue;
+                }
             }
         }
 
         // ─── Auto-complete enrollments where all tasks are done ───
         try {
-            // Find active enrollments
             const { data: activeEnrollments } = await supabase
                 .from('care_enrollments')
                 .select('id')
                 .eq('status', 'active');
 
             for (const enrollment of (activeEnrollments || [])) {
-                // Check if ALL tasks for this enrollment are completed or skipped
                 const { data: incompleteTasks } = await supabase
                     .from('care_tasks')
                     .select('id')
@@ -176,7 +194,6 @@ export async function GET(req: Request) {
                     .limit(1);
 
                 if (!incompleteTasks || incompleteTasks.length === 0) {
-                    // All tasks done → mark enrollment as completed
                     await supabase
                         .from('care_enrollments')
                         .update({ status: 'completed', completed_at: now.toISOString() })
@@ -197,10 +214,71 @@ export async function GET(req: Request) {
             console.error('🏥 [CareFlow Push] Auto-complete error:', acErr.message);
         }
 
-        console.log(`🏥 [CareFlow Push] Done: ${sent} sent, ${skipped} skipped, ${autoCompleted} auto-completed`);
-        return NextResponse.json({ success: true, sent, skipped, autoCompleted });
+        console.log(`🏥 [CareFlow Push] Done: push=${pushSent}, sms=${smsSent}, skipped=${skipped}, auto-completed=${autoCompleted}`);
+        return NextResponse.json({ success: true, pushSent, smsSent, skipped, autoCompleted });
     } catch (err: any) {
         console.error('🏥 [CareFlow Push] Error:', err);
         return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+    }
+}
+
+/**
+ * Send SMS fallback for a CareFlow task.
+ * Only sends ONCE per task (marks sms_sent=true).
+ * Message: task title + link to patient landing page.
+ */
+async function sendSmsFallback(
+    supabase: any,
+    task: any,
+    enrollment: any,
+    now: Date
+) {
+    const landingUrl = `${SITE_URL}/opieka/${enrollment.access_token}`;
+    const phone = enrollment.patient_phone?.replace(/\s+/g, '').replace(/^\+/, '');
+
+    if (!phone || !/^48\d{9}$/.test(phone)) {
+        console.log(`   ⏭ SMS skip ${enrollment.patient_name}: invalid phone "${enrollment.patient_phone}"`);
+        return;
+    }
+
+    // Build SMS message (GSM-7 safe, max 160 chars)
+    const taskTitle = toGSM7(task.title || 'CareFlow');
+    const rawMessage = `CareFlow: ${taskTitle}. Sprawdz: ${landingUrl}`;
+    // toGSM7 truncates to 160 chars
+    const smsMessage = toGSM7(rawMessage);
+
+    try {
+        const result = await sendSMS({ to: phone, message: smsMessage });
+
+        if (result.success) {
+            console.log(`   📱 SMS sent to ${enrollment.patient_name}: "${taskTitle}"`);
+
+            // Mark task as SMS sent (so we don't resend)
+            await supabase
+                .from('care_tasks')
+                .update({
+                    sms_sent: true,
+                    push_sent_count: (task.push_sent_count || 0) + 1,
+                    push_last_sent_at: now.toISOString(),
+                })
+                .eq('id', task.id);
+
+            // Audit log
+            await supabase.from('care_audit_log').insert({
+                enrollment_id: task.enrollment_id,
+                task_id: task.id,
+                action: 'sms_fallback_sent',
+                actor: 'system',
+                details: {
+                    phone,
+                    title: task.title,
+                    message_id: result.messageId,
+                },
+            });
+        } else {
+            console.error(`   ❌ SMS failed for ${enrollment.patient_name}: ${result.error}`);
+        }
+    } catch (smsErr: any) {
+        console.error(`   ❌ SMS error for ${enrollment.patient_name}:`, smsErr.message);
     }
 }
