@@ -11,7 +11,11 @@ const supabase = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
+let _openai: OpenAI | null = null;
+function getOpenAI(): OpenAI {
+    if (!_openai) _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || '' });
+    return _openai;
+}
 
 /** Parse natural-language text into structured tasks using GPT-4o */
 async function parseTextToTasks(text: string, nowIso: string, timezone: string): Promise<ParsedTask[]> {
@@ -37,7 +41,7 @@ Zasady:
 - Jedno zdanie = jedno zadanie; jeśli jest lista → pogrupuj sensownie
 - Zawsze odpowiadaj po polsku`;
 
-    const resp = await openai.chat.completions.create({
+    const resp = await getOpenAI().chat.completions.create({
         model: 'gpt-4o-mini',
         temperature: 0.2,
         messages: [

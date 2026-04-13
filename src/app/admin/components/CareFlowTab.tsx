@@ -44,6 +44,8 @@ interface Enrollment {
     enrolled_at: string;
     access_token: string;
     prescription_code: string | null;
+    report_pdf_url: string | null;
+    report_generated_at: string | null;
     stats: { total: number; completed: number; pending: number; progress: number };
 }
 
@@ -528,6 +530,7 @@ function EnrollmentsSubTab() {
     const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('active');
+    const [generatingReport, setGeneratingReport] = useState<string | null>(null);
 
     const fetchEnrollments = useCallback(async () => {
         setLoading(true);
@@ -624,6 +627,67 @@ function EnrollmentsSubTab() {
                                 >
                                     🔗 Kopiuj link
                                 </button>
+                                {(e.status === 'completed' || e.status === 'cancelled') && (
+                                    e.report_pdf_url ? (
+                                        <div style={{ display: 'flex', gap: '0.3rem' }}>
+                                            <a
+                                                href={e.report_pdf_url}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                style={{ ...btnSecondary, fontSize: '0.75rem', textDecoration: 'none', display: 'inline-block', background: 'rgba(16,185,129,0.15)', borderColor: '#10b981', color: '#10b981' }}
+                                            >
+                                                📄 Pobierz PDF
+                                            </a>
+                                            <button
+                                                style={{ ...btnSecondary, fontSize: '0.7rem', padding: '0.3rem 0.5rem' }}
+                                                disabled={generatingReport === e.id}
+                                                onClick={async () => {
+                                                    setGeneratingReport(e.id);
+                                                    try {
+                                                        const res = await fetch(`/api/admin/careflow/report/${e.id}?regenerate=true`);
+                                                        if (res.ok) {
+                                                            const blob = await res.blob();
+                                                            const url = URL.createObjectURL(blob);
+                                                            const a = document.createElement('a');
+                                                            a.href = url; a.download = `careflow-${e.patient_name.replace(/\s+/g, '-')}.pdf`;
+                                                            a.click(); URL.revokeObjectURL(url);
+                                                            fetchEnrollments();
+                                                        } else {
+                                                            alert('Błąd generowania raportu');
+                                                        }
+                                                    } catch { alert('Błąd'); }
+                                                    setGeneratingReport(null);
+                                                }}
+                                            >
+                                                🔄
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <button
+                                            style={{ ...btnSecondary, fontSize: '0.75rem', background: 'rgba(99,102,241,0.15)', borderColor: '#6366f1', color: '#a5b4fc' }}
+                                            disabled={generatingReport === e.id}
+                                            onClick={async () => {
+                                                setGeneratingReport(e.id);
+                                                try {
+                                                    const res = await fetch(`/api/admin/careflow/report/${e.id}`);
+                                                    if (res.ok) {
+                                                        const blob = await res.blob();
+                                                        const url = URL.createObjectURL(blob);
+                                                        const a = document.createElement('a');
+                                                        a.href = url; a.download = `careflow-${e.patient_name.replace(/\s+/g, '-')}.pdf`;
+                                                        a.click(); URL.revokeObjectURL(url);
+                                                        fetchEnrollments();
+                                                    } else {
+                                                        alert('Błąd generowania raportu');
+                                                    }
+                                                } catch { alert('Błąd'); }
+                                                setGeneratingReport(null);
+                                            }}
+                                        >
+                                            {generatingReport === e.id ? '⏳ Generuję...' : '📄 Generuj PDF'}
+                                        </button>
+                                    )
+                                )}
                                 {e.status === 'active' && (
                                     <button style={{ ...btnDanger, fontSize: '0.75rem' }} onClick={() => handleCancel(e.id)}>Anuluj</button>
                                 )}

@@ -8,12 +8,18 @@ const supabase = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-// Configure VAPID
-webpush.setVapidDetails(
-    process.env.VAPID_EMAIL || 'mailto:gabinet@mikrostomart.pl',
-    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
-    process.env.VAPID_PRIVATE_KEY!
-);
+// Configure VAPID (lazy — may fail during build when env vars are absent)
+try {
+    if (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+        webpush.setVapidDetails(
+            process.env.VAPID_EMAIL || 'mailto:gabinet@mikrostomart.pl',
+            process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+            process.env.VAPID_PRIVATE_KEY
+        );
+    }
+} catch {
+    // Silently skip during build — VAPID keys will be set when env vars are available at runtime
+}
 
 interface PushPayload {
     title: string;

@@ -8,10 +8,12 @@ import { getTranslations, getLocale } from 'next-intl/server';
 // We import the CSS to handle legacy content inside the clean container
 import './../blog.v2.css';
 
-const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+function getSupabase() {
+    return createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+    );
+}
 
 // FORCE DYNAMIC RENDERING — depends on locale cookie
 export const dynamic = 'force-dynamic';
@@ -25,6 +27,7 @@ const LOCALE_DATE_MAP: Record<string, string> = {
 
 async function getPost(slug: string, locale: string) {
     // Try locale-specific slug first
+    const supabase = getSupabase();
     let { data } = await supabase
         .from('blog_posts')
         .select('*')

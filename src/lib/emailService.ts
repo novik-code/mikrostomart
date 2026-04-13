@@ -8,7 +8,13 @@
 import { Resend } from 'resend';
 import { demoSanitize } from '@/lib/brandConfig';
 
-const resend = new Resend(process.env.RESEND_API_KEY!);
+let _resend: Resend | null = null;
+function getResend(): Resend {
+    if (!_resend) {
+        _resend = new Resend(process.env.RESEND_API_KEY || '');
+    }
+    return _resend;
+}
 
 const FROM_ADDRESS = demoSanitize('Mikrostomart <noreply@mikrostomart.pl>');
 
@@ -184,7 +190,7 @@ async function sendEmail(to: string, subject: string, html: string): Promise<Ema
             return { success: false, error: 'RESEND_API_KEY not configured' };
         }
 
-        await resend.emails.send({
+        await getResend().emails.send({
             from: FROM_ADDRESS,
             to: [to],
             subject,
