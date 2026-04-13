@@ -48,6 +48,7 @@ import P24SettingsTab from './components/P24SettingsTab';
 import PayUSettingsTab from './components/PayUSettingsTab';
 import AIEducationTab from './components/AIEducationTab';
 import PatientCommunicationTab from './components/PatientCommunicationTab';
+import CareFlowTab from './components/CareFlowTab';
 import { demoSanitize } from '@/lib/brandConfig';
 
 export default function AdminPage() {
@@ -74,7 +75,7 @@ export default function AdminPage() {
     const [products, setProducts] = useState<Product[]>([]);
     const [error, setError] = useState<string | null>(null);
 
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'questions' | 'articles' | 'news' | 'orders' | 'reservations' | 'blog' | 'patients' | 'appointment-instructions' | 'roles' | 'employees' | 'chat' | 'theme' | 'page-builder' | 'booking-settings' | 'online-bookings' | 'cancelled-appointments' | 'social-media' | 'pms-settings' | 'sms-provider' | 'stripe-settings' | 'p24-settings' | 'payu-settings' | 'ai-education' | 'patient-communication'>('dashboard');
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'questions' | 'articles' | 'news' | 'orders' | 'reservations' | 'blog' | 'patients' | 'appointment-instructions' | 'roles' | 'employees' | 'chat' | 'theme' | 'page-builder' | 'booking-settings' | 'online-bookings' | 'cancelled-appointments' | 'social-media' | 'pms-settings' | 'sms-provider' | 'stripe-settings' | 'p24-settings' | 'payu-settings' | 'ai-education' | 'patient-communication' | 'careflow'>('dashboard');
     // Cancelled appointments state
     const [cancelledAppointments, setCancelledAppointments] = useState<any[]>([]);
     const [cancelledLoading, setCancelledLoading] = useState(false);
@@ -2744,6 +2745,9 @@ export default function AdminPage() {
                     <NavItem id="payu-settings" label="PayU" icon={Banknote} />
                     <NavItem id="appointment-instructions" label="Instrukcje wizyt" icon={ClipboardList} />
 
+                    <NavSection title="CareFlow" />
+                    <NavItem id="careflow" label="🏥 CareFlow" icon={CalendarCheck} />
+
                     <NavSection title="Komunikacja" />
                     <NavItem id="patient-communication" label="📨 Komunikacja" icon={Send} badge={smsStats.draft} />
                     <NavItem id="chat" label="Czat z pacjentami" icon={MessageCircle} />
@@ -2835,6 +2839,7 @@ export default function AdminPage() {
                             {activeTab === 'cancelled-appointments' && '❌ Odwołane Wizyty'}
                             {activeTab === 'page-builder' && '🏗️ Kreator Strony Głównej'}
                             {activeTab === 'ai-education' && '🧠 AI Asystent — Edukacja'}
+                            {activeTab === 'careflow' && '🏥 CareFlow — Opieka Peri-operacyjna'}
                         </h1>
                         <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
                             {/* Header Actions if needed */}
@@ -3102,6 +3107,7 @@ export default function AdminPage() {
                     {activeTab === 'page-builder' && <PageBuilderTab />}
                     {activeTab === 'ai-education' && <AIEducationTab />}
                     {activeTab === 'patient-communication' && <PatientCommunicationTab />}
+                    {activeTab === 'careflow' && <CareFlowTab />}
                     {activeTab === 'online-bookings' && renderOnlineBookingsTab()}
                     {activeTab === 'cancelled-appointments' && (() => {
                         // Fetch on first render
