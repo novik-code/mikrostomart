@@ -44,11 +44,13 @@ export async function GET(req: Request) {
 
     try {
         const now = new Date();
-        const currentHour = now.getHours();
+        // Use Warsaw timezone for quiet hours check (not UTC server time)
+        const warsawHourStr = new Intl.DateTimeFormat('en-US', { timeZone: 'Europe/Warsaw', hour12: false, hour: 'numeric' }).format(now);
+        const currentHourWarsaw = parseInt(warsawHourStr);
 
-        // Quiet hours guard (redundant with vercel.json 7-21, but safe)
-        if (currentHour >= 22 || currentHour < 7) {
-            console.log('🏥 [CareFlow Push] Quiet hours — skipping all');
+        // Quiet hours guard (22:00-07:00 Warsaw time)
+        if (currentHourWarsaw >= 22 || currentHourWarsaw < 7) {
+            console.log(`🏥 [CareFlow Push] Quiet hours (Warsaw: ${currentHourWarsaw}:00) — skipping all`);
             return NextResponse.json({ success: true, skipped: 'quiet_hours' });
         }
 

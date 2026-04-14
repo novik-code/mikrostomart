@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import CareFlowSimulator from './CareFlowSimulator';
+import CareFlowEnrollmentEditor from './CareFlowEnrollmentEditor';
 
 interface Template {
     id: string;
@@ -126,7 +128,7 @@ const labelStyle: React.CSSProperties = {
 };
 
 export default function CareFlowTab() {
-    const [subTab, setSubTab] = useState<'templates' | 'enrollments' | 'stats'>('templates');
+    const [subTab, setSubTab] = useState<'templates' | 'enrollments' | 'stats' | 'simulator'>('templates');
 
     return (
         <div>
@@ -136,6 +138,7 @@ export default function CareFlowTab() {
                     { id: 'templates' as const, label: '📋 Szablony' },
                     { id: 'enrollments' as const, label: '📊 Aktywne procesy' },
                     { id: 'stats' as const, label: '📈 Statystyki' },
+                    { id: 'simulator' as const, label: '🧪 Symulator' },
                 ].map(tab => (
                     <button
                         key={tab.id}
@@ -154,6 +157,7 @@ export default function CareFlowTab() {
             {subTab === 'templates' && <TemplatesSubTab />}
             {subTab === 'enrollments' && <EnrollmentsSubTab />}
             {subTab === 'stats' && <StatsSubTab />}
+            {subTab === 'simulator' && <CareFlowSimulator />}
         </div>
     );
 }
@@ -554,6 +558,7 @@ function EnrollmentsSubTab() {
     const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('active');
+    const [editingId, setEditingId] = useState<string | null>(null);
     const [generatingReport, setGeneratingReport] = useState<string | null>(null);
     const [exportingProdentis, setExportingProdentis] = useState<string | null>(null);
     const [sendingSms, setSendingSms] = useState<string | null>(null);
@@ -613,6 +618,17 @@ function EnrollmentsSubTab() {
     };
 
     const siteUrl = typeof window !== 'undefined' ? window.location.origin : '';
+
+    // Show editor when editingId is set
+    if (editingId) {
+        return (
+            <CareFlowEnrollmentEditor
+                enrollmentId={editingId}
+                onClose={() => setEditingId(null)}
+                onSaved={() => fetchEnrollments()}
+            />
+        );
+    }
 
     return (
         <div>
@@ -685,6 +701,12 @@ function EnrollmentsSubTab() {
                                 </div>
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', alignItems: 'flex-end', minWidth: '140px' }}>
+                                <button
+                                    style={{ ...btnSecondary, fontSize: '0.75rem', background: 'rgba(99,102,241,0.15)', borderColor: '#6366f1', color: '#a5b4fc' }}
+                                    onClick={() => setEditingId(e.id)}
+                                >
+                                    ✏️ Edytuj
+                                </button>
                                 <button
                                     style={{ ...btnSecondary, fontSize: '0.75rem' }}
                                     onClick={() => {

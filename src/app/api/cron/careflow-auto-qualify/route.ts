@@ -7,15 +7,30 @@ export const maxDuration = 60;
 const PRODENTIS_API_URL = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
 
 /**
- * Smart-snap algorithm: snap timestamp to reasonable hours (7:00-22:00).
+ * Get hour in Europe/Warsaw timezone.
+ */
+function getWarsawHour(date: Date): number {
+    const formatter = new Intl.DateTimeFormat('en-US', { timeZone: 'Europe/Warsaw', hour12: false, hour: 'numeric' });
+    return parseInt(formatter.format(date));
+}
+
+/**
+ * Smart-snap algorithm: snap timestamp to reasonable hours (7:00-22:00) in Europe/Warsaw timezone.
+ * If the time falls in quiet hours (22:00-07:00 Warsaw time), it snaps to the nearest boundary.
  */
 function smartSnap(date: Date, quietStart = 22, quietEnd = 7): Date {
-    const h = date.getHours();
+    const warsawHour = getWarsawHour(date);
     const result = new Date(date);
-    if (h >= quietStart) {
-        result.setHours(quietStart, 0, 0, 0);
-    } else if (h < quietEnd) {
-        result.setHours(quietEnd, 0, 0, 0);
+    if (warsawHour >= quietStart) {
+        // Past quiet start (e.g. 22:00+ Warsaw) → snap back to quietStart Warsaw time
+        const diffMs = (warsawHour - quietStart) * 60 * 60 * 1000;
+        result.setTime(result.getTime() - diffMs);
+        result.setMinutes(0, 0, 0);
+    } else if (warsawHour < quietEnd) {
+        // Before quiet end (e.g. before 7:00 Warsaw) → snap forward to quietEnd Warsaw time
+        const diffMs = (quietEnd - warsawHour) * 60 * 60 * 1000;
+        result.setTime(result.getTime() + diffMs);
+        result.setMinutes(0, 0, 0);
     }
     return result;
 }
@@ -191,8 +206,21 @@ export async function GET(req: Request) {
                 .maybeSingle();
 
             // 9. Create enrollment
-            const appointmentDateStr = appointment.date; // Prodentis returns ISO-like datetime
+            // Prodentis gives date and time in Poland's local timezone.
+            // We construct an ISO string with the correct Warsaw offset.
+            const rawTime = appointment.time || '10:00';
+            const rawDateTime = `${appointment.date}T${rawTime}:00`;
+            const sampleDate = new Date(rawDateTime + 'Z');
+            const warsawFormatter = new Intl.DateTimeFormat('en-US', { timeZone: 'Europe/Warsaw', hour12: false, hour: 'numeric' });
+            let offsetHours = parseInt(warsawFormatter.format(sampleDate)) - sampleDate.getUTCHours();
+            if (offsetHours < -12) offsetHours += 24;
+            if (offsetHours > 12) offsetHours -= 24;
+            const offsetStr = `${offsetHours >= 0 ? '+' : '-'}${String(Math.abs(offsetHours)).padStart(2, '0')}:00`;
+            
+            const appointmentDateStr = `${rawDateTime}${offsetStr}`;
             const appointmentDateObj = new Date(appointmentDateStr);
+            console.log(`   📅 Parsed Prodentis Date: ${rawDateTime} -> ${appointmentDateStr} (offset ${offsetStr})`);
+            
             const pushSettings = matchedTemplate.push_settings || {};
             const quietStart = pushSettings.quiet_hours_start || 22;
             const quietEnd = pushSettings.quiet_hours_end || 7;
