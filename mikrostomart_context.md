@@ -2456,6 +2456,23 @@ NODE_ENV=production
 
 ## 📝 Recent Changes
 
+### 2026-05-08
+**Documentation Hierarchy + Refreshed Startup Prompt**
+
+#### Co się zmieniło:
+- Sformalizowana **hierarchia 3 dokumentów** dla AI: `KOMENDA_STARTOWA_MIKROSTOMART.md` (na pulpicie, brama wejścia) + `mikrostomart_context.md` (w repo, pełna dokumentacja) + `memory/` (lokalna pamięć preferencji)
+- Pełna re-pisanka `KOMENDA_STARTOWA_MIKROSTOMART.md` — 11 sekcji: stan aktualny (live), what-is-it, lokalizacje, setup, **red lines** (4 kategorie zakazów), workflow, **mandatory doc update protocol**, decyzje stałe, checklisty gotowości i końca sesji, awaryjne scenariusze
+- Dodana sekcja "🗂 Hierarchia dokumentów projektu" w tym pliku (na początku Documentation Update Protocol) — definiuje single source of truth dla każdego rodzaju informacji
+- Cel: AI w nowych sesjach nie gubi kontekstu, nie psuje projektu, automatycznie utrzymuje dokumentację
+
+#### Pliki:
+- `~/Desktop/KOMENDA_STARTOWA_MIKROSTOMART.md` — pełna re-pisanka (poza repo); backup `.bak-2026-05-08-v2`
+- `mikrostomart_context.md` — dodana sekcja "Hierarchia dokumentów projektu"
+
+> Brak migracji DB / nowych env var. Tylko meta-dokumentacja.
+
+---
+
 ### May 5–7, 2026
 **CareFlow Perioperative Care System + Push-First Communication**
 
@@ -5602,6 +5619,38 @@ npm start
 
 > **MANDATORY FOR ALL AI ASSISTANTS**  
 > **This section MUST be followed after EVERY task completion**
+
+## 🗂 Hierarchia dokumentów projektu (od 2026-05-08)
+
+Trzy artefakty współpracują — AI ma utrzymywać wszystkie aktualne:
+
+1. **`~/Desktop/KOMENDA_STARTOWA_MIKROSTOMART.md`** (poza repo, na pulpicie) — **brama wejścia AI**.
+   Wklejana przez Marcina do nowych rozmów. Zawiera: stan aktualny (live), red lines, workflow, checklisty.
+   AI **MUSI aktualizować** sekcję 0 ("Stan aktualny") na koniec każdej sesji jeśli liczniki się zmieniły (najwyższa migracja, liczba cronów, linie kontekstu, ostatni commit).
+   Backup przed nadpisaniem: `KOMENDA_STARTOWA_MIKROSTOMART.md.bak-YYYY-MM-DD`.
+
+2. **`mikrostomart_context.md`** (TEN PLIK, w repo) — **kompletna dokumentacja projektu**.
+   Czytany przez AI w całości na początku każdej sesji (chunki po 800 linii, marker `EOF_VERIFICATION` na końcu).
+   Zawiera: architekturę, DB schema, API, integracje, recent changes.
+   AI **MUSI aktualizować** sekcję "📝 Recent Changes" (nowy wpis na górze) + sekcje pochodne (DB Schema, API Endpoints, Cron Jobs, Feature Catalog) po każdej zmianie kodu/DB.
+
+3. **`~/.claude/projects/-Users-marcinnowosielskimedit/memory/`** (poza repo, lokalna pamięć między-sesyjna) — **preferencje + lokalizacje + bieżące projekty**.
+   Indeks: `MEMORY.md` (1 linia per wpis). Pliki tematyczne: `feedback_*.md`, `reference_*.md`, `project_*.md`, `user_*.md`.
+   Nie jest źródłem prawdy o stanie kodu — tylko o stylu pracy i kontekście biznesowym.
+
+**Kolejność zaufania (gdy informacje się różnią):** kod > kontekst > start-file > memory.
+
+**Single source of truth dla każdego rodzaju informacji:**
+| Informacja | Gdzie |
+|---|---|
+| Stan kodu (faktyczny) | `git log` / pliki w `~/mikrostomart/` |
+| Stan migracji DB | `ls supabase_migrations/` |
+| Stan cronów | `vercel.json` |
+| Liczniki / "what's new" | `mikrostomart_context.md` Recent Changes + sekcja 0 KOMENDA_STARTOWA |
+| Workflow / red lines | KOMENDA_STARTOWA sekcje 4-7 |
+| Architektura / DB schema / API | `mikrostomart_context.md` |
+| Preferencje stylu pracy Marcina | `memory/feedback_*.md` |
+| Lokalizacje plików / repo / dashboardów | `memory/reference_*.md` |
 
 ## 📝 Required Updates After Each Task
 
