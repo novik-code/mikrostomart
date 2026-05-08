@@ -972,9 +972,55 @@ function SelfStatsView({ period }: { period: 'week' | 'month' }) {
                         </div>
                     )}
 
-                    {/* Footer info */}
-                    <div style={{ marginTop: '0.8rem', color: 'rgba(255,255,255,0.5)', fontSize: '0.8rem' }}>
-                        Dni roboczych w przedziale: <b>{data.workingDays}</b> · Norma {formatMinutes(data.normaMinutes)}h ({data.dailyHours}h/dzień, umowa {data.contractType.toUpperCase()})
+                    {/* Footer info + download */}
+                    <div style={{ marginTop: '0.8rem', display: 'flex', flexWrap: 'wrap', gap: '0.6rem', alignItems: 'center' }}>
+                        <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.8rem' }}>
+                            Dni roboczych w przedziale: <b>{data.workingDays}</b> · Norma {formatMinutes(data.normaMinutes)}h ({data.dailyHours}h/dzień, umowa {data.contractType.toUpperCase()})
+                        </div>
+                        {period === 'month' && (
+                            <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+                                <a
+                                    href={`/api/employee/time-tracking-self/report?month=${range.from.slice(0, 7)}&format=pdf`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    style={{
+                                        padding: '0.4rem 0.85rem',
+                                        background: 'rgba(251,191,36,0.15)',
+                                        border: '1px solid rgba(251,191,36,0.4)',
+                                        borderRadius: 8,
+                                        color: '#fbbf24',
+                                        fontSize: '0.78rem',
+                                        fontWeight: 600,
+                                        textDecoration: 'none',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: 5,
+                                    }}
+                                >
+                                    📄 Raport PDF
+                                </a>
+                                <a
+                                    href={`/api/employee/time-tracking-self/report?month=${range.from.slice(0, 7)}&format=csv`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    style={{
+                                        padding: '0.4rem 0.85rem',
+                                        background: 'rgba(16,185,129,0.15)',
+                                        border: '1px solid rgba(16,185,129,0.4)',
+                                        borderRadius: 8,
+                                        color: '#10b981',
+                                        fontSize: '0.78rem',
+                                        fontWeight: 600,
+                                        textDecoration: 'none',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: 5,
+                                    }}
+                                >
+                                    📊 CSV
+                                </a>
+                            </div>
+                        )}
                     </div>
                 </>
             )}

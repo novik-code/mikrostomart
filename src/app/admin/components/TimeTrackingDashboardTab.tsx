@@ -6,7 +6,7 @@
 // - klik komórki → modal korekty z polami + powodem
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight, Loader2, RefreshCw, X, Check, AlertCircle, Clock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2, RefreshCw, X, Check, AlertCircle, Clock, FileText, Sheet } from 'lucide-react';
 
 interface CalculatedShift {
     id: string;
@@ -182,6 +182,22 @@ export default function TimeTrackingDashboardTab() {
         return m;
     }, [shifts]);
 
+    // Top 5 pracowników z największą liczbą anomalii w przedziale
+    const anomalySummary = useMemo(() => {
+        const map: Record<string, { name: string; position: string | null; count: number; unjustified: number }> = {};
+        for (const e of employees) map[e.id] = { name: e.name, position: e.position, count: 0, unjustified: 0 };
+        for (const s of shifts) {
+            const x = map[s.employee_id];
+            if (!x) continue;
+            if ((s.anomaly_flags?.length ?? 0) > 0) x.count += 1;
+            x.unjustified += s.overtime_unjustified_minutes ?? 0;
+        }
+        return Object.entries(map)
+            .filter(([_, v]) => v.count > 0 || v.unjustified > 0)
+            .sort((a, b) => (b[1].count + b[1].unjustified / 60) - (a[1].count + a[1].unjustified / 60))
+            .slice(0, 5);
+    }, [shifts, employees]);
+
     const totalsByEmployee = useMemo(() => {
         const totals: Record<string, { worked: number; planned: number; late: number; overtime: number; justified: number; unjustified: number; absent: number }> = {};
         for (const e of employees) totals[e.id] = { worked: 0, planned: 0, late: 0, overtime: 0, justified: 0, unjustified: 0, absent: 0 };
@@ -242,6 +258,51 @@ export default function TimeTrackingDashboardTab() {
                     <span style={{ marginLeft: 6 }}>Sync Prodentis</span>
                 </button>
             </div>
+
+            {/* ANOMALIE — top warnings */}
+            {!loading && !error && anomalySummary.length > 0 && (
+                <div style={{
+                    padding: '0.85rem 1rem',
+                    background: 'rgba(251,146,60,0.08)',
+                    border: '1px solid rgba(251,146,60,0.3)',
+                    borderRadius: 10,
+                    marginBottom: '1rem',
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                        <AlertCircle size={16} style={{ color: '#fb923c' }} />
+                        <strong style={{ color: '#fb923c', fontSize: '0.9rem' }}>
+                            Pracownicy wymagający uwagi w tym przedziale
+                        </strong>
+                        <button
+                            onClick={() => setOnlyAnomalies(!onlyAnomalies)}
+                            style={{ marginLeft: 'auto', ...btnSec, fontSize: '0.75rem', padding: '0.3rem 0.7rem' }}
+                        >
+                            {onlyAnomalies ? 'Pokaż wszystkich' : 'Filtruj tylko anomalie'}
+                        </button>
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                        {anomalySummary.map(([id, s]) => (
+                            <div key={id} style={{
+                                padding: '0.4rem 0.7rem',
+                                background: 'rgba(0,0,0,0.3)',
+                                borderRadius: 6,
+                                fontSize: '0.78rem',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 8,
+                            }}>
+                                <span style={{ color: '#fff', fontWeight: 600 }}>{s.name}</span>
+                                {s.count > 0 && (
+                                    <span style={{ color: '#fbbf24' }}>{s.count} {s.count === 1 ? 'dzień' : 'dni'} z anomaliami</span>
+                                )}
+                                {s.unjustified > 0 && (
+                                    <span style={{ color: '#ef4444' }}>+{Math.floor(s.unjustified / 60)}h{s.unjustified % 60}m niezasadne</span>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {loading ? (
                 <div style={{ padding: '3rem', textAlign: 'center', color: 'rgba(255,255,255,0.5)' }}>
@@ -321,6 +382,18 @@ export default function TimeTrackingDashboardTab() {
                                     );
                                 })}
                             </tr>
+
+                            {/* Raporty — buttony per pracownik */}
+                            <tr style={{ background: 'rgba(0,0,0,0.4)', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                                <td style={{ ...td, position: 'sticky', left: 0, background: '#0f1115', fontWeight: 600, fontSize: '0.75rem', color: 'rgba(255,255,255,0.6)' }}>
+                                    Raport miesięczny
+                                </td>
+                                {employees.map((e) => (
+                                    <td key={e.id} style={{ ...td, textAlign: 'center', padding: '0.4rem 0.3rem' }}>
+                                        <ReportButtons employeeId={e.id} from={from} to={to} />
+                                    </td>
+                                ))}
+                            </tr>
                         </tbody>
                     </table>
                 </div>
@@ -358,6 +431,48 @@ export default function TimeTrackingDashboardTab() {
         </div>
     );
 }
+
+function ReportButtons({ employeeId, from, to }: { employeeId: string; from: string; to: string }) {
+    // Wybór miesiąca = ten z 'from' (lub bieżący)
+    const month = from.slice(0, 7);
+    const downloadUrl = (format: 'pdf' | 'csv') =>
+        `/api/admin/time-tracking/report?employeeId=${employeeId}&month=${month}&format=${format}`;
+    return (
+        <div style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
+            <a
+                href={downloadUrl('pdf')}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={`Raport PDF za ${month}`}
+                style={{ ...miniBtn, color: '#fbbf24', borderColor: 'rgba(251,191,36,0.3)' }}
+            >
+                <FileText size={12} /> PDF
+            </a>
+            <a
+                href={downloadUrl('csv')}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={`Raport CSV za ${month}`}
+                style={{ ...miniBtn, color: '#10b981', borderColor: 'rgba(16,185,129,0.3)' }}
+            >
+                <Sheet size={12} /> CSV
+            </a>
+        </div>
+    );
+}
+
+const miniBtn: React.CSSProperties = {
+    padding: '3px 8px',
+    borderRadius: 6,
+    border: '1px solid',
+    background: 'transparent',
+    fontSize: '0.7rem',
+    fontWeight: 600,
+    textDecoration: 'none',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 3,
+};
 
 function ShiftTd({ shift, onClick }: { shift: CalculatedShift | undefined; onClick: () => void }) {
     if (!shift) return <td style={{ ...td, opacity: 0.3, textAlign: 'center' }}>—</td>;
