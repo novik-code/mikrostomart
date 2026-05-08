@@ -5,7 +5,7 @@
 // Klik komórki → modal z pełną konfiguracją zmiany / nieobecności / przypisań.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Calendar, Copy, X, Plus, Trash2, Loader2, Check, AlertCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, Copy, X, Plus, Trash2, Loader2, Check, AlertCircle, Users, LayoutGrid } from 'lucide-react';
 import {
     ABSENCE_TYPES,
     SHIFT_ROLES,
@@ -151,6 +151,7 @@ export default function ScheduleEditorTab() {
     const [copyingFrom, setCopyingFrom] = useState(false);
     const [toast, setToast] = useState<string | null>(null);
     const [roleFilter, setRoleFilter] = useState<Set<string>>(new Set());
+    const [viewMode, setViewMode] = useState<'employees' | 'workstations'>('employees');
     const [dragSource, setDragSource] = useState<{ cell: ScheduleCell; isMove: boolean } | null>(null);
     const [dragTarget, setDragTarget] = useState<{ employeeId: string; date: string } | null>(null);
     const [dropping, setDropping] = useState(false);
@@ -203,6 +204,52 @@ export default function ScheduleEditorTab() {
         const m = new Map<string, ScheduleEmployee>();
         if (data) for (const e of data.employees) if (e.position === 'Lekarz') m.set(e.id, e);
         return m;
+    }, [data]);
+
+    const employeesById = useMemo(() => {
+        const m = new Map<string, ScheduleEmployee>();
+        if (data) for (const e of data.employees) m.set(e.id, e);
+        return m;
+    }, [data]);
+
+    // Mapa: workstation_id → date → lista segmentów (z employee + doctor + czas)
+    const workstationGrid = useMemo(() => {
+        type Entry = {
+            employee: ScheduleEmployee;
+            cellId: string;
+            segmentStart: string;
+            segmentEnd: string;
+            doctor: ScheduleEmployee | null;
+            notes: string | null;
+        };
+        const grid = new Map<string, Map<string, Entry[]>>();
+        if (!data) return grid;
+        for (const cell of data.cells) {
+            const emp = employeesById.get(cell.employee_id);
+            if (!emp) continue;
+            for (const a of cell.assignments) {
+                if (!a.workstation_id) continue;
+                const wsMap = grid.get(a.workstation_id) ?? new Map<string, Entry[]>();
+                if (!grid.has(a.workstation_id)) grid.set(a.workstation_id, wsMap);
+                const list = wsMap.get(cell.date) ?? [];
+                if (!wsMap.has(cell.date)) wsMap.set(cell.date, list);
+                list.push({
+                    employee: emp,
+                    cellId: cell.id,
+                    segmentStart: a.segment_start.slice(0, 5),
+                    segmentEnd: a.segment_end.slice(0, 5),
+                    doctor: a.doctor_employee_id ? doctorsById.get(a.doctor_employee_id) ?? null : null,
+                    notes: a.notes,
+                });
+                list.sort((x, y) => (x.segmentStart < y.segmentStart ? -1 : 1));
+            }
+        }
+        return grid;
+    }, [data, employeesById, doctorsById]);
+
+    // Lista stanowisk do wyświetlenia (sortowane wg sort_order)
+    const visibleWorkstations = useMemo(() => {
+        return data?.workstations ?? [];
     }, [data]);
 
     const toggleRoleFilter = (pos: string) => {
@@ -436,7 +483,24 @@ export default function ScheduleEditorTab() {
                     </button>
                 </div>
 
-                <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                    {/* VIEW MODE TOGGLE */}
+                    <div style={{ display: 'inline-flex', borderRadius: 10, border: '1px solid rgba(255,255,255,0.1)', overflow: 'hidden' }}>
+                        <button
+                            onClick={() => setViewMode('employees')}
+                            style={viewMode === 'employees' ? viewToggleActiveStyle : viewToggleStyle}
+                            title="Widok pracownicy × dni"
+                        >
+                            <Users size={16} /> Pracownicy
+                        </button>
+                        <button
+                            onClick={() => setViewMode('workstations')}
+                            style={viewMode === 'workstations' ? viewToggleActiveStyle : viewToggleStyle}
+                            title="Widok stanowiska × dni (dispatch)"
+                        >
+                            <LayoutGrid size={16} /> Stanowiska
+                        </button>
+                    </div>
                     <button onClick={() => void copyFromPreviousMonth()} disabled={copyingFrom} style={btnSecondaryStyle}>
                         {copyingFrom ? <Loader2 size={16} className="spin" /> : <Copy size={16} />}
                         <span style={{ marginLeft: 6 }}>Kopiuj z {monthLabel(previousMonth(month))}</span>
@@ -482,6 +546,60 @@ export default function ScheduleEditorTab() {
             ) : error ? (
                 <div style={{ padding: '1rem', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.4)', borderRadius: 10 }}>
                     <AlertCircle size={18} style={{ display: 'inline', marginRight: 8 }} /> {error}
+                </div>
+            ) : data && viewMode === 'workstations' ? (
+                <div style={{ overflowX: 'auto', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12 }}>
+                    <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: 900 }}>
+                        <thead>
+                            <tr style={{ background: 'rgba(0,0,0,0.4)' }}>
+                                <th style={{ ...thStyle, position: 'sticky', left: 0, background: '#0f1115', minWidth: 120 }}>Dzień</th>
+                                {visibleWorkstations.map((ws) => (
+                                    <th
+                                        key={ws.id}
+                                        style={{
+                                            ...thStyle,
+                                            minWidth: 160,
+                                            borderTop: `3px solid ${ws.color ?? '#fbbf24'}`,
+                                        }}
+                                    >
+                                        <div style={{ fontWeight: 700, color: ws.color ?? '#fff' }}>
+                                            {ws.short_label ? `${ws.short_label} · ` : ''}{ws.name}
+                                        </div>
+                                        <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.45)', fontWeight: 400 }}>
+                                            {workstationTypeLabel(ws.workstation_type)}
+                                        </div>
+                                    </th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {days.map((d) => (
+                                <tr key={d.date} style={{ background: d.isWeekend ? 'rgba(34,197,94,0.04)' : 'transparent' }}>
+                                    <td style={{ ...tdStyle, position: 'sticky', left: 0, background: d.isWeekend ? '#0d1f15' : '#0f1115', fontWeight: 600, minWidth: 120 }}>
+                                        <div>{d.dayOfMonth}.{month.split('-')[1]}</div>
+                                        <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.5)', fontWeight: 400 }}>
+                                            {PL_DAYS[d.dayOfWeek]}
+                                        </div>
+                                    </td>
+                                    {visibleWorkstations.map((ws) => {
+                                        const entries = workstationGrid.get(ws.id)?.get(d.date) ?? [];
+                                        return (
+                                            <WorkstationCell
+                                                key={ws.id}
+                                                entries={entries}
+                                                isWeekend={d.isWeekend}
+                                                color={ws.color ?? '#fbbf24'}
+                                                onEntryClick={(employeeId) => {
+                                                    const emp = data.employees.find((e) => e.id === employeeId);
+                                                    if (emp) openCellEditor(emp, d.date);
+                                                }}
+                                            />
+                                        );
+                                    })}
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
                 </div>
             ) : data ? (
                 <div style={{ overflowX: 'auto', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12 }}>
@@ -642,6 +760,83 @@ export default function ScheduleEditorTab() {
 function monthLabel(month: string): string {
     const [y, m] = month.split('-').map((s) => Number.parseInt(s, 10));
     return `${PL_MONTHS[m - 1]} ${y}`;
+}
+
+function workstationTypeLabel(t: string): string {
+    switch (t) {
+        case 'cabinet': return 'Gabinet';
+        case 'reception': return 'Recepcja';
+        case 'consultation': return 'Konsultacja';
+        case 'lab': return 'Pracownia';
+        case 'office': return 'Biuro';
+        default: return 'Inne';
+    }
+}
+
+function WorkstationCell({
+    entries,
+    isWeekend,
+    color,
+    onEntryClick,
+}: {
+    entries: Array<{
+        employee: ScheduleEmployee;
+        cellId: string;
+        segmentStart: string;
+        segmentEnd: string;
+        doctor: ScheduleEmployee | null;
+        notes: string | null;
+    }>;
+    isWeekend: boolean;
+    color: string;
+    onEntryClick: (employeeId: string) => void;
+}) {
+    if (entries.length === 0) {
+        return (
+            <td style={{ ...tdStyle, minWidth: 160, opacity: 0.3, textAlign: 'center' }}>
+                —
+            </td>
+        );
+    }
+    return (
+        <td style={{ ...tdStyle, minWidth: 160, padding: '0.4rem', verticalAlign: 'top' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {entries.map((entry, idx) => {
+                    const positionIcon = SHIFT_ROLES.find((r) => r.value === entry.employee.position)?.icon ?? '·';
+                    const lastName = entry.employee.name.split(' ').slice(-1)[0];
+                    const firstInitial = entry.employee.name.charAt(0);
+                    return (
+                        <div
+                            key={`${entry.cellId}_${idx}`}
+                            onClick={() => onEntryClick(entry.employee.id)}
+                            style={{
+                                padding: '0.35rem 0.45rem',
+                                background: `${color}15`,
+                                border: `1px solid ${color}40`,
+                                borderRadius: 6,
+                                cursor: 'pointer',
+                                fontSize: '0.78rem',
+                                lineHeight: 1.35,
+                            }}
+                            title={`${entry.employee.name} (${entry.employee.position ?? '—'})${entry.doctor ? ' z dr ' + entry.doctor.name : ''}${entry.notes ? '\n' + entry.notes : ''}`}
+                        >
+                            <div style={{ color: '#fff', fontWeight: 600 }}>
+                                {positionIcon} {firstInitial}. {lastName}
+                            </div>
+                            <div style={{ color: 'rgba(255,255,255,0.6)', fontVariantNumeric: 'tabular-nums' }}>
+                                {entry.segmentStart}–{entry.segmentEnd}
+                            </div>
+                            {entry.doctor && (
+                                <div style={{ color: '#a78bfa', fontSize: '0.7rem' }}>
+                                    + dr {entry.doctor.name.split(' ').slice(-1)[0]}
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+        </td>
+    );
 }
 
 // ── Cell renderer ───────────────────────────────────────────────────
@@ -1192,6 +1387,25 @@ const btnDangerStyle: React.CSSProperties = {
     gap: 6,
     fontSize: '0.85rem',
     fontWeight: 600,
+};
+
+const viewToggleStyle: React.CSSProperties = {
+    padding: '0.5rem 0.95rem',
+    border: 'none',
+    background: 'transparent',
+    color: 'rgba(255,255,255,0.55)',
+    cursor: 'pointer',
+    fontSize: '0.85rem',
+    fontWeight: 600,
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+};
+
+const viewToggleActiveStyle: React.CSSProperties = {
+    ...viewToggleStyle,
+    background: 'rgba(251,191,36,0.18)',
+    color: '#fbbf24',
 };
 
 const modeBtnStyle: React.CSSProperties = {
