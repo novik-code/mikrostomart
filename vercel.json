@@ -103,6 +103,14 @@
         {
             "path": "/api/cron/careflow-report",
             "schedule": "0 2 * * *"
+        },
+        {
+            "path": "/api/cron/close-day",
+            "schedule": "30 0 * * *"
+        },
+        {
+            "path": "/api/cron/forgot-clockout-notify",
+            "schedule": "*/15 12-20 * * *"
         }
     ]
 }
