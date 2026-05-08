@@ -144,6 +144,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
         ok: true,
+        entryId: entry.id,
         type: expectedType,
         scannedAt: entry.scanned_at,
         employeeName: employee.name,

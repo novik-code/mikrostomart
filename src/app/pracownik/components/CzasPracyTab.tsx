@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { Clock, Camera, X, Check, AlertCircle, Loader2 } from 'lucide-react';
+import { Clock, Camera, X, Check, AlertCircle, Loader2, Undo2 } from 'lucide-react';
 import type { TimeStatusResponse, TimeEntryType } from '@/lib/timeTracking/types';
 
 // Skaner code-split — biblioteka odpala kamerę dopiero gdy ją otworzymy
@@ -22,6 +22,13 @@ interface ScanResult {
     message?: string;
     error?: string;
     code?: string;
+    entryId?: string;     // do anulowania
+}
+
+interface CancelTarget {
+    entryId: string;
+    type: TimeEntryType;
+    scannedAt: string;
 }
 
 export default function CzasPracyTab() {
@@ -32,6 +39,11 @@ export default function CzasPracyTab() {
     const [scanResult, setScanResult] = useState<ScanResult | null>(null);
     const [scanInFlight, setScanInFlight] = useState(false);
     const lastScanAt = useRef<number>(0);
+    const [cancelTarget, setCancelTarget] = useState<CancelTarget | null>(null);
+    const [cancelReason, setCancelReason] = useState('');
+    const [cancelInFlight, setCancelInFlight] = useState(false);
+    const [cancelError, setCancelError] = useState<string | null>(null);
+    const [cancelToast, setCancelToast] = useState<string | null>(null);
 
     const fetchStatus = useCallback(async () => {
         try {
@@ -82,7 +94,7 @@ export default function CzasPracyTab() {
                         },
                     }),
                 });
-                const data = (await res.json()) as ScanResult;
+                const data = (await res.json()) as ScanResult & { entryId?: string };
                 if (!res.ok) {
                     setScanResult({ ok: false, error: data.error ?? `Błąd ${res.status}`, code: data.code });
                 } else {
@@ -102,6 +114,45 @@ export default function CzasPracyTab() {
     const handleScanError = useCallback((err: unknown) => {
         console.warn('[scan] error:', err);
     }, []);
+
+    const openCancelDialog = useCallback((target: CancelTarget) => {
+        setCancelTarget(target);
+        setCancelReason('');
+        setCancelError(null);
+    }, []);
+
+    const submitCancel = useCallback(async () => {
+        if (!cancelTarget) return;
+        const trimmed = cancelReason.trim();
+        if (trimmed.length < 3) {
+            setCancelError('Podaj krótki powód (min. 3 znaki)');
+            return;
+        }
+        setCancelInFlight(true);
+        setCancelError(null);
+        try {
+            const res = await fetch('/api/time/cancel', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ entryId: cancelTarget.entryId, reason: trimmed }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                setCancelError(data?.error ?? `Błąd ${res.status}`);
+                return;
+            }
+            setCancelTarget(null);
+            setCancelReason('');
+            setScanResult(null);
+            setCancelToast(`Anulowano ${cancelTarget.type === 'clock_in' ? 'przyjście' : 'wyjście'} z ${formatTime(cancelTarget.scannedAt)}`);
+            void fetchStatus();
+            setTimeout(() => setCancelToast(null), 4000);
+        } catch (e) {
+            setCancelError((e as Error).message);
+        } finally {
+            setCancelInFlight(false);
+        }
+    }, [cancelTarget, cancelReason, fetchStatus]);
 
     const isWorking = status?.isWorkingNow ?? false;
     const expectedAction = status?.expectedNextType ?? 'clock_in';
@@ -243,6 +294,27 @@ export default function CzasPracyTab() {
                                         <div style={{ color: 'rgba(255,255,255,0.7)', fontVariantNumeric: 'tabular-nums' }}>
                                             {formatTime(e.scannedAt)}
                                         </div>
+                                        {e.canCancel && (
+                                            <button
+                                                onClick={() => openCancelDialog({ entryId: e.id, type: e.type, scannedAt: e.scannedAt })}
+                                                title="Anuluj wpis (pomyłka)"
+                                                style={{
+                                                    width: 28,
+                                                    height: 28,
+                                                    borderRadius: 14,
+                                                    border: '1px solid rgba(239,68,68,0.3)',
+                                                    background: 'rgba(239,68,68,0.08)',
+                                                    color: '#fca5a5',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    cursor: 'pointer',
+                                                    flexShrink: 0,
+                                                }}
+                                            >
+                                                <X size={14} />
+                                            </button>
+                                        )}
                                     </div>
                                 ))}
                             </div>
@@ -391,22 +463,175 @@ export default function CzasPracyTab() {
                                 Dzisiaj przepracowane: <b>{formatMinutes(scanResult.todayWorkedMinutes)}</b>
                             </div>
                         )}
-                        <button
-                            onClick={() => setScanResult(null)}
-                            style={{
-                                marginTop: 20,
-                                padding: '0.7rem 2rem',
-                                background: '#fbbf24',
-                                color: '#0f172a',
-                                border: 'none',
-                                borderRadius: 10,
-                                fontWeight: 700,
-                                cursor: 'pointer',
-                            }}
-                        >
-                            OK
-                        </button>
+                        <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 20, flexWrap: 'wrap' }}>
+                            {scanResult.ok && !scanResult.duplicate && scanResult.entryId && scanResult.scannedAt && scanResult.type && (
+                                <button
+                                    onClick={() => {
+                                        const target: CancelTarget = {
+                                            entryId: scanResult.entryId!,
+                                            type: scanResult.type!,
+                                            scannedAt: scanResult.scannedAt!,
+                                        };
+                                        setScanResult(null);
+                                        openCancelDialog(target);
+                                    }}
+                                    style={{
+                                        padding: '0.7rem 1.4rem',
+                                        background: 'transparent',
+                                        color: '#fca5a5',
+                                        border: '1px solid rgba(239,68,68,0.5)',
+                                        borderRadius: 10,
+                                        fontWeight: 600,
+                                        cursor: 'pointer',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: 6,
+                                    }}
+                                >
+                                    <Undo2 size={16} /> Anuluj ten skan
+                                </button>
+                            )}
+                            <button
+                                onClick={() => setScanResult(null)}
+                                style={{
+                                    padding: '0.7rem 2rem',
+                                    background: '#fbbf24',
+                                    color: '#0f172a',
+                                    border: 'none',
+                                    borderRadius: 10,
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                }}
+                            >
+                                OK
+                            </button>
+                        </div>
                     </div>
+                </div>
+            )}
+
+            {/* CANCEL DIALOG */}
+            {cancelTarget && (
+                <div
+                    onClick={() => !cancelInFlight && setCancelTarget(null)}
+                    style={{
+                        position: 'fixed',
+                        inset: 0,
+                        background: 'rgba(0,0,0,0.7)',
+                        zIndex: 100002,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '1.5rem',
+                    }}
+                >
+                    <div
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                            background: '#1e293b',
+                            borderRadius: 18,
+                            padding: '1.75rem',
+                            maxWidth: 460,
+                            width: '100%',
+                            border: '1px solid rgba(239,68,68,0.4)',
+                            color: '#fff',
+                        }}
+                    >
+                        <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: 8 }}>
+                            Anuluj wpis: {cancelTarget.type === 'clock_in' ? 'przyjście' : 'wyjście'} z {formatTime(cancelTarget.scannedAt)}
+                        </h3>
+                        <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.85rem', marginBottom: 14 }}>
+                            Powiadomienie o anulowaniu trafi do administratora. Operacja jest cofalna jedynie przez admina.
+                        </p>
+                        <label style={{ display: 'block', color: 'rgba(255,255,255,0.7)', fontSize: '0.85rem', marginBottom: 6 }}>
+                            Powód <span style={{ color: '#fca5a5' }}>*</span>
+                        </label>
+                        <textarea
+                            value={cancelReason}
+                            onChange={(e) => setCancelReason(e.target.value)}
+                            placeholder="np. zły button, podwójny skan, test"
+                            disabled={cancelInFlight}
+                            maxLength={500}
+                            rows={3}
+                            style={{
+                                width: '100%',
+                                padding: '0.7rem',
+                                background: 'rgba(0,0,0,0.3)',
+                                color: '#fff',
+                                border: '1px solid rgba(255,255,255,0.15)',
+                                borderRadius: 8,
+                                fontSize: '0.95rem',
+                                resize: 'vertical',
+                                fontFamily: 'inherit',
+                            }}
+                        />
+                        {cancelError && (
+                            <div style={{ color: '#fca5a5', fontSize: '0.85rem', marginTop: 8 }}>
+                                {cancelError}
+                            </div>
+                        )}
+                        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 18 }}>
+                            <button
+                                onClick={() => setCancelTarget(null)}
+                                disabled={cancelInFlight}
+                                style={{
+                                    padding: '0.6rem 1.3rem',
+                                    background: 'transparent',
+                                    color: 'rgba(255,255,255,0.7)',
+                                    border: '1px solid rgba(255,255,255,0.2)',
+                                    borderRadius: 10,
+                                    cursor: cancelInFlight ? 'not-allowed' : 'pointer',
+                                }}
+                            >
+                                Anuluj
+                            </button>
+                            <button
+                                onClick={() => void submitCancel()}
+                                disabled={cancelInFlight || cancelReason.trim().length < 3}
+                                style={{
+                                    padding: '0.6rem 1.3rem',
+                                    background: cancelInFlight || cancelReason.trim().length < 3 ? 'rgba(239,68,68,0.4)' : '#ef4444',
+                                    color: '#fff',
+                                    border: 'none',
+                                    borderRadius: 10,
+                                    fontWeight: 700,
+                                    cursor: cancelInFlight || cancelReason.trim().length < 3 ? 'not-allowed' : 'pointer',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: 8,
+                                }}
+                            >
+                                {cancelInFlight && <Loader2 size={16} className="spin" />}
+                                Potwierdź anulowanie
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* CANCEL TOAST */}
+            {cancelToast && (
+                <div
+                    style={{
+                        position: 'fixed',
+                        bottom: 'calc(80px + env(safe-area-inset-bottom, 0px))',
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        background: 'rgba(15,23,42,0.95)',
+                        color: '#fff',
+                        padding: '0.9rem 1.4rem',
+                        borderRadius: 12,
+                        border: '1px solid rgba(239,68,68,0.3)',
+                        zIndex: 100003,
+                        fontSize: '0.9rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 10,
+                        maxWidth: '90vw',
+                    }}
+                >
+                    <Undo2 size={18} style={{ color: '#fca5a5' }} />
+                    {cancelToast}
                 </div>
             )}
 

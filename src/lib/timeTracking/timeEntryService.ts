@@ -25,7 +25,7 @@ function todayBoundsLocal(now: Date = new Date()): { start: Date; end: Date } {
 }
 
 /**
- * Zwraca ostatni wpis dla pracownika (nie ograniczony do dziś).
+ * Zwraca ostatni AKTYWNY (nie anulowany) wpis dla pracownika.
  */
 export async function getLastEntry(employeeId: string): Promise<TimeEntry | null> {
     const supabase = getServiceClient();
@@ -33,6 +33,7 @@ export async function getLastEntry(employeeId: string): Promise<TimeEntry | null
         .from('time_entries')
         .select('*')
         .eq('employee_id', employeeId)
+        .eq('cancelled', false)
         .order('scanned_at', { ascending: false })
         .limit(1);
     if (error) {
@@ -43,7 +44,7 @@ export async function getLastEntry(employeeId: string): Promise<TimeEntry | null
 }
 
 /**
- * Zwraca ostatni wpis pracownika z dzisiaj.
+ * Zwraca ostatni AKTYWNY wpis pracownika z dzisiaj.
  */
 export async function getLastEntryToday(employeeId: string, now: Date = new Date()): Promise<TimeEntry | null> {
     const { start, end } = todayBoundsLocal(now);
@@ -52,6 +53,7 @@ export async function getLastEntryToday(employeeId: string, now: Date = new Date
         .from('time_entries')
         .select('*')
         .eq('employee_id', employeeId)
+        .eq('cancelled', false)
         .gte('scanned_at', start.toISOString())
         .lt('scanned_at', end.toISOString())
         .order('scanned_at', { ascending: false })
@@ -86,6 +88,7 @@ export async function isDuplicateTap(employeeId: string, type: TimeEntryType, no
         .select('*')
         .eq('employee_id', employeeId)
         .eq('type', type)
+        .eq('cancelled', false)
         .gte('scanned_at', cutoff.toISOString())
         .order('scanned_at', { ascending: false })
         .limit(1);
@@ -105,6 +108,79 @@ interface InsertEntryInput {
     deviceInfo?: Record<string, unknown> | null;
     ipAddress?: string | null;
     userAgent?: string | null;
+}
+
+export async function getEntryById(entryId: string): Promise<TimeEntry | null> {
+    const supabase = getServiceClient();
+    const { data, error } = await supabase
+        .from('time_entries')
+        .select('*')
+        .eq('id', entryId)
+        .maybeSingle();
+    if (error) {
+        console.error('[timeTracking] getEntryById error:', error);
+        return null;
+    }
+    return data as TimeEntry | null;
+}
+
+interface CancelEntryInput {
+    entryId: string;
+    employeeId: string;
+    cancelledByUserId: string;
+    reason: string;
+}
+
+/**
+ * Anuluje wpis (soft-delete). Walidacja:
+ *  - wpis należy do tego pracownika
+ *  - wpis jest z dzisiaj
+ *  - jeszcze nie anulowany
+ *  - powód niepusty
+ */
+export async function cancelTimeEntry(input: CancelEntryInput): Promise<{ ok: true; entry: TimeEntry } | { ok: false; error: string }> {
+    const reason = input.reason?.trim();
+    if (!reason || reason.length < 3) {
+        return { ok: false, error: 'Podaj krótki powód anulowania (min. 3 znaki)' };
+    }
+    if (reason.length > 500) {
+        return { ok: false, error: 'Powód za długi (max 500 znaków)' };
+    }
+
+    const existing = await getEntryById(input.entryId);
+    if (!existing) {
+        return { ok: false, error: 'Nie znaleziono wpisu' };
+    }
+    if (existing.employee_id !== input.employeeId) {
+        return { ok: false, error: 'Nie możesz anulować cudzego wpisu' };
+    }
+    if (existing.cancelled) {
+        return { ok: false, error: 'Wpis już został anulowany' };
+    }
+
+    const { start, end } = todayBoundsLocal(new Date());
+    const scannedDate = new Date(existing.scanned_at);
+    if (scannedDate < start || scannedDate >= end) {
+        return { ok: false, error: 'Można anulować tylko wpisy z dzisiaj — starsze koryguje admin' };
+    }
+
+    const supabase = getServiceClient();
+    const { data, error } = await supabase
+        .from('time_entries')
+        .update({
+            cancelled: true,
+            cancelled_at: new Date().toISOString(),
+            cancelled_by: input.cancelledByUserId,
+            cancel_reason: reason,
+        })
+        .eq('id', input.entryId)
+        .eq('cancelled', false)
+        .select('*')
+        .single();
+    if (error || !data) {
+        return { ok: false, error: 'Nie udało się anulować wpisu' };
+    }
+    return { ok: true, entry: data as TimeEntry };
 }
 
 export async function insertTimeEntry(input: InsertEntryInput): Promise<TimeEntry> {
@@ -149,6 +225,7 @@ export async function getTodayEntries(employeeId: string, now: Date = new Date()
         .from('time_entries')
         .select('*')
         .eq('employee_id', employeeId)
+        .eq('cancelled', false)
         .gte('scanned_at', start.toISOString())
         .lt('scanned_at', end.toISOString())
         .order('scanned_at', { ascending: true });
@@ -239,6 +316,7 @@ export async function buildStatusResponse(
                 type: e.type,
                 scannedAt: e.scanned_at,
                 manual: e.manual,
+                canCancel: !e.manual,  // tylko własne, nie-manualne wpisy
             })),
         },
     };

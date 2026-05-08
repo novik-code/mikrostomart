@@ -30,6 +30,10 @@ export interface TimeEntry {
     manual_note: string | null;
     original_scanned_at: string | null;
     schedule_id: string | null;
+    cancelled: boolean;
+    cancelled_at: string | null;
+    cancelled_by: string | null;
+    cancel_reason: string | null;
     created_at: string;
 }
 
@@ -74,8 +78,21 @@ export interface TimeStatusResponse {
             type: TimeEntryType;
             scannedAt: string;
             manual: boolean;
+            canCancel: boolean;       // pracownik może anulować (dziś + nie anulowany jeszcze)
         }>;
     };
+}
+
+export interface TimeCancelRequest {
+    entryId: string;
+    reason: string;
+}
+
+export interface TimeCancelResponse {
+    ok: true;
+    cancelledEntryId: string;
+    type: TimeEntryType;
+    scannedAt: string;
 }
 
 export interface TimeScanRequest {
