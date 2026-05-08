@@ -74,17 +74,35 @@ export interface ShiftAssignmentRow {
     id: string;
     schedule_id: string;
     doctor_schedule_id: string | null;
+    doctor_employee_id: string | null;
+    workstation_id: string | null;
     segment_start: string;          // HH:MM:SS
     segment_end: string;
     location_id: string | null;
     notes: string | null;
 }
 
+// ── Workstations ────────────────────────────────────────────────────
+
+export type WorkstationType = 'cabinet' | 'reception' | 'consultation' | 'lab' | 'office' | 'other';
+
+export interface Workstation {
+    id: string;
+    name: string;
+    short_label: string | null;
+    workstation_type: WorkstationType;
+    color: string | null;
+    location_id: string | null;
+    is_active: boolean;
+    sort_order: number;
+}
+
 // ── DTO/payload do API ──────────────────────────────────────────────
 
 export interface ShiftAssignmentInput {
     doctorScheduleId?: string | null;
-    doctorEmployeeId?: string | null;   // alternatywa do schedule_id (server resolve)
+    doctorEmployeeId?: string | null;   // gdy lekarz nie ma jeszcze grafiku
+    workstationId?: string | null;
     segmentStart: string;                // HH:MM
     segmentEnd: string;
     locationId?: string | null;
@@ -131,6 +149,7 @@ export interface ScheduleMonthResponse {
     month: string;                   // YYYY-MM
     workingDays: number;             // dni robocze pn-pt w miesiącu
     employees: ScheduleEmployee[];
+    workstations: Workstation[];     // dostępne stanowiska
     cells: ScheduleCell[];           // wszystkie wpisy w miesiącu
     summaries: Array<{
         employee_id: string;

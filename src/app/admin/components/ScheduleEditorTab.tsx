@@ -15,7 +15,14 @@ import {
     type ScheduleMonthResponse,
     type ShiftAssignmentInput,
     type UpsertCellPayload,
+    type Workstation,
 } from '@/lib/timeTracking/scheduleTypes';
+
+const SHIFT_PRESETS: Array<{ label: string; icon: string; start: string; end: string }> = [
+    { label: 'Poranna', icon: '🌅', start: '09:00', end: '16:00' },
+    { label: 'Popołudniowa', icon: '🌇', start: '14:00', end: '20:00' },
+    { label: 'Pełna', icon: '⏰', start: '08:00', end: '16:00' },
+];
 
 const PL_DAYS = ['Niedz', 'Pn', 'Wt', 'Śr', 'Czw', 'Pt', 'Sob'];
 const PL_DAYS_LONG = ['Niedziela', 'Poniedziałek', 'Wtorek', 'Środa', 'Czwartek', 'Piątek', 'Sobota'];
@@ -120,6 +127,8 @@ function loadCellEditor(emp: ScheduleEmployee, date: string, existing: ScheduleC
         notes: existing.notes ?? '',
         assignments: existing.assignments.map((a) => ({
             doctorScheduleId: a.doctor_schedule_id,
+            doctorEmployeeId: a.doctor_employee_id,
+            workstationId: a.workstation_id,
             segmentStart: timeShort(a.segment_start),
             segmentEnd: timeShort(a.segment_end),
             locationId: a.location_id,
@@ -180,6 +189,18 @@ export default function ScheduleEditorTab() {
         if (roleFilter.size === 0) return data.employees;
         return data.employees.filter((e) => e.position && roleFilter.has(e.position));
     }, [data, roleFilter]);
+
+    const workstationsById = useMemo(() => {
+        const m = new Map<string, Workstation>();
+        if (data) for (const w of data.workstations) m.set(w.id, w);
+        return m;
+    }, [data]);
+
+    const doctorsById = useMemo(() => {
+        const m = new Map<string, ScheduleEmployee>();
+        if (data) for (const e of data.employees) if (e.position === 'Lekarz') m.set(e.id, e);
+        return m;
+    }, [data]);
 
     const toggleRoleFilter = (pos: string) => {
         setRoleFilter((prev) => {
@@ -405,6 +426,8 @@ export default function ScheduleEditorTab() {
                                                     cell={cell}
                                                     isWeekend={d.isWeekend}
                                                     onClick={() => openCellEditor(emp, d.date)}
+                                                    workstationsById={workstationsById}
+                                                    doctorsById={doctorsById}
                                                 />
                                             );
                                         })}
@@ -461,6 +484,7 @@ export default function ScheduleEditorTab() {
                     saving={saving}
                     error={editorError}
                     employees={data?.employees ?? []}
+                    workstations={data?.workstations ?? []}
                     cellMap={cellMap}
                 />
             )}
@@ -501,7 +525,19 @@ function monthLabel(month: string): string {
 
 // ── Cell renderer ───────────────────────────────────────────────────
 
-function CellTd({ cell, isWeekend, onClick }: { cell: ScheduleCell | undefined; isWeekend: boolean; onClick: () => void }) {
+function CellTd({
+    cell,
+    isWeekend,
+    onClick,
+    workstationsById,
+    doctorsById,
+}: {
+    cell: ScheduleCell | undefined;
+    isWeekend: boolean;
+    onClick: () => void;
+    workstationsById: Map<string, Workstation>;
+    doctorsById: Map<string, ScheduleEmployee>;
+}) {
     const empty = !cell;
     const isAbsence = cell?.absence_type;
     const absenceDef = isAbsence ? ABSENCE_TYPES.find((a) => a.value === cell.absence_type) : null;
@@ -546,8 +582,21 @@ function CellTd({ cell, isWeekend, onClick }: { cell: ScheduleCell | undefined; 
                         </div>
                     )}
                     {cell.assignments.length > 0 && (
-                        <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)' }}>
-                            {cell.assignments.length}× przyp.
+                        <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.55)', marginTop: 2, lineHeight: 1.3 }}>
+                            {cell.assignments.map((a, idx) => {
+                                const ws = a.workstation_id ? workstationsById.get(a.workstation_id) : undefined;
+                                const doc = a.doctor_employee_id ? doctorsById.get(a.doctor_employee_id) : undefined;
+                                const docFirstName = doc?.name.split(' ')[0]?.charAt(0) ?? '';
+                                const wsLabel = ws?.short_label ?? '';
+                                const docLabel = doc ? `+${docFirstName}` : '';
+                                const time = `${timeShort(a.segment_start)}-${timeShort(a.segment_end)}`;
+                                return (
+                                    <div key={idx} title={`${time} ${ws?.name ?? ''}${doc ? ' · ' + doc.name : ''}`}>
+                                        <span style={{ color: ws?.color ?? '#fbbf24' }}>{wsLabel}</span>
+                                        {docLabel && <span style={{ color: '#a78bfa' }}> {docLabel}</span>}
+                                    </div>
+                                );
+                            })}
                         </div>
                     )}
                 </div>
@@ -567,6 +616,7 @@ function CellEditorModal({
     saving,
     error,
     employees,
+    workstations,
     cellMap,
 }: {
     state: CellEditorState;
@@ -577,19 +627,16 @@ function CellEditorModal({
     saving: boolean;
     error: string | null;
     employees: ScheduleEmployee[];
+    workstations: Workstation[];
     cellMap: Map<string, ScheduleCell>;
 }) {
     const dateObj = new Date(state.date + 'T00:00:00Z');
     const dayLabel = `${PL_DAYS_LONG[dateObj.getUTCDay()]}, ${dateObj.getUTCDate()} ${PL_MONTHS[dateObj.getUTCMonth()]} ${dateObj.getUTCFullYear()}`;
 
-    // Lekarze pracujący tego samego dnia (dla wyboru w segmentach)
-    const doctorsThisDay = employees
+    // Wszyscy lekarze (z grafikiem dnia lub bez — pokazujemy wszystkich, hint w label)
+    const allDoctors = employees
         .filter((e) => e.position === 'Lekarz')
-        .map((e) => {
-            const cell = cellMap.get(`${e.id}_${state.date}`);
-            return { emp: e, cell };
-        })
-        .filter((x) => x.cell && !x.cell.absence_type);
+        .map((e) => ({ emp: e, cell: cellMap.get(`${e.id}_${state.date}`) }));
 
     const update = <K extends keyof CellEditorState>(key: K, value: CellEditorState[K]) => {
         setState({ ...state, [key]: value });
@@ -604,11 +651,17 @@ function CellEditorModal({
         update('assignments', [
             ...state.assignments,
             {
-                doctorScheduleId: doctorsThisDay[0]?.cell?.id ?? null,
+                doctorEmployeeId: null,
+                doctorScheduleId: null,
+                workstationId: null,
                 segmentStart: state.plannedStart || '08:00',
                 segmentEnd: state.plannedEnd || '16:00',
             },
         ]);
+    };
+
+    const applyShiftPreset = (start: string, end: string) => {
+        setState({ ...state, plannedStart: start, plannedEnd: end });
     };
 
     const updateAssignment = (i: number, patch: Partial<ShiftAssignmentInput>) => {
@@ -659,6 +712,32 @@ function CellEditorModal({
 
                 {state.mode === 'work' ? (
                     <>
+                        {/* QUICK PRESETS */}
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+                            <span style={{ ...labelStyle, marginBottom: 0, alignSelf: 'center' }}>Szablon:</span>
+                            {SHIFT_PRESETS.map((p) => {
+                                const active = state.plannedStart === p.start && state.plannedEnd === p.end;
+                                return (
+                                    <button
+                                        key={p.label}
+                                        onClick={() => applyShiftPreset(p.start, p.end)}
+                                        style={{
+                                            padding: '0.35rem 0.75rem',
+                                            borderRadius: 999,
+                                            border: `1px solid ${active ? '#fbbf24' : 'rgba(255,255,255,0.15)'}`,
+                                            background: active ? 'rgba(251,191,36,0.15)' : 'rgba(255,255,255,0.04)',
+                                            color: active ? '#fbbf24' : 'rgba(255,255,255,0.75)',
+                                            cursor: 'pointer',
+                                            fontSize: '0.8rem',
+                                            fontWeight: 600,
+                                        }}
+                                    >
+                                        {p.icon} {p.label} {p.start}–{p.end}
+                                    </button>
+                                );
+                            })}
+                        </div>
+
                         {/* HOURS */}
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: '1rem' }}>
                             <div>
@@ -712,71 +791,118 @@ function CellEditorModal({
                         {/* ASSIGNMENTS */}
                         <div style={{ marginBottom: '1rem' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                                <label style={labelStyle}>Przypisania (asysta ↔ lekarz)</label>
+                                <label style={labelStyle}>Przypisania w trakcie zmiany</label>
                                 <button onClick={addAssignment} style={{ ...btnSecondaryStyle, padding: '0.3rem 0.7rem', fontSize: '0.8rem' }}>
-                                    <Plus size={14} /> Dodaj
+                                    <Plus size={14} /> Dodaj segment
                                 </button>
                             </div>
                             {state.assignments.length === 0 ? (
                                 <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.85rem' }}>
-                                    Brak przypisań. Dla asysty można podzielić zmianę na segmenty pracy z różnymi lekarzami.
+                                    Brak przypisań. Można podzielić zmianę na segmenty: stanowisko (gabinet/recepcja/pracownia)
+                                    i/lub lekarz (gdy pracownik asystuje przy zabiegach).
                                 </div>
                             ) : (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                    {state.assignments.map((a, i) => (
-                                        <div
-                                            key={i}
-                                            style={{
-                                                display: 'flex',
-                                                gap: 6,
-                                                alignItems: 'center',
-                                                padding: '0.5rem',
-                                                background: 'rgba(255,255,255,0.04)',
-                                                borderRadius: 8,
-                                                flexWrap: 'wrap',
-                                            }}
-                                        >
-                                            <input
-                                                type="time"
-                                                value={a.segmentStart}
-                                                onChange={(e) => updateAssignment(i, { segmentStart: e.target.value })}
-                                                style={{ ...inputStyle, width: 90, padding: '0.35rem' }}
-                                            />
-                                            <span style={{ color: 'rgba(255,255,255,0.5)' }}>–</span>
-                                            <input
-                                                type="time"
-                                                value={a.segmentEnd}
-                                                onChange={(e) => updateAssignment(i, { segmentEnd: e.target.value })}
-                                                style={{ ...inputStyle, width: 90, padding: '0.35rem' }}
-                                            />
-                                            <select
-                                                value={a.doctorScheduleId ?? ''}
-                                                onChange={(e) => updateAssignment(i, { doctorScheduleId: e.target.value || null })}
-                                                style={{ ...inputStyle, flex: 1, minWidth: 140, padding: '0.35rem' }}
-                                            >
-                                                <option value="">— bez lekarza —</option>
-                                                {doctorsThisDay.map((d) => (
-                                                    <option key={d.cell!.id} value={d.cell!.id}>
-                                                        {d.emp.name} ({timeShort(d.cell!.planned_start)}–{timeShort(d.cell!.planned_end)})
-                                                    </option>
-                                                ))}
-                                            </select>
-                                            <button
-                                                onClick={() => removeAssignment(i)}
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                    {state.assignments.map((a, i) => {
+                                        const docMeta = a.doctorEmployeeId
+                                            ? allDoctors.find((d) => d.emp.id === a.doctorEmployeeId)
+                                            : undefined;
+                                        const docHasSchedule = !!docMeta?.cell && !docMeta.cell.absence_type;
+                                        return (
+                                            <div
+                                                key={i}
                                                 style={{
-                                                    width: 32,
-                                                    height: 32,
+                                                    display: 'flex',
+                                                    flexDirection: 'column',
+                                                    gap: 6,
+                                                    padding: '0.65rem',
+                                                    background: 'rgba(255,255,255,0.04)',
                                                     borderRadius: 8,
-                                                    border: '1px solid rgba(239,68,68,0.3)',
-                                                    background: 'rgba(239,68,68,0.08)',
-                                                    color: '#fca5a5',
-                                                    cursor: 'pointer',
                                                 }}
                                             >
-                                                <Trash2 size={14} />
-                                            </button>
-                                        </div>
-                                    ))}
+                                                {/* Pierwszy wiersz: czas + delete */}
+                                                <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                                                    <input
+                                                        type="time"
+                                                        value={a.segmentStart}
+                                                        onChange={(e) => updateAssignment(i, { segmentStart: e.target.value })}
+                                                        style={{ ...inputStyle, width: 100, padding: '0.35rem' }}
+                                                    />
+                                                    <span style={{ color: 'rgba(255,255,255,0.5)' }}>–</span>
+                                                    <input
+                                                        type="time"
+                                                        value={a.segmentEnd}
+                                                        onChange={(e) => updateAssignment(i, { segmentEnd: e.target.value })}
+                                                        style={{ ...inputStyle, width: 100, padding: '0.35rem' }}
+                                                    />
+                                                    <span style={{ flex: 1 }} />
+                                                    <button
+                                                        onClick={() => removeAssignment(i)}
+                                                        title="Usuń segment"
+                                                        style={{
+                                                            width: 30,
+                                                            height: 30,
+                                                            borderRadius: 8,
+                                                            border: '1px solid rgba(239,68,68,0.3)',
+                                                            background: 'rgba(239,68,68,0.08)',
+                                                            color: '#fca5a5',
+                                                            cursor: 'pointer',
+                                                        }}
+                                                    >
+                                                        <Trash2 size={13} />
+                                                    </button>
+                                                </div>
+
+                                                {/* Drugi wiersz: stanowisko + lekarz */}
+                                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                                                    <select
+                                                        value={a.workstationId ?? ''}
+                                                        onChange={(e) => updateAssignment(i, { workstationId: e.target.value || null })}
+                                                        style={{ ...inputStyle, padding: '0.35rem', fontSize: '0.85rem' }}
+                                                    >
+                                                        <option value="">— stanowisko —</option>
+                                                        {workstations.map((w) => (
+                                                            <option key={w.id} value={w.id}>
+                                                                {w.short_label ? `${w.short_label} · ` : ''}{w.name}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                    <select
+                                                        value={a.doctorEmployeeId ?? ''}
+                                                        onChange={(e) =>
+                                                            updateAssignment(i, {
+                                                                doctorEmployeeId: e.target.value || null,
+                                                                doctorScheduleId: null,
+                                                            })
+                                                        }
+                                                        style={{ ...inputStyle, padding: '0.35rem', fontSize: '0.85rem' }}
+                                                    >
+                                                        <option value="">— bez lekarza —</option>
+                                                        {allDoctors.map((d) => {
+                                                            const hint = d.cell?.absence_type
+                                                                ? ` · ${ABSENCE_TYPES.find((x) => x.value === d.cell?.absence_type)?.short ?? 'nb'}`
+                                                                : d.cell
+                                                                    ? ` · ${timeShort(d.cell.planned_start)}–${timeShort(d.cell.planned_end)}`
+                                                                    : ' · brak grafiku';
+                                                            return (
+                                                                <option key={d.emp.id} value={d.emp.id}>
+                                                                    {d.emp.name}{hint}
+                                                                </option>
+                                                            );
+                                                        })}
+                                                    </select>
+                                                </div>
+
+                                                {/* Ostrzeżenia / hinty */}
+                                                {a.doctorEmployeeId && !docHasSchedule && (
+                                                    <div style={{ fontSize: '0.75rem', color: '#fbbf24' }}>
+                                                        ⚠ Wybrany lekarz nie ma grafiku w tym dniu — segment się zapisze, ale algorytm nadgodzin
+                                                        zacznie liczyć go dopiero po wpisaniu zmiany lekarza.
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             )}
                         </div>

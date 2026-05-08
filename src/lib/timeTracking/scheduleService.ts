@@ -9,6 +9,7 @@ import type {
     ShiftAssignmentRow,
     UpsertCellPayload,
     WorkScheduleRow,
+    Workstation,
 } from './scheduleTypes';
 
 function getServiceClient(): SupabaseClient {
@@ -111,6 +112,21 @@ export async function fetchActiveEmployeesForSchedule(): Promise<ScheduleEmploye
     }));
 }
 
+export async function fetchActiveWorkstations(): Promise<Workstation[]> {
+    const supabase = getServiceClient();
+    const { data, error } = await supabase
+        .from('workstations')
+        .select('*')
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true })
+        .order('name', { ascending: true });
+    if (error) {
+        console.error('[scheduleService] fetchActiveWorkstations error:', error);
+        return [];
+    }
+    return (data ?? []) as Workstation[];
+}
+
 // ── Główny widok miesiąca ───────────────────────────────────────────
 
 export async function fetchScheduleMonth(month: string): Promise<ScheduleMonthResponse | null> {
@@ -118,7 +134,10 @@ export async function fetchScheduleMonth(month: string): Promise<ScheduleMonthRe
     if (!parsed) return null;
 
     const supabase = getServiceClient();
-    const employees = await fetchActiveEmployeesForSchedule();
+    const [employees, workstations] = await Promise.all([
+        fetchActiveEmployeesForSchedule(),
+        fetchActiveWorkstations(),
+    ]);
 
     const fromIso = isoDateUTC(parsed.firstDay);
     const toIso = isoDateUTC(parsed.lastDay);
@@ -185,6 +204,7 @@ export async function fetchScheduleMonth(month: string): Promise<ScheduleMonthRe
         month,
         workingDays,
         employees,
+        workstations,
         cells,
         summaries,
     };
@@ -270,16 +290,38 @@ export async function upsertScheduleCell(payload: UpsertCellPayload, userId: str
     await supabase.from('shift_assignments').delete().eq('schedule_id', scheduleId);
     const newAssignments = isAbsence ? [] : (payload.assignments ?? []);
     if (newAssignments.length > 0) {
+        // Resolve doctorEmployeeId → doctor_schedule_id (gdy lekarz ma grafik tego dnia)
+        const employeeIdsNeedingSchedule = newAssignments
+            .map((a) => a.doctorEmployeeId)
+            .filter((id): id is string => !!id && !newAssignments.find((b) => b.doctorEmployeeId === id && b.doctorScheduleId));
+        let scheduleByEmployee: Record<string, string> = {};
+        if (employeeIdsNeedingSchedule.length > 0) {
+            const { data: doctorSchedules } = await supabase
+                .from('work_schedules')
+                .select('id, employee_id')
+                .eq('date', payload.date)
+                .in('employee_id', employeeIdsNeedingSchedule);
+            for (const s of (doctorSchedules ?? []) as Array<{ id: string; employee_id: string }>) {
+                scheduleByEmployee[s.employee_id] = s.id;
+            }
+        }
+
         const rows = newAssignments
             .filter((a) => isValidTimeHHmm(a.segmentStart) && isValidTimeHHmm(a.segmentEnd))
-            .map((a) => ({
-                schedule_id: scheduleId,
-                doctor_schedule_id: a.doctorScheduleId ?? null,
-                segment_start: a.segmentStart,
-                segment_end: a.segmentEnd,
-                location_id: a.locationId ?? null,
-                notes: a.notes ?? null,
-            }))
+            .map((a) => {
+                const resolvedScheduleId = a.doctorScheduleId
+                    ?? (a.doctorEmployeeId ? scheduleByEmployee[a.doctorEmployeeId] ?? null : null);
+                return {
+                    schedule_id: scheduleId,
+                    doctor_schedule_id: resolvedScheduleId,
+                    doctor_employee_id: a.doctorEmployeeId ?? null,
+                    workstation_id: a.workstationId ?? null,
+                    segment_start: a.segmentStart,
+                    segment_end: a.segmentEnd,
+                    location_id: a.locationId ?? null,
+                    notes: a.notes ?? null,
+                };
+            })
             .filter((r) => r.segment_end > r.segment_start);
         if (rows.length > 0) {
             await supabase.from('shift_assignments').insert(rows);
@@ -391,7 +433,9 @@ export async function copyMonth(sourceMonth: string, targetMonth: string, userId
             await supabase.from('shift_assignments').insert(
                 srcAssignments.map((a) => ({
                     schedule_id: newScheduleId,
-                    doctor_schedule_id: null,   // doctor_schedule_id wygasa — admin musi przypiąć ręcznie do nowego miesiąca
+                    doctor_schedule_id: null,            // wygasa — będzie sresolve'owany później po doctor_employee_id
+                    doctor_employee_id: a.doctor_employee_id,
+                    workstation_id: a.workstation_id,
                     segment_start: a.segment_start,
                     segment_end: a.segment_end,
                     location_id: a.location_id,
