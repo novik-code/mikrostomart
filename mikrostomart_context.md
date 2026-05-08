@@ -1,8 +1,8 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-04-10  
+> **Last Updated:** 2026-05-08  
 > **Version:** Production + Demo (Dual Vercel Deployment)  
-> **Status:** Active Development — Unified AI Ecosystem + Multi-Tenant Architecture
+> **Status:** Active Development — CareFlow Perioperative System + Push-First Communication
 
 ---
 
@@ -156,7 +156,7 @@ The demo environment is fully neutralized — no Mikrostomart-specific text, con
 
 ### Backend & Database
 - **Supabase** (PostgreSQL database, authentication, storage)
-  - Database: 108 migrations (003-108: email verification, appointment actions, SMS reminders, user_roles, employee tasks, task history, comments, labels, status fix, google reviews cache, chat, push subscriptions, employee_group, push_notification_config, employee_groups array, news/articles/blog/products i18n, calendar tokens, private tasks + reminders, SMS post-visit/week-after-visit, SMS unique constraint fix, task multi-images, push_notifications_log, google_event_id on employee_tasks, patient_intake_tokens, feature_suggestions, online_bookings, patient_match_confidence, consent_tokens/patient_consents, staff_signatures, intake_pdf_url, birthday_wishes, cancelled_appointments, login_attempts, patient_notification_prefs, biometric_signature, employee_audit_log, consent_field_mappings, rate_limit_table, cron_heartbeats, sms_settings, email_ai_drafts, email_ai_config, email_compose_drafts, email_label_overrides, email_ai_drafts_skipped, compose_drafts_ai_text, email_ai_knowledge_files, fix_nowosielska_role, employee_notification_prefs, cleanup_duplicate_push_subs, security_advisor_fixes, merge_duplicate_employees, **social_media, video_queue, storage_video_upload, video_captions_api**, fcm_push_rebuild, dedup_employees, fix_employee_reactivate, **unified_ai_knowledge_base**, ai_trainer_conversations)
+  - Database: 112 migrations (003-112: email verification, appointment actions, SMS reminders, user_roles, employee tasks, task history, comments, labels, status fix, google reviews cache, chat, push subscriptions, employee_group, push_notification_config, employee_groups array, news/articles/blog/products i18n, calendar tokens, private tasks + reminders, SMS post-visit/week-after-visit, SMS unique constraint fix, task multi-images, push_notifications_log, google_event_id on employee_tasks, patient_intake_tokens, feature_suggestions, online_bookings, patient_match_confidence, consent_tokens/patient_consents, staff_signatures, intake_pdf_url, birthday_wishes, cancelled_appointments, login_attempts, patient_notification_prefs, biometric_signature, employee_audit_log, consent_field_mappings, rate_limit_table, cron_heartbeats, sms_settings, email_ai_drafts, email_ai_config, email_compose_drafts, email_label_overrides, email_ai_drafts_skipped, compose_drafts_ai_text, email_ai_knowledge_files, fix_nowosielska_role, employee_notification_prefs, cleanup_duplicate_push_subs, security_advisor_fixes, merge_duplicate_employees, **social_media, video_queue, storage_video_upload, video_captions_api**, fcm_push_rebuild, dedup_employees, fix_employee_reactivate, **unified_ai_knowledge_base**, ai_trainer_conversations, **delivery_channel (push-first), careflow_system, careflow_sms_fallback, careflow_report_tracking**)
   - Auth: Email/password, magic links, JWT tokens
   - Storage: Product images, patient documents, task images, **social media videos** (bucket: `social-media`)
   - **Social Media**: `social_platforms`, `social_posts`, `social_schedules`, `social_topics` tables + cron auto-publish
@@ -1672,6 +1672,10 @@ Features:
 | `/cron/deposit-reminder` | SMS + push reminder for unpaid deposits ~48h before appointment | Daily 7:00 UTC |
 | `/cron/noshow-followup` | Detect no-shows from yesterday, send follow-up SMS offering rescheduling | Daily 8:00 UTC |
 | `/cron/email-ai-drafts` | **NEW** — Scan IMAP inbox for new emails, generate AI reply drafts (GPT-4o-mini), classify importance | Hourly 6-18 UTC |
+| `/cron/careflow-push` | **NEW** (May 2026) — Send FCM push for due CareFlow tasks (with `push_max_count` cap + Europe/Warsaw quiet hours) | Every 5 min, 5-22 UTC |
+| `/cron/careflow-auto-qualify` | **NEW** — Auto-complete CareFlow enrollments + escalate to SMS when push fails | Daily 8:00 UTC |
+| `/cron/careflow-report` | **NEW** — Generate PDF compliance reports for completed CareFlow enrollments | Daily 2:00 UTC |
+| `/cron/push-escalation` | **NEW** — Escalate push-first SMS reminders to actual SMS when push delivery fails | Hourly 9-18 UTC |
 
 
 ---
@@ -2310,10 +2314,19 @@ This ensures Saturday and Monday templates don't mix in the admin panel.
     { "path": "/api/cron/daily-report", "schedule": "30 5 * * *" },
     { "path": "/api/cron/deposit-reminder", "schedule": "0 7 * * *" },
     { "path": "/api/cron/noshow-followup", "schedule": "0 8 * * *" },
-    { "path": "/api/cron/video-process", "schedule": "*/5 * * * *" }
+    { "path": "/api/cron/email-ai-drafts", "schedule": "0 6-18 * * *" },
+    { "path": "/api/cron/social-generate", "schedule": "0 4 * * *" },
+    { "path": "/api/cron/social-publish", "schedule": "*/15 6-22 * * *" },
+    { "path": "/api/cron/social-comments", "schedule": "*/15 6-22 * * *" },
+    { "path": "/api/cron/video-process", "schedule": "*/5 6-22 * * *" },
+    { "path": "/api/cron/push-escalation", "schedule": "0 9-18 * * *" },
+    { "path": "/api/cron/careflow-push", "schedule": "*/5 5-22 * * *" },
+    { "path": "/api/cron/careflow-auto-qualify", "schedule": "0 8 * * *" },
+    { "path": "/api/cron/careflow-report", "schedule": "0 2 * * *" }
   ]
 }
 ```
+*Total: 26 crons (matches `vercel.json` as of 2026-05-08).*
 
 ---
 
@@ -2442,6 +2455,80 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### May 5–7, 2026
+**CareFlow Perioperative Care System + Push-First Communication**
+
+#### Commits (highlights):
+- `b17bcff` — feat(careflow): Perioperative patient care system - Stage 1 MVP
+- `3503c08` — feat(careflow): Phase 2 — enrollment button in employee schedule
+- `5e0227e` — feat(careflow): auto-qualification cron, quiet hours fix, auto-complete enrollments
+- `58e944f` — feat(careflow): SMS fallback when push unavailable
+- `16b114c` — feat(careflow): Phase 3 — PDF compliance reports + build fixes
+- `58b1133` — feat(careflow): Phase 4 — Prodentis export, analytics dashboard, manual SMS trigger
+- `3e080e0` — fix(careflow): Europe/Warsaw timezone for SmartSnap + quiet hours, enrollment editor UI
+- `e1f8f2d` — fix(push): Switch to data-only FCM messages — fix background push + click navigation
+- `3b106ac` — refactor(admin): Unify Communication tabs into single '📨 Komunikacja'
+- `74ad1d1` / `5a9a4d4` / `a4c74f4` — fix(chat): polling fallback, push deep-linking, mobile responsive, employee zone chat tab
+
+#### CareFlow — Perioperative Patient Care System
+End-to-end automation for pre/post-procedure patient management. Replaces ad-hoc SMS reminders with structured protocols.
+
+**Architecture:**
+- **Care Templates** (admin) — define perioperative protocols (e.g. "Zabieg chirurgiczny": 4 pre-op + 6 post-op steps spanning ~72h). Each step: medication, push message, `smart_snap` (skips quiet hours), reminder cadence.
+- **Patient Enrollment** — employee enrolls patient on a specific appointment from schedule popup → generates per-step `care_tasks` with computed `scheduled_at` (offset_hours from appointment + smart_snap + Europe/Warsaw quiet hours)
+- **Patient Portal** — patient confirms/skips tasks via tokenized URL `/careflow/[token]` (token in `care_enrollments.access_token`, no auth required — works without portal account)
+- **Push-first delivery** — `careflow-push` cron sends FCM push every `push_interval_minutes` until confirmed or `push_max_count` reached, then falls back to SMS via `careflow-auto-qualify`
+- **Audit log** — every action (enroll, push, confirm, skip, sms_fallback) logged to `care_audit_log`
+- **PDF compliance reports** — generated via `careflow-report` cron, exportable to Prodentis documents API
+
+**Database (migrations 110-112):**
+- `care_templates` — protocol definitions (name, procedure_types[], default_medications JSONB, push_settings JSONB)
+- `care_template_steps` — ordered steps with offset_hours, smart_snap, push_message, requires_confirmation, recurrence
+- `care_enrollments` — active enrollments (patient_id, template_id, appointment_date, access_token UNIQUE, status, prescription_code, report_pdf_url, report_generated_at)
+- `care_tasks` — generated tasks per enrollment (scheduled_at, push_sent_count, completed_at, sms_sent, push_message)
+- `care_audit_log` — full action history
+
+**Seeded template:** "Zabieg chirurgiczny" with 10 steps (recipe pickup → 3× pre-op antibiotic → procedure → 6× post-op antibiotic).
+
+#### Push-First Communication (Migration 109)
+New `delivery_channel` field on `sms_reminders`: `sms | push | push+sms | pending`. For patients with active FCM tokens: push tried first, SMS as fallback if not confirmed. Saves SMS cost for engaged users while ensuring delivery. Tracking columns: `push_sent`, `push_error`, `push_sent_at`, `patient_has_account`, `patient_has_push`. Index `idx_sms_reminders_push_escalation` for the escalation cron.
+
+#### New Cron Jobs (4):
+- `careflow-push` — sends FCM push for due CareFlow tasks
+- `careflow-auto-qualify` — auto-completes enrollments + escalates to SMS when push fails
+- `careflow-report` — generates PDF compliance reports for completed enrollments
+- `push-escalation` — escalates push-first SMS to actual SMS when push delivery fails
+
+#### Communication Tab Unified (`3b106ac`)
+Admin Panel: SMS Przypomnienia, SMS po wizycie, SMS tydzień po wizycie, Czat — merged into single "📨 Komunikacja" tab with sub-tabs.
+
+#### FCM Data-Only Payload (`e1f8f2d`)
+Removed `notification` key from FCM messages. Was causing background push duplicates (FCM auto-display + our `showNotification()`) and broken click navigation. Service worker now manages all display.
+
+#### Demo Legal Fix (`54010dd`)
+Legal pages (regulamin, RODO, polityka prywatności, polityka cookies) now show real company data even in demo mode — required for compliance/legal validity.
+
+#### New Files (CareFlow):
+- `src/lib/careflowPdf.ts` — PDF compliance report generation
+- `src/app/admin/components/CareFlowTab.tsx` — admin CareFlow management UI
+- `src/app/admin/components/CareFlowEnrollmentEditor.tsx` — enrollment edit modal
+- `src/app/admin/components/CareFlowSimulator.tsx` — preview enrollment timeline before activating
+- `src/app/api/careflow/[token]/route.ts` — patient view (token-based, no auth)
+- `src/app/api/careflow/[token]/complete/route.ts` — confirm/skip task
+- `src/app/api/employee/careflow/{enroll,enrollments,enrollments/[id],tasks/[id]}/route.ts` — employee CareFlow CRUD
+- `src/app/api/admin/careflow/{templates,send-sms,simulate,export-prodentis}/route.ts` — admin CareFlow APIs
+- `src/app/api/cron/{careflow-push,careflow-auto-qualify,careflow-report,push-escalation}/route.ts` — 4 new crons
+- `supabase_migrations/{109_delivery_channel,110_careflow_system,111_careflow_sms_fallback,112_careflow_report_tracking}.sql`
+
+#### Files Modified:
+- `vercel.json` — added 4 new cron entries (careflow-* + push-escalation)
+- `src/app/admin/page.tsx` — Komunikacja tab consolidation
+- `src/lib/pushService.ts` — data-only payload, push-first integration
+
+> ⚠️ **REQUIRES**: Run migrations 109-112 in Supabase SQL Editor (both production and demo projects).
+
+---
 
 ### April 11, 2026
 **Push Notification System Stabilization + PWA Name Fix**
