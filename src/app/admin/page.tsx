@@ -47,6 +47,7 @@ import dynamic from 'next/dynamic';
 
 const ScheduleEditorTab = dynamic(() => import('./components/ScheduleEditorTab'), { ssr: false });
 const TimeTrackingDashboardTab = dynamic(() => import('./components/TimeTrackingDashboardTab'), { ssr: false });
+const LeavesTab = dynamic(() => import('./components/LeavesTab'), { ssr: false });
 import SmsSettingsTab from './components/SmsSettingsTab';
 import StripeSettingsTab from './components/StripeSettingsTab';
 import P24SettingsTab from './components/P24SettingsTab';
@@ -80,7 +81,7 @@ export default function AdminPage() {
     const [products, setProducts] = useState<Product[]>([]);
     const [error, setError] = useState<string | null>(null);
 
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'questions' | 'articles' | 'news' | 'orders' | 'reservations' | 'blog' | 'patients' | 'appointment-instructions' | 'roles' | 'employees' | 'chat' | 'theme' | 'page-builder' | 'booking-settings' | 'online-bookings' | 'cancelled-appointments' | 'social-media' | 'pms-settings' | 'sms-provider' | 'stripe-settings' | 'p24-settings' | 'payu-settings' | 'ai-education' | 'patient-communication' | 'careflow' | 'schedule-editor' | 'time-tracking'>('dashboard');
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'questions' | 'articles' | 'news' | 'orders' | 'reservations' | 'blog' | 'patients' | 'appointment-instructions' | 'roles' | 'employees' | 'chat' | 'theme' | 'page-builder' | 'booking-settings' | 'online-bookings' | 'cancelled-appointments' | 'social-media' | 'pms-settings' | 'sms-provider' | 'stripe-settings' | 'p24-settings' | 'payu-settings' | 'ai-education' | 'patient-communication' | 'careflow' | 'schedule-editor' | 'time-tracking' | 'leaves'>('dashboard');
     // Cancelled appointments state
     const [cancelledAppointments, setCancelledAppointments] = useState<any[]>([]);
     const [cancelledLoading, setCancelledLoading] = useState(false);
@@ -2777,6 +2778,7 @@ export default function AdminPage() {
                     <NavItem id="roles" label="Uprawnienia" icon={Shield} />
                     <NavItem id="schedule-editor" label="🕐 Grafik pracy" icon={Calendar} />
                     <NavItem id="time-tracking" label="⏱ Czas pracy" icon={Calendar} />
+                    <NavItem id="leaves" label="🏖 Urlopy" icon={Calendar} />
                     <NavItem id="patients" label="Pacjenci" icon={Users} />
 
                     <NavSection title="Treści" />
@@ -3119,6 +3121,7 @@ export default function AdminPage() {
                     {activeTab === 'pms-settings' && <PmsSettingsTab />}
                     {activeTab === 'schedule-editor' && <ScheduleEditorTab />}
                     {activeTab === 'time-tracking' && <TimeTrackingDashboardTab />}
+                    {activeTab === 'leaves' && <LeavesTab />}
                     {activeTab === 'sms-provider' && <SmsSettingsTab />}
                     {activeTab === 'stripe-settings' && <StripeSettingsTab />}
                     {activeTab === 'p24-settings' && <P24SettingsTab />}

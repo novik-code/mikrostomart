@@ -37,13 +37,53 @@ export function isoDateUTC(d: Date): string {
     return d.toISOString().slice(0, 10);
 }
 
+/**
+ * Liczba dni roboczych w miesiącu (pn-pt) BEZ uwzględnienia świąt.
+ * Używana jako fallback gdy nie chcemy hit'ować DB.
+ */
 export function workingDaysInMonth(year: number, monthIdx: number): number {
     let count = 0;
     const last = new Date(Date.UTC(year, monthIdx + 1, 0)).getUTCDate();
     for (let day = 1; day <= last; day++) {
         const d = new Date(Date.UTC(year, monthIdx, day));
-        const dow = d.getUTCDay(); // 0 = niedz, 6 = sob
+        const dow = d.getUTCDay();
         if (dow !== 0 && dow !== 6) count++;
+    }
+    return count;
+}
+
+/**
+ * Liczba dni roboczych pn-pt minus święta państwowe (z polish_holidays).
+ * Używana w fetchScheduleMonth — daje precyzyjną normę godzin.
+ */
+export async function workingDaysInMonthWithHolidays(year: number, monthIdx: number): Promise<number> {
+    const supabase = getServiceClient();
+    const last = new Date(Date.UTC(year, monthIdx + 1, 0)).getUTCDate();
+    const fromIso = `${year}-${String(monthIdx + 1).padStart(2, '0')}-01`;
+    const toIso = `${year}-${String(monthIdx + 1).padStart(2, '0')}-${String(last).padStart(2, '0')}`;
+
+    let holidaySet = new Set<string>();
+    try {
+        const { data } = await supabase
+            .from('polish_holidays')
+            .select('date')
+            .eq('type', 'national')
+            .gte('date', fromIso)
+            .lte('date', toIso);
+        holidaySet = new Set((data ?? []).map((h: any) => h.date as string));
+    } catch (e) {
+        // Migracja 118 nieaktywna lub błąd → fallback bez świąt
+        console.warn('[workingDaysInMonthWithHolidays] holidays fetch failed:', e);
+    }
+
+    let count = 0;
+    for (let day = 1; day <= last; day++) {
+        const d = new Date(Date.UTC(year, monthIdx, day));
+        const dow = d.getUTCDay();
+        if (dow === 0 || dow === 6) continue;
+        const ymd = d.toISOString().slice(0, 10);
+        if (holidaySet.has(ymd)) continue;
+        count++;
     }
     return count;
 }
@@ -184,7 +224,7 @@ export async function fetchScheduleMonth(month: string): Promise<ScheduleMonthRe
         minutes: calcMinutes(r),
     }));
 
-    const workingDays = workingDaysInMonth(parsed.year, parsed.monthIdx);
+    const workingDays = await workingDaysInMonthWithHolidays(parsed.year, parsed.monthIdx);
 
     // Summary per employee
     const summaries = employees.map((emp) => {
