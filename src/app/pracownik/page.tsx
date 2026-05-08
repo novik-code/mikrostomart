@@ -26,6 +26,7 @@ const ScheduleTab = dynamic(() => import('./components/ScheduleTab'), { ssr: fal
 const TasksTab = dynamic(() => import('./components/TasksTab'), { ssr: false });
 const EmailTab = dynamic(() => import('./components/EmailTab'), { ssr: false });
 const AdminChat = dynamic(() => import('@/components/AdminChat'), { ssr: false });
+const CzasPracyTab = dynamic(() => import('./components/CzasPracyTab'), { ssr: false });
 
 // ─── Main Component ─────────────────────────────────────────────
 export default function EmployeePage() {
@@ -52,7 +53,7 @@ export default function EmployeePage() {
     const [historyError, setHistoryError] = useState<string | null>(null);
     const [sessionTimeoutWarning, setSessionTimeoutWarning] = useState(false);
     const { userId: currentUserId, email: currentUserEmail, isAdmin } = useUserRoles();
-    const [activeTab, setActiveTab] = useState<'grafik' | 'zadania' | 'asystent' | 'powiadomienia' | 'sugestie' | 'pacjenci' | 'poczta' | 'czat' | 'preferencje'>('grafik');
+    const [activeTab, setActiveTab] = useState<'grafik' | 'zadania' | 'asystent' | 'powiadomienia' | 'sugestie' | 'pacjenci' | 'poczta' | 'czat' | 'preferencje' | 'czas-pracy'>('grafik');
     const [loginPopupTasks, setLoginPopupTasks] = useState<EmployeeTask[]>([]);
     const [showLoginPopup, setShowLoginPopup] = useState(false);
 
@@ -75,7 +76,7 @@ export default function EmployeePage() {
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
         const tabParam = params.get('tab');
-        const validTabs = ['grafik', 'zadania', 'asystent', 'powiadomienia', 'sugestie', 'pacjenci', 'poczta', 'czat', 'preferencje'] as const;
+        const validTabs = ['grafik', 'zadania', 'asystent', 'powiadomienia', 'sugestie', 'pacjenci', 'poczta', 'czat', 'preferencje', 'czas-pracy'] as const;
         if (tabParam && (validTabs as readonly string[]).includes(tabParam)) {
             setActiveTab(tabParam as typeof activeTab);
             // Clean up URL params without reload
@@ -419,6 +420,7 @@ export default function EmployeePage() {
                         {[
                             { id: 'grafik' as const, label: 'Grafik', icon: <Calendar size={20} />, color: '#38bdf8' },
                             { id: 'zadania' as const, label: 'Zadania', icon: <CheckSquare size={20} />, color: '#4ade80' },
+                            { id: 'czas-pracy' as const, label: 'Czas pracy', icon: <Clock size={20} />, color: '#fbbf24' },
                             { id: 'asystent' as const, label: 'AI', icon: <Bot size={20} />, color: '#a78bfa' },
                             { id: 'powiadomienia' as const, label: 'Alerty', icon: <Bell size={20} />, color: '#f59e0b' },
                             { id: 'sugestie' as const, label: 'Sugestie', icon: <Lightbulb size={20} />, color: '#fb923c' },
@@ -536,6 +538,7 @@ export default function EmployeePage() {
                     {[
                         { id: 'grafik' as const, label: 'Grafik', icon: <Calendar size={18} /> },
                         { id: 'zadania' as const, label: 'Zadania', icon: <CheckSquare size={18} /> },
+                        { id: 'czas-pracy' as const, label: 'Czas pracy', icon: <Clock size={18} /> },
                         { id: 'asystent' as const, label: 'AI', icon: <Bot size={18} /> },
                         { id: 'powiadomienia' as const, label: 'Alerty', icon: <Bell size={18} /> },
                         { id: 'sugestie' as const, label: 'Sugestie', icon: <Lightbulb size={18} /> },
@@ -629,6 +632,11 @@ export default function EmployeePage() {
                 />
             )}
 
+
+            {/* ═══ CZAS PRACY TAB ═══ */}
+            {activeTab === 'czas-pracy' && (
+                <CzasPracyTab />
+            )}
 
             {/* ═══ ASYSTENT AI TAB ═══ */}
             {activeTab === 'asystent' && (

@@ -24,6 +24,7 @@
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.90.1",
     "@types/fluent-ffmpeg": "^2.1.28",
+    "@yudiel/react-qr-scanner": "^2.5.1",
     "bcryptjs": "^3.0.3",
     "date-fns": "^4.1.0",
     "dotenv": "^17.2.3",

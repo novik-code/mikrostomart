@@ -2,7 +2,7 @@
 
 > **Last Updated:** 2026-05-08  
 > **Version:** Production + Demo (Dual Vercel Deployment)  
-> **Status:** Active Development — CareFlow Perioperative System + Push-First Communication
+> **Status:** Active Development — CareFlow Perioperative System + Push-First Communication + KCP Time Tracking (F1)
 
 ---
 
@@ -156,7 +156,7 @@ The demo environment is fully neutralized — no Mikrostomart-specific text, con
 
 ### Backend & Database
 - **Supabase** (PostgreSQL database, authentication, storage)
-  - Database: 112 migrations (003-112: email verification, appointment actions, SMS reminders, user_roles, employee tasks, task history, comments, labels, status fix, google reviews cache, chat, push subscriptions, employee_group, push_notification_config, employee_groups array, news/articles/blog/products i18n, calendar tokens, private tasks + reminders, SMS post-visit/week-after-visit, SMS unique constraint fix, task multi-images, push_notifications_log, google_event_id on employee_tasks, patient_intake_tokens, feature_suggestions, online_bookings, patient_match_confidence, consent_tokens/patient_consents, staff_signatures, intake_pdf_url, birthday_wishes, cancelled_appointments, login_attempts, patient_notification_prefs, biometric_signature, employee_audit_log, consent_field_mappings, rate_limit_table, cron_heartbeats, sms_settings, email_ai_drafts, email_ai_config, email_compose_drafts, email_label_overrides, email_ai_drafts_skipped, compose_drafts_ai_text, email_ai_knowledge_files, fix_nowosielska_role, employee_notification_prefs, cleanup_duplicate_push_subs, security_advisor_fixes, merge_duplicate_employees, **social_media, video_queue, storage_video_upload, video_captions_api**, fcm_push_rebuild, dedup_employees, fix_employee_reactivate, **unified_ai_knowledge_base**, ai_trainer_conversations, **delivery_channel (push-first), careflow_system, careflow_sms_fallback, careflow_report_tracking**)
+  - Database: 113 migrations (003-113: email verification, appointment actions, SMS reminders, user_roles, employee tasks, task history, comments, labels, status fix, google reviews cache, chat, push subscriptions, employee_group, push_notification_config, employee_groups array, news/articles/blog/products i18n, calendar tokens, private tasks + reminders, SMS post-visit/week-after-visit, SMS unique constraint fix, task multi-images, push_notifications_log, google_event_id on employee_tasks, patient_intake_tokens, feature_suggestions, online_bookings, patient_match_confidence, consent_tokens/patient_consents, staff_signatures, intake_pdf_url, birthday_wishes, cancelled_appointments, login_attempts, patient_notification_prefs, biometric_signature, employee_audit_log, consent_field_mappings, rate_limit_table, cron_heartbeats, sms_settings, email_ai_drafts, email_ai_config, email_compose_drafts, email_label_overrides, email_ai_drafts_skipped, compose_drafts_ai_text, email_ai_knowledge_files, fix_nowosielska_role, employee_notification_prefs, cleanup_duplicate_push_subs, security_advisor_fixes, merge_duplicate_employees, **social_media, video_queue, storage_video_upload, video_captions_api**, fcm_push_rebuild, dedup_employees, fix_employee_reactivate, **unified_ai_knowledge_base**, ai_trainer_conversations, **delivery_channel (push-first), careflow_system, careflow_sms_fallback, careflow_report_tracking, time_tracking_foundation**)
   - Auth: Email/password, magic links, JWT tokens
   - Storage: Product images, patient documents, task images, **social media videos** (bucket: `social-media`)
   - **Social Media**: `social_platforms`, `social_posts`, `social_schedules`, `social_topics` tables + cron auto-publish
@@ -2455,6 +2455,46 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-08 — KCP F1: Time Tracking Foundation
+**System rejestracji czasu pracy — MVP (clock-in/out via QR)**
+
+#### Co się zmieniło:
+- **Faza 1 (F1) systemu KCP** — pracownicy mogą rejestrować przyjścia/wyjścia skanując rotujący QR z ekranu kioskowego (iPad w recepcji).
+- **Migracja 113** — `work_locations` (lokalizacje QR z sekretami HMAC) + `time_entries` (wpisy clock-in/clock-out z anti-fraud audytem). Trigger DB blokuje duplikaty w 60s window. Seed primary location z losowym `qr_secret`.
+- **Rotujący QR** — `mst://time/<locationId>/<period>/<token>` gdzie `period = floor(now/30s)`, `token = HMAC-SHA256(secret, "<locationId>:<period>")[:16]`. Tolerance ±1 okres dla rozjazdu zegarów. Walidacja timing-safe.
+- **Strona kioskowa** `/qr-display` — full-screen QR (380×380), live zegar PL, progress bar do następnej rotacji, auto-refresh przed expirem. Auth: `role=admin` (raz zalogowany iPad zostaje). W demo: napis "Tryb demonstracyjny".
+- **Strefa pracownika — zakładka "🕐 Czas pracy"** — `/pracownik/czas-pracy` (zakładka `czas-pracy`). Pokazuje: status (w pracy / nie wbity), pierwsze przyjście, ostatnie wyjście, sumę dziś. Button → modal z kamerą (Scanner z `@yudiel/react-qr-scanner`). Auto-detekcja typu (clock_in/clock_out na podstawie ostatniego wpisu z dziś).
+- **3 nowe API endpointy** pod `/api/time/*` — wszystkie dynamic, runtime nodejs, demo-mode-aware.
+- **Decyzje uzgodnione (D1-D4, E1-E4, Q4-Q8)** — w `~/Desktop/PLAN_TIME_TRACKING_v1.md`.
+- **Zlecenie Prodentis API** — w `~/Desktop/ZLECENIE_PRODENTIS_API_TIME_TRACKING.md` (rozszerzenie o `createdAt`/`lastModifiedAt`/`priceEnteredAt`/`closedAt`/`lastModifiedBy`/`price` na obiekcie wizyty). Blokuje fazę F5 (auto-detekcja końca pracy lekarza), nie blokuje F2-F4.
+
+#### Pliki:
+- `supabase_migrations/113_time_tracking_foundation.sql` — **[NEW]** migracja
+- `src/lib/timeTracking/types.ts` — **[NEW]** typy współdzielone
+- `src/lib/timeTracking/qrToken.ts` — **[NEW]** HMAC-TOTP-style generator/validator
+- `src/lib/timeTracking/locationService.ts` — **[NEW]** dostęp do `work_locations` (sekrety server-only)
+- `src/lib/timeTracking/employeeContext.ts` — **[NEW]** helper `getEmployeeByAuthUserId()`
+- `src/lib/timeTracking/timeEntryService.ts` — **[NEW]** zapis, dedup tap-protection, status pracownika, suma godzin
+- `src/app/api/time/qr-current/route.ts` — **[NEW]** GET, admin-only, zwraca aktualny payload
+- `src/app/api/time/scan/route.ts` — **[NEW]** POST, employee+admin, walidacja+dedup+zapis
+- `src/app/api/time/status/route.ts` — **[NEW]** GET, employee+admin, status dziś
+- `src/app/qr-display/page.tsx` — **[NEW]** strona kioskowa
+- `src/app/pracownik/components/CzasPracyTab.tsx` — **[NEW]** komponent zakładki
+- `src/app/pracownik/page.tsx` — dodana zakładka `czas-pracy` (mobile FAB + desktop top bar)
+- `package.json` — dodane `@yudiel/react-qr-scanner ^2.5.1`
+
+#### Co dalej (kolejne fazy KCP):
+- F2: zakładka pracownika rozbudowana (tydzień/miesiąc + statystyki własne) — w F1 mamy tylko dziś
+- F3: edytor grafiku w panelu admina (migracja 114 — `employment_terms`, `work_schedules`, `shift_assignments`)
+- F4: cron nocny zamykający dni + dashboard admina (migracja 115)
+- F5: integracja Prodentis (czeka na deploy zlecenia API)
+- F6: urlopy + kalendarz świąt PL (migracja 116)
+- F7: raporty PDF/CSV + anomaly detection
+
+> ⚠️ **REQUIRES**: Wgraj `supabase_migrations/113_time_tracking_foundation.sql` w Supabase SQL Editor na **OBU** projektach: produkcja `keucogopujdolzmfajjv` i demo `mhosfncgasjfruiohlfo`. Migracja jest idempotentna i seeduje primary location z losowym `qr_secret`.
+
+---
 
 ### 2026-05-08
 **Documentation Hierarchy + Refreshed Startup Prompt**
