@@ -111,6 +111,10 @@
         {
             "path": "/api/cron/forgot-clockout-notify",
             "schedule": "*/15 12-20 * * *"
+        },
+        {
+            "path": "/api/cron/prodentis-end-times",
+            "schedule": "0 1 * * *"
         }
     ]
 }

@@ -26,6 +26,9 @@ interface CalculatedShift {
     overtime_total_minutes: number;
     overtime_justified_minutes: number;
     overtime_unjustified_minutes: number;
+    doctor_end_time: string | null;
+    doctor_end_confidence: 'high' | 'medium' | 'low' | null;
+    cleanup_buffer_used: number | null;
     auto_closed: boolean;
     auto_close_reason: string | null;
     status: string;
@@ -85,6 +88,7 @@ export default function TimeTrackingDashboardTab() {
     const [editing, setEditing] = useState<{ shift: CalculatedShift; employeeName: string } | null>(null);
     const [onlyAnomalies, setOnlyAnomalies] = useState(false);
     const [toast, setToast] = useState<string | null>(null);
+    const [syncLoading, setSyncLoading] = useState(false);
 
     const fetchData = useCallback(async () => {
         setLoading(true);
@@ -133,6 +137,32 @@ export default function TimeTrackingDashboardTab() {
         }
     }, [recalcDay, fetchData]);
 
+    const syncProdentis = useCallback(async () => {
+        if (!recalcDay) return;
+        setSyncLoading(true);
+        try {
+            const res = await fetch('/api/admin/time-tracking/sync-prodentis', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ date: recalcDay }),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                setToast(`Błąd: ${data?.error ?? res.status}`);
+            } else {
+                setToast(
+                    `Sync Prodentis ${recalcDay}: lekarze ${data.doctorsHigh}H/${data.doctorsMedium}M/${data.doctorsLow}L/${data.doctorsMissing}brak · ${data.employeesUpdated} pracowników · zasadne ${data.totalJustifiedMin}min · niezasadne ${data.totalUnjustifiedMin}min`
+                );
+                void fetchData();
+            }
+            setTimeout(() => setToast(null), 7000);
+        } catch (e) {
+            setToast(`Błąd: ${(e as Error).message}`);
+        } finally {
+            setSyncLoading(false);
+        }
+    }, [recalcDay, fetchData]);
+
     // Mapuj shifts do siatki (pracownik × dzień)
     const days = useMemo(() => {
         const out: string[] = [];
@@ -153,8 +183,8 @@ export default function TimeTrackingDashboardTab() {
     }, [shifts]);
 
     const totalsByEmployee = useMemo(() => {
-        const totals: Record<string, { worked: number; planned: number; late: number; overtime: number; absent: number }> = {};
-        for (const e of employees) totals[e.id] = { worked: 0, planned: 0, late: 0, overtime: 0, absent: 0 };
+        const totals: Record<string, { worked: number; planned: number; late: number; overtime: number; justified: number; unjustified: number; absent: number }> = {};
+        for (const e of employees) totals[e.id] = { worked: 0, planned: 0, late: 0, overtime: 0, justified: 0, unjustified: 0, absent: 0 };
         for (const s of shifts) {
             const t = totals[s.employee_id];
             if (!t) continue;
@@ -162,6 +192,8 @@ export default function TimeTrackingDashboardTab() {
             t.planned += s.planned_minutes;
             t.late += s.late_minutes;
             t.overtime += s.overtime_total_minutes;
+            t.justified += s.overtime_justified_minutes;
+            t.unjustified += s.overtime_unjustified_minutes;
             if (s.absence_type) t.absent += 1;
         }
         return totals;
@@ -199,6 +231,15 @@ export default function TimeTrackingDashboardTab() {
                 <button onClick={() => void recalculate()} disabled={recalcLoading} style={btnPrim}>
                     {recalcLoading ? <Loader2 size={14} className="spin" /> : <RefreshCw size={14} />}
                     <span style={{ marginLeft: 6 }}>Przelicz</span>
+                </button>
+                <button
+                    onClick={() => void syncProdentis()}
+                    disabled={syncLoading}
+                    style={{ ...btnSec, borderColor: 'rgba(167,139,250,0.5)', color: '#a78bfa' }}
+                    title="Pobierz końce pracy lekarzy z Prodentis i nalicz nadgodziny zasadne/niezasadne"
+                >
+                    {syncLoading ? <Loader2 size={14} className="spin" /> : <RefreshCw size={14} />}
+                    <span style={{ marginLeft: 6 }}>Sync Prodentis</span>
                 </button>
             </div>
 
@@ -261,11 +302,16 @@ export default function TimeTrackingDashboardTab() {
                                             <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.5)' }}>
                                                 plan {formatMinutes(t?.planned ?? 0)}
                                             </div>
-                                            {t && t.overtime > 0 && (
+                                            {t && (t.justified > 0 || t.unjustified > 0) ? (
+                                                <div style={{ fontSize: '0.7rem' }}>
+                                                    {t.justified > 0 && <span style={{ color: '#10b981' }}>+{formatMinutes(t.justified)}✓</span>}
+                                                    {t.unjustified > 0 && <span style={{ color: '#ef4444', marginLeft: 4 }}>+{formatMinutes(t.unjustified)}✗</span>}
+                                                </div>
+                                            ) : t && t.overtime > 0 ? (
                                                 <div style={{ fontSize: '0.7rem', color: '#3b82f6' }}>
                                                     +{formatMinutes(t.overtime)} ndg
                                                 </div>
-                                            )}
+                                            ) : null}
                                             {t && t.late > 0 && (
                                                 <div style={{ fontSize: '0.7rem', color: '#fb923c' }}>
                                                     spóź. {formatMinutes(t.late)}
@@ -347,7 +393,16 @@ function ShiftTd({ shift, onClick }: { shift: CalculatedShift | undefined; onCli
                     <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.55)' }}>
                         {formatTimeISO(shift.actual_start)}–{formatTimeISO(shift.actual_end)}
                     </div>
-                    {shift.anomaly_flags.slice(0, 2).map((flag) => {
+                    {shift.overtime_total_minutes > 0 && (shift.overtime_justified_minutes > 0 || shift.overtime_unjustified_minutes > 0) ? (
+                        <div style={{ fontSize: '0.65rem', lineHeight: 1.2 }}>
+                            {shift.overtime_justified_minutes > 0 && (
+                                <span style={{ color: '#10b981' }}>+{shift.overtime_justified_minutes}m ✓</span>
+                            )}
+                            {shift.overtime_unjustified_minutes > 0 && (
+                                <span style={{ color: '#ef4444', marginLeft: 4 }}>+{shift.overtime_unjustified_minutes}m ✗</span>
+                            )}
+                        </div>
+                    ) : shift.anomaly_flags.slice(0, 2).map((flag) => {
                         const def = ANOMALY_LABELS[flag];
                         if (!def) return null;
                         return (
@@ -356,6 +411,11 @@ function ShiftTd({ shift, onClick }: { shift: CalculatedShift | undefined; onCli
                             </div>
                         );
                     })}
+                    {shift.doctor_end_confidence && (
+                        <div style={{ fontSize: '0.6rem', color: shift.doctor_end_confidence === 'high' ? '#10b981' : shift.doctor_end_confidence === 'medium' ? '#fbbf24' : '#ef4444' }}>
+                            🔬 {shift.doctor_end_confidence}
+                        </div>
+                    )}
                     {shift.auto_closed && (
                         <div style={{ fontSize: '0.65rem', color: '#fbbf24' }}>auto-domknięte</div>
                     )}
