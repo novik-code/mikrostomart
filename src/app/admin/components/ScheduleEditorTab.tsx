@@ -151,6 +151,9 @@ export default function ScheduleEditorTab() {
     const [copyingFrom, setCopyingFrom] = useState(false);
     const [toast, setToast] = useState<string | null>(null);
     const [roleFilter, setRoleFilter] = useState<Set<string>>(new Set());
+    const [dragSource, setDragSource] = useState<{ cell: ScheduleCell; isMove: boolean } | null>(null);
+    const [dragTarget, setDragTarget] = useState<{ employeeId: string; date: string } | null>(null);
+    const [dropping, setDropping] = useState(false);
 
     const fetchMonth = useCallback(async (m: string) => {
         setLoading(true);
@@ -299,6 +302,95 @@ export default function ScheduleEditorTab() {
         }
     }, [editor, fetchMonth, month]);
 
+    // ── Drag & Drop komórek ─────────────────────────────────────
+    const startDrag = useCallback((cell: ScheduleCell, isMove: boolean) => {
+        setDragSource({ cell, isMove });
+    }, []);
+
+    const handleDragOver = useCallback((employeeId: string, date: string, e: React.DragEvent) => {
+        if (!dragSource) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = dragSource.isMove ? 'move' : 'copy';
+        if (!dragTarget || dragTarget.employeeId !== employeeId || dragTarget.date !== date) {
+            setDragTarget({ employeeId, date });
+        }
+    }, [dragSource, dragTarget]);
+
+    const clearDrag = useCallback(() => {
+        setDragSource(null);
+        setDragTarget(null);
+    }, []);
+
+    const handleDrop = useCallback(async (employeeId: string, date: string, e: React.DragEvent) => {
+        e.preventDefault();
+        if (!dragSource) return;
+
+        const { cell: src, isMove } = dragSource;
+        const sameCell = src.employee_id === employeeId && src.date === date;
+        if (sameCell) {
+            clearDrag();
+            return;
+        }
+
+        const existingTarget = cellMap.get(`${employeeId}_${date}`);
+        const targetEmp = data?.employees.find((emp) => emp.id === employeeId);
+        const verb = isMove ? 'Przenieść' : 'Skopiować';
+        const overwrite = existingTarget ? ' (nadpisze istniejący wpis)' : '';
+        if (!confirm(`${verb} zmianę z ${src.date} na ${date} (${targetEmp?.name ?? '—'})${overwrite}?`)) {
+            clearDrag();
+            return;
+        }
+
+        setDropping(true);
+        try {
+            const payload: UpsertCellPayload = {
+                employeeId,
+                date,
+                plannedStart: src.planned_start ? src.planned_start.slice(0, 5) : null,
+                plannedEnd: src.planned_end ? src.planned_end.slice(0, 5) : null,
+                absenceType: src.absence_type as any,
+                rolesForShift: src.roles_for_shift,
+                locationId: src.location_id,
+                notes: src.notes,
+                assignments: src.assignments.map((a) => ({
+                    doctorEmployeeId: a.doctor_employee_id,
+                    doctorScheduleId: null,                    // zostanie zresolve'owane na podstawie doctor_employee_id
+                    workstationId: a.workstation_id,
+                    segmentStart: a.segment_start.slice(0, 5),
+                    segmentEnd: a.segment_end.slice(0, 5),
+                    locationId: a.location_id,
+                    notes: a.notes,
+                })),
+            };
+
+            const res = await fetch('/api/admin/schedule/cell', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                setError(body?.error ?? `Błąd ${res.status}`);
+                return;
+            }
+
+            if (isMove) {
+                await fetch(`/api/admin/schedule/cell?employeeId=${src.employee_id}&date=${src.date}`, {
+                    method: 'DELETE',
+                });
+            }
+
+            await fetchMonth(month);
+            setToast(isMove ? 'Przeniesiono zmianę' : 'Skopiowano zmianę');
+            setTimeout(() => setToast(null), 2500);
+        } catch (err) {
+            setError((err as Error).message);
+        } finally {
+            setDropping(false);
+            clearDrag();
+        }
+    }, [dragSource, cellMap, data, month, fetchMonth, clearDrag]);
+
     const copyFromPreviousMonth = useCallback(async () => {
         const src = previousMonth(month);
         if (!confirm(`Skopiować grafik z ${monthLabel(src)} jako szablon dla ${monthLabel(month)}? Istniejące wpisy nie zostaną nadpisane.`)) return;
@@ -420,6 +512,8 @@ export default function ScheduleEditorTab() {
                                         </td>
                                         {visibleEmployees.map((emp) => {
                                             const cell = cellMap.get(`${emp.id}_${d.date}`);
+                                            const isDragSource = !!cell && !!dragSource && dragSource.cell.id === cell.id;
+                                            const isDragTarget = !!dragTarget && dragTarget.employeeId === emp.id && dragTarget.date === d.date;
                                             return (
                                                 <CellTd
                                                     key={emp.id}
@@ -428,6 +522,21 @@ export default function ScheduleEditorTab() {
                                                     onClick={() => openCellEditor(emp, d.date)}
                                                     workstationsById={workstationsById}
                                                     doctorsById={doctorsById}
+                                                    isDragSource={isDragSource}
+                                                    isDragTarget={isDragTarget}
+                                                    onDragStartCell={(c, e) => {
+                                                        startDrag(c, e.shiftKey);
+                                                        e.dataTransfer.effectAllowed = e.shiftKey ? 'move' : 'copy';
+                                                        e.dataTransfer.setData('text/plain', `${c.employee_id}_${c.date}`);
+                                                    }}
+                                                    onDragOverCell={(e) => handleDragOver(emp.id, d.date, e)}
+                                                    onDragLeaveCell={() => {
+                                                        if (dragTarget && dragTarget.employeeId === emp.id && dragTarget.date === d.date) {
+                                                            setDragTarget(null);
+                                                        }
+                                                    }}
+                                                    onDropCell={(e) => void handleDrop(emp.id, d.date, e)}
+                                                    onDragEndCell={clearDrag}
                                                 />
                                             );
                                         })}
@@ -468,8 +577,20 @@ export default function ScheduleEditorTab() {
             ) : null}
 
             {data && (
-                <div style={{ marginTop: '0.8rem', color: 'rgba(255,255,255,0.5)', fontSize: '0.85rem' }}>
-                    Dni robocze (pn-pt) w miesiącu: <b>{data.workingDays}</b> · Pracowników: <b>{visibleEmployees.length}</b>
+                <div style={{ marginTop: '0.8rem', color: 'rgba(255,255,255,0.5)', fontSize: '0.85rem', display: 'flex', flexWrap: 'wrap', gap: '1.5rem' }}>
+                    <div>Dni robocze (pn-pt): <b>{data.workingDays}</b></div>
+                    <div>Pracowników: <b>{visibleEmployees.length}</b></div>
+                    <div style={{ color: 'rgba(255,255,255,0.4)' }}>
+                        💡 Przeciągnij komórkę na inną żeby skopiować zmianę. Trzymaj <b>Shift</b> żeby przenieść.
+                    </div>
+                </div>
+            )}
+
+            {dropping && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 99000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{ background: '#1e293b', padding: '1.5rem 2.5rem', borderRadius: 12, color: '#fff', display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <Loader2 size={20} className="spin" /> Aktualizuję grafik…
+                    </div>
                 </div>
             )}
 
@@ -531,38 +652,62 @@ function CellTd({
     onClick,
     workstationsById,
     doctorsById,
+    isDragSource,
+    isDragTarget,
+    onDragStartCell,
+    onDragOverCell,
+    onDragLeaveCell,
+    onDropCell,
+    onDragEndCell,
 }: {
     cell: ScheduleCell | undefined;
     isWeekend: boolean;
     onClick: () => void;
     workstationsById: Map<string, Workstation>;
     doctorsById: Map<string, ScheduleEmployee>;
+    isDragSource: boolean;
+    isDragTarget: boolean;
+    onDragStartCell: (cell: ScheduleCell, e: React.DragEvent) => void;
+    onDragOverCell: (e: React.DragEvent) => void;
+    onDragLeaveCell: () => void;
+    onDropCell: (e: React.DragEvent) => void;
+    onDragEndCell: () => void;
 }) {
     const empty = !cell;
     const isAbsence = cell?.absence_type;
     const absenceDef = isAbsence ? ABSENCE_TYPES.find((a) => a.value === cell.absence_type) : null;
 
+    const baseBg = empty
+        ? 'transparent'
+        : isAbsence
+            ? `${absenceDef?.color}20`
+            : 'rgba(56,189,248,0.07)';
+
     return (
         <td
             onClick={onClick}
+            draggable={!empty}
+            onDragStart={(e) => cell && onDragStartCell(cell, e)}
+            onDragOver={onDragOverCell}
+            onDragLeave={onDragLeaveCell}
+            onDrop={onDropCell}
+            onDragEnd={onDragEndCell}
             style={{
                 ...tdStyle,
-                cursor: 'pointer',
-                background: empty
-                    ? 'transparent'
-                    : isAbsence
-                        ? `${absenceDef?.color}20`
-                        : 'rgba(56,189,248,0.07)',
-                opacity: empty ? 0.4 : 1,
-                transition: 'background 0.15s',
+                cursor: empty ? 'pointer' : 'grab',
+                background: isDragTarget
+                    ? 'rgba(251,191,36,0.25)'
+                    : baseBg,
+                opacity: isDragSource ? 0.4 : empty ? 0.4 : 1,
+                transition: 'background 0.15s, opacity 0.15s',
+                outline: isDragTarget ? '2px dashed #fbbf24' : 'none',
+                outlineOffset: -2,
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = isWeekend ? 'rgba(255,255,255,0.05)' : 'rgba(251,191,36,0.08)')}
+            onMouseEnter={(e) => {
+                if (!isDragTarget) e.currentTarget.style.background = isWeekend ? 'rgba(255,255,255,0.05)' : 'rgba(251,191,36,0.08)';
+            }}
             onMouseLeave={(e) => {
-                e.currentTarget.style.background = empty
-                    ? 'transparent'
-                    : isAbsence
-                        ? `${absenceDef?.color}20`
-                        : 'rgba(56,189,248,0.07)';
+                if (!isDragTarget) e.currentTarget.style.background = baseBg;
             }}
         >
             {empty ? (
