@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { logCronHeartbeat } from '@/lib/cronHeartbeat';
 import { syncProdentisAndRecalcJustification } from '@/lib/timeTracking/overtimeJustification';
 import { fetchDoctorWorkSummary } from '@/lib/timeTracking/prodentisWorkSummary';
+import { verifyDoctorEnd } from '@/lib/timeTracking/doctorEndVerification';
 import { isDemoMode } from '@/lib/demoMode';
 
 export const dynamic = 'force-dynamic';
@@ -46,13 +47,16 @@ export async function GET(req: NextRequest) {
         const result = await syncProdentisAndRecalcJustification(targetDate, async (prodentisId, date) => {
             const summary = await fetchDoctorWorkSummary(prodentisId, date);
             if (!summary) return null;
+            const verification = await verifyDoctorEnd(summary, date);
             return {
-                estimatedWorkEnd: summary.estimatedWorkEnd,
-                confidence: summary.confidence,
+                estimatedWorkEnd: verification.finalEndTime,
+                confidence: verification.finalConfidence,
+                methods: verification.methods,
+                crossVerified: verification.crossVerified,
             };
         });
 
-        const summary = `${targetDate}: doctors[H${result.doctorsHigh}/M${result.doctorsMedium}/L${result.doctorsLow}/missing${result.doctorsMissing}] · employees=${result.employeesUpdated} · just=${result.totalJustifiedMin}min · unjust=${result.totalUnjustifiedMin}min`;
+        const summary = `${targetDate}: doctors[HV${result.doctorsHighVerified}/H${result.doctorsHigh}/M${result.doctorsMedium}/L${result.doctorsLow}/missing${result.doctorsMissing}] · employees=${result.employeesUpdated} · just=${result.totalJustifiedMin}min · unjust=${result.totalUnjustifiedMin}min`;
         await logCronHeartbeat('prodentis-end-times', 'ok', summary, Date.now() - t0);
         return NextResponse.json({ ok: true, date: targetDate, ...result });
     } catch (err) {

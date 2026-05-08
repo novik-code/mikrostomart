@@ -115,10 +115,18 @@ export function calculateJustification(input: JustificationInputs): Justificatio
  * ilu pracowników niezbiernych (no doctor data fallback to max), suma minut
  * zasadnych vs niezasadnych.
  */
+export interface DoctorVerificationResult {
+    estimatedWorkEnd: string | null;
+    confidence: 'high-verified' | 'high' | 'medium' | 'low' | 'unknown';
+    methods?: Array<{ name: string; time: string | null; confidence: string; detail?: string }>;
+    crossVerified?: boolean;
+}
+
 export async function syncProdentisAndRecalcJustification(
     date: string,
-    fetchDoctor: (prodentisId: string, date: string) => Promise<{ estimatedWorkEnd: string | null; confidence: 'high' | 'medium' | 'low' } | null>
+    fetchDoctor: (prodentisId: string, date: string) => Promise<DoctorVerificationResult | null>
 ): Promise<{
+    doctorsHighVerified: number;
     doctorsHigh: number;
     doctorsMedium: number;
     doctorsLow: number;
@@ -137,7 +145,7 @@ export async function syncProdentisAndRecalcJustification(
         .eq('position', 'Lekarz')
         .not('prodentis_id', 'is', null);
 
-    let doctorsHigh = 0, doctorsMedium = 0, doctorsLow = 0, doctorsMissing = 0;
+    let doctorsHighVerified = 0, doctorsHigh = 0, doctorsMedium = 0, doctorsLow = 0, doctorsMissing = 0;
 
     // doctorEndByEmpId: employee_id → doctor_end_time ISO
     const doctorEndByEmpId: Record<string, { time: string; confidence: string }> = {};
@@ -148,18 +156,20 @@ export async function syncProdentisAndRecalcJustification(
             doctorsMissing++;
             continue;
         }
-        // Update calculated_shifts dla lekarza
+        // Update calculated_shifts dla lekarza (zapis confidence + lista metod)
         await supabase
             .from('calculated_shifts')
             .update({
                 doctor_end_time: summary.estimatedWorkEnd,
                 doctor_end_confidence: summary.confidence,
+                doctor_end_methods: summary.methods ?? [],
             })
             .eq('employee_id', d.id)
             .eq('date', date);
 
         doctorEndByEmpId[d.id] = { time: summary.estimatedWorkEnd, confidence: summary.confidence };
-        if (summary.confidence === 'high') doctorsHigh++;
+        if (summary.confidence === 'high-verified') doctorsHighVerified++;
+        else if (summary.confidence === 'high') doctorsHigh++;
         else if (summary.confidence === 'medium') doctorsMedium++;
         else doctorsLow++;
     }
@@ -265,6 +275,7 @@ export async function syncProdentisAndRecalcJustification(
     }
 
     return {
+        doctorsHighVerified,
         doctorsHigh,
         doctorsMedium,
         doctorsLow,

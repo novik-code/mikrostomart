@@ -27,7 +27,8 @@ interface CalculatedShift {
     overtime_justified_minutes: number;
     overtime_unjustified_minutes: number;
     doctor_end_time: string | null;
-    doctor_end_confidence: 'high' | 'medium' | 'low' | null;
+    doctor_end_confidence: 'high-verified' | 'high' | 'medium' | 'low' | 'unknown' | null;
+    doctor_end_methods?: Array<{ name: string; time: string | null; confidence: string; detail?: string }>;
     cleanup_buffer_used: number | null;
     auto_closed: boolean;
     auto_close_reason: string | null;
@@ -151,7 +152,7 @@ export default function TimeTrackingDashboardTab() {
                 setToast(`Błąd: ${data?.error ?? res.status}`);
             } else {
                 setToast(
-                    `Sync Prodentis ${recalcDay}: lekarze ${data.doctorsHigh}H/${data.doctorsMedium}M/${data.doctorsLow}L/${data.doctorsMissing}brak · ${data.employeesUpdated} pracowników · zasadne ${data.totalJustifiedMin}min · niezasadne ${data.totalUnjustifiedMin}min`
+                    `Sync Prodentis ${recalcDay}: lekarze HV${data.doctorsHighVerified ?? 0}/H${data.doctorsHigh}/M${data.doctorsMedium}/L${data.doctorsLow}/${data.doctorsMissing}brak · ${data.employeesUpdated} pracowników · zasadne ${data.totalJustifiedMin}min · niezasadne ${data.totalUnjustifiedMin}min`
                 );
                 void fetchData();
             }
@@ -432,6 +433,38 @@ export default function TimeTrackingDashboardTab() {
     );
 }
 
+function confidenceColor(c: string | null | undefined): string {
+    switch (c) {
+        case 'high-verified': return '#10b981';
+        case 'high':          return '#34d399';
+        case 'medium':        return '#fbbf24';
+        case 'low':           return '#fb923c';
+        case 'unknown':       return '#94a3b8';
+        default:              return '#94a3b8';
+    }
+}
+
+function confidenceIcon(c: string | null | undefined): string {
+    switch (c) {
+        case 'high-verified': return '🔬✓✓';
+        case 'high':          return '🔬✓';
+        case 'medium':        return '🔬';
+        case 'low':           return '🔬?';
+        default:              return '?';
+    }
+}
+
+function confidenceLabel(c: string | null | undefined): string {
+    switch (c) {
+        case 'high-verified': return 'verified';
+        case 'high':          return 'high';
+        case 'medium':        return 'medium';
+        case 'low':           return 'low';
+        case 'unknown':       return 'brak';
+        default:              return '—';
+    }
+}
+
 function ReportButtons({ employeeId, from, to }: { employeeId: string; from: string; to: string }) {
     // Wybór miesiąca = ten z 'from' (lub bieżący)
     const month = from.slice(0, 7);
@@ -527,8 +560,19 @@ function ShiftTd({ shift, onClick }: { shift: CalculatedShift | undefined; onCli
                         );
                     })}
                     {shift.doctor_end_confidence && (
-                        <div style={{ fontSize: '0.6rem', color: shift.doctor_end_confidence === 'high' ? '#10b981' : shift.doctor_end_confidence === 'medium' ? '#fbbf24' : '#ef4444' }}>
-                            🔬 {shift.doctor_end_confidence}
+                        <div
+                            title={
+                                shift.doctor_end_methods && shift.doctor_end_methods.length > 0
+                                    ? shift.doctor_end_methods.map((m) => `${m.detail ?? m.name}`).join('\n')
+                                    : `Confidence: ${shift.doctor_end_confidence}`
+                            }
+                            style={{
+                                fontSize: '0.6rem',
+                                color: confidenceColor(shift.doctor_end_confidence),
+                                fontWeight: 700,
+                            }}
+                        >
+                            {confidenceIcon(shift.doctor_end_confidence)} {confidenceLabel(shift.doctor_end_confidence)}
                         </div>
                     )}
                     {shift.auto_closed && (
@@ -641,6 +685,31 @@ function CorrectionModal({
                         <div style={{ color: '#fbbf24', marginTop: 6 }}>{shift.auto_close_reason}</div>
                     )}
                 </div>
+
+                {/* Weryfikacja końca pracy lekarza */}
+                {(shift.doctor_end_methods?.length ?? 0) > 0 && (
+                    <div style={{ background: 'rgba(167,139,250,0.06)', border: '1px solid rgba(167,139,250,0.25)', padding: '0.7rem 0.85rem', borderRadius: 8, marginBottom: 12, fontSize: '0.82rem' }}>
+                        <div style={{ color: '#a78bfa', fontWeight: 700, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
+                            🔬 Weryfikacja końca pracy lekarza —{' '}
+                            <span style={{ color: confidenceColor(shift.doctor_end_confidence) }}>
+                                {confidenceLabel(shift.doctor_end_confidence)}
+                            </span>
+                        </div>
+                        {shift.doctor_end_methods?.map((m, idx) => (
+                            <div key={idx} style={{ display: 'flex', gap: 8, marginBottom: 3 }}>
+                                <span style={{ color: confidenceColor(m.confidence), fontFamily: 'monospace', minWidth: 80 }}>
+                                    [{m.confidence}]
+                                </span>
+                                <span style={{ color: 'rgba(255,255,255,0.85)' }}>{m.detail ?? m.name}</span>
+                            </div>
+                        ))}
+                        {shift.cleanup_buffer_used && (
+                            <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.75rem', marginTop: 6 }}>
+                                Bufor sprzątania: {shift.cleanup_buffer_used} min — granica zasadnych nadgodzin: {shift.doctor_end_time ? formatTimeISO(new Date(new Date(shift.doctor_end_time).getTime() + shift.cleanup_buffer_used * 60000).toISOString()) : '—'}
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                     <div>

@@ -7,6 +7,7 @@ import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
 import { syncProdentisAndRecalcJustification } from '@/lib/timeTracking/overtimeJustification';
 import { fetchDoctorWorkSummary } from '@/lib/timeTracking/prodentisWorkSummary';
+import { verifyDoctorEnd } from '@/lib/timeTracking/doctorEndVerification';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -33,9 +34,12 @@ export async function POST(request: NextRequest) {
         const result = await syncProdentisAndRecalcJustification(body.date, async (prodentisId, date) => {
             const summary = await fetchDoctorWorkSummary(prodentisId, date);
             if (!summary) return null;
+            const verification = await verifyDoctorEnd(summary, date);
             return {
-                estimatedWorkEnd: summary.estimatedWorkEnd,
-                confidence: summary.confidence,
+                estimatedWorkEnd: verification.finalEndTime,
+                confidence: verification.finalConfidence,
+                methods: verification.methods,
+                crossVerified: verification.crossVerified,
             };
         });
         return NextResponse.json({ ok: true, date: body.date, ...result });
