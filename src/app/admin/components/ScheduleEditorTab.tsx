@@ -5,7 +5,7 @@
 // Klik komórki → modal z pełną konfiguracją zmiany / nieobecności / przypisań.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Calendar, Copy, X, Plus, Trash2, Loader2, Check, AlertCircle, Users, LayoutGrid } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, Copy, X, Plus, Trash2, Loader2, Check, AlertCircle, Users, LayoutGrid, CalendarClock, HelpCircle } from 'lucide-react';
 import {
     ABSENCE_TYPES,
     SHIFT_ROLES,
@@ -151,7 +151,12 @@ export default function ScheduleEditorTab() {
     const [copyingFrom, setCopyingFrom] = useState(false);
     const [toast, setToast] = useState<string | null>(null);
     const [roleFilter, setRoleFilter] = useState<Set<string>>(new Set());
-    const [viewMode, setViewMode] = useState<'employees' | 'workstations'>('employees');
+    const [viewMode, setViewMode] = useState<'employees' | 'workstations' | 'day'>('employees');
+    const [selectedDay, setSelectedDay] = useState<string>(() => {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    });
+    const [helpOpen, setHelpOpen] = useState(false);
     const [dragSource, setDragSource] = useState<{ cell: ScheduleCell; isMove: boolean } | null>(null);
     const [dragTarget, setDragTarget] = useState<{ employeeId: string; date: string } | null>(null);
     const [dropping, setDropping] = useState(false);
@@ -500,10 +505,24 @@ export default function ScheduleEditorTab() {
                         >
                             <LayoutGrid size={16} /> Stanowiska
                         </button>
+                        <button
+                            onClick={() => setViewMode('day')}
+                            style={viewMode === 'day' ? viewToggleActiveStyle : viewToggleStyle}
+                            title="Pełny widok jednego dnia (timeline)"
+                        >
+                            <CalendarClock size={16} /> Dzień
+                        </button>
                     </div>
                     <button onClick={() => void copyFromPreviousMonth()} disabled={copyingFrom} style={btnSecondaryStyle}>
                         {copyingFrom ? <Loader2 size={16} className="spin" /> : <Copy size={16} />}
                         <span style={{ marginLeft: 6 }}>Kopiuj z {monthLabel(previousMonth(month))}</span>
+                    </button>
+                    <button
+                        onClick={() => setHelpOpen(true)}
+                        title="Instrukcja obsługi grafiku"
+                        style={{ ...btnSecondaryStyle, padding: '0.5rem 0.7rem' }}
+                    >
+                        <HelpCircle size={16} />
                     </button>
                 </div>
             </div>
@@ -547,6 +566,21 @@ export default function ScheduleEditorTab() {
                 <div style={{ padding: '1rem', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.4)', borderRadius: 10 }}>
                     <AlertCircle size={18} style={{ display: 'inline', marginRight: 8 }} /> {error}
                 </div>
+            ) : data && viewMode === 'day' ? (
+                <DayTimelineView
+                    selectedDay={selectedDay}
+                    setSelectedDay={setSelectedDay}
+                    cells={data.cells}
+                    employees={data.employees}
+                    workstations={data.workstations}
+                    employeesById={employeesById}
+                    workstationsById={workstationsById}
+                    doctorsById={doctorsById}
+                    onCellClick={(employeeId, date) => {
+                        const emp = data.employees.find((e) => e.id === employeeId);
+                        if (emp) openCellEditor(emp, date);
+                    }}
+                />
             ) : data && viewMode === 'workstations' ? (
                 <div style={{ overflowX: 'auto', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12 }}>
                     <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: 900 }}>
@@ -749,6 +783,8 @@ export default function ScheduleEditorTab() {
                 </div>
             )}
 
+            {helpOpen && <HelpModal onClose={() => setHelpOpen(false)} />}
+
             <style jsx global>{`
                 .spin { animation: spinkeyf2 1s linear infinite; }
                 @keyframes spinkeyf2 { to { transform: rotate(360deg); } }
@@ -761,6 +797,414 @@ function monthLabel(month: string): string {
     const [y, m] = month.split('-').map((s) => Number.parseInt(s, 10));
     return `${PL_MONTHS[m - 1]} ${y}`;
 }
+
+// ── Day Timeline View ────────────────────────────────────────────────
+
+const DAY_HOUR_START = 7;
+const DAY_HOUR_END = 22;
+
+function DayTimelineView({
+    selectedDay,
+    setSelectedDay,
+    cells,
+    employees,
+    workstations,
+    employeesById,
+    workstationsById,
+    doctorsById,
+    onCellClick,
+}: {
+    selectedDay: string;
+    setSelectedDay: (d: string) => void;
+    cells: ScheduleCell[];
+    employees: ScheduleEmployee[];
+    workstations: Workstation[];
+    employeesById: Map<string, ScheduleEmployee>;
+    workstationsById: Map<string, Workstation>;
+    doctorsById: Map<string, ScheduleEmployee>;
+    onCellClick: (employeeId: string, date: string) => void;
+}) {
+    const dayCells = cells.filter((c) => c.date === selectedDay);
+
+    // Sortuj wpisy: lekarze pierwsi, potem hig./asysta, potem recepcja
+    const positionOrder: Record<string, number> = {
+        Lekarz: 1,
+        Higienistka: 2,
+        Asystentka: 3,
+        Recepcja: 4,
+    };
+    const sorted = [...dayCells].sort((a, b) => {
+        const ea = employeesById.get(a.employee_id);
+        const eb = employeesById.get(b.employee_id);
+        const oa = (ea?.position && positionOrder[ea.position]) || 99;
+        const ob = (eb?.position && positionOrder[eb.position]) || 99;
+        if (oa !== ob) return oa - ob;
+        return (ea?.name ?? '').localeCompare(eb?.name ?? '');
+    });
+
+    const dateObj = new Date(selectedDay + 'T00:00:00Z');
+    const dateLabel = `${PL_DAYS_LONG[dateObj.getUTCDay()]}, ${dateObj.getUTCDate()} ${PL_MONTHS[dateObj.getUTCMonth()]} ${dateObj.getUTCFullYear()}`;
+    const isWeekend = dateObj.getUTCDay() === 0 || dateObj.getUTCDay() === 6;
+
+    const shiftDay = (delta: number) => {
+        const d = new Date(selectedDay + 'T00:00:00Z');
+        d.setUTCDate(d.getUTCDate() + delta);
+        setSelectedDay(`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`);
+    };
+
+    const totalMinutes = (DAY_HOUR_END - DAY_HOUR_START) * 60;
+
+    return (
+        <div style={{ border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '1rem' }}>
+            {/* Day picker */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: '1rem', flexWrap: 'wrap' }}>
+                <button onClick={() => shiftDay(-1)} style={iconBtnStyle}><ChevronLeft size={18} /></button>
+                <input
+                    type="date"
+                    value={selectedDay}
+                    onChange={(e) => setSelectedDay(e.target.value)}
+                    style={{ ...inputStyle, width: 180, padding: '0.4rem 0.6rem' }}
+                />
+                <button onClick={() => shiftDay(1)} style={iconBtnStyle}><ChevronRight size={18} /></button>
+                <div style={{ marginLeft: 12, color: isWeekend ? '#34d399' : 'rgba(255,255,255,0.85)', fontWeight: 600, textTransform: 'capitalize' }}>
+                    {dateLabel}
+                </div>
+                <div style={{ marginLeft: 'auto', color: 'rgba(255,255,255,0.5)', fontSize: '0.85rem' }}>
+                    Pracujących: <b>{sorted.filter((c) => !c.absence_type).length}</b>
+                    {sorted.filter((c) => c.absence_type).length > 0 && (
+                        <> · Nieobecnych: <b>{sorted.filter((c) => c.absence_type).length}</b></>
+                    )}
+                </div>
+            </div>
+
+            {sorted.length === 0 ? (
+                <div style={{ padding: '3rem', textAlign: 'center', color: 'rgba(255,255,255,0.45)' }}>
+                    Brak wpisów dla wybranego dnia.
+                </div>
+            ) : (
+                <div style={{ overflowX: 'auto' }}>
+                    <div style={{ minWidth: 900 }}>
+                        {/* Hour ruler */}
+                        <div style={{ display: 'flex', alignItems: 'flex-end', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: 4, marginLeft: 200 }}>
+                            {Array.from({ length: DAY_HOUR_END - DAY_HOUR_START + 1 }, (_, i) => DAY_HOUR_START + i).map((h) => (
+                                <div key={h} style={{ flex: 1, fontSize: '0.7rem', color: 'rgba(255,255,255,0.5)', borderLeft: '1px solid rgba(255,255,255,0.05)', paddingLeft: 4 }}>
+                                    {String(h).padStart(2, '0')}:00
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Rows per pracownik */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
+                            {sorted.map((cell) => {
+                                const emp = employeesById.get(cell.employee_id);
+                                if (!emp) return null;
+                                return (
+                                    <DayTimelineRow
+                                        key={cell.id}
+                                        cell={cell}
+                                        employee={emp}
+                                        workstationsById={workstationsById}
+                                        doctorsById={doctorsById}
+                                        totalMinutes={totalMinutes}
+                                        onClick={() => onCellClick(emp.id, selectedDay)}
+                                    />
+                                );
+                            })}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Legenda kolorów stanowisk */}
+            <div style={{ marginTop: '1rem', display: 'flex', gap: 8, flexWrap: 'wrap', fontSize: '0.78rem', color: 'rgba(255,255,255,0.6)' }}>
+                <span style={{ color: 'rgba(255,255,255,0.4)' }}>Stanowiska:</span>
+                {workstations.map((w) => (
+                    <span key={w.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                        <span style={{ width: 12, height: 12, borderRadius: 3, background: w.color ?? '#fbbf24' }} />
+                        {w.short_label} {w.name}
+                    </span>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+function DayTimelineRow({
+    cell,
+    employee,
+    workstationsById,
+    doctorsById,
+    totalMinutes,
+    onClick,
+}: {
+    cell: ScheduleCell;
+    employee: ScheduleEmployee;
+    workstationsById: Map<string, Workstation>;
+    doctorsById: Map<string, ScheduleEmployee>;
+    totalMinutes: number;
+    onClick: () => void;
+}) {
+    const isAbsence = !!cell.absence_type;
+    const absenceDef = isAbsence ? ABSENCE_TYPES.find((a) => a.value === cell.absence_type) : null;
+
+    // Pasek bazowy (cała zmiana)
+    const startMin = isAbsence ? null : timeToMinutesLocal(cell.planned_start);
+    const endMin = isAbsence ? null : timeToMinutesLocal(cell.planned_end);
+    const baseFrom = startMin != null ? Math.max(0, startMin - DAY_HOUR_START * 60) : 0;
+    const baseTo = endMin != null ? Math.min(totalMinutes, endMin - DAY_HOUR_START * 60) : 0;
+
+    return (
+        <div
+            onClick={onClick}
+            style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 0,
+                cursor: 'pointer',
+                background: 'rgba(255,255,255,0.02)',
+                borderRadius: 8,
+                padding: '4px 0',
+            }}
+        >
+            {/* Lewa: nazwa */}
+            <div style={{ width: 200, padding: '0.3rem 0.6rem', flexShrink: 0 }}>
+                <div style={{ color: '#fff', fontSize: '0.85rem', fontWeight: 600 }}>
+                    {employee.name}
+                </div>
+                <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.7rem' }}>
+                    {employee.position ?? '—'}
+                </div>
+            </div>
+
+            {/* Pasek timeline */}
+            <div style={{ position: 'relative', flex: 1, height: 44, background: 'rgba(255,255,255,0.02)', borderRadius: 6 }}>
+                {isAbsence ? (
+                    <div
+                        style={{
+                            position: 'absolute',
+                            inset: 0,
+                            background: `${absenceDef?.color}25`,
+                            border: `1px dashed ${absenceDef?.color}`,
+                            borderRadius: 6,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: absenceDef?.color,
+                            fontWeight: 700,
+                            fontSize: '0.85rem',
+                        }}
+                    >
+                        {absenceDef?.label}
+                    </div>
+                ) : (
+                    <>
+                        {/* Bazowy pasek zmiany */}
+                        <div
+                            style={{
+                                position: 'absolute',
+                                left: `${(baseFrom / totalMinutes) * 100}%`,
+                                width: `${((baseTo - baseFrom) / totalMinutes) * 100}%`,
+                                top: 0,
+                                bottom: 0,
+                                background: 'rgba(56,189,248,0.12)',
+                                border: '1px solid rgba(56,189,248,0.35)',
+                                borderRadius: 6,
+                            }}
+                        />
+
+                        {/* Segmenty stanowisk */}
+                        {cell.assignments.map((a) => {
+                            const segFromMin = timeToMinutesLocal(a.segment_start) - DAY_HOUR_START * 60;
+                            const segToMin = timeToMinutesLocal(a.segment_end) - DAY_HOUR_START * 60;
+                            if (segToMin <= 0 || segFromMin >= totalMinutes) return null;
+                            const left = Math.max(0, segFromMin);
+                            const width = Math.max(0, Math.min(totalMinutes, segToMin) - left);
+                            if (width <= 0) return null;
+                            const ws = a.workstation_id ? workstationsById.get(a.workstation_id) : undefined;
+                            const doc = a.doctor_employee_id ? doctorsById.get(a.doctor_employee_id) : undefined;
+                            const widthPct = (width / totalMinutes) * 100;
+                            const showLabel = widthPct > 6;
+                            const color = ws?.color ?? '#fbbf24';
+                            return (
+                                <div
+                                    key={a.id}
+                                    title={`${a.segment_start.slice(0,5)}–${a.segment_end.slice(0,5)} · ${ws?.name ?? 'bez stanowiska'}${doc ? ' · z dr ' + doc.name : ''}`}
+                                    style={{
+                                        position: 'absolute',
+                                        left: `${(left / totalMinutes) * 100}%`,
+                                        width: `${widthPct}%`,
+                                        top: 4,
+                                        bottom: 4,
+                                        background: `${color}40`,
+                                        border: `1px solid ${color}`,
+                                        borderRadius: 5,
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        justifyContent: 'center',
+                                        padding: '2px 4px',
+                                        overflow: 'hidden',
+                                    }}
+                                >
+                                    {showLabel && (
+                                        <>
+                                            <div style={{ color: '#fff', fontSize: '0.7rem', fontWeight: 700, lineHeight: 1.1, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                                                {ws?.short_label ?? '?'}
+                                            </div>
+                                            {doc && widthPct > 10 && (
+                                                <div style={{ color: '#a78bfa', fontSize: '0.65rem', lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden' }}>
+                                                    +{doc.name.split(' ')[0]}
+                                                </div>
+                                            )}
+                                        </>
+                                    )}
+                                </div>
+                            );
+                        })}
+
+                        {/* Etykieta godzin na pasku bazowym */}
+                        {startMin != null && endMin != null && (
+                            <div
+                                style={{
+                                    position: 'absolute',
+                                    left: `${(baseFrom / totalMinutes) * 100}%`,
+                                    top: -16,
+                                    fontSize: '0.65rem',
+                                    color: 'rgba(255,255,255,0.55)',
+                                    fontVariantNumeric: 'tabular-nums',
+                                }}
+                            >
+                                {cell.planned_start?.slice(0, 5)}–{cell.planned_end?.slice(0, 5)}
+                            </div>
+                        )}
+                    </>
+                )}
+            </div>
+        </div>
+    );
+}
+
+function timeToMinutesLocal(t: string | null): number {
+    if (!t) return 0;
+    const [h, m] = t.split(':').map((s) => Number.parseInt(s, 10));
+    return h * 60 + (m || 0);
+}
+
+// ── Help Modal ───────────────────────────────────────────────────────
+
+function HelpModal({ onClose }: { onClose: () => void }) {
+    return (
+        <div onClick={onClose} style={modalOverlayStyle}>
+            <div onClick={(e) => e.stopPropagation()} style={{ ...modalBoxStyle, maxWidth: 720, padding: '1.75rem 2rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                    <h2 style={{ fontSize: '1.4rem', fontWeight: 700, margin: 0 }}>
+                        📖 Jak korzystać z grafiku pracy
+                    </h2>
+                    <button onClick={onClose} style={iconBtnStyle}><X size={20} /></button>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', color: 'rgba(255,255,255,0.85)', lineHeight: 1.55 }}>
+                    <Section title="1. Wybór miesiąca">
+                        <ul style={ulStyle}>
+                            <li>Strzałki <b>◀ ▶</b> obok nazwy miesiąca przesuwają o jeden miesiąc.</li>
+                            <li>Przycisk <b>Dziś</b> wraca do bieżącego miesiąca.</li>
+                            <li><b>Kopiuj z [poprzedni miesiąc]</b> tworzy szablon — wpisuje wszystkie zmiany z poprzedniego miesiąca, ale tylko tam, gdzie obecny miesiąc jest jeszcze pusty (nie nadpisuje).</li>
+                        </ul>
+                    </Section>
+
+                    <Section title="2. Trzy tryby widoku">
+                        <ul style={ulStyle}>
+                            <li><b>👥 Pracownicy</b> — kolumny: pracownicy, wiersze: dni miesiąca. Tryb edycyjny — klikasz komórkę żeby wpisać/zmienić zmianę.</li>
+                            <li><b>🏢 Stanowiska</b> — kolumny: gabinety/recepcja/pracownia, wiersze: dni. Pokazuje kto-gdzie-kiedy. Klik wpisu otwiera modal edycji jego zmiany.</li>
+                            <li><b>📊 Dzień</b> — pełen graficzny timeline jednego dnia. Każdy pracownik = poziomy pasek z segmentami stanowisk i lekarza. Pokazuje cały rytm dnia w gabinecie.</li>
+                        </ul>
+                    </Section>
+
+                    <Section title="3. Edycja zmiany (tryb Pracownicy)">
+                        <ul style={ulStyle}>
+                            <li>Klik na komórkę → otwiera się modal.</li>
+                            <li><b>Tryb Praca</b> lub <b>Nieobecność</b> — przełącz radio.</li>
+                            <li><b>Szablony</b> — chipy „Poranna 9-16", „Popołudniowa 14-20", „Pełna 8-16" wpisują godziny jednym kliknięciem. Można dalej dowolnie zmieniać.</li>
+                            <li><b>Role</b> — multi-checkbox. Pracownik może mieć kilka ról w jednej zmianie (np. Higienistka + Recepcja + Pracownia).</li>
+                            <li><b>Przypisania w trakcie zmiany</b> — opcjonalne segmenty:
+                                <ul style={ulStyle}>
+                                    <li>Czas „od–do" w ramach zmiany.</li>
+                                    <li>Stanowisko — gdzie pracownik jest fizycznie (Gabinet 1, Recepcja, Pracownia, itd.).</li>
+                                    <li>Lekarz — z kim asystuje (jeśli dotyczy). Wszyscy lekarze są dostępni w dropdown — jeśli wybrany lekarz nie ma jeszcze grafiku, pojawi się żółte ostrzeżenie, ale segment zostanie zapisany.</li>
+                                </ul>
+                            </li>
+                            <li><b>Notatka</b> — wolny tekst (np. zachowane uwagi z Excela typu „R/P", „MN+K").</li>
+                            <li><b>Usuń wpis</b> — czerwony przycisk dolny, gdy edytujesz istniejący.</li>
+                        </ul>
+                    </Section>
+
+                    <Section title="4. Drag & drop (tylko tryb Pracownicy)">
+                        <ul style={ulStyle}>
+                            <li>Złap komórkę myszą i przeciągnij na inną → <b>kopia</b> zmiany.</li>
+                            <li>Z trzymaniem klawisza <b>Shift</b> → <b>przeniesienie</b> (źródło zostaje skasowane).</li>
+                            <li>Komórka źródłowa staje się półprzezroczysta, docelowa dostaje pomarańczową ramkę.</li>
+                            <li>System pyta o potwierdzenie — szczególnie gdy w celu już coś jest (informuje o nadpisaniu).</li>
+                        </ul>
+                    </Section>
+
+                    <Section title="5. Filtrowanie ról">
+                        <ul style={ulStyle}>
+                            <li>Pod nagłówkiem są chipy <b>Lekarz / Higienistka / Asystentka / Recepcja</b>.</li>
+                            <li>Klik chipsa = pokaż tylko tę rolę (wyłączy inne).</li>
+                            <li>„Pokaż wszystkich" wraca do pełnej listy.</li>
+                            <li>Filtr działa na widok Pracownicy. Tryb Stanowiska zawsze pokazuje wszystkich.</li>
+                        </ul>
+                    </Section>
+
+                    <Section title="6. Sumowanie godzin (tryb Pracownicy)">
+                        <ul style={ulStyle}>
+                            <li>Stopka tabeli pokazuje sumę godzin pracy każdego pracownika w miesiącu.</li>
+                            <li><b>Norma</b> = liczba dni roboczych (pn–pt) × <b>daily_hours</b> z umowy (domyślnie 8h).</li>
+                            <li>Kolory: <span style={{ color: '#10b981' }}>zielony ≥ 100% normy</span>, <span style={{ color: '#fbbf24' }}>amber 95–99%</span>, <span style={{ color: '#ef4444' }}>czerwony &lt; 95%</span>.</li>
+                            <li>Liczba dni nieobecności pokazuje się osobno (np. „nb 5d").</li>
+                        </ul>
+                    </Section>
+
+                    <Section title="7. Skróty Excela (po imporcie wstępnym)">
+                        <ul style={ulStyle}>
+                            <li>Po imporcie z PDF skróty (R, M, P, BR, H, MN+K, I/D, U) są w polu <b>Notatka</b> jako tekst.</li>
+                            <li>Aby zamienić skrót na realne segmenty stanowisk + lekarzy: kliknij komórkę, „+ Dodaj segment", wybierz konkretne stanowisko z dropdown.</li>
+                            <li>Mapowanie skrótów: <b>R</b> = Recepcja, <b>M</b> = Manager (godziny menagerskie — biuro), <b>P</b> = Pracownia, <b>BR</b> = Biuro, <b>H</b> = Higienistka, <b>U</b> = Urlop. Litery imion lekarzy: <b>MN</b>=Marcin, <b>I</b>=Ilona, <b>D</b>=Dominika, <b>K</b>=Katarzyna.</li>
+                        </ul>
+                    </Section>
+
+                    <Section title="8. Co system robi w tle">
+                        <ul style={ulStyle}>
+                            <li>Każda zmiana jest zapisywana natychmiast w bazie (toast „Zapisano grafik" potwierdza).</li>
+                            <li>Algorytm naliczania nadgodzin (faza F4-F5) używa segmentów + powiązań z lekarzami z Prodentis API. Im dokładniejsze przypisania, tym precyzyjniejsze liczenie nadgodzin asysty.</li>
+                            <li>Pracownik widzi swój grafik w aplikacji w zakładce „📅 Grafik" (tylko do odczytu).</li>
+                        </ul>
+                    </Section>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+                    <button onClick={onClose} style={btnPrimaryStyle}>Rozumiem</button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+    return (
+        <div>
+            <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#fbbf24', marginBottom: '0.4rem' }}>{title}</h3>
+            {children}
+        </div>
+    );
+}
+
+const ulStyle: React.CSSProperties = {
+    margin: '0.2rem 0 0 1.2rem',
+    padding: 0,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 4,
+};
 
 function workstationTypeLabel(t: string): string {
     switch (t) {
