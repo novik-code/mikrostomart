@@ -37,7 +37,8 @@ import {
     Send,
     Share2,
     Plug,
-    Banknote
+    Banknote,
+    QrCode
 } from "lucide-react";
 import { Product } from './components/AdminTypes';
 import SocialMediaTab from './components/SocialMediaTab';
@@ -2611,7 +2612,7 @@ export default function AdminPage() {
         </div>
     );
 
-    const NavItem = ({ id, label, icon: Icon, badge, onClick: customOnClick, href }: any) => {
+    const NavItem = ({ id, label, icon: Icon, badge, onClick: customOnClick, href, target }: any) => {
         const isActive = activeTab === id;
         const content = (
             <>
@@ -2653,7 +2654,16 @@ export default function AdminPage() {
             textDecoration: 'none',
         };
         if (href) {
-            return <a href={href} style={baseStyle}>{content}</a>;
+            return (
+                <a
+                    href={href}
+                    style={baseStyle}
+                    target={target}
+                    rel={target === '_blank' ? 'noopener noreferrer' : undefined}
+                >
+                    {content}
+                </a>
+            );
         }
         return (
             <button onClick={customOnClick || (() => setActiveTab(id))} style={baseStyle}>
@@ -2777,6 +2787,7 @@ export default function AdminPage() {
                     <NavItem id="" label="Podpisy personelu" icon={Pen} href="/admin/staff-signatures" />
                     <NavItem id="" label="Mapper PDF" icon={Settings} href="/admin/pdf-mapper" />
                     <NavItem id="" label="Biometria podpisów" icon={Fingerprint} href="/admin/biometric-signatures" />
+                    <NavItem id="" label="🕐 Ekran QR (kiosk)" icon={QrCode} href="/qr-display" target="_blank" />
 
                     <NavSection title="Wygląd" />
                     <NavItem id="theme" label="Motyw strony" icon={Paintbrush} />
