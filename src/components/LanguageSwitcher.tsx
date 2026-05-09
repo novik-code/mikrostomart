@@ -2,13 +2,7 @@
 
 import { useLocale } from "next-intl";
 import { routing } from "@/i18n/routing";
-// IMPORTANT: use next-intl's locale-aware navigation, not next/navigation.
-// next-intl's useRouter().replace(pathname, {locale}) auto-strips the existing
-// locale prefix and adds the new one — and it forces a server re-render so the
-// root layout reloads messages for the new locale (which next/navigation's
-// router.push does NOT do, leaving the page in the old locale).
-import { useRouter, usePathname } from "@/i18n/navigation";
-import { useState, useRef, useEffect, useTransition } from "react";
+import { useState, useRef, useEffect } from "react";
 
 const FLAGS: Record<string, string> = {
     pl: "🇵🇱",
@@ -24,9 +18,7 @@ const FLAGS: Record<string, string> = {
  */
 function LanguageSwitcherInner({ hidden }: { hidden?: boolean }) {
     const locale = useLocale();
-    const router = useRouter();
-    const pathname = usePathname();
-    const [isPending, startTransition] = useTransition();
+    const [isPending, setIsPending] = useState(false);
     const [isOpen, setIsOpen] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
 
@@ -47,17 +39,42 @@ function LanguageSwitcherInner({ hidden }: { hidden?: boolean }) {
     }, [hidden]);
 
     /**
-     * Switch locale via next-intl's locale-aware router (Faza 2.x SEO 2026-05-09).
-     * `pathname` from @/i18n/navigation is already stripped of the locale prefix,
-     * and router.replace({locale}) handles re-prefixing + a hard server navigation
-     * that re-renders the root layout with new messages.
+     * Switch locale by hard-reloading to the new URL.
+     *
+     * WHY hard reload (window.location) instead of next-intl's router.replace?
+     * - NextIntlClientProvider lives in the ROOT layout (src/app/layout.tsx),
+     *   which in App Router is persistent and does NOT re-render on navigation.
+     * - This means SPA-style navigation leaves the locale unchanged in React tree
+     *   even when the URL changes — symptoms reported 2026-05-09:
+     *   • clicking 🇬🇧 changes URL to /en but content stays Polish
+     *   • clicking 🇩🇪 from /en gives /en/de (next-intl's usePathname didn't strip)
+     *   • can't return PL from /en (same stripping bug)
+     * - Hard reload bypasses all this: browser issues a fresh request, server
+     *   middleware reads the URL prefix, root layout re-runs getLocale() and
+     *   passes correct locale to NextIntlClientProvider. Slightly slower (no SPA
+     *   transition), but it works 100% reliably and language switching is rare.
+     *
+     * Manual prefix manipulation: strip any current locale prefix from the path,
+     * then prepend the new one (or no prefix for default locale = PL).
+     *   /en/oferta + DE  → /de/oferta
+     *   /en/oferta + PL  → /oferta
+     *   /oferta + EN     → /en/oferta
      */
     function switchLocale(newLocale: string) {
         setIsOpen(false);
         if (newLocale === locale) return;
-        startTransition(() => {
-            router.replace(pathname, { locale: newLocale as any });
-        });
+        setIsPending(true);
+
+        const currentPath = window.location.pathname;
+        // Match leading /<locale> only when followed by '/' or end-of-path (avoid /endoscopy etc.)
+        const localePrefixPattern = new RegExp(`^/(${routing.locales.join('|')})(?=/|$)`);
+        const pathWithoutLocale = currentPath.replace(localePrefixPattern, '') || '/';
+        const newPath = newLocale === routing.defaultLocale
+            ? pathWithoutLocale
+            : `/${newLocale}${pathWithoutLocale === '/' ? '' : pathWithoutLocale}`;
+
+        // Preserve query string + hash on language switch
+        window.location.href = newPath + window.location.search + window.location.hash;
     }
 
     return (
