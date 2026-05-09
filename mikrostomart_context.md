@@ -1,8 +1,8 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-09 (SEO Faza B: Schema.org boost + critical SW/hreflang fix)  
+> **Last Updated:** 2026-05-09 (SEO Faza B + 2 regression fixes — SW/hreflang + news regex)  
 > **Version:** Production + Demo (Dual Vercel Deployment)  
-> **Status:** Active Development — KCP FULL; CareFlow Perioperative; Push-First Communication; **SEO Recovery: Faza 1+1.5+2+2.x+A+B + critical regression fix KOMPLETNE** (Faza C, D z dodatkowych poprawek to TODO)
+> **Status:** Active Development — KCP FULL; CareFlow Perioperative; Push-First Communication; **SEO Recovery: Faza 1+1.5+2+2.x+A+B + 2 regression fixes KOMPLETNE** (Faza C — LCP/JS optimization czeka na osobną sesję, plan szczegółowy w sekcji "Implementation Status")
 
 ---
 
@@ -2461,6 +2461,49 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-09 — SEO Faza 1 regression fix: regex /aktualnosci/{ID}-{slug} łapał aktywne artykuły
+**Trzeci regression fix tego dnia — pierwszy fix od strony klikalności po deploy Fazy B**
+
+#### Commit:
+- `e8fa6a0` — fix(seo): regresja Faza 1 — regex /aktualnosci/{ID}-{slug} łapał aktywne artykuły z DB
+
+#### Problem (zgłoszony przez Marcina po deploy):
+Na PL liście /aktualnosci dało się kliknąć tylko w 1 z 14 artykułów (`ortodoncja-nakladkowa-w-mikrostomart`). Pozostałe 13 wracało do listy. EN/DE/UA wszystkie 14 działały.
+
+#### Root cause:
+Faza 1 SEO Recovery (`99144ec` 2026-05-09) miała w `next.config.ts` catchall regex:
+```js
+{ source: '/aktualnosci/:idAndSlug([0-9]+-.+)', destination: '/aktualnosci' }
+```
+Miał łapać 171 starych Joomla URLi typu `/aktualnosci/80-stary-tytul` które zwracały 404 w GSC. ALE łapał TEŻ aktywne artykuły z `news` table których slugi też zaczynają się od cyfr (13 z 14 PL artykułów: `319-wybielanie...`, `314-metamorfoza-3` itd.).
+
+EN/DE/UA były OK bo regex matchował tylko `/aktualnosci/*` (bez locale prefix), a EN/DE/UA URLe miały `/en/aktualnosci/`, `/de/aktualnosci/`, `/ua/aktualnosci/`.
+
+#### Naprawa — page-level redirect zamiast regex:
+- **`next.config.ts`**: usunięty regex catchall (komentarz wyjaśniający)
+- **`[locale]/aktualnosci/[slug]/page.tsx`**:
+  - Wymieniony import: `notFound` → `permanentRedirect` z `next/navigation`
+  - Gdy slug nie istnieje w `news` table: zamiast `notFound()` (404) wykonujemy `permanentRedirect()`
+  - **HTTP 308 Permanent** (lepsze dla SEO niż 307 z regular `redirect()`)
+  - Locale-aware destination: PL bez prefix, EN/DE/UA z prefix
+
+#### Efekt:
+- Aktywne artykuły z DB (numeric prefix lub nie) → renderują poprawnie ✅
+- Nieaktywne stare Joomla URLs → nadal redirect na `/aktualnosci` 308 ✅
+- 198 starych URLi z GSC nadal pokrytych (przez page-level redirect zamiast regex)
+
+Pozostałe redirecty w `next.config.ts` ZACHOWANE: `/component/*`, `/zespol*`, `/oferta/{stary-slug}` mappings, 6 standalone (galeria, pogotowie, etc.).
+
+#### Smoke test:
+- `/aktualnosci/319-wybielanie-na-jednej-wizycie` → 200 ✅ (poprzednio 308 do listy)
+- `/aktualnosci/314-metamorfoza-3` → 200 ✅
+- `/aktualnosci/ortodoncja-nakladkowa-w-mikrostomart` → 200 ✅ (zachowane)
+- `/aktualnosci/80-old-joomla-slug` (NIE w DB) → 308 → `/aktualnosci` ✅
+- `/en/aktualnosci/319-...` + de + ua → 200 ✅
+- Wszystkie pozostałe redirecty zachowane
+
+---
 
 ### 2026-05-09 — SEO Faza B + critical regression fix (Schema.org + SW 404 + hreflang)
 **Najwyższy SEO impact w jednej sesji: rich snippets na 6 service pages + naprawa krytycznej regresji**
@@ -6110,8 +6153,167 @@ OpenAI gpt-image-1 regenerates the entire masked area from scratch (+ forces 102
 - [x] **Faza 2.x** — Aktualności per-locale (14 newsów × 4 locale w sitemap, hreflang per artykuł, naprawiony `generateStaticParams` w `[locale]/aktualnosci/[slug]`). Tłumaczenia w DB tabeli `news` (kolumny `title_en/de/ua`, `excerpt_*`, `content_*`) — wszystkie wypełnione (126/126).
 - [x] **Faza 2.x** — Cleanup legacy: usunięte `src/data/articles.ts` (316 linii) + `scripts/migrate-news.ts` (56 linii). Dodany `scripts/translate-missing-news.ts` jako safety net na nowe newsy.
 - [x] **Faza 2.x** — LanguageSwitcher fix saga (3 iteracje): finalny `050a09d` używa hard reload (window.location.href) + sync cookie NEXT_LOCALE z URL prefix. Przed reloadem cookie clear (PL=default) lub set (en/de/ua) żeby next-intl middleware nie 307-redirectował.
-- [ ] **Faza 2.x** — Per-page lokalizowane `generateMetadata({ locale })` dla pozostałych stron (oferta/*, cennik, kontakt, etc.) — obecnie fallback do root `titleTemplate`, działa ale niezlokalizowane title/description. Niski priorytet (Google bardziej patrzy na content niż title dla rankingu language-specific).
+- [x] **Faza A — Quick wins** (`d02509f`): meta description 238→144 chars + 4 locale; H2 "Co nas wyróżnia" + tłumaczenia 4 locale; 4× img→Image (sklep, ProductModal, YouTubeFeed); `*.supabase.co` w `images.remotePatterns`.
+- [x] **Faza B — Schema.org rich snippets** (`27d808d`): wszystkie 6 service pages mają teraz BreadcrumbList + FAQPage + MedicalProcedure (12 unique schema types per strona). Aktualnosci+blog mają NewsArticle/BlogPosting schema. Po deploy Rich Results Test pokazuje 4+ elementy na service pages (vs 2 na homepage).
+- [x] **Critical regression fix #1** (`af0fa2f`): SW 404 (regresja Faza 2 middleware) + brak hreflang na podstronach. Naprawione przez rozszerzenie middleware matcher exclusion (.js/.css/.woff2/...) + globalny hreflang fallback w root layout.
+- [x] **Critical regression fix #2** (`e8fa6a0`): regex `/aktualnosci/{ID}-{slug}` z Fazy 1 łapał aktywne artykuły z DB (13/14 PL nieklikalnych). Naprawione przez usunięcie regex i page-level `permanentRedirect()` w `[slug]/page.tsx`.
+- [ ] **Faza 2.x** — Per-page lokalizowane `generateMetadata({ locale })` dla pozostałych stron (oferta/*, cennik, kontakt, etc.) — obecnie fallback do root `titleTemplate`, działa ale niezlokalizowane title/description. Niski priorytet.
+- [ ] **Faza C** — LCP/JS optimization (zaplanowana na osobną sesję, ~3h pracy). Plan szczegółowy poniżej ↓
 - [ ] **Faza 3** — Marcin: GSC HTTPS property dodany ✅. Re-submit sitemap (686 URLi) po deploy ✅. Audyt po 4-6 tygodniach (oczekiwany 198 → 0 błędów 404 + EN/DE/UA pojawiają się w indeksie)
+
+---
+
+### 🚨 FAZA C — PLAN SZCZEGÓŁOWY DLA AI W NOWEJ SESJI
+
+**Cel:** Performance score 67 → 85+ (PageSpeed Insights desktop /oferta).
+
+**Dane bazowe** (PageSpeed Insights desktop /oferta, audit 2026-05-09 17:39):
+- Performance: **67/100** (cel >90)
+- LCP: 1,3s desktop ✅ / 2,7s mobile 🟡 (cel <2,5s)
+- TBT: **630 ms** 🔴 (cel <200 ms)
+- CLS: 0,004 ✅
+- FCP: 0,6s ✅
+- Speed Index: 2,3s ✅
+
+**Główni winowajcy z raportu Lighthouse:**
+- **680 KiB nieużywanego JavaScript** 🔴
+- **3,5s aktywności głównego wątku** 🔴
+- **1,8s JS execution time** 🔴
+- 105 KiB nieużywanego CSS 🟡
+- 34 KiB obrazów do optymalizacji 🟡
+- 2 nieskompozytowane animacje 🟢
+- Iframe bez title (YouTube), buttony bez aria-label (a11y) 🟢
+- CSP issues dla Sentry/YouTube 🟢
+
+#### C1 — Dynamic imports dla heavy non-critical components (NAJWAŻNIEJSZE, ~1h)
+
+Komponenty ładowane statycznie w `src/components/ThemeLayout.tsx`:
+```ts
+import BackgroundVideo from '@/components/BackgroundVideo';
+import CookieConsent from '@/components/CookieConsent';
+import SplashScreen from '@/components/SplashScreen';
+import AssistantTeaser from '@/components/AssistantTeaser';
+import PWAInstallPrompt from '@/components/PWAInstallPrompt';
+import SimulatorModal from '@/components/SimulatorModal';
+import OpinionSurvey from '@/components/OpinionSurvey';
+```
+
+Plus w `src/app/layout.tsx`:
+```ts
+import AdminFloatingBar from '@/components/AdminFloatingBar';
+import VisualEditorOverlay from '@/components/editor/VisualEditorOverlay';
+import PageOverridesApplier from '@/components/editor/PageOverridesApplier';
+```
+
+**Akcje:**
+- Zamienić static `import` na `next/dynamic` z `{ ssr: false }`:
+  ```ts
+  const SplashScreen = dynamic(() => import('@/components/SplashScreen'), { ssr: false });
+  ```
+- Dla każdego komponentu który jest **conditional** (`f.splashScreen && <SplashScreen />`) → dynamic import wystarczy
+- `BackgroundVideo` — dodać IntersectionObserver lazy load lub `loading="lazy"`
+- `AdminFloatingBar`, `VisualEditorOverlay`, `PageOverridesApplier` — admin-only, dynamic z `{ ssr: false }` + warunkowe rendering tylko gdy `userIsAdmin`
+
+**Oczekiwany wpływ:** -150 do -300 KiB z initial bundle. TBT może spaść z 630ms do <300ms.
+
+**Pliki do edycji:**
+- `src/components/ThemeLayout.tsx` (główny)
+- `src/app/layout.tsx`
+- Build i sprawdzić bundle size przez `npm run build` (Next.js pokazuje sizes per route)
+
+#### C2 — Tree-shake framer-motion (~30 min)
+
+Sprawdzić jak jest używany framer-motion:
+```bash
+grep -rn "from 'framer-motion'" src/ --include="*.tsx" | wc -l
+```
+
+**Akcje:**
+- Sprawdzić jakie API są używane (`motion`, `AnimatePresence`, `useAnimation` etc.)
+- Spróbować podmienić na **`motion/react`** (lighter alternative — same API, mniejszy bundle):
+  ```ts
+  // Stare: import { motion } from 'framer-motion';
+  // Nowe: import * as motion from 'motion/react';
+  ```
+- ALBO użyć individual imports (jeśli są dostępne)
+
+**Oczekiwany wpływ:** -50 do -100 KiB.
+
+#### C3 — Defer Sentry init (~15 min)
+
+Aktualnie Sentry init w `next.config.ts`:
+```ts
+export default withSentryConfig(withNextIntl(withPWA(nextConfig)), {...});
+```
+
+Plus `sentry.client.config.ts` jest ładowany na każdej stronie.
+
+**Akcje:**
+- Sprawdzić czy `sentry.client.config.ts` istnieje (w build)
+- Migrować do `instrumentation-client.ts` (zalecane przez Sentry deprecation warning z buildu)
+- Użyć `Sentry.lazyLoadIntegrations()` dla heavy integrations
+- ALBO disable Sentry w client bundle (zostawić tylko server)
+
+**Oczekiwany wpływ:** -50 do -100 KiB klient + szybszy startup.
+
+#### C4 — CSS pruning (~30 min)
+
+Lighthouse: **105 KiB nieużywanego CSS**.
+
+**Sprawdzić:**
+- `src/app/globals.css` — czy ma styles dla theme presets nieużywanych przez Marcina (`densflow-light`, `dental-luxe`, `fresh-smile`, `nordic-dental`, `warm-care`)
+- W `src/context/ThemeContext.tsx` Marcin używa `default-gold` (DEFAULT_THEME) — pozostałe presety w THEME_PRESETS są martwym kodem CSS-em
+- `src/app/[locale]/cennik/cennik.module.css` (8KB) — sprawdzić użycie
+
+**Akcje:**
+- Usunąć preset CSS dla nieużywanych presetów (lub przenieść do dynamic CSS)
+- Audit globals.css przez DevTools Coverage tab
+
+**Oczekiwany wpływ:** -50 do -100 KiB.
+
+#### C5 — Composited animations (~15 min)
+
+Lighthouse mówi: **2 nieskompozytowane animacje**. Trzeba znaleźć przez DevTools → Performance → Animations panel.
+
+**Akcje:**
+- Najczęściej: `top`/`left`/`width`/`height` w animacji → zmienić na `translate`/`scale`
+- Sprawdzić: `src/app/globals.css` keyframes (fadeInUp, blurIn, slideInRight, fadeInZoom)
+- Także sprawdzić framer-motion `initial`/`animate` props
+
+**Oczekiwany wpływ:** drobne, ale eliminuje paint stages.
+
+#### C6 — A11y + CSP polish (~15 min)
+
+**Iframe bez title** (YouTube embed w `BackgroundVideo` lub innym komponencie):
+- Dodać `title="Mikrostomart promotional video"` lub podobne
+
+**Buttony bez aria-label** — ikon-only buttons (np. zamknij modal, prev/next slider):
+- Dodać `aria-label="Zamknij"`, `aria-label="Poprzednia"` etc.
+
+**CSP rozszerzyć** w `src/middleware.ts`:
+- Dodać `https://o4510988121669632.ingest.de.sentry.io` do `connect-src`
+- Dodać `*.youtube.com`, `*.ytimg.com`, `*.googlevideo.com` do `frame-src`, `media-src`, `img-src`
+- `https://*.googleadservices.com` do `script-src`
+
+#### Strategia testów po Fazie C:
+1. `npm run build` — sprawdzić bundle sizes per route (Next.js pokazuje)
+2. Smoke test localhost — wszystkie public-facing strony 200, dynamic imports działają (klik flagi otwiera modal etc.)
+3. **Marcin uruchamia PageSpeed Insights** ponownie dla `/oferta`:
+   - Performance score: cel >85 (z 67)
+   - TBT: cel <200ms (z 630ms)
+   - LCP mobile: cel <2,5s
+4. **Marcin uruchamia Lighthouse audit** w DevTools (Performance, Best Practices, A11y)
+5. Rich Results Test — sprawdzić czy schemas nadal się parsują
+
+#### Acceptance criteria Fazy C:
+- ✅ Performance score >85 na desktop /oferta
+- ✅ TBT <200ms
+- ✅ LCP mobile <2,5s
+- ✅ Bundle size redukcja >300 KiB (z 680 KiB unused JS)
+- ✅ Best Practices score >90 (z 73 — fix CSP, console errors)
+- ✅ A11y score utrzymane >90
+
+---
 
 ### ✅ KCP (Kontrola Czasu Pracy) — KOMPLETNY (2026-05-08)
 - [x] **F1** — Clock-in/out via rotujący QR (kiosk + skaner kamery PWA + anty-fraud)
