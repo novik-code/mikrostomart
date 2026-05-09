@@ -73,6 +73,20 @@ function LanguageSwitcherInner({ hidden }: { hidden?: boolean }) {
             ? pathWithoutLocale
             : `/${newLocale}${pathWithoutLocale === '/' ? '' : pathWithoutLocale}`;
 
+        // Update NEXT_LOCALE cookie BEFORE the hard reload to override next-intl's
+        // cookie-based locale detection. Without this, returning to default locale (PL)
+        // fails: navigating to /oferta would 307-redirect back to /<previous-locale>/oferta
+        // because the cookie still says e.g. 'de' (next-intl middleware honors the cookie
+        // when URL has no locale prefix).
+        // - Setting to non-default locale: cookie matches the URL prefix, no redirect.
+        // - Setting to default locale (PL): clear the cookie entirely so middleware
+        //   doesn't try cookie-based fallback at all.
+        if (newLocale === routing.defaultLocale) {
+            document.cookie = 'NEXT_LOCALE=; path=/; max-age=0; SameSite=Lax';
+        } else {
+            document.cookie = `NEXT_LOCALE=${newLocale}; path=/; max-age=31536000; SameSite=Lax`;
+        }
+
         // Preserve query string + hash on language switch
         window.location.href = newPath + window.location.search + window.location.hash;
     }
