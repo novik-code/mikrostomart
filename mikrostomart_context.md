@@ -2462,6 +2462,67 @@ NODE_ENV=production
 
 ## 📝 Recent Changes
 
+### 2026-05-09 — Faza E: paczka 4 fixów po PSI desktop 39 + mobile 34
+**Diagnoza po Fazie D pokazała że bottleneck przesunął się do CookieConsent + YouTubeFeed**
+
+#### Commit:
+- `f43d898` — fix(perf,seo): Faza E — paczka 4 fixów po PSI desktop 39 + mobile 34
+
+#### Diagnoza (PSI 2026-05-09 22:04):
+**Desktop:**
+- Performance: **39/100** (z 67 przed Fazą A — regresja!)
+- LCP: 5.2s, TBT: 1190ms, transfer: 18.4 MB
+- LCP element: "Strona korzysta z plików cookies w celu realizacji usług..." czyli **CookieConsent banner**
+
+**Mobile (Moto G Power 4G):**
+- Performance: **34/100**
+- LCP: **25.1s** 🔴, TBT: 1960ms, transfer: 16.4 MB
+- Ten sam LCP element — CookieConsent
+
+YouTube wciąż dominuje (8.4 MB transfer + 3.6s main thread) bo BackgroundVideo fix z Fazy D wyciął tylko jedno źródło — `YouTubeFeed` (lista 5+ filmów na homepage) nadal ma iframe per film.
+
+#### 4 fixy w paczce:
+
+##### 1. CookieConsent dynamic→static (regression Fazy C)
+`src/components/ThemeLayout.tsx`: import statycznie zamiast `dynamic({ssr:false})`. Dynamic sprawiał że banner musiał czekać na hydration + lazy chunk → na slow mobile (Moto G Power 4G) opóźnienie wyniosło ~25 sekund. Static = renderowany w SSR HTML, gotowy od razu. Pozostałe komponenty (BackgroundVideo, AssistantTeaser, PWAInstallPrompt, SimulatorModal, OpinionSurvey) zostają dynamic — nie są LCP element, oszczędności bundle nadal się liczą.
+
+##### 2. YouTubeFeed → facade pattern
+`src/components/YouTubeFeed.tsx`: domyślnie pokazuje thumbnail z YouTube CDN (`i.ytimg.com/vi/{id}/hqdefault.jpg`, ~20-40 KB) + przycisk Play overlay w stylu YouTube. iframe ładuje się dopiero po kliknięciu (z `?autoplay=1` żeby od razu zagrał, bez drugiego kliku). UX identyczny — i tak user musi kliknąć play. State: `playingVideos: Set<string>` per video ID. **Eliminuje ~6.5 MB JS + ~3 sekundy main thread time.**
+
+Marcin zatwierdził: *"filmy dodatkowe z yt nie musza"* mieć autoplay. **`BackgroundVideo` (tło hero) — bez zmian, nadal autoplay przez self-host MP4 z Fazy D.**
+
+##### 3. Hreflang `ua`→`uk` przez middleware
+`src/middleware.ts` `addSecurityHeaders()`: post-process Link header z next-intl middleware. Lighthouse SEO oznaczał `hreflang="ua"` jako "nieoczekiwany kod języka" bo ISO 639-1 dla ukraińskiego to `uk`. Zmiana całej nomenklatury locale (`ua` → `uk` w `routing.ts`, folder `messages/`, kodzie wszędzie gdzie `locale === 'ua'`) byłaby ryzykownym refactorem. Tańsze: string replace na response Link header (5 linii kodu w middleware).
+
+##### 4. Polyfill removal przez browserslist
+`package.json`: dodany `browserslist` z `chrome >= 90`, `firefox >= 90`, `safari >= 14`, `edge >= 90`. PSI raportował 12.9 KiB polyfilli (`Array.at`, `Array.flat`, `Array.flatMap`, `Object.fromEntries`, `Object.hasOwn`, `String.prototype.trimStart`/`trimEnd`) w `chunks/3796` niepotrzebne dla nowoczesnych przeglądarek.
+
+#### Spodziewane efekty na PSI:
+| Metryka | Desktop przed | Desktop po (cel) | Mobile przed | Mobile po (cel) |
+|---|---|---|---|---|
+| Performance | 39 | **65-80** | 34 | **55-70** |
+| LCP | 5.2s | **1-2s** | 25.1s | **5-10s** |
+| TBT | 1190ms | **300-500ms** | 1960ms | **600-900ms** |
+| Transfer | 18.4 MB | **~11 MB** | 16.4 MB | **~10 MB** |
+| SEO score | 92 | **95+** (hreflang) | 92 | **95+** |
+
+#### Co zostało (jeśli wynik dalej za niski — Faza F):
+- **Image responsive sizes** (largest impact pozostały): metamorphosis_after.jpg 1000×976 → 510×510 = 96 KiB save, logo 640×156 → 246×60 = 15 KiB, Google avatars 128×128 → 40×40 = 175 KiB. Łącznie ~290 KiB save.
+- **BackgroundVideo wyłączyć dla mobile** — `<video>` 8 MB MP4 to dużo na 4G. Z `window.matchMedia('(max-width: 768px)')` można skip rendering. Trade-off: mobile users nie widzą tła wideo (które i tak jest pod content z opacity 0.3).
+- **Composited animations**: `Navbar_logoShimmer` używa `left` (powinno `transform: translateX`), `assistantPulse` używa `box-shadow` (powinno `transform: scale`). Kosmetyczne, mały wpływ na CLS (już 0.005 desktop).
+- **Console error 401** z `/auth/roles` dla niezalogowanych: hook fetchuje role bez check czy auth cookie istnieje → spam w Best Practices score.
+
+#### Pliki:
+- `src/components/ThemeLayout.tsx` — CookieConsent z dynamic na static
+- `src/components/YouTubeFeed.tsx` — facade pattern (thumbnail + click→iframe)
+- `src/middleware.ts` — hreflang Link header post-process
+- `package.json` — browserslist config
+
+> **Brak migracji DB / nowych env var.** Tylko zmiany frontendu.
+> Vercel auto-deployuje na produkcję + demo.
+
+---
+
 ### 2026-05-09 — Faza D: self-host hero background video (eliminacja YouTube SDK)
 **Reakcja na PageSpeed Insights 37/100 — YouTube embeds ładują 9 MB JS**
 
