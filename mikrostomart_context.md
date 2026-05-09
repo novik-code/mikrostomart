@@ -2462,6 +2462,24 @@ NODE_ENV=production
 
 ## 📝 Recent Changes
 
+### 2026-05-08 — Mapa projektu Quick Lookup (dokumentacja)
+**Pomocniczy dokument dla AI w przyszłych sesjach**
+
+Dorzucony do pulpitu nowy plik `~/Desktop/MAPA_PROJEKTU_QUICK_LOOKUP.md` jako ścieżka skrótu dla AI orientującego się w projekcie. Zawiera:
+- Feature → pliki (mapa ~50 obszarów funkcjonalnych z konkretnymi ścieżkami)
+- Dependency map (top 13 ryzyk: „jeśli zmienisz X → może popsuć Y, jak chronić")
+- Pełna lista ENV vars z kategoriami (Supabase, Auth, Prodentis, Communication, Payments, Firebase, AI, Google, Meta)
+- Design system (CSS variables, fonty, theme presets, brand config)
+- Quick commands (build, diagnostyka, KCP-specific SQL)
+- Heurystyki „when AI is lost" + lista anti-patterns
+- Świadome długi techniczne (admin/page.tsx monolith, brak testów, brak ERD)
+
+Link do mapy dorzucony w `~/Desktop/KOMENDA_STARTOWA_MIKROSTOMART.md` sekcja 2 (Krytyczne lokalizacje) i w pamięci AI `reference_mikrostomart_paths.md`.
+
+Cel: zamykamy lukę „AI musi szukać przez `grep`" — teraz pierwszym przystankiem jest mapa, a `Explore` agent dopiero gdy mapa nie wystarczy.
+
+---
+
 ### 2026-05-08 — KCP (Kontrola Czasu Pracy) F1-F7 + cross-verify
 **Pełen system kontroli czasu pracy pracowników — 7 faz wdrożone w jeden dzień**
 
