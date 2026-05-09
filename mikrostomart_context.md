@@ -1,8 +1,8 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-09 (SEO Faza 2.x: aktualności per-locale + cleanup legacy)  
+> **Last Updated:** 2026-05-09 (SEO Faza A: quick wins — meta desc + H2 + next/image)  
 > **Version:** Production + Demo (Dual Vercel Deployment)  
-> **Status:** Active Development — KCP FULL; CareFlow Perioperative; Push-First Communication; **SEO Recovery KOMPLETNA: Faza 1+1.5+2+2.x** (LanguageSwitcher fix v1+v2+v3 cookie sync; aktualności 14 newsów × 4 locale w sitemap z hreflang)
+> **Status:** Active Development — KCP FULL; CareFlow Perioperative; Push-First Communication; **SEO Recovery: Faza 1+1.5+2+2.x+A KOMPLETNE** (Faza B-D z dodatkowych poprawek to TODO)
 
 ---
 
@@ -2461,6 +2461,58 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-09 — SEO Faza A: quick wins (meta description, H2, next/image)
+**3 quick wins z 4-fazowego planu SEO post-recovery (po Marcin uruchomił PageSpeed + Rich Results Test)**
+
+#### Commit:
+- `d02509f` — feat(seo): Faza A quick wins — meta description, H2 struktura, img → Image
+
+#### #1 Meta description (238 → 145-154 chars):
+- `src/lib/brandConfig.ts` brand.description: 238 → 144 chars (default fallback)
+- `src/app/[locale]/page.tsx` HOMEPAGE_SEO[locale].description: 4 locale skrócone do optimal range. UA cyrylica 249 bytes ≈ 140 Unicode chars (2-byte UTF-8)
+- Skutek: Google nie obcina meta description w SERP → CTR boost
+
+#### #3 next/image migration (4 wystąpień <img> w public-facing UI):
+- `src/app/[locale]/sklep/page.tsx` — product image w listingu (fill + sizes responsive). Fallback do `<img>` dla `data:` URLs (base64 nieoptymalizowane)
+- `src/components/ProductModal.tsx` — 2 obrazy (cart item + gallery thumb)
+- `src/components/YouTubeFeed.tsx` — clinic logo placeholder
+- `next.config.ts` — `*.supabase.co` w `images.remotePatterns` (product images z Supabase Storage)
+- Pominięte: admin/internal `<img>` (admin/page.tsx, SocialMediaTab, NewsTab, ScheduleTab, TasksTab, ThemeEditor, AssistantTeaser preview, simulator components, VisualEditorOverlay) — nie wpływają na SEO publicznych stron
+
+#### #7 H2 struktura homepage:
+- Audit pokazał 3 H2 + 1 H3 grupa bez parent H2 ("Precyzja"/"Estetyka"/"Komfort" cards)
+- Dodany H2 "Co nas wyróżnia" jako wrapper sectionu w `HomeClient.tsx` ValuesSection
+- `messages/{pl,en,de,ua}/common.json` — klucz `values.heading` we wszystkich 4 locale
+
+#### Co NIE zostało zrobione (świadomie):
+- `/oferta` page H2 — carousel renderuje tylko 1 ofertę naraz (decyzja UX). Indywidualne `/oferta/*` mają już bardzo dobrą strukturę (5+ H2 per page).
+- Per-page localized metadata (Faza D) — niski priorytet, w osobnej sesji.
+
+#### Smoke test:
+- Meta description: PL 145, EN 154, DE 153, UA 140 (Unicode) chars ✅
+- Homepage: 4 H2 (Co nas wyróżnia, Twoja droga do, YouTube, Opinie) ✅
+- Sklep: 14× next/image w renderowanym HTML ✅
+- Wszystkie strony 200 OK
+
+#### Dane bazowe Marcina (PageSpeed Insights mobile, /en homepage, 2026-05-09):
+- LCP: 2,7s (BORDERLINE — cel <2,5s "good")
+- INP: 168ms (zielone)
+- CLS: 0,03 (zielone)
+- FCP: 1,5s (zielone)
+- TTFB: 0,7s (zielone)
+- **Główny problem: LCP** — Faza C planu odpowiada (Hero image priority, preload, theme injection optimization)
+
+#### Rich Results Test (2026-05-09):
+- 2 prawidłowe elementy: LocalBusiness (Dentist) + Organization
+- Po Fazie B: docelowo 5-7 (dodać MedicalProcedure × 6 service pages, BreadcrumbList, Article)
+
+#### Pozostałe fazy planu (TODO):
+- **Faza B** — Schema.org boost (BreadcrumbList + per-page MedicalProcedure + Article schema). 2h, najwyższy SEO impact.
+- **Faza C** — LCP optimization (Hero priority, preload, defer JS). 1.5h.
+- **Faza D** — Per-page localized metadata. 2h, niski priorytet.
+
+---
 
 ### 2026-05-09 — SEO Recovery Faza 2.x: aktualności per-locale + LanguageSwitcher fix
 **Dokończenie Fazy 2 — newsy w 4 językach + cleanup legacy + 3 fixy switcher'a**
