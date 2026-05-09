@@ -2,8 +2,13 @@
 
 import { useLocale } from "next-intl";
 import { routing } from "@/i18n/routing";
+// IMPORTANT: use next-intl's locale-aware navigation, not next/navigation.
+// next-intl's useRouter().replace(pathname, {locale}) auto-strips the existing
+// locale prefix and adds the new one — and it forces a server re-render so the
+// root layout reloads messages for the new locale (which next/navigation's
+// router.push does NOT do, leaving the page in the old locale).
+import { useRouter, usePathname } from "@/i18n/navigation";
 import { useState, useRef, useEffect, useTransition } from "react";
-import { useRouter, usePathname } from "next/navigation";
 
 const FLAGS: Record<string, string> = {
     pl: "🇵🇱",
@@ -42,30 +47,16 @@ function LanguageSwitcherInner({ hidden }: { hidden?: boolean }) {
     }, [hidden]);
 
     /**
-     * Switch locale by changing the URL prefix (Faza 2 SEO 2026-05-09).
-     * Strip current locale prefix from pathname (if present), then prepend the new
-     * locale prefix unless it's the default (PL = no prefix).
-     *
-     * Examples:
-     *   /oferta + 'en'  → /en/oferta
-     *   /en/oferta + 'de' → /de/oferta
-     *   /de/oferta + 'pl' → /oferta
+     * Switch locale via next-intl's locale-aware router (Faza 2.x SEO 2026-05-09).
+     * `pathname` from @/i18n/navigation is already stripped of the locale prefix,
+     * and router.replace({locale}) handles re-prefixing + a hard server navigation
+     * that re-renders the root layout with new messages.
      */
     function switchLocale(newLocale: string) {
         setIsOpen(false);
         if (newLocale === locale) return;
-
-        // Strip existing locale prefix
-        const localePrefixPattern = new RegExp(`^/(${routing.locales.join('|')})(?=/|$)`);
-        const pathWithoutLocale = pathname.replace(localePrefixPattern, '') || '/';
-
-        // Build new URL: PL has no prefix; others get /{locale}
-        const newPath = newLocale === routing.defaultLocale
-            ? pathWithoutLocale
-            : `/${newLocale}${pathWithoutLocale === '/' ? '' : pathWithoutLocale}`;
-
         startTransition(() => {
-            router.push(newPath);
+            router.replace(pathname, { locale: newLocale as any });
         });
     }
 
