@@ -81,21 +81,34 @@ export default async function ArticlePage({ params }: { params: Promise<{ locale
         <main style={{ background: "var(--color-background)" }}>
             <article className="container" style={{ padding: "8rem 2rem 4rem", maxWidth: "800px" }}>
 
-                {/* Back Link */}
+                {/* Back Link — styled as a button + locale-aware href */}
                 <div style={{ marginBottom: "2rem" }}>
-                    <Link href="/aktualnosci" style={{
-                        color: "var(--color-text-muted)",
+                    <Link href={`${locale === 'pl' ? '' : `/${locale}`}/aktualnosci`} style={{
+                        color: "var(--color-primary)",
                         textDecoration: "none",
                         fontSize: "0.9rem",
-                        display: "flex",
+                        fontWeight: 600,
+                        display: "inline-flex",
                         alignItems: "center",
                         gap: "0.5rem",
-                        transition: "color 0.2s"
+                        padding: "0.6rem 1.2rem",
+                        border: "1px solid rgba(var(--color-primary-rgb), 0.4)",
+                        borderRadius: "var(--radius-md)",
+                        background: "rgba(var(--color-primary-rgb), 0.05)",
+                        transition: "all 0.2s ease",
                     }}
-                        className="hover:text-primary"
+                        className="news-back-btn"
                     >
                         {t('backToNews')}
                     </Link>
+                    <style>{`
+                        .news-back-btn:hover {
+                            background: var(--color-primary) !important;
+                            color: var(--color-background) !important;
+                            border-color: var(--color-primary) !important;
+                            transform: translateX(-2px);
+                        }
+                    `}</style>
                 </div>
 
                 <RevealOnScroll>

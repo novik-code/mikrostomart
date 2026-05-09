@@ -145,7 +145,11 @@ export default function NewsPage() {
                             >
                                 <div style={{ width: "100%", height: "100%" }}>
                                     <RevealOnScroll animation="fade-up">
-                                        <Link href={`/aktualnosci/${article.slug}`} style={{ textDecoration: 'none' }}>
+                                        {/* href must include locale prefix (except for default PL) so client-side
+                                            navigation stays in the current language. After URL-based i18n migration
+                                            (Faza 2), `/aktualnosci/<slug>` resolves to PL — visiting it from EN page
+                                            caused mid-navigation locale loss / unclickable cards. */}
+                                        <Link href={`${locale === 'pl' ? '' : `/${locale}`}/aktualnosci/${article.slug}`} style={{ textDecoration: 'none' }}>
                                             <article style={{
                                                 background: "var(--color-surface)",
                                                 borderRadius: "var(--radius-md)",
