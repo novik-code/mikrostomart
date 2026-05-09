@@ -9,12 +9,26 @@ import * as Sentry from "@sentry/nextjs";
 Sentry.init({
     dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
 
-    // Performance monitoring
-    tracesSampleRate: 0.1, // 10% of transactions
+    // Faza C (SEO/perf 2026-05-09): performance monitoring + Replay disabled to shrink
+    // client bundle (~85 KiB Replay + ~30 KiB BrowserTracing). Replay was capturing 50%
+    // of errors with user action replay — useful but expensive for a public dental clinic
+    // site where errors are infrequent and server-side stack traces are usually enough.
+    // Flip back if visual debugging of customer-reported issues becomes important.
+    tracesSampleRate: 0,
+    replaysSessionSampleRate: 0,
+    replaysOnErrorSampleRate: 0,
 
-    // Replay errors (captures user action replay for error context)
-    replaysSessionSampleRate: 0,    // Don't record normal sessions
-    replaysOnErrorSampleRate: 0.5,  // 50% of errors get replay
+    // Strip heavy default integrations from the client bundle while keeping error
+    // tracking essentials (GlobalHandlers, InboundFilters, Dedupe, LinkedErrors,
+    // Breadcrumbs etc.). This is the documented Sentry pattern for opting out of
+    // specific defaults — preferred over `integrations: []` which would also drop
+    // window.onerror/unhandledrejection capture.
+    integrations: (defaultIntegrations) =>
+        defaultIntegrations.filter((i) =>
+            i.name !== 'Replay' &&
+            i.name !== 'BrowserTracing' &&
+            i.name !== 'BrowserProfiling'
+        ),
 
     // Only in production
     enabled: process.env.NODE_ENV === 'production',

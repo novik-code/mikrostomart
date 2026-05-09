@@ -2,15 +2,21 @@
 
 import { ThemeProvider, useTheme, usePresetId } from '@/context/ThemeContext';
 import { ReactNode } from 'react';
-import BackgroundVideo from '@/components/BackgroundVideo';
-import CookieConsent from '@/components/CookieConsent';
+import dynamic from 'next/dynamic';
 import SplashScreen from '@/components/SplashScreen';
-import AssistantTeaser from '@/components/AssistantTeaser';
-import PWAInstallPrompt from '@/components/PWAInstallPrompt';
-import SimulatorModal from '@/components/SimulatorModal';
-import OpinionSurvey from '@/components/OpinionSurvey';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+
+// Faza C (SEO/perf): non-critical UI lazy-loaded after hydration to shrink initial bundle.
+// All wrapped components are conditional or user-triggered (modals, banners, teasers).
+// SplashScreen stays static because it wraps `children` — dynamic with ssr:false would
+// blank the SSR HTML.
+const BackgroundVideo = dynamic(() => import('@/components/BackgroundVideo'), { ssr: false });
+const CookieConsent = dynamic(() => import('@/components/CookieConsent'), { ssr: false });
+const AssistantTeaser = dynamic(() => import('@/components/AssistantTeaser'), { ssr: false });
+const PWAInstallPrompt = dynamic(() => import('@/components/PWAInstallPrompt'), { ssr: false });
+const SimulatorModal = dynamic(() => import('@/components/SimulatorModal'), { ssr: false });
+const OpinionSurvey = dynamic(() => import('@/components/OpinionSurvey'), { ssr: false });
 
 function ThemedContent({ children }: { children: ReactNode }) {
     const { theme } = useTheme();

@@ -10,9 +10,11 @@ import { OpinionProvider } from "@/context/OpinionContext";
 import { VisualEditorProvider } from "@/context/VisualEditorContext";
 import ThemeLayout from "@/components/ThemeLayout";
 import DemoBanner from "@/components/DemoBanner";
-import AdminFloatingBar from "@/components/AdminFloatingBar";
-import VisualEditorOverlay from "@/components/editor/VisualEditorOverlay";
-import PageOverridesApplier from "@/components/editor/PageOverridesApplier";
+import {
+    AdminFloatingBarLazy,
+    VisualEditorOverlayLazy,
+    PageOverridesApplierLazy,
+} from "@/components/AdminClientLayer";
 import { isDemoMode } from "@/lib/demoMode";
 import { brand, brandI18nParams, demoSanitize, loadBrandFromDB } from "@/lib/brandConfig";
 import "./globals.css";
@@ -274,14 +276,14 @@ export default async function RootLayout({
                                     <OpinionProvider>
                                         <ThemeLayout>
                                             {children}
-                                            <PageOverridesApplier />
+                                            <PageOverridesApplierLazy />
                                         </ThemeLayout>
                                     </OpinionProvider>
                                 </SimulatorProvider>
                             </AssistantProvider>
                         </CartProvider>
-                        <AdminFloatingBar />
-                        <VisualEditorOverlay />
+                        <AdminFloatingBarLazy />
+                        <VisualEditorOverlayLazy />
                     </VisualEditorProvider>
                 </NextIntlClientProvider>
             </body>

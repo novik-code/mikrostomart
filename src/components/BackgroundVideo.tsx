@@ -27,6 +27,8 @@ export default function BackgroundVideo({ videoId }: { videoId: string }) {
         }}>
             <iframe
                 src={`https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${videoId}&playsinline=1&showinfo=0&rel=0`}
+                title="Tło wideo strony"
+                aria-hidden="true"
                 style={{
                     width: "100vw",
                     height: "56.25vw", // 16:9 Aspect Ratio

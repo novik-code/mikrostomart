@@ -55,13 +55,17 @@ function addSecurityHeaders(response: NextResponse): NextResponse {
 
     response.headers.set('Content-Security-Policy-Report-Only', [
         "default-src 'self'",
-        "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://maps.googleapis.com https://www.googletagmanager.com",
+        "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://maps.googleapis.com https://www.googletagmanager.com https://www.googleadservices.com",
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
         "img-src 'self' data: blob: https: http:",
         "font-src 'self' https://fonts.gstatic.com",
-        `connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.openai.com https://api.smsapi.pl https://api.stripe.com https://maps.googleapis.com ${prodentisOrigin}`,
-        "frame-src 'self' https://www.google.com https://www.youtube.com",
-        "media-src 'self' blob:",
+        // Faza C SEO: Sentry ingest endpoints (browser SDK posts errors here) + YouTube
+        // tracking domain so background video doesn't generate CSP report noise.
+        `connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.openai.com https://api.smsapi.pl https://api.stripe.com https://maps.googleapis.com https://*.ingest.sentry.io https://*.ingest.de.sentry.io https://*.ingest.us.sentry.io https://www.youtube.com ${prodentisOrigin}`,
+        // YouTube embed loads from youtube.com/embed but resources come from googlevideo,
+        // ytimg, and youtube-nocookie subdomains.
+        "frame-src 'self' https://www.google.com https://www.youtube.com https://www.youtube-nocookie.com",
+        "media-src 'self' blob: https://*.googlevideo.com",
         "worker-src 'self' blob:",
     ].join('; '));
 
