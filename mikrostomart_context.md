@@ -1,8 +1,8 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-09 (SEO Faza 2: URL-based i18n)  
+> **Last Updated:** 2026-05-09 (SEO Faza 2.x: aktualności per-locale + cleanup legacy)  
 > **Version:** Production + Demo (Dual Vercel Deployment)  
-> **Status:** Active Development — KCP FULL; CareFlow Perioperative; Push-First Communication; **SEO Recovery KOMPLETNA Faza 1+1.5+2** (Faza 2.x: tłumaczenie 14 statycznych aktualności do EN/DE/UA — TODO)
+> **Status:** Active Development — KCP FULL; CareFlow Perioperative; Push-First Communication; **SEO Recovery KOMPLETNA: Faza 1+1.5+2+2.x** (LanguageSwitcher fix v1+v2+v3 cookie sync; aktualności 14 newsów × 4 locale w sitemap z hreflang)
 
 ---
 
@@ -2461,6 +2461,73 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-09 — SEO Recovery Faza 2.x: aktualności per-locale + LanguageSwitcher fix
+**Dokończenie Fazy 2 — newsy w 4 językach + cleanup legacy + 3 fixy switcher'a**
+
+#### Commits (chronologicznie):
+- `1abe222` — fix(i18n): LanguageSwitcher używa next-intl router.replace (próba 1, nieudana — root layout w App Router się nie re-renderuje przy SPA navigation)
+- `c1e032c` — fix(i18n): LanguageSwitcher hard-reload + ręczne strip prefiksu (próba 2 — działało dla większości, ale powrót do PL nie działał)
+- `050a09d` — fix(i18n): LanguageSwitcher synchronizuje cookie NEXT_LOCALE (próba 3 ostateczna — DZIAŁA)
+- `6ef1ae5` — feat(i18n): aktualności per-locale w sitemap + naprawa params types
+
+#### LanguageSwitcher — saga 3 fix'ów
+**Final fix (`050a09d`)** synchronizuje cookie NEXT_LOCALE z URL prefix przed
+hard reload (`window.location.href`):
+- Klik 🇵🇱 (default locale) → `document.cookie = 'NEXT_LOCALE=; max-age=0'` (clear), reload na `/oferta` (bez prefiksu).
+- Klik non-default (en/de/ua) → set cookie na nowy locale, reload na `/<locale>/oferta`.
+
+WHY: next-intl middleware z `as-needed` strategy honoruje cookie NEXT_LOCALE
+gdy URL nie ma prefiksu — `/oferta` z cookie='de' daje 307 redirect na
+`/de/oferta`. Bez czyszczenia cookie powrót do PL przez flagę nie działał.
+
+POTWIERDZENIE eksperymentalne (curl smoke test):
+- `curl -H "cookie: NEXT_LOCALE=de" /oferta` → 307 → `/de/oferta` ⚠️
+- `curl /oferta` (bez cookie) → 200 ✅
+
+#### Aktualności per-locale (`6ef1ae5`)
+**Niespodzianka diagnostyczna:** Tabela `news` w Supabase już zawierała 100%
+tłumaczeń (14 wierszy × 3 locale × 3 kolumny = 126/126 wypełnionych). Strony
+`[locale]/aktualnosci/page.tsx` i `[slug]/page.tsx` już używały DB poprzez
+`/api/news?locale=` i `localizeArticle()` helper. Brakowało tylko:
+
+- **Sitemap.ts**: czytał z legacy `data/articles.ts` (statyczna lista 14 PL),
+  generował tylko PL URL bez hreflang dla newsów. Refactor: read z DB tabeli
+  `news`, flatMap → 1 entry per locale + jednolity `alternates.languages`
+  per artykuł grupy. **644 → 686 URLi w sitemap** (+42 = 14 newsów × 3 nowych locale prefix).
+- **`[locale]/aktualnosci/[slug]/page.tsx`**: types params NIE zawierały
+  `locale` (tylko `slug`) → 500 error przy `/en/aktualnosci/<slug>`.
+  - `generateStaticParams`: cartesian product locales × slugs (4 × 14 = 56 statyk)
+  - `generateMetadata`: types `{locale, slug}` + użycie zlokalizowanych
+    title/excerpt
+  - `ArticlePage`: użycie `params.locale` zamiast `getLocale()` (bardziej
+    niezawodny source)
+
+#### Sprzątanie legacy
+- **Usunięto** `src/data/articles.ts` (316 linii) — dane przeniesione do DB
+  dawno temu, jedynym konsumentem był sitemap (już naprawiony) +
+  `migrate-news.ts`.
+- **Usunięto** `scripts/migrate-news.ts` (56 linii) — one-shot migration
+  script, już dawno wykonany.
+
+#### Dodane utility
+- **`scripts/translate-missing-news.ts`** — analogicznie do
+  `translate-missing-i18n.ts`, ale dla DB rows. Idempotentny: dla każdego
+  wiersza × każdego locale sprawdza czy `{field}_{locale}` jest null i
+  AI-translate via GPT-4o-mini. Stan na dziś: 0 missing, skrypt no-op.
+  Zostawiony jako safety net na wypadek dodania nowych newsów w przyszłości.
+
+#### Smoke test (`npm run start` localhost):
+- Sitemap: 686 URLi (vs 644 wcześniej)
+- `/aktualnosci/ortodoncja-...` → 200, h1 PL: "ORTODONCJA NAKŁADKOWA..."
+- `/en/aktualnosci/ortodoncja-...` → 200, h1 EN: "ALIGNER ORTHODONTICS..."
+- `/de/aktualnosci/...` → 200, h1 DE: "ALIGNER-ORTHODONTIE..."
+- `/ua/aktualnosci/...` → 200, h1 UA: "ЕЛАЙНЕРИ В MIKROSTOMART"
+- LanguageSwitcher: PL ↔ EN ↔ DE ↔ UA — wszystkie kierunki działają
+
+> **Brak migracji DB / nowych env var.** Tylko zmiany w kodzie + cleanup.
+
+---
 
 ### 2026-05-09 — SEO Recovery Faza 2: URL-based i18n
 **Pełna restruktura — wersje EN/DE/UA pod własnymi URL-ami z prawdziwym hreflang**
@@ -5943,10 +6010,12 @@ OpenAI gpt-image-1 regenerates the entire masked area from scratch (+ forces 102
 - [x] **Faza 1** — Fałszywy hreflang usunięty (przygotowanie pod Fazę 2)
 - [x] **Faza 1.5** — Ujednolicenie kanonicznej domeny na `www.mikrostomart.pl` (zgodnie z Vercel primary domain). Pliki: `brandConfig.ts` (5 pól + DB protection), `emailService.ts`, `googleCalendar.ts`, 4 cron/api fallbacks
 - [x] **Faza 1.5** — `loadBrandFromDB()` chroni domain/URL fields przed nadpisaniem z DB (delete dbBrand dla appUrl, metadataBase, schemaUrl/Id/Image)
-- [x] **Faza 2** — URL-based i18n (`localePrefix: 'as-needed'`, prawdziwy hreflang, restruktura `[locale]`, sitemap per-locale 644 URLi, lokalizowane metadata homepage, KB articles per-locale URL z hreflang). 471 brakujących kluczy w `pages.json` (5 sekcji oferty × EN/DE/UA) AI-translated przez GPT-4o-mini.
-- [ ] **Faza 2.x** — 14 statycznych aktualności (`data/articles.ts`) tłumaczyć do EN/DE/UA — wymaga rozszerzenia `Article` interface o `locale`/`group_id` lub migracji do DB.
-- [ ] **Faza 2.x** — Per-page lokalizowane `generateMetadata({ locale })` dla pozostałych stron (oferta/*, cennik, kontakt, etc.) — obecnie fallback do root `titleTemplate`, działa ale niezlokalizowane. Niski priorytet.
-- [ ] **Faza 3** — Marcin: GSC HTTPS property dodany ✅. Re-submit sitemap (644 URLi) po deploy. Audyt po 4-6 tygodniach (oczekiwany 198 → 0 błędów 404 + EN/DE/UA pojawiają się w indeksie)
+- [x] **Faza 2** — URL-based i18n (`localePrefix: 'as-needed'`, prawdziwy hreflang, restruktura `[locale]`, sitemap per-locale, lokalizowane metadata homepage, KB articles per-locale URL z hreflang). 471 brakujących kluczy w `pages.json` (5 sekcji oferty × EN/DE/UA) AI-translated przez GPT-4o-mini.
+- [x] **Faza 2.x** — Aktualności per-locale (14 newsów × 4 locale w sitemap, hreflang per artykuł, naprawiony `generateStaticParams` w `[locale]/aktualnosci/[slug]`). Tłumaczenia w DB tabeli `news` (kolumny `title_en/de/ua`, `excerpt_*`, `content_*`) — wszystkie wypełnione (126/126).
+- [x] **Faza 2.x** — Cleanup legacy: usunięte `src/data/articles.ts` (316 linii) + `scripts/migrate-news.ts` (56 linii). Dodany `scripts/translate-missing-news.ts` jako safety net na nowe newsy.
+- [x] **Faza 2.x** — LanguageSwitcher fix saga (3 iteracje): finalny `050a09d` używa hard reload (window.location.href) + sync cookie NEXT_LOCALE z URL prefix. Przed reloadem cookie clear (PL=default) lub set (en/de/ua) żeby next-intl middleware nie 307-redirectował.
+- [ ] **Faza 2.x** — Per-page lokalizowane `generateMetadata({ locale })` dla pozostałych stron (oferta/*, cennik, kontakt, etc.) — obecnie fallback do root `titleTemplate`, działa ale niezlokalizowane title/description. Niski priorytet (Google bardziej patrzy na content niż title dla rankingu language-specific).
+- [ ] **Faza 3** — Marcin: GSC HTTPS property dodany ✅. Re-submit sitemap (686 URLi) po deploy ✅. Audyt po 4-6 tygodniach (oczekiwany 198 → 0 błędów 404 + EN/DE/UA pojawiają się w indeksie)
 
 ### ✅ KCP (Kontrola Czasu Pracy) — KOMPLETNY (2026-05-08)
 - [x] **F1** — Clock-in/out via rotujący QR (kiosk + skaner kamery PWA + anty-fraud)
