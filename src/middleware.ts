@@ -1,5 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import createIntlMiddleware from 'next-intl/middleware';
+import { routing } from './i18n/routing';
 
 /**
  * Known search engine bot user-agent patterns.
@@ -11,6 +13,34 @@ function isBot(request: NextRequest): boolean {
     const ua = request.headers.get('user-agent') || '';
     return BOT_UA_PATTERNS.test(ua);
 }
+
+/**
+ * Paths that should bypass next-intl locale handling entirely.
+ * These are internal apps (admin, employee zones) or technical endpoints,
+ * not part of the multilingual public site.
+ *
+ * Faza 2 SEO Recovery (2026-05-09): public pages live in src/app/[locale]/
+ * while these paths stay in src/app/ root and don't get locale prefix routing.
+ */
+const NON_LOCALE_PATHS = [
+    '/api/',
+    '/admin',
+    '/pracownik',
+    '/ekarta/',
+    '/qr-display',
+    '/zgody/',
+    '/auth/',
+    '/opieka/',
+    '/s/',
+    '/zespol',  // 301-redirected to /o-nas via next.config redirects
+];
+
+function shouldBypassIntl(pathname: string): boolean {
+    return NON_LOCALE_PATHS.some(p => pathname === p || pathname.startsWith(p));
+}
+
+// next-intl middleware handles URL → locale extraction and redirect for /en, /de, /ua prefixes
+const intlMiddleware = createIntlMiddleware(routing);
 
 /**
  * Apply security headers to response.
@@ -45,14 +75,22 @@ function addSecurityHeaders(response: NextResponse): NextResponse {
 export async function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl;
 
-    // ─── Fast path for bots: skip auth, just apply security headers ─────
+    // ─── Fast path for bots: skip auth + apply intl + security headers ─────
     if (isBot(request)) {
+        // Bots still need intl middleware for locale-prefixed URLs
+        if (!shouldBypassIntl(pathname)) {
+            const intlResponse = intlMiddleware(request);
+            return addSecurityHeaders(intlResponse);
+        }
         return addSecurityHeaders(NextResponse.next());
     }
 
     // ─── Block /mapa-bolu/editor in production (debug tool) ───────────────
-    if (pathname === '/mapa-bolu/editor') {
-        // Only allow if user has Supabase auth session (admin/employee)
+    // Note: /mapa-bolu lives under [locale] now, so editor path includes locale prefix.
+    // Match both with and without locale prefix.
+    const isMapaBoluEditor = pathname === '/mapa-bolu/editor'
+        || /^\/(en|de|ua)\/mapa-bolu\/editor$/.test(pathname);
+    if (isMapaBoluEditor) {
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
         const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
         if (supabaseUrl && supabaseKey) {
@@ -67,35 +105,51 @@ export async function middleware(request: NextRequest) {
                 return NextResponse.redirect(new URL('/', request.url));
             }
         }
-        return addSecurityHeaders(NextResponse.next());
+        return addSecurityHeaders(intlMiddleware(request));
     }
 
     // ─── Patient zone protection (JWT cookie check) ──────────────────────
     // Patient auth uses custom JWT cookies, not Supabase auth.
-    // This is a fast server-side guard; full JWT verification happens in API routes.
-    if (pathname.startsWith('/strefa-pacjenta')) {
+    // Strefa pacjenta lives under [locale] now (Faza 2 SEO 2026-05-09):
+    // /strefa-pacjenta/* (PL) or /en|de|ua/strefa-pacjenta/*. We strip the locale
+    // prefix when checking auth-protected vs public sub-paths.
+    const localePrefixMatch = pathname.match(/^\/(en|de|ua)(\/.*)?$/);
+    const pathWithoutLocale = localePrefixMatch
+        ? (localePrefixMatch[2] || '/')
+        : pathname;
+
+    if (pathWithoutLocale.startsWith('/strefa-pacjenta')) {
         const PUBLIC_PATIENT_PATHS = [
             '/strefa-pacjenta/login',
             '/strefa-pacjenta/register',
             '/strefa-pacjenta/reset-password',
         ];
 
-        const isPublicPatientPage = PUBLIC_PATIENT_PATHS.some(p => pathname.startsWith(p))
-            || pathname === '/strefa-pacjenta';
+        const isPublicPatientPage = PUBLIC_PATIENT_PATHS.some(p => pathWithoutLocale.startsWith(p))
+            || pathWithoutLocale === '/strefa-pacjenta';
 
         if (!isPublicPatientPage) {
             const token = request.cookies.get('patient_token')?.value;
             if (!token) {
-                return NextResponse.redirect(new URL('/strefa-pacjenta/login', request.url));
+                // Preserve locale prefix in redirect target if present
+                const loginPath = localePrefixMatch
+                    ? `/${localePrefixMatch[1]}/strefa-pacjenta/login`
+                    : '/strefa-pacjenta/login';
+                return NextResponse.redirect(new URL(loginPath, request.url));
             }
         }
 
-        // Patient zone doesn't need Supabase auth — return early
-        return addSecurityHeaders(NextResponse.next());
+        // Patient zone doesn't need Supabase auth — apply intl + security
+        return addSecurityHeaders(intlMiddleware(request));
     }
 
-    // ─── Supabase auth for admin/employee routes ──────────────────────────
-    return handleSupabaseAuth(request);
+    // ─── Non-locale paths (admin, pracownik, api, etc.): only Supabase auth ──
+    if (shouldBypassIntl(pathname)) {
+        return handleSupabaseAuth(request);
+    }
+
+    // ─── All public locale-aware routes: next-intl handles URL → locale ──
+    return addSecurityHeaders(intlMiddleware(request));
 }
 
 /**

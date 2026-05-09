@@ -1,17 +1,15 @@
+import { hasLocale } from 'next-intl';
 import { getRequestConfig } from 'next-intl/server';
-import { cookies } from 'next/headers';
 import { routing } from './routing';
 import { brandI18nParams } from '@/lib/brandConfig';
 
-export default getRequestConfig(async () => {
-    // Read locale from NEXT_LOCALE cookie (set by LanguageSwitcher)
-    const cookieStore = await cookies();
-    const cookieLocale = cookieStore.get('NEXT_LOCALE')?.value;
-
-    // Validate the locale, fall back to default
-    const locale = cookieLocale && routing.locales.includes(cookieLocale as any)
-        ? cookieLocale
-        : routing.defaultLocale;
+export default getRequestConfig(async ({ requestLocale }) => {
+    // URL-based locale resolution (Faza 2 SEO Recovery 2026-05-09):
+    // requestLocale comes from the [locale] segment in the URL. next-intl middleware
+    // populates it via the URL path (e.g. /en/oferta → 'en'). For PL (default, no prefix)
+    // requestLocale will be 'pl' or undefined, falling back to defaultLocale.
+    const requested = await requestLocale;
+    const locale = hasLocale(routing.locales, requested) ? requested : routing.defaultLocale;
 
     const common = (await import(`../../messages/${locale}/common.json`)).default;
     const pages = (await import(`../../messages/${locale}/pages.json`)).default;

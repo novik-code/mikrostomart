@@ -1,6 +1,6 @@
 'use client';
 
-import styles from '../app/strefa-pacjenta/patient.module.css';
+import styles from '../app/[locale]/strefa-pacjenta/patient.module.css';
 
 interface SkeletonProps {
     variant?: 'card' | 'line' | 'lineShort' | 'circle';

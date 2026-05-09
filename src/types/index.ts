@@ -17,7 +17,7 @@ export type { FieldPosition, PeselBoxes, ConsentFieldMap, ConsentType } from '@/
 export { CONSENT_TYPES, CONSENT_TYPE_KEYS, getConsentTypesFromDB } from '@/lib/consentTypes';
 
 // Comparator
-export type { QuestionOption, Question, TableCell, MethodTable, MethodMetrics, Method, GatingEffect, GatingRule, PriorityOption, PriorityWeights, Category, Comparator, ScoredMethod } from '@/app/porownywarka/comparatorTypes';
+export type { QuestionOption, Question, TableCell, MethodTable, MethodMetrics, Method, GatingEffect, GatingRule, PriorityOption, PriorityWeights, Category, Comparator, ScoredMethod } from '@/app/[locale]/porownywarka/comparatorTypes';
 
 // Appointment Actions (existing in src/types/)
 export * from './appointmentActions';

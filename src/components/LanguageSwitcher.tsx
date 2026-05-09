@@ -3,7 +3,7 @@
 import { useLocale } from "next-intl";
 import { routing } from "@/i18n/routing";
 import { useState, useRef, useEffect, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 
 const FLAGS: Record<string, string> = {
     pl: "🇵🇱",
@@ -20,6 +20,7 @@ const FLAGS: Record<string, string> = {
 function LanguageSwitcherInner({ hidden }: { hidden?: boolean }) {
     const locale = useLocale();
     const router = useRouter();
+    const pathname = usePathname();
     const [isPending, startTransition] = useTransition();
     const [isOpen, setIsOpen] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
@@ -40,11 +41,31 @@ function LanguageSwitcherInner({ hidden }: { hidden?: boolean }) {
         if (hidden) setIsOpen(false);
     }, [hidden]);
 
+    /**
+     * Switch locale by changing the URL prefix (Faza 2 SEO 2026-05-09).
+     * Strip current locale prefix from pathname (if present), then prepend the new
+     * locale prefix unless it's the default (PL = no prefix).
+     *
+     * Examples:
+     *   /oferta + 'en'  → /en/oferta
+     *   /en/oferta + 'de' → /de/oferta
+     *   /de/oferta + 'pl' → /oferta
+     */
     function switchLocale(newLocale: string) {
         setIsOpen(false);
-        document.cookie = `NEXT_LOCALE=${newLocale};path=/;max-age=31536000;SameSite=Lax`;
+        if (newLocale === locale) return;
+
+        // Strip existing locale prefix
+        const localePrefixPattern = new RegExp(`^/(${routing.locales.join('|')})(?=/|$)`);
+        const pathWithoutLocale = pathname.replace(localePrefixPattern, '') || '/';
+
+        // Build new URL: PL has no prefix; others get /{locale}
+        const newPath = newLocale === routing.defaultLocale
+            ? pathWithoutLocale
+            : `/${newLocale}${pathWithoutLocale === '/' ? '' : pathWithoutLocale}`;
+
         startTransition(() => {
-            router.refresh();
+            router.push(newPath);
         });
     }
 
