@@ -87,6 +87,98 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  // 301 redirects from old Joomla URLs (pre-Next.js migration) to current structure.
+  // Source: 198 URLs flagged as 404 in Google Search Console export 2026-05-09.
+  async redirects() {
+    return [
+      // Old Joomla articles: /aktualnosci/{ID}-{slug} → /aktualnosci (171 URLs)
+      {
+        source: '/aktualnosci/:idAndSlug([0-9]+-.+)',
+        destination: '/aktualnosci',
+        permanent: true,
+      },
+      // Old Joomla tag feeds: /component/tags/... → /aktualnosci (4 URLs)
+      {
+        source: '/component/:rest*',
+        destination: '/aktualnosci',
+        permanent: true,
+      },
+      // Old team pages: /zespol and /zespol/{ID-slug} → /o-nas (8 URLs)
+      // /o-nas already includes team info; no separate /zespol page in current structure.
+      {
+        source: '/zespol',
+        destination: '/o-nas',
+        permanent: true,
+      },
+      {
+        source: '/zespol/:rest*',
+        destination: '/o-nas',
+        permanent: true,
+      },
+      // Old offer slugs that were renamed or merged in current structure
+      {
+        source: '/oferta/chirurgia-stomatologiczna',
+        destination: '/oferta/chirurgia',
+        permanent: true,
+      },
+      {
+        source: '/oferta/endodoncja-mikroskopowa',
+        destination: '/oferta/leczenie-kanalowe',
+        permanent: true,
+      },
+      {
+        source: '/oferta/laserowe-leczenie-zebow',
+        destination: '/oferta',
+        permanent: true,
+      },
+      {
+        source: '/oferta/periodontologia',
+        destination: '/oferta',
+        permanent: true,
+      },
+      {
+        source: '/oferta/stomatologia-dziecieca',
+        destination: '/oferta',
+        permanent: true,
+      },
+      {
+        source: '/oferta/stomatologia-zachowawcza',
+        destination: '/oferta',
+        permanent: true,
+      },
+      // Old standalone pages from Joomla
+      {
+        source: '/bezbolesne-komputerowe-znieczulenie',
+        destination: '/oferta',
+        permanent: true,
+      },
+      {
+        source: '/galeria',
+        destination: '/metamorfozy',
+        permanent: true,
+      },
+      {
+        source: '/leczenie-pod-mikroskopem',
+        destination: '/oferta/leczenie-kanalowe',
+        permanent: true,
+      },
+      {
+        source: '/nowoczesny-sprzet-stomatologiczny',
+        destination: '/o-nas',
+        permanent: true,
+      },
+      {
+        source: '/pogotowie-stomatologiczne-24h',
+        destination: '/kontakt',
+        permanent: true,
+      },
+      {
+        source: '/radiowizjografia-cyfrowa',
+        destination: '/oferta/leczenie-kanalowe',
+        permanent: true,
+      },
+    ];
+  },
 };
 
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');

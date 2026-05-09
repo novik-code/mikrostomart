@@ -13,7 +13,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const mainRoutes = [
         '',              // Homepage
         '/o-nas',
-        '/zespol',
         '/oferta',
         '/oferta/implantologia',
         '/oferta/leczenie-kanalowe',

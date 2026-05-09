@@ -27,13 +27,10 @@ export async function generateMetadata(): Promise<Metadata> {
         metadataBase: new URL(b.metadataBase),
         alternates: {
             canonical: './',
-            languages: {
-                'pl': './',
-                'en': './',
-                'de': './',
-                'uk': './',
-                'x-default': './',
-            },
+            // hreflang languages intentionally not declared until URL-based i18n is implemented.
+            // Language switcher currently uses NEXT_LOCALE cookie under the same URL,
+            // so declaring per-locale alternates would mislead Google. Faza 2 of SEO overhaul
+            // will introduce localePrefix:'as-needed' and proper /en/, /de/, /uk/ routes.
         },
         title: {
             default: b.titleDefault,
