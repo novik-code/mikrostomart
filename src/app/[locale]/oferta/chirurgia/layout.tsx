@@ -1,11 +1,12 @@
 import type { Metadata } from 'next';
 import { brand } from '@/lib/brandConfig';
+import { pageMetadata } from '@/lib/seo';
+import { PAGE_SEO } from '@/lib/seoTranslations';
 
-export const metadata: Metadata = {
-    title: `Chirurgia Stomatologiczna ${brand.cityShort} - Usuwanie Zębów, Ósemki`,
-    description: `Chirurgia stomatologiczna w ${brand.cityShort}. Bezbolesne usuwanie zębów i ósemek z zastosowaniem PRF. Szybkie gojenie. Gabinet ${brand.name} ${brand.cityShort}.`,
-    keywords: `chirurgia stomatologiczna ${brand.cityShort.toLowerCase()}, usuwanie zębów ${brand.cityShort.toLowerCase()}, usuwanie ósemek ${brand.cityShort.toLowerCase()}, ekstrakcja zęba ${brand.cityShort.toLowerCase()}, PRF ${brand.cityShort.toLowerCase()}`,
-};
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+    const { locale } = await params;
+    return pageMetadata(locale, '/oferta/chirurgia', PAGE_SEO['/oferta/chirurgia']);
+}
 
 const faqSchema = {
     "@context": "https://schema.org", "@type": "FAQPage",

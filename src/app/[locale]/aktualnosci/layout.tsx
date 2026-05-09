@@ -1,12 +1,10 @@
 import type { Metadata } from 'next';
-import { brand } from '@/lib/brandConfig';
+import { pageMetadata } from '@/lib/seo';
+import { PAGE_SEO } from '@/lib/seoTranslations';
 
-export function generateMetadata(): Metadata {
-    return {
-        title: `Aktualności | ${brand.name} - Dentysta ${brand.cityShort}`,
-        description: `Najnowsze wiadomości z gabinetu ${brand.name} w ${brand.cityShort}. Porady stomatologiczne, nowości w ofercie, wydarzenia i promocje.`,
-        keywords: `aktualności dentysta ${brand.cityShort.toLowerCase()}, nowości stomatologia, ${brand.name.toLowerCase()} blog, porady stomatologiczne`
-    };
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+    const { locale } = await params;
+    return pageMetadata(locale, '/aktualnosci', PAGE_SEO['/aktualnosci']);
 }
 
 export default function Layout({ children }: { children: React.ReactNode }) {

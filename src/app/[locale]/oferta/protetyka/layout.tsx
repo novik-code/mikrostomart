@@ -1,11 +1,12 @@
 import type { Metadata } from 'next';
 import { brand } from '@/lib/brandConfig';
+import { pageMetadata } from '@/lib/seo';
+import { PAGE_SEO } from '@/lib/seoTranslations';
 
-export const metadata: Metadata = {
-    title: `Protetyka ${brand.cityShort} - Korony, Mosty, Protezy`,
-    description: `Protetyka stomatologiczna w ${brand.cityShort}. Korony pełnoceramiczne, cyrkonowe, mosty i protezy. Cyfrowe skanowanie 3D bez wycisków. Gabinet ${brand.name}.`,
-    keywords: `protetyka ${brand.cityShort.toLowerCase()}, korony zębowe ${brand.cityShort.toLowerCase()}, mosty stomatologiczne ${brand.cityShort.toLowerCase()}, protezy ${brand.cityShort.toLowerCase()}, korona cyrkonowa ${brand.cityShort.toLowerCase()}`,
-};
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+    const { locale } = await params;
+    return pageMetadata(locale, '/oferta/protetyka', PAGE_SEO['/oferta/protetyka']);
+}
 
 const faqSchema = {
     "@context": "https://schema.org", "@type": "FAQPage",

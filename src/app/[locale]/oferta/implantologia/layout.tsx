@@ -1,11 +1,12 @@
 import type { Metadata } from 'next';
 import { brand } from '@/lib/brandConfig';
+import { pageMetadata } from '@/lib/seo';
+import { PAGE_SEO } from '@/lib/seoTranslations';
 
-export const metadata: Metadata = {
-    title: `Implanty ${brand.cityShort} - implanty zębów ${brand.cityShort}, implanty cennik ${brand.cityShort}`,
-    description: `Profesjonalne zabiegi implantacji w ${brand.cityShort}. Precyzja, cyfrowe planowanie i bezbolesne leczenie w ${brand.name}. Sprawdź cennik i umów się na wizytę.`,
-    keywords: `implanty ${brand.cityShort.toLowerCase()}, implanty zębów ${brand.cityShort.toLowerCase()}, implant cennik ${brand.cityShort.toLowerCase()}, implantacja ${brand.cityShort.toLowerCase()}, dentysta implanty ${brand.cityShort.toLowerCase()}`,
-};
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+    const { locale } = await params;
+    return pageMetadata(locale, '/oferta/implantologia', PAGE_SEO['/oferta/implantologia']);
+}
 
 /**
  * FAQ structured data for implantologia page.

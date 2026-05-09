@@ -1,11 +1,10 @@
 import type { Metadata } from 'next';
-import { brand } from '@/lib/brandConfig';
+import { pageMetadata } from '@/lib/seo';
+import { PAGE_SEO } from '@/lib/seoTranslations';
 
-export function generateMetadata(): Metadata {
-    return {
-        title: `Metamorfozy | ${brand.name} ${brand.cityShort}`,
-        description: `Zobacz niesamowite efekty leczenia w ${brand.name}. Galeria zdjęć przed i po zabiegach.`,
-    };
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+    const { locale } = await params;
+    return pageMetadata(locale, '/metamorfozy', PAGE_SEO['/metamorfozy']);
 }
 
 export default function Layout({ children }: { children: React.ReactNode }) {

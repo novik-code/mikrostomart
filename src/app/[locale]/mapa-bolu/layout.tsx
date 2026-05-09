@@ -1,12 +1,10 @@
 import type { Metadata } from 'next';
-import { brand } from '@/lib/brandConfig';
+import { pageMetadata } from '@/lib/seo';
+import { PAGE_SEO } from '@/lib/seoTranslations';
 
-export function generateMetadata(): Metadata {
-    return {
-        title: `Mapa Bólu | ${brand.name} - Dentysta ${brand.cityShort}`,
-        description: `Interaktywna mapa bólu zębów. Kliknij na ząb, opisz objawy i dowiedz się, co może być przyczyną. Narzędzie diagnostyczne gabinetu ${brand.name}.`,
-        keywords: `mapa bólu zęba, ból zęba przyczyny, diagnostyka stomatologiczna, ból zęba co robić, ${brand.name.toLowerCase()}`
-    };
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+    const { locale } = await params;
+    return pageMetadata(locale, '/mapa-bolu', PAGE_SEO['/mapa-bolu']);
 }
 
 export default function Layout({ children }: { children: React.ReactNode }) {

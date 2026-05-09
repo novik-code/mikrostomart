@@ -1,11 +1,12 @@
 import type { Metadata } from 'next';
 import { brand } from '@/lib/brandConfig';
+import { pageMetadata } from '@/lib/seo';
+import { PAGE_SEO } from '@/lib/seoTranslations';
 
-export const metadata: Metadata = {
-    title: `Stomatologia Estetyczna ${brand.cityShort} - Licówki, Wybielanie, Bonding`,
-    description: `Stomatologia estetyczna w ${brand.cityShort}. Licówki porcelanowe, wybielanie zębów, bonding kompozytowy. Piękny uśmiech w ${brand.name} — gabinet stomatologiczny ${brand.cityShort}.`,
-    keywords: `stomatologia estetyczna ${brand.cityShort.toLowerCase()}, licówki ${brand.cityShort.toLowerCase()}, wybielanie zębów ${brand.cityShort.toLowerCase()}, bonding ${brand.cityShort.toLowerCase()}, hollywood smile ${brand.cityShort.toLowerCase()}`,
-};
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+    const { locale } = await params;
+    return pageMetadata(locale, '/oferta/stomatologia-estetyczna', PAGE_SEO['/oferta/stomatologia-estetyczna']);
+}
 
 const faqSchema = {
     "@context": "https://schema.org", "@type": "FAQPage",

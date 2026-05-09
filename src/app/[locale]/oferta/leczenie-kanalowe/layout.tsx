@@ -1,11 +1,12 @@
 import type { Metadata } from 'next';
 import { brand } from '@/lib/brandConfig';
+import { pageMetadata } from '@/lib/seo';
+import { PAGE_SEO } from '@/lib/seoTranslations';
 
-export const metadata: Metadata = {
-    title: `Leczenie Kanałowe ${brand.cityShort} - Endodoncja Mikroskopowa`,
-    description: `Leczenie kanałowe pod mikroskopem w ${brand.cityShort}. Bezbolesne, precyzyjne, często na jednej wizycie. Gabinet ${brand.name} — powiększenie 25x, komputerowe znieczulenie.`,
-    keywords: `leczenie kanałowe ${brand.cityShort.toLowerCase()}, endodoncja ${brand.cityShort.toLowerCase()}, leczenie kanałowe pod mikroskopem, root canal ${brand.cityShort.toLowerCase()}, dentysta kanałowe ${brand.cityShort.toLowerCase()}`,
-};
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+    const { locale } = await params;
+    return pageMetadata(locale, '/oferta/leczenie-kanalowe', PAGE_SEO['/oferta/leczenie-kanalowe']);
+}
 
 const faqSchema = {
     "@context": "https://schema.org",

@@ -1,12 +1,10 @@
 import type { Metadata } from 'next';
-import { brand } from '@/lib/brandConfig';
+import { pageMetadata } from '@/lib/seo';
+import { PAGE_SEO } from '@/lib/seoTranslations';
 
-export function generateMetadata(): Metadata {
-    return {
-        title: `Kontakt | ${brand.name} - Dentysta ${brand.cityShort}`,
-        description: `Skontaktuj się z gabinetem ${brand.name} w ${brand.cityShort}. Adres: ${brand.streetAddress}. Telefon: ${brand.phone1}. Umów wizytę online.`,
-        keywords: `kontakt, dentysta ${brand.cityShort.toLowerCase()}, ${brand.name.toLowerCase()} telefon, umów wizytę ${brand.cityShort.toLowerCase()}, gabinet stomatologiczny`
-    };
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+    const { locale } = await params;
+    return pageMetadata(locale, '/kontakt', PAGE_SEO['/kontakt']);
 }
 
 export default function Layout({ children }: { children: React.ReactNode }) {

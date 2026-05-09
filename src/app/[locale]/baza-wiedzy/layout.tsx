@@ -1,12 +1,10 @@
 import type { Metadata } from 'next';
-import { brand } from '@/lib/brandConfig';
+import { pageMetadata } from '@/lib/seo';
+import { PAGE_SEO } from '@/lib/seoTranslations';
 
-export function generateMetadata(): Metadata {
-    return {
-        title: `Baza Wiedzy | ${brand.name} - Dentysta ${brand.cityShort}`,
-        description: `Baza wiedzy stomatologicznej gabinetu ${brand.name}. Artykuły o implantach, leczeniu kanałowym, higienie i profilaktyce.`,
-        keywords: 'baza wiedzy stomatologia, artykuły dentysta, implanty wiedza, higiena zębów porady'
-    };
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+    const { locale } = await params;
+    return pageMetadata(locale, '/baza-wiedzy', PAGE_SEO['/baza-wiedzy']);
 }
 
 export default function Layout({ children }: { children: React.ReactNode }) {

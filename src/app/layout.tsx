@@ -29,25 +29,13 @@ export async function generateMetadata(): Promise<Metadata> {
         metadataBase: new URL(b.metadataBase),
         alternates: {
             canonical: './',
-            // Global hreflang declared at homepage level for the language site map.
-            // Homepage in /[locale]/page.tsx adds explicit per-page hreflang via its own
-            // generateMetadata; this root-level fallback covers all subpages so Lighthouse
-            // doesn't flag "Document does not have a valid hreflang" on /oferta etc.
-            //
-            // Note: ISO 639-1 'uk' (Ukrainian language) maps to URL prefix 'ua' (Ukraine
-            // country code) — this is intentional, see comments in src/i18n/routing.ts.
-            //
-            // TODO: per-page hreflang (where /oferta points to /en/oferta etc. per locale)
-            // would be more SEO-correct but requires propagating request pathname into
-            // server-side generateMetadata. Lower priority — current setup is valid and
-            // accepted by Google (declares site language map, not per-URL).
-            languages: {
-                pl: '/',
-                en: '/en',
-                de: '/de',
-                uk: '/ua',
-                'x-default': '/',
-            },
+            // Per-page hreflang declared in each [locale]/<path>/layout.tsx via pageMetadata()
+            // helper from @/lib/seo. Each public page now emits correct per-URL alternates
+            // (e.g. /oferta → en:/en/oferta, de:/de/oferta, uk:/ua/oferta).
+            // Root layout intentionally omits a global languages map — falsely declaring
+            // every subpage's foreign-locale equivalent as the homepage was confusing Google.
+            // Internal pages without per-page metadata (admin, pracownik) are disallowed in
+            // robots.txt anyway, so they don't need hreflang.
         },
         title: {
             default: b.titleDefault,

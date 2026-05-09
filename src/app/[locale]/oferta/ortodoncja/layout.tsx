@@ -1,11 +1,12 @@
 import type { Metadata } from 'next';
 import { brand } from '@/lib/brandConfig';
+import { pageMetadata } from '@/lib/seo';
+import { PAGE_SEO } from '@/lib/seoTranslations';
 
-export const metadata: Metadata = {
-    title: `Ortodoncja ${brand.cityShort} - Nakładki Clear Correct, Prostowanie Zębów`,
-    description: `Ortodoncja w ${brand.cityShort}. Przeźroczyste nakładki Clear Correct — prostowanie zębów bez aparatu metalowego. Symulacja 3D efektu. Gabinet ${brand.name}.`,
-    keywords: `ortodoncja ${brand.cityShort.toLowerCase()}, prostowanie zębów ${brand.cityShort.toLowerCase()}, nakładki ortodontyczne ${brand.cityShort.toLowerCase()}, clear correct ${brand.cityShort.toLowerCase()}, aparat ortodontyczny ${brand.cityShort.toLowerCase()}`,
-};
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+    const { locale } = await params;
+    return pageMetadata(locale, '/oferta/ortodoncja', PAGE_SEO['/oferta/ortodoncja']);
+}
 
 const faqSchema = {
     "@context": "https://schema.org", "@type": "FAQPage",

@@ -1,10 +1,11 @@
 import type { Metadata } from 'next';
-import { brand } from '@/lib/brandConfig';
+import { pageMetadata } from '@/lib/seo';
+import { PAGE_SEO } from '@/lib/seoTranslations';
 
-export const metadata: Metadata = {
-    title: `Kalkulator Czasu Leczenia | ${brand.name} ${brand.cityShort}`,
-    description: 'Sprawdź orientacyjnie ile wizyt i ile czasu zajmie leczenie stomatologiczne: endodoncja, implanty, protetyka, bonding, wybielanie. Interaktywny kalkulator z osią czasu.',
-};
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+    const { locale } = await params;
+    return pageMetadata(locale, '/kalkulator-leczenia', PAGE_SEO['/kalkulator-leczenia']);
+}
 
 export default function Layout({ children }: { children: React.ReactNode }) {
     return children;

@@ -1,11 +1,11 @@
-import type { Metadata } from "next";
-import { brand } from '@/lib/brandConfig';
+import type { Metadata } from 'next';
+import { pageMetadata } from '@/lib/seo';
+import { PAGE_SEO } from '@/lib/seoTranslations';
 
-export const metadata: Metadata = {
-    title: `Porównywarka Rozwiązań | ${brand.name} ${brand.cityShort}`,
-    description:
-        "Porównaj metody leczenia stomatologicznego: implant vs most vs proteza, bonding vs licówki vs korony. Interaktywne porównanie bez cen — sprawdź, co pasuje do Twoich priorytetów.",
-};
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+    const { locale } = await params;
+    return pageMetadata(locale, '/porownywarka', PAGE_SEO['/porownywarka']);
+}
 
 export default function PorownywarkaLayout({ children }: { children: React.ReactNode }) {
     return <>{children}</>;
