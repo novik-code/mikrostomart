@@ -1,8 +1,8 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-09 (SEO Faza 1: 301 redirects + meta title homepage)  
+> **Last Updated:** 2026-05-09 (SEO Faza 1.5: ujednolicenie canonical na www)  
 > **Version:** Production + Demo (Dual Vercel Deployment)  
-> **Status:** Active Development — KCP FULL; CareFlow Perioperative; Push-First Communication; **SEO recovery in progress (Faza 1 zrealizowana, Faza 2 i18n do zrobienia)**
+> **Status:** Active Development — KCP FULL; CareFlow Perioperative; Push-First Communication; **SEO recovery in progress (Faza 1+1.5 zrealizowane, Faza 2 i18n do zrobienia)**
 
 ---
 
@@ -2461,6 +2461,54 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-09 — SEO Recovery Faza 1.5: ujednolicenie kanonicznej domeny na www
+**Naprawa chaosu canonical: kod używał non-www, Vercel używał www**
+
+#### Commit:
+- `9817c46` — fix(seo): ujednolicenie kanonicznej domeny na www.mikrostomart.pl
+
+#### Diagnoza:
+Wykryta podczas próby submit sitemapy w GSC ("Nie udało się pobrać"):
+- Vercel ma `www.mikrostomart.pl` jako primary domain
+- Kod (`brandConfig.ts`) używał wszędzie `https://mikrostomart.pl` (non-www)
+- robots.txt deklarował `Sitemap: https://mikrostomart.pl/sitemap.xml`
+- Vercel zwracał HTTP 307 (Temporary Redirect, nie 301 Permanent!) z non-www → www
+- Skutek: Google dostawał sprzeczne sygnały — sitemap mówiła non-www, ale każde wejście robiło 307 redirect na www. GSC nie mógł pobrać sitemapy w nowo dodanej Domain property.
+
+#### Co się zmieniło:
+- **`src/lib/brandConfig.ts`** — 5 pól zmienionych z non-www na www:
+  - `appUrl: 'https://www.mikrostomart.pl'`
+  - `metadataBase: 'https://www.mikrostomart.pl'`
+  - `schemaUrl`, `schemaId`, `schemaImage` — wszystkie www
+- **`loadBrandFromDB()`** — dodane `delete dbBrand.*` dla 5 pól domain/URL (analogicznie do istniejącego `delete dbBrand.titleDefault`). DB może mieć stare wartości non-www z poprzednich konfiguracji; te pola są infrastruktury (synchronizowane z Vercel primary domain) i nie powinny być nadpisywane z UI.
+- **`src/lib/emailService.ts`** — 4 hardcoded linki w HTML emaili (footer + CTA "Strefa Pacjenta")
+- **`src/lib/googleCalendar.ts`** — fallback OAuth redirect URI
+- **`src/app/api/admin/careflow/{send-sms,simulate}/route.ts`** — 2× SITE_URL fallback
+- **`src/app/api/cron/{careflow-push,online-booking-digest}/route.ts`** — 2× hardcoded URL
+- **`src/app/api/intake/generate-pdf/route.ts`** — 2× fallback (font + logo z Vercel public)
+- **`src/app/api/social/oauth/tiktok/route.ts`** — TikTok OAuth redirect URI
+
+Demo (`demo.densflow.ai`) NIE ruszone — to subdomain, brak chaosu canonical.
+
+#### Smoke test (`rm -rf .next && npm run build && npm run start`):
+- robots.txt: `Sitemap: https://www.mikrostomart.pl/sitemap.xml` ✅
+- sitemap entries: `https://www.mikrostomart.pl/...` ✅
+- `<link rel="canonical">` na stronie głównej: `https://www.mikrostomart.pl` ✅
+- Schema.org `@id`, `url`, `image`: www ✅
+- OpenGraph image URL: www ✅
+- Brak żadnego non-www w wyrenderowanym HTML strony głównej ✅
+
+#### Po wdrożeniu (oczekiwany efekt):
+- GSC w Domain property `mikrostomart.pl` może wpisać `sitemap.xml` (lub pełny URL z www) i sitemap zostanie pobrana bez błędu
+- Google przestaje dostawać sprzeczne sygnały (sitemap = www, canonical = www, faktyczna lokacja = www)
+- Crawl budget przestaje być przepalany na podążanie za 307 redirectami
+- Backlinki (firmowe.edu.pl etc. wskazujące na non-www) nadal działają — Vercel je redirectuje na www, ale teraz nie ma rozjazdu między co Vercel zwraca a co kod deklaruje
+
+> **Brak migracji DB / nowych env var.** Tylko zmiany w kodzie.
+> Vercel auto-deployuje na produkcję + demo po pushu.
+
+---
 
 ### 2026-05-09 — SEO Recovery Faza 1: 301 redirecty + meta title strony głównej
 **Naprawa katastrofy SEO — 198 błędów 404 + przywrócenie SEO-friendly title**
@@ -5774,8 +5822,10 @@ OpenAI gpt-image-1 regenerates the entire masked area from scratch (+ forces 102
 - [x] **Faza 1** — Meta title strony głównej przywrócony (długi SEO-friendly, demo-aware via server wrapper page.tsx)
 - [x] **Faza 1** — Sitemap oczyszczony (usunięta martwa `/zespol`)
 - [x] **Faza 1** — Fałszywy hreflang usunięty (przygotowanie pod Fazę 2)
-- [ ] Faza 2 — URL-based i18n
-- [ ] Faza 3 — GSC HTTPS property + audyt po 4-6 tygodniach (oczekiwany 198 → 0)
+- [x] **Faza 1.5** — Ujednolicenie kanonicznej domeny na `www.mikrostomart.pl` (zgodnie z Vercel primary domain). Pliki: `brandConfig.ts` (5 pól + DB protection), `emailService.ts`, `googleCalendar.ts`, 4 cron/api fallbacks
+- [x] **Faza 1.5** — `loadBrandFromDB()` chroni domain/URL fields przed nadpisaniem z DB (delete dbBrand dla appUrl, metadataBase, schemaUrl/Id/Image)
+- [ ] **Faza 2** — URL-based i18n (`localePrefix: 'as-needed'`, prawdziwy hreflang, restruktura `[locale]`, sitemap per-locale, lokalizowane metadata, KB articles per-locale URL)
+- [ ] **Faza 3** — Marcin: GSC HTTPS property dodany ✅. Re-submit sitemap z URL `https://www.mikrostomart.pl/sitemap.xml` po deploy. Audyt po 4-6 tygodniach (oczekiwany 198 → 0 błędów 404)
 
 ### ✅ KCP (Kontrola Czasu Pracy) — KOMPLETNY (2026-05-08)
 - [x] **F1** — Clock-in/out via rotujący QR (kiosk + skaner kamery PWA + anty-fraud)
