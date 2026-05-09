@@ -2,7 +2,7 @@
 import RevealOnScroll from '@/components/RevealOnScroll';
 import Link from 'next/link';
 import Image from 'next/image';
-import { notFound } from 'next/navigation';
+import { permanentRedirect } from 'next/navigation';
 import { Metadata } from 'next';
 import { supabase } from '@/lib/supabaseClient';
 import { getTranslations } from 'next-intl/server';
@@ -71,7 +71,13 @@ export default async function ArticlePage({ params }: { params: Promise<{ locale
     const t = await getTranslations('aktualnosci');
 
     if (!article) {
-        notFound();
+        // Slug not in `news` table — likely an old Joomla URL that 198-error'd in GSC.
+        // Redirect to listing instead of 404. Catches all 198 dead URLs from GSC export
+        // 2026-05-09 (replacing the next.config.ts regex catchall that mistakenly caught
+        // new articles with numeric-ID slugs like 319-wybielanie-na-jednej-wizycie).
+        const localePrefix = locale === 'pl' ? '' : `/${locale}`;
+        // permanentRedirect = HTTP 308 (better for SEO than 307 from regular redirect)
+        permanentRedirect(`${localePrefix}/aktualnosci`);
     }
 
     // Use locale from URL params (more reliable than getLocale() which depends on

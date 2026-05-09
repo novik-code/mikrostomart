@@ -95,12 +95,19 @@ const nextConfig: NextConfig = {
   // Source: 198 URLs flagged as 404 in Google Search Console export 2026-05-09.
   async redirects() {
     return [
-      // Old Joomla articles: /aktualnosci/{ID}-{slug} → /aktualnosci (171 URLs)
-      {
-        source: '/aktualnosci/:idAndSlug([0-9]+-.+)',
-        destination: '/aktualnosci',
-        permanent: true,
-      },
+      // NOTE on /aktualnosci/{ID}-{slug}:
+      // Originally we had a catchall regex `/aktualnosci/:idAndSlug([0-9]+-.+)` here
+      // (Faza 1, 2026-05-09) to redirect 171 old Joomla URLs to /aktualnosci listing.
+      // BUG: it also caught NEW articles whose slugs happen to start with numeric ID
+      // (e.g. 319-wybielanie-na-jednej-wizycie, 314-metamorfoza-3 — 13/14 PL articles
+      // in `news` table use this format). Result: clicking active news cards on PL
+      // listing redirected to /aktualnosci instead of opening the article.
+      //
+      // Fix (2026-05-09 commit): removed the regex; the article page itself handles
+      // missing slugs via redirect('/aktualnosci') in its catch-all (notFound replacement).
+      // This way:
+      //   - existing slugs in `news` table (numeric or not) → render the article
+      //   - missing slugs → page-level redirect to listing (still 308 from user POV)
       // Old Joomla tag feeds: /component/tags/... → /aktualnosci (4 URLs)
       {
         source: '/component/:rest*',
