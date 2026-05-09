@@ -1,6 +1,6 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-09 (SEO Sprint G1 — per-page hreflang + per-locale metadata na 19 publicznych stronach)  
+> **Last Updated:** 2026-05-09 (SEO Sprint G2 — aggregateRating w Dentist schema + BreadcrumbList × 13 + FAQPage z 43 pytaniami)  
 > **Version:** Production + Demo (Dual Vercel Deployment)  
 > **Status:** Active Development — KCP FULL; CareFlow Perioperative; Push-First Communication; **SEO Recovery: Faza 1+1.5+2+2.x+A+B+C+D+E KOMPLETNA i ZAAKCEPTOWANA przez Marcina** (PSI Mobile 34→73, Desktop 39→83; LCP Desktop 5.2s→1.6s ✅; Best Practices 73→96; SEO 92→100 ✅). **Faza F (opcjonalna)** — plan szczegółowy w sekcji "FAZA F — PLAN SZCZEGÓŁOWY", potencjalny boost mobile 73→85+ i desktop 83→92+, ~1-1.5h pracy, nie pilne. Faza 3: audyt GSC po 4-6 tygodniach.
 
@@ -2461,6 +2461,78 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-09 — SEO Sprint G2: schema enrichment (aggregateRating + BreadcrumbList + FAQPage)
+**Drugi commit z trzyfazowego SEO sprintu — rich SERP snippets**
+
+#### Commit:
+- `3e971a0` — feat(seo): G2 — schema enrichment (aggregateRating + BreadcrumbList × 13 + FAQPage)
+
+#### Problemy zaadresowane:
+
+**Problem 1 — brak aggregateRating w Dentist schema:**
+Google nie pokazywał gwiazdek w SERP mimo że `google_reviews` table ma 22 prawdziwe opinie (5★ średnio). Lighthouse Rich Results Test flagował: "no aggregateRating".
+
+**Problem 2 — brak BreadcrumbList na 13 podstronach:**
+Tylko service pages (`/oferta/*`) miały breadcrumbs. Reszta publicznych stron (`/cennik`, `/kontakt`, `/aktualnosci`, etc.) ich nie miała → brak breadcrumb trail w Google SERP.
+
+**Problem 3 — brak FAQPage schema na `/faq`:**
+Page ma 43 prawdziwe pytania (5 kategorii) w next-intl translations, ale nie eksportowała schemas. Tracimy potencjalny rich accordion w SERP dla zapytań typu "ile kosztuje wybielanie zębów Opole".
+
+#### Rozwiązanie:
+
+**`src/lib/seo.ts` — rozszerzony helper:**
+- `breadcrumbSchema(items)` — generator BreadcrumbList JSON-LD z konwencją "current page bez URL" (Google standard)
+- `getAggregateRating()` — async fetch z Supabase `google_reviews` (rating ≥ 4), liczy avg + count, zwraca `null` on empty/error
+- Plus typy: `BreadcrumbItem`, `AggregateRating`
+
+**`src/app/layout.tsx` — root layout:**
+- `SchemaOrg()` przyjmuje prop `aggregateRating: AggregateRating | null`
+- Dentist schema dodaje pole `aggregateRating` tylko jeśli `reviewCount > 0`
+- RootLayout async fetch przed renderem (skip w demo mode)
+- `bestRating: 5, worstRating: 1` dla Google compliance
+
+**13 layoutów `[locale]/<path>/layout.tsx` — dodany BreadcrumbList:**
+- `/aktualnosci`, `/baza-wiedzy`, `/cennik`, `/faq`, `/kalkulator-leczenia`
+- `/kontakt`, `/mapa-bolu`, `/metamorfozy`, `/o-nas`, `/oferta`
+- `/porownywarka`, `/rezerwacja`, `/sklep`
+
+Każdy ma 2-poziomowy breadcrumb: `Strona główna → [current page]`. Service pages `/oferta/*` zachowują swój 3-poziomowy z poprzednich faz.
+
+**`[locale]/faq/layout.tsx` — extra FAQPage schema:**
+- `async Layout` component
+- `buildFaqSchema(locale)` używa `getTranslations` z `next-intl/server`
+- Iteruje `t('categoryCount')` × `t('cat${c}count')` żeby zbudować Question array
+- Locale-aware: PL/EN/DE/UA pytania z odpowiednich tłumaczeń
+- 43 pytania × 4 locale w schema
+
+#### Smoke test (npm run start localhost):
+- Homepage Dentist schema: `aggregateRating: { ratingValue: 5, reviewCount: 22 }` ✅
+- `/cennik` Breadcrumb: 2 items (Strona główna → Cennik) ✅
+- `/faq` Breadcrumb + FAQPage 43 questions ✅ (PL: "Dlaczego regularna higienizacja...")
+- Wszystkie 13 paths → 200 OK ✅
+
+#### Spodziewany efekt w Google SERP:
+- ⭐⭐⭐⭐⭐ + "(22)" przy Mikrostomart w wynikach (LocalBusiness rich snippet)
+- Breadcrumb trail "mikrostomart.pl > Cennik" zamiast surowego URL
+- Rich FAQ accordion na zapytaniach pasujących do pytań (np. "ile kosztuje higienizacja", "ile trwa wybielanie")
+- Historycznie: aggregateRating + breadcrumb + FAQ → +5-15% CTR
+
+#### Pliki:
+- `src/lib/seo.ts` — +breadcrumbSchema(), getAggregateRating()
+- `src/app/layout.tsx` — SchemaOrg async, aggregateRating w Dentist
+- 13× `src/app/[locale]/<path>/layout.tsx` — dodany BreadcrumbList
+- `src/app/[locale]/faq/layout.tsx` — async + FAQPage schema z translations
+
+> **Brak migracji DB / nowych env var.** Tylko kod TypeScript.
+> Vercel auto-deployuje na produkcję + demo po pushu.
+> Demo mode: aggregateRating = null (skip gwiazdek, brak prawdziwych opinii).
+
+#### Co dalej:
+- **G3 — Technical hygiene** (~45 min): sitemap `revalidate`, `dangerouslyAllowSVG: false`, Faza F bezpieczne fixy (console 401 z `useUserRoles`, YouTube CDN 404 fallback, polyfill removal druga próba)
+- **Po deploy**: Marcin może zweryfikować w Google Rich Results Test (search.google.com/test/rich-results) że homepage pokazuje teraz **AggregateRating** + 12+ schemas, każda podstrona pokazuje **BreadcrumbList**, `/faq` pokazuje **FAQPage** z 43 questions
+
+---
 
 ### 2026-05-09 — SEO Sprint G1: per-page hreflang + per-locale metadata
 **Pierwszy commit z trzyfazowego SEO sprintu po akceptacji Fazy E**
