@@ -1,6 +1,6 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-09 (SEO Recovery KOMPLETNA — measured PSI Mobile 73 / Desktop 83, Marcin zaakceptował)  
+> **Last Updated:** 2026-05-09 (SEO Sprint G1 — per-page hreflang + per-locale metadata na 19 publicznych stronach)  
 > **Version:** Production + Demo (Dual Vercel Deployment)  
 > **Status:** Active Development — KCP FULL; CareFlow Perioperative; Push-First Communication; **SEO Recovery: Faza 1+1.5+2+2.x+A+B+C+D+E KOMPLETNA i ZAAKCEPTOWANA przez Marcina** (PSI Mobile 34→73, Desktop 39→83; LCP Desktop 5.2s→1.6s ✅; Best Practices 73→96; SEO 92→100 ✅). **Faza F (opcjonalna)** — plan szczegółowy w sekcji "FAZA F — PLAN SZCZEGÓŁOWY", potencjalny boost mobile 73→85+ i desktop 83→92+, ~1-1.5h pracy, nie pilne. Faza 3: audyt GSC po 4-6 tygodniach.
 
@@ -2461,6 +2461,71 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-09 — SEO Sprint G1: per-page hreflang + per-locale metadata
+**Pierwszy commit z trzyfazowego SEO sprintu po akceptacji Fazy E**
+
+#### Commit:
+- `53c4cdc` — feat(seo): G1 — per-page hreflang + per-locale metadata na 19 publicznych stronach
+
+#### Problemy zaadresowane:
+
+**Problem 1 — fałszywy globalny hreflang:**
+Root layout deklarował dla każdej podstrony `pl: '/', en: '/en', de: '/de', uk: '/ua'` co Google interpretował jako "english version of /oferta is at /en (homepage)". Niespójny sygnał osłabiał ranking EN/DE/UA wersji.
+
+**Problem 2 — title/description tylko PL na 18 podstronach:**
+Tylko homepage miała 4-locale title/description. Pozostałe używały PL z titleTemplate w EN/DE/UA — bez lokalnych słów kluczowych. EN użytkownicy widzieli "Cennik | Mikrostomart - Dentysta Opole" zamiast "Pricing Dental Services Opole, Poland".
+
+#### Rozwiązanie:
+
+**Helper `src/lib/seo.ts` (~120 LOC):**
+- `buildHreflangAlternates(path)` — zwraca per-page hreflang z prawdziwymi URLami
+- `buildCanonical(locale, path)` — relatywny canonical dla danego locale
+- `pageMetadata(locale, path, content)` — high-level helper zwracający kompletny `Metadata` object z `title.absolute` (bypassuje root titleTemplate, eliminuje duplikację brand suffix)
+- Mapuje URL prefix `ua` → ISO 639-1 `uk` w hreflang
+
+**Mapa tłumaczeń `src/lib/seoTranslations.ts` (~280 LOC):**
+- 19 ścieżek × 4 locale = 76 zestawów meta-tagów (title + description + keywords)
+- Lokalne słowa kluczowe per locale (np. EN: "dentist Opole Poland", DE: "Zahnarzt Opole Polen")
+- Title 50-65 chars, description 144-160 chars (Google truncation limits)
+
+**Edytowane pliki (19 layoutów):**
+- 13 simple: aktualnosci, baza-wiedzy, cennik, faq, kalkulator-leczenia, kontakt, mapa-bolu, metamorfozy, o-nas, oferta, porownywarka, rezerwacja, sklep
+- 6 service pages z zachowanymi schemas: oferta/{chirurgia, implantologia, leczenie-kanalowe, ortodoncja, protetyka, stomatologia-estetyczna}
+
+**Root layout (`src/app/layout.tsx`):**
+- Usunięty fałszywy globalny `alternates.languages` (każda podstrona deklaruje teraz własny per-URL)
+- `alternates.canonical: './'` zachowany jako fallback
+
+#### Smoke test (npm run start):
+- Wszystkie 19 ścieżek + 6 locale variants → 200 OK
+- `/oferta` hreflang: pl=/oferta, en=/en/oferta, de=/de/oferta, uk=/ua/oferta ✅
+- `/en/cennik` canonical: `https://www.mikrostomart.pl/en/cennik` ✅
+- `/de/cennik` title: `"Preise Zahnarzt Opole, Polen | Mikrostomart"` (bez duplikacji) ✅
+- `/ua/kontakt` title: `"Контакти | Стоматологічна клініка Mikrostomart Ополе"` ✅
+- Service pages zachowują FAQ + Breadcrumb + MedicalProcedure schemas ✅
+
+#### Spodziewany efekt na SEO:
+- **Konsystentny multilingual signal** — Google przestaje traktować EN/DE/UA jako duplikaty PL homepage
+- **Lokalne ranking** — EN użytkownicy w Polsce/zagranicą znajdą `/en/oferta` zamiast PL homepage
+- **CTR boost w foreign SERPs** — title/description w lokalnych językach
+- **Crawl budget efficiency** — Google rozumie strukturę witryny
+
+#### Pliki:
+- `src/lib/seo.ts` — **[NEW]** helper functions (120 LOC)
+- `src/lib/seoTranslations.ts` — **[NEW]** PAGE_SEO map (280 LOC)
+- `src/app/layout.tsx` — usunięty globalny hreflang
+- 19× `src/app/[locale]/<path>/layout.tsx` — używają `pageMetadata()`
+
+> **Brak migracji DB / nowych env var.** Tylko kod TypeScript.
+> Vercel auto-deployuje na produkcję + demo po pushu.
+
+#### Co dalej:
+- **G2 — Schema enrichment** (~45 min): aggregateRating w Dentist schema (gwiazdki w SERP), brakujące BreadcrumbList + FAQPage na nie-/oferta podstronach
+- **G3 — Technical hygiene** (~45 min): sitemap revalidate, dangerouslyAllowSVG removal, Faza F bezpieczne fixy (console 401, YouTube CDN 404, polyfill)
+- **Faza 3 GSC**: po deploy Marcin może opcjonalnie re-submit sitemap (entries się nie zmieniły, ale per-URL alternates są teraz konsystentne). Audyt po 4-6 tyg.
+
+---
 
 ### 2026-05-09 — SEO Recovery zaakceptowane przez Marcina (measured PSI po Fazie E)
 **Finałowe pomiary po pełnym pakiecie SEO Recovery (Faza 1 → E)**
