@@ -1,8 +1,8 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-09 (SEO Faza C — dynamic imports + Sentry slim + a11y/CSP)  
+> **Last Updated:** 2026-05-09 (SEO Recovery KOMPLETNA — measured PSI Mobile 73 / Desktop 83, Marcin zaakceptował)  
 > **Version:** Production + Demo (Dual Vercel Deployment)  
-> **Status:** Active Development — KCP FULL; CareFlow Perioperative; Push-First Communication; **SEO Recovery: Faza 1+1.5+2+2.x+A+B+C KOMPLETNA** (oczekuje na Marcin: PageSpeed Insights re-test po deploy żeby zmierzyć Performance score 67→? i TBT 630ms→?). Faza 3: audyt GSC po 4-6 tygodniach.
+> **Status:** Active Development — KCP FULL; CareFlow Perioperative; Push-First Communication; **SEO Recovery: Faza 1+1.5+2+2.x+A+B+C+D+E KOMPLETNA i ZAAKCEPTOWANA przez Marcina** (PSI Mobile 34→73, Desktop 39→83; LCP Desktop 5.2s→1.6s ✅; Best Practices 73→96; SEO 92→100 ✅). **Faza F (opcjonalna)** — plan szczegółowy w sekcji "FAZA F — PLAN SZCZEGÓŁOWY", potencjalny boost mobile 73→85+ i desktop 83→92+, ~1-1.5h pracy, nie pilne. Faza 3: audyt GSC po 4-6 tygodniach.
 
 ---
 
@@ -2461,6 +2461,59 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-09 — SEO Recovery zaakceptowane przez Marcina (measured PSI po Fazie E)
+**Finałowe pomiary po pełnym pakiecie SEO Recovery (Faza 1 → E)**
+
+#### Co się stało:
+Po deploy Fazy E Marcin uruchomił PSI w trybie incognito dla `https://www.mikrostomart.pl/` na obu zakładkach (Komórka + Stacjonarny). Wyniki dramatycznie lepsze niż przed Fazą E. Marcin zaakceptował: *"zatrzymajmy sie na tym na ten moment jest akceptowalnie moim zdaniem"*.
+
+#### Pomiary PSI 2026-05-09 22:26 (homepage `/`):
+
+**Mobile (Moto G Power, 4G throttling):**
+| Metryka | Przed Fazą E | Po Fazie E | Zmiana |
+|---|---|---|---|
+| Performance | 34 | **73** | +39 |
+| LCP | 25.1s | **6.0s** | -76% |
+| TBT | 1960ms | **110ms** | -94% |
+| CLS | 0.011 | 0 | ✅ |
+| FCP | 2.7s | 1.8s | -33% |
+| Speed Index | 11.2s | 4.9s | -56% |
+| Total transfer | 16.4 MB | 9.5 MB | -42% |
+| Best Practices | 73 | **96** | +23 |
+| SEO | 92 | **100** | +8 ✅ |
+
+**Desktop:**
+| Metryka | Przed Fazą E | Po Fazie E | Zmiana |
+|---|---|---|---|
+| Performance | 39 | **83** | +44 |
+| LCP | 5.2s | **1.6s** | -69% ✅ (cel <2.5s) |
+| TBT | 1190ms | **240ms** | -80% |
+| CLS | 0.005 | 0.008 | bez zmian |
+| FCP | 0.7s | 0.4s | -43% |
+| Speed Index | 3.8s | 1.6s | -58% |
+| Total transfer | 18.4 MB | 9.6 MB | -48% |
+| Best Practices | 73 | **96** | +23 |
+| SEO | 92 | **100** | +8 ✅ |
+
+#### Co działa świetnie:
+- **YouTube zniknął z transferu** — 8.4 MB JS → 49 KB thumbnaili (facade pattern dla YouTubeFeed)
+- **TBT na mobile spadł 18×** (1960→110 ms) — main thread odblokowany
+- **SEO 100/100** — hreflang fix + lepsze structured data
+- **LCP Desktop ZALICZONY** (1.6s przy celu <2.5s)
+- **CookieConsent regression naprawiona** — render delay 4930→1340 ms mobile, 4660→2530 ms desktop
+
+#### Co zostało (Faza F opcjonalna — szczegółowy plan poniżej):
+LCP element wciąż jest CookieConsent banner. Mobile LCP 6.0s wciąż niezaliczone (cel <2.5s) — głównie przez `hero-video.mp4` 8 MB MP4 zżerający bandwidth na 4G. Desktop 83/100 — niedaleko od 90+, ale wymaga drobnych poprawek (image sizes, polyfill, console error 401, YouTube thumbnail 404 fallback).
+
+**Marcin zatrzymał się tutaj świadomie** — wynik akceptowalny, dramatyczne poprawy względem stanu wyjściowego (które było prawdziwą katastrofą po commit `c54d629` 11 kwietnia). Faza F to opcjonalny boost dla doskonałości, nie konieczność.
+
+#### Pliki:
+> Brak zmian kodu w tej sesji (po Fazie E commit `f43d898`+`4bfb476`). Wpis udokumentowuje pomiar po deploy.
+
+> **Brak migracji DB / nowych env var.**
+
+---
 
 ### 2026-05-09 — Faza E: paczka 4 fixów po PSI desktop 39 + mobile 34
 **Diagnoza po Fazie D pokazała że bottleneck przesunął się do CookieConsent + YouTubeFeed**
@@ -6366,12 +6419,158 @@ OpenAI gpt-image-1 regenerates the entire masked area from scratch (+ forces 102
 - [x] **Critical regression fix #1** (`af0fa2f`): SW 404 (regresja Faza 2 middleware) + brak hreflang na podstronach. Naprawione przez rozszerzenie middleware matcher exclusion (.js/.css/.woff2/...) + globalny hreflang fallback w root layout.
 - [x] **Critical regression fix #2** (`e8fa6a0`): regex `/aktualnosci/{ID}-{slug}` z Fazy 1 łapał aktywne artykuły z DB (13/14 PL nieklikalnych). Naprawione przez usunięcie regex i page-level `permanentRedirect()` w `[slug]/page.tsx`.
 - [ ] **Faza 2.x** — Per-page lokalizowane `generateMetadata({ locale })` dla pozostałych stron (oferta/*, cennik, kontakt, etc.) — obecnie fallback do root `titleTemplate`, działa ale niezlokalizowane title/description. Niski priorytet.
-- [x] **Faza C** — LCP/JS optimization (commit `ac191c6`, 2026-05-09): C1 dynamic imports (6 komponentów ThemeLayout + 3 admin layout.tsx via nowy `AdminClientLayer.tsx`) + C3 Sentry slim (Replay+BrowserTracing wycięte z client bundle, ~115 KiB save) + C6 a11y/CSP (BackgroundVideo iframe title, CSP + Sentry ingest + YouTube domains). C2 framer-motion / C4 CSS pruning / C5 composited animations świadomie pominięte (niski ROI — szczegółowo opisane w Recent Changes 2026-05-09 Faza C). **Marcin do zrobienia po deploy:** re-test PageSpeed Insights desktop `/oferta` — sprawdzić czy Performance >85 (z 67) i TBT <200ms (z 630ms).
+- [x] **Faza C** — LCP/JS optimization (commit `ac191c6`, 2026-05-09): C1 dynamic imports (6 komponentów ThemeLayout + 3 admin layout.tsx via nowy `AdminClientLayer.tsx`) + C3 Sentry slim (Replay+BrowserTracing wycięte z client bundle, ~115 KiB save) + C6 a11y/CSP (BackgroundVideo iframe title, CSP + Sentry ingest + YouTube domains). C2 framer-motion / C4 CSS pruning / C5 composited animations świadomie pominięte (niski ROI). **Regression wykryta w pomiarze**: dynamic CookieConsent stał się LCP element (25s mobile / 5s desktop) — naprawione w Fazie E.
+- [x] **localeDetection: false fix** (commit `9ba20fc`, 2026-05-09): `src/i18n/routing.ts` dodane `localeDetection: false`. PSI z `Accept-Language: en-US` było silently przekierowywane PL `/oferta` → EN `/en/oferta` (307 redirect przez next-intl middleware). Po fix URL bez prefixu zawsze serwuje PL.
+- [x] **Faza D — Self-host hero background video** (commit `042635d`, 2026-05-09): YouTube `BackgroundVideo` iframe (~4 MB JS + 2s main thread) → native `<video autoplay muted loop playsinline>` z `public/hero-video.mp4` (7.9 MB self-hosted MP4, 480p H.264 crf32). Pobrane przez `yt-dlp` + skompresowane przez `ffmpeg`. Autoplay zachowany (Marcin requirement). Eliminacja YouTube SDK z initial bundle.
+- [x] **Faza E — Paczka 4 fixów** (commit `f43d898`, 2026-05-09): (1) CookieConsent dynamic→static (regression Fazy C, LCP element fix), (2) YouTubeFeed facade pattern (thumbnail z `i.ytimg.com/vi/{id}/hqdefault.jpg` + click→iframe z `?autoplay=1`, eliminuje 6.5 MB JS, UX identyczny — i tak user musiał kliknąć play), (3) hreflang `ua`→`uk` przez middleware string replace na response Link header (5-line fix, taniej niż refactor `routing.ts` locale code), (4) browserslist w `package.json` (chrome/firefox/safari/edge ≥90/14, ma wyciąć 12.9 KiB polyfilli — efekt nie obserwowany w pomiarach po deploy, prawdopodobnie wymaga dodatkowej konfiguracji Next 16 swc).
+- [x] **🎯 Pomiar finalny + akceptacja Marcina** (PSI 2026-05-09 22:26 homepage `/`):
+  - **Mobile (Moto G Power 4G)**: Performance **34→73** (+39), LCP **25.1s→6.0s** (-76%), TBT **1960→110 ms** (-94%), Total transfer **16.4→9.5 MB** (-42%), Best Practices **73→96**, SEO **92→100** ✅
+  - **Desktop**: Performance **39→83** (+44), LCP **5.2s→1.6s** ✅ ZALICZONE (cel <2.5s), TBT **1190→240 ms** (-80%), Total transfer **18.4→9.6 MB** (-48%), Best Practices **73→96**, SEO **92→100** ✅
+  - **Marcin zaakceptował**: *"zatrzymajmy sie na tym na ten moment jest akceptowalnie moim zdaniem"*
+- [ ] **Faza F (opcjonalna)** — drobne poprawki dla doskonałości. Plan szczegółowy w sekcji "🚨 FAZA F — PLAN SZCZEGÓŁOWY DLA AI W NOWEJ SESJI" poniżej. Spodziewany boost: mobile 73→85+, desktop 83→92+. ~1-1.5h. Nie pilne — Marcin zatrzymał się świadomie, wynik akceptowalny.
 - [ ] **Faza 3** — Marcin: GSC HTTPS property dodany ✅. Re-submit sitemap (686 URLi) po deploy ✅. Audyt po 4-6 tygodniach (oczekiwany 198 → 0 błędów 404 + EN/DE/UA pojawiają się w indeksie)
 
 ---
 
-### 🚨 FAZA C — PLAN SZCZEGÓŁOWY DLA AI W NOWEJ SESJI
+### 🚨 FAZA F — PLAN SZCZEGÓŁOWY DLA AI W NOWEJ SESJI
+
+**Cel:** Mobile 73 → 85+, Desktop 83 → 92+. Stan po Fazie E zaakceptowany przez Marcina, ale można wycisnąć więcej.
+
+**Stan wyjściowy** (PSI 2026-05-09 22:26 homepage `/`):
+
+| Metryka | Mobile | Desktop | Cel mobile | Cel desktop |
+|---|---|---|---|---|
+| Performance | 73 | 83 | 85+ | 90+ |
+| LCP | 6.0s | 1.6s ✅ | <2.5s | <2.5s ✅ |
+| TBT | 110ms | 240ms | <200ms | <200ms |
+| FCP | 1.8s | 0.4s | <1.8s ✅ | <1.8s ✅ |
+| Speed Index | 4.9s | 1.6s | <3.4s | <3.4s ✅ |
+| Total transfer | 9.5 MB | 9.6 MB | ~5 MB | ~5 MB |
+| LCP element | CookieConsent banner | CookieConsent banner | Hero img/text | Hero img/text |
+
+**Główne 6 winowajców z raportu Lighthouse (priorytet wg ROI):**
+
+#### F1 — `hero-video.mp4` skip dla mobile (~30 min, NAJWAŻNIEJSZE dla mobile)
+
+**Problem**: Plik `public/hero-video.mp4` (7.9 MB) to **84% transferu na mobile** (8140 z 9554 KiB). Na 4G zżera bandwidth (3-8s pobierania) → opóźnia CookieConsent → mobile LCP 6.0s. Na desktop nieistotne (LCP już 1.6s ✅).
+
+**Rozwiązanie**: w `src/components/BackgroundVideo.tsx` dodać matchMedia check:
+```ts
+useEffect(() => {
+    const isMobile = window.matchMedia('(max-width: 768px)').matches;
+    if (isMobile) return; // skip on mobile
+    const timer = setTimeout(() => setIsLoaded(true), 500);
+    return () => clearTimeout(timer);
+}, []);
+```
+
+**Trade-off**: Mobile users nie zobaczą tła wideo (które i tak jest pod content z `opacity:0.3` i `mixBlendMode:luminosity` — ledwo widoczne). Na małym ekranie nawet niewidoczne przez navbar+content overlay. **Marcin powinien być OK** — i tak zaakceptował akt obcięcia jakości.
+
+**Spodziewany wpływ**: Mobile LCP 6.0s → 2-3s, Performance 73 → **85+**.
+
+#### F2 — Image responsive sizes (~30 min, ~290 KiB save)
+
+**Problemy**:
+- `metamorphosis_after.jpg` 1000×976 → wyświetlane 510×510 = **96 KiB** save
+- `metamorphosis_before.jpg` 1000×992 → 502×502 = **94 KiB** save
+- Logo `logo-transparent.png` 640×156 → 246×60 (Mikrostomart Logo w Navbar) = 15 KiB
+- Watermark logo 1200×293 → 721×176 (większy logo na hero?) = 21 KiB
+- Avatary Google `lh3.googleusercontent.com` 128×128 → 40×40 (×9 reviews) = **~175 KiB**
+
+**Rozwiązania**:
+1. **Metamorphosis images** w `src/components/MetamorphosisGallery.tsx` (lub gdziekolwiek są używane): zamienić `<img>` na `<Image>` z `next/image`, dorzucić `sizes="(max-width: 768px) 100vw, 510px"` żeby Next.js generował responsive variants.
+2. **Avatary Google**: w `src/components/GoogleReviews.tsx` zmienić URL z `=s128-c0x...` na `=s40-c0x...` (Google CDN ma parametr `s{N}` dla resize). Ekstra wpływ: WebP format jeśli możliwe (`-rw-rj` zamiast jpg).
+3. **Logo Mikrostomart** w Navbar: już jest w `next/image` z `width={574} height={139}` — dorzucić `sizes="246px"` na małych breakpoint.
+
+**Spodziewany wpływ**: -290 KiB transfer = drobny boost, ale poprawia FCP i Speed Index.
+
+#### F3 — Polyfill removal: zbadać czemu browserslist nie zadziałał (~30 min)
+
+**Problem**: PSI nadal raportuje 12.9 KiB polyfilli (`Array.at`, `Array.flat`, `Array.flatMap`, `Object.fromEntries`, `Object.hasOwn`, `String.prototype.trimStart/trimEnd`) w `chunks/3796`. W Fazie E dodano `browserslist` do `package.json` (chrome/firefox/safari/edge ≥90/14) ale efekt nie widoczny w pomiarach po deploy.
+
+**Możliwe przyczyny**:
+1. Next 16 + webpack może wymagać `browserslist` w osobnym pliku `.browserslistrc` (nie w package.json)
+2. SWC config nie czyta `browserslist` z package.json
+3. `--webpack` flag w build nadal używa Babel transpilation z domyślnymi targets
+4. Jeden z node_modules ma własny `browserslist` który overridzuje
+
+**Akcje diagnostyczne**:
+1. Sprawdzić efektywne `browserslist` przez `npx browserslist`
+2. Stworzyć `.browserslistrc` z tymi samymi targets, sprawdzić czy `chunks/3796` po build ma polyfille
+3. Sprawdzić czy `next.config.ts` ma `swcMinify: true` (default w Next 14+)
+4. Może trzeba dodać `experimental.browsersListForSwc: true` lub podobne
+
+**Spodziewany wpływ**: -13 KiB bundle (drobne, ale odznaczy pozycję w PSI).
+
+#### F4 — Console error 401 z `/auth/roles` (~15 min)
+
+**Problem**: PSI raportuje:
+> mikrostomart.pl Własna: …auth/roles:1:0 — Failed to load resource: the server responded with a status of 401 (Unauthorized)
+
+Wpływa na **Best Practices score** (96 → mogłoby być 100). To `useUserRoles` hook (`src/hooks/useUserRoles.ts`) który fetchuje `/api/auth/roles` na każdej publicznej stronie, ale dla niezalogowanych zwraca 401.
+
+**Rozwiązanie**:
+1. **Opcja A** (preferowana): w `useUserRoles` przed fetch sprawdzić czy supabase auth cookie istnieje. Jeśli nie ma — return empty roles bez fetch.
+2. **Opcja B**: w `/api/auth/roles` route handler zwracać `200 { roles: [] }` zamiast `401` dla niezalogowanych — wtedy frontend nie loguje błędu.
+
+**Pliki**: `src/hooks/useUserRoles.ts` + ewentualnie `src/app/api/auth/roles/route.ts`.
+
+**Spodziewany wpływ**: Best Practices 96 → 100, drobnostka.
+
+#### F5 — YouTube CDN 404 dla 2 thumbnaili (~15 min)
+
+**Problem**: PSI raportuje:
+> /embed/8uA6aMhE8rE/hqdefault.jpg — 404 Not Found
+> /embed/sReE0lZ-vK8/hqdefault.jpg — 404 Not Found
+
+Niektóre filmy YouTube nie mają `hqdefault.jpg` (HD thumbnail). YouTube zawsze ma `default.jpg` (120×90), `mqdefault.jpg` (320×180), `hqdefault.jpg` (480×360, opcjonalne), `sddefault.jpg` (640×480), `maxresdefault.jpg` (1280×720, opcjonalne).
+
+**Rozwiązanie** w `src/components/YouTubeFeed.tsx`:
+```tsx
+<img
+    src={`https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`}
+    onError={(e) => {
+        // Fallback to mqdefault.jpg which always exists
+        e.currentTarget.src = `https://i.ytimg.com/vi/${video.id}/mqdefault.jpg`;
+    }}
+    ...
+/>
+```
+
+**Spodziewany wpływ**: Best Practices 96 → 98, eliminacja console errors, lepsze UX (broken image icon zamiast thumbnail).
+
+#### F6 — Composited animations (~15 min, niski ROI)
+
+**Problem**: PSI raportuje 5-7 nieskompozytowanych animacji. Główne:
+- `Navbar_logoShimmer__cQfH9` (`Navbar.module.css`) używa `left` w animacji — powinno `transform: translateX`
+- `assistantPulse` (`AssistantTeaser.tsx`) używa `box-shadow` — powinno `transform: scale`
+- 4-5× `blurIn` (`globals.css` + framer-motion) używa `filter: blur` — to jest kompozytowane, ale Lighthouse i tak flaguje "Właściwość filtrowania może powodować przemieszczanie pikseli"
+
+**Rozwiązania**:
+- `Navbar.module.css` `Navbar_logoShimmer`: zamienić `left: -100%` → `left: 100%` na `transform: translateX(-100%)` → `transform: translateX(100%)`. Sprawdzić wizualnie że shimmer nadal działa.
+- `AssistantTeaser` pulse: jeśli używa `box-shadow: 0 0 X rgba(...)` w animacji → zmienić na `transform: scale(1.X)` z `outline` lub `::after` pseudo-element.
+- `blurIn` keyframes: trudne do uniknięcia bez utraty efektu wizualnego. Zostawić.
+
+**Spodziewany wpływ**: drobny boost CLS (już 0.008 desktop / 0 mobile, więc cel zostaje), eliminacja flagi Lighthouse.
+
+#### Strategia wykonania Fazy F:
+
+1. **Branch** `feat/seo-faza-f-mobile-perfection`
+2. **F1 + F4 + F5 najpierw** (largest impact + szybkie fixy, łącznie ~1h)
+3. Build + push, czekać 3-5 min na Vercel deploy
+4. **Marcin re-test PSI** w incognito (Komórka + Stacjonarny)
+5. Jeśli mobile <80 → kontynuować z F2 (image sizes) w tej samej sesji
+6. F3 (polyfill) + F6 (animations) — opcjonalnie, drobny boost
+7. Update dokumentacji + memory
+8. Acceptance criteria: mobile ≥85, desktop ≥92, Best Practices ≥98, SEO 100 (zostaje), CLS <0.1
+
+#### Co Marcin zaakceptuje vs. co wymaga zgody:
+- **F1 mobile-skip BackgroundVideo**: **WYMAGA POTWIERDZENIA** — Marcin chciał autoplay (Faza D był specjalnie po to). Mobile to inny use case (i tak ledwo widoczne) ale lepiej zapytać.
+- **F2-F6**: bez ryzyka regresji UX, można wykonać paczką bez explicit zgody (drobne fixy techniczne)
+
+---
+
+### 🚨 FAZA C — PLAN SZCZEGÓŁOWY (HISTORIC REFERENCE — częściowo zrealizowane)
 
 **Cel:** Performance score 67 → 85+ (PageSpeed Insights desktop /oferta).
 
