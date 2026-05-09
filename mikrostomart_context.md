@@ -1,8 +1,8 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-08  
+> **Last Updated:** 2026-05-08 (KCP F1-F7 ukończony)  
 > **Version:** Production + Demo (Dual Vercel Deployment)  
-> **Status:** Active Development — CareFlow Perioperative System + Push-First Communication + KCP Time Tracking (F1)
+> **Status:** Active Development — KCP (Kontrola Czasu Pracy) FULL: F1-F7 + cross-verify; CareFlow Perioperative; Push-First Communication
 
 ---
 
@@ -156,7 +156,7 @@ The demo environment is fully neutralized — no Mikrostomart-specific text, con
 
 ### Backend & Database
 - **Supabase** (PostgreSQL database, authentication, storage)
-  - Database: 113 migrations (003-113: email verification, appointment actions, SMS reminders, user_roles, employee tasks, task history, comments, labels, status fix, google reviews cache, chat, push subscriptions, employee_group, push_notification_config, employee_groups array, news/articles/blog/products i18n, calendar tokens, private tasks + reminders, SMS post-visit/week-after-visit, SMS unique constraint fix, task multi-images, push_notifications_log, google_event_id on employee_tasks, patient_intake_tokens, feature_suggestions, online_bookings, patient_match_confidence, consent_tokens/patient_consents, staff_signatures, intake_pdf_url, birthday_wishes, cancelled_appointments, login_attempts, patient_notification_prefs, biometric_signature, employee_audit_log, consent_field_mappings, rate_limit_table, cron_heartbeats, sms_settings, email_ai_drafts, email_ai_config, email_compose_drafts, email_label_overrides, email_ai_drafts_skipped, compose_drafts_ai_text, email_ai_knowledge_files, fix_nowosielska_role, employee_notification_prefs, cleanup_duplicate_push_subs, security_advisor_fixes, merge_duplicate_employees, **social_media, video_queue, storage_video_upload, video_captions_api**, fcm_push_rebuild, dedup_employees, fix_employee_reactivate, **unified_ai_knowledge_base**, ai_trainer_conversations, **delivery_channel (push-first), careflow_system, careflow_sms_fallback, careflow_report_tracking, time_tracking_foundation**)
+  - Database: 119 migrations (003-119: email verification, appointment actions, SMS reminders, user_roles, employee tasks, task history, comments, labels, status fix, google reviews cache, chat, push subscriptions, employee_group, push_notification_config, employee_groups array, news/articles/blog/products i18n, calendar tokens, private tasks + reminders, SMS post-visit/week-after-visit, SMS unique constraint fix, task multi-images, push_notifications_log, google_event_id on employee_tasks, patient_intake_tokens, feature_suggestions, online_bookings, patient_match_confidence, consent_tokens/patient_consents, staff_signatures, intake_pdf_url, birthday_wishes, cancelled_appointments, login_attempts, patient_notification_prefs, biometric_signature, employee_audit_log, consent_field_mappings, rate_limit_table, cron_heartbeats, sms_settings, email_ai_drafts, email_ai_config, email_compose_drafts, email_label_overrides, email_ai_drafts_skipped, compose_drafts_ai_text, email_ai_knowledge_files, fix_nowosielska_role, employee_notification_prefs, cleanup_duplicate_push_subs, security_advisor_fixes, merge_duplicate_employees, **social_media, video_queue, storage_video_upload, video_captions_api**, fcm_push_rebuild, dedup_employees, fix_employee_reactivate, **unified_ai_knowledge_base**, ai_trainer_conversations, **delivery_channel (push-first), careflow_system, careflow_sms_fallback, careflow_report_tracking, **KCP — time_tracking_foundation, time_entries_cancellation, schedule_editor, workstations, calculated_shifts, leaves_and_holidays, doctor_end_methods**)
   - Auth: Email/password, magic links, JWT tokens
   - Storage: Product images, patient documents, task images, **social media videos** (bucket: `social-media`)
   - **Social Media**: `social_platforms`, `social_posts`, `social_schedules`, `social_topics` tables + cron auto-publish
@@ -1676,6 +1676,9 @@ Features:
 | `/cron/careflow-auto-qualify` | **NEW** — Auto-complete CareFlow enrollments + escalate to SMS when push fails | Daily 8:00 UTC |
 | `/cron/careflow-report` | **NEW** — Generate PDF compliance reports for completed CareFlow enrollments | Daily 2:00 UTC |
 | `/cron/push-escalation` | **NEW** — Escalate push-first SMS reminders to actual SMS when push delivery fails | Hourly 9-18 UTC |
+| `/cron/close-day` | **KCP** — Wylicza shift dnia (paruje time_entries z work_schedules), zapisuje calculated_shifts z anomalią flags | Daily 02:30 PL (00:30 UTC) |
+| `/cron/forgot-clockout-notify` | **KCP** — Push do pracownika gdy ≥30 min po planned_end a brak clock_out (dedup max 1/dzień) | Co 15 min, 14-22 PL |
+| `/cron/prodentis-end-times` | **KCP** — Pobiera z Prodentis API work-summary lekarzy, potrójna weryfikacja (closedAt+lastModifiedByDoctor+cross-verify recepcja), nalicza overtime_justified/unjustified | Daily 03:00 PL (01:00 UTC) |
 
 
 ---
@@ -2322,11 +2325,14 @@ This ensures Saturday and Monday templates don't mix in the admin panel.
     { "path": "/api/cron/push-escalation", "schedule": "0 9-18 * * *" },
     { "path": "/api/cron/careflow-push", "schedule": "*/5 5-22 * * *" },
     { "path": "/api/cron/careflow-auto-qualify", "schedule": "0 8 * * *" },
-    { "path": "/api/cron/careflow-report", "schedule": "0 2 * * *" }
+    { "path": "/api/cron/careflow-report", "schedule": "0 2 * * *" },
+    { "path": "/api/cron/close-day", "schedule": "30 0 * * *" },
+    { "path": "/api/cron/forgot-clockout-notify", "schedule": "*/15 12-20 * * *" },
+    { "path": "/api/cron/prodentis-end-times", "schedule": "0 1 * * *" }
   ]
 }
 ```
-*Total: 26 crons (matches `vercel.json` as of 2026-05-08).*
+*Total: 29 crons (matches `vercel.json` as of 2026-05-08, KCP system added 3).*
 
 ---
 
@@ -2455,6 +2461,197 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-08 — KCP (Kontrola Czasu Pracy) F1-F7 + cross-verify
+**Pełen system kontroli czasu pracy pracowników — 7 faz wdrożone w jeden dzień**
+
+System obejmuje cały cykl: skan QR → grafik → wyliczanie shiftów → integrację z Prodentis (rozdział nadgodzin zasadne/niezasadne z potrójną weryfikacją) → urlopy z kalendarzem świąt → raporty PDF/CSV do listy płac.
+
+#### Commits (chronologicznie):
+- `cb0d0ea` — feat(time-tracking): F1 — clock-in/out via rotating QR (MVP)
+- `2263346` — feat(admin): link „Ekran QR (kiosk)" w nawigacji panelu admina
+- `26f5c08` — feat(time-tracking): anulowanie skanu przez pracownika + push do admina
+- `5b5b1a7` — feat(time-tracking): F3 — edytor grafiku w panelu admina
+- `850880f` — feat(schedule): stanowiska + dropdown lekarzy + quick actions zmiany
+- `f1ce107` — feat(schedule): drag-and-drop komórek (kopia / przeniesienie)
+- `d579cda` — feat(schedule): widok per stanowisko (dispatch view)
+- `5b67d41` — feat(schedule): trzeci tryb „📊 Dzień" + help modal
+- `3940eda` — feat(schedule): widok grafiku zespołu w strefie pracownika (read-only)
+- `f7710b9` — feat(time-tracking): F4 — wyliczanie shift dnia + dashboard admina + 2 crony
+- `96f54ff` — feat(time-tracking): F5 — integracja Prodentis API + nadgodziny zasadne/niezasadne
+- `a53fd21` — feat(time-tracking): F6 — urlopy + kalendarz świąt PL
+- `ff978fa` — feat(time-tracking): F2 — statystyki własne pracownika (tydzień + miesiąc)
+- `466886d` — feat(time-tracking): F7 — raporty PDF/CSV + sekcja anomalii (FINAŁ KCP)
+- `45dddb1` — feat(time-tracking): potrójna weryfikacja końca pracy lekarza
+
+#### Migracje DB (113-119, 7 nowych):
+- `113_time_tracking_foundation` — `work_locations` (lokalizacje QR z sekretami HMAC) + `time_entries` (clock-in/out z auditem). Trigger DB blokuje duplikaty w 60s window.
+- `114_time_entries_cancellation` — soft-delete dla pomyłkowych skanów (cancelled, cancelled_at, cancel_reason, cancelled_by FK auth.users).
+- `115_schedule_editor` — `employment_terms` (kontrakt UoP/B2B, weekly/daily_hours, vacation_days, cleanup_buffer_minutes, hourly_rate) + `work_schedules` (UNIQUE employee+date, CHECK work XOR absence, roles_for_shift TEXT[]) + `shift_assignments` (segmenty asysta↔lekarz w trakcie zmiany). Seed: domyślne employment_terms dla wszystkich aktywnych pracowników.
+- `116_workstations` — 7 stanowisk pracy: G1, G2, G3 (gabinety), R (recepcja), PK (pokój konsultacyjny), P (pracownia), BR (biuro). Dodaje `workstation_id` + `doctor_employee_id` do `shift_assignments`.
+- `117_calculated_shifts` — `calculated_shifts` (cache wyliczeń: actual_start/end, worked_minutes, late, early, overtime_total/justified/unjustified, doctor_end_time + confidence, auto_closed flag, anomaly_flags TEXT[], status enum) + `time_tracking_audit` (audit log korekt admina z reason WYMAGANY).
+- `118_leaves_and_holidays` — `polish_holidays` (seed 14 świąt × 2 lata 2026/2027) + `leave_requests` (8 typów: vacation, on_demand, sick, child_care, training, delegation, unpaid, other; status workflow requested/approved/rejected/cancelled; CONSTRAINT date_to >= date_from).
+- `119_doctor_end_methods` — `calculated_shifts.doctor_end_methods JSONB` (historia kandydatów na doctor_end_time z confidence i opisem).
+
+#### Crony (vercel.json: 3 nowe):
+- `/api/cron/close-day` — codziennie 02:30 PL (00:30 UTC). Paruje time_entries z work_schedules za wczoraj, wylicza shift (planned vs actual + anomalie). Auto-domknięcie sesji bez clock_out na planned_end z flagą.
+- `/api/cron/forgot-clockout-notify` — co 15 min, 14:00–22:00 PL. Push do pracownika gdy minęło ≥30 min od planned_end a brak clock_out. Dedup max 1/dzień.
+- `/api/cron/prodentis-end-times` — codziennie 03:00 PL. Pobiera z Prodentis API work-summary każdego lekarza za wczoraj, robi POTRÓJNĄ WERYFIKACJĘ (closedAt → lastModifiedByDoctor → cross-verify recepcja przez createdAt kolejnych wizyt 3-15 min po), naliczane overtime_justified/unjustified dla asystentek/recepcji.
+
+#### Lib (12 nowych modułów w `src/lib/timeTracking/`):
+- `types.ts` — TimeEntry, WorkLocation, TimeStatusResponse, TimeScanRequest/Response, TimeCancelRequest/Response
+- `qrToken.ts` — HMAC-TOTP-style: token = HMAC-SHA256(secret, "<locId>:<period>")[:16], rotacja 30s, tolerance ±1, walidacja timing-safe
+- `locationService.ts` — getPrimaryLocation(), getLocationById() — sekrety server-only
+- `employeeContext.ts` — getEmployeeByAuthUserId() (auth user_id → employees record)
+- `timeEntryService.ts` — getLastEntry/Today, getExpectedNextType, isDuplicateTap, insertTimeEntry, cancelTimeEntry, getTodayEntries, buildStatusResponse
+- `scheduleTypes.ts` — AbsenceType (8 typów), ShiftRole, EmploymentTerms, WorkScheduleRow, ShiftAssignmentRow, Workstation, UpsertCellPayload, ScheduleMonthResponse
+- `scheduleService.ts` — fetchScheduleMonth, upsertScheduleCell (replace strategy dla assignments), copyMonth (template z poprzedniego miesiąca), workingDaysInMonthWithHolidays (z polish_holidays), fetchActiveWorkstations
+- `shiftCalculation.ts` — calculateShift (pure function, parująca clock_in→clock_out, anomaly flags), calculateAndPersistDay, threshold ≥5 min dla late/early/overtime
+- `prodentisWorkSummary.ts` — fetchDoctorWorkSummary z prodentisFetch (tunnel + IP fallback), typ ProdentisWorkSummary z 13 polami
+- `overtimeJustification.ts` — calculateJustification (czysta arytmetyka), syncProdentisAndRecalcJustification (3-step: pobierz lekarzy → pobierz shifts asysty z overtime_total > 0 → wylicz justified/unjustified per assignment, pomija status='admin_approved')
+- `doctorEndVerification.ts` — verifyDoctorEnd (potrójna weryfikacja A/B/C): closedAt + lastModifiedByDoctor + cross-verify przez createdAt wizyt z `/api/appointments/by-date`
+- `leaveService.ts` — countWorkingDays, getVacationBalance, createLeaveRequest (walidacja overlap + balance), decideLeaveRequest (po approve auto-wpis absence do work_schedules), cancelOwnRequest, listOwnRequests, listAllRequests
+- `reportGenerator.ts` — generatePdfReport (pdf-lib, sanityzacja polskich znaków do ASCII, A4, header firmy, podsumowanie, tabela dni, opcjonalne wynagrodzenie), generateCsvReport (BOM UTF-8, średnik-separated, sekcja meta + dane + agregaty)
+
+#### API Endpointy (15 nowych):
+
+**Time tracking core:**
+- `GET /api/time/qr-current` — admin, aktualny payload kioskowy
+- `POST /api/time/scan` — employee+admin, walidacja+dedup+zapis
+- `GET /api/time/status` — employee+admin, stan dziś
+- `POST /api/time/cancel` — employee+admin, anulowanie własnego skanu z powodem + push admin
+
+**Schedule editor (admin):**
+- `GET /api/admin/schedule?month=` — pełen grid + workstations + summaries
+- `PUT /api/admin/schedule/cell` — upsert komórki (replace assignments)
+- `DELETE /api/admin/schedule/cell?employeeId=&date=`
+- `POST /api/admin/schedule/copy-from-month` — szablon z poprzedniego
+
+**Schedule viewer (employee):**
+- `GET /api/employee/schedule-view?month=` — read-only, employee+admin
+
+**Time tracking analysis (admin):**
+- `GET /api/admin/time-tracking?from=&to=&employeeId=&onlyAnomalies=` — lista shifts
+- `POST /api/admin/time-tracking/recalculate { date }` — manual przelicz
+- `PUT /api/admin/time-tracking/correct { shiftId, ...patch, reason }` — korekta z auditem
+- `POST /api/admin/time-tracking/sync-prodentis { date }` — manual sync z Prodentis
+- `GET /api/admin/time-tracking/report?employeeId=&month=&format=pdf|csv` — raport miesięczny
+
+**Time tracking employee self:**
+- `GET /api/employee/time-tracking-self?from=&to=` — własne statystyki + bilans normy
+- `GET /api/employee/time-tracking-self/report?month=&format=pdf|csv` — własny raport (bez hourly_rate)
+
+**Leaves:**
+- `GET /api/employee/leave-requests` — własne + balance
+- `POST /api/employee/leave-requests { type, dateFrom, dateTo, reason? }` — push admin
+- `DELETE /api/employee/leave-requests/[id]` — cancel własny pending
+- `GET /api/admin/leave-requests?status=&from=&to=` — lista wszystkich z employee join
+- `PUT /api/admin/leave-requests/[id] { decision, rejectedReason? }` — approve auto-wpisuje absence do work_schedules + push pracownik
+
+#### UI (8 nowych komponentów):
+
+**Strefa pracownika (`/pracownik`):**
+- Zakładka **🕐 Czas pracy** (`CzasPracyTab.tsx`):
+  - 3 podtryby: **Dziś** (skaner QR + status + lista wpisów + anuluj), **Tydzień** (7 dni z kartami sumarycznymi), **Miesiąc** (pełna tabela + bilans normy + buttony Pobierz raport PDF/CSV)
+  - Skaner kamery `@yudiel/react-qr-scanner` (dynamic import)
+  - Modal anulowania z wymaganym powodem
+- Zakładka **📅 Grafik zespołu** (`GrafikViewerTab.tsx`) — read-only widok z 3 trybami (Pracownicy/Stanowiska/Dzień), badge „tylko do odczytu"
+- Zakładka **🏖 Urlopy** (`UrlopyTab.tsx`):
+  - 4 karty bilansu (limit roczny / wykorzystane / oczekujące / pozostałe)
+  - Lista własnych wniosków z statusami (pending / approved / rejected / cancelled)
+  - Modal „+ Złóż nowy wniosek" z 8 typami nieobecności
+
+**Panel admina (`/admin`):**
+- Zakładka **🕐 Grafik pracy** (`ScheduleEditorTab.tsx`, ~1500 LOC):
+  - 3 tryby widoku: Pracownicy (siatka × dni z edycją + drag-and-drop), Stanowiska (dispatch view kto-gdzie), Dzień (gantt-like timeline 7-22h z paskami i segmentami)
+  - Modal komórki: tryb Praca/Nieobecność, quick presets (Poranna 9-16, Popołudniowa 14-20, Pełna 8-16), multi-role chipy (7 ról: Lekarz, Higienistka, Asystentka, Recepcja, Manager, Pracownia, Biuro), segmenty assignment z dropdown stanowisk + lekarzy
+  - Drag & drop komórek (kopia/przeniesienie z Shift)
+  - „Kopiuj z poprzedniego miesiąca" + filtr ról
+  - Help modal z łopatologiczną instrukcją w 8 sekcjach
+- Zakładka **⏱ Czas pracy** (`TimeTrackingDashboardTab.tsx`, ~750 LOC):
+  - Filtr przedziału (od/do, default 14 dni) + checkbox „tylko anomalie"
+  - Sekcja **„⚠ Pracownicy wymagający uwagi"** — top 5 z największą liczbą anomalii
+  - Tabela pracownicy × dni z kolorami statusu + worked time + anomalie
+  - Stopka: sumy + buttony „📄 PDF / 📊 CSV" per pracownik
+  - Buttony: „Przelicz" (close-day manual), **„Sync Prodentis"** (manual potrójna weryfikacja)
+  - Modal korekty z polami times/late/overtime + WYMAGANYM powodem (audit log) + nowa fioletowa sekcja **„🔬 Weryfikacja końca pracy lekarza"** z listą wszystkich metod
+- Zakładka **🏖 Urlopy** (`LeavesTab.tsx`):
+  - Filtr statusu (default: pending)
+  - Lista wniosków z employee_name + dane + powód
+  - Modal decyzji (approve = auto-wpis do grafiku; reject = wymagany powód)
+- NavItem **„🕐 Ekran QR (kiosk)"** w sidebar — otwiera `/qr-display` w nowej zakładce
+
+**Strona kioskowa:**
+- `/qr-display` — pełnoekranowy QR (380×380), zegar PL, progress bar do rotacji, autoreload przed expirem, ukrywa Navbar/Footer/DemoBanner
+
+#### Kluczowe algorytmy:
+
+**Algorytm nadgodzin asysty (zasadne / niezasadne):**
+```
+1. close-day cron wylicza overtime_total = actual_end - planned_end
+2. prodentis-end-times cron pobiera doctor_end_time z 3 metod:
+   A. Prodentis closedAt (high)
+   B. Prodentis lastModifiedByDoctor (medium)
+   C. Cross-verify recepcja: createdAt 3-15 min po → bumpuje confidence
+3. Dla asystki: bierze ostatni segment z shift_assignments → doctor_employee_id
+   → szuka jego doctor_end_time w calculated_shifts
+4. Granica zasadnych: doctor_end_time + cleanup_buffer_minutes (default 30)
+5. Asysta wybiła ≤ granicy → all justified
+   Asysta wybiła > granicy → justified do granicy, reszta unjustified
+   Asysta wybiła przed granicą? → 0 overtime (nadgodzin nie ma)
+6. Recepcja: fallback na max(doctor_end_time) z dnia
+7. Lekarz: nie liczymy zasadne/niezasadne — wszystkie zalicza
+```
+
+**Potrójna weryfikacja końca pracy lekarza (cross-verify):**
+- A + C → `high-verified` (closedAt + recepcja zgadzają się)
+- A solo → `high`
+- B + C → `high` (bumped z medium przez recepcję)
+- B solo → `medium`
+- scheduleEnd → `low`
+- brak → `unknown`
+
+**Auto-wpis absence przy approve urlopu:**
+- Dla każdego dnia roboczego (pn-pt minus święta polish_holidays) w przedziale wniosku
+- Replace strategy: usuń stare shift_assignments, podmień work_schedule na absence_type
+- Skip weekendy i święta
+
+**QR rotujący (HMAC-TOTP):**
+- payload = `mst://time/<locationId>/<period>/<token>`
+- period = floor(now / 30s)
+- token = HMAC-SHA256(qr_secret, "<locationId>:<period>")[:16]
+- Walidacja akceptuje period ± 1 (90s tolerance)
+
+#### Stan KCP w liczbach:
+- **7 migracji DB** (113-119): 11 nowych tabel
+- **18 endpointów API** (admin + employee + crony)
+- **3 nowe crony** Vercel (close-day, forgot-clockout, prodentis-end-times)
+- **12 nowych lib modułów** w `src/lib/timeTracking/`
+- **8 nowych komponentów UI** (3 admin + 3 employee + 2 viewer)
+- **1 strona kioskowa** `/qr-display`
+- **~7500+ LOC** TypeScript
+
+> ⚠️ **WYMAGA migracje na obu Supabase (kolejność):**
+> 1. `113_time_tracking_foundation.sql`
+> 2. `114_time_entries_cancellation.sql`
+> 3. `115_schedule_editor.sql`
+> 4. `116_workstations.sql`
+> 5. `117_calculated_shifts.sql`
+> 6. `118_leaves_and_holidays.sql`
+> 7. `119_doctor_end_methods.sql`
+>
+> Wszystkie pliki w `~/Desktop/migracje_supabase/` jako `.txt` (idempotentne).
+
+> 📦 **Pomocnicze SQL** w `~/Desktop/migracje_supabase/`:
+> - `sprzatanie_employees_2026-05-08.txt` — dezaktywacja duplikatów + uzupełnienie position
+> - `import_grafik_maj_2026_v2.txt` — import wstępnego grafiku z PDF maja (5 pracownic × ~17 dni)
+
+> 🔧 **Konfiguracja środowiska:**
+> - Przy każdym pushu na `main` Vercel deployuje na 2 środowiska
+> - Migracje musisz wgrać ręcznie na OBU Supabase projektach (produkcja `keucogopujdolzmfajjv` + demo `mhosfncgasjfruiohlfo`)
+> - Cron secret `CRON_SECRET` — Vercel env var (już istnieje)
+
+---
 
 ### 2026-05-08 — KCP F1: Time Tracking Foundation
 **System rejestracji czasu pracy — MVP (clock-in/out via QR)**
@@ -5485,6 +5682,16 @@ OpenAI gpt-image-1 regenerates the entire masked area from scratch (+ forces 102
 - [ ] `withAuth` middleware migration to existing routes (wrapper created, not yet applied)
 - [ ] Comprehensive testing of all workflows
 - [ ] Performance optimization
+
+### ✅ KCP (Kontrola Czasu Pracy) — KOMPLETNY (2026-05-08)
+- [x] **F1** — Clock-in/out via rotujący QR (kiosk + skaner kamery PWA + anty-fraud)
+- [x] **F2** — Statystyki własne pracownika (tydzień + miesiąc + bilans normy)
+- [x] **F3** — Edytor grafiku admin (3 widoki: Pracownicy/Stanowiska/Dzień, drag-and-drop, multi-segment, help modal)
+- [x] **F4** — Cron close-day + dashboard admina (anomalie, korekty z auditem)
+- [x] **F5** — Integracja Prodentis API (work-summary, algorytm overtime zasadne/niezasadne)
+- [x] **F6** — Urlopy + kalendarz świąt PL (workflow zatwierdzania, auto-wpis absence)
+- [x] **F7** — Raporty PDF/CSV miesięczne (do listy płac) + sekcja anomalii w admin
+- [x] **Cross-verify** — Potrójna weryfikacja końca pracy lekarza (closedAt + lastModifiedByDoctor + recepcja-createdAt)
 
 ### 🛒 Commercialization Status
 - [x] **`densflow.ai` landing page** — hero, features, cennik, FAQ, CTA, regulamin, polityki
