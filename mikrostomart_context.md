@@ -1,8 +1,8 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-09 (SEO Faza A: quick wins — meta desc + H2 + next/image)  
+> **Last Updated:** 2026-05-09 (SEO Faza B: Schema.org boost + critical SW/hreflang fix)  
 > **Version:** Production + Demo (Dual Vercel Deployment)  
-> **Status:** Active Development — KCP FULL; CareFlow Perioperative; Push-First Communication; **SEO Recovery: Faza 1+1.5+2+2.x+A KOMPLETNE** (Faza B-D z dodatkowych poprawek to TODO)
+> **Status:** Active Development — KCP FULL; CareFlow Perioperative; Push-First Communication; **SEO Recovery: Faza 1+1.5+2+2.x+A+B + critical regression fix KOMPLETNE** (Faza C, D z dodatkowych poprawek to TODO)
 
 ---
 
@@ -2461,6 +2461,50 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-09 — SEO Faza B + critical regression fix (Schema.org + SW 404 + hreflang)
+**Najwyższy SEO impact w jednej sesji: rich snippets na 6 service pages + naprawa krytycznej regresji**
+
+#### Commits:
+- `af0fa2f` — fix(seo,perf): regresja Faza 2 — Service Worker 404 + brak hreflang na podstronach
+- `27d808d` — feat(seo): Faza B — Schema.org rich snippets boost (BreadcrumbList + MedicalProcedure + Article)
+
+#### Krytyczna regresja (`af0fa2f`):
+PageSpeed Insights audit (desktop /oferta) wykrył:
+- **Service Worker /sw.js zwracał 404** — PWA install formalnie działał (manifest wystarczy) ALE offline cache + background push są broken dla nowych instalacji
+- **/firebase-messaging-sw.js też 404**
+- **Lighthouse: "Document does not have a valid hreflang"** — hreflang był tylko na homepage
+
+ROOT CAUSE: Mój next-intl middleware z Fazy 2 łapał pliki `.js`, `.json` i routował je przez page logic → 404. Matcher wykluczał tylko obrazki.
+
+FIX:
+- `src/middleware.ts`: rozszerzony matcher exclusion o `js|css|woff|woff2|ttf|otf|eot|json|webmanifest|map|mp4|mp3|wav|pdf`
+- `src/app/layout.tsx`: dodany globalny `alternates.languages` (homepage URLs per locale + x-default) jako fallback dla wszystkich podstron. Homepage [locale]/page.tsx nadal ma własny override.
+
+Smoke test: `/sw.js`, `/firebase-messaging-sw.js`, `/manifest.json` → wszystkie 200 ✅. Każda podstrona ma teraz 5× hreflang link.
+
+#### Faza B — Schema.org rich snippets (`27d808d`):
+Niespodzianka diagnostyczna: 5/6 service pages JUŻ MIAŁY BreadcrumbList + FAQPage. Tylko implantologia była niespójna (FAQPage + MedicalWebPage + MedicalProcedure ale bez BreadcrumbList).
+
+Realne zmiany (mniejsze niż planowane 2h):
+- **`implantologia/layout.tsx`**: dodany BreadcrumbList
+- **`chirurgia, leczenie-kanalowe, ortodoncja, protetyka, stomatologia-estetyczna` layouts**: dodany MedicalProcedure schema z polami procedureType (SurgicalProcedure / TherapeuticProcedure), bodyLocation (Mouth/Tooth/Teeth), description, howPerformed, preparation, followup, performer
+- **`aktualnosci/[slug]/page.tsx`**: NewsArticle schema (headline, description, image, datePublished, dateModified, author=Marcin, publisher, mainEntityOfPage locale-aware, inLanguage)
+- **`nowosielski/[slug]/page.tsx`**: BlogPosting schema (analogiczny pattern)
+
+PO BUILD każda service page ma 12 unique schema types: Answer, BreadcrumbList, FAQPage, GeoCoordinates, ListItem, MedicalOrganization, MedicalProcedure, OpeningHoursSpecification, PostalAddress, Question + globalny Dentist + WebSite.
+
+#### Oczekiwane efekty:
+- **Rich Results Test po deploy: 5-7 prawidłowych elementów** na service pages (vs 2 obecnie na homepage)
+- **Google SERP**: rich FAQ snippet (akkordeon Q&A) + breadcrumbs + Article rich card
+- **CTR boost**: historicznie 5-15% wzrost klikalności z rich snippets
+- **Możliwość wyświetlania w Google Health card** dla zapytań medycznych
+
+#### Pozostałe fazy planu (TODO):
+- **Faza C** — LCP/JS optimization. PageSpeed wykazał: 680 KiB nieużywanego JS, TBT 630ms, main thread 3.5s. ~2h pracy.
+- **Faza D** — Per-page localized metadata. ~2h, niski priorytet.
+
+---
 
 ### 2026-05-09 — SEO Faza A: quick wins (meta description, H2, next/image)
 **3 quick wins z 4-fazowego planu SEO post-recovery (po Marcin uruchomił PageSpeed + Rich Results Test)**
