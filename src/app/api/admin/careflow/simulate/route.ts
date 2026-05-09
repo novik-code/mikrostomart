@@ -8,7 +8,7 @@ import { generateCareflowReport } from '@/lib/careflowPdf';
 
 export const maxDuration = 60;
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://mikrostomart.pl';
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.mikrostomart.pl';
 
 /**
  * CareFlow Simulator API

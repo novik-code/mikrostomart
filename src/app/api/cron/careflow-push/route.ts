@@ -6,7 +6,7 @@ import { sendSMS, toGSM7 } from '@/lib/smsService';
 
 export const maxDuration = 30;
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://mikrostomart.pl';
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.mikrostomart.pl';
 
 /**
  * CareFlow Push + SMS Fallback Cron

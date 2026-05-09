@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
             msg += `\n`;
         }
 
-        msg += `\n🔗 <a href="https://mikrostomart.pl/admin">Panel admina</a>`;
+        msg += `\n🔗 <a href="https://www.mikrostomart.pl/admin">Panel admina</a>`;
 
         // Send via Telegram
         const sent = await sendTelegramNotification(msg, 'default');

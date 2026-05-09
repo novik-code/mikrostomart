@@ -120,8 +120,12 @@ const PROD_BRAND: BrandConfig = {
     },
 
     // Domain / URLs
-    appUrl: 'https://mikrostomart.pl',
-    metadataBase: 'https://mikrostomart.pl',
+    // NOTE: We use www.mikrostomart.pl as canonical because Vercel has www. as primary domain.
+    // Using non-www in code while Vercel redirects non-www→www causes split canonical signals
+    // to Google: sitemap declares non-www URLs, but every link 307-redirects to www. This
+    // hurt indexing — see fix/seo-canonical-www-domain commit (2026-05-09).
+    appUrl: 'https://www.mikrostomart.pl',
+    metadataBase: 'https://www.mikrostomart.pl',
 
     // SEO
     titleDefault: 'Mikrostomart',
@@ -138,9 +142,9 @@ const PROD_BRAND: BrandConfig = {
     schemaName: 'Mikrostomart - Mikroskopowa Stomatologia Artystyczna',
     schemaAlternateName: 'Mikrostomart Gabinet Stomatologiczny',
     schemaDescription: 'Nowoczesny gabinet stomatologiczny w Opolu specjalizujący się w implantologii, stomatologii mikroskopowej, leczeniu kanałowym i estetyce. Zaawansowana technologia, indywidualne podejście.',
-    schemaImage: 'https://mikrostomart.pl/logo-transparent.png',
-    schemaId: 'https://mikrostomart.pl',
-    schemaUrl: 'https://mikrostomart.pl',
+    schemaImage: 'https://www.mikrostomart.pl/logo-transparent.png',
+    schemaId: 'https://www.mikrostomart.pl',
+    schemaUrl: 'https://www.mikrostomart.pl',
 
     // Geo
     geoRegion: 'PL-OP',
@@ -286,6 +290,15 @@ export async function loadBrandFromDB(): Promise<BrandConfig> {
         // Never override titleDefault from DB — it controls PWA install name
         // and must stay short. DB may have stale long SEO title.
         delete dbBrand.titleDefault;
+        // Never override domain/URL fields from DB — they must stay in sync with Vercel
+        // primary domain config. DB may have stale non-www values which would cause
+        // split canonical signals (sitemap declares non-www, but Vercel redirects to www).
+        // See fix/seo-canonical-www-domain (2026-05-09).
+        delete dbBrand.appUrl;
+        delete dbBrand.metadataBase;
+        delete dbBrand.schemaUrl;
+        delete dbBrand.schemaId;
+        delete dbBrand.schemaImage;
         return { ...DEFAULT_BRAND, ...dbBrand };
     } catch {
         // SAFETY: on any error, return hardcoded defaults

@@ -164,7 +164,7 @@ async function generateEKartaPdf(submission: any): Promise<Uint8Array> {
         } catch {
             // Fallback: fetch from own public URL (Vercel serverless)
             const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ||
-                (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://mikrostomart.pl');
+                (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://www.mikrostomart.pl');
             const res = await fetch(`${baseUrl}/fonts/Inter-Regular.ttf`);
             if (!res.ok) throw new Error('Font fetch failed');
             fontBytes = Buffer.from(await res.arrayBuffer());
@@ -221,7 +221,7 @@ async function generateEKartaPdf(submission: any): Promise<Uint8Array> {
             logoBytes = fs.readFileSync(logoPath);
         } catch {
             const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ||
-                (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://mikrostomart.pl');
+                (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://www.mikrostomart.pl');
             const logoRes = await fetch(`${baseUrl}/logo-transparent.png`);
             logoBytes = Buffer.from(await logoRes.arrayBuffer());
         }

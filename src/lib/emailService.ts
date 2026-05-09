@@ -43,7 +43,7 @@ function makeHtml(bodyContent: string): string {
         <div style="padding: 1.5rem 2rem; background: rgba(0,0,0,0.2); text-align: center; font-size: 0.75rem; color: rgba(255,255,255,0.4);">
             <p style="margin: 0;">Mikrostomart — ul. Centralna 33a, 45-940 Opole</p>
             <p style="margin: 0.25rem 0 0;">📞 570 270 470 | 
-                <a href="https://mikrostomart.pl" style="color: #dcb14a; text-decoration: none;">mikrostomart.pl</a>
+                <a href="https://www.mikrostomart.pl" style="color: #dcb14a; text-decoration: none;">mikrostomart.pl</a>
             </p>
         </div>
     </div>`;
@@ -80,7 +80,7 @@ export async function sendBookingConfirmedEmail(
         <p>Prosimy o przybycie 10 minut przed umówioną godziną.</p>
         
         <div style="text-align: center; margin-top: 1.5rem;">
-            <a href="https://mikrostomart.pl/strefa-pacjenta/dashboard" 
+            <a href="https://www.mikrostomart.pl/strefa-pacjenta/dashboard" 
                style="display: inline-block; padding: 0.75rem 2rem; background: linear-gradient(135deg, #dcb14a, #f0c96c); color: #000; text-decoration: none; border-radius: 0.5rem; font-weight: bold;">
                 Sprawdź w Strefie Pacjenta →
             </a>
@@ -114,7 +114,7 @@ export async function sendBookingRejectedEmail(
             </a>
         </div>
         
-        <p style="font-size: 0.9rem; color: rgba(255,255,255,0.5);">Możesz też umówić wizytę online w <a href="https://mikrostomart.pl/strefa-pacjenta/dashboard" style="color: #dcb14a;">Strefie Pacjenta</a>.</p>
+        <p style="font-size: 0.9rem; color: rgba(255,255,255,0.5);">Możesz też umówić wizytę online w <a href="https://www.mikrostomart.pl/strefa-pacjenta/dashboard" style="color: #dcb14a;">Strefie Pacjenta</a>.</p>
     `);
 
     return sendEmail(to, '📋 Informacja o Twojej rezerwacji — Mikrostomart', html);
@@ -140,7 +140,7 @@ export async function sendChatReplyEmail(
         </div>
         
         <div style="text-align: center; margin-top: 1.5rem;">
-            <a href="https://mikrostomart.pl/strefa-pacjenta/dashboard" 
+            <a href="https://www.mikrostomart.pl/strefa-pacjenta/dashboard" 
                style="display: inline-block; padding: 0.75rem 2rem; background: linear-gradient(135deg, #dcb14a, #f0c96c); color: #000; text-decoration: none; border-radius: 0.5rem; font-weight: bold;">
                 Przeczytaj w Strefie Pacjenta →
             </a>
@@ -169,7 +169,7 @@ export async function sendStatusChangeEmail(
         ${details ? `<p style="margin-top: 0.75rem;">${details}</p>` : ''}
         
         <div style="text-align: center; margin-top: 1.5rem;">
-            <a href="https://mikrostomart.pl/strefa-pacjenta/dashboard" 
+            <a href="https://www.mikrostomart.pl/strefa-pacjenta/dashboard" 
                style="display: inline-block; padding: 0.75rem 2rem; background: linear-gradient(135deg, #dcb14a, #f0c96c); color: #000; text-decoration: none; border-radius: 0.5rem; font-weight: bold;">
                 Sprawdź w Strefie Pacjenta →
             </a>

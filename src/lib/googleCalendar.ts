@@ -14,7 +14,7 @@ const supabase = createClient(
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID!;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET!;
 const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI
-    || `${process.env.NEXT_PUBLIC_APP_URL || 'https://mikrostomart.pl'}/api/employee/calendar/auth/callback`;
+    || `${process.env.NEXT_PUBLIC_APP_URL || 'https://www.mikrostomart.pl'}/api/employee/calendar/auth/callback`;
 
 const SCOPES = [
     'https://www.googleapis.com/auth/calendar',
