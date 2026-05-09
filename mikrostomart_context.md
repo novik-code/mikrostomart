@@ -1,8 +1,8 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-09 (SEO Faza 1.5: ujednolicenie canonical na www)  
+> **Last Updated:** 2026-05-09 (SEO Faza 2: URL-based i18n)  
 > **Version:** Production + Demo (Dual Vercel Deployment)  
-> **Status:** Active Development — KCP FULL; CareFlow Perioperative; Push-First Communication; **SEO recovery in progress (Faza 1+1.5 zrealizowane, Faza 2 i18n do zrobienia)**
+> **Status:** Active Development — KCP FULL; CareFlow Perioperative; Push-First Communication; **SEO Recovery KOMPLETNA Faza 1+1.5+2** (Faza 2.x: tłumaczenie 14 statycznych aktualności do EN/DE/UA — TODO)
 
 ---
 
@@ -2461,6 +2461,125 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-09 — SEO Recovery Faza 2: URL-based i18n
+**Pełna restruktura — wersje EN/DE/UA pod własnymi URL-ami z prawdziwym hreflang**
+
+#### Commit:
+- `2770886` — feat(i18n): URL-based routing — Faza 2 SEO Recovery
+
+#### Diagnoza:
+Wcześniej (cookie-based, `localePrefix: 'never'`):
+- `/oferta` zawsze zwracał polską wersję (cookie `NEXT_LOCALE`)
+- Googlebot bez cookies → ZAWSZE polski content
+- Wersje EN/DE/UA **nie istniały dla Google** (brak osobnych URL-i)
+- Hreflang fałszywy: 4 alternates wskazujące na ten sam URL bez prefiksów
+
+#### Co się zmieniło:
+
+**Strategia URL prefix (`localePrefix: 'as-needed'`):**
+- PL (default): `/oferta`, `/o-nas`, `/baza-wiedzy/{slug}` — bez prefiksu
+- EN: `/en/oferta`, `/en/o-nas`, ...
+- DE: `/de/oferta`, ...
+- UA: `/ua/oferta`, ... (URL prefix `ua`, hreflang `uk` per ISO 639-1)
+
+**Restruktura `src/app/`:**
+- Stworzony segment `src/app/[locale]/` dla wszystkich publicznych stron
+- 27 katalogów + 2 pliki przeniesione przez `git mv` (zachowana historia):
+  oferta/*, cennik, kontakt, o-nas, faq, baza-wiedzy, aktualnosci, nowosielski,
+  sklep, koszyk, metamorfozy, mapa-bolu, kalkulator-leczenia, porownywarka,
+  selfie, symulator, rezerwacja, aplikacja, rodo, regulamin, polityki,
+  privacy-policy, **strefa-pacjenta**, **wizyta**, **platnosc**, **zadatek**
+  (4 ostatnie — decyzja Marcina: pacjenci obcojęzyczni)
+- Pozostają w `src/app/` root (poza locale): `api/`, `admin/`, `pracownik/`,
+  `ekarta/`, `qr-display/`, `zgody/`, `auth/`, `opieka/`, `s/`, `zespol/`
+  (redirect na /o-nas), root layout, sitemap, robots, manifest
+
+**Konfiguracja:**
+- `src/i18n/routing.ts`: `localePrefix: 'never'` → `'as-needed'`
+- `src/i18n/request.ts`: cookie → `requestLocale` (z URL przez params)
+- `src/middleware.ts`: integracja `next-intl` middleware z istniejącym
+  Supabase auth + bot detection. `NON_LOCALE_PATHS` array dla ścieżek
+  poza locale routing. Locale-aware patient zone protection (rozumie
+  `/strefa-pacjenta` i `/en/strefa-pacjenta` itd.).
+
+**SEO Metadata (homepage):**
+- `src/app/[locale]/page.tsx`: `generateMetadata({ params })` z 4 wersjami
+  title/description (PL/EN/DE/UA hardcoded dla MVP). `title.absolute`
+  bypassuje `titleTemplate` z root layout (uniknięta duplikacja brand suffix).
+- `alternates.languages`: prawdziwy hreflang z URL-ami per locale
+  (`pl: '/'`, `en: '/en'`, `de: '/de'`, `uk: '/ua'`, `x-default: '/'`)
+- `setRequestLocale(locale)` dla SSG support
+
+**Sitemap per-locale (`src/app/sitemap.ts` rewrite):**
+- 644 URLi (vs 554 wcześniej) = statyczne strony × 4 locale + KB articles
+  per locale + 14 aktualności PL only
+- Każdy URL ma `alternates.languages` (hreflang w sitemap.xml protocol)
+- KB articles z DB: grupowane po `group_id` (1 wiersz = 1 locale, hreflang
+  z całej grupy)
+- Helper `localePath(locale, path)`: PL bez prefiksu, pozostałe z `/${locale}/...`
+- Helper `HREFLANG_MAP`: mapuje URL prefix `ua` → ISO `uk`
+
+**LanguageSwitcher (`src/components/LanguageSwitcher.tsx`):**
+- Cookie write → `router.push` z URL prefix swap
+- Strip current prefix regex: `^/(${routing.locales.join('|')})(?=/|$)`
+- Build new URL: PL bez prefiksu, pozostałe z `/${newLocale}${pathWithoutLocale}`
+
+#### Tłumaczenia (471 nowych):
+- **Audyt:** `common.json` 100% pokrycia (529 kluczy × 4 locale).
+  `pages.json` miało 157 brakujących kluczy w EN/DE/UA — 5 sekcji oferty
+  dodane w marcu 2026 ale nigdy nie przetłumaczone:
+  `leczeniekanalowe` (41), `estetyczna` (34), `ortodoncja` (30),
+  `chirurgia` (26), `protetyka` (26).
+- **`scripts/translate-missing-i18n.ts`** — nowy skrypt utility (zostaje w repo):
+  GPT-4o-mini, batches per top-level section, idempotentny (re-run
+  translate tylko brakujące), safe-interrupt (zapisuje JSON po każdej
+  sekcji), placeholders preserved (`{brandName}`, `{cityShort}` etc.).
+- **Wykonane:** 471 tłumaczeń (157 × 3 locale). Po: `pages.json` 596/596
+  we wszystkich locale.
+
+#### Naprawione przy okazji broken imports po restrukturze:
+- `src/components/PatientSkeleton.tsx`: relative path do `patient.module.css`
+- `src/types/index.ts`: absolute import `@/app/porownywarka/comparatorTypes`
+  → `@/app/[locale]/porownywarka/comparatorTypes`
+
+#### Smoke test (`rm -rf .next && npm run start localhost`):
+| Test | Wynik |
+|---|---|
+| `/`, `/oferta` (PL bez prefiksu) | 200 ✅ |
+| `/en`, `/en/oferta` | 200 ✅ |
+| `/de/oferta`, `/ua/oferta` | 200 ✅ |
+| `/admin` | 307 redirect (zachowane) ✅ |
+| `/api/specialists` | 200 (poza locale) ✅ |
+| `/zespol` | 308 → `/o-nas` (Faza 1 redirect) ✅ |
+| Title PL | "Stomatolog, dentysta Opole | Gabinet stomatologiczny Mikrostomart" |
+| Title EN | "Dentist in Opole, Poland | Mikrostomart Dental Clinic" |
+| Title DE | "Zahnarzt in Opole, Polen | Zahnklinik Mikrostomart" |
+| Title UA | "Стоматолог в Ополе, Польща | Стоматологічна клініка Mikrostomart" |
+| Hreflang strona główna | 4 alternates z prawdziwymi URL-ami + x-default |
+| Canonical PL | `https://www.mikrostomart.pl` |
+| Canonical EN | `https://www.mikrostomart.pl/en` |
+| Sitemap | 644 URLi, każdy z `alternates.languages` per URL |
+
+#### Znane TODO (Faza 2.x):
+- 14 statycznych aktualności (`data/articles.ts`) tłumaczyć do EN/DE/UA.
+  Obecnie: `Article` interface nie ma `locale` field — wymaga rozdzielnego
+  zadania (osobne pliki `articles.{en,de,ua}.ts` lub migracja do DB analogicznie
+  do `articles` table z `locale` + `group_id`).
+- Per-page `generateMetadata({ locale })` dla pozostałych stron (oferta/*,
+  cennik, kontakt, etc.) — obecnie używają fallback z root layout `titleTemplate`.
+  Title się generuje, ale niezlokalizowany per language. Niski priorytet.
+
+> **Brak migracji DB / nowych env var.** Tylko zmiany w kodzie + tłumaczenia
+> w `messages/*.json`.
+>
+> Vercel auto-deployuje na produkcję + demo po pushu.
+
+#### Następne kroki Marcina (po deploy):
+- W GSC re-submit sitemap: `https://www.mikrostomart.pl/sitemap.xml` (nowa wersja z 644 URL-ami i hreflang per URL)
+- Sprawdź w GSC po 7-14 dniach: kategoria "Indeksowanie → Strony" — wersje EN/DE/UA powinny się pojawić jako odkryte/zindeksowane
+
+---
 
 ### 2026-05-09 — SEO Recovery Faza 1.5: ujednolicenie kanonicznej domeny na www
 **Naprawa chaosu canonical: kod używał non-www, Vercel używał www**
@@ -5824,8 +5943,10 @@ OpenAI gpt-image-1 regenerates the entire masked area from scratch (+ forces 102
 - [x] **Faza 1** — Fałszywy hreflang usunięty (przygotowanie pod Fazę 2)
 - [x] **Faza 1.5** — Ujednolicenie kanonicznej domeny na `www.mikrostomart.pl` (zgodnie z Vercel primary domain). Pliki: `brandConfig.ts` (5 pól + DB protection), `emailService.ts`, `googleCalendar.ts`, 4 cron/api fallbacks
 - [x] **Faza 1.5** — `loadBrandFromDB()` chroni domain/URL fields przed nadpisaniem z DB (delete dbBrand dla appUrl, metadataBase, schemaUrl/Id/Image)
-- [ ] **Faza 2** — URL-based i18n (`localePrefix: 'as-needed'`, prawdziwy hreflang, restruktura `[locale]`, sitemap per-locale, lokalizowane metadata, KB articles per-locale URL)
-- [ ] **Faza 3** — Marcin: GSC HTTPS property dodany ✅. Re-submit sitemap z URL `https://www.mikrostomart.pl/sitemap.xml` po deploy. Audyt po 4-6 tygodniach (oczekiwany 198 → 0 błędów 404)
+- [x] **Faza 2** — URL-based i18n (`localePrefix: 'as-needed'`, prawdziwy hreflang, restruktura `[locale]`, sitemap per-locale 644 URLi, lokalizowane metadata homepage, KB articles per-locale URL z hreflang). 471 brakujących kluczy w `pages.json` (5 sekcji oferty × EN/DE/UA) AI-translated przez GPT-4o-mini.
+- [ ] **Faza 2.x** — 14 statycznych aktualności (`data/articles.ts`) tłumaczyć do EN/DE/UA — wymaga rozszerzenia `Article` interface o `locale`/`group_id` lub migracji do DB.
+- [ ] **Faza 2.x** — Per-page lokalizowane `generateMetadata({ locale })` dla pozostałych stron (oferta/*, cennik, kontakt, etc.) — obecnie fallback do root `titleTemplate`, działa ale niezlokalizowane. Niski priorytet.
+- [ ] **Faza 3** — Marcin: GSC HTTPS property dodany ✅. Re-submit sitemap (644 URLi) po deploy. Audyt po 4-6 tygodniach (oczekiwany 198 → 0 błędów 404 + EN/DE/UA pojawiają się w indeksie)
 
 ### ✅ KCP (Kontrola Czasu Pracy) — KOMPLETNY (2026-05-08)
 - [x] **F1** — Clock-in/out via rotujący QR (kiosk + skaner kamery PWA + anty-fraud)
