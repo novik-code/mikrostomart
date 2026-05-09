@@ -1,8 +1,8 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-09 (SEO Faza B + 2 regression fixes — SW/hreflang + news regex)  
+> **Last Updated:** 2026-05-09 (SEO Faza C — dynamic imports + Sentry slim + a11y/CSP)  
 > **Version:** Production + Demo (Dual Vercel Deployment)  
-> **Status:** Active Development — KCP FULL; CareFlow Perioperative; Push-First Communication; **SEO Recovery: Faza 1+1.5+2+2.x+A+B + 2 regression fixes KOMPLETNE** (Faza C — LCP/JS optimization czeka na osobną sesję, plan szczegółowy w sekcji "Implementation Status")
+> **Status:** Active Development — KCP FULL; CareFlow Perioperative; Push-First Communication; **SEO Recovery: Faza 1+1.5+2+2.x+A+B+C KOMPLETNA** (oczekuje na Marcin: PageSpeed Insights re-test po deploy żeby zmierzyć Performance score 67→? i TBT 630ms→?). Faza 3: audyt GSC po 4-6 tygodniach.
 
 ---
 
@@ -2461,6 +2461,80 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-09 — SEO Faza C: dynamic imports + Sentry slim + a11y/CSP polish
+**Trzy zoptymalizowane podpunkty z planu (C1, C3, C6); trzy świadomie pominięte (C2, C4, C5 — niski ROI)**
+
+#### Commit:
+- `ac191c6` — feat(seo,perf): Faza C — dynamic imports + Sentry slim + a11y/CSP polish
+
+#### Cel:
+Performance score 67 → 85+ na PageSpeed Insights desktop /oferta. TBT 630ms → <200ms. LCP mobile 2,7s → <2,5s.
+
+#### C1 — Dynamic imports (główny win):
+**`src/components/ThemeLayout.tsx`** — 6 komponentów lazy-loaded po hydration przez `next/dynamic` z `{ ssr: false }`:
+- BackgroundVideo (YouTube iframe + 500ms delay już w komponencie)
+- CookieConsent (banner)
+- AssistantTeaser (chat bubble z 5s delay)
+- PWAInstallPrompt (modal)
+- SimulatorModal (user-triggered modal)
+- OpinionSurvey (timed popup, 2-5min delay, 50% probability gate)
+
+**`src/app/layout.tsx`** — 3 komponenty admin-only przeniesione do nowego cienkiego client wrappera `src/components/AdminClientLayer.tsx`:
+- AdminFloatingBar
+- VisualEditorOverlay
+- PageOverridesApplier
+
+**Powód wrappera:** `ssr: false` z `next/dynamic` NIE jest dozwolony w Server Components w Next 16 (compilation error). `layout.tsx` jest server component, więc dynamic z ssr:false musi żyć w client component. AdminClientLayer.tsx eksportuje 3 nazwy `*Lazy` które używają dynamic z ssr:false w środku.
+
+**SplashScreen ZOSTAJE static** — wraps `children`, dynamic z ssr:false zepsułby SSR (children nie wyświetliłyby się w HTML, regression SEO).
+
+#### C3 — Sentry client bundle slim (~115 KiB save):
+`sentry.client.config.ts`:
+- `tracesSampleRate: 0.1` → `0` (wyłącza BrowserTracing module, ~30 KiB)
+- `replaysOnErrorSampleRate: 0.5` → `0` (wyłącza Replay module, ~85 KiB)
+- Dodany `integrations: (defaultIntegrations) => defaultIntegrations.filter(...)` — usuwa `Replay`, `BrowserTracing`, `BrowserProfiling` z default integrations zamiast `integrations: []`. Zachowuje GlobalHandlers (window.onerror), InboundFilters, Dedupe, LinkedErrors, Breadcrumbs (essentials do error trackingu). Pusta tablica zamiast filter() byłaby regression — wyłączyłaby też error capture.
+
+#### C6 — A11y + CSP polish:
+**`src/components/BackgroundVideo.tsx`**: dodany `title="Tło wideo strony"` + `aria-hidden="true"` na YouTube iframe (Lighthouse a11y fix — "iframe without title").
+
+**`src/middleware.ts` CSP-Report-Only rozszerzony:**
+- `script-src`: + `https://www.googleadservices.com` (już używany przez Google Tag Manager — eliminuje CSP report noise)
+- `connect-src`: + `https://*.ingest.sentry.io https://*.ingest.de.sentry.io https://*.ingest.us.sentry.io` (Sentry browser SDK posts errors) + `https://www.youtube.com` (YouTube tracking)
+- `frame-src`: + `https://www.youtube-nocookie.com` (alternative YouTube embed domain)
+- `media-src`: + `https://*.googlevideo.com` (background video assets)
+
+#### Świadomie pominięte (niski ROI / wysokie ryzyko regresji):
+- **C2 — framer-motion tree-shake**: tylko 3 pliki używają (Navbar, SplashScreen, NovikCodeCredit/Footer), wszystkie krytyczne (w bundle initial). Tree-shake daje minimalne zyski, ryzyko zepsucia animacji.
+- **C4 — CSS pruning**: 105 KiB unused CSS pochodzi z Tailwind 4 atomic classes generowanych z używanych className w plikach. Wymaga osobnej audyty z DevTools Coverage tab + przeglądu wszystkich className. Niski ROI dla tej sesji.
+- **C5 — Composited animations**: weryfikacja `globals.css` — wszystkie 6 keyframes (slideInRight, blurIn ×2, blurOut, fadeInZoom, fadeInUp) JUŻ używają composited properties (transform/scale/filter/opacity). 2 nieskompozytowane wykryte przez Lighthouse to pewnie framer-motion w SplashScreen — out of scope dla tej sesji.
+
+#### Effekt do zmierzenia po deploy:
+**Marcin:** uruchom PageSpeed Insights na `https://www.mikrostomart.pl/oferta` (desktop). Acceptance criteria:
+- Performance score >85 (z 67) ✅ jeśli osiągnięte
+- TBT <200ms (z 630ms) ✅ jeśli osiągnięte
+- LCP mobile <2,5s ✅ jeśli osiągnięte
+- Bundle size redukcja >300 KiB (z 680 KiB unused JS) ✅ jeśli osiągnięte
+- Best Practices score >90 (z 73)
+- A11y score utrzymane >90 (z fix iframe title)
+
+Jeśli score nadal <85: sprawdzić dlaczego dynamic imports nie zadziałały (może pre-loaded przez Next prefetch). Plan C2/C4/C5 zostaje w kontekście jako follow-up.
+
+#### Build:
+Czysty (brak compilation errors). Pre-existing warnings pozostały (Sentry config deprecation `disableLogger`, middleware→proxy rename Next 16, `outputFileTracingIncludes` przeniesione poza experimental, themeColor w `/admin/video`) — do osobnego porządku.
+
+#### Pliki:
+- `sentry.client.config.ts` — Sentry slim
+- `src/app/layout.tsx` — używa AdminClientLayer
+- `src/components/AdminClientLayer.tsx` — **[NEW]** cienki client wrapper dla 3 admin dynamic imports
+- `src/components/BackgroundVideo.tsx` — iframe title + aria-hidden
+- `src/components/ThemeLayout.tsx` — 6 dynamic imports
+- `src/middleware.ts` — CSP rozszerzenia
+
+> **Brak migracji DB / nowych env var.** Tylko zmiany w kodzie warstwy frontend/build.
+> Vercel auto-deployuje na produkcję + demo po pushu.
+
+---
 
 ### 2026-05-09 — SEO Faza 1 regression fix: regex /aktualnosci/{ID}-{slug} łapał aktywne artykuły
 **Trzeci regression fix tego dnia — pierwszy fix od strony klikalności po deploy Fazy B**
@@ -6158,7 +6232,7 @@ OpenAI gpt-image-1 regenerates the entire masked area from scratch (+ forces 102
 - [x] **Critical regression fix #1** (`af0fa2f`): SW 404 (regresja Faza 2 middleware) + brak hreflang na podstronach. Naprawione przez rozszerzenie middleware matcher exclusion (.js/.css/.woff2/...) + globalny hreflang fallback w root layout.
 - [x] **Critical regression fix #2** (`e8fa6a0`): regex `/aktualnosci/{ID}-{slug}` z Fazy 1 łapał aktywne artykuły z DB (13/14 PL nieklikalnych). Naprawione przez usunięcie regex i page-level `permanentRedirect()` w `[slug]/page.tsx`.
 - [ ] **Faza 2.x** — Per-page lokalizowane `generateMetadata({ locale })` dla pozostałych stron (oferta/*, cennik, kontakt, etc.) — obecnie fallback do root `titleTemplate`, działa ale niezlokalizowane title/description. Niski priorytet.
-- [ ] **Faza C** — LCP/JS optimization (zaplanowana na osobną sesję, ~3h pracy). Plan szczegółowy poniżej ↓
+- [x] **Faza C** — LCP/JS optimization (commit `ac191c6`, 2026-05-09): C1 dynamic imports (6 komponentów ThemeLayout + 3 admin layout.tsx via nowy `AdminClientLayer.tsx`) + C3 Sentry slim (Replay+BrowserTracing wycięte z client bundle, ~115 KiB save) + C6 a11y/CSP (BackgroundVideo iframe title, CSP + Sentry ingest + YouTube domains). C2 framer-motion / C4 CSS pruning / C5 composited animations świadomie pominięte (niski ROI — szczegółowo opisane w Recent Changes 2026-05-09 Faza C). **Marcin do zrobienia po deploy:** re-test PageSpeed Insights desktop `/oferta` — sprawdzić czy Performance >85 (z 67) i TBT <200ms (z 630ms).
 - [ ] **Faza 3** — Marcin: GSC HTTPS property dodany ✅. Re-submit sitemap (686 URLi) po deploy ✅. Audyt po 4-6 tygodniach (oczekiwany 198 → 0 błędów 404 + EN/DE/UA pojawiają się w indeksie)
 
 ---
