@@ -2462,6 +2462,33 @@ NODE_ENV=production
 
 ## 📝 Recent Changes
 
+### 2026-05-09 — Faza C follow-up fix: localeDetection: false
+**Bug diagnostyka po porażce PageSpeed Insights**
+
+#### Commit:
+- `9ba20fc` — fix(i18n): localeDetection: false — zatrzymuje PL→EN auto-redirect dla obcojęzycznych user-agentów
+
+#### Diagnoza:
+Marcin zgłosił że PSI po wklejeniu `https://www.mikrostomart.pl/oferta` automatycznie wyświetla wynik dla `/en/oferta`. Curl smoke test potwierdził: `/oferta` + `Accept-Language: en-US` → **307 redirect** do `/en/oferta`. Root cause: domyślnie next-intl czyta Accept-Language header i przekierowuje URL bez prefixu do odpowiadającego locale. PSI wysyła `en-US` (amerykańskie Google), więc test PL strony był silently przekierowywany do EN.
+
+#### Skutki uboczne (poza PSI):
+1. **PSI mierzyło EN wersję** zamiast PL — fałszywy negatywny dla PL przy testach Fazy C
+2. **SEO crawl budget** — różne user-agenty Googlebot dostawały różne wersje tej samej URL
+3. **UX backlinków** — link „mikrostomart.pl/cennik" z zagranicznego forum nie pokazywał polskiej wersji
+
+#### Fix:
+`src/i18n/routing.ts`: dodany `localeDetection: false`. URL bez prefixu zawsze serwuje PL (default locale). Użytkownicy zagraniczni używają LanguageSwitcher w navie albo przychodzą z Google search wynikami które już mają `/en/`, `/de/`, `/ua/` prefix.
+
+#### Smoke test po deploy:
+```bash
+curl -I -H "Accept-Language: en-US" https://www.mikrostomart.pl/oferta
+# Powinno: HTTP/2 200 (PL content), nie 307 → /en/oferta
+```
+
+> **Brak migracji DB / nowych env var.** Tylko zmiana w next-intl config.
+
+---
+
 ### 2026-05-09 — SEO Faza C: dynamic imports + Sentry slim + a11y/CSP polish
 **Trzy zoptymalizowane podpunkty z planu (C1, C3, C6); trzy świadomie pominięte (C2, C4, C5 — niski ROI)**
 
