@@ -26,6 +26,19 @@ const breadcrumbSchema = {
     ]
 };
 
+const medicalProcedureSchema = {
+    "@context": "https://schema.org",
+    "@type": "MedicalProcedure",
+    "name": `Protetyka stomatologiczna ${brand.cityShort}`,
+    "procedureType": "https://schema.org/TherapeuticProcedure",
+    "bodyLocation": "Teeth",
+    "description": "Odbudowa zniszczonych lub utraconych zębów: korony pełnoceramiczne (E.max), cyrkonowe, mosty, licówki oraz protezy. Cyfrowe skanowanie 3D zamiast tradycyjnych wycisków.",
+    "howPerformed": "Skan wewnątrzustny kamerą 3D, projekt komputerowy, wykonanie pracy w laboratorium technicznym (5-7 dni roboczych). Cementowanie wykonane na drugiej wizycie.",
+    "preparation": "Wywiad medyczny, badanie kliniczne i radiologiczne. W razie potrzeby leczenie endodontyczne lub przygotowanie kości pod implant.",
+    "followup": "Kontrola po 7-14 dniach. Higiena protetyczna i regularne kontrole co 6 miesięcy.",
+    "performer": { "@type": "MedicalOrganization", "name": brand.name, "url": brand.appUrl }
+};
+
 export default function Layout({ children }: { children: React.ReactNode }) {
-    return (<><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} /><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }} />{children}</>);
+    return (<><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} /><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }} /><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(medicalProcedureSchema) }} />{children}</>);
 }

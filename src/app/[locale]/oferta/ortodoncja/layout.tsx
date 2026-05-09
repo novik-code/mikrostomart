@@ -26,6 +26,19 @@ const breadcrumbSchema = {
     ]
 };
 
+const medicalProcedureSchema = {
+    "@context": "https://schema.org",
+    "@type": "MedicalProcedure",
+    "name": `Ortodoncja nakładkowa Clear Correct ${brand.cityShort}`,
+    "procedureType": "https://schema.org/TherapeuticProcedure",
+    "bodyLocation": "Teeth",
+    "description": "Korekta wad zgryzu i położenia zębów za pomocą przezroczystych nakładek Clear Correct (alignerów). Niewidoczne, wyjmowalne, komfortowe leczenie ortodontyczne.",
+    "howPerformed": "Skan wewnątrzustny i symulacja 3D efektu końcowego. Pacjent otrzymuje zestaw nakładek wymienianych co 1-2 tygodnie. Każda nakładka delikatnie przesuwa zęby do docelowej pozycji.",
+    "preparation": "Konsultacja ortodontyczna, skan 3D zębów, planowanie cyfrowe i prezentacja symulacji efektu przed rozpoczęciem leczenia.",
+    "followup": "Kontrole co 6-8 tygodni. Po zakończeniu leczenia: retencja (drucik retencyjny lub nakładka na noc) zapobiegająca nawrotowi wady.",
+    "performer": { "@type": "MedicalOrganization", "name": brand.name, "url": brand.appUrl }
+};
+
 export default function Layout({ children }: { children: React.ReactNode }) {
-    return (<><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} /><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }} />{children}</>);
+    return (<><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} /><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }} /><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(medicalProcedureSchema) }} />{children}</>);
 }

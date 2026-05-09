@@ -4,6 +4,7 @@ import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import RevealOnScroll from '@/components/RevealOnScroll';
 import { getTranslations, getLocale } from 'next-intl/server';
+import { brand } from '@/lib/brandConfig';
 
 // We import the CSS to handle legacy content inside the clean container
 import './../blog.v2.css';
@@ -96,9 +97,46 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
 
     const sanitizedContent = cleanHtml(post.content);
 
+    // BlogPosting JSON-LD schema for rich snippets in Google search.
+    // Faza B SEO Recovery (2026-05-09).
+    const articleSchema = {
+        "@context": "https://schema.org",
+        "@type": "BlogPosting",
+        "headline": post.title,
+        "description": post.excerpt || post.title,
+        "image": post.image
+            ? (post.image.startsWith('http') ? post.image : `${brand.appUrl}${post.image}`)
+            : `${brand.appUrl}/opengraph-image.png`,
+        "datePublished": post.created_at || post.published_at || post.date,
+        "dateModified": post.updated_at || post.created_at || post.published_at || post.date,
+        "author": {
+            "@type": "Person",
+            "name": "Marcin Nowosielski",
+            "url": `${brand.appUrl}/o-nas`,
+        },
+        "publisher": {
+            "@type": "Organization",
+            "name": brand.name,
+            "url": brand.appUrl,
+            "logo": {
+                "@type": "ImageObject",
+                "url": brand.schemaImage,
+            },
+        },
+        "mainEntityOfPage": {
+            "@type": "WebPage",
+            "@id": `${brand.appUrl}${locale === 'pl' ? '' : `/${locale}`}/nowosielski/${slug}`,
+        },
+        "inLanguage": locale === 'ua' ? 'uk' : locale,
+    };
+
     // Standard "News" Layout Structure
     return (
         <main style={{ background: "var(--color-background)", minHeight: '100vh', color: "var(--color-text)" }}>
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{ __html: JSON.stringify(articleSchema) }}
+            />
 
             <article className="container" style={{ padding: "8rem 2rem 4rem", maxWidth: "800px", margin: "0 auto" }}>
 

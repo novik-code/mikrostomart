@@ -56,11 +56,25 @@ const breadcrumbSchema = {
     ]
 };
 
+const medicalProcedureSchema = {
+    "@context": "https://schema.org",
+    "@type": "MedicalProcedure",
+    "name": `Leczenie kanałowe pod mikroskopem ${brand.cityShort}`,
+    "procedureType": "https://schema.org/TherapeuticProcedure",
+    "bodyLocation": "Tooth",
+    "description": "Endodoncja mikroskopowa: precyzyjne usunięcie martwej tkanki, dezynfekcja i szczelne wypełnienie kanałów zęba pod kontrolą mikroskopu zabiegowego (powiększenie do 25x).",
+    "howPerformed": "Zabieg w komputerowym znieczuleniu (The Wand / SleeperOne), z izolacją koferdamem. Pomiary endometryczne, opracowanie kanałów narzędziami rotacyjnymi, dezynfekcja i wypełnienie gutaperką pod mikroskopem.",
+    "preparation": "Diagnostyka radiologiczna (RTG, CBCT w skomplikowanych przypadkach). Wywiad medyczny.",
+    "followup": "Kontrola po 7-14 dniach. Odbudowa korony zęba (wypełnienie lub korona protetyczna) w ciągu kolejnej wizyty.",
+    "performer": { "@type": "MedicalOrganization", "name": brand.name, "url": brand.appUrl }
+};
+
 export default function Layout({ children }: { children: React.ReactNode }) {
     return (
         <>
             <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />
             <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }} />
+            <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(medicalProcedureSchema) }} />
             {children}
         </>
     );

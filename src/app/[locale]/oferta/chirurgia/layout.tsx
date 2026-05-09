@@ -26,6 +26,19 @@ const breadcrumbSchema = {
     ]
 };
 
+const medicalProcedureSchema = {
+    "@context": "https://schema.org",
+    "@type": "MedicalProcedure",
+    "name": `Chirurgia stomatologiczna ${brand.cityShort}`,
+    "procedureType": "https://schema.org/SurgicalProcedure",
+    "bodyLocation": "Mouth",
+    "description": "Zabiegi chirurgiczne w obrębie jamy ustnej: ekstrakcje zębów (w tym ósemek), resekcje korzenia, hemisekcje, rekonstrukcje kości. Zastosowanie technologii PRF dla przyspieszonego gojenia.",
+    "howPerformed": "Zabiegi w znieczuleniu miejscowym z wykorzystaniem mikroskopu zabiegowego oraz PRF (bogatopłytkowa fibryna z krwi pacjenta) dla skróconego czasu gojenia.",
+    "preparation": "Szczegółowy wywiad medyczny, badanie radiologiczne (RTG/CBCT), planowanie zabiegu i ewentualne badania dodatkowe.",
+    "followup": "Zalecenia poekstrakcyjne (zimne okłady, dieta miękka, unikanie wysiłku 24h). Kontrola po 7 dniach.",
+    "performer": { "@type": "MedicalOrganization", "name": brand.name, "url": brand.appUrl }
+};
+
 export default function Layout({ children }: { children: React.ReactNode }) {
-    return (<><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} /><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }} />{children}</>);
+    return (<><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} /><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }} /><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(medicalProcedureSchema) }} />{children}</>);
 }

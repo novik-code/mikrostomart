@@ -26,6 +26,19 @@ const breadcrumbSchema = {
     ]
 };
 
+const medicalProcedureSchema = {
+    "@context": "https://schema.org",
+    "@type": "MedicalProcedure",
+    "name": `Stomatologia estetyczna ${brand.cityShort}`,
+    "procedureType": "https://schema.org/TherapeuticProcedure",
+    "bodyLocation": "Teeth",
+    "description": "Zabiegi poprawy estetyki uśmiechu: licówki porcelanowe (E.max), bonding kompozytowy, profesjonalne wybielanie zębów. Cyfrowe planowanie uśmiechu (DSD - Digital Smile Design).",
+    "howPerformed": "Konsultacja DSD i symulacja efektu końcowego. Licówki: skanowanie 3D, projekt, wykonanie w laboratorium, cementowanie. Bonding: na jednej wizycie bez szlifowania zęba. Wybielanie: w gabinecie lub nakładkowe (overnight) z indywidualnymi nakładkami.",
+    "preparation": "Konsultacja estetyczna, ocena kliniczna i radiologiczna. Ewentualna wcześniejsza higienizacja.",
+    "followup": "Kontrola po 7 dniach. Profilaktyka: regularna higienizacja co 6 miesięcy, unikanie barwiących pokarmów po wybielaniu.",
+    "performer": { "@type": "MedicalOrganization", "name": brand.name, "url": brand.appUrl }
+};
+
 export default function Layout({ children }: { children: React.ReactNode }) {
-    return (<><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} /><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }} />{children}</>);
+    return (<><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} /><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }} /><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(medicalProcedureSchema) }} />{children}</>);
 }

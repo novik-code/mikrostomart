@@ -6,6 +6,7 @@ import { notFound } from 'next/navigation';
 import { Metadata } from 'next';
 import { supabase } from '@/lib/supabaseClient';
 import { getTranslations } from 'next-intl/server';
+import { brand } from '@/lib/brandConfig';
 
 // Supported locale suffixes
 const LOCALE_SUFFIXES = ['en', 'de', 'ua'] as const;
@@ -77,8 +78,45 @@ export default async function ArticlePage({ params }: { params: Promise<{ locale
     // next-intl middleware having populated the request context).
     const localizedArticle = localizeArticle(article, locale);
 
+    // NewsArticle JSON-LD schema for rich snippets in Google News + general search.
+    // Faza B SEO Recovery (2026-05-09).
+    const articleSchema = {
+        "@context": "https://schema.org",
+        "@type": "NewsArticle",
+        "headline": localizedArticle.title,
+        "description": localizedArticle.excerpt,
+        "image": localizedArticle.image
+            ? (localizedArticle.image.startsWith('http') ? localizedArticle.image : `${brand.appUrl}${localizedArticle.image}`)
+            : `${brand.appUrl}/opengraph-image.png`,
+        "datePublished": localizedArticle.date,
+        "dateModified": localizedArticle.date,
+        "author": {
+            "@type": "Person",
+            "name": "Marcin Nowosielski",
+            "url": `${brand.appUrl}/o-nas`,
+        },
+        "publisher": {
+            "@type": "Organization",
+            "name": brand.name,
+            "url": brand.appUrl,
+            "logo": {
+                "@type": "ImageObject",
+                "url": brand.schemaImage,
+            },
+        },
+        "mainEntityOfPage": {
+            "@type": "WebPage",
+            "@id": `${brand.appUrl}${locale === 'pl' ? '' : `/${locale}`}/aktualnosci/${slug}`,
+        },
+        "inLanguage": locale === 'ua' ? 'uk' : locale,
+    };
+
     return (
         <main style={{ background: "var(--color-background)" }}>
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{ __html: JSON.stringify(articleSchema) }}
+            />
             <article className="container" style={{ padding: "8rem 2rem 4rem", maxWidth: "800px" }}>
 
                 {/* Back Link — styled as a button + locale-aware href */}
