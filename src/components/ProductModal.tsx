@@ -3,6 +3,7 @@
 import { X, ShoppingCart, CreditCard, ChevronLeft, ChevronRight, CheckCircle, ArrowLeft } from "lucide-react";
 import { brandI18nParams } from '@/lib/brandConfig';
 import { useState } from "react";
+import Image from "next/image";
 import { useCart } from "@/context/CartContext";
 import { useTranslations, useLocale } from "next-intl";
 import CheckoutForm from "@/components/CheckoutForm";
@@ -138,7 +139,7 @@ export default function ProductModal({ product, initialStep = "PRODUCT", onClose
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                             {items.map((item) => (
                                 <div key={item.id} style={{ display: 'flex', gap: '10px', background: 'rgba(255,255,255,0.05)', padding: '10px', borderRadius: '8px' }}>
-                                    <img src={item.image} style={{ width: '50px', height: '50px', objectFit: 'cover', borderRadius: '4px' }} />
+                                    <Image src={item.image} alt={item.name} width={50} height={50} style={{ objectFit: 'cover', borderRadius: '4px' }} />
                                     <div style={{ flex: 1, color: 'white' }}>
                                         <div style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>{item.name}</div>
                                         <div style={{ fontSize: '0.8rem', color: '#9ca3af' }}>{item.price} PLN x {item.quantity}</div>
@@ -212,7 +213,7 @@ export default function ProductModal({ product, initialStep = "PRODUCT", onClose
                                         border: currentImageIndex === idx ? '2px solid var(--color-primary)' : '2px solid transparent',
                                         borderRadius: '6px', overflow: 'hidden', width: '50px', height: '50px', flexShrink: 0, padding: 0
                                     }}>
-                                        <img src={img} alt="thumb" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                        <Image src={img} alt="thumb" width={50} height={50} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                     </button>
                                 ))}
                             </div>

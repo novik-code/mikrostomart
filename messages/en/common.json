@@ -29,6 +29,7 @@
         "description": "At {brandName}, we combine the precision of technology with the sensitivity of art. Discover dentistry that restores confidence."
     },
     "values": {
+        "heading": "What Sets Us Apart",
         "precision": "Precision",
         "precisionDesc": "Microscope-assisted treatment is our standard. We see more to treat more effectively and preserve your teeth.",
         "aesthetics": "Aesthetics",

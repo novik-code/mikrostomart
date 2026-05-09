@@ -11,28 +11,30 @@ import HomeClient from "./HomeClient";
 // layout — homepage doesn't need the brand suffix duplicated.
 // brandConfig.titleDefault stays 'Mikrostomart' (PWA install name on iOS).
 
+// Meta description SEO best practice: 150–160 chars (Google truncates longer ones in SERP).
+// Each locale below stays within ~155 chars while preserving primary keywords + CTA.
 const HOMEPAGE_SEO: Record<string, { title: string; description: string; ogTitle: string; ogDescription: string }> = {
     pl: {
         title: 'Stomatolog, dentysta Opole | Gabinet stomatologiczny Mikrostomart',
-        description: 'Mikrostomart — gabinet stomatologiczny w Opolu. Implanty, leczenie kanałowe pod mikroskopem, stomatologia estetyczna, ortodoncja. Zespół specjalistów: Marcin Nowosielski i in. Umów wizytę: 570 270 470.',
+        description: 'Mikrostomart — gabinet stomatologiczny w Opolu. Implanty, leczenie kanałowe pod mikroskopem, estetyka, ortodoncja. Umów wizytę: 570 270 470.',
         ogTitle: 'Stomatolog, dentysta Opole | Mikrostomart',
         ogDescription: 'Nowoczesny gabinet stomatologiczny w Opolu. Implanty, mikroskopia, stomatologia estetyczna. Umów wizytę.',
     },
     en: {
         title: 'Dentist in Opole, Poland | Mikrostomart Dental Clinic',
-        description: 'Mikrostomart — modern dental clinic in Opole, Poland. Dental implants, microscopic root canal treatment, aesthetic dentistry, orthodontics. Specialist team led by Dr. Marcin Nowosielski. Book online or call +48 570 270 470.',
+        description: 'Mikrostomart — modern dental clinic in Opole, Poland. Dental implants, microscopic root canal, aesthetic dentistry, orthodontics. Book: +48 570 270 470.',
         ogTitle: 'Dentist in Opole | Mikrostomart',
         ogDescription: 'Modern dental clinic in Opole, Poland. Implants, microscopy, aesthetic dentistry. Book your appointment.',
     },
     de: {
         title: 'Zahnarzt in Opole, Polen | Zahnklinik Mikrostomart',
-        description: 'Mikrostomart — moderne Zahnklinik in Opole, Polen. Implantate, mikroskopische Wurzelkanalbehandlung, ästhetische Zahnmedizin, Kieferorthopädie. Spezialistenteam unter Leitung von Dr. Marcin Nowosielski. Termin: +48 570 270 470.',
+        description: 'Mikrostomart — moderne Zahnklinik in Opole, Polen. Implantate, mikroskopische Wurzelkanalbehandlung, ästhetische Zahnmedizin. Termin: +48 570 270 470.',
         ogTitle: 'Zahnarzt in Opole | Mikrostomart',
         ogDescription: 'Moderne Zahnklinik in Opole, Polen. Implantate, Mikroskopie, ästhetische Zahnmedizin. Termin online buchen.',
     },
     ua: {
         title: 'Стоматолог в Ополе, Польща | Стоматологічна клініка Mikrostomart',
-        description: 'Mikrostomart — сучасна стоматологічна клініка в Ополе, Польща. Імпланти, мікроскопічне ендодонтичне лікування, естетична стоматологія, ортодонтія. Команда спеціалістів. Запис: +48 570 270 470.',
+        description: 'Mikrostomart — сучасна стоматологічна клініка в Ополе. Імпланти, мікроскопічне ендодонтичне лікування, естетика, ортодонтія. Запис: +48 570 270 470.',
         ogTitle: 'Стоматолог в Ополе | Mikrostomart',
         ogDescription: 'Сучасна стоматологічна клініка в Ополе. Імпланти, мікроскопія, естетична стоматологія. Запис на прийом.',
     },

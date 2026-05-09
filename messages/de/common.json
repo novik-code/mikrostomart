@@ -29,6 +29,7 @@
         "description": "Bei {brandName} verbinden wir technologische Präzision mit künstlerischer Sensibilität. Entdecken Sie Zahnmedizin, die Selbstvertrauen zurückgibt."
     },
     "values": {
+        "heading": "Was uns auszeichnet",
         "precision": "Präzision",
         "precisionDesc": "Die Behandlung unter dem Mikroskop ist unser Standard. Wir sehen mehr, um effektiver zu behandeln und Ihre Zähne zu erhalten.",
         "aesthetics": "Ästhetik",

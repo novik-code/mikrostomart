@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import RevealOnScroll from "./RevealOnScroll";
 import { Youtube, Instagram, Facebook, UserRound } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -303,7 +304,7 @@ export default function YouTubeFeed() {
                                             overflow: 'hidden'
                                         }}>
                                             {social.badge === 'logo' ? (
-                                                <img src="/logo-transparent.png" alt="Clinic" style={{ width: '80%', height: 'auto', opacity: 0.9 }} />
+                                                <Image src="/logo-transparent.png" alt="Clinic" width={32} height={32} style={{ width: '80%', height: 'auto', opacity: 0.9 }} />
                                             ) : (
                                                 <UserRound size={12} color={social.color} />
                                             )}

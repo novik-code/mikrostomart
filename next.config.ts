@@ -72,6 +72,10 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: '*.githubusercontent.com', // Covers raw and objects
       },
+      {
+        protocol: 'https',
+        hostname: '*.supabase.co', // Product images, news images, KB articles, blog posts
+      },
     ],
   },
   async headers() {

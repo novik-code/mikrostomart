@@ -29,6 +29,7 @@
         "description": "W {brandName} łączymy precyzję technologii z wrażliwością sztuki. Odkryj stomatologię, która przywraca pewność siebie."
     },
     "values": {
+        "heading": "Co nas wyróżnia",
         "precision": "Precyzja",
         "precisionDesc": "Leczenie pod mikroskopem to nasz standard. Widzimy więcej, by leczyć skuteczniej i oszczędzać Twoje zęby.",
         "aesthetics": "Estetyka",

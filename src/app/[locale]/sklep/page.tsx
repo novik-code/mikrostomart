@@ -4,6 +4,7 @@ import { useCart } from "@/context/CartContext";
 import { useTranslations, useLocale } from "next-intl";
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import RevealOnScroll from "@/components/RevealOnScroll";
 import ProductModal from "@/components/ProductModal";
 
@@ -130,7 +131,17 @@ export default function ShopPage() {
                                             position: "relative"
                                         }}>
                                             {/* Logic for image: render <img> if URL/Base64/Local path, else placeholder */}
-                                            {product.image && (product.image.startsWith("http") || product.image.startsWith("data:") || product.image.startsWith("/")) ? (
+                                            {product.image && (product.image.startsWith("http") || product.image.startsWith("/")) ? (
+                                                <Image
+                                                    src={product.image}
+                                                    alt={getTranslated(product, 'name', locale)}
+                                                    fill
+                                                    sizes="(max-width: 768px) 100vw, 33vw"
+                                                    style={{ objectFit: "cover" }}
+                                                />
+                                            ) : product.image && product.image.startsWith("data:") ? (
+                                                // base64 data URLs are not optimized by next/image — keep <img> for these
+                                                // eslint-disable-next-line @next/next/no-img-element
                                                 <img src={product.image} alt={getTranslated(product, 'name', locale)} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                                             ) : (
                                                 <span>{product.image || t('noImage')}</span>

@@ -200,6 +200,18 @@ function ValuesSection() {
     const tValues = useTranslations('values');
     return (
         <section className="section container">
+            <RevealOnScroll>
+                <h2 style={{
+                    fontSize: "clamp(1.75rem, 3vw, 2.25rem)",
+                    fontWeight: 400,
+                    textAlign: "center",
+                    marginBottom: "var(--spacing-lg)",
+                    color: "var(--color-text-main)",
+                    fontFamily: "var(--font-heading)"
+                }}>
+                    {tValues('heading')}
+                </h2>
+            </RevealOnScroll>
             <div style={{
                 display: "grid",
                 gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
