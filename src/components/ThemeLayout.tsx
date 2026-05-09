@@ -21,23 +21,45 @@ function ThemedContent({ children }: { children: ReactNode }) {
     const STANDALONE_TEMPLATES = ['dental-luxe', 'fresh-smile', 'nordic-dental', 'warm-care'];
     const skipGlobalChrome = STANDALONE_TEMPLATES.includes(presetId);
 
-    // Dynamically load Google Fonts based on theme typography
-    const fontsToLoad = new Set([theme.typography.fontBody, theme.typography.fontHeading]);
-    const googleFontsUrl = `https://fonts.googleapis.com/css2?${[...fontsToLoad].map(f => `family=${f.replace(/ /g, '+')}:wght@300;400;500;600;700`).join('&')}&display=swap`;
+    // Dynamically load Google Fonts ONLY for custom theme fonts.
+    // Inter + Playfair Display are already statically loaded via next/font in
+    // app/layout.tsx (preloaded, optimized, self-hosted). Loading them again here
+    // as a runtime <link> caused FOUT (Flash of Unstyled Text) — browser would
+    // render with the next/font version, then re-flow when the duplicate
+    // Google Fonts CDN copy resolved. Major contributor to the "flicker on load"
+    // issue reported 2026-05-09.
+    const STATIC_FONTS = new Set(['Inter', 'Playfair Display']);
+    const customFonts = [theme.typography.fontBody, theme.typography.fontHeading]
+        .filter((f) => f && !STATIC_FONTS.has(f));
+    const customFontsUnique = Array.from(new Set(customFonts));
+    const needsCustomFontLoad = customFontsUnique.length > 0;
+    const googleFontsUrl = needsCustomFontLoad
+        ? `https://fonts.googleapis.com/css2?${customFontsUnique.map((f) => `family=${f.replace(/ /g, '+')}:wght@300;400;500;600;700`).join('&')}&display=swap`
+        : null;
 
     const content = (
         <>
-            {/* Dynamic Google Font loader */}
-            {/* eslint-disable-next-line @next/next/no-page-custom-font */}
-            <link rel="stylesheet" href={googleFontsUrl} />
-            <style>{`
-                :root {
-                    --font-body: '${theme.typography.fontBody}', sans-serif;
-                    --font-heading: '${theme.typography.fontHeading}', sans-serif;
-                }
-                body { font-family: var(--font-body); }
-                h1, h2, h3, h4, h5, h6 { font-family: var(--font-heading); }
-            `}</style>
+            {/* Dynamic Google Font loader — only for non-default theme fonts */}
+            {googleFontsUrl && (
+                <>
+                    {/* eslint-disable-next-line @next/next/no-page-custom-font */}
+                    <link rel="preconnect" href="https://fonts.googleapis.com" />
+                    <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+                    {/* eslint-disable-next-line @next/next/no-page-custom-font */}
+                    <link rel="stylesheet" href={googleFontsUrl} />
+                </>
+            )}
+            {/* Font CSS variables — only override defaults (next/font Inter+Playfair) when theme uses custom fonts */}
+            {needsCustomFontLoad && (
+                <style>{`
+                    :root {
+                        --font-body: '${theme.typography.fontBody}', var(--font-sans);
+                        --font-heading: '${theme.typography.fontHeading}', var(--font-heading-fallback, serif);
+                    }
+                    body { font-family: var(--font-body); }
+                    h1, h2, h3, h4, h5, h6 { font-family: var(--font-heading); }
+                `}</style>
+            )}
             {!skipGlobalChrome && f.backgroundVideo && <BackgroundVideo videoId={theme.hero.backgroundVideoId} />}
             {f.cookieConsent && <CookieConsent />}
             <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
