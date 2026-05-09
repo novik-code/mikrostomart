@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import RevealOnScroll from "./RevealOnScroll";
-import { Youtube, Instagram, Facebook, UserRound } from "lucide-react";
+import { Youtube, Instagram, Facebook, UserRound, Play } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { isDemoMode } from "@/lib/demoMode";
 
@@ -29,6 +29,12 @@ export default function YouTubeFeed() {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [videosPerPage, setVideosPerPage] = useState(3);
     const [isApiWorking, setIsApiWorking] = useState(false);
+    // Faza E SEO (2026-05-09): facade pattern. Domyślnie pokazujemy thumbnail YouTube
+    // + przycisk Play. iframe ładuje się tylko po kliknięciu (z autoplay=1 żeby od
+    // razu zagrał, bez drugiego kliknięcia). Eliminuje ~6.5 MB JS i ~3 sekundy main
+    // thread time przy initial load. UX identyczny — i tak użytkownik musi kliknąć
+    // Play żeby zobaczyć film.
+    const [playingVideos, setPlayingVideos] = useState<Set<string>>(new Set());
     const t = useTranslations('youtubeFeed');
 
     useEffect(() => {
@@ -131,20 +137,70 @@ export default function YouTubeFeed() {
                                         height: 0,
                                         background: "#000"
                                     }}>
-                                        <iframe
-                                            src={`https://www.youtube.com/embed/${video.id}`}
-                                            title={video.title} // Accessibility fix
-                                            style={{
-                                                position: "absolute",
-                                                top: 0,
-                                                left: 0,
-                                                width: "100%",
-                                                height: "100%",
-                                                border: 0
-                                            }}
-                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                            allowFullScreen
-                                        />
+                                        {playingVideos.has(video.id) ? (
+                                            <iframe
+                                                src={`https://www.youtube.com/embed/${video.id}?autoplay=1`}
+                                                title={video.title}
+                                                style={{
+                                                    position: "absolute",
+                                                    top: 0,
+                                                    left: 0,
+                                                    width: "100%",
+                                                    height: "100%",
+                                                    border: 0
+                                                }}
+                                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                                allowFullScreen
+                                            />
+                                        ) : (
+                                            <button
+                                                onClick={() => setPlayingVideos(prev => new Set(prev).add(video.id))}
+                                                aria-label={`Odtwórz: ${video.title}`}
+                                                style={{
+                                                    position: "absolute",
+                                                    top: 0,
+                                                    left: 0,
+                                                    width: "100%",
+                                                    height: "100%",
+                                                    border: 0,
+                                                    padding: 0,
+                                                    cursor: "pointer",
+                                                    background: "#000",
+                                                    overflow: "hidden",
+                                                }}
+                                            >
+                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                <img
+                                                    src={`https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`}
+                                                    alt={video.title}
+                                                    loading="lazy"
+                                                    style={{
+                                                        width: "100%",
+                                                        height: "100%",
+                                                        objectFit: "cover",
+                                                        display: "block",
+                                                    }}
+                                                />
+                                                {/* YouTube-style play button overlay */}
+                                                <div style={{
+                                                    position: "absolute",
+                                                    top: "50%",
+                                                    left: "50%",
+                                                    transform: "translate(-50%, -50%)",
+                                                    width: "68px",
+                                                    height: "48px",
+                                                    background: "rgba(33, 33, 33, 0.8)",
+                                                    borderRadius: "12px",
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    justifyContent: "center",
+                                                    transition: "background 0.2s",
+                                                    pointerEvents: "none",
+                                                }}>
+                                                    <Play size={28} color="#fff" fill="#fff" strokeWidth={0} style={{ marginLeft: "4px" }} />
+                                                </div>
+                                            </button>
+                                        )}
                                     </div>
                                     <div style={{ padding: "var(--spacing-md)" }}>
                                         <h3 style={{

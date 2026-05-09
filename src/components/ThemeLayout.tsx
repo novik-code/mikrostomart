@@ -6,13 +6,19 @@ import dynamic from 'next/dynamic';
 import SplashScreen from '@/components/SplashScreen';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import CookieConsent from '@/components/CookieConsent';
 
 // Faza C (SEO/perf): non-critical UI lazy-loaded after hydration to shrink initial bundle.
 // All wrapped components are conditional or user-triggered (modals, banners, teasers).
 // SplashScreen stays static because it wraps `children` — dynamic with ssr:false would
 // blank the SSR HTML.
+//
+// Faza E (2026-05-09): CookieConsent przeniesiony z dynamic z powrotem do static.
+// PSI mobile pokazał LCP=25s a desktop LCP=5.2s z LCP element = "Strona korzysta z
+// plików cookies..." — czyli CookieConsent banner. Dynamic z ssr:false sprawiał że
+// musiał czekać na hydration + lazy chunk → stał się LCP element. Static import
+// ładuje go w SSR HTML od razu, więc nie blokuje wskaźnika.
 const BackgroundVideo = dynamic(() => import('@/components/BackgroundVideo'), { ssr: false });
-const CookieConsent = dynamic(() => import('@/components/CookieConsent'), { ssr: false });
 const AssistantTeaser = dynamic(() => import('@/components/AssistantTeaser'), { ssr: false });
 const PWAInstallPrompt = dynamic(() => import('@/components/PWAInstallPrompt'), { ssr: false });
 const SimulatorModal = dynamic(() => import('@/components/SimulatorModal'), { ssr: false });

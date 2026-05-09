@@ -53,6 +53,18 @@ function addSecurityHeaders(response: NextResponse): NextResponse {
         ? new URL(process.env.PRODENTIS_API_URL).origin
         : 'http://83.230.40.14:3000';
 
+    // Faza E SEO (2026-05-09): napraw next-intl Link header `hreflang="ua"` → "uk".
+    // Lighthouse SEO audit oznacza `ua` jako "nieoczekiwany kod języka" bo ISO 639-1
+    // dla ukraińskiego to `uk` (URL prefix `/ua` zostaje, ale hreflang language code
+    // musi być `uk`). Routing.ts ma `locales: ['pl', 'en', 'de', 'ua']` — `'ua'` jest
+    // URL-friendly ale nie ISO. Zmiana całej nomenklatury locale to ryzykowny refactor
+    // (i18n folders, wszystkie miejsca z locale === 'ua', etc.). Tańsze: post-process
+    // Link header w naszym middleware.
+    const linkHeader = response.headers.get('link');
+    if (linkHeader && linkHeader.includes('hreflang="ua"')) {
+        response.headers.set('link', linkHeader.replace(/hreflang="ua"/g, 'hreflang="uk"'));
+    }
+
     response.headers.set('Content-Security-Policy-Report-Only', [
         "default-src 'self'",
         "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://maps.googleapis.com https://www.googletagmanager.com https://www.googleadservices.com",
