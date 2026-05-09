@@ -2462,6 +2462,52 @@ NODE_ENV=production
 
 ## 📝 Recent Changes
 
+### 2026-05-09 — Faza D: self-host hero background video (eliminacja YouTube SDK)
+**Reakcja na PageSpeed Insights 37/100 — YouTube embeds ładują 9 MB JS**
+
+#### Commit:
+- `042635d` — feat(perf): Faza D — self-host hero background video (eliminacja YouTube SDK ~4 MB JS)
+
+#### Diagnoza (PSI desktop /en, audit 2026-05-09 21:35):
+Performance score **37/100**. Bottleneck:
+- **YouTube embeds**: 9375 KiB transferu (96% wszystkiego), 3960 ms main thread (67%)
+- **`BackgroundVideo` iframe** (tło hero): pobiera całe SDK YouTube (`base.js` 435 KiB + `m=r78Drb` 193 KiB + `root,base` 140 KiB) tylko po to żeby wyświetlić autoplay+muted+loop tła z `opacity:0.3` + `mixBlendMode:luminosity`
+- LCP 6,4s, TBT 1220ms — daleko od celu (2,5s / 200ms)
+
+#### Co zrobione:
+1. **Pobrane oryginał YouTube** `vGAu6rdJ8WQ` (Mikrostomart promo, 5:23, 1080p, 68 MB) przez `yt-dlp`.
+2. **Kompresja przez ffmpeg** do `public/hero-video.mp4`: 480p H.264, crf 32, no audio, faststart movflags. Resolution 480p wystarczy — finalna warstwa ma `opacity:0.3` + `mixBlendMode:luminosity`, szczegóły i artefakty kompresji niewidoczne. **Końcowy rozmiar: 7.9 MB** (z 68 MB oryginału, z 9 MB+ YouTube SDK transferu).
+3. **`BackgroundVideo.tsx` refactor**: YouTube iframe → native `<video autoplay muted loop playsinline>`. Zachowane wszystkie zachowania (autoplay, mute, loop, fullscreen cover) ale:
+   - **Zero JavaScript execution** (nie blokuje main thread — YouTube SDK robił 2s)
+   - **Ładuje się równolegle** z innymi assetami (nie blokuje LCP — YouTube SDK był synchroniczny)
+   - Native przeglądarka media player zamiast YouTube embed
+4. Prop `videoId` zachowany dla kompatybilności z `ThemeContext.hero.backgroundVideoId`, ale aktualnie ignorowany — zawsze serwujemy lokalny plik. Mapę `videoId → URL` dorobimy gdy będzie wiele tłen.
+
+#### Komendy reprodukcji (gdyby trzeba odtworzyć inny film):
+```bash
+yt-dlp -f "bestvideo[height<=1080]+bestaudio/best" "https://youtube.com/watch?v=<ID>"
+ffmpeg -i hero-original.webm -vf "scale=854:480" -c:v libx264 -preset slow \
+  -crf 32 -profile:v main -pix_fmt yuv420p -movflags +faststart -an hero-video.mp4
+```
+
+#### Spodziewany efekt na PSI homepage:
+- **PageSpeed score**: 37 → **70+** (eliminacja 4 MB YouTube JS + ~2s main thread)
+- **LCP**: poprawa bo CookieConsent (current LCP element) nie jest już blokowany przez YouTube SDK
+- **TBT**: spadek o ~2000ms
+
+#### Co zostało (Faza D part 2 — opcjonalne):
+- **`YouTubeFeed`** (lista 3 filmów poniżej hero) — facade pattern (thumbnail z YouTube CDN + click→iframe). Eliminuje pozostałe ~5 MB JS, identyczny UX (user i tak musi kliknąć play). NIE objęty tą sesją bo Marcin chciał najpierw zobaczyć efekt samego BackgroundVideo.
+- **CookieConsent regression**: w Fazie C został przeniesiony do `dynamic({ssr:false})` co prawdopodobnie uczyniło go LCP element. Cofnąć do static — jeśli LCP nadal słaby po Fazie D.
+
+#### Pliki:
+- `src/components/BackgroundVideo.tsx` — kompletny refactor iframe → native video
+- `public/hero-video.mp4` — **[NEW]** 7.9 MB self-hosted MP4
+
+> **Brak migracji DB / nowych env var.** Tylko zmiany frontendu + nowy static asset.
+> Vercel auto-deployuje na produkcję + demo.
+
+---
+
 ### 2026-05-09 — Faza C follow-up fix: localeDetection: false
 **Bug diagnostyka po porażce PageSpeed Insights**
 
