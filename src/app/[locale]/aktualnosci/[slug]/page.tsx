@@ -5,8 +5,7 @@ import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { Metadata } from 'next';
 import { supabase } from '@/lib/supabaseClient';
-import { getTranslations, getLocale } from 'next-intl/server';
-import { demoSanitize } from '@/lib/brandConfig';
+import { getTranslations } from 'next-intl/server';
 
 // Supported locale suffixes
 const LOCALE_SUFFIXES = ['en', 'de', 'ua'] as const;
@@ -40,25 +39,33 @@ async function getArticle(slug: string) {
 // Allow dynamic paths
 export const dynamicParams = true;
 
-// Optional: if you want to generate some static paths at build time
+// Generate static params for all locales × all article slugs.
+// After Faza 2 i18n: params is { locale, slug } not just { slug }.
 export async function generateStaticParams() {
     const { data: articles } = await supabase.from('news').select('slug');
-    return articles?.map(({ slug }) => ({ slug })) || [];
+    if (!articles) return [];
+    const locales = ['pl', 'en', 'de', 'ua'];
+    // Cartesian product: every locale × every slug. Locales without translation
+    // simply fall back to PL via localizeArticle().
+    return articles.flatMap(({ slug }) =>
+        locales.map((locale) => ({ locale, slug }))
+    );
 }
 
-export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
-    const { slug } = await params;
+export async function generateMetadata({ params }: { params: Promise<{ locale: string; slug: string }> }): Promise<Metadata> {
+    const { locale, slug } = await params;
     const article = await getArticle(slug);
     const t = await getTranslations('aktualnosci');
     if (!article) return { title: t('articleNotFound') };
+    const localized = localizeArticle(article, locale);
     return {
-        title: `${article.title} | Mikrostomart`,
-        description: article.excerpt,
+        title: `${localized.title} | Mikrostomart`,
+        description: localized.excerpt,
     };
 }
 
-export default async function ArticlePage({ params }: { params: Promise<{ slug: string }> }) {
-    const { slug } = await params;
+export default async function ArticlePage({ params }: { params: Promise<{ locale: string; slug: string }> }) {
+    const { locale, slug } = await params;
     const article = await getArticle(slug);
     const t = await getTranslations('aktualnosci');
 
@@ -66,8 +73,8 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
         notFound();
     }
 
-    // Get locale from the cookie-based next-intl context
-    const locale = await getLocale();
+    // Use locale from URL params (more reliable than getLocale() which depends on
+    // next-intl middleware having populated the request context).
     const localizedArticle = localizeArticle(article, locale);
 
     return (

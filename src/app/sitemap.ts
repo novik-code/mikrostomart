@@ -1,5 +1,4 @@
 import { MetadataRoute } from 'next';
-import { articles } from '@/data/articles'; // News
 import { supabase } from '@/lib/supabaseClient';
 import { brand } from '@/lib/brandConfig';
 import { routing } from '@/i18n/routing';
@@ -116,15 +115,40 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         multiLocaleEntries(path, { changeFrequency: 'yearly', priority: 0.3 })
     );
 
-    // ── Dynamic: news articles (currently PL only — translation pending) ──
-    // TODO: when AI translates 14 articles from data/articles.ts to EN/DE/UA,
-    // expand this to multi-locale entries.
-    const newsRoutes: MetadataRoute.Sitemap = articles.map((post) => ({
-        url: `${BASE_URL}/aktualnosci/${post.slug}`,
-        lastModified: new Date(post.date),
-        changeFrequency: 'monthly' as const,
-        priority: 0.7,
-    }));
+    // ── Dynamic: news articles from DB (multi-locale via title_en/de/ua, content_en/de/ua) ──
+    // News uses the same slug across all locales (one row in `news` table per article,
+    // with translations stored in {field}_{locale} columns). For each row we emit one
+    // URL per locale + alternates.languages pointing to all 4 versions.
+    const { data: newsRowsRaw } = await supabase
+        .from('news')
+        .select('slug, date, title_en, title_de, title_ua');
+    const newsRows = newsRowsRaw || [];
+
+    const newsRoutes: MetadataRoute.Sitemap = newsRows.flatMap((post: any) => {
+        if (!post.slug) return [];
+
+        // Build alternates for this article. PL is always present; others only if translated.
+        // Slug is shared across locales — only the URL prefix differs per locale.
+        const languages: Record<string, string> = {
+            pl: `${BASE_URL}/aktualnosci/${post.slug}`,
+            'x-default': `${BASE_URL}/aktualnosci/${post.slug}`,
+        };
+        if (post.title_en) languages.en = `${BASE_URL}/en/aktualnosci/${post.slug}`;
+        if (post.title_de) languages.de = `${BASE_URL}/de/aktualnosci/${post.slug}`;
+        if (post.title_ua) languages.uk = `${BASE_URL}/ua/aktualnosci/${post.slug}`;
+
+        const lastModified = new Date(post.date);
+
+        // Emit one entry per available locale (skip locales without translation)
+        const entries: MetadataRoute.Sitemap = [
+            { url: `${BASE_URL}/aktualnosci/${post.slug}`, lastModified, changeFrequency: 'monthly' as const, priority: 0.7, alternates: { languages } },
+        ];
+        if (post.title_en) entries.push({ url: `${BASE_URL}/en/aktualnosci/${post.slug}`, lastModified, changeFrequency: 'monthly' as const, priority: 0.7, alternates: { languages } });
+        if (post.title_de) entries.push({ url: `${BASE_URL}/de/aktualnosci/${post.slug}`, lastModified, changeFrequency: 'monthly' as const, priority: 0.7, alternates: { languages } });
+        if (post.title_ua) entries.push({ url: `${BASE_URL}/ua/aktualnosci/${post.slug}`, lastModified, changeFrequency: 'monthly' as const, priority: 0.7, alternates: { languages } });
+
+        return entries;
+    });
 
     // ── Dynamic: knowledge base articles — already per-locale in DB ──
     // Each row has its own locale + slug; we link translations via group_id for hreflang.
