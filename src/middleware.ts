@@ -239,8 +239,16 @@ export const config = {
          * - _next/static (static files)
          * - _next/image (image optimization files)
          * - favicon.ico (favicon file)
+         *
+         * Excluded extensions cover: images, fonts, audio/video, and especially
+         * static assets in /public/ that the next-intl + Supabase middleware
+         * would otherwise route through page logic (resulting in 404).
+         *
+         * CRITICAL after Faza 2 (URL-based i18n) regression: /sw.js, /firebase-messaging-sw.js,
+         * /manifest.json, /push-sw.js were being 404'd because the matcher only
+         * excluded image extensions. Adding js/css/json/woff2/map/webmanifest fixes PWA.
          */
-        "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|txt|xml)$).*)",
+        "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|txt|xml|js|css|woff|woff2|ttf|otf|eot|json|webmanifest|map|mp4|mp3|wav|pdf)$).*)",
     ],
 };
 

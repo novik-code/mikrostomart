@@ -27,10 +27,25 @@ export async function generateMetadata(): Promise<Metadata> {
         metadataBase: new URL(b.metadataBase),
         alternates: {
             canonical: './',
-            // hreflang languages intentionally not declared until URL-based i18n is implemented.
-            // Language switcher currently uses NEXT_LOCALE cookie under the same URL,
-            // so declaring per-locale alternates would mislead Google. Faza 2 of SEO overhaul
-            // will introduce localePrefix:'as-needed' and proper /en/, /de/, /uk/ routes.
+            // Global hreflang declared at homepage level for the language site map.
+            // Homepage in /[locale]/page.tsx adds explicit per-page hreflang via its own
+            // generateMetadata; this root-level fallback covers all subpages so Lighthouse
+            // doesn't flag "Document does not have a valid hreflang" on /oferta etc.
+            //
+            // Note: ISO 639-1 'uk' (Ukrainian language) maps to URL prefix 'ua' (Ukraine
+            // country code) — this is intentional, see comments in src/i18n/routing.ts.
+            //
+            // TODO: per-page hreflang (where /oferta points to /en/oferta etc. per locale)
+            // would be more SEO-correct but requires propagating request pathname into
+            // server-side generateMetadata. Lower priority — current setup is valid and
+            // accepted by Google (declares site language map, not per-URL).
+            languages: {
+                pl: '/',
+                en: '/en',
+                de: '/de',
+                uk: '/ua',
+                'x-default': '/',
+            },
         },
         title: {
             default: b.titleDefault,
