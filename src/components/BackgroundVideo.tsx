@@ -2,11 +2,28 @@
 
 import { useEffect, useState } from "react";
 
-export default function BackgroundVideo({ videoId }: { videoId: string }) {
+/**
+ * BackgroundVideo — cinematic hero background.
+ *
+ * Faza D SEO (2026-05-09): zmieniony z YouTube iframe na self-hosted MP4 w
+ * public/hero-video.mp4. Powód: poprzednia wersja ładowała ~4 MB YouTube
+ * JavaScript (base.js, m=r78Drb, root,base) i zżerała ~2 sekundy main thread
+ * tylko przez sam SDK YouTube. Native <video> ładuje 8 MB MP4 ale:
+ *   - zero JavaScript execution (nie blokuje main thread)
+ *   - ładuje się równolegle z innymi assetami (nie blokuje LCP)
+ *   - autoplay/muted/loop działają identycznie jak w YouTube embed
+ *
+ * Prop `videoId` zachowany dla kompatybilności z theme config (ThemeContext
+ * `hero.backgroundVideoId`), ale aktualnie ignorowany — zawsze serwujemy
+ * lokalny `vGAu6rdJ8WQ` (Mikrostomart promo) skompresowany do 480p H.264.
+ * Jeśli kiedyś potrzebne wiele tłen, dorobimy mapę videoId → URL.
+ */
+export default function BackgroundVideo(_props: { videoId: string }) {
     const [isLoaded, setIsLoaded] = useState(false);
 
     useEffect(() => {
-        // Small delay to prioritize static content loading
+        // Małe opóźnienie żeby najpierw wyrenderować statyczną treść,
+        // dopiero potem zacząć pobierać ~8 MB MP4.
         const timer = setTimeout(() => setIsLoaded(true), 500);
         return () => clearTimeout(timer);
     }, []);
@@ -22,26 +39,23 @@ export default function BackgroundVideo({ videoId }: { videoId: string }) {
             height: "100%",
             zIndex: -1,
             overflow: "hidden",
-            opacity: 0.3, // Subtle visibility
-            mixBlendMode: "luminosity" // Cinematic effect
+            opacity: 0.3,
+            mixBlendMode: "luminosity"
         }}>
-            <iframe
-                src={`https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${videoId}&playsinline=1&showinfo=0&rel=0`}
-                title="Tło wideo strony"
+            <video
+                src="/hero-video.mp4"
+                autoPlay
+                muted
+                loop
+                playsInline
+                preload="auto"
                 aria-hidden="true"
                 style={{
-                    width: "100vw",
-                    height: "56.25vw", // 16:9 Aspect Ratio
-                    minHeight: "100vh",
-                    minWidth: "177.77vh", // 16:9 Aspect Ratio
-                    position: "absolute",
-                    top: "50%",
-                    left: "50%",
-                    transform: "translate(-50%, -50%)",
-                    pointerEvents: "none"
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                    pointerEvents: "none",
                 }}
-                allow="autoplay; encrypted-media"
-                frameBorder="0"
             />
 
             {/* Gradient Overlay to ensure text readability */}
