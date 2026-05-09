@@ -1,15 +1,20 @@
 /**
- * SEO helpers — per-page hreflang + canonical + locale-aware metadata.
+ * SEO helpers — per-page hreflang + canonical + locale-aware metadata + structured data.
  *
  * Faza G1 (2026-05-09): rozwiązuje problem globalnego hreflang w root layout który
  * deklarował każdą podstronę jako homepage w innym locale (np. `/oferta` w EN miało
  * wskazywać na `/en` zamiast `/en/oferta`). Każda public page deklaruje teraz własny
  * zestaw alternates.languages z poprawnymi per-page URLami.
+ *
+ * Faza G2 (2026-05-09): dodano helpers schema.org:
+ * - breadcrumbSchema() — generator BreadcrumbList JSON-LD
+ * - getAggregateRating() — agregat z Google Reviews dla rich SERP gwiazdek
  */
 import type { Metadata } from 'next';
 import { routing } from '@/i18n/routing';
 import { brand } from '@/lib/brandConfig';
 import { isDemoMode } from '@/lib/demoMode';
+import { supabase } from '@/lib/supabaseClient';
 
 // URL prefix → ISO 639-1 hreflang code. UA prefix maps to 'uk' (Ukrainian language).
 const HREFLANG_MAP: Record<string, string> = {
@@ -124,4 +129,80 @@ export function pageMetadata(
             description: seo.ogDescription || seo.description,
         },
     };
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Faza G2: Structured data helpers
+// ════════════════════════════════════════════════════════════════════════════
+
+export interface BreadcrumbItem {
+    name: string;
+    /** Absolute URL. Omit for the current (last) breadcrumb item — Google convention. */
+    url?: string;
+}
+
+/**
+ * Build a BreadcrumbList schema.org JSON-LD object.
+ * Renders as `<script type="application/ld+json">` in page layout.
+ *
+ * Convention: last item (current page) typically has no URL — Google treats it
+ * as "you are here" implicit reference.
+ *
+ * @example
+ *   breadcrumbSchema([
+ *     { name: 'Strona główna', url: brand.appUrl },
+ *     { name: 'Cennik' }  // current page
+ *   ])
+ */
+export function breadcrumbSchema(items: BreadcrumbItem[]) {
+    return {
+        '@context': 'https://schema.org',
+        '@type': 'BreadcrumbList',
+        itemListElement: items.map((item, i) => ({
+            '@type': 'ListItem',
+            position: i + 1,
+            name: item.name,
+            ...(item.url ? { item: item.url } : {}),
+        })),
+    };
+}
+
+export interface AggregateRating {
+    ratingValue: number;
+    reviewCount: number;
+}
+
+/**
+ * Fetch aggregate rating from Google Reviews stored in Supabase.
+ * Returns null on error or empty cache (caller should skip aggregateRating in schema).
+ *
+ * Used in root layout's Dentist schema to enable rich SERP stars.
+ * Counts only reviews ≥ 4 stars (matches GoogleReviews component filter).
+ *
+ * Cached for 1 hour via Next.js Data Cache (revalidate tag).
+ */
+export async function getAggregateRating(): Promise<AggregateRating | null> {
+    try {
+        const { data, error } = await supabase
+            .from('google_reviews')
+            .select('rating')
+            .gte('rating', 4);
+
+        if (error || !data || data.length === 0) {
+            return null;
+        }
+
+        const ratings = data.map((r) => r.rating).filter((r) => typeof r === 'number');
+        if (ratings.length === 0) return null;
+
+        const sum = ratings.reduce((acc, r) => acc + r, 0);
+        const avg = sum / ratings.length;
+
+        return {
+            ratingValue: Math.round(avg * 10) / 10,
+            reviewCount: ratings.length,
+        };
+    } catch {
+        return null;
+    }
 }

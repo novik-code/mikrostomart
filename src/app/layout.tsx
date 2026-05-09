@@ -17,6 +17,7 @@ import {
 } from "@/components/AdminClientLayer";
 import { isDemoMode } from "@/lib/demoMode";
 import { brand, brandI18nParams, demoSanitize, loadBrandFromDB } from "@/lib/brandConfig";
+import { getAggregateRating, type AggregateRating } from "@/lib/seo";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
@@ -83,72 +84,86 @@ export const viewport: Viewport = {
     themeColor: "#0f1115",
 };
 
-function SchemaOrg() {
+function SchemaOrg({ aggregateRating }: { aggregateRating: AggregateRating | null }) {
+    // Dentist schema with optional aggregateRating from Google Reviews (Faza G2).
+    // When ratings are available, SERP shows golden stars next to the result.
+    const dentistSchema: Record<string, unknown> = {
+        "@context": "https://schema.org",
+        "@type": ["Dentist", "MedicalBusiness"],
+        "name": brand.schemaName,
+        "alternateName": brand.schemaAlternateName,
+        "description": brand.schemaDescription,
+        "image": brand.schemaImage,
+        "@id": brand.schemaId,
+        "url": brand.schemaUrl,
+        "telephone": isDemoMode ? undefined : `+48${brand.phone1.replace(/-/g, '')}`,
+        "priceRange": "$$",
+        "currenciesAccepted": "PLN",
+        "paymentAccepted": "Cash, Credit Card",
+        "address": {
+            "@type": "PostalAddress",
+            "streetAddress": brand.streetAddress,
+            "addressLocality": brand.city,
+            "addressRegion": brand.region,
+            "postalCode": brand.postalCode,
+            "addressCountry": brand.country,
+        },
+        "geo": {
+            "@type": "GeoCoordinates",
+            "latitude": parseFloat(brand.geoPosition.split(';')[0]),
+            "longitude": parseFloat(brand.geoPosition.split(';')[1]),
+        },
+        "hasMap": `https://www.google.com/maps/search/?api=1&query=${brand.mapQuery}`,
+        "sameAs": brand.facebookUrl ? [brand.facebookUrl] : [],
+        "medicalSpecialty": [
+            "Dentistry",
+            "Endodontics",
+            "Prosthodontics",
+            "Orthodontics",
+            "DentalHygiene"
+        ],
+        "availableService": [
+            { "@type": "MedicalProcedure", "name": "Implanty zębów", "url": `${brand.schemaUrl}/oferta/implantologia` },
+            { "@type": "MedicalProcedure", "name": "Leczenie kanałowe pod mikroskopem" },
+            { "@type": "MedicalProcedure", "name": "Stomatologia estetyczna" },
+            { "@type": "MedicalProcedure", "name": "Ortodoncja" },
+            { "@type": "MedicalProcedure", "name": "Protetyka" },
+            { "@type": "MedicalProcedure", "name": "Chirurgia stomatologiczna" },
+            { "@type": "MedicalProcedure", "name": "Higienizacja i profilaktyka" }
+        ],
+        "openingHoursSpecification": [
+            {
+                "@type": "OpeningHoursSpecification",
+                "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday"],
+                "opens": "09:00",
+                "closes": "20:00"
+            },
+            {
+                "@type": "OpeningHoursSpecification",
+                "dayOfWeek": "Friday",
+                "opens": "09:00",
+                "closes": "16:00"
+            }
+        ],
+    };
+
+    if (aggregateRating && aggregateRating.reviewCount > 0) {
+        dentistSchema.aggregateRating = {
+            "@type": "AggregateRating",
+            ratingValue: aggregateRating.ratingValue,
+            reviewCount: aggregateRating.reviewCount,
+            bestRating: 5,
+            worstRating: 1,
+        };
+    }
+
     return (
         <>
             {/* Dentist / LocalBusiness schema */}
             <script
                 type="application/ld+json"
                 dangerouslySetInnerHTML={{
-                    __html: JSON.stringify({
-                        "@context": "https://schema.org",
-                        "@type": ["Dentist", "MedicalBusiness"],
-                        "name": brand.schemaName,
-                        "alternateName": brand.schemaAlternateName,
-                        "description": brand.schemaDescription,
-                        "image": brand.schemaImage,
-                        "@id": brand.schemaId,
-                        "url": brand.schemaUrl,
-                        "telephone": isDemoMode ? undefined : `+48${brand.phone1.replace(/-/g, '')}`,
-                        "priceRange": "$$",
-                        "currenciesAccepted": "PLN",
-                        "paymentAccepted": "Cash, Credit Card",
-                        "address": {
-                            "@type": "PostalAddress",
-                            "streetAddress": brand.streetAddress,
-                            "addressLocality": brand.city,
-                            "addressRegion": brand.region,
-                            "postalCode": brand.postalCode,
-                            "addressCountry": brand.country,
-                        },
-                        "geo": {
-                            "@type": "GeoCoordinates",
-                            "latitude": parseFloat(brand.geoPosition.split(';')[0]),
-                            "longitude": parseFloat(brand.geoPosition.split(';')[1]),
-                        },
-                        "hasMap": `https://www.google.com/maps/search/?api=1&query=${brand.mapQuery}`,
-                        "sameAs": brand.facebookUrl ? [brand.facebookUrl] : [],
-                        "medicalSpecialty": [
-                            "Dentistry",
-                            "Endodontics",
-                            "Prosthodontics",
-                            "Orthodontics",
-                            "DentalHygiene"
-                        ],
-                        "availableService": [
-                            { "@type": "MedicalProcedure", "name": "Implanty zębów", "url": `${brand.schemaUrl}/oferta/implantologia` },
-                            { "@type": "MedicalProcedure", "name": "Leczenie kanałowe pod mikroskopem" },
-                            { "@type": "MedicalProcedure", "name": "Stomatologia estetyczna" },
-                            { "@type": "MedicalProcedure", "name": "Ortodoncja" },
-                            { "@type": "MedicalProcedure", "name": "Protetyka" },
-                            { "@type": "MedicalProcedure", "name": "Chirurgia stomatologiczna" },
-                            { "@type": "MedicalProcedure", "name": "Higienizacja i profilaktyka" }
-                        ],
-                        "openingHoursSpecification": [
-                            {
-                                "@type": "OpeningHoursSpecification",
-                                "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday"],
-                                "opens": "09:00",
-                                "closes": "20:00"
-                            },
-                            {
-                                "@type": "OpeningHoursSpecification",
-                                "dayOfWeek": "Friday",
-                                "opens": "09:00",
-                                "closes": "16:00"
-                            }
-                        ]
-                    })
+                    __html: JSON.stringify(dentistSchema)
                 }}
             />
             {/* WebSite schema — enables sitelinks search in Google */}
@@ -180,6 +195,10 @@ export default async function RootLayout({
     // Read locale from NEXT_LOCALE cookie (set by LanguageSwitcher)
     const locale = await getLocale();
     const rawMessages = await getMessages();
+
+    // Fetch aggregate rating for Dentist schema (Faza G2).
+    // Returns null in demo mode, on error, or when google_reviews table is empty.
+    const aggregateRating = isDemoMode ? null : await getAggregateRating();
 
     // Recursively replace brand tokens ({brandName}, {cityShort}, etc.) in all translation strings.
     // next-intl v4 removed defaultTranslationValues from the provider, so we pre-bake them here.
@@ -255,7 +274,7 @@ export default async function RootLayout({
                     })();
                 ` }} />
                 <DemoBanner />
-                <SchemaOrg />
+                <SchemaOrg aggregateRating={aggregateRating} />
                 <NextIntlClientProvider locale={locale} messages={messages}>
                     <VisualEditorProvider>
                         <CartProvider>
