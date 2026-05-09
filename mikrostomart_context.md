@@ -1,8 +1,8 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-08 (KCP F1-F7 ukończony)  
+> **Last Updated:** 2026-05-09 (SEO Faza 1: 301 redirects + meta title homepage)  
 > **Version:** Production + Demo (Dual Vercel Deployment)  
-> **Status:** Active Development — KCP (Kontrola Czasu Pracy) FULL: F1-F7 + cross-verify; CareFlow Perioperative; Push-First Communication
+> **Status:** Active Development — KCP FULL; CareFlow Perioperative; Push-First Communication; **SEO recovery in progress (Faza 1 zrealizowana, Faza 2 i18n do zrobienia)**
 
 ---
 
@@ -2461,6 +2461,72 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-09 — SEO Recovery Faza 1: 301 redirecty + meta title strony głównej
+**Naprawa katastrofy SEO — 198 błędów 404 + przywrócenie SEO-friendly title**
+
+#### Commit:
+- `99144ec` — fix(seo): naprawa katastrofy SEO — 301 redirecty + meta title strony głównej
+
+#### Diagnoza (z eksportu GSC 2026-05-09):
+- 198 URLi 404 narastało stopniowo od 10 lutego 2026 (141 → 198 w ciągu 3 miesięcy)
+- Migracja Joomla → Next.js została wykonana **bez 301 redirectów ze starych URLi**
+- Google przez 3 miesiące odkrywał coraz więcej martwych URLi → spadek crawl budget i pozycji
+- Dodatkowy cios: 11 kwietnia (`30d5640`+`c54d629`) title strony głównej skrócono do `'Mikrostomart'` (PWA Name Fix dla iOS) → utrata rankingu na słowa kluczowe `stomatolog Opole`, `dentysta Opole`
+- Dodatkowo: GSC Marcina monitoruje property `http://mikrostomart.pl/` zamiast `https://` — fałszywe zera w danych o linkach. To **nie jest problem strony, tylko konfiguracji GSC** (Marcin musi dodać property Domain `mikrostomart.pl` z weryfikacją DNS)
+
+#### Co się zmieniło:
+- **`next.config.ts`** — dodana funkcja `async redirects()` z 16 wpisami pokrywającymi 100% z 198 URLi 404:
+  - Catchall regex `/aktualnosci/:idAndSlug([0-9]+-.+)` → `/aktualnosci` (171 URLi starych artykułów Joomla)
+  - Catchall `/component/:rest*` → `/aktualnosci` (4 URLi, Joomla tag feeds)
+  - Catchall `/zespol/:rest*` + `/zespol` → `/o-nas` (8 URLi, brak osobnej strony zespołu)
+  - 6 indywidualnych mapowań `/oferta/{stary-slug}` → bieżący slug/sekcja (`chirurgia-stomatologiczna`→`chirurgia`, `endodoncja-mikroskopowa`→`leczenie-kanalowe`, itd.)
+  - 6 indywidualnych mapowań standalone (`galeria`→`metamorfozy`, `pogotowie-stomatologiczne-24h`→`kontakt`, `radiowizjografia-cyfrowa`→`oferta/leczenie-kanalowe`, itd.)
+- **`src/app/page.tsx`** — refactor z client component na server wrapper z `export const metadata`. Title: `'Stomatolog, dentysta Opole | Gabinet stomatologiczny Mikrostomart'` (dokładnie jak prosił pozycjoner). Demo-aware: w demo `'Klinika Demo — Demonstracja DensFlow.Ai'`. `brandConfig.titleDefault` ZOSTAJE `'Mikrostomart'` dla bezpieczeństwa PWA install name na iOS (red line z sekcji 4.3 KOMENDA_STARTOWA).
+- **`src/app/HomeClient.tsx`** [NEW] — przeniesiona zawartość poprzedniego `page.tsx` (client component z `"use client"`, 771 LOC). `git mv` zachował historię.
+- **`src/app/layout.tsx`** — usunięty fałszywy `alternates.languages` (4 alternates do tego samego URL bez prefiksów językowych — wprowadzał Google w błąd). Hreflang zostanie zastąpiony prawdziwymi alternates w Fazie 2 gdy będą URL-e per-locale.
+- **`src/app/sitemap.ts`** — usunięta `/zespol` (strona nie istnieje fizycznie w `app/`, sitemap zawierała martwy URL → wpływało na sitemap-vs-index ratio).
+
+#### Smoke test (`npm run start` lokalnie):
+| URL | Status | Cel |
+|---|---|---|
+| `/aktualnosci/80-10-zasad-aby-dziecko-polubilo-dentyste` | 308 | `/aktualnosci` ✅ |
+| `/zespol` | 308 | `/o-nas` ✅ |
+| `/component/tags/8` | 308 | `/aktualnosci` ✅ |
+| `/oferta/chirurgia-stomatologiczna` | 308 | `/oferta/chirurgia` ✅ |
+| `/galeria` | 308 | `/metamorfozy` ✅ |
+| `/` | 200 | `<title>Stomatolog, dentysta Opole \| Gabinet stomatologiczny Mikrostomart</title>` ✅ |
+
+> **Uwaga:** Next.js z `permanent: true` zwraca 308 (Permanent Redirect), nie 301 (Moved Permanently). Google traktuje 308 dokładnie jak 301 dla SEO — semantycznie identyczne, jedyna różnica to że 308 zachowuje metodę HTTP (POST→POST). Bez wpływu na ranking.
+
+#### Następne fazy planu naprawczego SEO:
+- **Faza 2: URL-based i18n** (osobny branch `feat/i18n-url-based`, 2-3 dni roboczych)
+  - Zmiana `src/i18n/routing.ts`: `localePrefix: 'never'` → `'as-needed'`
+  - Integracja next-intl middleware z istniejącym Supabase middleware
+  - Restruktura `src/app/` (decyzja: `[locale]` segment vs middleware-rewrite)
+  - Sitemap per-locale (4× URLi), prawdziwy hreflang
+  - LanguageSwitcher: zmiana URL nie cookie
+  - Audyt brakujących tłumaczeń statycznych stron
+  - Lokalizowane metadata per strona per locale
+- **Faza 3 (Marcin + Ja):**
+  - Marcin: dodać property `mikrostomart.pl` (Domain) w GSC, weryfikacja DNS TXT
+  - Marcin: re-submit sitemap po Fazie 1 i Fazie 2
+  - Ja: monitor Web Vitals (LCP/CLS/INP) — sprawdzić czy SplashScreen/ThemeContext nie spowalniają
+  - Decyzja: stworzyć osobną stronę `/zespol` z każdym lekarzem (boost SEO long-term)
+  - Audyt po 4 tygodniach: konwersja 198 → 0 błędów 404
+
+#### Pliki:
+- `next.config.ts` — dodana sekcja `redirects()` (92 linie)
+- `src/app/page.tsx` — kompletny rewrite (server wrapper z metadata)
+- `src/app/HomeClient.tsx` [NEW] — poprzednia zawartość page.tsx
+- `src/app/layout.tsx` — usunięty fałszywy hreflang
+- `src/app/sitemap.ts` — usunięta `/zespol`
+
+> **Brak migracji DB / nowych env var.** Tylko zmiany w warstwie Next.js (routing, metadata).
+> Vercel auto-deployuje na produkcję + demo po pushu na main.
+> Oczekiwany efekt: Google w ciągu 4-6 tygodni wykryje 308 zamiast 404 → konwersja 198 → 0, przywrócenie pozycji na słowa kluczowe.
+
+---
 
 ### 2026-05-08 — Mapa projektu Quick Lookup (dokumentacja)
 **Pomocniczy dokument dla AI w przyszłych sesjach**
@@ -5700,6 +5766,16 @@ OpenAI gpt-image-1 regenerates the entire masked area from scratch (+ forces 102
 - [ ] `withAuth` middleware migration to existing routes (wrapper created, not yet applied)
 - [ ] Comprehensive testing of all workflows
 - [ ] Performance optimization
+- [ ] **SEO Faza 2** — URL-based i18n (`localePrefix: 'as-needed'`, prawdziwy hreflang, restruktura `[locale]`, sitemap per-locale, lokalizowane metadata) — osobny branch `feat/i18n-url-based`, 2-3 dni
+- [ ] **SEO Faza 3** — Marcin: GSC property HTTPS (Domain `mikrostomart.pl` + DNS TXT), re-submit sitemap, decyzja o stronie `/zespol`. Ja: Web Vitals audit po stabilizacji.
+
+### 🔍 SEO Recovery Status (zaczęte 2026-05-09)
+- [x] **Faza 1** — 198 błędów 404 → 16 wpisów redirects() w next.config.ts (rozwiązanie 100% pokrycia)
+- [x] **Faza 1** — Meta title strony głównej przywrócony (długi SEO-friendly, demo-aware via server wrapper page.tsx)
+- [x] **Faza 1** — Sitemap oczyszczony (usunięta martwa `/zespol`)
+- [x] **Faza 1** — Fałszywy hreflang usunięty (przygotowanie pod Fazę 2)
+- [ ] Faza 2 — URL-based i18n
+- [ ] Faza 3 — GSC HTTPS property + audyt po 4-6 tygodniach (oczekiwany 198 → 0)
 
 ### ✅ KCP (Kontrola Czasu Pracy) — KOMPLETNY (2026-05-08)
 - [x] **F1** — Clock-in/out via rotujący QR (kiosk + skaner kamery PWA + anty-fraud)
