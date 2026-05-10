@@ -2,12 +2,14 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 
+// H8 (2026-05-10): WebP versions saved by scripts/resize-interior.js.
+// Originals (~2.5-2.9 MB each, ~13 MB total) → WebP (128-204 KB, ~850 KB total).
 const images = [
-    '/interior/IMG_1400.jpeg',
-    '/interior/IMG_1460.jpeg',
-    '/interior/IMG_1579.jpeg',
-    '/interior/IMG_2535.jpeg',
-    '/interior/IMG_8999.jpeg',
+    '/interior/IMG_1400.webp',
+    '/interior/IMG_1460.webp',
+    '/interior/IMG_1579.webp',
+    '/interior/IMG_2535.webp',
+    '/interior/IMG_8999.webp',
 ];
 
 export default function InteriorCollage() {
@@ -69,6 +71,7 @@ export default function InteriorCollage() {
                             src={src}
                             alt={`Wnętrze kliniki ${index + 1}`}
                             fill
+                            sizes="(max-width: 768px) 100vw, 50vw"
                             style={{ objectFit: 'cover' }}
                             priority={index === 0}
                         />

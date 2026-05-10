@@ -49,6 +49,10 @@ export interface BrandConfig {
 
     // === Social ===
     facebookUrl: string;
+    instagramClinicUrl?: string;
+    instagramDoctorUrl?: string;
+    youtubeUrl?: string;
+    googleBusinessUrl?: string;       // GBP review URL (g.page/r/...)
 
     // === Schema.org ===
     schemaName: string;
@@ -135,14 +139,20 @@ const PROD_BRAND: BrandConfig = {
     ogSiteName: 'Mikrostomart - Dentysta Opole',
     ogImageAlt: 'Mikrostomart - Mikroskopowa Stomatologia Artystyczna w Opolu',
 
-    // Social
+    // Social — H8 (2026-05-10): real URLs (były hardcoded w YouTubeFeed.tsx).
     facebookUrl: 'https://www.facebook.com/mikrostomart',
+    instagramClinicUrl: 'https://www.instagram.com/mikrostomart_opole/',
+    instagramDoctorUrl: 'https://www.instagram.com/nowosielski_marcin/',
+    youtubeUrl: 'https://www.youtube.com/@DentistMarcIn',
+    googleBusinessUrl: 'https://g.page/r/CSYarbrDoYcDEAE/review',
 
     // Schema.org
     schemaName: 'Mikrostomart - Mikroskopowa Stomatologia Artystyczna',
     schemaAlternateName: 'Mikrostomart Gabinet Stomatologiczny',
     schemaDescription: 'Nowoczesny gabinet stomatologiczny w Opolu specjalizujący się w implantologii, stomatologii mikroskopowej, leczeniu kanałowym i estetyce. Zaawansowana technologia, indywidualne podejście.',
-    schemaImage: 'https://www.mikrostomart.pl/logo-transparent.png',
+    // H8: real practice photo (interior of the clinic) — Google Local Pack/Knowledge
+    // Panel preferuje real photo over logo. Logo zostaje w `manifest.json`/Navbar.
+    schemaImage: 'https://www.mikrostomart.pl/interior/IMG_1400.webp',
     schemaId: 'https://www.mikrostomart.pl',
     schemaUrl: 'https://www.mikrostomart.pl',
 
@@ -162,10 +172,10 @@ const PROD_BRAND: BrandConfig = {
     // PMS
     pmsName: 'Prodentis',
 
-    // External Service IDs
-    // googlePlaceId / youtubeChannelId — fill via DB site_settings or hardcode
-    // when real values are confirmed. Leaving them undefined is safer than a
-    // 'ChIJ...' / 'UC...' placeholder which would silently break consumers.
+    // External Service IDs — H8 (2026-05-10): real Place ID (był hardcoded w
+    // src/app/api/google-reviews/route.ts:6). Konsoliduję żeby brand był single
+    // source of truth dla schematycznego/zewnętrznego linkowania.
+    googlePlaceId: 'ChIJ-5k3xu5SEEcRJhqtusOhhwM',
     githubOwner: 'novik-code',
     githubRepo: 'mikrostomart',
 };

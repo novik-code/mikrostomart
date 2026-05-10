@@ -2462,6 +2462,95 @@ NODE_ENV=production
 
 ## 📝 Recent Changes
 
+### 2026-05-10 — SEO Audit Sprint H8: real schema data (correction po H7)
+**Korekta po H7 — Marcin zauważył że dane były w projekcie, audyt ich nie skojarzył**
+
+#### Branch:
+- `seo/h8-real-data` (mergowany na main bezpośrednio po pushu)
+
+#### Problem:
+Po wykonaniu H7 zaproponowałem Marcinowi 3 follow-up tematy "wymagające jego decyzji":
+- Real practice photo (zamiast logo)
+- `sameAs` real URLs (Instagram, GBP, YouTube)
+- Real `googlePlaceId`
+
+Marcin słusznie zauważył: **wszystkie 3 dane SĄ w projekcie**, tylko schema ich nie używa:
+- `public/interior/IMG_*.jpeg` (5 zdjęć wnętrza, ~13 MB total).
+- `src/components/YouTubeFeed.tsx:264-280`: hardcoded URLs do Marcin's YouTube/Instagram/Mikrostomart Instagram.
+- `src/app/api/google-reviews/route.ts:6`: real Place ID `ChIJ-5k3xu5SEEcRJhqtusOhhwM`.
+- `src/app/[locale]/strefa-pacjenta/ocen-nas/page.tsx`: GBP review URL `https://g.page/r/CSYarbrDoYcDEAE/review`.
+
+#### H8 — Real schema data:
+
+**1. Optymalizacja zdjęć interior do WebP**
+- `scripts/resize-interior.js` [NEW] — sharp resize 1600px max + quality 82.
+- 5 zdjęć: ~13 MB → ~850 KB total (94% redukcji).
+- `IMG_1400.webp` 204 KB, `IMG_1460.webp` 178 KB, `IMG_1579.webp` 140 KB, `IMG_2535.webp` 198 KB, `IMG_8999.webp` 128 KB.
+
+**2. brandConfig.ts — single source of truth dla social/GBP**
+- Nowe pola w BrandConfig interface: `instagramClinicUrl?`, `instagramDoctorUrl?`, `youtubeUrl?`, `googleBusinessUrl?`.
+- Wartości produkcyjne wpisane bezpośrednio w `PROD_BRAND`:
+  - `instagramClinicUrl: 'https://www.instagram.com/mikrostomart_opole/'`
+  - `instagramDoctorUrl: 'https://www.instagram.com/nowosielski_marcin/'`
+  - `youtubeUrl: 'https://www.youtube.com/@DentistMarcIn'`
+  - `googleBusinessUrl: 'https://g.page/r/CSYarbrDoYcDEAE/review'`
+- Przywrócony `googlePlaceId: 'ChIJ-5k3xu5SEEcRJhqtusOhhwM'` (był usunięty w H1 jako placeholder — zignorowałem że ta wartość JEST realna).
+- `schemaImage` zmieniony z `/logo-transparent.png` na `/interior/IMG_1400.webp` — Google Local Pack/Knowledge Panel preferuje real photo.
+
+**3. Dentist schema `sameAs` — full array (`src/app/layout.tsx`)**
+- Pre-H8: tylko `[brand.facebookUrl]` (1 URL).
+- Post-H8: 5 URLs (`facebookUrl`, `instagramClinicUrl`, `instagramDoctorUrl`, `youtubeUrl`, `googleBusinessUrl`) z `.filter(Boolean)` na wypadek demo mode.
+- Każdy URL prowadzi do entity Mikrostomart — Google linkuje wszystko jako tę samą organizację (Knowledge Panel).
+
+**4. InteriorCollage.tsx**
+- Image src refs `.jpeg` → `.webp`.
+- Dodany `sizes="(max-width: 768px) 100vw, 50vw"` (audit gap).
+
+**5. google-reviews/route.ts konsolidacja**
+- `const PLACE_ID = 'ChIJ...'` hardcoded → `const PLACE_ID = brand.googlePlaceId || 'ChIJ...'` (fallback na hardcoded dla bezpieczeństwa).
+- Single source of truth: brand.googlePlaceId.
+
+#### Co Google teraz wie:
+
+Po deploy Dentist schema będzie zawierał:
+```json
+{
+  "@type": ["Dentist", "MedicalBusiness"],
+  "image": "https://www.mikrostomart.pl/interior/IMG_1400.webp",
+  "sameAs": [
+    "https://www.facebook.com/mikrostomart",
+    "https://www.instagram.com/mikrostomart_opole/",
+    "https://www.instagram.com/nowosielski_marcin/",
+    "https://www.youtube.com/@DentistMarcIn",
+    "https://g.page/r/CSYarbrDoYcDEAE/review"
+  ],
+  ...
+}
+```
+
+Knowledge Graph entity disambiguation: Google rozumie że Mikrostomart to ta sama klinika co `mikrostomart_opole` na Instagramie, `@DentistMarcIn` na YouTube, i ma profil GBP.
+
+#### Smoke test:
+- `npm run build` — clean.
+
+#### Pliki:
+- `scripts/resize-interior.js` [NEW] — sharp WebP utility
+- `public/interior/IMG_*.webp` (5 plików nowych) — łącznie ~850 KB
+- `src/lib/brandConfig.ts` — 4 nowe social URL pola, real googlePlaceId, schemaImage interior photo
+- `src/app/layout.tsx` — sameAs full array (5 URLs filter Boolean)
+- `src/app/api/google-reviews/route.ts` — PLACE_ID via brandConfig
+- `src/components/InteriorCollage.tsx` — .jpeg → .webp + sizes
+
+#### Spodziewany efekt po deploy:
+- **Knowledge Graph entity disambiguation** silniejszy — Google linkuje 5 social properties do tej samej kliniki.
+- **Local Pack** może pokazać real photo wnętrza zamiast logo.
+- **GBP linkowanie** poprawia review carryover w SERP.
+- **Total interior images transfer** spadek 94% (13 MB → 850 KB) — pozytyw na każdym page-load Homepage z InteriorCollage.
+
+> **Brak migracji DB / nowych env var.** Tylko refactor + binary assets WebP.
+
+---
+
 ### 2026-05-10 — SEO Audit Sprint H7: international landing page (FINAŁ)
 **Siódma i ostatnia faza audytu SEO — dedykowany landing dla pacjentów przyjezdnych**
 
