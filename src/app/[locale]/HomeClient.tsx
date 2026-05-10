@@ -2,7 +2,7 @@
 
 import YouTubeFeed from "@/components/YouTubeFeed";
 import GoogleReviews from "@/components/GoogleReviews";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import RevealOnScroll from "@/components/RevealOnScroll";
 import BeforeAfterSlider from "@/components/BeforeAfterSlider";
 import { useState, useEffect } from "react";

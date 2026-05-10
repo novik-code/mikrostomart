@@ -1,6 +1,6 @@
 "use client";
 
-import Link from 'next/link';
+import { Link } from '@/i18n/navigation';
 import Image from 'next/image';
 import RevealOnScroll from '@/components/RevealOnScroll';
 import { useTranslations } from 'next-intl';
