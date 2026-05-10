@@ -677,5 +677,32 @@
         "faqQ4": "Czym są mosty bez szlifowania?",
         "faqA4": "Mosty adhezyjne na włóknie szklanym. Pozwalają uzupełnić brak zęba bez mocnego szlifowania sąsiadów.",
         "cta": "Umów wizytę: {phone1}"
+    },
+    "przyjezdni": {
+        "heading": "Mikrostomart dla pacjentów spoza Opola",
+        "subtitle": "Codziennie przyjmujemy pacjentów z Wrocławia, Katowic, Krakowa, Warszawy, a także z Niemiec, Czech i Ukrainy. Tutaj znajdziesz wszystko, co ułatwi Ci podróż do naszej kliniki w Opolu.",
+        "whyTitle": "Dlaczego pacjenci do nas przyjeżdżają",
+        "usp1Title": "Mikroskopowa stomatologia precyzyjna",
+        "usp1Desc": "Endodoncja, implantologia i estetyka pod 25-krotnym powiększeniem mikroskopu. Ratujemy zęby uznane za stracone i wykonujemy zabiegi, których nie podejmuje się większość gabinetów.",
+        "usp2Title": "Obsługa w 3 językach",
+        "usp2Desc": "Mówimy po polsku, angielsku i niemiecku. Tłumacz ukraiński dostępny na życzenie. Nie potrzebujesz pośrednika ani biura podróży medycznych.",
+        "usp3Title": "Korzystne ceny",
+        "usp3Desc": "Polskie ceny prywatnej stomatologii są zazwyczaj 40-60% niższe niż w Niemczech, Wielkiej Brytanii czy Skandynawii. Niemieckie kasy chorych mogą pokryć część kosztów leczenia za granicą.",
+        "usp4Title": "Wszystko w 200 metrach od kliniki",
+        "usp4Desc": "Bezpłatny parking przed kliniką, hotele 4-gwiazdkowe w pieszej odległości, restauracje, apteka. Możesz zaplanować jednodniowy lub kilkudniowy pobyt bez stresu logistycznego.",
+        "accessTitle": "Dojazd do gabinetu",
+        "accessDesc": "Klinika znajduje się przy ul. Centralnej 33a w Opolu/Chmielowicach (45-940). Z autostrady A4 jedziesz 4 km od zjazdu Opole-Zachód (7 minut). Z dworca Opole Główne autobusami linii 12 lub 16 do przystanku „Centralna” (15 minut). Z granicy z Niemcami (Olszyna): około 200 km, 2-2,5 godziny.",
+        "hotelsTitle": "Noclegi w okolicy",
+        "hotelsDesc": "W promieniu 3 km od kliniki: Hotel Mercure Opole (4★), Hotel Festival (3★), Hotel Piast (3★), Apartamenty Booking. Pomożemy w rezerwacji i zaproponujemy pakiet „leczenie + nocleg” dopasowany do Twojego planu wizyt.",
+        "languagesTitle": "Języki obsługi",
+        "languagesDesc": "Marcin Nowosielski (lekarz, implantolog) i część personelu mówi po polsku, angielsku i niemiecku. Wszystkie dokumenty (zgody, plan leczenia, faktury) wystawiamy na życzenie w wybranym języku. Tłumacza ukraińskiego organizujemy z minimum 24h wyprzedzeniem.",
+        "vatTitle": "Niemieckie kasy chorych — zwrot kosztów",
+        "vatDesc": "Polskie usługi medyczne są zwolnione z VAT (stawka 0%), więc tax-free nie ma zastosowania. Niemieckie kasy chorych (gesetzliche oder private Krankenversicherung) na podstawie dyrektywy o opiece transgranicznej (UE 2011/24) mogą jednak pokryć część kosztów leczenia za granicą — wystawiamy szczegółowy rachunek w języku niemieckim. Skontaktuj się ze swoją kasą, aby poznać procedurę zwrotu (Kostenerstattung).",
+        "paymentsTitle": "Sposoby płatności",
+        "paymentsDesc": "Akceptujemy gotówkę, karty (Visa/Mastercard), BLIK, Przelewy24, PayU oraz Apple Pay/Google Pay. Faktura na życzenie po polsku, angielsku lub niemiecku. Możliwe rozłożenie na raty w systemie MediRaty (po wcześniejszej weryfikacji).",
+        "ctaTitle": "Umów wizytę i zaplanuj podróż",
+        "ctaSubtitle": "Skontaktuj się z nami w wygodny sposób — dobierzemy termin, doradzimy nocleg i odpowiemy na wszystkie pytania jeszcze przed Twoim przyjazdem.",
+        "ctaPrimaryLabel": "Zarezerwuj online",
+        "ctaSecondaryLabel": "Zadzwoń: {phone1}"
     }
 }

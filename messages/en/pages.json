@@ -677,5 +677,32 @@
         "faqQ4": "What are non-prep bridges?",
         "faqA4": "Adhesive bridges on fiberglass. They allow for the restoration of a missing tooth without heavily grinding neighboring teeth.",
         "cta": "Schedule an appointment: {phone1}"
+    },
+    "przyjezdni": {
+        "heading": "Mikrostomart for International Patients in Opole, Poland",
+        "subtitle": "Every day we welcome patients from across Poland — Wrocław, Katowice, Kraków, Warsaw — and from Germany, Czech Republic, Austria and Ukraine. Here is everything to make your trip to our Opole clinic effortless.",
+        "whyTitle": "Why patients travel to us",
+        "usp1Title": "Microscope-grade precision dentistry",
+        "usp1Desc": "Endodontics, implantology and aesthetic procedures performed under 25× magnification. We rescue teeth others give up on and handle cases that most clinics decline.",
+        "usp2Title": "Service in 3 languages",
+        "usp2Desc": "We speak Polish, English and German fluently. Ukrainian translation available on request. No middlemen, no medical-tourism agency required.",
+        "usp3Title": "Affordable Polish prices",
+        "usp3Desc": "Polish private dental rates are typically 40-60% lower than Germany, the UK or Scandinavia. German health insurance may reimburse part of cross-border treatment costs.",
+        "usp4Title": "Everything within 200 metres",
+        "usp4Desc": "Free parking right in front of the clinic, 4-star hotels within walking distance, restaurants, pharmacy. You can plan a one-day or multi-day visit without logistical stress.",
+        "accessTitle": "How to get here",
+        "accessDesc": "The clinic is at ul. Centralna 33a in Opole/Chmielowice (45-940). From the A4 motorway: 4 km from the Opole-Zachód exit (7-minute drive). From Opole Główne train station: bus lines 12 or 16 to the 'Centralna' stop (15 minutes). From the German border (Olszyna crossing): about 200 km, 2-2.5 hours.",
+        "hotelsTitle": "Hotels nearby",
+        "hotelsDesc": "Within 3 km of the clinic: Hotel Mercure Opole (4★), Hotel Festival (3★), Hotel Piast (3★), and several Booking apartments. We can help arrange your stay and offer a 'treatment + accommodation' package matched to your appointment plan.",
+        "languagesTitle": "Languages",
+        "languagesDesc": "Marcin Nowosielski (dentist, implantologist) and part of the team speak Polish, English and German. All documents (consents, treatment plan, invoices) can be issued in the language of your choice. Ukrainian translation arranged with at least 24 h notice.",
+        "vatTitle": "German health insurance reimbursement",
+        "vatDesc": "Polish medical services are VAT-exempt (0% rate), so tax-free does not apply. However, German health insurance (gesetzliche oder private Krankenversicherung) may cover part of cross-border treatment costs under EU Cross-Border Healthcare Directive 2011/24 — we issue an itemised invoice in German on request. Contact your insurer for the reimbursement procedure (Kostenerstattung).",
+        "paymentsTitle": "Payment options",
+        "paymentsDesc": "We accept cash, cards (Visa/Mastercard), BLIK, Przelewy24, PayU, Apple Pay and Google Pay. Invoices issued on request in Polish, English or German. Instalment plans available via MediRaty (subject to verification).",
+        "ctaTitle": "Book your visit and plan your trip",
+        "ctaSubtitle": "Get in touch — we will match your schedule, suggest accommodation and answer all your questions before you travel.",
+        "ctaPrimaryLabel": "Book online",
+        "ctaSecondaryLabel": "Call: {phone1}"
     }
 }
