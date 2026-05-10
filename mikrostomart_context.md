@@ -2462,6 +2462,90 @@ NODE_ENV=production
 
 ## 📝 Recent Changes
 
+### 2026-05-10 — SEO Audit Sprint H5: performance + images
+**Piąta z 7 faz audytu SEO — Core Web Vitals fixes + image optimization**
+
+#### Branch:
+- `seo/h5-performance-images`
+
+#### H5 — Performance + images:
+
+**1. Marcin/Ela JPGs 7.5 MB → WebP <100 KB (DRAMATYCZNE)**
+- `scripts/resize-portraits.js` — sharp-based resize + WebP convert (one-shot).
+- `public/marcin-final.jpg` 7.6 MB (6000×4000) → `public/marcin-final.webp` 38 KB (1200×800, quality 80).
+- `public/ela-final.jpg` 7.5 MB (6000×4000) → `public/ela-final.webp` 89 KB (1200×800).
+- Łączna oszczędność: ~15 MB transferu na /o-nas (2 obrazy hover overlay).
+- JPG originals zachowane jako fallback (Image src zaktualizowane na .webp).
+
+**2. /o-nas Image refs zaktualizowane**
+- `o-nas/page.tsx`: 4× `<Image>` ze `sizes="(max-width: 768px) 100vw, 50vw"` + `priority` na main, `loading="lazy"` na hover overlay.
+- `o-nas/layout.tsx`: Person schemas → `image: /marcin-final.webp`, `/ela-final.webp`.
+
+**3. AVIF/WebP formats pin (`next.config.ts`)**
+- `images.formats: ['image/avif', 'image/webp']` — explicit AVIF preferred, WebP fallback.
+- AVIF wycina ~30% bytes vs WebP dla browsers które wspierają (most evergreens 2024+).
+
+**4. Cache-Control 1-year dla statyków (`next.config.ts`)**
+- Per-extension headers (path-to-regexp nie wspiera brace alternation).
+- 12 extensions: jpg, jpeg, png, webp, avif, gif, ico, mp4, webm, mp3, woff, woff2.
+- `public, max-age=31536000, immutable` — repeat-visit performance fix.
+
+**5. Hamburger touch target 30×21 → 44×44 (`Navbar.tsx` + `Navbar.module.css`)**
+- WCAG 2.5.5 minimum touch target compliance.
+- `.hamburger` button: 44×44 outer (flexbox center).
+- `.barWrapper` span: 30×21 inner (visual icon position).
+- 3× `.barInline` span (3 bars) wewnątrz wrappera.
+
+**6. `sizes` attribute na Image fill** (8 plików, audyt wskazał 23 wystąpienia)
+- `ArticleCarousel.tsx:131`: `sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 25vw"` + `loading="lazy"`.
+- `OfferCarousel.tsx:200`: `sizes="(max-width: 768px) 100vw, 50vw"`.
+- `Footer.tsx:41`: `sizes="(max-width: 768px) 100vw, 1200px"` + `aria-hidden`.
+- `aktualnosci/page.tsx:167`: `sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"` + `loading="lazy"`.
+- `aktualnosci/[slug]/page.tsx:225`: `sizes="(max-width: 800px) 100vw, 800px"` (LCP, ma `priority`).
+- `nowosielski/page.tsx:211`: listing `sizes` + `loading="lazy"`.
+- `nowosielski/[slug]/page.tsx:263`: hero `sizes` (LCP).
+- `baza-wiedzy/[slug]/page.tsx:214`: hero `sizes` (LCP).
+- `o-nas/page.tsx`: 4× sizes (zrobione w punkcie 2).
+
+#### Świadomie pominięte (follow-up):
+
+- **Per-page OG images** (6 service pages + homepage variants) — wymaga generated images (Replicate / Photoshop). Pominięte jako follow-up — Marcin może wygenerować przez ThemeEditor.
+- **Sitemap `lastModified` per-page commit time** — wymaga complex git log integration, low ROI.
+- **Pozostałe `<Image fill>` w komponentach niegłównych** (AssistantTeaser, InteriorCollage avatars) — niski wpływ, można w follow-up.
+
+#### Smoke test:
+- `npm run build` — clean.
+- WebP files są dostępne w `public/`.
+- Cache-Control headers działają (per-extension regex valid).
+
+#### Pliki:
+- `scripts/resize-portraits.js` [NEW] — sharp resize/WebP utility (one-shot)
+- `public/marcin-final.webp` [NEW] — 38 KB
+- `public/ela-final.webp` [NEW] — 89 KB
+- `next.config.ts` — formats AVIF/WebP, Cache-Control 1y per-extension
+- `src/app/[locale]/o-nas/page.tsx` — Image src .jpg→.webp + sizes×4
+- `src/app/[locale]/o-nas/layout.tsx` — Person schemas image .webp
+- `src/components/Navbar.tsx` — hamburger barWrapper struct
+- `src/components/Navbar.module.css` — .hamburger 44×44, .barWrapper 30×21
+- `src/components/ArticleCarousel.tsx` — sizes + lazy
+- `src/components/OfferCarousel.tsx` — sizes
+- `src/components/Footer.tsx` — sizes + aria-hidden
+- `src/app/[locale]/aktualnosci/page.tsx` — sizes + lazy
+- `src/app/[locale]/aktualnosci/[slug]/page.tsx` — sizes (LCP)
+- `src/app/[locale]/nowosielski/page.tsx` — sizes + lazy
+- `src/app/[locale]/nowosielski/[slug]/page.tsx` — sizes (LCP)
+- `src/app/[locale]/baza-wiedzy/[slug]/page.tsx` — sizes (LCP)
+
+#### Spodziewany efekt po deploy:
+- Mobile LCP /o-nas: drastyczne polepszenie (15 MB transferu down).
+- Best Practices score (Lighthouse): +2-3 punkty (touch target).
+- Repeat-visit performance: hot images z Vercel CDN cache.
+- Foreign markets: AVIF format reduces transfer 30% vs WebP.
+
+> **Brak migracji DB / nowych env var.** Tylko zmiany kodu + nowe binary assets w public/.
+
+---
+
 ### 2026-05-10 — SEO Audit Sprint H4: schema enrichment
 **Czwarta z 7 faz audytu SEO — wzbogacenie Schema.org dla rich SERP results**
 

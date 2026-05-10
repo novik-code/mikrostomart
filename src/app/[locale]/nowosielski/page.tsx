@@ -212,6 +212,8 @@ export default function BlogPage() {
                                                         src={post.image?.startsWith('http') ? post.image : (post.image || '/images/placeholder.jpg')}
                                                         alt={post.title}
                                                         fill
+                                                        sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                                                        loading="lazy"
                                                         style={{ objectFit: "cover" }}
                                                     />
                                                 </div>
