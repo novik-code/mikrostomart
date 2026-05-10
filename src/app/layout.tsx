@@ -18,7 +18,7 @@ import {
 } from "@/components/AdminClientLayer";
 import { isDemoMode } from "@/lib/demoMode";
 import { brand, brandI18nParams, demoSanitize, loadBrandFromDB } from "@/lib/brandConfig";
-import { getAggregateRating, type AggregateRating } from "@/lib/seo";
+import { getAggregateRating, getAvailableServices, hreflangCode, type AggregateRating } from "@/lib/seo";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
@@ -85,8 +85,9 @@ export const viewport: Viewport = {
     themeColor: "#0f1115",
 };
 
-function SchemaOrg({ aggregateRating }: { aggregateRating: AggregateRating | null }) {
-    // Dentist schema with optional aggregateRating from Google Reviews (Faza G2).
+function SchemaOrg({ aggregateRating, locale }: { aggregateRating: AggregateRating | null; locale: string }) {
+    // Dentist schema with optional aggregateRating from Google Reviews (Faza G2)
+    // and locale-aware availableService names + inLanguage (H4, 2026-05-10).
     // When ratings are available, SERP shows golden stars next to the result.
     const dentistSchema: Record<string, unknown> = {
         "@context": "https://schema.org",
@@ -97,6 +98,7 @@ function SchemaOrg({ aggregateRating }: { aggregateRating: AggregateRating | nul
         "image": brand.schemaImage,
         "@id": brand.schemaId,
         "url": brand.schemaUrl,
+        "inLanguage": hreflangCode(locale),
         "telephone": isDemoMode ? undefined : `+48${brand.phone1.replace(/-/g, '')}`,
         "priceRange": "$$",
         "currenciesAccepted": "PLN",
@@ -123,15 +125,7 @@ function SchemaOrg({ aggregateRating }: { aggregateRating: AggregateRating | nul
             "Orthodontics",
             "DentalHygiene"
         ],
-        "availableService": [
-            { "@type": "MedicalProcedure", "name": "Implanty zębów", "url": `${brand.schemaUrl}/oferta/implantologia` },
-            { "@type": "MedicalProcedure", "name": "Leczenie kanałowe pod mikroskopem" },
-            { "@type": "MedicalProcedure", "name": "Stomatologia estetyczna" },
-            { "@type": "MedicalProcedure", "name": "Ortodoncja" },
-            { "@type": "MedicalProcedure", "name": "Protetyka" },
-            { "@type": "MedicalProcedure", "name": "Chirurgia stomatologiczna" },
-            { "@type": "MedicalProcedure", "name": "Higienizacja i profilaktyka" }
-        ],
+        "availableService": getAvailableServices(locale),
         "openingHoursSpecification": [
             {
                 "@type": "OpeningHoursSpecification",
@@ -289,7 +283,7 @@ export default async function RootLayout({
                     })();
                 ` }} />
                 <DemoBanner />
-                <SchemaOrg aggregateRating={aggregateRating} />
+                <SchemaOrg aggregateRating={aggregateRating} locale={locale} />
                 {/* Faza G4: server-rendered cookie banner (czytanie HTTP cookie) — banner jest częścią initial paint, nie LCP-killing post-hydration insert. */}
                 <CookieConsent />
                 <NextIntlClientProvider locale={locale} messages={messages}>

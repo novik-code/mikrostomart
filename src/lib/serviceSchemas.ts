@@ -471,9 +471,32 @@ export const SERVICE_SCHEMAS: Record<string, ServiceSchemaMap> = {
     },
 };
 
+// H4 (2026-05-10): areaServed for Service schema. Opole + Poland is the primary
+// catchment + foreign-patient targets (Germany, Czech Republic — clinic is 80 km
+// from the DE border, hence "dental tourism" potential). areaServed is the
+// strongest local-pack + foreign-market signal Google has for service entities.
+const AREA_SERVED = [
+    { '@type': 'City', name: 'Opole' },
+    { '@type': 'AdministrativeArea', name: 'województwo opolskie' },
+    { '@type': 'Country', name: 'Poland' },
+    { '@type': 'Country', name: 'Germany' },
+    { '@type': 'Country', name: 'Czech Republic' },
+    { '@type': 'Country', name: 'Ukraine' },
+];
+
+function localePath(locale: string, path: string): string {
+    if (locale === 'pl') return path;
+    return `/${locale}${path}`;
+}
+
 /**
- * Build FAQ + MedicalProcedure schemas for a service page in the requested locale.
- * Falls back to PL if the requested locale isn't translated yet.
+ * Build FAQ + MedicalProcedure + Service schemas for a service page in the
+ * requested locale. Falls back to PL if the requested locale isn't translated yet.
+ *
+ * Service schema (H4) adds local-pack signal via areaServed (Opole + Poland +
+ * neighbouring countries) and links service back to the Dentist entity via @id.
+ * No `offers` field — pricing changes too frequently to risk Google flagging
+ * stale price data.
  *
  * Returns null if the path isn't a known service page.
  */
@@ -511,8 +534,21 @@ export function buildServicePageSchemas(path: string, locale: string) {
             '@type': 'MedicalOrganization',
             name: brand.name,
             url: brand.appUrl,
+            '@id': brand.schemaId,
         },
     };
 
-    return { faqSchema, procedureSchema };
+    const serviceUrl = `${brand.appUrl}${localePath(locale, path)}`;
+    const serviceSchema = {
+        '@context': 'https://schema.org',
+        '@type': 'Service',
+        name: data.procedure.name,
+        description: data.procedure.description,
+        category: 'Dentistry',
+        url: serviceUrl,
+        provider: { '@id': brand.schemaId },
+        areaServed: AREA_SERVED,
+    };
+
+    return { faqSchema, procedureSchema, serviceSchema };
 }
