@@ -1,13 +1,28 @@
 import { supabase } from '@/lib/supabaseClient';
-import { brandI18nParams } from '@/lib/brandConfig';
+import { brand, brandI18nParams } from '@/lib/brandConfig';
 import RevealOnScroll from '@/components/RevealOnScroll';
 import Link from 'next/link';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { Metadata } from 'next';
-import { getTranslations, getLocale } from 'next-intl/server';
+import { getTranslations } from 'next-intl/server';
+import { breadcrumbHref, localizedBreadcrumb } from '@/lib/seo';
+import { routing } from '@/i18n/routing';
 
-export const dynamic = 'force-dynamic'; // Must be dynamic — depends on locale cookie
+export const dynamic = 'force-dynamic'; // Must be dynamic — depends on locale URL prefix
+
+const HREFLANG_MAP: Record<string, string> = {
+    pl: 'pl',
+    en: 'en',
+    de: 'de',
+    ua: 'uk',
+};
+
+function articleUrl(locale: string, slug: string): string {
+    return locale === 'pl'
+        ? `${brand.appUrl}/baza-wiedzy/${slug}`
+        : `${brand.appUrl}/${locale}/baza-wiedzy/${slug}`;
+}
 
 export async function generateStaticParams() {
     const { data: articles } = await supabase.from('articles').select('slug');
@@ -16,28 +31,82 @@ export async function generateStaticParams() {
     }));
 }
 
-export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
-    const { slug } = await params;
-    const locale = await getLocale();
+export async function generateMetadata({
+    params,
+}: {
+    params: Promise<{ locale: string; slug: string }>;
+}): Promise<Metadata> {
+    const { locale, slug } = await params;
     const t = await getTranslations('bazaWiedzy');
 
-    const { data: article } = await supabase
+    let { data: article } = await supabase
         .from('articles')
-        .select('title, excerpt')
+        .select('title, excerpt, locale, group_id')
         .eq('slug', slug)
         .eq('locale', locale)
         .single();
 
+    // Fallback: PL version with the same slug
+    if (!article) {
+        const fallback = await supabase
+            .from('articles')
+            .select('title, excerpt, locale, group_id')
+            .eq('slug', slug)
+            .eq('locale', 'pl')
+            .single();
+        article = fallback.data;
+    }
+
     if (!article) return { title: t('notFound') };
+
+    // Build hreflang from group_id — each translation lives as a separate row.
+    const languages: Record<string, string> = {};
+    if (article.group_id) {
+        const { data: groupRows } = await supabase
+            .from('articles')
+            .select('locale, slug')
+            .eq('group_id', article.group_id);
+        for (const row of (groupRows || []) as Array<{ locale: string; slug: string }>) {
+            const hreflang = HREFLANG_MAP[row.locale] || row.locale;
+            languages[hreflang] = articleUrl(row.locale, row.slug);
+        }
+        const plRow = (groupRows || []).find((r: any) => r.locale === 'pl');
+        if (plRow?.slug) {
+            languages['x-default'] = articleUrl('pl', plRow.slug);
+        }
+    }
+    if (!languages['x-default']) {
+        languages['x-default'] = articleUrl(locale, slug);
+    }
+
+    const canonical = locale === routing.defaultLocale
+        ? `/baza-wiedzy/${slug}`
+        : `/${locale}/baza-wiedzy/${slug}`;
+
     return {
-        title: `${article.title} | ${t('metaSuffix', brandI18nParams())}`,
+        title: { absolute: `${article.title} | ${t('metaSuffix', brandI18nParams())}` },
         description: article.excerpt,
+        alternates: { canonical, languages },
+        openGraph: {
+            title: article.title,
+            description: article.excerpt,
+            type: 'article',
+            url: articleUrl(locale, slug),
+        },
+        twitter: {
+            card: 'summary_large_image',
+            title: article.title,
+            description: article.excerpt,
+        },
     };
 }
 
-export default async function ArticlePage({ params }: { params: Promise<{ slug: string }> }) {
-    const { slug } = await params;
-    const locale = await getLocale();
+export default async function ArticlePage({
+    params,
+}: {
+    params: Promise<{ locale: string; slug: string }>;
+}) {
+    const { locale, slug } = await params;
     const t = await getTranslations('bazaWiedzy');
 
     // Try to find article in the current locale
@@ -63,8 +132,56 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
         notFound();
     }
 
+    // Article JSON-LD — knowledge base posts use Article (educational content) rather
+    // than NewsArticle. Helps Google distinguish evergreen articles from news.
+    const articleSchema = {
+        "@context": "https://schema.org",
+        "@type": "Article",
+        "headline": article.title,
+        "description": article.excerpt,
+        "image": article.image
+            ? (article.image.startsWith('http') ? article.image : `${brand.appUrl}${article.image}`)
+            : `${brand.appUrl}/opengraph-image.png`,
+        "datePublished": article.date,
+        "dateModified": article.updated_at || article.date,
+        "author": {
+            "@type": "Person",
+            "name": "Marcin Nowosielski",
+            "url": `${brand.appUrl}/o-nas`,
+        },
+        "publisher": {
+            "@type": "Organization",
+            "name": brand.name,
+            "url": brand.appUrl,
+            "logo": {
+                "@type": "ImageObject",
+                "url": brand.schemaImage,
+            },
+        },
+        "mainEntityOfPage": {
+            "@type": "WebPage",
+            "@id": articleUrl(locale, slug),
+        },
+        "inLanguage": HREFLANG_MAP[locale] || locale,
+    };
+
+    // Breadcrumb: Home > Knowledge Base > [article title]
+    const breadcrumb = localizedBreadcrumb(locale, [
+        { key: 'home', url: breadcrumbHref(locale, '/') },
+        { key: 'baza-wiedzy', url: breadcrumbHref(locale, '/baza-wiedzy') },
+        { name: article.title },
+    ]);
+
     return (
         <main style={{ background: "var(--color-background)" }}>
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{ __html: JSON.stringify(articleSchema) }}
+            />
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumb) }}
+            />
             <article className="container" style={{ padding: "8rem 2rem 4rem", maxWidth: "800px" }}>
 
                 {/* Back Link */}

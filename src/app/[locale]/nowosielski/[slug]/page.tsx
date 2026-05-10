@@ -3,8 +3,11 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import RevealOnScroll from '@/components/RevealOnScroll';
-import { getTranslations, getLocale } from 'next-intl/server';
+import { getTranslations } from 'next-intl/server';
+import { Metadata } from 'next';
 import { brand } from '@/lib/brandConfig';
+import { breadcrumbHref, localizedBreadcrumb } from '@/lib/seo';
+import { routing } from '@/i18n/routing';
 
 // We import the CSS to handle legacy content inside the clean container
 import './../blog.v2.css';
@@ -16,7 +19,7 @@ function getSupabase() {
     );
 }
 
-// FORCE DYNAMIC RENDERING — depends on locale cookie
+// FORCE DYNAMIC RENDERING — depends on locale URL prefix
 export const dynamic = 'force-dynamic';
 
 const LOCALE_DATE_MAP: Record<string, string> = {
@@ -25,6 +28,19 @@ const LOCALE_DATE_MAP: Record<string, string> = {
     de: 'de-DE',
     ua: 'uk-UA',
 };
+
+const HREFLANG_MAP: Record<string, string> = {
+    pl: 'pl',
+    en: 'en',
+    de: 'de',
+    ua: 'uk',
+};
+
+function postUrl(locale: string, slug: string): string {
+    return locale === 'pl'
+        ? `${brand.appUrl}/nowosielski/${slug}`
+        : `${brand.appUrl}/${locale}/nowosielski/${slug}`;
+}
 
 async function getPost(slug: string, locale: string) {
     // Try locale-specific slug first
@@ -50,9 +66,71 @@ async function getPost(slug: string, locale: string) {
     return data;
 }
 
-export default async function BlogPost({ params }: { params: Promise<{ slug: string }> }) {
-    const { slug } = await params;
-    const locale = await getLocale();
+export async function generateMetadata({
+    params,
+}: {
+    params: Promise<{ locale: string; slug: string }>;
+}): Promise<Metadata> {
+    const { locale, slug } = await params;
+    const post = await getPost(slug, locale);
+    if (!post) {
+        return { title: `${brand.name}` };
+    }
+
+    // Build hreflang from group_id (each translation is a separate row linked by group_id)
+    const supabase = getSupabase();
+    const { data: groupPosts } = post.group_id
+        ? await supabase
+            .from('blog_posts')
+            .select('locale, slug')
+            .eq('group_id', post.group_id)
+        : { data: [post] };
+
+    const languages: Record<string, string> = {};
+    for (const gp of (groupPosts || []) as Array<{ locale: string; slug: string }>) {
+        const hreflang = HREFLANG_MAP[gp.locale] || gp.locale;
+        languages[hreflang] = postUrl(gp.locale, gp.slug);
+    }
+    // x-default → PL row if exists
+    const plRow = (groupPosts || []).find((gp: any) => gp.locale === 'pl');
+    if (plRow?.slug) {
+        languages['x-default'] = postUrl('pl', plRow.slug);
+    } else {
+        languages['x-default'] = postUrl(locale, slug);
+    }
+
+    const canonical = locale === routing.defaultLocale
+        ? `/nowosielski/${slug}`
+        : `/${locale}/nowosielski/${slug}`;
+
+    const description = post.excerpt || post.title;
+    return {
+        title: { absolute: `${post.title} | ${brand.name}` },
+        description,
+        alternates: { canonical, languages },
+        openGraph: {
+            title: post.title,
+            description,
+            type: 'article',
+            url: postUrl(locale, slug),
+            images: post.image
+                ? [{ url: post.image.startsWith('http') ? post.image : `${brand.appUrl}${post.image}` }]
+                : undefined,
+        },
+        twitter: {
+            card: 'summary_large_image',
+            title: post.title,
+            description,
+        },
+    };
+}
+
+export default async function BlogPost({
+    params,
+}: {
+    params: Promise<{ locale: string; slug: string }>;
+}) {
+    const { locale, slug } = await params;
     const t = await getTranslations('nowosielski');
     const post = await getPost(slug, locale);
 
@@ -78,10 +156,10 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
         const entities: { [key: string]: string } = {
             '&#8211;': '–', '&amp;#8211;': '–',
             '&#8212;': '—', '&amp;#8212;': '—',
-            '&#8216;': '\u2018', '&amp;#8216;': '\u2018',
-            '&#8217;': '\u2019', '&amp;#8217;': '\u2019',
-            '&#8220;': '\u201c', '&amp;#8220;': '\u201c',
-            '&#8221;': '\u201d', '&amp;#8221;': '\u201d',
+            '&#8216;': '‘', '&amp;#8216;': '‘',
+            '&#8217;': '’', '&amp;#8217;': '’',
+            '&#8220;': '“', '&amp;#8220;': '“',
+            '&#8221;': '”', '&amp;#8221;': '”',
             '&nbsp;': ' ', '&amp;nbsp;': ' ',
             '&#038;': '&', '&amp;#038;': '&',
             '&#38;': '&', '&amp;#38;': '&'
@@ -98,7 +176,8 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
     const sanitizedContent = cleanHtml(post.content);
 
     // BlogPosting JSON-LD schema for rich snippets in Google search.
-    // Faza B SEO Recovery (2026-05-09).
+    // dateModified prefers updated_at if available — otherwise falls back to published date,
+    // because dateModified === datePublished gives Google no freshness signal.
     const articleSchema = {
         "@context": "https://schema.org",
         "@type": "BlogPosting",
@@ -125,10 +204,17 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
         },
         "mainEntityOfPage": {
             "@type": "WebPage",
-            "@id": `${brand.appUrl}${locale === 'pl' ? '' : `/${locale}`}/nowosielski/${slug}`,
+            "@id": postUrl(locale, slug),
         },
         "inLanguage": locale === 'ua' ? 'uk' : locale,
     };
+
+    // Breadcrumb gives slug pages a SERP breadcrumb trail (Home > Blog > [post]).
+    const breadcrumb = localizedBreadcrumb(locale, [
+        { key: 'home', url: breadcrumbHref(locale, '/') },
+        { key: 'nowosielski', url: breadcrumbHref(locale, '/nowosielski') },
+        { name: post.title }, // current page — explicit name, no URL
+    ]);
 
     // Standard "News" Layout Structure
     return (
@@ -136,6 +222,10 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
             <script
                 type="application/ld+json"
                 dangerouslySetInnerHTML={{ __html: JSON.stringify(articleSchema) }}
+            />
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumb) }}
             />
 
             <article className="container" style={{ padding: "8rem 2rem 4rem", maxWidth: "800px", margin: "0 auto" }}>

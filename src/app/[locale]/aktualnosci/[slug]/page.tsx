@@ -7,6 +7,21 @@ import { Metadata } from 'next';
 import { supabase } from '@/lib/supabaseClient';
 import { getTranslations } from 'next-intl/server';
 import { brand } from '@/lib/brandConfig';
+import { breadcrumbHref, localizedBreadcrumb } from '@/lib/seo';
+import { routing } from '@/i18n/routing';
+
+const HREFLANG_MAP: Record<string, string> = {
+    pl: 'pl',
+    en: 'en',
+    de: 'de',
+    ua: 'uk',
+};
+
+function articleUrl(locale: string, slug: string): string {
+    return locale === 'pl'
+        ? `${brand.appUrl}/aktualnosci/${slug}`
+        : `${brand.appUrl}/${locale}/aktualnosci/${slug}`;
+}
 
 // Supported locale suffixes
 const LOCALE_SUFFIXES = ['en', 'de', 'ua'] as const;
@@ -59,9 +74,39 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     const t = await getTranslations('aktualnosci');
     if (!article) return { title: t('articleNotFound') };
     const localized = localizeArticle(article, locale);
+
+    // News articles share the same slug across locales (translations live in {field}_{locale} columns).
+    // Build hreflang only for locales that have a translation present.
+    const languages: Record<string, string> = {
+        pl: articleUrl('pl', slug),
+        'x-default': articleUrl('pl', slug),
+    };
+    if (article.title_en) languages.en = articleUrl('en', slug);
+    if (article.title_de) languages.de = articleUrl('de', slug);
+    if (article.title_ua) languages.uk = articleUrl('ua', slug);
+
+    const canonical = locale === routing.defaultLocale
+        ? `/aktualnosci/${slug}`
+        : `/${locale}/aktualnosci/${slug}`;
+
     return {
-        title: `${localized.title} | Mikrostomart`,
+        title: { absolute: `${localized.title} | ${brand.name}` },
         description: localized.excerpt,
+        alternates: { canonical, languages },
+        openGraph: {
+            title: localized.title,
+            description: localized.excerpt,
+            type: 'article',
+            url: articleUrl(locale, slug),
+            images: localized.image
+                ? [{ url: localized.image.startsWith('http') ? localized.image : `${brand.appUrl}${localized.image}` }]
+                : undefined,
+        },
+        twitter: {
+            card: 'summary_large_image',
+            title: localized.title,
+            description: localized.excerpt,
+        },
     };
 }
 
@@ -85,7 +130,8 @@ export default async function ArticlePage({ params }: { params: Promise<{ locale
     const localizedArticle = localizeArticle(article, locale);
 
     // NewsArticle JSON-LD schema for rich snippets in Google News + general search.
-    // Faza B SEO Recovery (2026-05-09).
+    // dateModified prefers updated_at if available — falls back to date so Google
+    // sees a freshness signal whenever Supabase tracks it.
     const articleSchema = {
         "@context": "https://schema.org",
         "@type": "NewsArticle",
@@ -95,7 +141,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ locale
             ? (localizedArticle.image.startsWith('http') ? localizedArticle.image : `${brand.appUrl}${localizedArticle.image}`)
             : `${brand.appUrl}/opengraph-image.png`,
         "datePublished": localizedArticle.date,
-        "dateModified": localizedArticle.date,
+        "dateModified": localizedArticle.updated_at || localizedArticle.date,
         "author": {
             "@type": "Person",
             "name": "Marcin Nowosielski",
@@ -112,16 +158,27 @@ export default async function ArticlePage({ params }: { params: Promise<{ locale
         },
         "mainEntityOfPage": {
             "@type": "WebPage",
-            "@id": `${brand.appUrl}${locale === 'pl' ? '' : `/${locale}`}/aktualnosci/${slug}`,
+            "@id": articleUrl(locale, slug),
         },
-        "inLanguage": locale === 'ua' ? 'uk' : locale,
+        "inLanguage": HREFLANG_MAP[locale] || locale,
     };
+
+    // Breadcrumb for SERP trail: Home > News > [article title]
+    const breadcrumb = localizedBreadcrumb(locale, [
+        { key: 'home', url: breadcrumbHref(locale, '/') },
+        { key: 'aktualnosci', url: breadcrumbHref(locale, '/aktualnosci') },
+        { name: localizedArticle.title }, // current page
+    ]);
 
     return (
         <main style={{ background: "var(--color-background)" }}>
             <script
                 type="application/ld+json"
                 dangerouslySetInnerHTML={{ __html: JSON.stringify(articleSchema) }}
+            />
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumb) }}
             />
             <article className="container" style={{ padding: "8rem 2rem 4rem", maxWidth: "800px" }}>
 
