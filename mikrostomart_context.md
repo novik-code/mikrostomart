@@ -1,6 +1,6 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-10 (SEO Sprint G1+G2+G3+G4+G5 KOMPLETNY — pełen multilingual SEO, rich SERP, Core Web Vitals fix, miganie eliminowane)  
+> **Last Updated:** 2026-05-10 (SEO Sprint G1-G6 KOMPLETNY — pełen multilingual SEO, rich SERP, Core Web Vitals fix, per-locale breadcrumbs)  
 > **Version:** Production + Demo (Dual Vercel Deployment)  
 > **Status:** Active Development — KCP FULL; CareFlow Perioperative; Push-First Communication; **SEO Recovery: Faza 1+1.5+2+2.x+A+B+C+D+E KOMPLETNA i ZAAKCEPTOWANA przez Marcina** (PSI Mobile 34→73, Desktop 39→83; LCP Desktop 5.2s→1.6s ✅; Best Practices 73→96; SEO 92→100 ✅). **Faza F (opcjonalna)** — plan szczegółowy w sekcji "FAZA F — PLAN SZCZEGÓŁOWY", potencjalny boost mobile 73→85+ i desktop 83→92+, ~1-1.5h pracy, nie pilne. Faza 3: audyt GSC po 4-6 tygodniach.
 
@@ -2461,6 +2461,81 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-10 — SEO Sprint G6: per-locale breadcrumb labels (foreign markets professionalism)
+**Szósta i ostatnia iteracja SEO sprintu — uzupełnienie multilingual całości**
+
+#### Commit:
+- `26a6647` — feat(seo): G6 — per-locale breadcrumb labels (EN/DE/UA SERP foreign markets)
+
+#### Problem:
+Wszystkie BreadcrumbList renderowane były z hardcoded PL nazwami niezależnie od locale. EN użytkownik dla `/en/cennik` widział w SERP `Strona główna > Cennik` zamiast `Home > Pricing`. Niespójne z resztą multilingual SEO (hreflang/metadata/FAQ schemas — wszystko już locale-aware po G1-G5).
+
+#### Rozwiązanie:
+
+**`src/lib/seo.ts` — rozszerzony helper:**
+- `BREADCRUMB_LABELS` mapa: 21 kluczy × 4 locale (~84 stringów):
+  - Wspólne: home, oferta, cennik, kontakt, faq, sklep, etc.
+  - Service-specific: implantologia, leczenie-kanalowe, ortodoncja, protetyka, chirurgia, stomatologia-estetyczna
+- `localizedBreadcrumb(locale, items)` — buduje BreadcrumbList z labels per-locale, fallback do PL
+- `breadcrumbHref(locale, path)` — zwraca locale-prefixed URL dla intermediate items
+
+**20 layoutów [locale]/<path>/layout.tsx zaktualizowanych:**
+- Wszystkie konwertowane na `async` z `params: Promise<{ locale }>`
+- Używają `localizedBreadcrumb(locale, [{ key: 'home', url: breadcrumbHref(locale, '/') }, { key: '<page>' }])`
+- Service pages (6× /oferta/*) z 3-level breadcrumb (home → oferta → service) i lokalizowanymi intermediate URLs
+
+**Refactor `/oferta/page.tsx` (klient → server wrapper):**
+- PROBLEM podczas weryfikacji: parent `/oferta/layout.tsx` renderował 2-level breadcrumb. Layout dziedziczy też dla sub-pages, które mają swój własny 3-level → sub-page dostawał DWA BreadcrumbList = niespójny sygnał dla Google.
+- FIX: rename `/oferta/page.tsx` → `OfertaClient.tsx` (zachowuje "use client" + treść). Nowy `/oferta/page.tsx` jako server wrapper renderuje breadcrumb (tylko dla landing) + OfertaClient. `/oferta/layout.tsx`: usunięty render breadcrumb.
+
+#### Smoke test (npm run start, localhost):
+Wszystkie weryfikacje pokazują dokładnie 1 BreadcrumbList per page, locale-aware:
+- PL `/cennik`: Strona główna > Cennik ✅
+- EN `/cennik`: Home > Pricing ✅
+- DE `/cennik`: Startseite > Preise ✅
+- UA `/cennik`: Головна > Ціни ✅
+- EN `/oferta` landing: 2-level Home > Services ✅
+- EN `/oferta/implantologia`: 3-level Home > Services > Dental Implants ✅
+- DE `/oferta/leczenie-kanalowe`: 3-level Startseite > Leistungen > Wurzelkanalbehandlung ✅
+- UA `/oferta/ortodoncja`: 3-level Головна > Послуги > Ортодонтія ✅
+- Intermediate URLs locale-prefixed: `/en/oferta`, `/de/oferta`, `/ua/oferta` ✅
+- Wszystkie 21 paths → 200 OK ✅
+
+#### Spodziewany efekt:
+- EN/DE/UA użytkownicy w Google SERP widzą breadcrumb trail w lokalnym języku
+- Drobny CTR boost foreign markets (estymacja +1-3%)
+- Pełna konsystencja z hreflang/metadata/FAQ schemas zrobionymi w G1-G5
+
+#### Pliki:
+- `src/lib/seo.ts` — +BREADCRUMB_LABELS, localizedBreadcrumb(), breadcrumbHref()
+- 20× `src/app/[locale]/<path>/layout.tsx` — używają localizedBreadcrumb
+- `src/app/[locale]/oferta/page.tsx` — refactor na server wrapper
+- `src/app/[locale]/oferta/OfertaClient.tsx` [NEW] — przeniesiona treść klienta
+- `src/app/[locale]/oferta/layout.tsx` — usunięty breadcrumb (był konfliktowy z sub-pages)
+
+> **Brak migracji DB / nowych env var.** Tylko kod TypeScript.
+> Vercel auto-deployuje na produkcję + demo po pushu.
+
+---
+
+### 🎯 SEO SPRINT G1-G6 KOMPLETNY (2026-05-09 → 2026-05-10)
+
+| Faza | Commit | Zakres |
+|---|---|---|
+| G1 | `53c4cdc` | Per-page hreflang + per-locale metadata × 19 |
+| G2 | `3e971a0` | aggregateRating + BreadcrumbList × 13 + FAQPage 43Q |
+| G3 | `8c14e15` | Sitemap cache + SVG security + console 401 + YT 404 |
+| G4 | `9324924` | SplashScreen kill + CookieConsent SSR + RevealOnScroll priority |
+| G5 | `2ccbf7b` | Multilingual schemas + ItemList + image sizing + Twitter/OG |
+| G6 | `26a6647` | Per-locale breadcrumb labels |
+
+**Wszystkie znaczące SEO zadania wykonane. Pozostało tylko (świadomie pominięte / niski ROI):**
+- Polyfill removal (deeper Next 16 SWC investigation, low ROI)
+- BackgroundVideo skip mobile (świadomie pominięte przez Marcina)
+- Faza 3 GSC audit (~koniec czerwca 2026)
+
+---
 
 ### 2026-05-10 — SEO Sprint G4+G5: Core Web Vitals + multilingual schemas (pełen sprint zakończony)
 **Czwarta i piąta iteracja SEO sprintu — eliminacja migania, fix LCP, completing rich SERP**
