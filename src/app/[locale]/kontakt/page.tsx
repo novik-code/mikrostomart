@@ -68,7 +68,7 @@ export default function ContactPage() {
                                         onMouseEnter={e => (e.currentTarget as HTMLElement).style.opacity = '0.85'}
                                         onMouseLeave={e => (e.currentTarget as HTMLElement).style.opacity = '1'}
                                     >
-                                        🗺️ Nawiguj do gabinetu
+                                        {t('navigateButton')}
                                     </a>
                                 </div>
 

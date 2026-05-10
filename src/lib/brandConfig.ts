@@ -163,8 +163,9 @@ const PROD_BRAND: BrandConfig = {
     pmsName: 'Prodentis',
 
     // External Service IDs
-    googlePlaceId: 'ChIJ...',  // TODO: fill real Place ID
-    youtubeChannelId: 'UC...',  // TODO: fill real Channel ID
+    // googlePlaceId / youtubeChannelId — fill via DB site_settings or hardcode
+    // when real values are confirmed. Leaving them undefined is safer than a
+    // 'ChIJ...' / 'UC...' placeholder which would silently break consumers.
     githubOwner: 'novik-code',
     githubRepo: 'mikrostomart',
 };

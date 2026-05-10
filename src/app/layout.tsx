@@ -100,7 +100,7 @@ function SchemaOrg({ aggregateRating }: { aggregateRating: AggregateRating | nul
         "telephone": isDemoMode ? undefined : `+48${brand.phone1.replace(/-/g, '')}`,
         "priceRange": "$$",
         "currenciesAccepted": "PLN",
-        "paymentAccepted": "Cash, Credit Card",
+        "paymentAccepted": "Cash, Credit Card, BLIK, Apple Pay, Google Pay, Przelewy24, PayU",
         "address": {
             "@type": "PostalAddress",
             "streetAddress": brand.streetAddress,
@@ -144,6 +144,14 @@ function SchemaOrg({ aggregateRating }: { aggregateRating: AggregateRating | nul
                 "dayOfWeek": "Friday",
                 "opens": "09:00",
                 "closes": "16:00"
+            },
+            {
+                // Saturday is open on selected dates only ("wybrane terminy"),
+                // so we deliberately omit a fixed Sat row to avoid misleading hours.
+                "@type": "OpeningHoursSpecification",
+                "dayOfWeek": "Sunday",
+                "opens": "00:00",
+                "closes": "00:00"
             }
         ],
     };
@@ -167,7 +175,10 @@ function SchemaOrg({ aggregateRating }: { aggregateRating: AggregateRating | nul
                     __html: JSON.stringify(dentistSchema)
                 }}
             />
-            {/* WebSite schema — enables sitelinks search in Google */}
+            {/* WebSite schema — multilingual signal + publisher entity disambiguation.
+                SearchAction was removed: it pointed at /baza-wiedzy?q= which the page
+                does not consume, so Google Rich Results Test flagged it broken.
+                Re-add when /baza-wiedzy or another search endpoint actually handles ?q=. */}
             <script
                 type="application/ld+json"
                 dangerouslySetInnerHTML={{
@@ -176,11 +187,13 @@ function SchemaOrg({ aggregateRating }: { aggregateRating: AggregateRating | nul
                         "@type": "WebSite",
                         "name": brand.name,
                         "url": brand.schemaUrl,
-                        "potentialAction": {
-                            "@type": "SearchAction",
-                            "target": `${brand.schemaUrl}/baza-wiedzy?q={search_term_string}`,
-                            "query-input": "required name=search_term_string"
-                        }
+                        "inLanguage": ["pl", "en", "de", "uk"],
+                        "publisher": {
+                            "@type": "MedicalOrganization",
+                            "name": brand.schemaName,
+                            "url": brand.schemaUrl,
+                            "logo": brand.schemaImage,
+                        },
                     })
                 }}
             />
