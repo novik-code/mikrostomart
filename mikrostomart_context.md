@@ -1,6 +1,6 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-10 (SEO Sprint G1-G6 KOMPLETNY — pełen multilingual SEO, rich SERP, Core Web Vitals fix, per-locale breadcrumbs)  
+> **Last Updated:** 2026-05-10 (Fix: lokalizacja stopki + 4 locale × 25 keys + naprawa 404 dla /en|de|ua/zespol — po SEO Sprint G1-G6)  
 > **Version:** Production + Demo (Dual Vercel Deployment)  
 > **Status:** Active Development — KCP FULL; CareFlow Perioperative; Push-First Communication; **SEO Recovery: Faza 1+1.5+2+2.x+A+B+C+D+E KOMPLETNA i ZAAKCEPTOWANA przez Marcina** (PSI Mobile 34→73, Desktop 39→83; LCP Desktop 5.2s→1.6s ✅; Best Practices 73→96; SEO 92→100 ✅). **Faza F (opcjonalna)** — plan szczegółowy w sekcji "FAZA F — PLAN SZCZEGÓŁOWY", potencjalny boost mobile 73→85+ i desktop 83→92+, ~1-1.5h pracy, nie pilne. Faza 3: audyt GSC po 4-6 tygodniach.
 
@@ -2461,6 +2461,44 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-10 — Fix: lokalizacja stopki (post-G6 follow-up)
+**Bug zgłoszony przez Marcina po G6: stopka zawsze po polsku + 404 w niektórych linkach**
+
+#### Commit:
+- `3ef4b3a` — fix(footer): lokalizacja stopki — labels per-locale + locale-aware Link + naprawa 404
+
+#### 3 niezależne bugi:
+
+**1. Hardcoded PL labels** — wszystkie nagłówki sekcji ("Usługi", "Narzędzia", "Wiedza", "Prawne") + wszystkie linki ("O nas", "Kontakt", "Implantologia"...) były hardcoded w stopce, niezależnie od locale.
+
+**2. Linki bez locale prefix** — Footer używał `import Link from 'next/link'` (zwykły Next.js Link). Standard Link NIE dodaje locale prefix automatycznie. User na `/en/oferta` klikał "Baza wiedzy" → szedł na `/baza-wiedzy` (PL) zamiast `/en/baza-wiedzy`. Część linków "działała" przypadkiem (next-intl middleware przekierowywał z PL path), inne pokazywały polski content.
+
+**3. 404 dla `/en|de|ua/zespol`** — link `/zespol` w stopce. Redirect w `next.config.ts` był tylko dla `/zespol` (PL), nie dla `/en/zespol` itd. Foreign locale → 404. To był ten "404 w jednym dziale" który Marcin widział.
+
+#### Rozwiązanie:
+
+**`messages/{pl,en,de,ua}/common.json`** — dodany blok `footer.seoNav` z 25 keys × 4 locale (~100 stringów):
+- 4 nagłówki sekcji: servicesHeading, toolsHeading, knowledgeHeading, legalHeading
+- 25 etykiet linków: about, team, booking, services, implants, rootCanal, aesthetic, orthodontics, surgery, prosthodontics, pricing, metamorphoses, painMap, treatmentCalculator, comparator, appLanding, news, knowledge, blog, shop, faq, termsLink, privacyLink, rodoLink, cookiesLink
+
+**`src/components/Footer.tsx`:**
+- Import: `import Link from 'next/link'` → `import { Link } from '@/i18n/navigation'` (next-intl wrapper z auto-locale-prefix)
+- Wszystkie hardcoded teksty zamienione na `tn('seoNav.X')` lub `t('X')`
+- Internal staff routes (`/pracownik`, `/admin`) zostają jako zwykłe `<a>` (są poza [locale] segment)
+- Link `/zespol` zmieniony na `/o-nas` — bezpośrednio, eliminuje 404 dla foreign locales + oszczędza 308 hop dla PL
+
+#### Smoke test:
+- PL homepage: Headings [Kontakt, Usługi, Narzędzia, Wiedza, Prawne] ✅
+- EN homepage: Headings [Contact, Services, Tools, Knowledge, Legal] ✅
+- DE homepage: Headings [Kontakt, Leistungen, Werkzeuge, Wissen, Rechtliches] ✅
+- UA homepage: Headings [Контакт, Послуги, Інструменти, Знання, Правове] ✅
+- Linki locale-prefixed: /en/oferta, /de/cennik, /ua/sklep etc. ✅
+- 4 locale × 20 ścieżek = 80 testów statusów → wszystkie 200 ✅
+
+> **Brak migracji DB / nowych env var.** Tylko kod TypeScript + tłumaczenia.
+
+---
 
 ### 2026-05-10 — SEO Sprint G6: per-locale breadcrumb labels (foreign markets professionalism)
 **Szósta i ostatnia iteracja SEO sprintu — uzupełnienie multilingual całości**
