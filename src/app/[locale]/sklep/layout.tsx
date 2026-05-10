@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { pageMetadata, localizedBreadcrumb, breadcrumbHref, itemListSchema, fetchProductItems } from '@/lib/seo';
+import { pageMetadata, localizedBreadcrumb, breadcrumbHref, fetchShopProductsRich, productListSchema } from '@/lib/seo';
 import { PAGE_SEO } from '@/lib/seoTranslations';
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
@@ -19,8 +19,10 @@ export default async function Layout({
         { key: 'home', url: breadcrumbHref(locale, '/') },
         { key: 'sklep' },
     ]);
-    const items = await fetchProductItems(locale);
-    const list = items.length > 0 ? itemListSchema(items) : null;
+    // H4: ItemList of Products with Offer.price + InStock — eligible for
+    // Google Shopping / Product rich snippets in SERP.
+    const products = await fetchShopProductsRich(locale);
+    const list = products.length > 0 ? productListSchema(products) : null;
 
     return (
         <>

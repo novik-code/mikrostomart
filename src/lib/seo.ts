@@ -350,6 +350,84 @@ export interface ListItem {
     url: string;
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+// H4 (2026-05-10): Localized Dentist availableService names
+// Pre-H4 root layout emitted Polish service names (Implanty zębów,
+// Leczenie kanałowe...) regardless of request locale, so EN/DE/UA pages
+// returned schema with PL strings. This helper supplies per-locale names +
+// locale-aware URLs.
+// ════════════════════════════════════════════════════════════════════════════
+
+interface ServiceItem {
+    name: string;
+    /** Locale-agnostic path of the service page (e.g. '/oferta/implantologia'). */
+    path?: string;
+}
+
+const SERVICE_NAMES: Record<string, ServiceItem[]> = {
+    pl: [
+        { name: 'Implanty zębów', path: '/oferta/implantologia' },
+        { name: 'Leczenie kanałowe pod mikroskopem', path: '/oferta/leczenie-kanalowe' },
+        { name: 'Stomatologia estetyczna', path: '/oferta/stomatologia-estetyczna' },
+        { name: 'Ortodoncja', path: '/oferta/ortodoncja' },
+        { name: 'Protetyka', path: '/oferta/protetyka' },
+        { name: 'Chirurgia stomatologiczna', path: '/oferta/chirurgia' },
+        { name: 'Higienizacja i profilaktyka' }, // no dedicated landing page
+    ],
+    en: [
+        { name: 'Dental Implants', path: '/oferta/implantologia' },
+        { name: 'Microscopic Root Canal Treatment', path: '/oferta/leczenie-kanalowe' },
+        { name: 'Aesthetic Dentistry', path: '/oferta/stomatologia-estetyczna' },
+        { name: 'Orthodontics', path: '/oferta/ortodoncja' },
+        { name: 'Prosthodontics', path: '/oferta/protetyka' },
+        { name: 'Oral Surgery', path: '/oferta/chirurgia' },
+        { name: 'Dental Hygiene and Prevention' },
+    ],
+    de: [
+        { name: 'Zahnimplantate', path: '/oferta/implantologia' },
+        { name: 'Mikroskopische Wurzelkanalbehandlung', path: '/oferta/leczenie-kanalowe' },
+        { name: 'Ästhetische Zahnmedizin', path: '/oferta/stomatologia-estetyczna' },
+        { name: 'Kieferorthopädie', path: '/oferta/ortodoncja' },
+        { name: 'Zahnprothetik', path: '/oferta/protetyka' },
+        { name: 'Mund-Kiefer-Chirurgie', path: '/oferta/chirurgia' },
+        { name: 'Mundhygiene und Prävention' },
+    ],
+    ua: [
+        { name: 'Імпланти зубів', path: '/oferta/implantologia' },
+        { name: 'Мікроскопічне ендодонтичне лікування', path: '/oferta/leczenie-kanalowe' },
+        { name: 'Естетична стоматологія', path: '/oferta/stomatologia-estetyczna' },
+        { name: 'Ортодонтія', path: '/oferta/ortodoncja' },
+        { name: 'Протезування', path: '/oferta/protetyka' },
+        { name: 'Стоматологічна хірургія', path: '/oferta/chirurgia' },
+        { name: 'Гігієна та профілактика' },
+    ],
+};
+
+/**
+ * Returns localized availableService array for Dentist/MedicalBusiness schema.
+ * Each item is a MedicalProcedure with localized name + locale-aware absolute URL.
+ *
+ * @example
+ *   getAvailableServices('en') →
+ *     [{ "@type": "MedicalProcedure", name: "Dental Implants", url: "https://www.mikrostomart.pl/en/oferta/implantologia" }, ...]
+ */
+export function getAvailableServices(locale: string): Array<{ "@type": string; name: string; url?: string }> {
+    const items = SERVICE_NAMES[locale] || SERVICE_NAMES.pl;
+    return items.map((s) => ({
+        "@type": "MedicalProcedure",
+        "name": s.name,
+        ...(s.path ? { url: `${brand.appUrl}${localePath(locale, s.path)}` } : {}),
+    }));
+}
+
+/**
+ * Maps URL prefix locale → ISO 639-1 BCP 47 hreflang code (ua → uk for Ukrainian).
+ * Re-exposes HREFLANG_MAP for consumers outside seo.ts.
+ */
+export function hreflangCode(locale: string): string {
+    return HREFLANG_MAP[locale] || locale;
+}
+
 /**
  * Build an ItemList schema.org JSON-LD object for collection pages
  * (e.g. /aktualnosci listing, /sklep, /nowosielski blog list).
@@ -427,6 +505,92 @@ export async function fetchProductItems(locale: string): Promise<ListItem[]> {
     } catch {
         return [];
     }
+}
+
+/**
+ * Fetch full product data for Product+Offer schemas on /sklep listing.
+ * Returns enriched products eligible for Google Merchant rich results.
+ *
+ * H4 (2026-05-10): replaces bare ItemList with ItemList → Product entities.
+ * Per-locale name + description; min_price used for variable-price products.
+ */
+interface ShopProduct {
+    name: string;
+    description: string;
+    image?: string;
+    url: string;
+    price: number;
+    priceCurrency: string;
+}
+
+export async function fetchShopProductsRich(locale: string): Promise<ShopProduct[]> {
+    try {
+        const { data } = await supabase
+            .from('products')
+            .select('id, name, description, image, price, min_price, is_variable_price, is_visible, name_translations, description_translations')
+            .eq('is_visible', true)
+            .limit(100);
+
+        if (!data) return [];
+
+        return data
+            .filter((row: any) => row.name && (row.price || row.min_price))
+            .map((row: any) => {
+                const nameT = row.name_translations || {};
+                const descT = row.description_translations || {};
+                const name = (locale !== 'pl' && nameT[locale]) || row.name;
+                const description = (locale !== 'pl' && descT[locale]) || row.description || name;
+
+                const url = locale === 'pl'
+                    ? `${brand.appUrl}/sklep#product-${row.id}`
+                    : `${brand.appUrl}/${locale}/sklep#product-${row.id}`;
+
+                // Variable-price vouchers use min_price as floor
+                const price = row.is_variable_price ? Number(row.min_price) : Number(row.price);
+
+                return {
+                    name,
+                    description,
+                    image: row.image || undefined,
+                    url,
+                    price,
+                    priceCurrency: 'PLN',
+                };
+            });
+    } catch {
+        return [];
+    }
+}
+
+/**
+ * Build ItemList → Product schemas for /sklep listing.
+ * Each ListItem wraps a full Product entity with Offer (price, currency, availability).
+ * Eligible for Google Shopping rich results.
+ */
+export function productListSchema(products: ShopProduct[]) {
+    return {
+        '@context': 'https://schema.org',
+        '@type': 'ItemList',
+        numberOfItems: products.length,
+        itemListElement: products.map((p, i) => ({
+            '@type': 'ListItem',
+            position: i + 1,
+            item: {
+                '@type': 'Product',
+                name: p.name,
+                description: p.description,
+                ...(p.image ? { image: p.image } : {}),
+                url: p.url,
+                offers: {
+                    '@type': 'Offer',
+                    price: p.price,
+                    priceCurrency: p.priceCurrency,
+                    availability: 'https://schema.org/InStock',
+                    url: p.url,
+                },
+            },
+        })),
+    };
 }
 
 /**

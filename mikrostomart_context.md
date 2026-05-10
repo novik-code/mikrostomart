@@ -2462,6 +2462,72 @@ NODE_ENV=production
 
 ## 📝 Recent Changes
 
+### 2026-05-10 — SEO Audit Sprint H4: schema enrichment
+**Czwarta z 7 faz audytu SEO — wzbogacenie Schema.org dla rich SERP results**
+
+#### Branch:
+- `seo/h4-schema-enrichment` (mergowany na main bezpośrednio po pushu)
+
+#### H4 — Schema enrichment:
+
+**1. Dentist availableService localized per-locale (`src/lib/seo.ts`)**
+- Dodany helper `getAvailableServices(locale)` z mapą `SERVICE_NAMES` per 4 locale (pl/en/de/ua) × 7 services.
+- Każda usługa: localized `name` + locale-aware `url` (np. EN → `/en/oferta/implantologia`).
+- Pre-H4 root layout zwracał PL nazwy ("Implanty zębów") niezależnie od locale → schema EN/DE/UA pages miało polskie stringi.
+- Dodany `hreflangCode(locale)` helper (re-export HREFLANG_MAP).
+
+**2. Dentist schema `inLanguage` per request locale (`src/app/layout.tsx`)**
+- `SchemaOrg` przyjmuje teraz `locale` prop.
+- `inLanguage` ustawiane via `hreflangCode(locale)` (ua → uk).
+- `availableService` używa `getAvailableServices(locale)`.
+
+**3. Person schemas dla Marcin + Elżbieta na /o-nas (`src/app/[locale]/o-nas/layout.tsx`)**
+- 2 entity Person × 4 locale (PL/EN/DE/UA) z localized description, jobTitle.
+- Marcin: implantolog + endodonta mikroskopowy. Ela: higienistka.
+- `worksFor: { @id: brand.schemaId }` → linkuje Persons do Dentist entity (Knowledge Graph).
+- `image`: `/marcin-final.jpg`, `/ela-final.jpg`.
+- `knowsAbout`: tablica specjalizacji per locale.
+- E-E-A-T signal — Google rewards explicit author/practitioner entities dla content medycznego.
+
+**4. Service schema na 6 service pages (`src/lib/serviceSchemas.ts` + 6 layoutów)**
+- `buildServicePageSchemas` zwraca teraz `{ faqSchema, procedureSchema, serviceSchema }`.
+- `serviceSchema`: type Service z `provider: { @id: brand.schemaId }`, `category: 'Dentistry'`, `url`.
+- **`areaServed`**: tablica obejmująca City "Opole", AdministrativeArea "województwo opolskie", Country "Poland", "Germany", "Czech Republic", "Ukraine".
+- 80 km od granicy DE → naturalny target dental tourism. areaServed = silny signal local-pack + foreign markets.
+- Bez `offers` (pricing zmienia się — uniknięcie stale-price penalty).
+- 6 service layoutów dodaje `serviceSchema` script obok faqSchema + procedureSchema.
+
+**5. Product schema na /sklep (`src/lib/seo.ts` + `src/app/[locale]/sklep/layout.tsx`)**
+- Nowy helper `fetchShopProductsRich(locale)` — pełne dane produktu (name, description, image, price, currency).
+- Nowy helper `productListSchema(products)` — ItemList z embedded Product entities.
+- Każdy produkt: type Product z `Offer` (price, priceCurrency PLN, availability InStock, url).
+- Variable-price vouchers używają `min_price` jako floor.
+- Eligible dla Google Shopping rich snippets.
+- Layout `/sklep` przeniesiony z `fetchProductItems` (bare ListItem) na `fetchShopProductsRich` (Product+Offer).
+
+#### Świadomie pominięte (decision points wymagające danych od Marcina):
+
+- **`sameAs` Instagram/GBP/YouTube** — brand.facebookUrl jest jedyny obecny. Wymaga real URLs do Instagram, Google Business Profile, YouTube, LinkedIn.
+- **Real practice photo zamiast logo** dla Dentist `image` — obecnie `/logo-transparent.png`. Google preferuje real photo budynku. Wymaga dostarczenia zdjęcia od Marcina.
+- **Real `googlePlaceId`** — usunięty placeholder w H1. Można dodać via DB site_settings lub hardcoded.
+- **Concrete pricing offers** w Service schemas — uniknięte żeby nie tworzyć stale-price liability.
+
+#### Smoke test:
+- `npm run build` — clean.
+- Brak nowych compilation errors.
+
+#### Pliki:
+- `src/lib/seo.ts` — getAvailableServices, hreflangCode, fetchShopProductsRich, productListSchema (~150 LOC dodane)
+- `src/lib/serviceSchemas.ts` — buildServicePageSchemas zwraca serviceSchema, AREA_SERVED constant
+- `src/app/layout.tsx` — SchemaOrg locale-aware, inLanguage, localized availableService
+- `src/app/[locale]/o-nas/layout.tsx` — 2× Person schemas z PERSON_DESCRIPTIONS (PL/EN/DE/UA)
+- `src/app/[locale]/oferta/{6_services}/layout.tsx` — dodany serviceSchema script (6 plików)
+- `src/app/[locale]/sklep/layout.tsx` — refactor na productListSchema
+
+> **Brak migracji DB / nowych env var.** Tylko zmiany kodu TypeScript.
+
+---
+
 ### 2026-05-10 — SEO Audit Sprint H3: internal linking
 **Trzecia z 7 faz audytu SEO — naprawa locale leak i lokal-aware linkowania**
 
