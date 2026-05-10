@@ -1,7 +1,6 @@
 import { MetadataRoute } from 'next';
 import { supabase } from '@/lib/supabaseClient';
 import { brand } from '@/lib/brandConfig';
-import { isDemoMode } from '@/lib/demoMode';
 import { routing } from '@/i18n/routing';
 
 // Faza G3 (2026-05-09): cache sitemap przez 1 godzinę.
@@ -55,10 +54,6 @@ function multiLocaleEntries(
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-    // Demo deployment (demo.densflow.ai) must not be indexed: it would cannibalize
-    // mikrostomart.pl in Google. Robots.txt blocks crawling, sitemap returns empty.
-    if (isDemoMode) return [];
-
     // Knowledge Base articles — multi-locale (each article × 4 rows in DB linked by group_id)
     const { data: kbArticlesRaw } = await supabase
         .from('articles')

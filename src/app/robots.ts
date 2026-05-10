@@ -1,14 +1,7 @@
 import { MetadataRoute } from 'next';
-import { brand } from '@/lib/brandConfig';
-import { isDemoMode } from '@/lib/demoMode';
+import { demoSanitize, brand } from '@/lib/brandConfig';
 
 export default function robots(): MetadataRoute.Robots {
-    if (isDemoMode) {
-        return {
-            rules: { userAgent: '*', disallow: '/' },
-        };
-    }
-
     return {
         rules: {
             userAgent: '*',
@@ -20,11 +13,6 @@ export default function robots(): MetadataRoute.Robots {
                 '/strefa-pacjenta/',
                 '/ekarta/',
                 '/mapa-bolu/editor',
-                '/auth/',
-                '/zgody/',
-                '/qr-display',
-                '/s/',
-                '/opieka/',
             ],
         },
         sitemap: `${brand.appUrl}/sitemap.xml`,

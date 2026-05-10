@@ -456,12 +456,7 @@ export async function fetchBlogPostItems(locale: string): Promise<ListItem[]> {
  * Returns null on error or empty cache (caller should skip aggregateRating in schema).
  *
  * Used in root layout's Dentist schema to enable rich SERP stars.
- *
- * Counts ALL reviews 1-5★ — Google's "Review snippet" guidelines forbid filtering
- * out negatives ("manipulated rating" penalty). Pre-2026-05-10 implementation used
- * `.gte('rating', 4)` which inflated the rating; rolled back to honest aggregate.
- * If average drops below 3.5★ the schema is omitted entirely (low/0-rating rich
- * results actively hurt CTR).
+ * Counts only reviews ≥ 4 stars (matches GoogleReviews component filter).
  *
  * Cached for 1 hour via Next.js Data Cache (revalidate tag).
  */
@@ -469,7 +464,8 @@ export async function getAggregateRating(): Promise<AggregateRating | null> {
     try {
         const { data, error } = await supabase
             .from('google_reviews')
-            .select('rating');
+            .select('rating')
+            .gte('rating', 4);
 
         if (error || !data || data.length === 0) {
             return null;
@@ -480,8 +476,6 @@ export async function getAggregateRating(): Promise<AggregateRating | null> {
 
         const sum = ratings.reduce((acc, r) => acc + r, 0);
         const avg = sum / ratings.length;
-
-        if (avg < 3.5) return null;
 
         return {
             ratingValue: Math.round(avg * 10) / 10,
