@@ -1,7 +1,8 @@
 import { supabase } from '@/lib/supabaseClient';
 import { brand, brandI18nParams } from '@/lib/brandConfig';
 import RevealOnScroll from '@/components/RevealOnScroll';
-import { Link } from '@/i18n/navigation';
+// H3 BUG FIX (2026-05-10): server components NIE mogą używać Link z
+// @/i18n/navigation. Manualny <a> z locale prefix.
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { Metadata } from 'next';
@@ -184,9 +185,9 @@ export default async function ArticlePage({
             />
             <article className="container" style={{ padding: "8rem 2rem 4rem", maxWidth: "800px" }}>
 
-                {/* Back Link */}
+                {/* Back Link — locale-aware via manual prefix (server component) */}
                 <div style={{ marginBottom: "2rem" }}>
-                    <Link href="/baza-wiedzy" style={{
+                    <a href={locale === 'pl' ? '/baza-wiedzy' : `/${locale}/baza-wiedzy`} style={{
                         color: "var(--color-text-muted)",
                         textDecoration: "none",
                         fontSize: "0.9rem",
@@ -198,7 +199,7 @@ export default async function ArticlePage({
                         className="hover:text-primary"
                     >
                         &larr; {t('backToList')}
-                    </Link>
+                    </a>
                 </div>
 
                 <RevealOnScroll>

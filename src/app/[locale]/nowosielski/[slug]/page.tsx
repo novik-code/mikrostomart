@@ -1,5 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
-import { Link } from '@/i18n/navigation';
+// H3 BUG FIX (2026-05-10): server components NIE mogą używać Link z
+// @/i18n/navigation (wewnętrzne useLocale() rzuca "No intl context found" w SSR).
+// Używamy <a href> z manualnym locale prefix.
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import RevealOnScroll from '@/components/RevealOnScroll';
@@ -230,9 +232,9 @@ export default async function BlogPost({
 
             <article className="container" style={{ padding: "8rem 2rem 4rem", maxWidth: "800px", margin: "0 auto" }}>
 
-                {/* Back Link */}
+                {/* Back Link — locale-aware via manual prefix (server component, no client Link) */}
                 <div style={{ marginBottom: "2rem" }}>
-                    <Link href="/nowosielski" style={{
+                    <a href={locale === 'pl' ? '/nowosielski' : `/${locale}/nowosielski`} style={{
                         color: "var(--color-text-muted)",
                         textDecoration: "none",
                         fontSize: "0.9rem",
@@ -244,7 +246,7 @@ export default async function BlogPost({
                         className="hover:text-primary"
                     >
                         &larr; {t('backToBlog')}
-                    </Link>
+                    </a>
                 </div>
 
                 <RevealOnScroll>

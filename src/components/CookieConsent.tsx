@@ -1,7 +1,14 @@
 import { cookies } from 'next/headers';
-import { getTranslations } from 'next-intl/server';
-import { Link } from '@/i18n/navigation';
+import { getTranslations, getLocale } from 'next-intl/server';
 import { CookieConsentButton } from './CookieConsentButton';
+
+// H3 BUG FIX (2026-05-10): NIE używaj Link z @/i18n/navigation w server components —
+// ten wrapper wewnętrznie wywołuje useLocale() (client hook) co rzuca "No intl
+// context found" w SSR i 500 dla każdej strony (CookieConsent jest w root layout).
+// Server components muszą albo:
+//   1. Używać <a href> z manualnym locale prefix (jak tutaj — proste, server-side)
+//   2. Wykorzystywać client island (osobny component "use client" z Link import)
+// Patrz feedback memory: feedback_h3_server_link_bug.md.
 
 /**
  * CookieConsent — server component (Faza G4 2026-05-10).
@@ -30,6 +37,8 @@ export default async function CookieConsent() {
     }
 
     const t = await getTranslations('cookies');
+    const locale = await getLocale();
+    const policyHref = locale === 'pl' ? '/polityka-cookies' : `/${locale}/polityka-cookies`;
 
     return (
         <div
@@ -60,7 +69,7 @@ export default async function CookieConsent() {
                     </h4>
                     <p style={{ color: "var(--color-text-muted)", fontSize: "0.85rem", lineHeight: 1.5 }}>
                         {t('message')}{' '}
-                        <Link href="/polityka-cookies" style={{ color: "var(--color-primary)", marginLeft: "4px", textDecoration: "underline" }}>{t('policyLink')}</Link>.{' '}
+                        <a href={policyHref} style={{ color: "var(--color-primary)", marginLeft: "4px", textDecoration: "underline" }}>{t('policyLink')}</a>.{' '}
                         {t('details')}
                     </p>
                 </div>
