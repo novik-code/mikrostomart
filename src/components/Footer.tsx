@@ -42,8 +42,6 @@ export default function Footer() {
                     src={isDemoMode ? "/demo-logo.png" : "/logo-transparent.png"}
                     alt="Watermark"
                     fill
-                    sizes="(max-width: 768px) 100vw, 1200px"
-                    aria-hidden="true"
                     style={{ objectFit: 'contain', transform: 'scale(1.5)' }}
                 />
             </div>

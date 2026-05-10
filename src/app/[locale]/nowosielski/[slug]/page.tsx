@@ -264,7 +264,6 @@ export default async function BlogPost({
                                     src={post.image.startsWith('http') ? post.image : `${post.image}`}
                                     alt={post.title}
                                     fill
-                                    sizes="(max-width: 800px) 100vw, 800px"
                                     style={{ objectFit: "cover" }}
                                     priority
                                 />

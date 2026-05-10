@@ -104,16 +104,12 @@ export default function AboutPage() {
                                         src="/ela-main.jpg"
                                         alt="Elżbieta Nowosielska"
                                         fill
-                                        sizes="(max-width: 768px) 100vw, 50vw"
-                                        priority
                                         style={{ objectFit: 'cover' }}
                                     />
                                     <Image
-                                        src="/ela-final.webp"
+                                        src="/ela-final.jpg"
                                         alt="Elżbieta Nowosielska Professional"
                                         fill
-                                        sizes="(max-width: 768px) 100vw, 50vw"
-                                        loading="lazy"
                                         style={{
                                             objectFit: 'cover',
                                             opacity: expanded['ela-img'] ? 1 : 0,
@@ -289,16 +285,12 @@ export default function AboutPage() {
                                         src="/marcin-main.jpg"
                                         alt="Marcin Nowosielski"
                                         fill
-                                        sizes="(max-width: 768px) 100vw, 50vw"
-                                        priority
                                         style={{ objectFit: 'cover', objectPosition: 'top' }}
                                     />
                                     <Image
-                                        src="/marcin-final.webp"
+                                        src="/marcin-final.jpg"
                                         alt="Marcin Nowosielski Professional"
                                         fill
-                                        sizes="(max-width: 768px) 100vw, 50vw"
-                                        loading="lazy"
                                         style={{
                                             objectFit: 'cover',
                                             objectPosition: 'top',

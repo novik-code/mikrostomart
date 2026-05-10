@@ -187,19 +187,16 @@ export default function Navbar() {
                         <LanguageSwitcher hidden={isMenuOpen} />
                     </div>
 
-                    {/* Mobile hamburger — H5 (2026-05-10): 44×44 button (WCAG 2.5.5
-                        minimum touch target) wrapping 30×21 visual icon. */}
+                    {/* Mobile hamburger */}
                     <button
                         className={styles.hamburger}
                         onClick={toggleMenu}
                         aria-label="Menu"
                         aria-expanded={isMenuOpen}
                     >
-                        <span className={styles.barWrapper}>
-                            <span className={`${styles.barInline} ${isMenuOpen ? styles.barInlineOpen : ''}`}></span>
-                            <span className={`${styles.barInline} ${isMenuOpen ? styles.barInlineOpen : ''}`}></span>
-                            <span className={`${styles.barInline} ${isMenuOpen ? styles.barInlineOpen : ''}`}></span>
-                        </span>
+                        <span className={`${styles.barInline} ${isMenuOpen ? styles.barInlineOpen : ''}`}></span>
+                        <span className={`${styles.barInline} ${isMenuOpen ? styles.barInlineOpen : ''}`}></span>
+                        <span className={`${styles.barInline} ${isMenuOpen ? styles.barInlineOpen : ''}`}></span>
                     </button>
 
                     {/* Mobile Menu Overlay — same as hamburger layout */}

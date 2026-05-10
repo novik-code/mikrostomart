@@ -311,26 +311,15 @@
    ═══════════════════════════════════════ */
 .hamburger {
     display: none;
-    /* H5 (2026-05-10): expanded touch target to WCAG 2.5.5 minimum 44×44.
-       Visual icon stays compact via inner .barWrapper; outer button captures
-       the tap. Without this, mobile users frequently mis-taps near the icon. */
-    width: 44px;
-    height: 44px;
-    align-items: center;
-    justify-content: center;
+    flex-direction: column;
+    justify-content: space-between;
+    width: 30px;
+    height: 21px;
     background: transparent;
     border: none;
     cursor: pointer;
     padding: 0;
     z-index: 102;
-}
-
-.barWrapper {
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    width: 30px;
-    height: 21px;
 }
 
 .bar {
