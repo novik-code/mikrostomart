@@ -79,6 +79,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         '/cennik',
         '/kontakt',
         '/rezerwacja',
+        '/dla-pacjentow-przyjezdnych', // H7 international landing
     ];
     const mainRoutes = mainPaths.flatMap((path) =>
         multiLocaleEntries(path, {
