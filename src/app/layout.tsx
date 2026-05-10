@@ -117,15 +117,7 @@ function SchemaOrg({ aggregateRating, locale }: { aggregateRating: AggregateRati
             "longitude": parseFloat(brand.geoPosition.split(';')[1]),
         },
         "hasMap": `https://www.google.com/maps/search/?api=1&query=${brand.mapQuery}`,
-        // H8 (2026-05-10): full sameAs array — Google entity disambiguation.
-        // Każdy URL musi prowadzić do tej samej entity (klinika/marka).
-        "sameAs": [
-            brand.facebookUrl,
-            brand.instagramClinicUrl,
-            brand.instagramDoctorUrl,
-            brand.youtubeUrl,
-            brand.googleBusinessUrl,
-        ].filter(Boolean),
+        "sameAs": brand.facebookUrl ? [brand.facebookUrl] : [],
         "medicalSpecialty": [
             "Dentistry",
             "Endodontics",

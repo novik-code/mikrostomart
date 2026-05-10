@@ -1,12 +1,9 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { brand } from '@/lib/brandConfig';
 
 export const revalidate = 3600; // ISR: cache for 1 hour
 
-// H8 (2026-05-10): single source of truth — Place ID lives in brandConfig.
-// Fallback hardcoded value zachowany dla bezpieczeństwa (brand load fail).
-const PLACE_ID = brand.googlePlaceId || 'ChIJ-5k3xu5SEEcRJhqtusOhhwM';
+const PLACE_ID = 'ChIJ-5k3xu5SEEcRJhqtusOhhwM';
 const MIN_RATING = 4; // Only show 4★+ reviews
 
 // In-memory timestamp to throttle Google API calls (1 fetch per hour)
