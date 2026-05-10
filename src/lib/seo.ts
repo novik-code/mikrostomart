@@ -24,6 +24,15 @@ const HREFLANG_MAP: Record<string, string> = {
     ua: 'uk',
 };
 
+// URL prefix → OpenGraph locale (BCP 47-ish format `<lang>_<COUNTRY>`).
+// OG spec uses `pl_PL`, `en_US`, etc. — language + country pair.
+const OG_LOCALE_MAP: Record<string, string> = {
+    pl: 'pl_PL',
+    en: 'en_US',
+    de: 'de_DE',
+    ua: 'uk_UA',
+};
+
 /**
  * Build a locale-prefixed path. PL (default) has no prefix.
  * @example localePath('en', '/oferta') → '/en/oferta'
@@ -127,6 +136,15 @@ export function pageMetadata(
         openGraph: {
             title: seo.ogTitle || seo.title,
             description: seo.ogDescription || seo.description,
+            // Faza G5 (2026-05-10): per-locale OG locale (Facebook/LinkedIn share previews).
+            locale: OG_LOCALE_MAP[locale] || OG_LOCALE_MAP.pl,
+        },
+        twitter: {
+            // Faza G5: dodane Twitter description (root layout ma tylko card+image).
+            // OG title/description są używane jeśli nie podamy własnych — ale jawne
+            // Twitter tagi są bardziej niezawodne dla X/Twitter card preview.
+            title: seo.ogTitle || seo.title,
+            description: seo.ogDescription || seo.description,
         },
     };
 }
@@ -170,6 +188,129 @@ export function breadcrumbSchema(items: BreadcrumbItem[]) {
 export interface AggregateRating {
     ratingValue: number;
     reviewCount: number;
+}
+
+export interface ListItem {
+    name: string;
+    url: string;
+}
+
+/**
+ * Build an ItemList schema.org JSON-LD object for collection pages
+ * (e.g. /aktualnosci listing, /sklep, /nowosielski blog list).
+ *
+ * Faza G5 (2026-05-10): pomaga Google zrozumieć strukturę listingów i
+ * pokazywać sitelinks w SERP.
+ */
+export function itemListSchema(items: ListItem[]) {
+    return {
+        '@context': 'https://schema.org',
+        '@type': 'ItemList',
+        numberOfItems: items.length,
+        itemListElement: items.map((item, i) => ({
+            '@type': 'ListItem',
+            position: i + 1,
+            url: item.url,
+            name: item.name,
+        })),
+    };
+}
+
+/**
+ * Fetch news article slugs+titles for ItemList schema on /aktualnosci listing.
+ * Locale-aware (uses translated title columns when available).
+ * Returns empty array on error.
+ */
+export async function fetchNewsItems(locale: string): Promise<ListItem[]> {
+    try {
+        const titleColumn = locale === 'pl' ? 'title' : `title_${locale}`;
+        const { data } = await supabase
+            .from('news')
+            .select(`slug, ${titleColumn}, title`)
+            .order('date', { ascending: false })
+            .limit(50);
+
+        if (!data) return [];
+
+        return data
+            .filter((row: any) => row.slug)
+            .map((row: any) => {
+                const title = row[titleColumn] || row.title || row.slug;
+                const url = locale === 'pl'
+                    ? `${brand.appUrl}/aktualnosci/${row.slug}`
+                    : `${brand.appUrl}/${locale}/aktualnosci/${row.slug}`;
+                return { name: title, url };
+            });
+    } catch {
+        return [];
+    }
+}
+
+/**
+ * Fetch shop products for ItemList schema on /sklep listing.
+ * Uses translated names if available, falls back to PL.
+ */
+export async function fetchProductItems(locale: string): Promise<ListItem[]> {
+    try {
+        const { data } = await supabase
+            .from('products')
+            .select('id, name, name_translations, is_visible')
+            .eq('is_visible', true)
+            .limit(100);
+
+        if (!data) return [];
+
+        return data.map((row: any) => {
+            const translations = row.name_translations || {};
+            const name = (locale !== 'pl' && translations[locale]) || row.name || `Product ${row.id}`;
+            // Shop doesn't have per-product URLs (modal-based) — link to shop with product ID
+            const url = locale === 'pl'
+                ? `${brand.appUrl}/sklep#product-${row.id}`
+                : `${brand.appUrl}/${locale}/sklep#product-${row.id}`;
+            return { name, url };
+        });
+    } catch {
+        return [];
+    }
+}
+
+/**
+ * Fetch Dr Nowosielski blog posts for ItemList schema on /nowosielski listing.
+ * Locale-aware via group_id for translations.
+ */
+export async function fetchBlogPostItems(locale: string): Promise<ListItem[]> {
+    try {
+        const { data } = await supabase
+            .from('blog_posts')
+            .select('slug, title, locale')
+            .eq('locale', locale)
+            .order('published_date', { ascending: false })
+            .limit(50);
+
+        if (!data || data.length === 0) {
+            // Fallback to PL if no posts in requested locale
+            const { data: plData } = await supabase
+                .from('blog_posts')
+                .select('slug, title, locale')
+                .eq('locale', 'pl')
+                .order('published_date', { ascending: false })
+                .limit(50);
+            if (!plData) return [];
+            return plData.map((row: any) => ({
+                name: row.title || row.slug,
+                url: `${brand.appUrl}/nowosielski/${row.slug}`,
+            }));
+        }
+
+        return data.map((row: any) => {
+            const url = locale === 'pl'
+                ? `${brand.appUrl}/nowosielski/${row.slug}`
+                : `${brand.appUrl}/${locale}/nowosielski/${row.slug}`;
+            return { name: row.title || row.slug, url };
+        });
+    } catch {
+        return [];
+    }
 }
 
 /**

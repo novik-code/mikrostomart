@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { pageMetadata, breadcrumbSchema } from '@/lib/seo';
+import { pageMetadata, breadcrumbSchema, itemListSchema, fetchNewsItems } from '@/lib/seo';
 import { PAGE_SEO } from '@/lib/seoTranslations';
 import { brand } from '@/lib/brandConfig';
 
@@ -13,10 +13,27 @@ const breadcrumb = breadcrumbSchema([
     { name: 'Aktualności' },
 ]);
 
-export default function Layout({ children }: { children: React.ReactNode }) {
+export default async function Layout({
+    children,
+    params,
+}: {
+    children: React.ReactNode;
+    params: Promise<{ locale: string }>;
+}) {
+    const { locale } = await params;
+    // Faza G5: ItemList schema dla listing — pomaga Google rozumieć strukturę
+    // i pokazać sitelinks w SERP. Schema renderowana także na sub-pages
+    // (/aktualnosci/[slug]) — Google rozumie i preferuje NewsArticle schema
+    // tam zdefiniowaną. Brak konfliktu.
+    const items = await fetchNewsItems(locale);
+    const list = items.length > 0 ? itemListSchema(items) : null;
+
     return (
         <>
             <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumb) }} />
+            {list && (
+                <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(list) }} />
+            )}
             {children}
         </>
     );

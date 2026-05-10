@@ -6,6 +6,20 @@ import RevealOnScroll from "./RevealOnScroll";
 import { Star, Quote } from "lucide-react";
 import { useTranslations } from "next-intl";
 
+/**
+ * Faza G5 (2026-05-10): zmniejszenie Google CDN avatar URL z 128px do 40px.
+ * Google CDN URL pattern: `.../=sNNN-c0xff...` lub `.../=sNNN-c`. Wystarczy
+ * podmienić wartość parametru `sNNN`. Oszczędza ~175 KiB na 9 reviews
+ * wyświetlanych jako 40x40 (Lighthouse "Properly size images" flaga).
+ */
+function optimizeGooglePhoto(url: string, size: number): string {
+    if (!url || !url.includes('googleusercontent.com')) return url;
+    if (/=s\d+/.test(url)) {
+        return url.replace(/=s\d+/, `=s${size}`);
+    }
+    return `${url}=s${size}-c`;
+}
+
 interface GoogleReview {
     author: string;
     authorPhoto: string | null;
@@ -222,8 +236,12 @@ export default function GoogleReviews() {
                                     <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginTop: "auto" }}>
                                         {review.authorPhoto ? (
                                             <img
-                                                src={review.authorPhoto}
+                                                src={optimizeGooglePhoto(review.authorPhoto, 40)}
                                                 alt={review.author}
+                                                width={40}
+                                                height={40}
+                                                loading="lazy"
+                                                decoding="async"
                                                 style={{
                                                     width: "40px",
                                                     height: "40px",

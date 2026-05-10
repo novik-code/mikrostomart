@@ -1,45 +1,40 @@
 import type { Metadata } from 'next';
 import { brand } from '@/lib/brandConfig';
-import { pageMetadata } from '@/lib/seo';
+import { pageMetadata, breadcrumbSchema } from '@/lib/seo';
 import { PAGE_SEO } from '@/lib/seoTranslations';
+import { buildServicePageSchemas } from '@/lib/serviceSchemas';
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
     const { locale } = await params;
     return pageMetadata(locale, '/oferta/stomatologia-estetyczna', PAGE_SEO['/oferta/stomatologia-estetyczna']);
 }
 
-const faqSchema = {
-    "@context": "https://schema.org", "@type": "FAQPage",
-    "mainEntity": [
-        { "@type": "Question", "name": "Czym są licówki porcelanowe?", "acceptedAnswer": { "@type": "Answer", "text": "Licówki to cieniutkie płatki porcelanowe naklejane na lico zęba. Korygują kształt, kolor i drobne nierówności. Umożliwiają osiągnięcie efektu Hollywood Smile bez zakładania aparatu." } },
-        { "@type": "Question", "name": "Czy wybielanie zębów niszczy szkliwo?", "acceptedAnswer": { "@type": "Answer", "text": "Nie, profesjonalne wybielanie przeprowadzone w gabinecie jest bezpieczne. Stosujemy nowoczesne preparaty, które nie demineralizują szkliwa, a jedynie utleniają przebarwienia." } },
-        { "@type": "Question", "name": "Jak długo utrzymuje się efekt wybielania?", "acceptedAnswer": { "@type": "Answer", "text": "Efekt zazwyczaj utrzymuje się od roku do 3 lat. Zależy głównie od diety (kawa, wino) i nawyków (palenie). Regularna higienizacja pomaga podtrzymać efekt bieli." } },
-        { "@type": "Question", "name": "Co to jest Bonding?", "acceptedAnswer": { "@type": "Answer", "text": "Bonding to nieinwazyjna metoda poprawy estetyki zęba za pomocą żywicy kompozytowej. Wykonujemy go na jednej wizycie, bez szlifowania zębów. Idealny do zamknięcia diastemy." } }
-    ]
-};
+const breadcrumb = breadcrumbSchema([
+    { name: 'Strona główna', url: brand.appUrl },
+    { name: 'Oferta', url: `${brand.appUrl}/oferta` },
+    { name: 'Stomatologia Estetyczna' },
+]);
 
-const breadcrumbSchema = {
-    "@context": "https://schema.org", "@type": "BreadcrumbList",
-    "itemListElement": [
-        { "@type": "ListItem", "position": 1, "name": "Strona główna", "item": brand.appUrl },
-        { "@type": "ListItem", "position": 2, "name": "Oferta", "item": `${brand.appUrl}/oferta` },
-        { "@type": "ListItem", "position": 3, "name": "Stomatologia Estetyczna" }
-    ]
-};
+export default async function Layout({
+    children,
+    params,
+}: {
+    children: React.ReactNode;
+    params: Promise<{ locale: string }>;
+}) {
+    const { locale } = await params;
+    const schemas = buildServicePageSchemas('/oferta/stomatologia-estetyczna', locale);
 
-const medicalProcedureSchema = {
-    "@context": "https://schema.org",
-    "@type": "MedicalProcedure",
-    "name": `Stomatologia estetyczna ${brand.cityShort}`,
-    "procedureType": "https://schema.org/TherapeuticProcedure",
-    "bodyLocation": "Teeth",
-    "description": "Zabiegi poprawy estetyki uśmiechu: licówki porcelanowe (E.max), bonding kompozytowy, profesjonalne wybielanie zębów. Cyfrowe planowanie uśmiechu (DSD - Digital Smile Design).",
-    "howPerformed": "Konsultacja DSD i symulacja efektu końcowego. Licówki: skanowanie 3D, projekt, wykonanie w laboratorium, cementowanie. Bonding: na jednej wizycie bez szlifowania zęba. Wybielanie: w gabinecie lub nakładkowe (overnight) z indywidualnymi nakładkami.",
-    "preparation": "Konsultacja estetyczna, ocena kliniczna i radiologiczna. Ewentualna wcześniejsza higienizacja.",
-    "followup": "Kontrola po 7 dniach. Profilaktyka: regularna higienizacja co 6 miesięcy, unikanie barwiących pokarmów po wybielaniu.",
-    "performer": { "@type": "MedicalOrganization", "name": brand.name, "url": brand.appUrl }
-};
-
-export default function Layout({ children }: { children: React.ReactNode }) {
-    return (<><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} /><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }} /><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(medicalProcedureSchema) }} />{children}</>);
+    return (
+        <>
+            <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumb) }} />
+            {schemas && (
+                <>
+                    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schemas.faqSchema) }} />
+                    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schemas.procedureSchema) }} />
+                </>
+            )}
+            {children}
+        </>
+    );
 }

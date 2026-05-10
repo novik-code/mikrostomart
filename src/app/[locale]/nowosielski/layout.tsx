@@ -1,16 +1,16 @@
 import type { Metadata } from 'next';
-import { pageMetadata, breadcrumbSchema, itemListSchema, fetchProductItems } from '@/lib/seo';
+import { pageMetadata, breadcrumbSchema, itemListSchema, fetchBlogPostItems } from '@/lib/seo';
 import { PAGE_SEO } from '@/lib/seoTranslations';
 import { brand } from '@/lib/brandConfig';
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
     const { locale } = await params;
-    return pageMetadata(locale, '/sklep', PAGE_SEO['/sklep']);
+    return pageMetadata(locale, '/nowosielski', PAGE_SEO['/nowosielski']);
 }
 
 const breadcrumb = breadcrumbSchema([
     { name: 'Strona główna', url: brand.appUrl },
-    { name: 'Sklep' },
+    { name: 'Blog Dr Nowosielski' },
 ]);
 
 export default async function Layout({
@@ -21,7 +21,7 @@ export default async function Layout({
     params: Promise<{ locale: string }>;
 }) {
     const { locale } = await params;
-    const items = await fetchProductItems(locale);
+    const items = await fetchBlogPostItems(locale);
     const list = items.length > 0 ? itemListSchema(items) : null;
 
     return (

@@ -445,6 +445,30 @@ export const PAGE_SEO: Record<string, LocaleSeoMap> = {
         },
     },
 
+    // ───────── /nowosielski (Dr Nowosielski blog) ─────────
+    '/nowosielski': {
+        pl: {
+            title: 'Blog Dr Nowosielski | Mikrostomart Stomatolog Opole',
+            description: 'Blog dr Marcina Nowosielskiego — implantolog i mikroskopowy endodonta. Praktyczne porady, opisy przypadków, edukacja stomatologiczna z gabinetu w Opolu.',
+            keywords: 'dr nowosielski blog, marcin nowosielski stomatolog, blog dentystyczny opole, opisy przypadków stomatologia',
+        },
+        en: {
+            title: "Dr Nowosielski's Blog | Mikrostomart Opole",
+            description: "Dr Marcin Nowosielski's blog — implantologist and microscopic endodontist. Case studies, practical advice, dental education from Opole, Poland.",
+            keywords: 'dr nowosielski blog, dental case studies, dental education, microscopic endodontics blog',
+        },
+        de: {
+            title: 'Blog Dr Nowosielski | Mikrostomart Opole',
+            description: 'Blog von Dr Marcin Nowosielski — Implantologe und mikroskopischer Endodontologe. Fallstudien, praktische Tipps, Zahnmedizin-Bildung aus Opole.',
+            keywords: 'Dr Nowosielski Blog, Zahnmedizin Fallstudien, Implantologie Blog, Endodontie Blog',
+        },
+        ua: {
+            title: 'Блог д-ра Новосельського | Mikrostomart Ополе',
+            description: 'Блог д-ра Марціна Новосельського — імплантолог та мікроскопічний ендодонт. Клінічні випадки, поради, освіта зі стоматології з Ополе.',
+            keywords: 'блог стоматолога, новосельський, клінічні випадки, мікроскопічна ендодонтія',
+        },
+    },
+
     // ───────── /rezerwacja ─────────
     '/rezerwacja': {
         pl: {

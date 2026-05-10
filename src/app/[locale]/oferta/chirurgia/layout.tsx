@@ -1,45 +1,40 @@
 import type { Metadata } from 'next';
 import { brand } from '@/lib/brandConfig';
-import { pageMetadata } from '@/lib/seo';
+import { pageMetadata, breadcrumbSchema } from '@/lib/seo';
 import { PAGE_SEO } from '@/lib/seoTranslations';
+import { buildServicePageSchemas } from '@/lib/serviceSchemas';
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
     const { locale } = await params;
     return pageMetadata(locale, '/oferta/chirurgia', PAGE_SEO['/oferta/chirurgia']);
 }
 
-const faqSchema = {
-    "@context": "https://schema.org", "@type": "FAQPage",
-    "mainEntity": [
-        { "@type": "Question", "name": "Kiedy trzeba usunąć ósemki (zęby mądrości)?", "acceptedAnswer": { "@type": "Answer", "text": "Gdy brakuje na nie miejsca w łuku (stłoczenia), powodują stany zapalne, próchnicę siódemek lub torbiele. Oceniamy to na podstawie zdjęcia pantomograficznego." } },
-        { "@type": "Question", "name": "Co to jest PRF?", "acceptedAnswer": { "@type": "Answer", "text": "To bogatopłytkowa fibryna uzyskiwana z krwi pacjenta. Działa jak naturalny super-plaster, przyspieszając gojenie rany po ekstrakcji nawet kilkukrotnie." } },
-        { "@type": "Question", "name": "Jakie są zalecenia po usunięciu zęba?", "acceptedAnswer": { "@type": "Answer", "text": "Przez 2 godziny nie jeść. W dobie zabiegu unikać gorących posiłków i wysiłku fizycznego. Nie płukać ust energicznie (by nie wypłukać skrzepu). Stosować zimne okłady." } },
-        { "@type": "Question", "name": "Czy suchy zębodół to częste powikłanie?", "acceptedAnswer": { "@type": "Answer", "text": "Zdarza się rzadko (ok. 2-5%), głównie u palaczy. Aby mu zapobiec, stosujemy PRF oraz ozonoterapię, które drastycznie zmniejszają ryzyko powikłań." } }
-    ]
-};
+const breadcrumb = breadcrumbSchema([
+    { name: 'Strona główna', url: brand.appUrl },
+    { name: 'Oferta', url: `${brand.appUrl}/oferta` },
+    { name: 'Chirurgia Stomatologiczna' },
+]);
 
-const breadcrumbSchema = {
-    "@context": "https://schema.org", "@type": "BreadcrumbList",
-    "itemListElement": [
-        { "@type": "ListItem", "position": 1, "name": "Strona główna", "item": brand.appUrl },
-        { "@type": "ListItem", "position": 2, "name": "Oferta", "item": `${brand.appUrl}/oferta` },
-        { "@type": "ListItem", "position": 3, "name": "Chirurgia Stomatologiczna" }
-    ]
-};
+export default async function Layout({
+    children,
+    params,
+}: {
+    children: React.ReactNode;
+    params: Promise<{ locale: string }>;
+}) {
+    const { locale } = await params;
+    const schemas = buildServicePageSchemas('/oferta/chirurgia', locale);
 
-const medicalProcedureSchema = {
-    "@context": "https://schema.org",
-    "@type": "MedicalProcedure",
-    "name": `Chirurgia stomatologiczna ${brand.cityShort}`,
-    "procedureType": "https://schema.org/SurgicalProcedure",
-    "bodyLocation": "Mouth",
-    "description": "Zabiegi chirurgiczne w obrębie jamy ustnej: ekstrakcje zębów (w tym ósemek), resekcje korzenia, hemisekcje, rekonstrukcje kości. Zastosowanie technologii PRF dla przyspieszonego gojenia.",
-    "howPerformed": "Zabiegi w znieczuleniu miejscowym z wykorzystaniem mikroskopu zabiegowego oraz PRF (bogatopłytkowa fibryna z krwi pacjenta) dla skróconego czasu gojenia.",
-    "preparation": "Szczegółowy wywiad medyczny, badanie radiologiczne (RTG/CBCT), planowanie zabiegu i ewentualne badania dodatkowe.",
-    "followup": "Zalecenia poekstrakcyjne (zimne okłady, dieta miękka, unikanie wysiłku 24h). Kontrola po 7 dniach.",
-    "performer": { "@type": "MedicalOrganization", "name": brand.name, "url": brand.appUrl }
-};
-
-export default function Layout({ children }: { children: React.ReactNode }) {
-    return (<><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} /><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }} /><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(medicalProcedureSchema) }} />{children}</>);
+    return (
+        <>
+            <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumb) }} />
+            {schemas && (
+                <>
+                    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schemas.faqSchema) }} />
+                    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schemas.procedureSchema) }} />
+                </>
+            )}
+            {children}
+        </>
+    );
 }

@@ -159,6 +159,7 @@ export default function Navbar() {
                                 alt={brand.logoAlt}
                                 width={574}
                                 height={139}
+                                sizes="227px"
                                 style={{ width: 'auto', height: '55px' }}
                                 priority
                             />
@@ -249,6 +250,7 @@ export default function Navbar() {
                                 alt={brand.logoAlt}
                                 width={574}
                                 height={139}
+                                sizes="247px"
                                 style={{ width: 'auto', height: '60px' }}
                                 priority
                             />
