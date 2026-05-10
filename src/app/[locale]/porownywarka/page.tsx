@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo, useEffect } from "react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { useTranslations, useLocale } from "next-intl";
 import type { Comparator, ScoredMethod, TableCell } from "./comparatorTypes";
 import { getComparatorData } from "./getComparatorData";
