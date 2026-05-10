@@ -214,9 +214,6 @@ const BREADCRUMB_LABELS: Record<string, Record<string, string>> = {
         'baza-wiedzy': 'Baza wiedzy',
         rezerwacja: 'Rezerwacja online',
         nowosielski: 'Blog Dr Nowosielski',
-        aplikacja: 'Aplikacja PWA',
-        selfie: 'Selfie Booth',
-        symulator: 'Symulator uśmiechu',
     },
     en: {
         home: 'Home',
@@ -240,9 +237,6 @@ const BREADCRUMB_LABELS: Record<string, Record<string, string>> = {
         'baza-wiedzy': 'Knowledge Base',
         rezerwacja: 'Online Booking',
         nowosielski: "Dr Nowosielski's Blog",
-        aplikacja: 'Patient App',
-        selfie: 'Selfie Booth',
-        symulator: 'Smile Simulator',
     },
     de: {
         home: 'Startseite',
@@ -266,9 +260,6 @@ const BREADCRUMB_LABELS: Record<string, Record<string, string>> = {
         'baza-wiedzy': 'Wissensdatenbank',
         rezerwacja: 'Online-Termin',
         nowosielski: 'Dr Nowosielski Blog',
-        aplikacja: 'Patienten-App',
-        selfie: 'Selfie Booth',
-        symulator: 'Lächeln-Simulator',
     },
     ua: {
         home: 'Головна',
@@ -292,17 +283,12 @@ const BREADCRUMB_LABELS: Record<string, Record<string, string>> = {
         'baza-wiedzy': 'База знань',
         rezerwacja: 'Онлайн запис',
         nowosielski: 'Блог д-ра Новосельського',
-        aplikacja: 'Додаток пацієнта',
-        selfie: 'Selfie Booth',
-        symulator: 'Симулятор посмішки',
     },
 };
 
 export interface LocalizedBreadcrumbItem {
-    /** Klucz w BREADCRUMB_LABELS (np. 'home', 'oferta', 'cennik'). Wymagany jeśli `name` nie podany. */
-    key?: string;
-    /** Explicit name override — używaj dla dynamic content (np. post.title). Bypassuje lookup w labels. */
-    name?: string;
+    /** Klucz w BREADCRUMB_LABELS (np. 'home', 'oferta', 'cennik') */
+    key: string;
     /** URL pełny dla intermediate items. Omit dla current page (last item) — Google convention. */
     url?: string;
 }
@@ -310,9 +296,6 @@ export interface LocalizedBreadcrumbItem {
 /**
  * Build a localized BreadcrumbList schema for the given locale.
  * Falls back to PL labels if locale not present, falls back to raw key if label missing.
- *
- * For dynamic content (article slugs, post titles) pass `name` directly:
- *   { name: post.title }  // skips key lookup
  *
  * @example
  *   localizedBreadcrumb('en', [
@@ -326,7 +309,7 @@ export function localizedBreadcrumb(locale: string, items: LocalizedBreadcrumbIt
     const labels = BREADCRUMB_LABELS[locale] || BREADCRUMB_LABELS.pl;
     return breadcrumbSchema(
         items.map((it) => ({
-            name: it.name ?? (it.key ? (labels[it.key] || it.key) : ''),
+            name: labels[it.key] || it.key,
             url: it.url,
         }))
     );

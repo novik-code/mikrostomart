@@ -103,9 +103,9 @@ export const PAGE_SEO: Record<string, LocaleSeoMap> = {
             keywords: 'ästhetische Zahnmedizin Opole, Veneers Opole, Zahnaufhellung Opole, Bonding Opole, Smile Design Opole',
         },
         ua: {
-            title: 'Естетична стоматологія Ополе, Польща | Вініри, відбілювання',
-            description: 'Естетична стоматологія в Ополе, Польща: порцелянові вініри, бондинг, відбілювання зубів, дизайн посмішки DSD. Подивіться метаморфози пацієнтів.',
-            keywords: 'естетична стоматологія Ополе, вініри Ополе Польща, відбілювання зубів Ополе, бондинг Ополе, дизайн посмішки Ополе, естетична стоматологія Польща',
+            title: 'Естетична стоматологія Ополе | Вініри, відбілювання - Mikrostomart',
+            description: 'Естетична стоматологія в Ополе, Польща: порцелянові вініри, бондинг, відбілювання, дизайн посмішки DSD.',
+            keywords: 'естетична стоматологія Ополе, вініри Ополе, відбілювання зубів Ополе, бондинг Ополе, дизайн посмішки Ополе',
         },
     },
 
@@ -127,9 +127,9 @@ export const PAGE_SEO: Record<string, LocaleSeoMap> = {
             keywords: 'Kieferorthopädie Opole, Clear Correct Opole, Aligner Opole, Zahnausrichtung Opole, Kieferorthopäde Opole',
         },
         ua: {
-            title: 'Ортодонтія Ополе, Польща | Елайнери Clear Correct - Mikrostomart',
-            description: 'Ортодонтія елайнерами в Ополе, Польща. Clear Correct з 3D-симуляцією, вирівнювання зубів для дорослих і дітей. Перевірте ціни.',
-            keywords: 'ортодонтія Ополе, clear correct Ополе, елайнери Ополе Польща, вирівнювання зубів Ополе, ортодонт Ополе, ортодонтія Польща',
+            title: 'Ортодонтія Ополе | Елайнери Clear Correct - Mikrostomart',
+            description: 'Ортодонтія елайнерами в Ополе, Польща. Clear Correct з 3D-симуляцією, вирівнювання зубів для дорослих і дітей.',
+            keywords: 'ортодонтія Ополе, clear correct Ополе, елайнери Ополе, вирівнювання зубів Ополе, ортодонт Ополе',
         },
     },
 
@@ -151,9 +151,9 @@ export const PAGE_SEO: Record<string, LocaleSeoMap> = {
             keywords: 'Mundchirurgie Opole, Zahnextraktion Opole, Weisheitszähne Opole, PRF Opole, Kieferchirurg Opole',
         },
         ua: {
-            title: 'Стоматологічна хірургія Ополе, Польща | Видалення зубів',
-            description: 'Стоматологічна хірургія в Ополе, Польща: видалення зубів, вісімки, технологія PRF, регенерація кістки. Досвідчені хірурги.',
-            keywords: 'стоматологічна хірургія Ополе, видалення зуба Ополе Польща, вісімки Ополе, prf Ополе, хірург стоматолог Польща',
+            title: 'Стоматологічна хірургія Ополе | Видалення зубів - Mikrostomart',
+            description: 'Стоматологічна хірургія в Ополе, Польща: видалення зубів, вісімки, технологія PRF, регенерація кістки.',
+            keywords: 'стоматологічна хірургія Ополе, видалення зуба Ополе, вісімки Ополе, prf Ополе, хірург стоматолог Ополе',
         },
     },
 
@@ -175,9 +175,9 @@ export const PAGE_SEO: Record<string, LocaleSeoMap> = {
             keywords: 'Zahnprothetik Opole, Zahnkronen Opole, Zahnbrücken Opole, Zahnprothesen Opole, Zirkonkronen Opole',
         },
         ua: {
-            title: 'Протезування Ополе, Польща | Коронки, мости, протези',
-            description: 'Протезування в Ополе, Польща: коронки E.max і цирконієві, мости, протези. Цифровий внутрішньоротовий скан замість зліпків. Сучасні технології.',
-            keywords: 'протезування Ополе, коронки Ополе Польща, зубні мости Ополе, протези Ополе, цирконієві коронки Польща',
+            title: 'Протезування Ополе | Коронки, мости, протези - Mikrostomart',
+            description: 'Протезування в Ополе, Польща: коронки E.max і цирконієві, мости, протези. Цифровий внутрішньоротовий скан замість зліпків.',
+            keywords: 'протезування Ополе, коронки Ополе, зубні мости Ополе, протези Ополе, цирконієві коронки Ополе',
         },
     },
 
@@ -199,9 +199,9 @@ export const PAGE_SEO: Record<string, LocaleSeoMap> = {
             keywords: 'Zahnarzt Preise Opole, Zahnimplantat Kosten Polen, Zahnarztpreise Polen, Zahnbehandlung Kosten Opole',
         },
         ua: {
-            title: 'Ціни стоматологія Ополе, Польща | Mikrostomart',
-            description: 'Актуальні ціни Mikrostomart в Ополе, Польща: консультації, імпланти, лікування каналів, вініри, відбілювання. Прозорі ціни в злотих.',
-            keywords: 'ціни стоматолог Ополе, ціна імплантів Ополе Польща, стоматологія Ополе ціни, mikrostomart ціни, стоматологічні ціни Польща',
+            title: 'Ціни стоматологія Ополе | Mikrostomart',
+            description: 'Актуальні ціни Mikrostomart в Ополе: консультації, імпланти, лікування каналів, вініри, відбілювання. Прозорі ціни.',
+            keywords: 'ціни стоматолог Ополе, ціна імплантів Ополе, стоматологія Ополе ціни, mikrostomart ціни',
         },
     },
 
@@ -309,9 +309,9 @@ export const PAGE_SEO: Record<string, LocaleSeoMap> = {
             keywords: 'sklep stomatologiczny, produkty higiena jamy ustnej, szczoteczki dentystyczne, pasty rekomendowane',
         },
         en: {
-            title: 'Dental Shop Opole, Poland | Oral Hygiene - Mikrostomart',
-            description: 'Mikrostomart shop in Opole, Poland: oral hygiene products, toothbrushes, pastes and accessories recommended by our dental clinic team.',
-            keywords: 'dental shop Opole, oral hygiene products Poland, dentist recommended toothbrushes, recommended pastes Opole, dental shop Poland',
+            title: 'Dental Shop | Oral Hygiene Products - Mikrostomart',
+            description: 'Mikrostomart shop: oral hygiene products, toothbrushes, pastes and accessories recommended by dentists from our Opole clinic.',
+            keywords: 'dental shop, oral hygiene products, recommended toothbrushes, dentist recommended pastes',
         },
         de: {
             title: 'Zahnshop | Mundhygiene-Produkte - Mikrostomart',
@@ -319,9 +319,9 @@ export const PAGE_SEO: Record<string, LocaleSeoMap> = {
             keywords: 'Zahnshop, Mundhygiene Produkte, empfohlene Zahnbürsten, Zahnpasta empfohlen',
         },
         ua: {
-            title: 'Стоматологічний магазин Ополе, Польща | Mikrostomart',
-            description: 'Магазин Mikrostomart: засоби гігієни порожнини рота, зубні щітки, пасти та аксесуари, рекомендовані стоматологами клініки в Ополе, Польща.',
-            keywords: 'стоматологічний магазин Ополе, засоби гігієни Польща, рекомендовані зубні щітки, аксесуари стоматологічні Ополе',
+            title: 'Стоматологічний магазин | Mikrostomart',
+            description: 'Магазин Mikrostomart: засоби гігієни порожнини рота, зубні щітки, пасти та аксесуари, рекомендовані стоматологами клініки в Ополе.',
+            keywords: 'стоматологічний магазин, засоби гігієни порожнини рота, рекомендовані зубні щітки',
         },
     },
 
@@ -343,9 +343,9 @@ export const PAGE_SEO: Record<string, LocaleSeoMap> = {
             keywords: 'Zahnarzt FAQ Opole, Zahnfragen, Implantate FAQ, Wurzelbehandlung Fragen, Kieferorthopädie FAQ',
         },
         ua: {
-            title: 'FAQ — поширені питання | Mikrostomart Ополе, Польща',
-            description: 'Відповіді на поширені питання про стоматологічне лікування в Ополе: імпланти, ендодонтія, вініри, ортодонтія, відбілювання та більше.',
-            keywords: 'стоматолог faq Ополе, стоматологічні питання Польща, імпланти питання Ополе, ендодонтія faq Польща',
+            title: 'FAQ — поширені питання | Mikrostomart Ополе',
+            description: 'Відповіді на поширені питання про стоматологічне лікування: імпланти, ендодонтія, вініри, ортодонтія, відбілювання.',
+            keywords: 'стоматолог faq Ополе, стоматологічні питання, імпланти питання, ендодонтія faq',
         },
     },
 
@@ -367,9 +367,9 @@ export const PAGE_SEO: Record<string, LocaleSeoMap> = {
             keywords: 'Zahnmedizin Wissen, Zahnmedizin Artikel, Implantate Wissen, Mundhygiene Tipps, Zahnvorsorge',
         },
         ua: {
-            title: 'База знань зі стоматології | Mikrostomart Ополе, Польща',
-            description: 'Статті про стоматологію: імпланти, ендодонтія, гігієна, профілактика, ортодонтія. Експертні знання клініки Mikrostomart в Ополе, Польща.',
-            keywords: 'база знань стоматологія Польща, статті стоматолог Ополе, імпланти знання, гігієна зубів поради Польща',
+            title: 'База знань зі стоматології | Mikrostomart Ополе',
+            description: 'Статті про стоматологію: імпланти, ендодонтія, гігієна, профілактика, ортодонтія. Експертні знання клініки Mikrostomart в Ополе.',
+            keywords: 'база знань стоматологія, статті стоматолог, імпланти знання, гігієна зубів поради',
         },
     },
 
@@ -391,9 +391,9 @@ export const PAGE_SEO: Record<string, LocaleSeoMap> = {
             keywords: 'Zahnarzt Neuigkeiten Opole, Zahnklinik News, Mikrostomart Blog, Zahntipps',
         },
         ua: {
-            title: 'Новини | Стоматологічна клініка Mikrostomart Ополе, Польща',
-            description: 'Останні новини Mikrostomart в Ополе, Польща. Стоматологічні поради, новини в послугах, події та акції нашої клініки в Польщі.',
-            keywords: 'новини стоматолог Ополе, новини клініки Польща, mikrostomart блог, стоматологічні поради Польща',
+            title: 'Новини | Стоматологічна клініка Mikrostomart Ополе',
+            description: 'Останні новини Mikrostomart в Ополе. Стоматологічні поради, новини в послугах, події та акції нашої клініки в Польщі.',
+            keywords: 'новини стоматолог Ополе, новини клініки, mikrostomart блог, стоматологічні поради',
         },
     },
 
@@ -466,78 +466,6 @@ export const PAGE_SEO: Record<string, LocaleSeoMap> = {
             title: 'Блог д-ра Новосельського | Mikrostomart Ополе',
             description: 'Блог д-ра Марціна Новосельського — імплантолог та мікроскопічний ендодонт. Клінічні випадки, поради, освіта зі стоматології з Ополе.',
             keywords: 'блог стоматолога, новосельський, клінічні випадки, мікроскопічна ендодонтія',
-        },
-    },
-
-    // ───────── /aplikacja (PWA install landing page) ─────────
-    '/aplikacja': {
-        pl: {
-            title: 'Aplikacja Mikrostomart — PWA pacjenta na telefon | Opole',
-            description: 'Zainstaluj aplikację Mikrostomart na telefonie: terminy wizyt, czat z recepcją, dokumentacja, push notyfikacje, szybki dostęp do zadatków.',
-            keywords: 'aplikacja stomatolog opole, mikrostomart pwa, aplikacja dentysta, panel pacjenta opole, mobilna aplikacja stomatologiczna',
-        },
-        en: {
-            title: 'Mikrostomart App — Patient PWA for Mobile | Opole, Poland',
-            description: 'Install the Mikrostomart app on your phone: appointment times, chat with reception, documents, push notifications, fast access to deposits.',
-            keywords: 'dental app Opole, Mikrostomart PWA, dentist app Poland, patient portal Opole, mobile dental app',
-        },
-        de: {
-            title: 'Mikrostomart App — Patienten-PWA für Mobil | Opole, Polen',
-            description: 'Installieren Sie die Mikrostomart App auf Ihrem Handy: Termine, Chat mit der Rezeption, Dokumente, Push-Benachrichtigungen, Anzahlungen.',
-            keywords: 'Zahnarzt App Opole, Mikrostomart PWA, Zahnarzt App Polen, Patientenportal Opole, mobile Zahnarzt App',
-        },
-        ua: {
-            title: 'Додаток Mikrostomart — PWA для пацієнтів | Ополе, Польща',
-            description: 'Встановіть додаток Mikrostomart на телефон: візити, чат з реєстратурою, документи, push-сповіщення, швидкий доступ до завдатків.',
-            keywords: 'стоматологічний додаток Ополе, Mikrostomart PWA, стоматолог додаток Польща, портал пацієнта Ополе',
-        },
-    },
-
-    // ───────── /selfie (selfie booth — fun feature) ─────────
-    '/selfie': {
-        pl: {
-            title: 'Selfie Booth | Zrób piękne selfie - Mikrostomart Opole',
-            description: 'Selfie Booth Mikrostomart: zrób piękne selfie w naszej klinice w Opolu. 5 stylizowanych poz, MediaPipe face detection, gotowe zdjęcie do zapisania.',
-            keywords: 'selfie booth opole, mikrostomart selfie, klinika stomatologiczna selfie, foto opole gabinet',
-        },
-        en: {
-            title: 'Selfie Booth | Take Beautiful Selfies - Mikrostomart Opole',
-            description: 'Mikrostomart Selfie Booth: take beautiful selfies at our clinic in Opole, Poland. 5 styled poses, MediaPipe face detection, ready-to-save photo.',
-            keywords: 'selfie booth Opole, dental clinic selfie, Mikrostomart selfie, photo booth Opole Poland',
-        },
-        de: {
-            title: 'Selfie Booth | Schöne Selfies - Mikrostomart Opole',
-            description: 'Mikrostomart Selfie Booth: machen Sie schöne Selfies in unserer Klinik in Opole, Polen. 5 stilvolle Posen, MediaPipe Gesichtserkennung.',
-            keywords: 'Selfie Booth Opole, Zahnklinik Selfie, Mikrostomart Selfie, Fotokabine Opole Polen',
-        },
-        ua: {
-            title: 'Selfie Booth | Гарні селфі - Mikrostomart Ополе, Польща',
-            description: 'Selfie Booth Mikrostomart: робіть гарні селфі в нашій клініці в Ополе, Польща. 5 стилізованих поз, MediaPipe детектор обличчя, готове фото.',
-            keywords: 'selfie booth Ополе, стоматологічна клініка селфі, Mikrostomart селфі, фотокабіна Ополе Польща',
-        },
-    },
-
-    // ───────── /symulator (smile simulator — AI Flux Fill Dev) ─────────
-    '/symulator': {
-        pl: {
-            title: 'Symulator uśmiechu AI | Zobacz nowy uśmiech - Mikrostomart',
-            description: 'Symulator uśmiechu AI Mikrostomart: prześlij selfie i zobacz jak będzie wyglądał Twój uśmiech po licówkach lub wybielaniu. 4 style: Hollywood, Natural, Soft, Strong.',
-            keywords: 'symulator uśmiechu opole, ai uśmiech, podgląd licówek, podgląd wybielania, projektowanie uśmiechu opole',
-        },
-        en: {
-            title: 'AI Smile Simulator | Preview Your New Smile - Mikrostomart',
-            description: 'Mikrostomart AI Smile Simulator: upload a selfie and see your smile after veneers or whitening. 4 styles: Hollywood, Natural, Soft, Strong.',
-            keywords: 'AI smile simulator Opole, smile preview, veneers preview Poland, whitening preview, smile design Opole',
-        },
-        de: {
-            title: 'KI-Lächeln-Simulator | Neues Lächeln Vorschau - Mikrostomart',
-            description: 'Mikrostomart KI-Lächeln-Simulator: Selfie hochladen und Ihr Lächeln nach Veneers oder Bleaching sehen. 4 Stile: Hollywood, Natural, Soft, Strong.',
-            keywords: 'KI Lächeln Simulator Opole, Lächeln Vorschau, Veneers Vorschau Polen, Bleaching Vorschau, Smile Design Opole',
-        },
-        ua: {
-            title: 'AI симулятор посмішки | Нова посмішка - Mikrostomart',
-            description: 'AI симулятор посмішки Mikrostomart: завантажте селфі і подивіться як виглядатиме посмішка після вінірів або відбілювання. 4 стилі.',
-            keywords: 'AI симулятор посмішки Ополе, передперегляд вінірів, передперегляд відбілювання, дизайн посмішки Ополе Польща',
         },
     },
 

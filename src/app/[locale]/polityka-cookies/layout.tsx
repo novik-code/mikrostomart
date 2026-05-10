@@ -1,15 +1,10 @@
 import type { Metadata } from 'next';
 import { brand } from '@/lib/brandConfig';
 
-// PL-only content: foreign locale URLs are noindex'd until translated.
-export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
-    const { locale } = await params;
-    const isDefault = locale === 'pl';
+export function generateMetadata(): Metadata {
     return {
         title: `Polityka Cookies | ${brand.name} ${brand.cityShort}`,
         description: `Informacje o plikach cookies używanych na stronie gabinetu stomatologicznego ${brand.name} w ${brand.cityShort}.`,
-        alternates: { canonical: '/polityka-cookies' },
-        robots: isDefault ? undefined : { index: false, follow: true },
     };
 }
 
