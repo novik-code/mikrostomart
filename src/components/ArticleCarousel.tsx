@@ -132,6 +132,8 @@ export default function ArticleCarousel({ articles }: { articles: Article[] }) {
                                                     src={article.image || '/logo-transparent.png'}
                                                     alt={article.title}
                                                     fill
+                                                    sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                                                    loading="lazy"
                                                     style={{ objectFit: "cover" }}
                                                 />
                                             </div>

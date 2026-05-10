@@ -201,6 +201,7 @@ export default function OfferCarousel() {
                                             src={offer.image}
                                             alt={offer.title}
                                             fill
+                                            sizes="(max-width: 768px) 100vw, 50vw"
                                             style={{ objectFit: 'cover' }}
                                             priority
                                             draggable={false} // Prevent image drag interfering with swipe

@@ -63,6 +63,10 @@ const nextConfig: NextConfig = {
     // patterns (unsplash, placehold, githubusercontent, *.supabase.co) raczej nie podają
     // SVG, a jeśli kiedyś będzie potrzebne pojedyncze SVG, lepiej użyć <img> z znaną
     // sanityzacją niż otwierać pełny dangerouslyAllowSVG.
+    // H5 (2026-05-10): pin AVIF + WebP formats. Defaults to ['image/webp'] in Next 16,
+    // explicit ['image/avif', 'image/webp'] saves ~30% additional bytes for browsers
+    // that support AVIF (most evergreens 2024+). Order matters: AVIF preferred, WebP fallback.
+    formats: ['image/avif', 'image/webp'],
     remotePatterns: [
       {
         protocol: 'https',
@@ -83,6 +87,16 @@ const nextConfig: NextConfig = {
     ],
   },
   async headers() {
+    // H5 (2026-05-10): per-extension Cache-Control (path-to-regexp doesn't
+    // support brace alternation, so each extension needs its own route).
+    // 1-year immutable cache for content-stable static assets in /public.
+    // If you swap a hero photo, rename the file (cache busting).
+    const cache1y = [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }];
+    const cacheExts = ['jpg', 'jpeg', 'png', 'webp', 'avif', 'gif', 'ico', 'mp4', 'webm', 'mp3', 'woff', 'woff2'];
+    const cacheRoutes = cacheExts.map((ext) => ({
+      source: `/:path*.${ext}`,
+      headers: cache1y,
+    }));
     return [
       {
         source: '/(.*)',
@@ -93,6 +107,7 @@ const nextConfig: NextConfig = {
           { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
         ],
       },
+      ...cacheRoutes,
     ];
   },
   // 301 redirects from old Joomla URLs (pre-Next.js migration) to current structure.
