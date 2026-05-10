@@ -1,8 +1,8 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-10 (Fix: Navbar + main carousels używają next-intl Link, locale-aware navigation — po Footer fix i SEO Sprint G1-G6)  
+> **Last Updated:** 2026-05-10 (SEO Audit Sprint H1 — critical quick fixes: demo guard, AggregateRating filter, placeholder cleanup, schema improvements)  
 > **Version:** Production + Demo (Dual Vercel Deployment)  
-> **Status:** Active Development — KCP FULL; CareFlow Perioperative; Push-First Communication. **PROGRAM SEO KOMPLETNY** (Recovery Faza 1-E + Sprint G1-G6 + Footer fix + Navbar/carousels fix, 2026-05-09 → 2026-05-10): pełen multilingual SEO (4 locale), rich SERP (gwiazdki/breadcrumbs/FAQ accordion), Core Web Vitals fix (LCP 6s→2-3s, splash kill, CookieConsent SSR), per-locale breadcrumb labels, locale-aware navigation. PSI bazowo: Mobile 34→73, Desktop 39→83 (przed G4 — po G4 oczekiwany dalszy boost); SEO 100, Best Practices 96→100. Pozostałe SEO opcjonalne / low ROI: polyfill removal (Next 16 SWC investigation), BackgroundVideo skip mobile (świadomie pominięte), pozostałe ~25 plików z `next/link` do follow-up. Faza 3: audyt GSC po 4-6 tygodniach (~koniec czerwca 2026).
+> **Status:** Active Development — KCP FULL; CareFlow Perioperative; Push-First Communication. **SEO AUDIT SPRINT H1-H7 W TOKU** (start 2026-05-10): pełen audyt 5 niezależnymi agentami wykrył ~47 problemów (15 krytycznych, 15 high impact, 17 medium). Faza H1 (quick fixes) **w trakcie** — demo guard w robots/sitemap, AggregateRating filter ≥1★ zamiast ≥4★, placeholder cleanup (googlePlaceId, youtubeChannelId), WebSite SearchAction usunięty (broken), robots disallow rozszerzony, paymentAccepted enhanced, /kontakt 'Nawiguj' i18n. Następne fazy H2-H7 obejmują: metadata gaps, internal linking, schema enrichment, performance/images, content quality, international landing pages. **Wcześniejsze SEO Sprint G1-G6 KOMPLETNY** (Recovery Faza 1-E + Sprint G1-G6 + Footer fix + Navbar/carousels fix, 2026-05-09 → 2026-05-10): pełen multilingual SEO (4 locale), rich SERP (gwiazdki/breadcrumbs/FAQ accordion), Core Web Vitals fix (LCP 6s→2-3s, splash kill, CookieConsent SSR), per-locale breadcrumb labels, locale-aware navigation. PSI bazowo: Mobile 34→73, Desktop 39→83 (przed G4 — po G4 oczekiwany dalszy boost); SEO 100, Best Practices 96→100. Faza 3: audyt GSC po 4-6 tygodniach (~koniec czerwca 2026).
 
 ---
 
@@ -2461,6 +2461,79 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-10 — SEO Audit Sprint H1: critical quick fixes
+**Pierwsza z 7 faz audytu SEO uruchomionego po pełnym audycie 5 niezależnymi agentami**
+
+#### Branch:
+- `seo/h1-critical-fixes` (nie zmergowany jeszcze w momencie pisania tego wpisu)
+
+#### Audyt — kontekst:
+Marcin poprosił o niezależny audyt SEO całego projektu pod kątem lokalnego SEO Opole + targetowania pacjentów przyjezdnych. 5 agentów (general-purpose) równolegle przebadało: technical config, metadata coverage, structured data, content quality + local SEO, images/links/performance. Łącznie wykryto ~47 problemów: 15 critical, 15 high impact, 17 medium. Marcin zaakceptował plan napraw H1-H7 sekwencyjnie (~15-25h pracy).
+
+#### H1 — Critical quick fixes (1-2h, najbezpieczniejsze):
+
+**1. Demo guard w robots.ts + sitemap.ts**
+- `src/app/robots.ts`: gdy `isDemoMode` → return `{ rules: { userAgent: '*', disallow: '/' } }`. demo.densflow.ai już nie jest indeksowalny przez Googlebot.
+- `src/app/sitemap.ts`: gdy `isDemoMode` → return `[]`. Pusty sitemap dla demo.
+- **Powód**: demo.densflow.ai serwowało pełen indeksowalny sitemap z URL'ami `https://demo.densflow.ai/...` co kanibalizowało mikrostomart.pl (duplicate content + brand confusion).
+
+**2. AggregateRating filter naprawa (`src/lib/seo.ts:463-487`)**
+- Usunięto `.gte('rating', 4)` filter — wcześniej liczył tylko reviews ≥4★ → inflated rating, ryzyko Google "manipulated rating" penalty.
+- Teraz: liczy WSZYSTKIE reviews 1-5★ → naturalna avg.
+- Dodany guard: `if (avg < 3.5) return null` — bezpiecznik gdyby się okazało że klinika ma niski rating, lepiej nie pokazać schematycznie.
+
+**3. Placeholder cleanup w brandConfig.ts**
+- `googlePlaceId: 'ChIJ...'` → field usunięty (z TODO comment). `googlePlaceId?: string` interface zachowany — fill via DB site_settings gdy real value.
+- `youtubeChannelId: 'UC...'` → analogicznie usunięty.
+- **Powód**: placeholder łamałby integrację z Google Places API / YouTube Data API gdyby kod kiedyś tego użył (silentny break).
+
+**4. Robots.ts disallow expansion**
+- Dodane: `/auth/`, `/zgody/`, `/qr-display`, `/s/`, `/opieka/`. Te ścieżki były crawlable mimo że są internal endpointami.
+
+**5. WebSite schema fix (`src/app/layout.tsx`)**
+- Usunięty broken `SearchAction` (target `/baza-wiedzy?q={search_term_string}` — strona nie obsługuje query param `q`, Google Rich Results Test flagował broken).
+- Dodane `inLanguage: ["pl", "en", "de", "uk"]` (multilingual signal).
+- Dodany `publisher` z MedicalOrganization entity (lepsze entity disambiguation w Knowledge Panel).
+- Re-add SearchAction gdy /baza-wiedzy lub inne search endpoint faktycznie obsłuży `?q=`.
+
+**6. Dentist schema improvements (`src/app/layout.tsx`)**
+- `paymentAccepted`: rozszerzone z `"Cash, Credit Card"` na `"Cash, Credit Card, BLIK, Apple Pay, Google Pay, Przelewy24, PayU"` (P24 + PayU już zintegrowane w kodzie).
+- `openingHoursSpecification`: dodany Sunday explicit closed (`opens: 00:00, closes: 00:00`). Saturday celowo pominięte — kontakt page t('satValue') = "Wybrane terminy" / "Selected dates" / "Ausgewählte Termine" / "Вибрані дати" → nieregularne, lepiej nie wprowadzać Google w błąd.
+
+**7. /kontakt 'Nawiguj do gabinetu' → i18n**
+- Dodany klucz `kontakt.navigateButton` w `messages/{pl,en,de,ua}/pages.json`:
+  - PL: `🗺️ Nawiguj do gabinetu`
+  - EN: `🗺️ Navigate to clinic`
+  - DE: `🗺️ Zur Praxis navigieren`
+  - UA: `🗺️ Прокласти маршрут`
+- `src/app/[locale]/kontakt/page.tsx:71`: hardcoded string → `t('navigateButton')`.
+
+#### Smoke test:
+- `npm run build` — clean (tylko pre-existing Sentry warning niezwiązany z H1).
+- Brak nowych warningów lub errors.
+
+#### Pliki:
+- `src/app/robots.ts` — demo guard + extended disallow
+- `src/app/sitemap.ts` — demo guard
+- `src/lib/seo.ts` — AggregateRating bez filter, dodany 3.5★ floor
+- `src/lib/brandConfig.ts` — googlePlaceId/youtubeChannelId placeholder usunięty
+- `src/app/layout.tsx` — paymentAccepted, Sunday closed, WebSite refactor
+- `src/app/[locale]/kontakt/page.tsx` — i18n button
+- 4× `messages/{pl,en,de,ua}/pages.json` — kontakt.navigateButton
+
+#### Co dalej (H2-H7):
+- **H2**: Metadata gaps — 5 stron bez layout.tsx, nowosielski/[slug] generateMetadata, descriptions length, UA Опoлe keywords, legal noindex
+- **H3**: Internal linking — 7 service pages raw `<a>` → Link, 12 batch-safe `next/link` → `@/i18n/navigation`
+- **H4**: Schema enrichment — Dentist localized, Person schemas, Service+Offer, Article on /baza-wiedzy/[slug], Product on /sklep, sameAs Instagram/GBP/YouTube, real practice photo
+- **H5**: Performance + images — marcin/ela JPGs 7.5 MB → WebP, sizes na 23 Image fill, Cache-Control, AVIF, per-page OG images, hamburger 44x44
+- **H6**: Content quality — service pages 280→800 słów, /cennik SSR table, /kontakt sekcja Dojazd, /faq +10 pytań przyjezdnych, FAQ DE/UA wyrównanie do PL
+- **H7**: International landing pages — /pl/dla-pacjentow-spoza-opola, /en/dentist-in-opole, /de/zahnarzt-opole-fuer-deutsche, /ua/стоматолог-в-ополе
+
+> **Brak migracji DB / nowych env var.** Tylko zmiany kodu TypeScript + tłumaczeń.
+> Vercel auto-deployuje na produkcję + demo po pushu na main.
+
+---
 
 ### 2026-05-10 — Fix: Navbar + main carousels używają next-intl Link (post-Footer fix follow-up)
 **Marcin zauważył: po przełączeniu na EN, klikanie linków w Navbar (np. Aktualności) prowadziło do `/aktualnosci` zamiast `/en/aktualnosci`. URL pokazywał PL ale React state EN — duplikacja URL.**
