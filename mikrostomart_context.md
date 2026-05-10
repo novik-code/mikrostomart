@@ -1,6 +1,6 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-10 (Fix: lokalizacja stopki + 4 locale × 25 keys + naprawa 404 dla /en|de|ua/zespol — po SEO Sprint G1-G6)  
+> **Last Updated:** 2026-05-10 (Fix: Navbar + main carousels używają next-intl Link, locale-aware navigation — po Footer fix i SEO Sprint G1-G6)  
 > **Version:** Production + Demo (Dual Vercel Deployment)  
 > **Status:** Active Development — KCP FULL; CareFlow Perioperative; Push-First Communication; **SEO Recovery: Faza 1+1.5+2+2.x+A+B+C+D+E KOMPLETNA i ZAAKCEPTOWANA przez Marcina** (PSI Mobile 34→73, Desktop 39→83; LCP Desktop 5.2s→1.6s ✅; Best Practices 73→96; SEO 92→100 ✅). **Faza F (opcjonalna)** — plan szczegółowy w sekcji "FAZA F — PLAN SZCZEGÓŁOWY", potencjalny boost mobile 73→85+ i desktop 83→92+, ~1-1.5h pracy, nie pilne. Faza 3: audyt GSC po 4-6 tygodniach.
 
@@ -2461,6 +2461,46 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-10 — Fix: Navbar + main carousels używają next-intl Link (post-Footer fix follow-up)
+**Marcin zauważył: po przełączeniu na EN, klikanie linków w Navbar (np. Aktualności) prowadziło do `/aktualnosci` zamiast `/en/aktualnosci`. URL pokazywał PL ale React state EN — duplikacja URL.**
+
+#### Commit:
+- `66d6a8d` — fix(i18n): Navbar + main carousels używają next-intl Link (locale-aware)
+
+#### Root cause:
+4 najważniejsze komponenty navigation używały `import Link from 'next/link'` (zwykły Next.js Link) zamiast wrappera z `next-intl/navigation`. Standard Link NIE dodaje locale prefix automatycznie.
+
+#### Fix (4 pliki):
+- `src/components/Navbar.tsx` (site-wide menu)
+- `src/components/OfferCarousel.tsx` (homepage hero CTA do każdej service)
+- `src/components/ArticleCarousel.tsx` (homepage news cards)
+- `src/app/[locale]/HomeClient.tsx` (homepage CTA do /rezerwacja, /oferta, /metamorfozy, /kontakt)
+
+W każdym: `import Link from 'next/link'` → `import { Link } from '@/i18n/navigation'`.
+
+#### Process note:
+Pierwszy próbowałem batch zamiany 29 plików — fail (500 errors). Niektóre pliki (aktualnosci/page.tsx, [slug]) miały **ręczny locale prefix** w href (`${locale === 'pl' ? '' : '/' + locale}/aktualnosci/...`) — po podmianie na next-intl Link wrapper auto-dodawał drugi prefix → **double prefix** `/en/en/aktualnosci/...` → 500. Rollback. Drugie podejście chirurgiczne — tylko 4 komponenty z prostymi relative href.
+
+#### Smoke test:
+- Wszystkie ścieżki w 4 locale → 200 ✅
+- EN homepage Hero CTA + OfferCarousel hrefs: `/en/oferta`, `/en/cennik`, `/en/oferta/implantologia`, `/en/rezerwacja` ✅
+- Navbar Aktualnosci na `/en/oferta` → `href="/en/aktualnosci"` ✅
+- Navbar oferta/cennik/sklep na `/de/cennik` → `/de/oferta`, `/de/cennik`, `/de/sklep`, `/de/kontakt` ✅
+
+#### Pozostałe pliki z `next/link` (do follow-up jeśli Marcin zauważy konkretny bug):
+- `PainMapInteractive` (booking links z `?specialist=...` query)
+- `kalkulator-leczenia/page.tsx` (rezerwacja CTA z dynamic params)
+- `aktualnosci/page.tsx` + `[slug]` — wymagają ręcznego usunięcia manual locale prefix
+- `nowosielski/page.tsx` + `[slug]` — analogicznie
+- `baza-wiedzy/[slug]`
+- Theme presets (DentalLuxe, FreshSmile, NordicDental, WarmCare) — używane tylko poza default theme; Marcin używa default
+- Strefa pacjenta auth pages — internal area, robots disallow
+- Koszyk, sklep — utility, niski priority
+
+> **Brak migracji DB / nowych env var.** Tylko kod TypeScript.
+
+---
 
 ### 2026-05-10 — Fix: lokalizacja stopki (post-G6 follow-up)
 **Bug zgłoszony przez Marcina po G6: stopka zawsze po polsku + 404 w niektórych linkach**
