@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
-import { brand } from '@/lib/brandConfig';
-import { pageMetadata, breadcrumbSchema } from '@/lib/seo';
+import { pageMetadata, localizedBreadcrumb, breadcrumbHref } from '@/lib/seo';
 import { PAGE_SEO } from '@/lib/seoTranslations';
 import { buildServicePageSchemas } from '@/lib/serviceSchemas';
 
@@ -8,12 +7,6 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     const { locale } = await params;
     return pageMetadata(locale, '/oferta/protetyka', PAGE_SEO['/oferta/protetyka']);
 }
-
-const breadcrumb = breadcrumbSchema([
-    { name: 'Strona główna', url: brand.appUrl },
-    { name: 'Oferta', url: `${brand.appUrl}/oferta` },
-    { name: 'Protetyka' },
-]);
 
 export default async function Layout({
     children,
@@ -23,6 +16,11 @@ export default async function Layout({
     params: Promise<{ locale: string }>;
 }) {
     const { locale } = await params;
+    const breadcrumb = localizedBreadcrumb(locale, [
+        { key: 'home', url: breadcrumbHref(locale, '/') },
+        { key: 'oferta', url: breadcrumbHref(locale, '/oferta') },
+        { key: 'protetyka' },
+    ]);
     const schemas = buildServicePageSchemas('/oferta/protetyka', locale);
 
     return (

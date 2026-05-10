@@ -1,18 +1,12 @@
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
-import { pageMetadata, breadcrumbSchema } from '@/lib/seo';
+import { pageMetadata, localizedBreadcrumb, breadcrumbHref } from '@/lib/seo';
 import { PAGE_SEO } from '@/lib/seoTranslations';
-import { brand } from '@/lib/brandConfig';
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
     const { locale } = await params;
     return pageMetadata(locale, '/faq', PAGE_SEO['/faq']);
 }
-
-const breadcrumb = breadcrumbSchema([
-    { name: 'Strona główna', url: brand.appUrl },
-    { name: 'FAQ' },
-]);
 
 /**
  * Build FAQPage schema dynamically from i18n translations.
@@ -60,6 +54,10 @@ export default async function Layout({
     params: Promise<{ locale: string }>;
 }) {
     const { locale } = await params;
+    const breadcrumb = localizedBreadcrumb(locale, [
+        { key: 'home', url: breadcrumbHref(locale, '/') },
+        { key: 'faq' },
+    ]);
     const faqSchema = await buildFaqSchema(locale);
 
     return (

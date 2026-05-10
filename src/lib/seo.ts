@@ -185,6 +185,144 @@ export function breadcrumbSchema(items: BreadcrumbItem[]) {
     };
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+// Faza G6 (2026-05-10): localized breadcrumbs
+// Per-locale labels dla BreadcrumbList tak żeby EN/DE/UA użytkownicy widzieli
+// w Google SERP "Home > Pricing" zamiast "Strona główna > Cennik".
+// ════════════════════════════════════════════════════════════════════════════
+
+const BREADCRUMB_LABELS: Record<string, Record<string, string>> = {
+    pl: {
+        home: 'Strona główna',
+        oferta: 'Oferta',
+        implantologia: 'Implantologia',
+        chirurgia: 'Chirurgia Stomatologiczna',
+        'leczenie-kanalowe': 'Leczenie Kanałowe',
+        ortodoncja: 'Ortodoncja',
+        protetyka: 'Protetyka',
+        'stomatologia-estetyczna': 'Stomatologia Estetyczna',
+        cennik: 'Cennik',
+        kontakt: 'Kontakt',
+        faq: 'FAQ',
+        'mapa-bolu': 'Mapa bólu',
+        'kalkulator-leczenia': 'Kalkulator czasu leczenia',
+        porownywarka: 'Porównywarka rozwiązań',
+        sklep: 'Sklep',
+        metamorfozy: 'Metamorfozy',
+        'o-nas': 'O nas',
+        aktualnosci: 'Aktualności',
+        'baza-wiedzy': 'Baza wiedzy',
+        rezerwacja: 'Rezerwacja online',
+        nowosielski: 'Blog Dr Nowosielski',
+    },
+    en: {
+        home: 'Home',
+        oferta: 'Services',
+        implantologia: 'Dental Implants',
+        chirurgia: 'Oral Surgery',
+        'leczenie-kanalowe': 'Root Canal Treatment',
+        ortodoncja: 'Orthodontics',
+        protetyka: 'Prosthodontics',
+        'stomatologia-estetyczna': 'Aesthetic Dentistry',
+        cennik: 'Pricing',
+        kontakt: 'Contact',
+        faq: 'FAQ',
+        'mapa-bolu': 'Tooth Pain Map',
+        'kalkulator-leczenia': 'Treatment Time Calculator',
+        porownywarka: 'Treatment Comparator',
+        sklep: 'Shop',
+        metamorfozy: 'Smile Metamorphoses',
+        'o-nas': 'About Us',
+        aktualnosci: 'News',
+        'baza-wiedzy': 'Knowledge Base',
+        rezerwacja: 'Online Booking',
+        nowosielski: "Dr Nowosielski's Blog",
+    },
+    de: {
+        home: 'Startseite',
+        oferta: 'Leistungen',
+        implantologia: 'Zahnimplantate',
+        chirurgia: 'Mund-Kiefer-Chirurgie',
+        'leczenie-kanalowe': 'Wurzelkanalbehandlung',
+        ortodoncja: 'Kieferorthopädie',
+        protetyka: 'Zahnprothetik',
+        'stomatologia-estetyczna': 'Ästhetische Zahnmedizin',
+        cennik: 'Preise',
+        kontakt: 'Kontakt',
+        faq: 'FAQ',
+        'mapa-bolu': 'Zahnschmerzkarte',
+        'kalkulator-leczenia': 'Behandlungsrechner',
+        porownywarka: 'Behandlungsvergleich',
+        sklep: 'Shop',
+        metamorfozy: 'Lächeln-Metamorphosen',
+        'o-nas': 'Über uns',
+        aktualnosci: 'Aktuelles',
+        'baza-wiedzy': 'Wissensdatenbank',
+        rezerwacja: 'Online-Termin',
+        nowosielski: 'Dr Nowosielski Blog',
+    },
+    ua: {
+        home: 'Головна',
+        oferta: 'Послуги',
+        implantologia: 'Імпланти зубів',
+        chirurgia: 'Стоматологічна хірургія',
+        'leczenie-kanalowe': 'Лікування каналів',
+        ortodoncja: 'Ортодонтія',
+        protetyka: 'Протезування',
+        'stomatologia-estetyczna': 'Естетична стоматологія',
+        cennik: 'Ціни',
+        kontakt: 'Контакти',
+        faq: 'FAQ',
+        'mapa-bolu': 'Карта болю',
+        'kalkulator-leczenia': 'Калькулятор лікування',
+        porownywarka: 'Порівняння методів',
+        sklep: 'Магазин',
+        metamorfozy: 'Метаморфози посмішки',
+        'o-nas': 'Про нас',
+        aktualnosci: 'Новини',
+        'baza-wiedzy': 'База знань',
+        rezerwacja: 'Онлайн запис',
+        nowosielski: 'Блог д-ра Новосельського',
+    },
+};
+
+export interface LocalizedBreadcrumbItem {
+    /** Klucz w BREADCRUMB_LABELS (np. 'home', 'oferta', 'cennik') */
+    key: string;
+    /** URL pełny dla intermediate items. Omit dla current page (last item) — Google convention. */
+    url?: string;
+}
+
+/**
+ * Build a localized BreadcrumbList schema for the given locale.
+ * Falls back to PL labels if locale not present, falls back to raw key if label missing.
+ *
+ * @example
+ *   localizedBreadcrumb('en', [
+ *     { key: 'home', url: brand.appUrl },
+ *     { key: 'oferta', url: `${brand.appUrl}/en/oferta` },
+ *     { key: 'implantologia' }
+ *   ])
+ *   → BreadcrumbList z "Home > Services > Dental Implants"
+ */
+export function localizedBreadcrumb(locale: string, items: LocalizedBreadcrumbItem[]) {
+    const labels = BREADCRUMB_LABELS[locale] || BREADCRUMB_LABELS.pl;
+    return breadcrumbSchema(
+        items.map((it) => ({
+            name: labels[it.key] || it.key,
+            url: it.url,
+        }))
+    );
+}
+
+/**
+ * Build the locale-prefixed URL for breadcrumb intermediate items.
+ * @example breadcrumbHref('en', '/oferta') → 'https://www.mikrostomart.pl/en/oferta'
+ */
+export function breadcrumbHref(locale: string, path: string): string {
+    return `${brand.appUrl}${localePath(locale, path)}`;
+}
+
 export interface AggregateRating {
     ratingValue: number;
     reviewCount: number;

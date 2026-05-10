@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
-import { brand } from '@/lib/brandConfig';
-import { pageMetadata, breadcrumbSchema } from '@/lib/seo';
+import { pageMetadata, localizedBreadcrumb, breadcrumbHref } from '@/lib/seo';
 import { PAGE_SEO } from '@/lib/seoTranslations';
 import { buildServicePageSchemas } from '@/lib/serviceSchemas';
 
@@ -8,12 +7,6 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     const { locale } = await params;
     return pageMetadata(locale, '/oferta/implantologia', PAGE_SEO['/oferta/implantologia']);
 }
-
-const breadcrumb = breadcrumbSchema([
-    { name: 'Strona główna', url: brand.appUrl },
-    { name: 'Oferta', url: `${brand.appUrl}/oferta` },
-    { name: 'Implantologia' },
-]);
 
 export default async function ImplantologiaLayout({
     children,
@@ -23,9 +16,11 @@ export default async function ImplantologiaLayout({
     params: Promise<{ locale: string }>;
 }) {
     const { locale } = await params;
-    // Faza G5: per-locale FAQ + MedicalProcedure z `serviceSchemas.ts`.
-    // Rich snippets (FAQ accordion + MedicalProcedure) wyświetlane w lokalnym
-    // języku w SERP — działa w PL/EN/DE/UA (przed G5 tylko PL).
+    const breadcrumb = localizedBreadcrumb(locale, [
+        { key: 'home', url: breadcrumbHref(locale, '/') },
+        { key: 'oferta', url: breadcrumbHref(locale, '/oferta') },
+        { key: 'implantologia' },
+    ]);
     const schemas = buildServicePageSchemas('/oferta/implantologia', locale);
 
     return (
