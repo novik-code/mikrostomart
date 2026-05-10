@@ -10,6 +10,7 @@ import { OpinionProvider } from "@/context/OpinionContext";
 import { VisualEditorProvider } from "@/context/VisualEditorContext";
 import ThemeLayout from "@/components/ThemeLayout";
 import DemoBanner from "@/components/DemoBanner";
+import CookieConsent from "@/components/CookieConsent";
 import {
     AdminFloatingBarLazy,
     VisualEditorOverlayLazy,
@@ -269,12 +270,15 @@ export default async function RootLayout({
                             if(c.textMuted) r.setProperty('--color-text-muted', c.textMuted);
                             if(c.success) r.setProperty('--color-success', c.success);
                             if(c.error) r.setProperty('--color-error', c.error);
-                            ${isDemoMode ? `document.documentElement.classList.add('splash-pending');` : ''}
+                            // Faza G4: usunięte dodawanie splash-pending class — SplashScreen
+                            // wyłączony globalnie, ta klasa już by jej nie zdejmowała.
                         } catch(e){}
                     })();
                 ` }} />
                 <DemoBanner />
                 <SchemaOrg aggregateRating={aggregateRating} />
+                {/* Faza G4: server-rendered cookie banner (czytanie HTTP cookie) — banner jest częścią initial paint, nie LCP-killing post-hydration insert. */}
+                <CookieConsent />
                 <NextIntlClientProvider locale={locale} messages={messages}>
                     <VisualEditorProvider>
                         <CartProvider>

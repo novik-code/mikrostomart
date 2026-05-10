@@ -33,9 +33,12 @@ function HeroSection({ layout = 'centered' }: { layout?: HeroLayout }) {
     const desc = isDemoMode ? pc.hero.description : tHero('description');
     const ctaText = tCta('bookConsultationCta');
 
+    // Faza G4: hero textBlock — `priority` na 3 RevealOnScroll powyżej fold,
+    // żeby h1/CTA były widoczne natychmiast w SSR HTML zamiast wjeżdżać po
+    // hydration + IntersectionObserver. Główny LCP element strony.
     const textBlock = (
         <>
-            <RevealOnScroll animation="blur-in">
+            <RevealOnScroll animation="blur-in" priority>
                 <p style={{
                     textTransform: "uppercase",
                     letterSpacing: "0.2em",
@@ -46,7 +49,7 @@ function HeroSection({ layout = 'centered' }: { layout?: HeroLayout }) {
                     {tagline}
                 </p>
             </RevealOnScroll>
-            <RevealOnScroll animation="blur-in" delay={100}>
+            <RevealOnScroll animation="blur-in" delay={100} priority>
                 <h1 style={{
                     fontSize: layout === 'centered-compact' ? "clamp(2rem, 5vw, 4rem)" : "clamp(3rem, 7vw, 6rem)",
                     marginBottom: "var(--spacing-md)",
@@ -57,7 +60,7 @@ function HeroSection({ layout = 'centered' }: { layout?: HeroLayout }) {
                     <span style={{ fontStyle: "italic", color: "var(--color-primary-light)" }}>{title2}</span>
                 </h1>
             </RevealOnScroll>
-            <RevealOnScroll animation="fade-up" delay={200}>
+            <RevealOnScroll animation="fade-up" delay={200} priority>
                 <p style={{
                     fontSize: "1.1rem",
                     opacity: 0.8,

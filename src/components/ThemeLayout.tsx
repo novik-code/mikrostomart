@@ -3,10 +3,22 @@
 import { ThemeProvider, useTheme, usePresetId } from '@/context/ThemeContext';
 import { ReactNode } from 'react';
 import dynamic from 'next/dynamic';
-import SplashScreen from '@/components/SplashScreen';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
-import CookieConsent from '@/components/CookieConsent';
+
+// Faza G4 (2026-05-10): CookieConsent przeniesiony do root layout (server component
+// czytający HTTP cookie). Theme feature flag `f.cookieConsent` nie jest już
+// honorowany — banner jest teraz infrastrukturą prawnie wymaganą, nie opcją theme.
+
+// Faza G4 (2026-05-10): SplashScreen wyłączony globalnie, zostaje wyłącznie do
+// opt-in przez ThemeEditor (wymaga jawnego ustawienia w localStorage). Powód:
+// 6-sekundowa cinematic intro animation na pierwszym wejściu sesji była głównym
+// wkładem do mobile LCP 6.0s (CookieConsent jako LCP element musiał czekać na
+// splash sequence). Dla returning visitors splash był pomijany ale dla nowych
+// = pełne 6s blank screen przed widocznym content. Marcin zaakceptował kasację.
+//
+// Komponent SplashScreen.tsx nie jest usunięty — może być reaktywowany w
+// przyszłości przez ThemeEditor jeśli potrzeba wróci.
 
 // Faza C (SEO/perf): non-critical UI lazy-loaded after hydration to shrink initial bundle.
 // All wrapped components are conditional or user-triggered (modals, banners, teasers).
@@ -73,7 +85,6 @@ function ThemedContent({ children }: { children: ReactNode }) {
                 `}</style>
             )}
             {!skipGlobalChrome && f.backgroundVideo && <BackgroundVideo videoId={theme.hero.backgroundVideoId} />}
-            {f.cookieConsent && <CookieConsent />}
             <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
                 {!skipGlobalChrome && <Navbar />}
                 {children}
@@ -86,10 +97,9 @@ function ThemedContent({ children }: { children: ReactNode }) {
         </>
     );
 
-    if (f.splashScreen) {
-        return <SplashScreen>{content}</SplashScreen>;
-    }
-
+    // Faza G4 (2026-05-10): SplashScreen disabled globally — return content directly.
+    // To re-enable: edit ThemeContext DEFAULT_THEME.features.splashScreen + uncomment
+    // the SplashScreen import and wrapper above.
     return content;
 }
 

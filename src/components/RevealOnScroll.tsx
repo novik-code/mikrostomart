@@ -7,7 +7,15 @@ interface RevealOnScrollProps {
     animation?: "fade-up" | "blur-in";
     delay?: number;
     className?: string;
-    style?: React.CSSProperties; // Add style support
+    style?: React.CSSProperties;
+    /**
+     * Faza G4 (2026-05-10): skip the initial opacity:0 → opacity:1 animation.
+     * Use for above-the-fold elements (hero h1, hero text, hero CTA) so they're
+     * visible in initial SSR paint instead of appearing 200-500ms after hydration
+     * fires the IntersectionObserver. Eliminates "flicker" at page load and
+     * reduces LCP for hero-as-LCP-element pages.
+     */
+    priority?: boolean;
 }
 
 // Map arbitrary delay values to nearest valid CSS class
@@ -23,19 +31,21 @@ export default function RevealOnScroll({
     animation = "fade-up",
     delay = 0,
     className = "",
-    style = {}
+    style = {},
+    priority = false,
 }: RevealOnScrollProps) {
     const ref = useRef<HTMLDivElement>(null);
     const [isActive, setIsActive] = useState(false);
 
     useEffect(() => {
+        if (priority) return; // skip observer for above-the-fold elements
+
         const observer = new IntersectionObserver(
             ([entry]) => {
-                // Update state based on intersection status to allow replay
                 setIsActive(entry.isIntersecting);
             },
             {
-                threshold: 0.15, // Trigger when 15% visible
+                threshold: 0.15,
                 rootMargin: "0px 0px -50px 0px"
             }
         );
@@ -45,7 +55,17 @@ export default function RevealOnScroll({
         }
 
         return () => observer.disconnect();
-    }, []);
+    }, [priority]);
+
+    // Priority: render plain div, no .reveal class, no opacity:0 initial state.
+    // Element is visible in SSR HTML — no animation, no flicker, no LCP delay.
+    if (priority) {
+        return (
+            <div className={className} style={style}>
+                {children}
+            </div>
+        );
+    }
 
     return (
         <div
