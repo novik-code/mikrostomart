@@ -30,7 +30,6 @@ export default async function ImplantologiaLayout({
                 <>
                     <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schemas.faqSchema) }} />
                     <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schemas.procedureSchema) }} />
-                    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schemas.serviceSchema) }} />
                 </>
             )}
             {children}
