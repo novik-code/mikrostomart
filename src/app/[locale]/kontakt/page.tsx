@@ -152,56 +152,6 @@ export default function ContactPage() {
                 </div>
             </section>
 
-            {/* Directions / How to find us — H6 SEO Audit (2026-05-10):
-                Out-of-town and international patient targeting. Parking + public
-                transport + highway + hotels + languages cover the previously zero
-                content gap for travellers from Germany / across Poland. */}
-            <section className="section" style={{ paddingTop: "var(--spacing-xl)" }}>
-                <div className="container">
-                    <RevealOnScroll>
-                        <h2 style={{ fontSize: "clamp(2rem, 4vw, 3rem)", marginBottom: "var(--spacing-md)", textAlign: "center", fontWeight: 400 }}>
-                            {t('directionsHeading')}
-                        </h2>
-                        <p style={{ maxWidth: "720px", margin: "0 auto var(--spacing-xl) auto", textAlign: "center", color: "var(--color-text-muted)", fontSize: "1.05rem", lineHeight: 1.7 }}>
-                            {t('directionsLead')}
-                        </p>
-                    </RevealOnScroll>
-
-                    <div style={{
-                        display: "grid",
-                        gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-                        gap: "var(--spacing-lg)",
-                        maxWidth: "1100px",
-                        margin: "0 auto",
-                    }}>
-                        {[
-                            ['parkingTitle', 'parkingDesc'],
-                            ['publicTransportTitle', 'publicTransportDesc'],
-                            ['highwayTitle', 'highwayDesc'],
-                            ['hotelsTitle', 'hotelsDesc'],
-                            ['languagesTitle', 'languagesDesc'],
-                        ].map(([titleKey, descKey], i) => (
-                            <RevealOnScroll key={titleKey} delay={i * 80}>
-                                <article style={{
-                                    padding: "var(--spacing-lg)",
-                                    background: "var(--color-surface)",
-                                    borderRadius: "8px",
-                                    height: "100%",
-                                    border: "1px solid rgba(var(--color-primary-rgb), 0.15)",
-                                }}>
-                                    <h3 style={{ fontSize: "1.25rem", color: "var(--color-primary)", marginBottom: "0.75rem", fontWeight: 600 }}>
-                                        {t(titleKey)}
-                                    </h3>
-                                    <p style={{ color: "var(--color-text-main)", fontSize: "0.95rem", lineHeight: 1.7 }}>
-                                        {t(descKey)}
-                                    </p>
-                                </article>
-                            </RevealOnScroll>
-                        ))}
-                    </div>
-                </div>
-            </section>
-
             {/* Simple Contact Form */}
             <section className="section">
                 <div className="container" style={{ maxWidth: "700px" }}>

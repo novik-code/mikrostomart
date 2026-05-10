@@ -2462,69 +2462,6 @@ NODE_ENV=production
 
 ## 📝 Recent Changes
 
-### 2026-05-10 — SEO Audit Sprint H6: content quality (Dojazd + FAQ przyjezdnych)
-**Szósta z 7 faz audytu SEO — zaadresowanie krytycznej luki contentu dla pacjentów przyjezdnych**
-
-#### Branch:
-- `seo/h6-content-quality`
-
-#### Problem (z audytu):
-- Brak jakiegokolwiek contentu dla pacjentów przyjezdnych: 0 wzmianek "dental tourism", "international patients", "VAT refund", "Anfahrt", "z zagranicy", "hotel".
-- /kontakt nie miał sekcji "Dojazd / How to find us / Anfahrt".
-- /faq miało 43 pytań w 10 kategoriach — żadne nie odpowiadało na potrzeby przyjezdnych (parking jest, ale brak hoteli, transportu, języków, VAT).
-- Klinika 80 km od granicy DE — niewykorzystany rynek.
-
-#### H6 — Content quality (limited scope):
-
-**1. Sekcja "Dojazd" na /kontakt** (`src/app/[locale]/kontakt/page.tsx` + `messages/{4_locale}/pages.json`)
-- 5 kart × 4 locale: Parking, Transport publiczny, Z autostrady A4, Hotele, Języki obsługi.
-- Każda karta ma title + opis (50-150 chars).
-- Renderuje się w grid (auto-fit, minmax 280px, gap), z stagger animation.
-- Kontent sterylny technicznie:
-  - Parking: bezpłatny przed kliniką (od ul. Centralnej).
-  - Transport: PKP Opole Główne → autobusy 12/16, 15 min do "Centralna".
-  - A4: zjazd Opole-Zachód, 4 km. Granica Olszyna 200 km.
-  - Hotele: Mercure Opole, Festival, Piast (3 km radius) + Booking apartamenty.
-  - Języki: PL/EN/DE bezpośrednio, UA na życzenie. Niemieckie rachunki na zwrot z kasy chorych.
-- 13 nowych keys × 4 locale = 52 stringów.
-
-**2. FAQ kategoria "Dla pacjentów przyjezdnych" (cat10) × 4 locale** (`messages/{pl,en,de,ua}/pages.json`)
-- 5 nowych pytań × 4 locale = 20 questions/answers (+ 4 nazwy kategorii):
-  1. Parking? — odpowiedź potwierdza darmowy przed kliniką.
-  2. Hotele blisko? — Mercure/Festival/Piast + rezerwacja przez recepcję.
-  3. Pacjenci z zagranicy? — PL/DE/CZ/AT/UA. PL/EN/DE bezpośrednio.
-  4. VAT/zwrot dla Niemców? — VAT 0% (no tax-free), ale niemieckie kasy chorych mogą pokryć (rachunek DE na życzenie).
-  5. Dojazd? — A4/PKP/granica.
-- `categoryCount` zmienione z "10" na "11", dodany `cat10count: "5"`.
-- Faza G2 FAQ schema (faq/layout.tsx) automatycznie podnosi nową kategorię — Google indeksuje jako rich FAQ snippet w 4 locale.
-
-#### Świadomie pominięte (follow-up — wymaga long-form content writing lub decyzji):
-
-- **Service pages 280 → 800+ słów** (24 expansions = 6 pages × 4 locale). Wymaga merytorycznego rozszerzenia każdej. Najlepiej iteracyjnie (priority order: implantologia, leczenie-kanalowe, stomatologia-estetyczna).
-- **/cennik SSR-renderowana tabela cen** — wymaga decyzji od Marcina o publikacji konkretnych cen.
-- **FAQ DE/UA wyrównanie długości do PL** — DE/UA skrócone o 27-37% (mechanical translations). Wymaga ręcznej rewizji każdej odpowiedzi.
-
-#### Smoke test:
-- `npm run build` — clean.
-- `jq empty` na 4 pages.json — JSON valid.
-- Po 1 falstart: typograficzne `„Centralna"` było mismatch (otwarcie typograficzne, zamknięcie standard). Fix: `„Centralna”` (oba typograficzne U+201E + U+201D).
-
-#### Pliki:
-- `src/app/[locale]/kontakt/page.tsx` — dodana sekcja "Dojazd" (5 kart grid, animowane)
-- `messages/pl/pages.json` — 13 keys directions + 11 keys cat10 FAQ
-- `messages/en/pages.json` — analogicznie
-- `messages/de/pages.json` — analogicznie
-- `messages/ua/pages.json` — analogicznie
-
-#### Spodziewany efekt po deploy:
-- Foreign markets users (DE/CZ/UA) widzą explicit content "Anfahrt / How to find us" na /kontakt.
-- /faq w 4 locale ma teraz 5 nowych pytań przyjezdnych — Google FAQ rich snippet kategoryzuje jako "international patients" / "out-of-town" → potencjał ranking dla zapytań "dentist Opole hotels" / "Zahnarzt Polen Erstattung".
-- Brand authority sygnał: explicit obsługa pacjentów zagranicznych (kasy chorych DE, transport, języki).
-
-> **Brak migracji DB / nowych env var.** Tylko zmiany kodu + tłumaczeń.
-
----
-
 ### 2026-05-10 — SEO Audit Sprint H5: performance + images
 **Piąta z 7 faz audytu SEO — Core Web Vitals fixes + image optimization**
 
