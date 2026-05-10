@@ -677,32 +677,5 @@
         "faqQ4": "Was sind Brücken ohne Beschleifen?",
         "faqA4": "Adhesive Brücken auf Glasfaser. Sie ermöglichen den Ersatz eines Zahnes, ohne die Nachbarzähne stark zu beschleifen.",
         "cta": "Vereinbaren Sie einen Termin: {phone1}"
-    },
-    "przyjezdni": {
-        "heading": "Mikrostomart für deutsche Patienten in Opole, Polen",
-        "subtitle": "Wir begrüßen täglich Patienten aus ganz Polen — Wrocław, Katowice, Kraków, Warschau — sowie aus Deutschland, Tschechien, Österreich und der Ukraine. Hier finden Sie alles, was Ihre Anreise zu unserer Klinik in Opole erleichtert.",
-        "whyTitle": "Warum Patienten zu uns kommen",
-        "usp1Title": "Präzisionszahnheilkunde unter dem Mikroskop",
-        "usp1Desc": "Endodontie, Implantologie und ästhetische Zahnmedizin unter 25-facher Vergrößerung. Wir retten Zähne, die andere aufgeben, und übernehmen Fälle, die viele Praxen ablehnen.",
-        "usp2Title": "Betreuung in 3 Sprachen",
-        "usp2Desc": "Wir sprechen fließend Polnisch, Englisch und Deutsch. Ukrainische Übersetzung auf Anfrage. Keine Mittelsmänner, keine Zahntourismus-Agentur erforderlich.",
-        "usp3Title": "Günstige polnische Preise",
-        "usp3Desc": "Polnische Privatpreise liegen typischerweise 40-60% unter denen in Deutschland, Großbritannien oder Skandinavien. Deutsche Krankenkassen können einen Teil der Auslandsbehandlungskosten erstatten.",
-        "usp4Title": "Alles in 200 Metern Umkreis",
-        "usp4Desc": "Kostenfreie Parkplätze direkt vor der Klinik, 4-Sterne-Hotels in Gehweite, Restaurants, Apotheke. Sie können einen Tages- oder Mehrtagesaufenthalt ohne logistischen Stress planen.",
-        "accessTitle": "Anfahrt zur Klinik",
-        "accessDesc": "Die Klinik befindet sich in ul. Centralna 33a in Opole/Chmielowice (45-940). Von der Autobahn A4: 4 km von der Ausfahrt Opole-Zachód (7 Min Fahrt). Vom Bahnhof Opole Główne: Buslinien 12 oder 16 bis zur Haltestelle „Centralna” (15 Min). Vom Grenzübergang Olszyna: ca. 200 km, 2-2,5 h Fahrt.",
-        "hotelsTitle": "Hotels in der Nähe",
-        "hotelsDesc": "Im Umkreis von 3 km: Hotel Mercure Opole (4★), Hotel Festival (3★), Hotel Piast (3★), sowie mehrere Booking-Apartments. Wir helfen bei der Übernachtungsbuchung und bieten ein „Behandlung + Übernachtung”-Paket nach Ihrem Terminplan.",
-        "languagesTitle": "Sprachen",
-        "languagesDesc": "Marcin Nowosielski (Zahnarzt, Implantologe) und ein Teil des Teams sprechen Polnisch, Englisch und Deutsch. Alle Unterlagen (Einwilligungen, Behandlungsplan, Rechnungen) stellen wir auf Wunsch in Ihrer Sprache aus. Ukrainische Übersetzung mit mindestens 24 h Vorlauf.",
-        "vatTitle": "Erstattung durch deutsche Krankenkassen",
-        "vatDesc": "Polnische medizinische Leistungen sind mehrwertsteuerbefreit (0% Satz), tax-free entfällt also. Deutsche Krankenkassen (gesetzlich oder privat) können jedoch nach EU-Patientenrechte-Richtlinie 2011/24 einen Teil der grenzüberschreitenden Behandlungskosten erstatten — wir stellen eine detaillierte Rechnung in deutscher Sprache aus. Erkundigen Sie sich bei Ihrer Kasse nach dem Erstattungsverfahren (Kostenerstattung).",
-        "paymentsTitle": "Zahlungsmöglichkeiten",
-        "paymentsDesc": "Wir akzeptieren Bargeld, Karten (Visa/Mastercard), BLIK, Przelewy24, PayU, Apple Pay und Google Pay. Rechnung auf Wunsch auf Polnisch, Englisch oder Deutsch. Ratenzahlung über MediRaty (nach Verifizierung) möglich.",
-        "ctaTitle": "Termin buchen und Reise planen",
-        "ctaSubtitle": "Kontaktieren Sie uns — wir finden den passenden Termin, empfehlen eine Übernachtung und beantworten alle Fragen vor Ihrer Anreise.",
-        "ctaPrimaryLabel": "Online buchen",
-        "ctaSecondaryLabel": "Anrufen: {phone1}"
     }
 }

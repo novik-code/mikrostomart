@@ -217,7 +217,6 @@ const BREADCRUMB_LABELS: Record<string, Record<string, string>> = {
         aplikacja: 'Aplikacja PWA',
         selfie: 'Selfie Booth',
         symulator: 'Symulator uśmiechu',
-        przyjezdni: 'Dla pacjentów spoza Opola',
     },
     en: {
         home: 'Home',
@@ -244,7 +243,6 @@ const BREADCRUMB_LABELS: Record<string, Record<string, string>> = {
         aplikacja: 'Patient App',
         selfie: 'Selfie Booth',
         symulator: 'Smile Simulator',
-        przyjezdni: 'For International Patients',
     },
     de: {
         home: 'Startseite',
@@ -271,7 +269,6 @@ const BREADCRUMB_LABELS: Record<string, Record<string, string>> = {
         aplikacja: 'Patienten-App',
         selfie: 'Selfie Booth',
         symulator: 'Lächeln-Simulator',
-        przyjezdni: 'Für deutsche Patienten',
     },
     ua: {
         home: 'Головна',
@@ -298,7 +295,6 @@ const BREADCRUMB_LABELS: Record<string, Record<string, string>> = {
         aplikacja: 'Додаток пацієнта',
         selfie: 'Selfie Booth',
         symulator: 'Симулятор посмішки',
-        przyjezdni: 'Для українських пацієнтів',
     },
 };
 

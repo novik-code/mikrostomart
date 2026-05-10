@@ -128,7 +128,6 @@ export default function Footer() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                         <Link href="/o-nas" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">{tn('about')}</Link>
                         <Link href="/o-nas" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">{tn('team')}</Link>
-                        <Link href="/dla-pacjentow-przyjezdnych" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">{tn('intlPatients')}</Link>
                         <Link href="/kontakt" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">{t('contact')}</Link>
                         <Link href="/rezerwacja" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">{tn('booking')}</Link>
                     </div>

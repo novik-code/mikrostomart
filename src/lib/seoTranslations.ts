@@ -469,30 +469,6 @@ export const PAGE_SEO: Record<string, LocaleSeoMap> = {
         },
     },
 
-    // ───────── /dla-pacjentow-przyjezdnych (H7 international landing) ─────────
-    '/dla-pacjentow-przyjezdnych': {
-        pl: {
-            title: 'Dla pacjentów spoza Opola — Mikrostomart Stomatolog Opole',
-            description: 'Klinika Mikrostomart obsługuje pacjentów z całej Polski oraz z Niemiec, Czech, Austrii i Ukrainy. Parking, hotele, języki, niemieckie kasy chorych.',
-            keywords: 'dentysta dla pacjentów spoza opola, leczenie stomatologiczne dla przyjezdnych, dentysta z parkingiem opole, klinika z hotelami opole',
-        },
-        en: {
-            title: 'Dentist in Opole, Poland — For International Patients | Mikrostomart',
-            description: 'Mikrostomart welcomes patients from across Poland and from Germany, Czech, Austria and Ukraine. Parking, hotels, languages, German insurance reimbursement.',
-            keywords: 'dentist Opole Poland for international patients, dental tourism Poland, English speaking dentist Opole, German speaking dentist Poland',
-        },
-        de: {
-            title: 'Zahnarzt in Opole, Polen — für deutsche Patienten | Mikrostomart',
-            description: 'Mikrostomart betreut Patienten aus ganz Polen sowie aus Deutschland, Tschechien, Österreich und der Ukraine. Parkplätze, Hotels, Sprachen, Krankenkassen-Erstattung.',
-            keywords: 'Zahnarzt Opole für deutsche Patienten, Zahnarzt Polen Krankenkasse, deutschsprachiger Zahnarzt Polen, Zahnbehandlung Polen Erstattung',
-        },
-        ua: {
-            title: 'Стоматолог в Ополе, Польща — для українських пацієнтів | Mikrostomart',
-            description: 'Mikrostomart приймає пацієнтів з усієї Польщі, а також з Німеччини, Чехії, Австрії та України. Паркінг, готелі, мови обслуговування.',
-            keywords: 'стоматолог Ополе для українців, україномовний стоматолог Польща, стоматологія Польща для іноземців, стоматолог Польща переклад',
-        },
-    },
-
     // ───────── /aplikacja (PWA install landing page) ─────────
     '/aplikacja': {
         pl: {
