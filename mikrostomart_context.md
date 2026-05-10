@@ -1,6 +1,6 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-09 (SEO Sprint G2 — aggregateRating w Dentist schema + BreadcrumbList × 13 + FAQPage z 43 pytaniami)  
+> **Last Updated:** 2026-05-10 (SEO Sprint G1+G2+G3 KOMPLETNY — full multilingual SEO + rich SERP + technical hygiene)  
 > **Version:** Production + Demo (Dual Vercel Deployment)  
 > **Status:** Active Development — KCP FULL; CareFlow Perioperative; Push-First Communication; **SEO Recovery: Faza 1+1.5+2+2.x+A+B+C+D+E KOMPLETNA i ZAAKCEPTOWANA przez Marcina** (PSI Mobile 34→73, Desktop 39→83; LCP Desktop 5.2s→1.6s ✅; Best Practices 73→96; SEO 92→100 ✅). **Faza F (opcjonalna)** — plan szczegółowy w sekcji "FAZA F — PLAN SZCZEGÓŁOWY", potencjalny boost mobile 73→85+ i desktop 83→92+, ~1-1.5h pracy, nie pilne. Faza 3: audyt GSC po 4-6 tygodniach.
 
@@ -2461,6 +2461,91 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-10 — SEO Sprint G3: technical hygiene (sitemap cache + SVG + console 401 + YT 404)
+**Trzeci i ostatni commit z trzyfazowego SEO sprintu — sprint G1+G2+G3 KOMPLETNY**
+
+#### Commit:
+- `8c14e15` — feat(seo): G3 — technical hygiene (sitemap cache, SVG security, console 401, YouTube 404)
+
+#### 4 zmiany:
+
+**1. Sitemap revalidate=3600 (`src/app/sitemap.ts`):**
+- Problem: każde wejście `/sitemap.xml` → DB query do Supabase (`articles` + `news`). Googlebot pinguje regularnie.
+- Fix: `export const revalidate = 3600` — Next.js cache 1h, regeneracja w tle.
+- Verify: response header `x-nextjs-cache: HIT` ✅. 686 URLi (bez zmian co do treści, tylko cachable).
+
+**2. `dangerouslyAllowSVG: false` (`next.config.ts`):**
+- Problem: pozwala na inline SVG z remote sources bez sanityzacji = XSS risk. Lighthouse Best Practices flagi.
+- Fix: usunięte. Nasze remote patterns (unsplash, placehold, githubusercontent, supabase.co) raczej nie podają SVG.
+
+**3. useUserRoles skip fetch dla anonymous (`src/hooks/useUserRoles.ts`):**
+- Problem: hook zawsze fetchował `/api/auth/roles`. Dla niezalogowanych odpowiedź 401 → console error → Lighthouse Best Practices penalty. Hook na każdej publicznej stronie.
+- Fix: nowa funkcja `hasSupabaseAuthCookie()` sprawdza `document.cookie` pod kątem `sb-` prefix. Jeśli brak → return empty roles bez fetch.
+- Bonus: jeśli cookie obecne ale stale (expired session), 401 obsługiwany silently.
+
+**4. YouTubeFeed onError fallback (`src/components/YouTubeFeed.tsx`):**
+- Problem: niektóre filmy (np. `8uA6aMhE8rE`, `sReE0lZ-vK8`) nie mają `hqdefault.jpg` w YouTube CDN — 404, broken image icon, Best Practices penalty.
+- Fix: `onError` handler na `<img>` — fallback do `mqdefault.jpg` (zawsze istnieje w YT CDN). `dataset.fallback` flag żeby uniknąć infinite loop.
+
+#### Pominięto z planu G3:
+
+**F3 — polyfill removal druga próba przez `.browserslistrc`:**
+Odkryto że `npx browserslist` poprawnie pokazuje targets (chrome ≥ 90, safari ≥ 14, firefox ≥ 90, edge ≥ 90) z `package.json`. Browserslist DZIAŁA, więc problem z polyfills musi być po stronie SWC config Next 16, nie po stronie targets. `.browserslistrc` z identycznymi targetsami nic by nie zmieniło. Wymaga deeper investigation (może `experimental.browsersListForSwc` lub równoważne w Next 16). Drobne (-13 KiB), nie blokuje innych prac.
+
+#### Smoke test (npm run start, localhost):
+- `/sitemap.xml`: 200 + `x-nextjs-cache: HIT` + 686 URL ✅
+- Homepage: 200 ✅
+- YouTubeFeed HTML zawiera `onError` + `hqdefault.jpg` (primary src) ✅
+- `/api/auth/roles` wciąż 401 dla anonymous (correct), ale hook nie fire'uje request → Lighthouse już nie widzi 401 ✅
+
+#### Spodziewany efekt:
+- **Best Practices 96 → 100** (eliminacja 401 console, brak SVG XSS warning, brak YouTube 404)
+- Mniej DB queries dla sitemap (Googlebot crawl ~10× dziennie zamiast per-request)
+- Marginalnie szybsze TTFB dla `/sitemap.xml` (cache HIT zamiast DB roundtrip)
+
+#### Pliki:
+- `src/app/sitemap.ts` — `export const revalidate = 3600`
+- `next.config.ts` — usunięte `dangerouslyAllowSVG: true`
+- `src/hooks/useUserRoles.ts` — `hasSupabaseAuthCookie()` + skip fetch dla anonymous
+- `src/components/YouTubeFeed.tsx` — `onError` fallback `hqdefault → mqdefault`
+
+> **Brak migracji DB / nowych env var.** Tylko kod TypeScript + config.
+> Vercel auto-deployuje na produkcję + demo po pushu.
+
+---
+
+### 🎯 SEO SPRINT G1+G2+G3 KOMPLETNY (2026-05-09 → 2026-05-10)
+
+**Trzy iteracje SEO improvements wykonane sequentially po akceptacji Fazy E SEO Recovery przez Marcina:**
+
+| Faza | Commit | Czas | Zakres |
+|---|---|---|---|
+| G1 | `53c4cdc` | ~1.5h | Per-page hreflang + per-locale metadata × 19 stron |
+| G2 | `3e971a0` | ~45 min | aggregateRating + BreadcrumbList × 13 + FAQPage 43Q |
+| G3 | `8c14e15` | ~30 min | Sitemap cache + SVG security + console 401 + YT 404 |
+
+**Łączny efekt:**
+- 19 publicznych stron z poprawnym multilingual SEO (PL/EN/DE/UA)
+- Per-URL hreflang konsystentny z metadata
+- Lokalne słowa kluczowe per-locale (~76 zestawów meta-tagów)
+- Rich SERP snippets: gwiazdki ⭐⭐⭐⭐⭐ z 22 reviews + breadcrumb trail + FAQ accordion
+- Best Practices score 96 → 100 (oczekiwane)
+- DB query ratio dla sitemap: per-request → 1× per godzinę
+
+**Co Google zobaczy w SERP:**
+- Mikrostomart wyniki z gwiazdkami i liczbą opinii
+- "mikrostomart.pl > Cennik" zamiast surowego URL
+- Expandable FAQ z naszych 43 pytań
+- EN/DE/UA wersje wreszcie indeksowane jako odrębne strony
+
+**Co dalej (poza scope SEO sprintu):**
+- **Faza F mobile boost** — F1 BackgroundVideo skip mobile (wymaga zgody Marcina, dotyczy migania), F2 image sizes, F6 composited animations
+- **Polyfill removal** — wymaga deeper SWC investigation (Next 16)
+- **Faza 3 GSC** — audyt po 4-6 tyg. (~koniec czerwca 2026)
+- **Miganie strony** — pierwotnie 7 źródeł (SplashScreen 6s, CookieConsent pop-in, dynamic chunks, RevealOnScroll itd.) — odłożone przez Marcina
+
+---
 
 ### 2026-05-09 — SEO Sprint G2: schema enrichment (aggregateRating + BreadcrumbList + FAQPage)
 **Drugi commit z trzyfazowego SEO sprintu — rich SERP snippets**
