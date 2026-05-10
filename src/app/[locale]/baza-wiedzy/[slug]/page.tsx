@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabaseClient';
 import { brand, brandI18nParams } from '@/lib/brandConfig';
 import RevealOnScroll from '@/components/RevealOnScroll';
-import Link from 'next/link';
+import { Link } from '@/i18n/navigation';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { Metadata } from 'next';

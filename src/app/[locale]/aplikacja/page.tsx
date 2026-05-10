@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import { Link } from '@/i18n/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { demoSanitize } from '@/lib/brandConfig';
 
@@ -244,7 +244,7 @@ export default function AplikacjaPage() {
                     }}>
                         📲 Jak zainstalować?
                     </a>
-                    <a href="/strefa-pacjenta/register/verify" style={{
+                    <Link href="/strefa-pacjenta/register/verify" style={{
                         padding: '1rem 2rem',
                         background: 'transparent',
                         border: '1px solid rgba(255,255,255,0.2)',
@@ -256,7 +256,7 @@ export default function AplikacjaPage() {
                         backdropFilter: 'blur(8px)',
                     }}>
                         Załóż konto →
-                    </a>
+                    </Link>
                 </div>
 
                 {/* Mock phone UI */}
@@ -473,7 +473,7 @@ export default function AplikacjaPage() {
                         }}>
                             📲 Zainstaluj teraz — za darmo
                         </a>
-                        <a href="/strefa-pacjenta/register/verify" style={{
+                        <Link href="/strefa-pacjenta/register/verify" style={{
                             padding: '1rem 2rem',
                             background: 'transparent',
                             border: '1px solid rgba(255,255,255,0.2)',
@@ -484,7 +484,7 @@ export default function AplikacjaPage() {
                             fontSize: '1rem',
                         }}>
                             Zarejestruj się →
-                        </a>
+                        </Link>
                     </div>
                     <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.75rem', marginTop: '1.5rem' }}>
                         Bez App Store · Bez rejestracji kart · Całkowicie bezpłatna

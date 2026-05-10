@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
+import { Link } from '@/i18n/navigation';
 import styles from './appointment.module.css';
 
 interface AppointmentInstruction {
@@ -146,7 +147,7 @@ export default function AppointmentPreparationPage() {
             <div className={styles.notFound}>
                 <h1>404 - Nie znaleziono</h1>
                 <p>Nie znaleziono instrukcji dla tego typu wizyty.</p>
-                <a href="/" className={styles.backHome}>Wróć do strony głównej</a>
+                <Link href="/" className={styles.backHome}>Wróć do strony głównej</Link>
             </div>
         );
     }
@@ -405,9 +406,9 @@ export default function AppointmentPreparationPage() {
                             <a href="tel:+48570270470" className={`${styles.btn} ${styles.btnPrimary}`}>
                                 📞 Zadzwoń: 570 270 470
                             </a>
-                            <a href="/kontakt" className={`${styles.btn} ${styles.btnSecondary}`}>
+                            <Link href="/kontakt" className={`${styles.btn} ${styles.btnSecondary}`}>
                                 ✉️ Napisz do nas
-                            </a>
+                            </Link>
                         </div>
                     </div>
                 </div>

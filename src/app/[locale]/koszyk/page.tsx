@@ -2,7 +2,7 @@
 
 import { useCart } from "@/context/CartContext";
 import { useTranslations } from "next-intl";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { useState } from "react";
 import CheckoutForm from "@/components/CheckoutForm";
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { useTranslations, useLocale } from "next-intl";
 import { type TreatmentPath, type Variant, type Stage } from "./treatmentData";
 import { getTreatmentData } from "./getTreatmentData";

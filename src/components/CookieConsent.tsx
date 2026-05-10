@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
 import { getTranslations } from 'next-intl/server';
-import Link from 'next/link';
+import { Link } from '@/i18n/navigation';
 import { CookieConsentButton } from './CookieConsentButton';
 
 /**
