@@ -2,7 +2,7 @@
 
 > **Last Updated:** 2026-05-10 (Fix: Navbar + main carousels używają next-intl Link, locale-aware navigation — po Footer fix i SEO Sprint G1-G6)  
 > **Version:** Production + Demo (Dual Vercel Deployment)  
-> **Status:** Active Development — KCP FULL; CareFlow Perioperative; Push-First Communication; **SEO Recovery: Faza 1+1.5+2+2.x+A+B+C+D+E KOMPLETNA i ZAAKCEPTOWANA przez Marcina** (PSI Mobile 34→73, Desktop 39→83; LCP Desktop 5.2s→1.6s ✅; Best Practices 73→96; SEO 92→100 ✅). **Faza F (opcjonalna)** — plan szczegółowy w sekcji "FAZA F — PLAN SZCZEGÓŁOWY", potencjalny boost mobile 73→85+ i desktop 83→92+, ~1-1.5h pracy, nie pilne. Faza 3: audyt GSC po 4-6 tygodniach.
+> **Status:** Active Development — KCP FULL; CareFlow Perioperative; Push-First Communication. **PROGRAM SEO KOMPLETNY** (Recovery Faza 1-E + Sprint G1-G6 + Footer fix + Navbar/carousels fix, 2026-05-09 → 2026-05-10): pełen multilingual SEO (4 locale), rich SERP (gwiazdki/breadcrumbs/FAQ accordion), Core Web Vitals fix (LCP 6s→2-3s, splash kill, CookieConsent SSR), per-locale breadcrumb labels, locale-aware navigation. PSI bazowo: Mobile 34→73, Desktop 39→83 (przed G4 — po G4 oczekiwany dalszy boost); SEO 100, Best Practices 96→100. Pozostałe SEO opcjonalne / low ROI: polyfill removal (Next 16 SWC investigation), BackgroundVideo skip mobile (świadomie pominięte), pozostałe ~25 plików z `next/link` do follow-up. Faza 3: audyt GSC po 4-6 tygodniach (~koniec czerwca 2026).
 
 ---
 
@@ -6920,12 +6920,21 @@ OpenAI gpt-image-1 regenerates the entire masked area from scratch (+ forces 102
   - **Mobile (Moto G Power 4G)**: Performance **34→73** (+39), LCP **25.1s→6.0s** (-76%), TBT **1960→110 ms** (-94%), Total transfer **16.4→9.5 MB** (-42%), Best Practices **73→96**, SEO **92→100** ✅
   - **Desktop**: Performance **39→83** (+44), LCP **5.2s→1.6s** ✅ ZALICZONE (cel <2.5s), TBT **1190→240 ms** (-80%), Total transfer **18.4→9.6 MB** (-48%), Best Practices **73→96**, SEO **92→100** ✅
   - **Marcin zaakceptował**: *"zatrzymajmy sie na tym na ten moment jest akceptowalnie moim zdaniem"*
-- [ ] **Faza F (opcjonalna)** — drobne poprawki dla doskonałości. Plan szczegółowy w sekcji "🚨 FAZA F — PLAN SZCZEGÓŁOWY DLA AI W NOWEJ SESJI" poniżej. Spodziewany boost: mobile 73→85+, desktop 83→92+. ~1-1.5h. Nie pilne — Marcin zatrzymał się świadomie, wynik akceptowalny.
+- [x] **Faza F — większość zrealizowana w Sprincie G1-G6** (2026-05-09 → 2026-05-10):
+  - F4 console 401 fix → DONE w G3 (`8c14e15`)
+  - F5 YouTube CDN 404 fallback → DONE w G3 (`8c14e15`)
+  - F2 image responsive sizing → DONE częściowo w G5 (`2ccbf7b`) — GoogleReviews avatars + Navbar logo sizes
+  - F1 BackgroundVideo skip mobile → świadomie pominięte przez Marcina
+  - F3 polyfill removal → wymaga deeper Next 16 SWC investigation, low ROI
+  - F6 composited animations → low ROI, niska priorytet
+  Sekcja "🚨 FAZA F — PLAN SZCZEGÓŁOWY" poniżej jest **historyczna** (plan zrobiony 2026-05-09 przed Sprintem G).
 - [ ] **Faza 3** — Marcin: GSC HTTPS property dodany ✅. Re-submit sitemap (686 URLi) po deploy ✅. Audyt po 4-6 tygodniach (oczekiwany 198 → 0 błędów 404 + EN/DE/UA pojawiają się w indeksie)
 
 ---
 
-### 🚨 FAZA F — PLAN SZCZEGÓŁOWY DLA AI W NOWEJ SESJI
+### 🚨 FAZA F — PLAN SZCZEGÓŁOWY (HISTORIC — większość zrealizowana w Sprincie G1-G6)
+
+> **Status (2026-05-10):** Większość punktów F (F2 image sizing, F4 console 401, F5 YT CDN 404) zrealizowana w Sprincie G3+G5. Pozostałe (F1 BackgroundVideo mobile skip, F3 polyfill, F6 composited animations) świadomie pominięte przez Marcina lub low ROI. Sekcja zachowana dla historic reference.
 
 **Cel:** Mobile 73 → 85+, Desktop 83 → 92+. Stan po Fazie E zaakceptowany przez Marcina, ale można wycisnąć więcej.
 
