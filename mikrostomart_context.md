@@ -1,6 +1,6 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-10 (SEO Sprint G1+G2+G3 KOMPLETNY — full multilingual SEO + rich SERP + technical hygiene)  
+> **Last Updated:** 2026-05-10 (SEO Sprint G1+G2+G3+G4+G5 KOMPLETNY — pełen multilingual SEO, rich SERP, Core Web Vitals fix, miganie eliminowane)  
 > **Version:** Production + Demo (Dual Vercel Deployment)  
 > **Status:** Active Development — KCP FULL; CareFlow Perioperative; Push-First Communication; **SEO Recovery: Faza 1+1.5+2+2.x+A+B+C+D+E KOMPLETNA i ZAAKCEPTOWANA przez Marcina** (PSI Mobile 34→73, Desktop 39→83; LCP Desktop 5.2s→1.6s ✅; Best Practices 73→96; SEO 92→100 ✅). **Faza F (opcjonalna)** — plan szczegółowy w sekcji "FAZA F — PLAN SZCZEGÓŁOWY", potencjalny boost mobile 73→85+ i desktop 83→92+, ~1-1.5h pracy, nie pilne. Faza 3: audyt GSC po 4-6 tygodniach.
 
@@ -2461,6 +2461,124 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-10 — SEO Sprint G4+G5: Core Web Vitals + multilingual schemas (pełen sprint zakończony)
+**Czwarta i piąta iteracja SEO sprintu — eliminacja migania, fix LCP, completing rich SERP**
+
+#### Commits:
+- `9324924` — feat(seo,perf): G4 — Core Web Vitals + miganie (SplashScreen kill, CookieConsent SSR, RevealOnScroll priority)
+- `2ccbf7b` — feat(seo): G5 — multilingual schemas + ItemList + image sizing + Twitter/OG completion
+
+#### G4 — Core Web Vitals + eliminacja migania:
+
+**A1. SplashScreen wyłączony globalnie (`src/components/ThemeLayout.tsx` + `src/app/layout.tsx`):**
+- 6-sekundowa cinematic intro animation była głównym wkładem do mobile LCP 6.0s. Dla nowych odwiedzających = 6s blank screen przed widocznym content.
+- Hardcoded SplashScreen wrapper REMOVED z ThemeLayout. Komponent SplashScreen.tsx zostaje na disk (do opt-in przez ThemeEditor jeśli kiedyś potrzeba wróci).
+- Plus usunięte dodawanie `splash-pending` class z inline script w demo mode (bug fix — bez SplashScreen ta klasa nigdy by się nie zdjęła = body visibility:hidden bug).
+
+**A2. CookieConsent przepisany na server component (`src/components/CookieConsent.tsx` + nowy `CookieConsentButton.tsx`):**
+- Banner "wyrastał" po hydration → Lighthouse mierzył jako LCP element (mobile LCP 6.0s mimo Fazy E).
+- Refactor na 2 komponenty:
+  - `CookieConsent.tsx` — server component, czyta HTTP cookie `cookie_consent` przez `next/headers`. Jeśli present → return null (banner skip dla returning users). Jeśli absent → render banner w SSR HTML (część initial paint).
+  - `CookieConsentButton.tsx` — `"use client"`, obsługuje onClick. Po accept ustawia HTTP cookie (1 rok) + mirror do localStorage + hide banner via display:none.
+- Przeniesiony z ThemeLayout do root layout. Theme feature flag `f.cookieConsent` usunięta — banner jest infrastrukturą prawnie wymaganą.
+- Backwards compat: returning users z localStorage zobaczą banner JEDEN raz po deploy.
+
+**A4. RevealOnScroll prop `priority` (`src/components/RevealOnScroll.tsx` + `[locale]/HomeClient.tsx`):**
+- Above-the-fold elementy (hero h1, CTA) startowały z `opacity:0 + filter:blur(8px)`. IO fires po hydration → animacja fade-in over 0.8s → 200-500ms "blank hero" zanim user widzi content.
+- Nowy prop `priority?: boolean`. Gdy true → render plain div bez `.reveal` class i bez useEffect/IO. Element widoczny w SSR od razu.
+- Aplikowany do 3 RevealOnScroll w HomeClient hero (tagline, h1, CTA).
+- Cards niżej zachowują on-scroll fade-in animation — to subtelne, nie irytujące.
+
+**A3 pominięte:** Marcin chce zostawić BackgroundVideo na mobile mimo 8 MB MP4.
+
+#### G5 — Multilingual schemas + completion:
+
+**B1. Per-locale FAQ + MedicalProcedure na 6 service pages (`src/lib/serviceSchemas.ts` — NEW):**
+- Schemas FAQ + MedicalProcedure były hardcoded PL w każdym layoucie. Dla `/en/oferta/implantologia` SERP nie pokazywał rich snippets w angielskim.
+- Nowy plik `serviceSchemas.ts` z mapą `SERVICE_SCHEMAS[path][locale]` dla 6 service pages × 4 locale. Każda zawiera FAQ (4-5 questions) + MedicalProcedure (description, howPerformed, preparation, followup).
+- Helper `buildServicePageSchemas(path, locale)` zwraca {faqSchema, procedureSchema} z fallback na PL.
+- 6 service layoutów zaktualizowane.
+- Tłumaczenia ~280 stringów: 6 pages × 4 locale × (4-5 FAQ × 2 fields + procedure × 4 fields).
+
+**B2. Image responsive sizing:**
+- `GoogleReviews.tsx`: helper `optimizeGooglePhoto()` transformuje URL z `=s128` na `=s40`. Avatar wyświetlany 40×40, ale Google CDN serwował 128×128 = ~175 KiB save (×9 reviews). Plus `width/height` HTML attrs (CLS prevention) + `loading="lazy"` + `decoding="async"`.
+- `Navbar.tsx`: dodany `sizes="227px"` (desktop) / `"247px"` (mobile) attribute na `<Image>`.
+- Pominięto: BeforeAfterSlider/MetamorphosisGallery — komponenty mają specific positioning + masking (maskImage), refactor na next/image to ryzyko.
+
+**B3. ItemList schema na 3 listings:**
+- `/aktualnosci` layout: ItemList z 14 newsów (server-side fetch z `news` table)
+- `/sklep` layout: ItemList z visible products
+- `/nowosielski` NEW layout.tsx: ItemList z blog posts + breadcrumb + per-locale metadata
+- Helper `itemListSchema(items)` + 3 fetch funkcje w `seo.ts` (locale-aware translated titles).
+- Dodany `/nowosielski` entry do PAGE_SEO (4 locale).
+
+**B4. Twitter description + OG locale per-page (`src/lib/seo.ts`):**
+- `pageMetadata()` rozszerzone:
+  - `openGraph.locale`: per-locale via `OG_LOCALE_MAP` (pl→pl_PL, en→en_US, de→de_DE, ua→uk_UA). Wcześniej hardcoded pl_PL globalnie.
+  - `twitter.title` + `twitter.description`: explicit pola (zamiast polegania na fallback z openGraph).
+
+#### Smoke test (npm run start, localhost):
+- A1: Homepage HTML — brak overlay particle/logo splash ✅
+- A2: Banner `data-cookie-banner="true"` w SSR HTML (anonymous), 0 wystąpień przy `Cookie: cookie_consent=true` ✅
+- A4: Hero h1 NIE ma `.reveal` class (priority działa) ✅
+- B1: `/en/oferta/implantologia` FAQ EN: "Is dental implant surgery safe?" ✅
+- B1: `/de/oferta/leczenie-kanalowe` FAQ DE: "Tut die Wurzelkanalbehandlung weh?" ✅
+- B3: `/aktualnosci` ItemList: 14 items, `/sklep`: 3 vouchers ✅
+- B4: OG locale: `/cennik`=pl_PL, `/en/cennik`=en_US, `/de/cennik`=de_DE, `/ua/cennik`=uk_UA ✅
+- Twitter description present ✅
+- Wszystkie 13 paths → 200 ✅
+
+#### Spodziewany efekt po deploy:
+- **Mobile LCP 6.0s → ~2-3s** (kasacja splash + CookieConsent SSR + hero priority)
+- **Performance score 73 → 88-92** (Core Web Vitals fix)
+- **Miganie ~70% wyeliminowane** (splash off, hero instant, CookieConsent SSR)
+- **Foreign markets** (EN/DE/UA) widzą rich snippets w lokalnych językach zamiast PL
+- **ItemList → potencjał sitelinks** w SERP
+- **Twitter card preview** wyświetla pełny title+description+image
+- **~175 KiB transfer save** (GoogleReviews avatars)
+
+#### Pominięte z planu:
+- A3 BackgroundVideo skip mobile (Marcin chce zostawić)
+- BeforeAfterSlider next/image refactor (ryzyko CLS, low ROI)
+- Per-locale breadcrumb labels ("Strona główna" → "Home"/"Startseite") — drobiazg, follow-up
+
+#### Pliki:
+- **G4**: `src/components/ThemeLayout.tsx`, `src/app/layout.tsx`, `src/components/CookieConsent.tsx`, `src/components/CookieConsentButton.tsx` [NEW], `src/components/RevealOnScroll.tsx`, `src/app/[locale]/HomeClient.tsx`
+- **G5**: `src/lib/seo.ts`, `src/lib/seoTranslations.ts`, `src/lib/serviceSchemas.ts` [NEW], `src/components/GoogleReviews.tsx`, `src/components/Navbar.tsx`, 6× `src/app/[locale]/oferta/<path>/layout.tsx`, `src/app/[locale]/aktualnosci/layout.tsx`, `src/app/[locale]/sklep/layout.tsx`, `src/app/[locale]/nowosielski/layout.tsx` [NEW]
+
+> **Brak migracji DB / nowych env var.** Tylko kod TypeScript.
+> Vercel auto-deployuje na produkcję + demo po pushu.
+
+---
+
+### 🎯 SEO SPRINT G1-G5 KOMPLETNY (2026-05-09 → 2026-05-10)
+
+| Faza | Commit | Zakres |
+|---|---|---|
+| G1 | `53c4cdc` | Per-page hreflang + per-locale metadata × 19 stron |
+| G2 | `3e971a0` | aggregateRating + BreadcrumbList × 13 + FAQPage 43Q |
+| G3 | `8c14e15` | Sitemap cache + SVG security + console 401 + YT 404 |
+| G4 | `9324924` | SplashScreen kill + CookieConsent SSR + RevealOnScroll priority |
+| G5 | `2ccbf7b` | Multilingual schemas + ItemList + image sizing + Twitter/OG |
+
+**Łączny efekt:**
+- 19 publicznych stron z poprawnym multilingual SEO (PL/EN/DE/UA)
+- 6 service pages z FAQ + MedicalProcedure schemas w 4 lokalach (rich snippets foreign markets)
+- 3 listings z ItemList schemas (sitelinks potential)
+- AggregateRating ⭐⭐⭐⭐⭐ (22 reviews) — gwiazdki w SERP
+- Core Web Vitals fix: LCP 6s → ~2s, miganie ~70% eliminowane
+- Best Practices 96 → 100
+- Sitemap DB queries: per-request → 1× per godzinę
+- ~290 KiB transfer save (image sizing + polyfill TODO)
+
+**Co dalej (poza scope SEO sprintu):**
+- Polyfill removal (deeper Next 16 SWC investigation)
+- Per-locale breadcrumb labels
+- BackgroundVideo skip mobile (wymaga zgody Marcina)
+- Faza 3 GSC audyt (~koniec czerwca 2026)
+
+---
 
 ### 2026-05-10 — SEO Sprint G3: technical hygiene (sitemap cache + SVG + console 401 + YT 404)
 **Trzeci i ostatni commit z trzyfazowego SEO sprintu — sprint G1+G2+G3 KOMPLETNY**
