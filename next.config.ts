@@ -58,7 +58,11 @@ const nextConfig: NextConfig = {
     },
   } as any,
   images: {
-    dangerouslyAllowSVG: true,
+    // Faza G3 (2026-05-09): wyłączone. Allows remote SVG to be served via next/image
+    // without sanitization — XSS risk + Lighthouse Best Practices flagi. Nasze remote
+    // patterns (unsplash, placehold, githubusercontent, *.supabase.co) raczej nie podają
+    // SVG, a jeśli kiedyś będzie potrzebne pojedyncze SVG, lepiej użyć <img> z znaną
+    // sanityzacją niż otwierać pełny dangerouslyAllowSVG.
     remotePatterns: [
       {
         protocol: 'https',

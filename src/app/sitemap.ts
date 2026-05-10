@@ -3,6 +3,12 @@ import { supabase } from '@/lib/supabaseClient';
 import { brand } from '@/lib/brandConfig';
 import { routing } from '@/i18n/routing';
 
+// Faza G3 (2026-05-09): cache sitemap przez 1 godzinę.
+// Bez tego każdy ping Googlebota / każde wejście /sitemap.xml triggerowało DB query
+// do Supabase (`articles` + `news` tables). Sitemap jest zwracany ze static cache,
+// regenerowany w tle co 3600s. Wartość lastModified = czas ostatniej regeneracji.
+export const revalidate = 3600;
+
 const BASE_URL = brand.appUrl;
 
 // Locale → URL prefix. PL is default with no prefix; rest get /{locale}/...

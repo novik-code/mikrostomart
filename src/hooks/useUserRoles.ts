@@ -13,7 +13,23 @@ interface UserRolesState {
 }
 
 /**
- * Client-side hook to fetch the current user's roles
+ * Quick client-side check whether a Supabase auth cookie is present.
+ * Avoids triggering /api/auth/roles 401 for anonymous visitors — the 401
+ * was logged by browsers as a network error and counted against Lighthouse
+ * Best Practices score.
+ */
+function hasSupabaseAuthCookie(): boolean {
+    if (typeof document === 'undefined') return false;
+    return document.cookie.split(';').some((c) => c.trim().startsWith('sb-'));
+}
+
+/**
+ * Client-side hook to fetch the current user's roles.
+ *
+ * Faza G3 (2026-05-09): skip fetch for anonymous visitors. Previously the hook
+ * always fetched /api/auth/roles which returned 401 for non-logged-in users,
+ * generating console errors and Lighthouse Best Practices penalties on every
+ * public page where the hook was mounted.
  */
 export function useUserRoles() {
     const [state, setState] = useState<UserRolesState>({
@@ -25,13 +41,26 @@ export function useUserRoles() {
     });
 
     useEffect(() => {
+        // Anonymous visitor → skip fetch, return empty roles immediately.
+        if (!hasSupabaseAuthCookie()) {
+            setState({
+                roles: [],
+                email: null,
+                userId: null,
+                loading: false,
+                error: null,
+            });
+            return;
+        }
+
         const fetchRoles = async () => {
             try {
                 const response = await fetch('/api/auth/roles');
 
                 if (!response.ok) {
                     if (response.status === 401) {
-                        setState(prev => ({ ...prev, loading: false, error: 'Not authenticated' }));
+                        // Cookie was stale (expired session). Treat as anonymous.
+                        setState({ roles: [], email: null, userId: null, loading: false, error: null });
                         return;
                     }
                     throw new Error(`Failed to fetch roles: ${response.status}`);
@@ -47,7 +76,7 @@ export function useUserRoles() {
                 });
             } catch (err) {
                 console.error('[useUserRoles] Error:', err);
-                setState(prev => ({
+                setState((prev) => ({
                     ...prev,
                     loading: false,
                     error: err instanceof Error ? err.message : 'Unknown error',

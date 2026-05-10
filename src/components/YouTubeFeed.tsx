@@ -174,6 +174,17 @@ export default function YouTubeFeed() {
                                                     src={`https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`}
                                                     alt={video.title}
                                                     loading="lazy"
+                                                    onError={(e) => {
+                                                        // Faza G3: fallback dla filmów które nie mają hqdefault (480p
+                                                        // jest opcjonalne w YouTube CDN). mqdefault (320×180) zawsze
+                                                        // istnieje — używamy jako safe fallback. Bez tego widać
+                                                        // broken-image icon i Lighthouse flaguje 404 w Best Practices.
+                                                        const img = e.currentTarget;
+                                                        if (!img.dataset.fallback) {
+                                                            img.dataset.fallback = '1';
+                                                            img.src = `https://i.ytimg.com/vi/${video.id}/mqdefault.jpg`;
+                                                        }
+                                                    }}
                                                     style={{
                                                         width: "100%",
                                                         height: "100%",
