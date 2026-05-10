@@ -1,7 +1,6 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { Link } from "@/i18n/navigation";
 import { brandI18nParams } from '@/lib/brandConfig';
 import RevealOnScroll from "@/components/RevealOnScroll";
 import OfferCarousel from "@/components/OfferCarousel";
@@ -45,9 +44,9 @@ export default function OfferPage() {
                     </div>
 
                     <div style={{ marginTop: "var(--spacing-xl)", textAlign: "center", marginBottom: "var(--spacing-xl)" }}>
-                        <Link href="/kontakt" className="btn-primary" style={{ padding: "1rem 3rem" }}>
+                        <a href="/kontakt" className="btn-primary" style={{ padding: "1rem 3rem" }}>
                             {t('contactCta')}
-                        </Link>
+                        </a>
                     </div>
                 </div>
             </section>

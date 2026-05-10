@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { type ZoneInfo, type SeverityLevel, type TipItem } from './SymptomData';
 import { getSymptomData } from './getSymptomData';
-import { Link } from '@/i18n/navigation';
+import Link from 'next/link';
 import { useTranslations, useLocale } from 'next-intl';
 
 // ─────────────────────────────────────────────────────────────

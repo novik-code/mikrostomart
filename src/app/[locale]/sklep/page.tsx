@@ -3,7 +3,7 @@
 import { useCart } from "@/context/CartContext";
 import { useTranslations, useLocale } from "next-intl";
 import { useState, useEffect } from "react";
-import { Link } from "@/i18n/navigation";
+import Link from "next/link";
 import Image from "next/image";
 import RevealOnScroll from "@/components/RevealOnScroll";
 import ProductModal from "@/components/ProductModal";

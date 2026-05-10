@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { Link } from '@/i18n/navigation';
+import Link from 'next/link';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import RevealOnScroll from '@/components/RevealOnScroll';

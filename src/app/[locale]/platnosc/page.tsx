@@ -2,7 +2,7 @@
 
 import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Link } from '@/i18n/navigation';
+import Link from 'next/link';
 
 function PaymentStatus() {
     const params = useSearchParams();
