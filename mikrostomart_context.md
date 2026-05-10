@@ -1,8 +1,8 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-10 (SEO Audit Sprint H1 — critical quick fixes: demo guard, AggregateRating filter, placeholder cleanup, schema improvements)  
+> **Last Updated:** 2026-05-10 (🎯 SEO Audit Sprint H1-H8 KOMPLETNY po awarii + naprawie — produkcja stabilna, postmortem zapisany w memory)  
 > **Version:** Production + Demo (Dual Vercel Deployment)  
-> **Status:** Active Development — KCP FULL; CareFlow Perioperative; Push-First Communication. **SEO AUDIT SPRINT H1-H7 W TOKU** (start 2026-05-10): pełen audyt 5 niezależnymi agentami wykrył ~47 problemów (15 krytycznych, 15 high impact, 17 medium). Faza H1 (quick fixes) **w trakcie** — demo guard w robots/sitemap, AggregateRating filter ≥1★ zamiast ≥4★, placeholder cleanup (googlePlaceId, youtubeChannelId), WebSite SearchAction usunięty (broken), robots disallow rozszerzony, paymentAccepted enhanced, /kontakt 'Nawiguj' i18n. Następne fazy H2-H7 obejmują: metadata gaps, internal linking, schema enrichment, performance/images, content quality, international landing pages. **Wcześniejsze SEO Sprint G1-G6 KOMPLETNY** (Recovery Faza 1-E + Sprint G1-G6 + Footer fix + Navbar/carousels fix, 2026-05-09 → 2026-05-10): pełen multilingual SEO (4 locale), rich SERP (gwiazdki/breadcrumbs/FAQ accordion), Core Web Vitals fix (LCP 6s→2-3s, splash kill, CookieConsent SSR), per-locale breadcrumb labels, locale-aware navigation. PSI bazowo: Mobile 34→73, Desktop 39→83 (przed G4 — po G4 oczekiwany dalszy boost); SEO 100, Best Practices 96→100. Faza 3: audyt GSC po 4-6 tygodniach (~koniec czerwca 2026).
+> **Status:** Active Development — KCP FULL; CareFlow Perioperative; Push-First Communication. **🎯 SEO AUDIT SPRINT H1-H8 KOMPLETNY** (2026-05-10) po awarii + naprawie. Cykl: pełen audyt 5 niezależnymi agentami wykrył ~47 problemów → 8 faz wdrożenia (H1 quick fixes, H2 metadata gaps, H3 internal linking, H4 schema enrichment, H5 perf+images, H6 content, H7 intl landing, H8 real schema data) → po H8 push **awaria 500 production** (H3 batch sed przekonwertował 3 server components na `Link` z `@/i18n/navigation` który wewnętrznie używa `useLocale()` client-only hook → SSR crash) → 8 reverts cofnęły wszystko → bisect lokalny zlokalizował bug → fix `572af02` (zamiana na `<a href>` z manual locale prefix w 3 server components) → re-apply H1-H8 → produkcja stabilna `6c8f4fa`. ~35/47 problemów audytu zaadresowanych. **Wcześniejsze SEO Sprint G1-G6 + Recovery 1-E** ✅ KOMPLETNE (2026-05-09 → 2026-05-10): pełen multilingual SEO (4 locale), rich SERP, Core Web Vitals fix (LCP 6s→2-3s), PSI Mobile 34→73, Desktop 39→83. Faza 3 GSC: audyt po 4-6 tygodniach (~koniec czerwca 2026). Następna sesja: weryfikacja Rich Results, re-submit sitemap, ewentualne content expansion service pages (24 expansions H6 follow-up).
 
 ---
 
@@ -2461,6 +2461,82 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-10 — POSTMORTEM: H3 server component Link bug + recovery
+**Awaria po H8 push: produkcja zwracała 500 na wszystkich stronach pod `/[locale]`. Naprawa przez bisect + targeted fix.**
+
+#### Commits chronologicznie:
+- `502bb60` H8 (push o ~18:00) → produkcja 500 na wszystkich stronach
+- `d0dd75d` revert H8 — nadal 500
+- `d56c0b8` revert H7 — nadal 500
+- `029bb5b...6a82f0d` revert H1-H6 (sequential) → produkcja 200 OK ✅
+- `572af02` **fix: H3 sed missed server components — useLocale hook crash**
+- `fc70eb2..6c8f4fa` re-apply H1-H8 z fixem → produkcja 200 OK ✅
+
+#### Root cause:
+**H3 batch sed konwersja `import Link from 'next/link';` → `import { Link } from '@/i18n/navigation';`** zamieniła import w **3 server components**, których nie powinno się dotykać:
+- `src/components/CookieConsent.tsx` (root layout — crash wszystkich stron)
+- `src/app/[locale]/nowosielski/[slug]/page.tsx` (back link)
+- `src/app/[locale]/baza-wiedzy/[slug]/page.tsx` (back link)
+
+`Link` z `@/i18n/navigation` (next-intl wrapper) wewnętrznie używa `useLocale()` — **client-only React hook**. W server SSR rzuca `Error: No intl context found. Have you configured the provider?`. Każdy request do `/[locale]/*` zwraca 500.
+
+**Why nie wykryłem lokalnie podczas H3-H8 testów**: `npm run build` kompiluje clean (TypeScript valid). Bug objawia się tylko w **server runtime SSR**. Fresh `.next/` po pierwszym cherry-pick z action cache mógł serwować stronę z poprzedniej iteracji 200 OK, dopiero kolejne testy ujawniły problem.
+
+#### Diagnostyka (~30 min):
+1. Bisect na produkcji: revert H8 → revert H7 → ... → revert H1 (8 cycles × 5min = 40 min na deploy each).
+2. Site stabilny po pełnym revert (= pre-sprint state).
+3. Branch lokalny `seo/bisect2`, fresh cherry-pick H1-H6 → 500 lokalnie.
+4. Dev mode (`npm run dev` z Turbopackiem) zwrócił czytelny stack trace zamiast minified `chunks/6111.js:15:3947`:
+   ```
+   at useIntlContext
+   at useLocale
+   at BaseLink
+   ```
+5. `BaseLink` to internal next-intl. Reverse-engineered: rendered w server context = crash.
+6. Sprawdzenie listy 10 plików z H3 batch sed: 3 NIE mają `"use client"` → server components.
+
+#### Fix (commit `572af02`):
+
+**Pattern dla server components**:
+```tsx
+// ❌ Server component:
+import { Link } from '@/i18n/navigation';
+<Link href="/path">...</Link>  // CRASH: useLocale() in SSR
+
+// ✅ Server component:
+import { getLocale } from 'next-intl/server';
+const locale = await getLocale();
+const href = locale === 'pl' ? '/path' : `/${locale}/path`;
+<a href={href}>...</a>
+```
+
+3 pliki naprawione tym wzorcem:
+- `CookieConsent.tsx`: `<a href={policyHref}>` zamiast `<Link href="/polityka-cookies">`
+- `nowosielski/[slug]/page.tsx`: `<a href={locale === 'pl' ? '/nowosielski' : '/${locale}/nowosielski'}>` (locale już w params z H2)
+- `baza-wiedzy/[slug]/page.tsx`: analogicznie
+
+#### Final state na produkcji (commit `6c8f4fa`):
+- 16 URL przetestowanych lokalnie + 9 na produkcji = wszystkie 200 OK
+- Linia historii: 8 sprint commits + 8 reverts + 1 fix + 8 re-apply = 25 nowych commitów na main od pre-sprint
+
+#### Lessons learned (zapisane w memory `feedback_h3_server_link_bug.md`):
+- `Link` z `@/i18n/navigation` używa `useLocale()` hook → **NIGDY w server components**.
+- Build success ≠ runtime success. Server vs client component boundaries crashują tylko w SSR, build nie wykryje.
+- Diagnostyka 500 production ale lokalnie OK: użyj `npm run dev` (Turbopack) zamiast `npm run start` (minified prod build) dla czytelnego stack trace.
+- Przed batch sed: zawsze sprawdź `head -3 file | grep "use client"` żeby identyfikować server components.
+
+#### Pliki:
+- `src/components/CookieConsent.tsx` — `<Link>` → `<a href>` z manual locale prefix
+- `src/app/[locale]/nowosielski/[slug]/page.tsx` — analogicznie
+- `src/app/[locale]/baza-wiedzy/[slug]/page.tsx` — analogicznie
+- `~/.claude/projects/-Users-marcinnowosielskimedit-mikrostomart/memory/feedback_h3_server_link_bug.md` [NEW]
+- `~/.claude/projects/-Users-marcinnowosielskimedit-mikrostomart/memory/MEMORY.md` — dodany wpis
+
+> **Brak migracji DB / nowych env var.** Tylko zmiany kodu TypeScript w 3 plikach.
+> Vercel auto-deploy po pushu zakończony, produkcja stabilna.
+
+---
 
 ### 2026-05-10 — SEO Audit Sprint H8: real schema data (correction po H7)
 **Korekta po H7 — Marcin zauważył że dane były w projekcie, audyt ich nie skojarzył**
