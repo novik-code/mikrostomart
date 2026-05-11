@@ -105,6 +105,18 @@ export async function GET() {
 
         const roleByEmail = new Map((employeeRoles || []).map(r => [r.email?.toLowerCase(), r]));
 
+        // Wszystkie role per user_id (admin/employee/patient) — dla Phase 3 UI
+        const { data: allUserRoles } = await supabase
+            .from('user_roles')
+            .select('user_id, role');
+        const rolesByUserId = new Map<string, string[]>();
+        for (const r of (allUserRoles || [])) {
+            if (!r.user_id) continue;
+            const arr = rolesByUserId.get(r.user_id) || [];
+            arr.push(r.role);
+            rolesByUserId.set(r.user_id, arr);
+        }
+
         // ─── Step 4: Auto-merge Prodentis operators into employees ───
         // Dla każdego operatora z Prodentis:
         //   1. Jeśli już istnieje wiersz z tym prodentis_id (aktywny LUB nieaktywny)
@@ -185,16 +197,19 @@ export async function GET() {
             })
             .map((emp: any) => {
                 const roleInfo = roleByEmail.get(emp.email?.toLowerCase());
+                const userId = emp.user_id || roleInfo?.user_id || null;
                 return {
                     id: emp.id,            // employees table UUID
                     name: emp.name,
                     email: emp.email || null,
-                    user_id: emp.user_id || roleInfo?.user_id || null,
+                    user_id: userId,
                     position: emp.position || null,
                     push_groups: emp.push_groups || [],
                     prodentis_id: emp.prodentis_id || null,
                     is_active: emp.is_active ?? true,
+                    show_in_booking: emp.show_in_booking ?? false,
                     has_account: !!(emp.user_id || roleInfo),
+                    roles: userId ? (rolesByUserId.get(userId) || []) : [],
                     created_at: emp.created_at,
                 };
             });

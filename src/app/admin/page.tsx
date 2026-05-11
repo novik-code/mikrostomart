@@ -24,7 +24,6 @@ import {
     X,
     Users,
     MessageCircle,
-    Shield,
     Paintbrush,
     Bell,
     Trash2,
@@ -55,6 +54,8 @@ import PayUSettingsTab from './components/PayUSettingsTab';
 import AIEducationTab from './components/AIEducationTab';
 import PatientCommunicationTab from './components/PatientCommunicationTab';
 import CareFlowTab from './components/CareFlowTab';
+import EmployeeWizard from './components/EmployeeWizard';
+import EmployeeRow, { type EmployeeData } from './components/EmployeeRow';
 import { demoSanitize } from '@/lib/brandConfig';
 
 export default function AdminPage() {
@@ -81,7 +82,7 @@ export default function AdminPage() {
     const [products, setProducts] = useState<Product[]>([]);
     const [error, setError] = useState<string | null>(null);
 
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'questions' | 'articles' | 'news' | 'orders' | 'reservations' | 'blog' | 'patients' | 'appointment-instructions' | 'roles' | 'employees' | 'chat' | 'theme' | 'page-builder' | 'booking-settings' | 'online-bookings' | 'cancelled-appointments' | 'social-media' | 'pms-settings' | 'sms-provider' | 'stripe-settings' | 'p24-settings' | 'payu-settings' | 'ai-education' | 'patient-communication' | 'careflow' | 'schedule-editor' | 'time-tracking' | 'leaves'>('dashboard');
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'questions' | 'articles' | 'news' | 'orders' | 'reservations' | 'blog' | 'patients' | 'appointment-instructions' | 'employees' | 'chat' | 'theme' | 'page-builder' | 'booking-settings' | 'online-bookings' | 'cancelled-appointments' | 'social-media' | 'pms-settings' | 'sms-provider' | 'stripe-settings' | 'p24-settings' | 'payu-settings' | 'ai-education' | 'patient-communication' | 'careflow' | 'schedule-editor' | 'time-tracking' | 'leaves'>('dashboard');
     // Cancelled appointments state
     const [cancelledAppointments, setCancelledAppointments] = useState<any[]>([]);
     const [cancelledLoading, setCancelledLoading] = useState(false);
@@ -93,33 +94,18 @@ export default function AdminPage() {
     const [reservations, setReservations] = useState<any[]>([]);
     const [patients, setPatients] = useState<any[]>([]);
 
-    // Roles state
-    const [rolesUsers, setRolesUsers] = useState<any[]>([]);
-    const [rolesLoading, setRolesLoading] = useState(false);
-    const [rolesError, setRolesError] = useState<string | null>(null);
-    const [patientCandidates, setPatientCandidates] = useState<any[]>([]);
-    const [promotingEmail, setPromotingEmail] = useState<string | null>(null);
-
-    // Employees state
-    const [employeesList, setEmployeesList] = useState<any[]>([]);
+    // Employees state (Phase 3 — unified employee management)
+    const [employeesList, setEmployeesList] = useState<EmployeeData[]>([]);
     const [employeesLoading, setEmployeesLoading] = useState(false);
     const [prodentisAvailable, setProdentisAvailable] = useState(true);
     const [showInactive, setShowInactive] = useState(false);
-    const [editingEmployeeId, setEditingEmployeeId] = useState<string | null>(null);
-    const [editName, setEditName] = useState('');
-    const [editEmail, setEditEmail] = useState('');
-    const [employeeEmails, setEmployeeEmails] = useState<Record<string, string>>({});
-    const [addingEmployee, setAddingEmployee] = useState<string | null>(null);
-    const [newManualName, setNewManualName] = useState('');
-    const [newManualEmail, setNewManualEmail] = useState('');
-    const [addingManual, setAddingManual] = useState(false);
     const [expandedStaffId, setExpandedStaffId] = useState<string | null>(null);
+    const [wizardOpen, setWizardOpen] = useState(false);
+    const [employeeFlashMessage, setEmployeeFlashMessage] = useState<string | null>(null);
 
     // SMS stats — used by sidebar badge and dashboard
     const [smsStats, setSmsStats] = useState({ total: 0, draft: 0, sent: 0, failed: 0, cancelled: 0 });
     const [manualGenerationStatus, setManualGenerationStatus] = useState<string | null>(null);
-    // Push employee groups — used by Roles tab push group chips
-    const [pushEmpGroups, setPushEmpGroups] = useState<Record<string, string[]>>({});
 
     // Appointment Instructions state
     const [appointmentInstructions, setAppointmentInstructions] = useState<any[]>([]);
@@ -207,9 +193,6 @@ export default function AdminPage() {
                 break;
             case 'patients':
                 if (!loadedTabs.has('patients')) { fetchPatients(); markLoaded('patients'); }
-                break;
-            case 'roles':
-                if (!loadedTabs.has('roles')) { fetchRoles(); markLoaded('roles'); }
                 break;
             case 'employees':
                 if (!loadedTabs.has('employees')) { fetchEmployees(); markLoaded('employees'); }
@@ -858,121 +841,6 @@ export default function AdminPage() {
         }
     };
 
-    // Roles Functions
-    const fetchRoles = async () => {
-        setRolesLoading(true);
-        setRolesError(null);
-        try {
-            const res = await fetch('/api/admin/roles');
-            if (res.ok) {
-                const data = await res.json();
-                setRolesUsers(data.users || []);
-                setPatientCandidates(data.patientCandidates || []);
-                // Pre-populate Podgrupa dropdowns from returned employee positions
-                const posMap: Record<string, string[]> = {};
-                for (const u of (data.users || [])) {
-                    if (u.employeePosition?.push_groups?.length > 0) {
-                        posMap[u.user_id] = u.employeePosition.push_groups;
-                    } else if (u.employeePosition?.employee_group) {
-                        // legacy fallback
-                        posMap[u.user_id] = [u.employeePosition.employee_group];
-                    }
-                }
-                setPushEmpGroups(posMap);
-            } else {
-                const errData = await res.json();
-                setRolesError(errData.error || 'Blad pobierania danych');
-            }
-        } catch (err) {
-            console.error('Failed to fetch roles:', err);
-            setRolesError('Blad polaczenia z serwerem');
-        } finally {
-            setRolesLoading(false);
-        }
-    };
-
-    const toggleRole = async (userId: string, email: string, role: string, hasRole: boolean) => {
-        try {
-            if (hasRole) {
-                // Revoke
-                const res = await fetch('/api/admin/roles', {
-                    method: 'DELETE',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ userId, role }),
-                });
-                if (!res.ok) {
-                    const errData = await res.json();
-                    alert(errData.error || 'Blad usuwania roli');
-                    return;
-                }
-            } else {
-                // Grant
-                const res = await fetch('/api/admin/roles', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ userId, email, role }),
-                });
-                if (!res.ok) {
-                    const errData = await res.json();
-                    alert(errData.error || 'Blad nadawania roli');
-                    return;
-                }
-            }
-            fetchRoles();
-        } catch (err) {
-            console.error('Failed to toggle role:', err);
-            alert('Blad polaczenia z serwerem');
-        }
-    };
-
-    const promotePatient = async (email: string, rolesToGrant: string[]) => {
-        if (!confirm(`Czy na pewno chcesz awansować ${email} i nadać role: ${rolesToGrant.join(', ')}?\n\nZostanie utworzone konto Supabase Auth z linkiem do ustawienia hasła.`)) {
-            return;
-        }
-        setPromotingEmail(email);
-        try {
-            const res = await fetch('/api/admin/roles/promote', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    patientEmail: email,
-                    roles: rolesToGrant,
-                    sendPasswordReset: true,
-                }),
-            });
-            const data = await res.json();
-            if (res.ok) {
-                alert(`✅ ${data.message}`);
-                fetchRoles();
-            } else {
-                alert(`❌ Błąd: ${data.error}`);
-            }
-        } catch (err) {
-            console.error('Promote error:', err);
-            alert('Błąd połączenia z serwerem');
-        } finally {
-            setPromotingEmail(null);
-        }
-    };
-
-    const dismissPatient = async (patientId: string, email: string) => {
-        if (!confirm(`Ukryć ${email} z listy awansowania?`)) return;
-        try {
-            const res = await fetch('/api/admin/roles/dismiss', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ patientId }),
-            });
-            if (res.ok) {
-                setPatientCandidates(prev => prev.filter(p => p.id !== patientId));
-            } else {
-                alert('Błąd ukrywania pacjenta');
-            }
-        } catch {
-            alert('Błąd połączenia');
-        }
-    };
-
     const sendResetPassword = async (email: string) => {
         if (!confirm(`Wyślij email z resetem hasła do ${email}?`)) return;
         try {
@@ -983,26 +851,6 @@ export default function AdminPage() {
             });
             if (res.ok) {
                 alert('✅ Email z linkiem do ustawienia hasła został wysłany!');
-            } else {
-                const data = await res.json();
-                alert(`❌ Błąd: ${data.error}`);
-            }
-        } catch {
-            alert('Błąd połączenia');
-        }
-    };
-
-    const deleteUser = async (userId: string, email: string) => {
-        if (!confirm(`⚠️ UWAGA: Czy na pewno chcesz TRWALE usunąć konto ${email}?\n\nTej operacji nie można cofnąć!`)) return;
-        try {
-            const res = await fetch('/api/admin/roles/delete', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId }),
-            });
-            if (res.ok) {
-                alert('✅ Konto zostało usunięte');
-                fetchRoles();
             } else {
                 const data = await res.json();
                 alert(`❌ Błąd: ${data.error}`);
@@ -1031,152 +879,32 @@ export default function AdminPage() {
         }
     };
 
-    const addEmployee = async (staffId: string, staffName: string) => {
-        const email = employeeEmails[staffId]?.trim();
-        if (!email) {
-            alert('Podaj adres email pracownika');
-            return;
+    // ── Phase 3: Unified Employee Management ───────────────────────
+    const refreshEmployeesAfterChange = (msg?: string) => {
+        if (msg) {
+            setEmployeeFlashMessage(msg);
+            setTimeout(() => setEmployeeFlashMessage(null), 4000);
         }
-        if (!email.includes('@')) {
-            alert('Podaj poprawny adres email');
-            return;
-        }
-        setAddingEmployee(staffId);
-        try {
-            const res = await fetch('/api/admin/roles/promote', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    patientEmail: email,
-                    roles: ['employee'],
-                    sendPasswordReset: true,
-                    employeeName: staffName,
-                }),
-            });
-            const data = await res.json();
-            if (res.ok) {
-                alert(`\u2705 ${data.message}`);
-                setEmployeeEmails(prev => ({ ...prev, [staffId]: '' }));
-                fetchEmployees();
-            } else {
-                alert(`\u274c B\u0142\u0105d: ${data.error}`);
-            }
-        } catch (err) {
-            console.error('Add employee error:', err);
-            alert('B\u0142\u0105d po\u0142\u0105czenia z serwerem');
-        } finally {
-            setAddingEmployee(null);
-        }
+        fetchEmployees();
     };
 
-    const addManualEmployee = async () => {
-        const name = newManualName.trim();
-        const email = newManualEmail.trim();
-        if (!name) { alert('Podaj imi\u0119 i nazwisko'); return; }
-        if (!email || !email.includes('@')) { alert('Podaj poprawny adres email'); return; }
-        if (!confirm(`Utworzy\u0107 konto pracownika?\n\n${name}\n${email}`)) return;
-        setAddingManual(true);
-        try {
-            const res = await fetch('/api/admin/roles/promote', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    patientEmail: email,
-                    roles: ['employee'],
-                    sendPasswordReset: true,
-                    employeeName: name,
-                }),
-            });
-            const data = await res.json();
-            if (res.ok) {
-                alert(`\u2705 ${data.message}`);
-                setNewManualName('');
-                setNewManualEmail('');
-                fetchEmployees();
-            } else {
-                alert(`\u274c B\u0142\u0105d: ${data.error}`);
-            }
-        } catch {
-            alert('B\u0142\u0105d po\u0142\u0105czenia');
-        } finally {
-            setAddingManual(false);
-        }
-    };
-
-    const deactivateEmployee = async (empId: string, name: string) => {
-        if (!confirm(`Dezaktywowa\u0107 pracownika \u201e${name}\u201d?\n\nPracownik zniknie z:\n\u2022 Listy pracownik\u00f3w\n\u2022 Przypisywania do zada\u0144\n\u2022 Powiadomie\u0144 push\n\nDane w Prodentis NIE zostan\u0105 zmienione.`)) return;
-        try {
-            const res = await fetch('/api/admin/employees/deactivate', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id: empId }),
-            });
-            if (res.ok) {
-                alert('\u2705 Pracownik dezaktywowany');
-                fetchEmployees();
-            } else {
-                const data = await res.json();
-                alert(`\u274c ${data.error}`);
-            }
-        } catch {
-            alert('B\u0142\u0105d po\u0142\u0105czenia');
-        }
-    };
-
-    const reactivateEmployee = async (empId: string, name: string) => {
-        if (!confirm(`Reaktywowa\u0107 pracownika \u201e${name}\u201d?`)) return;
-        try {
-            const res = await fetch('/api/admin/employees/deactivate', {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id: empId }),
-            });
-            if (res.ok) {
-                alert('\u2705 Pracownik reaktywowany');
-                fetchEmployees();
-            } else {
-                const data = await res.json();
-                alert(`\u274c ${data.error}`);
-            }
-        } catch {
-            alert('B\u0142\u0105d po\u0142\u0105czenia');
-        }
-    };
-
-
-    const startEditEmployee = (emp: any) => {
-        setEditingEmployeeId(emp.id);
-        setEditName(emp.name || '');
-        setEditEmail(emp.email || '');
-    };
-
-    const saveEditEmployee = async (empId: string) => {
-        try {
-            const res = await fetch('/api/admin/employees', {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id: empId, name: editName.trim(), email: editEmail.trim() }),
-            });
-            if (res.ok) {
-                alert('\u2705 Zapisano');
-                setEditingEmployeeId(null);
-                fetchEmployees();
-            } else {
-                const data = await res.json();
-                alert(`\u274c ${data.error}`);
-            }
-        } catch {
-            alert('B\u0142\u0105d po\u0142\u0105czenia');
-        }
-    };
+    const prodentisCandidatesForWizard = employeesList
+        .filter(e => e.is_active && e.prodentis_id && (!e.user_id || (e.email || '').includes('@auto.mikrostomart.pl')))
+        .map(e => ({
+            id: e.id,
+            name: e.name,
+            prodentis_id: e.prodentis_id || '',
+            email: e.email,
+            position: e.position,
+        }));
 
     const renderEmployeesTab = () => {
         if (employeesLoading && employeesList.length === 0) {
             return <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-text-muted)' }}>Ładowanie pracowników...</div>;
         }
 
-        const activeEmployees = employeesList.filter((e: any) => e.is_active);
-        const inactiveEmployees = employeesList.filter((e: any) => !e.is_active);
+        const activeEmployees = employeesList.filter(e => e.is_active);
+        const inactiveEmployees = employeesList.filter(e => !e.is_active);
         const displayList = showInactive ? employeesList : activeEmployees;
 
         return (
@@ -1184,7 +912,7 @@ export default function AdminPage() {
                 {/* Prodentis connection status */}
                 {!prodentisAvailable && (
                     <div style={{
-                        padding: '0.75rem 1rem', marginBottom: '1.5rem',
+                        padding: '0.75rem 1rem', marginBottom: '1.25rem',
                         background: '#eab30815', border: '1px solid #eab30840',
                         borderRadius: '8px', fontSize: '0.85rem', color: '#eab308'
                     }}>
@@ -1192,8 +920,18 @@ export default function AdminPage() {
                     </div>
                 )}
 
+                {employeeFlashMessage && (
+                    <div style={{
+                        padding: '0.6rem 1rem', marginBottom: '1.25rem',
+                        background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)',
+                        borderRadius: '8px', fontSize: '0.85rem', color: '#86efac'
+                    }}>
+                        ✅ {employeeFlashMessage}
+                    </div>
+                )}
+
                 {/* Header */}
-                <div style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+                <div style={{ marginBottom: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
                     <div>
                         <h3 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--color-text-main)' }}>
                             Pracownicy ({activeEmployees.length})
@@ -1204,22 +942,27 @@ export default function AdminPage() {
                             )}
                         </h3>
                         <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
-                            Jedna lista — operatorzy Prodentis i dodani ręcznie
+                            Jedna lista — dane, konto, booking i push w rozwijanym wierszu
                         </p>
                     </div>
-                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
                         <button onClick={() => setShowInactive(!showInactive)} style={{
                             padding: '0.4rem 0.8rem', background: showInactive ? 'rgba(255,255,255,0.1)' : 'transparent',
                             border: '1px solid var(--color-border)', borderRadius: '6px',
-                            color: showInactive ? '#ef4444' : 'var(--color-text-muted)', cursor: 'pointer', fontSize: '0.8rem',
+                            color: showInactive ? '#fca5a5' : 'var(--color-text-muted)', cursor: 'pointer', fontSize: '0.8rem',
                         }}>
                             {showInactive ? '👁 Ukryj nieaktywnych' : `👁 Nieaktywni (${inactiveEmployees.length})`}
                         </button>
                         <button onClick={fetchEmployees} style={{
-                            padding: '0.4rem 1rem', background: 'var(--color-surface)',
+                            padding: '0.4rem 0.9rem', background: 'var(--color-surface)',
                             border: '1px solid var(--color-border)', borderRadius: '6px',
-                            color: 'var(--color-text-main)', cursor: 'pointer', fontSize: '0.85rem'
-                        }}>Odśwież</button>
+                            color: 'var(--color-text-main)', cursor: 'pointer', fontSize: '0.8rem'
+                        }}>🔄 Odśwież</button>
+                        <button onClick={() => setWizardOpen(true)} style={{
+                            padding: '0.5rem 1rem', background: 'var(--color-primary)',
+                            border: 'none', borderRadius: '6px',
+                            color: '#000', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600,
+                        }}>+ Dodaj pracownika</button>
                     </div>
                 </div>
 
@@ -1231,246 +974,29 @@ export default function AdminPage() {
                         border: '1px solid var(--color-border)',
                         color: 'var(--color-text-muted)',
                     }}>
-                        Brak pracowników. Dodaj ręcznie poniżej lub poczekaj na synchronizację z Prodentis.
+                        Brak pracowników. Kliknij „Dodaj pracownika" aby utworzyć pierwszego.
                     </div>
                 ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                        {displayList.map((emp: any) => {
-                            const isExpanded = expandedStaffId === emp.id;
-                            const isInactive = !emp.is_active;
-                            return (
-                                <div key={emp.id} style={{
-                                    background: 'var(--color-surface)',
-                                    borderRadius: '10px',
-                                    border: `1px solid ${isExpanded ? 'var(--color-primary)' : 'var(--color-border)'}`,
-                                    overflow: 'hidden',
-                                    transition: 'border-color 0.2s',
-                                    opacity: isInactive ? 0.5 : 1,
-                                }}>
-                                    {/* Header row — always visible */}
-                                    <div
-                                        onClick={() => setExpandedStaffId(isExpanded ? null : emp.id)}
-                                        style={{
-                                            padding: '0.85rem 1.25rem',
-                                            display: 'flex',
-                                            justifyContent: 'space-between',
-                                            alignItems: 'center',
-                                            cursor: 'pointer',
-                                            userSelect: 'none',
-                                            transition: 'background 0.15s',
-                                        }}
-                                        onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; }}
-                                        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-                                    >
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                            <span style={{
-                                                fontSize: '0.9rem',
-                                                transition: 'transform 0.2s',
-                                                transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
-                                                display: 'inline-block',
-                                            }}>▶</span>
-                                            <span style={{ fontWeight: '600', fontSize: '0.95rem', color: isInactive ? 'var(--color-text-muted)' : 'var(--color-text-main)' }}>
-                                                {emp.name}
-                                            </span>
-                                        </div>
-                                        <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                                            {emp.prodentis_id && (
-                                                <span style={{
-                                                    padding: '0.1rem 0.5rem', borderRadius: '10px', fontSize: '0.65rem', fontWeight: '600',
-                                                    background: '#3b82f622', color: '#60a5fa',
-                                                }}>Prodentis</span>
-                                            )}
-                                            {emp.has_account && (
-                                                <span style={{
-                                                    padding: '0.1rem 0.5rem', borderRadius: '10px', fontSize: '0.65rem', fontWeight: '600',
-                                                    background: '#22c55e22', color: '#22c55e',
-                                                }}>Konto</span>
-                                            )}
-                                            {isInactive && (
-                                                <span style={{
-                                                    padding: '0.1rem 0.5rem', borderRadius: '10px', fontSize: '0.65rem', fontWeight: '600',
-                                                    background: '#ef444422', color: '#ef4444',
-                                                }}>Nieaktywny</span>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    {/* Expanded details */}
-                                    {isExpanded && (
-                                        <div
-                                            onClick={(e) => e.stopPropagation()}
-                                            style={{
-                                                padding: '0 1.25rem 1rem 2.5rem',
-                                                borderTop: '1px solid var(--color-border)',
-                                                paddingTop: '0.75rem',
-                                            }}
-                                        >
-                                            {/* Info / Edit mode */}
-                                            {editingEmployeeId === emp.id ? (
-                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                                                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                                                        <div style={{ flex: 1, minWidth: '150px' }}>
-                                                            <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--color-text-muted)', marginBottom: '0.15rem' }}>Imię i nazwisko</label>
-                                                            <input value={editName} onChange={(e) => setEditName(e.target.value)}
-                                                                style={{ width: '100%', boxSizing: 'border-box', padding: '0.4rem 0.6rem', borderRadius: '5px', border: '2px solid var(--color-primary)', background: 'var(--color-background)', color: 'var(--color-text-main)', fontSize: '0.85rem', fontFamily: 'inherit' }} />
-                                                        </div>
-                                                        <div style={{ flex: 1, minWidth: '180px' }}>
-                                                            <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--color-text-muted)', marginBottom: '0.15rem' }}>Email</label>
-                                                            <input value={editEmail} onChange={(e) => setEditEmail(e.target.value)} type="email"
-                                                                style={{ width: '100%', boxSizing: 'border-box', padding: '0.4rem 0.6rem', borderRadius: '5px', border: '2px solid var(--color-primary)', background: 'var(--color-background)', color: 'var(--color-text-main)', fontSize: '0.85rem', fontFamily: 'inherit' }} />
-                                                        </div>
-                                                    </div>
-                                                    <div style={{ display: 'flex', gap: '0.4rem' }}>
-                                                        <button onClick={() => saveEditEmployee(emp.id)} style={{ padding: '0.3rem 0.8rem', background: 'var(--color-primary)', border: 'none', borderRadius: '5px', color: '#000', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.75rem' }}>💾 Zapisz</button>
-                                                        <button onClick={() => setEditingEmployeeId(null)} style={{ padding: '0.3rem 0.8rem', background: 'transparent', border: '1px solid var(--color-border)', borderRadius: '5px', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: '0.75rem' }}>Anuluj</button>
-                                                    </div>
-                                                </div>
-                                            ) : (
-                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.75rem', fontSize: '0.75rem', color: 'var(--color-text-muted)', alignItems: 'center' }}>
-                                                    {emp.email && <span>📧 {emp.email}</span>}
-                                                    {emp.prodentis_id && <span>🔗 Prodentis ID: {emp.prodentis_id}</span>}
-                                                    {emp.position && <span>👤 {emp.position}</span>}
-                                                    <button onClick={() => startEditEmployee(emp)} style={{ padding: '0.15rem 0.5rem', background: 'transparent', border: '1px solid var(--color-border)', borderRadius: '4px', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: '0.7rem' }}>✏️ Edytuj</button>
-                                                </div>
-                                            )}
-
-                                            {/* Actions */}
-                                            <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-                                                {emp.has_account && emp.email && (
-                                                    <button
-                                                        onClick={() => sendResetPassword(emp.email)}
-                                                        style={{
-                                                            padding: '0.35rem 0.8rem', background: 'transparent',
-                                                            color: 'var(--color-text-muted)', border: '1px solid var(--color-border)',
-                                                            borderRadius: '5px', cursor: 'pointer', fontSize: '0.75rem',
-                                                        }}
-                                                    >🔑 Reset hasła</button>
-                                                )}
-                                                {!emp.has_account && (
-                                                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap', width: '100%' }}>
-                                                        <input
-                                                            type="email"
-                                                            placeholder="Adres email pracownika..."
-                                                            value={employeeEmails[emp.id] || ''}
-                                                            onChange={(e) => setEmployeeEmails((prev: any) => ({ ...prev, [emp.id]: e.target.value }))}
-                                                            style={{
-                                                                flex: 1, minWidth: '200px', padding: '0.5rem 0.75rem',
-                                                                borderRadius: '6px', border: '2px solid var(--color-border)',
-                                                                background: 'var(--color-background)', color: 'var(--color-text-main)',
-                                                                fontSize: '0.9rem', fontFamily: 'inherit',
-                                                            }}
-                                                            onKeyDown={(e) => { if (e.key === 'Enter') addEmployee(emp.id, emp.name); }}
-                                                        />
-                                                        <button
-                                                            onClick={() => addEmployee(emp.id, emp.name)}
-                                                            disabled={addingEmployee === emp.id || !employeeEmails[emp.id]?.trim()}
-                                                            style={{
-                                                                padding: '0.5rem 1.25rem',
-                                                                background: (!employeeEmails[emp.id]?.trim() || addingEmployee === emp.id) ? '#444' : 'var(--color-primary)',
-                                                                border: 'none', borderRadius: '6px', color: '#000', fontWeight: 'bold',
-                                                                cursor: (!employeeEmails[emp.id]?.trim() || addingEmployee === emp.id) ? 'not-allowed' : 'pointer',
-                                                                fontSize: '0.85rem', whiteSpace: 'nowrap',
-                                                            }}
-                                                        >
-                                                            {addingEmployee === emp.id ? '⏳ Tworzę...' : '➕ Dodaj konto'}
-                                                        </button>
-                                                    </div>
-                                                )}
-                                                {emp.is_active ? (
-                                                    <button
-                                                        onClick={() => deactivateEmployee(emp.id, emp.name)}
-                                                        style={{
-                                                            padding: '0.3rem 0.7rem', background: 'transparent',
-                                                            color: 'var(--color-error, #ef4444)', border: '1px solid var(--color-error, #ef4444)',
-                                                            borderRadius: '5px', cursor: 'pointer', fontSize: '0.7rem',
-                                                        }}
-                                                    >✖ Dezaktywuj</button>
-                                                ) : (
-                                                    <button
-                                                        onClick={() => reactivateEmployee(emp.id, emp.name)}
-                                                        style={{
-                                                            padding: '0.3rem 0.7rem', background: 'transparent',
-                                                            color: '#22c55e', border: '1px solid #22c55e',
-                                                            borderRadius: '5px', cursor: 'pointer', fontSize: '0.7rem',
-                                                        }}
-                                                    >✔ Reaktywuj</button>
-                                                )}
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            );
-                        })}
+                        {displayList.map((emp) => (
+                            <EmployeeRow
+                                key={emp.id}
+                                employee={emp}
+                                isExpanded={expandedStaffId === emp.id}
+                                onToggle={() => setExpandedStaffId(expandedStaffId === emp.id ? null : emp.id)}
+                                onAfterChange={refreshEmployeesAfterChange}
+                                onPasswordReset={sendResetPassword}
+                            />
+                        ))}
                     </div>
                 )}
 
-                {/* Manual add (for staff not in Prodentis) */}
-                <div style={{
-                    marginTop: '2rem',
-                    background: 'var(--color-surface)',
-                    borderRadius: '12px',
-                    padding: '1.25rem',
-                    border: '1px dashed var(--color-border)',
-                }}>
-                    <h3 style={{ margin: '0 0 0.75rem 0', fontSize: '1rem', color: 'var(--color-text-main)' }}>
-                        ➕ Dodaj ręcznie
-                    </h3>
-                    <p style={{ margin: '0 0 0.75rem 0', fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
-                        Dla pracowników spoza Prodentis (np. administracja, marketing)
-                    </p>
-                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
-                        <div style={{ flex: 1, minWidth: '150px' }}>
-                            <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--color-text-muted)', marginBottom: '0.25rem' }}>
-                                Imię i nazwisko
-                            </label>
-                            <input
-                                type="text"
-                                placeholder="np. Anna Kowalska"
-                                value={newManualName}
-                                onChange={(e) => setNewManualName(e.target.value)}
-                                style={{
-                                    width: '100%', boxSizing: 'border-box',
-                                    padding: '0.5rem 0.75rem', borderRadius: '6px',
-                                    border: '2px solid var(--color-border)',
-                                    background: 'var(--color-background)', color: 'var(--color-text-main)',
-                                    fontSize: '0.9rem', fontFamily: 'inherit',
-                                }}
-                            />
-                        </div>
-                        <div style={{ flex: 1, minWidth: '180px' }}>
-                            <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--color-text-muted)', marginBottom: '0.25rem' }}>
-                                Adres email
-                            </label>
-                            <input
-                                type="email"
-                                placeholder="pracownik@email.pl"
-                                value={newManualEmail}
-                                onChange={(e) => setNewManualEmail(e.target.value)}
-                                style={{
-                                    width: '100%', boxSizing: 'border-box',
-                                    padding: '0.5rem 0.75rem', borderRadius: '6px',
-                                    border: '2px solid var(--color-border)',
-                                    background: 'var(--color-background)', color: 'var(--color-text-main)',
-                                    fontSize: '0.9rem', fontFamily: 'inherit',
-                                }}
-                                onKeyDown={(e) => { if (e.key === 'Enter') addManualEmployee(); }}
-                            />
-                        </div>
-                        <button
-                            onClick={addManualEmployee}
-                            disabled={addingManual || !newManualName.trim() || !newManualEmail.trim()}
-                            style={{
-                                padding: '0.5rem 1.25rem',
-                                background: (addingManual || !newManualName.trim() || !newManualEmail.trim()) ? '#444' : 'var(--color-primary)',
-                                border: 'none', borderRadius: '6px', color: '#000', fontWeight: 'bold',
-                                cursor: (addingManual || !newManualName.trim() || !newManualEmail.trim()) ? 'not-allowed' : 'pointer',
-                                fontSize: '0.85rem', whiteSpace: 'nowrap',
-                            }}
-                        >
-                            {addingManual ? '⏳...' : '➕ Dodaj'}
-                        </button>
-                    </div>
-                </div>
+                <EmployeeWizard
+                    isOpen={wizardOpen}
+                    onClose={() => setWizardOpen(false)}
+                    onSuccess={(msg) => refreshEmployeesAfterChange(msg)}
+                    prodentisCandidates={prodentisCandidatesForWizard}
+                />
             </div>
         );
     };
@@ -1953,323 +1479,6 @@ export default function AdminPage() {
             )}
         </div>
     );
-
-    const renderRolesTab = () => {
-        if (rolesLoading && rolesUsers.length === 0) {
-            return <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-text-muted)' }}>Ladowanie...</div>;
-        }
-        if (rolesError) {
-            return <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-error)' }}>{rolesError}</div>;
-        }
-        if (rolesUsers.length === 0) {
-            return (
-                <div style={{ textAlign: 'center', padding: '3rem' }}>
-                    <p style={{ color: 'var(--color-text-muted)' }}>Brak uzytkownikow</p>
-                    <button onClick={fetchRoles} style={{
-                        marginTop: '1rem', padding: '0.5rem 1.5rem',
-                        background: 'var(--color-primary)', color: '#000',
-                        border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold'
-                    }}>Zaladuj uprawnienia</button>
-                </div>
-            );
-        }
-
-        const roleDefs = [
-            { key: 'admin', label: 'Admin', emoji: '🟢', color: '#22c55e' },
-            { key: 'employee', label: 'Pracownik', emoji: '🔵', color: '#3b82f6' },
-            { key: 'patient', label: 'Pacjent', emoji: '🟡', color: '#eab308' },
-        ];
-
-        return (
-            <div>
-                <div style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>
-                        {rolesUsers.length} uzytkownikow w systemie
-                    </p>
-                    <button onClick={fetchRoles} style={{
-                        padding: '0.4rem 1rem', background: 'var(--color-surface)',
-                        border: '1px solid var(--color-border)', borderRadius: '6px',
-                        color: 'var(--color-text-main)', cursor: 'pointer', fontSize: '0.85rem'
-                    }}>Odswiez</button>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                    {rolesUsers.map((user: any) => (
-                        <div key={user.user_id} style={{
-                            background: 'var(--color-surface)',
-                            borderRadius: '12px',
-                            padding: '1.25rem',
-                            border: '1px solid var(--color-border)',
-                        }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                                <div>
-                                    <div style={{ fontWeight: 'bold', fontSize: '1rem', color: 'var(--color-text-main)' }}>
-                                        {user.email}
-                                    </div>
-                                    <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', marginTop: '0.2rem', fontFamily: 'monospace' }}>
-                                        ID: {user.user_id.slice(0, 8)}...
-                                    </div>
-                                </div>
-                                <div style={{ display: 'flex', gap: '0.4rem' }}>
-                                    {user.roles.map((r: string) => {
-                                        const rd = roleDefs.find(d => d.key === r);
-                                        return rd ? (
-                                            <span key={r} style={{
-                                                background: rd.color + '22', color: rd.color,
-                                                padding: '0.2rem 0.6rem', borderRadius: '12px',
-                                                fontSize: '0.7rem', fontWeight: '600'
-                                            }}>{rd.emoji} {rd.label}</span>
-                                        ) : null;
-                                    })}
-                                </div>
-                                {/* Podgrupa push — multi-chip selector in Roles tab */}
-                                {user.roles.includes('employee') && (() => {
-                                    const EMP_OPTS = [
-                                        { key: 'doctor', label: '🦷 Lekarz' },
-                                        { key: 'hygienist', label: '💉 Higienistka' },
-                                        { key: 'reception', label: '📞 Recepcja' },
-                                        { key: 'assistant', label: '🔧 Asysta' },
-                                    ];
-                                    const currentGroups = pushEmpGroups[user.user_id] || [];
-                                    return (
-                                        <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-                                            <span style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)', flexShrink: 0 }}>Grupy push:</span>
-                                            {EMP_OPTS.map(opt => {
-                                                const active = currentGroups.includes(opt.key);
-                                                return (
-                                                    <button key={opt.key}
-                                                        onClick={() => {
-                                                            const next = active
-                                                                ? currentGroups.filter(g => g !== opt.key)
-                                                                : [...currentGroups, opt.key];
-                                                            setPushEmpGroups(prev => ({ ...prev, [user.user_id]: next }));
-                                                            // auto-save immediately
-                                                            fetch('/api/admin/employees/position', {
-                                                                method: 'PATCH',
-                                                                headers: { 'Content-Type': 'application/json' },
-                                                                body: JSON.stringify({ userId: user.user_id, groups: next }),
-                                                            });
-                                                        }}
-                                                        style={{
-                                                            padding: '0.18rem 0.5rem', borderRadius: '2rem', fontSize: '0.7rem', cursor: 'pointer',
-                                                            border: `1px solid ${active ? 'var(--color-primary)' : 'var(--color-border)'}`,
-                                                            background: active ? 'rgba(250,189,0,0.12)' : 'transparent',
-                                                            color: active ? 'var(--color-primary)' : 'var(--color-text-muted)',
-                                                            fontWeight: active ? 'bold' : 'normal', transition: 'all 0.1s',
-                                                        }}>{opt.label}</button>
-                                                );
-                                            })}
-                                        </div>
-                                    );
-                                })()}
-                            </div>
-
-                            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                                {roleDefs.map(rd => {
-                                    const has = user.roles.includes(rd.key);
-                                    return (
-                                        <button
-                                            key={rd.key}
-                                            onClick={() => toggleRole(user.user_id, user.email, rd.key, has)}
-                                            style={{
-                                                padding: '0.4rem 0.9rem',
-                                                background: has ? rd.color : 'transparent',
-                                                color: has ? '#fff' : 'var(--color-text-muted)',
-                                                border: `1px solid ${has ? rd.color : 'var(--color-border)'}`,
-                                                borderRadius: '6px',
-                                                cursor: 'pointer',
-                                                fontSize: '0.8rem',
-                                                fontWeight: has ? 'bold' : 'normal',
-                                                transition: 'all 0.2s',
-                                            }}
-                                        >
-                                            {has ? `${rd.emoji} ${rd.label} ✓` : `+ ${rd.label}`}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-
-                            {user.roleDetails && user.roleDetails.length > 0 && (
-                                <div style={{ marginTop: '0.6rem', fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>
-                                    {user.roleDetails.map((rd: any, i: number) => (
-                                        <span key={i} style={{ marginRight: '1rem' }}>
-                                            {rd.role}: nadane przez {rd.granted_by || 'system'} ({new Date(rd.granted_at).toLocaleDateString('pl-PL')})
-                                        </span>
-                                    ))}
-                                </div>
-                            )}
-                            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
-                                <button
-                                    onClick={() => sendResetPassword(user.email)}
-                                    style={{
-                                        padding: '0.3rem 0.7rem',
-                                        background: 'transparent',
-                                        color: 'var(--color-text-muted)',
-                                        border: '1px solid var(--color-border)',
-                                        borderRadius: '4px',
-                                        cursor: 'pointer',
-                                        fontSize: '0.7rem',
-                                    }}
-                                >
-                                    🔑 Reset hasła
-                                </button>
-                                {user.roles.length === 0 && (
-                                    <button
-                                        onClick={() => deleteUser(user.user_id, user.email)}
-                                        style={{
-                                            padding: '0.3rem 0.7rem',
-                                            background: 'transparent',
-                                            color: 'var(--color-error, #ef4444)',
-                                            border: '1px solid var(--color-error, #ef4444)',
-                                            borderRadius: '4px',
-                                            cursor: 'pointer',
-                                            fontSize: '0.7rem',
-                                        }}
-                                    >
-                                        🗑️ Usuń konto
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-                    ))}
-                </div>
-
-                {/* Patient Candidates for Promotion */}
-                {patientCandidates.length > 0 && (
-                    <div style={{
-                        marginTop: '2rem',
-                        borderTop: '2px solid var(--color-primary)',
-                        paddingTop: '1.5rem',
-                    }}>
-                        <div style={{
-                            display: 'flex', alignItems: 'center', gap: '0.75rem',
-                            marginBottom: '1rem'
-                        }}>
-                            <span style={{ fontSize: '1.3rem' }}>🔔</span>
-                            <div>
-                                <h3 style={{ margin: 0, color: 'var(--color-primary)' }}>Pacjenci do awansowania</h3>
-                                <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
-                                    Pacjenci zarejestrowani w Strefie Pacjenta, którzy nie mają jeszcze konta admin/pracownik
-                                </p>
-                            </div>
-                            <span style={{
-                                background: 'var(--color-primary)',
-                                color: '#000',
-                                padding: '0.2rem 0.6rem',
-                                borderRadius: '12px',
-                                fontSize: '0.8rem',
-                                fontWeight: 'bold',
-                                marginLeft: 'auto',
-                            }}>{patientCandidates.length}</span>
-                        </div>
-
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                            {patientCandidates.map((patient: any) => (
-                                <div key={patient.id} style={{
-                                    background: 'var(--color-surface)',
-                                    borderRadius: '12px',
-                                    padding: '1.25rem',
-                                    border: '1px solid rgba(var(--color-primary-rgb), 0.3)',
-                                    borderLeft: '4px solid var(--color-primary)',
-                                }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}>
-                                        <div>
-                                            <div style={{ fontWeight: 'bold', fontSize: '1rem', color: 'var(--color-text-main)' }}>
-                                                {patient.email}
-                                            </div>
-                                            <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: '0.3rem', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-                                                <span>📞 {patient.phone || 'brak'}</span>
-                                                <span>📅 {new Date(patient.createdAt).toLocaleDateString('pl-PL')}</span>
-                                                <span style={{
-                                                    color: patient.accountStatus === 'approved' ? '#22c55e' :
-                                                        patient.accountStatus === 'pending' ? '#eab308' : '#ef4444',
-                                                }}>● {patient.accountStatus || 'nieznany'}</span>
-                                                {patient.emailVerified && <span style={{ color: '#22c55e' }}>✓ email zweryfikowany</span>}
-                                            </div>
-                                        </div>
-                                        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-                                            <button
-                                                onClick={() => promotePatient(patient.email, ['employee'])}
-                                                disabled={promotingEmail === patient.email}
-                                                style={{
-                                                    padding: '0.5rem 1rem',
-                                                    background: '#3b82f6',
-                                                    color: '#fff',
-                                                    border: 'none',
-                                                    borderRadius: '6px',
-                                                    cursor: promotingEmail === patient.email ? 'wait' : 'pointer',
-                                                    fontSize: '0.8rem',
-                                                    fontWeight: 'bold',
-                                                    opacity: promotingEmail === patient.email ? 0.5 : 1,
-                                                }}
-                                            >
-                                                {promotingEmail === patient.email ? '⏳...' : '🔵 Pracownik'}
-                                            </button>
-                                            <button
-                                                onClick={() => promotePatient(patient.email, ['admin'])}
-                                                disabled={promotingEmail === patient.email}
-                                                style={{
-                                                    padding: '0.5rem 1rem',
-                                                    background: '#22c55e',
-                                                    color: '#fff',
-                                                    border: 'none',
-                                                    borderRadius: '6px',
-                                                    cursor: promotingEmail === patient.email ? 'wait' : 'pointer',
-                                                    fontSize: '0.8rem',
-                                                    fontWeight: 'bold',
-                                                    opacity: promotingEmail === patient.email ? 0.5 : 1,
-                                                }}
-                                            >
-                                                {promotingEmail === patient.email ? '⏳...' : '🟢 Admin'}
-                                            </button>
-                                            <button
-                                                onClick={() => promotePatient(patient.email, ['employee', 'admin'])}
-                                                disabled={promotingEmail === patient.email}
-                                                style={{
-                                                    padding: '0.5rem 1rem',
-                                                    background: 'linear-gradient(135deg, #3b82f6, #22c55e)',
-                                                    color: '#fff',
-                                                    border: 'none',
-                                                    borderRadius: '6px',
-                                                    cursor: promotingEmail === patient.email ? 'wait' : 'pointer',
-                                                    fontSize: '0.8rem',
-                                                    fontWeight: 'bold',
-                                                    opacity: promotingEmail === patient.email ? 0.5 : 1,
-                                                }}
-                                            >
-                                                {promotingEmail === patient.email ? '⏳...' : '🔵🟢 Oba'}
-                                            </button>
-                                            <button
-                                                onClick={() => dismissPatient(patient.id, patient.email)}
-                                                title="Ukryj z listy"
-                                                style={{
-                                                    padding: '0.5rem 0.7rem',
-                                                    background: 'transparent',
-                                                    color: 'var(--color-text-muted)',
-                                                    border: '1px solid var(--color-border)',
-                                                    borderRadius: '6px',
-                                                    cursor: 'pointer',
-                                                    fontSize: '0.9rem',
-                                                    lineHeight: 1,
-                                                    transition: 'all 0.2s',
-                                                }}
-                                                onMouseEnter={(e) => { e.currentTarget.style.background = '#ef444422'; e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.borderColor = '#ef4444'; }}
-                                                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--color-text-muted)'; e.currentTarget.style.borderColor = 'var(--color-border)'; }}
-                                            >
-                                                ✕
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-            </div>
-        );
-    };
-
 
     // ── RENDER: Online Bookings Tab ───────────────────
     const renderOnlineBookingsTab = () => {
@@ -2775,7 +1984,6 @@ export default function AdminPage() {
 
                     <NavSection title="Zespół" />
                     <NavItem id="employees" label="Pracownicy" icon={Users} />
-                    <NavItem id="roles" label="Uprawnienia" icon={Shield} />
                     <NavItem id="schedule-editor" label="🕐 Grafik pracy" icon={Calendar} />
                     <NavItem id="time-tracking" label="⏱ Czas pracy" icon={Calendar} />
                     <NavItem id="leaves" label="🏖 Urlopy" icon={Calendar} />
@@ -2849,8 +2057,7 @@ export default function AdminPage() {
                             {activeTab === 'articles' && 'Baza Wiedzy'}
                             {activeTab === 'blog' && 'Blog (Dr. Marcin Nowosielski)'}
                             {activeTab === 'questions' && 'Pytania do Eksperta'}
-                            {activeTab === 'employees' && 'Pracownicy — Zarządzanie Kontami'}
-                            {activeTab === 'roles' && 'Uprawnienia — Zarządzanie Rolami'}
+                            {activeTab === 'employees' && 'Pracownicy — Zarządzanie Zespołem'}
                             {activeTab === 'patient-communication' && '📨 Komunikacja z Pacjentem'}
                             {activeTab === 'chat' && '💬 Czat z Pacjentami'}
                             {activeTab === 'booking-settings' && '📅 Rezerwacje'}
@@ -3114,7 +2321,6 @@ export default function AdminPage() {
                     {activeTab === 'patients' && renderPatientsTab()}
                     {activeTab === 'appointment-instructions' && <AppointmentInstructionsEditor />}
                     {activeTab === 'employees' && renderEmployeesTab()}
-                    {activeTab === 'roles' && renderRolesTab()}
                     {activeTab === 'chat' && <AdminChat />}
                     {activeTab === 'theme' && <ThemeEditor />}
                     {activeTab === 'social-media' && <SocialMediaTab />}
