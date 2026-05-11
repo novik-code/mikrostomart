@@ -1,8 +1,8 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-11 (Employee Management Phase 1+2 — DB cleanup + employment_terms trigger + unified backend; po fixach Anny Litewki, Małgorzaty Maćków-Huras i regresji „grafik online")  
+> **Last Updated:** 2026-05-11 (Employee Management Phase 3 — unified UI: EmployeeWizard 5-krokowy + EmployeeRow rozwijany z 4 sekcjami; usunięte zakładki „Uprawnienia" + „Pacjenci do awansowania"; admin/page.tsx -841 LOC, -25%)  
 > **Version:** Production + Demo (Dual Vercel Deployment)  
-> **Status:** Active Development — **🎯 PREMIUM SEO PLAN AKTYWNY** (4 fazy, ~6 mies horyzont). KCP FULL + kiosk-token + **Employee Management Phase 1+2 (backend unified)**; CareFlow Perioperative; Push-First Communication. SEO Sprint H1-H8 ✅ KOMPLETNY. Cykl: pełen audyt 5 niezależnymi agentami wykrył ~47 problemów → 8 faz wdrożenia (H1 quick fixes, H2 metadata gaps, H3 internal linking, H4 schema enrichment, H5 perf+images, H6 content, H7 intl landing, H8 real schema data) → po H8 push **awaria 500 production** (H3 batch sed przekonwertował 3 server components na `Link` z `@/i18n/navigation` który wewnętrznie używa `useLocale()` client-only hook → SSR crash) → 8 reverts cofnęły wszystko → bisect lokalny zlokalizował bug → fix `572af02` (zamiana na `<a href>` z manual locale prefix w 3 server components) → re-apply H1-H8 → produkcja stabilna `6c8f4fa`. ~35/47 problemów audytu zaadresowanych. **Wcześniejsze SEO Sprint G1-G6 + Recovery 1-E** ✅ KOMPLETNE (2026-05-09 → 2026-05-10): pełen multilingual SEO (4 locale), rich SERP, Core Web Vitals fix (LCP 6s→2-3s), PSI Mobile 34→73, Desktop 39→83. Faza 3 GSC: audyt po 4-6 tygodniach (~koniec czerwca 2026). Następna sesja: weryfikacja Rich Results, re-submit sitemap, ewentualne content expansion service pages (24 expansions H6 follow-up).
+> **Status:** Active Development — **🎯 PREMIUM SEO PLAN AKTYWNY** (4 fazy, ~6 mies horyzont). KCP FULL + kiosk-token + **Employee Management Phase 1+2+3 (KOMPLETNE — backend unified + UI z wizardem)**; CareFlow Perioperative; Push-First Communication. SEO Sprint H1-H8 ✅ KOMPLETNY. Cykl: pełen audyt 5 niezależnymi agentami wykrył ~47 problemów → 8 faz wdrożenia (H1 quick fixes, H2 metadata gaps, H3 internal linking, H4 schema enrichment, H5 perf+images, H6 content, H7 intl landing, H8 real schema data) → po H8 push **awaria 500 production** (H3 batch sed przekonwertował 3 server components na `Link` z `@/i18n/navigation` który wewnętrznie używa `useLocale()` client-only hook → SSR crash) → 8 reverts cofnęły wszystko → bisect lokalny zlokalizował bug → fix `572af02` (zamiana na `<a href>` z manual locale prefix w 3 server components) → re-apply H1-H8 → produkcja stabilna `6c8f4fa`. ~35/47 problemów audytu zaadresowanych. **Wcześniejsze SEO Sprint G1-G6 + Recovery 1-E** ✅ KOMPLETNE (2026-05-09 → 2026-05-10): pełen multilingual SEO (4 locale), rich SERP, Core Web Vitals fix (LCP 6s→2-3s), PSI Mobile 34→73, Desktop 39→83. Faza 3 GSC: audyt po 4-6 tygodniach (~koniec czerwca 2026). Następna sesja: weryfikacja Rich Results, re-submit sitemap, ewentualne content expansion service pages (24 expansions H6 follow-up).
 
 ---
 
@@ -2461,6 +2461,81 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-11 — Employee Management Phase 3 (unified UI)
+**Zwieńczenie 3-fazowego refaktoru zarządzania pracownikami. UI zastąpiony wizardem + rozwijanymi wierszami.**
+
+#### Commit:
+- `d722ee6` — feat(employees): Phase 3 — unified UI (wizard + expandable row)
+
+#### Co się zmieniło:
+
+**Nowe komponenty:**
+- `src/app/admin/components/EmployeeWizard.tsx` [NEW, ~570 LOC] — modal stepper 5 kroków: Ścieżka (Prodentis/Ręcznie) → Dane → Role → Booking → Push z review. Wybór operatora Prodentis z auto-listy lub dodanie ręcznie. Inline validation per krok. POST `/api/admin/employees` (createOrUpdateEmployee z Phase 2).
+- `src/app/admin/components/EmployeeRow.tsx` [NEW, ~390 LOC] — rozwijany wiersz pracownika z 4 sekcjami (tabs Info/Konto/Booking/Push). Inline edit dla pól tekstowych, chip-toggle z auto-save dla flag/grup. PATCH `/api/admin/employees/[id]` (updateEmployee).
+
+**Backend rozszerzenie:**
+- `GET /api/admin/employees` zwraca teraz `roles: string[]` (cross-ref z `user_roles` po `user_id`) + `show_in_booking: boolean` — wymagane przez EmployeeRow do inline edycji ról + booking toggle.
+
+**Usunięte z `src/app/admin/page.tsx`:**
+- `renderEmployeesTab` (stary, ~304 LOC) — zastąpiony nową wersją używającą `EmployeeWizard` + `EmployeeRow`
+- `renderRolesTab` (~315 LOC) — zakładka „Uprawnienia" usunięta (D1)
+- NavItem `roles` + breadcrumb 'Uprawnienia — Zarządzanie Rolami'
+- Funkcje obsługujące stare UI: `addEmployee`, `addManualEmployee`, `promotePatient`, `fetchRoles`, `toggleRole`, `dismissPatient`, `deleteUser`, `deactivateEmployee`, `reactivateEmployee`, `startEditEmployee`, `saveEditEmployee`
+- Sekcja „Pacjenci do awansowania" (~130 LOC) — D2: logika promote zachowana w wizardzie (POST `/api/admin/employees` automatycznie wykrywa istniejący email i podpina user_id zamiast tworzyć duplikat — funkcja `createOrUpdateEmployee` zaprojektowana pod ten flow)
+- Import `Shield` z lucide-react (nieużywany po usunięciu zakładki Uprawnienia)
+- 14 zbędnych pól state związanych ze starymi tabami: `rolesUsers`, `rolesLoading`, `rolesError`, `patientCandidates`, `promotingEmail`, `editingEmployeeId`, `editName`, `editEmail`, `employeeEmails`, `addingEmployee`, `newManualName`, `newManualEmail`, `addingManual`, `pushEmpGroups`
+
+**Dodane state w admin/page.tsx:**
+- `wizardOpen: boolean` — kontroluje modal wizard
+- `employeeFlashMessage: string | null` — toast z message po udanej zmianie (refresh listy)
+- Typ `employeesList` zmieniony z `any[]` na `EmployeeData[]` (eksportowany z EmployeeRow.tsx)
+
+**Usunięte martwe pliki (923 LOC, nigdzie nieimportowane — próby refaktoru sprzed Phase 3, nigdy nie podpięte):**
+- `src/app/admin/components/EmployeesTab.tsx` (439 LOC)
+- `src/app/admin/components/RolesTab.tsx` (484 LOC)
+
+#### Decyzje (D1-D6 przyjęte przez Marcina, 2026-05-11):
+- **D1** ✅ Zakładka „Uprawnienia" usunięta — zarządzanie ról przeniesione do sekcji Konto w EmployeeRow (chip-toggle Pracownik/Admin z auto-save)
+- **D2** ✅ Sekcja „Pacjenci do awansowania" usunięta — wizard używa `createOrUpdateEmployee` które automatycznie wykrywa istniejące auth.users po emailu i podpina rolę do istniejącego konta. Pacjent który ma istniejący email nie zostanie zduplikowany.
+- **D3** ✅ `show_in_booking` default true dla position=Lekarz/Higienistka, false dla pozostałych. Implementowane w obu warstwach: backend `createOrUpdateEmployee` (linia 244) + frontend wizard `Step4Booking` (auto-set z `useEffect` chyba że admin zmienił ręcznie).
+- **D4** ✅ Auto-discovery Prodentis — Phase 1 usunęło z `/api/employee/schedule`, zostaje tylko w `/api/admin/employees` jako sync inicjowany przez admina (manual button „Odśwież")
+- **D5** ✅ Backfill `employment_terms` wykonany w Phase 1 (migracja 120 trigger + initial INSERT)
+- **D6** ✅ Phase 3 w osobnej sesji (świeży kontekst, ~3h pracy)
+
+#### Statystyki refaktoru:
+- `admin/page.tsx`: 3296 → 2455 LOC (**-841, -25%**)
+- Łącznie usunięte: **-1785 LOC**, dodane (w admin): **+83 LOC** (głównie nowa wersja `renderEmployeesTab`)
+- Nowe komponenty: +570 LOC (EmployeeWizard) + 390 LOC (EmployeeRow) = ~960 LOC wyciągnięte z monolitu w czyste, samodzielne pliki
+
+#### Pliki:
+- `src/app/admin/components/EmployeeWizard.tsx` [NEW]
+- `src/app/admin/components/EmployeeRow.tsx` [NEW]
+- `src/app/admin/components/EmployeesTab.tsx` [DELETED]
+- `src/app/admin/components/RolesTab.tsx` [DELETED]
+- `src/app/admin/page.tsx` [MOD] -841 LOC
+- `src/app/api/admin/employees/route.ts` [MOD] +17 LOC (`roles[]` + `show_in_booking` w GET response)
+
+#### Spodziewany efekt po deploy:
+- Admin widzi 1 zakładkę „Pracownicy" zamiast 2 (Pracownicy + Uprawnienia)
+- „+ Dodaj pracownika" otwiera 5-krokowy wizard — wybór z Prodentis lub ręcznie, z auto-pre-fill kolejnych pól na podstawie position
+- Każdy pracownik w liście rozwija się na klik — 4 sekcje wewnątrz z inline edit, chipy toggle dla ról/push z auto-save
+- Marcin nie musi nigdzie klikać żeby `employment_terms` istniały — trigger Phase 1 załatwia
+- Nowy pracownik z emailem pacjenta — wizard nie duplikuje, podpina rolę do istniejącego user_id (auto)
+
+#### Co Marcin musi zrobić ręcznie po deploy:
+- Sprawdzić w panelu: + Dodaj pracownika → wizard powinien działać, rozwijany wiersz pokazuje 4 sekcje z auto-save chipów
+- Migracja 120 już wgrana (Phase 1) — Phase 3 NIE wymaga DB migracji
+- Brak nowych env var
+
+#### Co dalej (poza scope Phase 3):
+- Refaktor pozostałych monolitycznych zakładek w `admin/page.tsx` (np. renderProductsTab, renderBlogTab — wciąż inline)
+- Migracja `withAuth` middleware do API routes (wrapper istnieje, nie wszędzie zastosowany)
+- Stary endpoint `/api/admin/employees/deactivate` zachowany jako backwards-compat — można w przyszłości usunąć po monitoringu czy nic z innych miejsc go nie woła
+
+> **Brak migracji DB / nowych env var.** Vercel auto-deployuje z pushem na main.
+
+---
 
 ### 2026-05-11 — Employee Management Phase 1 + 2 (backend unified)
 **Pełen refaktor zarządzania pracownikami po fixach regresji Anny Litewki (brak employment_terms) i Małgorzaty Maćków-Huras (osierocony duplikat wycinał ją z grafiku online).**
@@ -7840,10 +7915,10 @@ OpenAI gpt-image-1 regenerates the entire masked area from scratch (+ forces 102
 - [x] **KCP kiosk-mode auth** (2026-05-11) — `/qr-display` z httpOnly cookie + HMAC-SHA256 token (TTL 7/30/90 dni), niezależny od sesji Supabase. Tablet nie wylogowuje się, admin zachowuje krótki TTL. Pliki: `src/lib/timeTracking/kioskAuth.ts`, `/api/admin/time/kiosk-enable`, modyfikacja `/api/time/qr-current` (kiosk fallback). Wymaga env var `KIOSK_TOKEN_SECRET`.
 - [x] **Employee Management Phase 1** (2026-05-11) — Migracja 120 (cleanup osieroconych duplikatów + trigger auto-create `employment_terms` + backfill dla aktywnych bez terms). Fix filtra `/api/employee/schedule` na lookup po `prodentis_id` zamiast po `normalizeName(name)` (eliminuje wycinanie aktywnego operatora przez dezaktywowany duplikat). Usunięte auto-discovery z `/api/employee/schedule` — żyje teraz tylko w `/api/admin/employees`. Fix nameMatch w `/api/admin/employees` (skip dezaktywowanych i tych z prodentis_id).
 - [x] **Employee Management Phase 2** (2026-05-11) — Unified backend. Nowy `src/lib/employeeService.ts` z `createOrUpdateEmployee()` + `updateEmployee()` (atomic flow: find/create auth user → grant roles → UPSERT employees po user_id → employment_terms via trigger → optional password reset). Nowe endpointy: `POST /api/admin/employees` (unified create) + `PATCH /api/admin/employees/[id]` (edit). `/api/admin/roles/promote` refactor na thin wrapper.
+- [x] **Employee Management Phase 3 — UI** (2026-05-11, commit `d722ee6`) — KOMPLETNE. Nowe komponenty: `EmployeeWizard.tsx` (5-krokowy stepper modal Ścieżka→Dane→Role→Booking→Push) + `EmployeeRow.tsx` (rozwijany wiersz z 4 sekcjami Info/Konto/Booking/Push, chip-toggle auto-save). Backend GET `/api/admin/employees` rozszerzony o `roles[]` + `show_in_booking`. Usunięte: zakładka „Uprawnienia" (D1), sekcja „Pacjenci do awansowania" (D2), 11 starych funkcji w admin/page.tsx (addEmployee, addManualEmployee, promotePatient, fetchRoles, toggleRole, dismissPatient, deleteUser, deactivateEmployee, reactivateEmployee, startEditEmployee, saveEditEmployee), 14 zbędnych state, dead-code `EmployeesTab.tsx` + `RolesTab.tsx` (923 LOC). admin/page.tsx: 3296 → 2455 LOC (-25%).
 
 ### ⚠️ Partial/Pending
-- [ ] **Employee Management Phase 3 — UI** (~3-5h, OSOBNA SESJA): wizard „Dodaj pracownika" (modal stepper z 5 kroków: Ścieżka → Dane → Role → Booking → Push → Review), rozwijany wiersz pracownika w liście (4 sekcje: Info, Konto, Booking, Push) podpięty pod nowy `PATCH /api/admin/employees/[id]`, usunięcie zakładki „Uprawnienia" + sekcji „Pacjenci do awansowania" (130 LOC, brak realnego use case — logika promote zachowana w wizardzie przy wykryciu istniejącego email/auth user), usunięcie dublujących funkcji `addEmployee`/`addManualEmployee` (oba wołały promote). **Decyzje przyjęte (D1-D6)**: usuń „Uprawnienia"; usuń „Pacjenci do awansowania"; `show_in_booking` default true dla position∈{Lekarz,Higienistka}, inaczej false; auto-discovery Prodentis tylko jako manual button w admin (już zrobione w Phase 1); backfill employment_terms zrobiony; kolejność Faza 3 w osobnej sesji. **Pliki do stworzenia**: `src/app/admin/components/EmployeeWizard.tsx`, `src/app/admin/components/EmployeeRow.tsx`. **Pliki do modyfikacji**: `src/app/admin/page.tsx` (~3295 LOC) — usuń `renderEmployeesTab` (linie ~1173-1476), `renderRolesTab` (linie ~1957-2271), sekcję „Pacjenci do awansowania" (linie ~2137-2267), funkcje `addEmployee` (linia 1034), `addManualEmployee` (linia 1072), `promotePatient` (linia 928); dodaj nowy unified employees tab. **Backend gotowy** — wszystkie endpointy zaimplementowane w Phase 2.
-- [ ] Admin panel component split (`admin/page.tsx` — still monolithic at ~3295 LOC) — częściowo zaadresowane przez Phase 3 (wyciągnięcie 2 zakładek), ale reszta tabs wciąż w monolicie
+- [ ] Admin panel component split (`admin/page.tsx` — still monolithic at ~2455 LOC po Phase 3) — wciąż wymaga wyciągnięcia pozostałych zakładek (renderProductsTab, renderBlogTab, renderNewsTab, renderArticlesTab, etc.)
 - [ ] `withAuth` middleware migration to existing routes (wrapper created, not yet applied)
 - [ ] Comprehensive testing of all workflows
 - [ ] Performance optimization
