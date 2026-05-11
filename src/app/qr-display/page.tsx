@@ -16,7 +16,11 @@ interface QrCurrent {
     locationId: string;
     serverTime: number;
     isDemoMode?: boolean;
+    authMode?: 'admin' | 'kiosk';
+    kioskExpiresMs?: number | null;
 }
+
+type KioskTtl = 7 | 30 | 90;
 
 export default function QrDisplayPage() {
     const [data, setData] = useState<QrCurrent | null>(null);
@@ -24,6 +28,9 @@ export default function QrDisplayPage() {
     const [now, setNow] = useState<number>(() => Date.now());
     const [authChecked, setAuthChecked] = useState(false);
     const [authorized, setAuthorized] = useState(false);
+    const [ttlChoice, setTtlChoice] = useState<KioskTtl>(30);
+    const [kioskBusy, setKioskBusy] = useState(false);
+    const [kioskMessage, setKioskMessage] = useState<string | null>(null);
     const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Ukryj globalny Navbar/Footer/DemoBanner — strona ma być pełnoekranowa
@@ -88,6 +95,49 @@ export default function QrDisplayPage() {
         return () => {
             if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
         };
+    }, [fetchQr]);
+
+    const enableKiosk = useCallback(async () => {
+        setKioskBusy(true);
+        setKioskMessage(null);
+        try {
+            const res = await fetch('/api/admin/time/kiosk-enable', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ttlDays: ttlChoice }),
+            });
+            const json = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                setKioskMessage(json.error || `Błąd ${res.status}`);
+                return;
+            }
+            setKioskMessage('Tryb kiosk włączony.');
+            await fetchQr();
+        } catch (e) {
+            setKioskMessage(`Błąd: ${(e as Error).message}`);
+        } finally {
+            setKioskBusy(false);
+        }
+    }, [ttlChoice, fetchQr]);
+
+    const disableKiosk = useCallback(async () => {
+        if (!confirm('Wyłączyć tryb kiosk? Tablet będzie wymagać ponownego logowania admina.')) return;
+        setKioskBusy(true);
+        setKioskMessage(null);
+        try {
+            const res = await fetch('/api/admin/time/kiosk-enable', { method: 'DELETE' });
+            const json = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                setKioskMessage(json.error || `Błąd ${res.status}`);
+                return;
+            }
+            setKioskMessage('Tryb kiosk wyłączony.');
+            await fetchQr();
+        } catch (e) {
+            setKioskMessage(`Błąd: ${(e as Error).message}`);
+        } finally {
+            setKioskBusy(false);
+        }
     }, [fetchQr]);
 
     if (!authChecked) {
@@ -273,6 +323,105 @@ export default function QrDisplayPage() {
                     <div style={{ color: '#ef4444', fontSize: '0.85rem' }}>⚠ {error}</div>
                 )}
             </div>
+
+            {!data.isDemoMode && (data.authMode === 'kiosk' || data.authMode === 'admin') && (
+                <div
+                    style={{
+                        position: 'fixed',
+                        bottom: 20,
+                        right: 20,
+                        background: 'rgba(20,20,30,0.88)',
+                        backdropFilter: 'blur(12px)',
+                        WebkitBackdropFilter: 'blur(12px)',
+                        border: '1px solid rgba(220,177,74,0.25)',
+                        borderRadius: 12,
+                        padding: '0.9rem 1.1rem',
+                        fontSize: '0.78rem',
+                        color: '#cfcfcf',
+                        maxWidth: 340,
+                        boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+                    }}
+                >
+                    {data.authMode === 'kiosk' && data.kioskExpiresMs ? (
+                        <>
+                            <div style={{ color: '#34d399', fontWeight: 700, marginBottom: 4 }}>
+                                🔒 Tryb kiosk aktywny
+                            </div>
+                            <div style={{ fontSize: '0.74rem', color: '#999', marginBottom: 8 }}>
+                                Ważny do:{' '}
+                                {new Date(data.kioskExpiresMs).toLocaleString('pl-PL', {
+                                    dateStyle: 'short',
+                                    timeStyle: 'short',
+                                })}
+                            </div>
+                            <button
+                                onClick={disableKiosk}
+                                disabled={kioskBusy}
+                                style={{
+                                    background: 'transparent',
+                                    border: '1px solid #555',
+                                    color: '#cfcfcf',
+                                    padding: '0.4rem 0.8rem',
+                                    borderRadius: 6,
+                                    fontSize: '0.72rem',
+                                    cursor: kioskBusy ? 'wait' : 'pointer',
+                                }}
+                            >
+                                {kioskBusy ? '⏳' : 'Wyłącz tryb kiosk'}
+                            </button>
+                        </>
+                    ) : (
+                        <>
+                            <div style={{ color: '#dcb14a', fontWeight: 700, marginBottom: 4 }}>
+                                Zalogowany jako admin
+                            </div>
+                            <div style={{ fontSize: '0.74rem', color: '#999', marginBottom: 8 }}>
+                                Włącz tryb kiosk, aby tablet nie wylogowywał się automatycznie.
+                            </div>
+                            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                                <select
+                                    value={ttlChoice}
+                                    onChange={(e) => setTtlChoice(Number(e.target.value) as KioskTtl)}
+                                    disabled={kioskBusy}
+                                    style={{
+                                        background: '#0a0a0f',
+                                        color: '#fafafa',
+                                        border: '1px solid #444',
+                                        borderRadius: 6,
+                                        padding: '0.4rem 0.5rem',
+                                        fontSize: '0.74rem',
+                                    }}
+                                >
+                                    <option value={7}>7 dni</option>
+                                    <option value={30}>30 dni</option>
+                                    <option value={90}>90 dni</option>
+                                </select>
+                                <button
+                                    onClick={enableKiosk}
+                                    disabled={kioskBusy}
+                                    style={{
+                                        background: '#dcb14a',
+                                        color: '#0a0a0f',
+                                        border: 'none',
+                                        padding: '0.45rem 0.9rem',
+                                        borderRadius: 6,
+                                        fontSize: '0.74rem',
+                                        fontWeight: 700,
+                                        cursor: kioskBusy ? 'wait' : 'pointer',
+                                    }}
+                                >
+                                    {kioskBusy ? '⏳' : 'Włącz tryb kiosk'}
+                                </button>
+                            </div>
+                        </>
+                    )}
+                    {kioskMessage && (
+                        <div style={{ marginTop: 8, fontSize: '0.72rem', color: '#aaa' }}>
+                            {kioskMessage}
+                        </div>
+                    )}
+                </div>
+            )}
         </FullScreen>
     );
 }
