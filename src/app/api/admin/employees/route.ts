@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAdmin } from '@/lib/auth';
 import { createClient } from '@supabase/supabase-js';
+import { createOrUpdateEmployee } from '@/lib/employeeService';
 
 export const dynamic = 'force-dynamic';
 
@@ -246,5 +247,73 @@ export async function PATCH(request: NextRequest) {
     } catch (error: any) {
         console.error('[Employees PATCH] Error:', error);
         return NextResponse.json({ error: error.message || 'Server error' }, { status: 500 });
+    }
+}
+
+/**
+ * POST /api/admin/employees
+ *
+ * Unified create flow — backend dla wizarda „Dodaj pracownika".
+ *
+ * Body: {
+ *   source: 'prodentis' | 'manual',
+ *   name: string,
+ *   email: string,
+ *   prodentisId?: string,
+ *   position?: 'Lekarz' | 'Higienistka' | 'Asystentka' | 'Recepcja' | 'Pracownik pomocniczy' | string,
+ *   roles?: ('admin'|'employee'|'patient')[],   // default ['employee']
+ *   showInBooking?: boolean,                    // default: true dla Lekarz/Higienistka
+ *   pushGroups?: ('doctor'|'hygienist'|'reception'|'assistant')[],
+ *   sendPasswordReset?: boolean,                // default true
+ * }
+ *
+ * Atomic flow przez `createOrUpdateEmployee()`:
+ *   1. Find/create auth.users
+ *   2. Grant roles
+ *   3. UPSERT employees (klucz: user_id)
+ *   4. employment_terms — przez trigger z migracji 120
+ *   5. Send password reset email (opcjonalnie)
+ *
+ * Jeśli email pasuje do istniejącego konta (np. pacjent z patient portal,
+ * istniejący pracownik), wpis NIE jest duplikowany — istniejący zostaje
+ * podpięty do nowej roli.
+ */
+export async function POST(request: NextRequest) {
+    const user = await verifyAdmin();
+    if (!user) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    let body: any;
+    try {
+        body = await request.json();
+    } catch {
+        return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+    }
+
+    try {
+        const result = await createOrUpdateEmployee(
+            {
+                source: body.source === 'prodentis' ? 'prodentis' : 'manual',
+                name: body.name,
+                email: body.email,
+                prodentisId: body.prodentisId ?? null,
+                position: body.position ?? null,
+                roles: body.roles,
+                showInBooking: body.showInBooking,
+                pushGroups: body.pushGroups,
+                sendPasswordReset: body.sendPasswordReset !== false,
+            },
+            user.email || 'admin'
+        );
+
+        console.log(`[Employees POST] ${result.message} (by ${user.email})`);
+        return NextResponse.json(result);
+    } catch (error: any) {
+        console.error('[Employees POST] Error:', error);
+        return NextResponse.json(
+            { error: error?.message || 'Server error' },
+            { status: 400 }
+        );
     }
 }
