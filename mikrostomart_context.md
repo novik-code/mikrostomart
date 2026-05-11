@@ -1,8 +1,8 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-10 (🎯 SEO Audit Sprint H1-H8 KOMPLETNY po awarii + naprawie — produkcja stabilna, postmortem zapisany w memory)  
+> **Last Updated:** 2026-05-11 (KCP — kiosk-mode auth dla ekranu QR: tablet nie wylogowuje się + admin nie traci sesji)  
 > **Version:** Production + Demo (Dual Vercel Deployment)  
-> **Status:** Active Development — KCP FULL; CareFlow Perioperative; Push-First Communication. **🎯 SEO AUDIT SPRINT H1-H8 KOMPLETNY** (2026-05-10) po awarii + naprawie. Cykl: pełen audyt 5 niezależnymi agentami wykrył ~47 problemów → 8 faz wdrożenia (H1 quick fixes, H2 metadata gaps, H3 internal linking, H4 schema enrichment, H5 perf+images, H6 content, H7 intl landing, H8 real schema data) → po H8 push **awaria 500 production** (H3 batch sed przekonwertował 3 server components na `Link` z `@/i18n/navigation` który wewnętrznie używa `useLocale()` client-only hook → SSR crash) → 8 reverts cofnęły wszystko → bisect lokalny zlokalizował bug → fix `572af02` (zamiana na `<a href>` z manual locale prefix w 3 server components) → re-apply H1-H8 → produkcja stabilna `6c8f4fa`. ~35/47 problemów audytu zaadresowanych. **Wcześniejsze SEO Sprint G1-G6 + Recovery 1-E** ✅ KOMPLETNE (2026-05-09 → 2026-05-10): pełen multilingual SEO (4 locale), rich SERP, Core Web Vitals fix (LCP 6s→2-3s), PSI Mobile 34→73, Desktop 39→83. Faza 3 GSC: audyt po 4-6 tygodniach (~koniec czerwca 2026). Następna sesja: weryfikacja Rich Results, re-submit sitemap, ewentualne content expansion service pages (24 expansions H6 follow-up).
+> **Status:** Active Development — **🎯 PREMIUM SEO PLAN AKTYWNY** (4 fazy, ~6 mies horyzont, AI-only content experiment dla Faza M). KCP FULL + kiosk-token (long-lived stateless HMAC dla `/qr-display`); CareFlow Perioperative; Push-First Communication. SEO Sprint H1-H8 ✅ KOMPLETNY (poprzedni, 2026-05-10). Cykl: pełen audyt 5 niezależnymi agentami wykrył ~47 problemów → 8 faz wdrożenia (H1 quick fixes, H2 metadata gaps, H3 internal linking, H4 schema enrichment, H5 perf+images, H6 content, H7 intl landing, H8 real schema data) → po H8 push **awaria 500 production** (H3 batch sed przekonwertował 3 server components na `Link` z `@/i18n/navigation` który wewnętrznie używa `useLocale()` client-only hook → SSR crash) → 8 reverts cofnęły wszystko → bisect lokalny zlokalizował bug → fix `572af02` (zamiana na `<a href>` z manual locale prefix w 3 server components) → re-apply H1-H8 → produkcja stabilna `6c8f4fa`. ~35/47 problemów audytu zaadresowanych. **Wcześniejsze SEO Sprint G1-G6 + Recovery 1-E** ✅ KOMPLETNE (2026-05-09 → 2026-05-10): pełen multilingual SEO (4 locale), rich SERP, Core Web Vitals fix (LCP 6s→2-3s), PSI Mobile 34→73, Desktop 39→83. Faza 3 GSC: audyt po 4-6 tygodniach (~koniec czerwca 2026). Następna sesja: weryfikacja Rich Results, re-submit sitemap, ewentualne content expansion service pages (24 expansions H6 follow-up).
 
 ---
 
@@ -2461,6 +2461,145 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-11 — KCP: kiosk-mode auth dla ekranu QR (rozwiązanie auto-logoutu tableta)
+**Tablet w recepcji wylogowywał się po wygaśnięciu sesji admina, tracąc ekran QR. Sesja admina musi mieć krótki TTL z powodów bezpieczeństwa. Rozwiązanie: dedykowany kiosk-token dla `/api/time/qr-current`, niezależny od Supabase auth.**
+
+#### Branch + commit:
+- `feat/kcp-kiosk-token` (zmergowany na main)
+- `b761ce0` — feat(time-tracking): kiosk-mode auth dla /qr-display
+
+#### Co się zmieniło:
+
+**1. Nowy lib `src/lib/timeTracking/kioskAuth.ts`**
+- `generateKioskToken(ttlDays)` — stateless HMAC-SHA256 token (format `<expires_b64u>.<nonce_b64u>.<hmac_b64u>`)
+- `verifyKioskToken(token)` — timing-safe walidacja (HMAC + expiry)
+- Sekret z env `KIOSK_TOKEN_SECRET` (min 32 znaki). Rotacja sekretu = unieważnienie wszystkich tokenów.
+- Dozwolone TTL: 7 / 30 / 90 dni (whitelist `ALLOWED_TTL_DAYS`)
+
+**2. Nowy endpoint `/api/admin/time/kiosk-enable`**
+- `POST` (admin only) — body `{ ttlDays: 7|30|90 }` → wystawia httpOnly cookie `kiosk_token` z `Max-Age` = TTL × 86400. Zwraca `{ ok, expiresMs, ttlDays }`.
+- `DELETE` (admin only) — czyści cookie (Max-Age=0). Wyłącza tryb kiosk dla bieżącego urządzenia.
+- Cookie: `httpOnly`, `Secure` (production), `SameSite=lax`, `Path=/`
+
+**3. Modyfikacja `/api/time/qr-current`**
+- Auth flow: najpierw sprawdza cookie `kiosk_token` (czysty HMAC, bez DB roundtrip) → akceptuje. Inaczej fallback do `verifyAdmin()` + `hasRole('admin')`. Brak żadnego → 401.
+- Odpowiedź zawiera nowe pola `authMode: 'admin' | 'kiosk'` + `kioskExpiresMs: number | null`, używane przez UI do pokazania panelu sterowania.
+
+**4. UI `/qr-display`**
+- Panel sterowania w prawym dolnym rogu (glassmorphic, niezależny od głównego QR).
+- Gdy `authMode='admin'`: dropdown TTL (7/30/90 dni, domyślnie 30) + przycisk „Włącz tryb kiosk".
+- Gdy `authMode='kiosk'`: status „🔒 Tryb kiosk aktywny — Ważny do: …" + przycisk „Wyłącz tryb kiosk" (z `confirm()` żeby nie kliknąć przypadkiem).
+- Demo mode: panel ukryty (QR i tak placeholder).
+
+#### Bezpieczeństwo:
+- Kiosk-token autoryzuje **wyłącznie** `/api/time/qr-current` — nic więcej. Dashboard KCP w `/admin`, korekty, raporty itd. nadal wymagają normalnej admin sesji z krótkim TTL.
+- `/api/time/scan` — nadal wymaga zalogowanego pracownika z aktywnym kontem (kiosk nikomu nie pozwala robić clock-in/out).
+- QR sam w sobie nie jest sekretem (każdy w gabinecie go widzi); kiosk-token jest tylko po to żeby tablet mógł go _wyświetlać_ bez ponownego logowania.
+- Decyzja D2 (Marcin, 2026-05-11): po wygaśnięciu kiosk-tokenu strona pokazuje przycisk „Zaloguj się jako administrator". Brak sliding TTL — admin musi świadomie ponownie aktywować tryb kiosk.
+
+#### Co Marcin musi zrobić ręcznie po deploy:
+1. **Wygenerować sekret**: `openssl rand -hex 32`
+2. **Dodać env var `KIOSK_TOKEN_SECRET`** w Vercel na **OBU** projektach (`mikrostomart` + `densflow-demo`), środowiska Production + Preview
+3. **Na tablecie**: zaloguj się jako admin → otwórz `/qr-display` → kliknij „Włącz tryb kiosk" (domyślnie 30 dni)
+
+#### Co zostało bez zmian:
+- Reszta sesji admina — normalny TTL Supabase (bezpieczeństwo)
+- `/api/time/scan`, `/api/time/status`, `/api/time/cancel` — wymagają pracownika
+- Wszystkie `/api/admin/*` (włącznie z dashboard KCP, raportami, korektami) — admin only
+- Demo mode `/qr-display` — bez zmian, placeholder QR
+
+#### Pliki:
+- `src/lib/timeTracking/kioskAuth.ts` [NEW] — 122 LOC
+- `src/app/api/admin/time/kiosk-enable/route.ts` [NEW] — 90 LOC (POST + DELETE)
+- `src/app/api/time/qr-current/route.ts` [MOD] — kiosk fallback + new response fields
+- `src/app/qr-display/page.tsx` [MOD] — panel sterowania (149 LOC dodane)
+
+> ⚠️ **REQUIRES env var KIOSK_TOKEN_SECRET** na obu projektach Vercel (min 32 znaki hex). Bez tego POST `/api/admin/time/kiosk-enable` zwraca 500.
+> **Brak migracji DB.** Token jest stateless — żadne dane w Supabase.
+
+---
+
+### 2026-05-10 — 🎯 PREMIUM SEO PLAN J→K→L→M — Sesja 0 (Setup)
+**Po niezależnym audycie SEO (4 agentów paralelnie) i strategicznej dyskusji z Marcinem rozpoczęty 4-fazowy plan Premium SEO + Marketing na ~6 miesięcy.**
+
+#### Commits:
+- Brak — Sesja 0 to setup infrastruktury planu (dokumentacja na pulpicie + memory), nie kod
+
+#### Kontekst — co się stało:
+1. **Niezależny audyt SEO** (4 paralelni agenci): premium positioning, technical regression, local+international, E-E-A-T+content depth
+2. **Werdykt**: technicznie projekt 78/100, ale premium positioning + content depth + E-E-A-T = ~30/100. Sprint H1-H8 to ~30% premium SEO, pozostałe 70% to marketing + content + brand exposure.
+3. **Marcin słusznie zareagował** na zarzut audytu "brak personal brand": pokazał że ma silny istniejący brand (YouTube DentistMarcIn / "Dental MacGyver", Instagram, Facebook, TikTok, książka Czelej "Własny gabinet" 2024, 4 publikacje Magazyn Stomatologiczny 2020-2021, 2 wykłady LA&HA Symposium Słowenia 2019/2023, keynote + warsztaty LA&HA Poland 2022, strona nowosielski.pl, M.Sc. RWTH Aachen 2021 z wyróżnieniem jako drugi w PL + najmłodszy)
+4. **Korekta audytu**: problem to nie "brak brandu" — to "mikrostomart.pl nie eksponuje istniejącego brandu". Marnujemy gotowe authority signals.
+5. **AI pobrał wszystkie publiczne źródła** (web.archive.org snapshot nowosielski.pl + LA&HA program/wykładowcy + Magazyn Stomatologiczny + Czelej + 2 wykłady LA&HA) → kompletna inwentaryzacja personal brand
+
+#### Co zostało dostarczone w Sesji 0:
+
+**Pliki na pulpicie (4 nowe)**:
+- **`~/Desktop/PLAN_PREMIUM_SEO.md`** — pełen plan 4 faz (J/K/L/M) z sesjami szczegółowymi
+- **`~/Desktop/PLAN_PREMIUM_SEO_STATUS.md`** — tracker statusu każdej sesji + decisions log
+- **`~/Desktop/PLAN_PREFLIGHT_CHECKLIST.md`** — lista decyzji + materiałów Marcina przed kolejnymi sesjami
+- **`~/Desktop/MARCIN_NOWOSIELSKI_BIO_INVENTORY.md`** — kompletny inwentarz personal brand z citatami z archive.org + LA&HA + Magazyn Stomatologiczny
+
+**Memory + index**:
+- `memory/project_premium_seo_plan.md` [NEW]
+- `memory/feedback_marcin_brand_correction.md` [NEW] — korekta audytu, Marcin ma silny brand
+- `memory/MEMORY.md` — 2 nowe wpisy indeksu
+
+**Update istniejących**:
+- `KOMENDA_STARTOWA_MIKROSTOMART.md` sekcja 0 (Last Updated + Aktywny Sprint + Aktywne inicjatywy + Krytyczne lokalizacje rozszerzone o 4 nowe pliki Premium SEO)
+- `mikrostomart_context.md` — ten wpis
+
+#### Plan w 1 zdaniu:
+**4 fazy × atomowe sesje AI 1-3h** — J (technical, 5 sesji) → K (premium positioning, 8+ sesji) → L (local+intl depth, 10 sesji) → M (content engine rolling 60-80 articles, 4-5 mies). Tryb pracy Faza M = AI-only experiment (czy AI zastąpi dental copywritera za 20-30k PLN).
+
+#### Mechanika kontekstu między sesjami:
+Każda sesja AI w ramach Premium SEO Plan zaczyna od:
+1. Read `KOMENDA_STARTOWA_MIKROSTOMART.md` (jak dotychczas)
+2. Read `PLAN_PREMIUM_SEO.md` (pełen plan)
+3. Read `PLAN_PREMIUM_SEO_STATUS.md` (tracker — sprawdź NEXT SESSION)
+4. Read `mikrostomart_context.md` (jak dotychczas)
+5. Jeśli sesja dotyczy K-3/K-7/Faza M — Read `MARCIN_NOWOSIELSKI_BIO_INVENTORY.md`
+6. Confirm z Marcinem która sesja
+7. Wykonaj + update wszystkich tracking files + commit
+
+#### Decyzje strategiczne podjęte (Sesja 0 finalize, 2026-05-10):
+- ✅ Tryb pracy Faza M: **AI-only experiment** (Marcin chce wyzwanie)
+- ✅ Tempo: **agresywne** (Marcin "na maxa sprężyć")
+- ✅ Sesja 0 dziś
+- ✅ Struktura 4 faz J→K→L→M
+- ✅ **D1 = B (premium-only)**: Marcin preferuje premium positioning bez konkretnych cen na stronie. AI cennik chat zostaje (already premium move).
+- ✅ **Rok założenia kliniki: 2016** (10 lat działalności na 2026)
+- ✅ **Statystyki strategia**: AI script w K-2 wyciągnie z Prodentis + Supabase (100% faktyczne, no manual count Marcina)
+- ✅ **Certyfikaty skany = OPTIONAL**: audytor zgadza się z Marcinem ("po co to na stronie?"). Premium positioning preferuje Person schema + small SVG badges + external links zamiast skany dyplomów.
+
+#### 🎁 BONUS Sesji 0: nowosielski.pl content recovery COMPLETED
+- **21 artykułów Marcina** odzyskanych z web.archive.org → `~/Desktop/NOWOSIELSKI_PL_RECOVERY/articles/`
+- **13,642 słów łącznie** — gold-tier mix:
+  - 8 case studies "Dla lekarza" (np. "Laserowa resekcja powtórne leczenie endodontyczne" — pełen case study z parametrami zabiegu Er:YAG/Nd:YAG, abstract EN, keywords PL+EN)
+  - 13 popularyzacyjnych "Dla pacjenta" (Ile kanałów mają zęby, Higienizacja inwestycja, NFZ vs prywatne, etc.)
+- **Oszczędność Fazy M**: ~70-80h pracy AI (~30-40% total Fazy M effort) — istniejące deep content do bezpośredniego użycia/update
+- **Plan**: sesja **M-EXIST-1** (triage) na początku Fazy M — Marcin sklasyfikuje artykuły DIRECT_REUSE / UPDATE / MERGE / SKIP
+
+#### Decyzje pending (do Fazy K):
+- ⏳ **D4**: pacjenci do video testimonial + RODO consent — przed K-7
+- ✅ Wszystkie inne decyzje strategiczne podjęte. Faza J może startować bez blokerów.
+
+#### Następna sesja: **J-1 — Sitemap freshness + Article schema audit**
+- AI: ~2.5h
+- Marcin: ~15 min review
+- Branch: `seo/j-1`
+- Pre-requisites: brak (J-1 startuje natychmiast)
+
+#### Pliki:
+- 4 nowe pliki na pulpicie
+- 2 nowe memory + 2 wpisy MEMORY.md
+- KOMENDA_STARTOWA sekcja 0 + sekcja 2 updated
+- Ten wpis w Recent Changes
+
+> **Brak migracji DB / nowych env var.** Tylko dokumentacja + infrastruktura planu. Faktyczne kody zaczynają się w J-1.
+
+---
 
 ### 2026-05-10 — POSTMORTEM: H3 server component Link bug + recovery
 **Awaria po H8 push: produkcja zwracała 500 na wszystkich stronach pod `/[locale]`. Naprawa przez bisect + targeted fix.**
