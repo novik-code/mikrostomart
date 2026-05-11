@@ -1,8 +1,8 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-11 (KCP — kiosk-mode auth dla ekranu QR: tablet nie wylogowuje się + admin nie traci sesji)  
+> **Last Updated:** 2026-05-11 (Employee Management Phase 1+2 — DB cleanup + employment_terms trigger + unified backend; po fixach Anny Litewki, Małgorzaty Maćków-Huras i regresji „grafik online")  
 > **Version:** Production + Demo (Dual Vercel Deployment)  
-> **Status:** Active Development — **🎯 PREMIUM SEO PLAN AKTYWNY** (4 fazy, ~6 mies horyzont, AI-only content experiment dla Faza M). KCP FULL + kiosk-token (long-lived stateless HMAC dla `/qr-display`); CareFlow Perioperative; Push-First Communication. SEO Sprint H1-H8 ✅ KOMPLETNY (poprzedni, 2026-05-10). Cykl: pełen audyt 5 niezależnymi agentami wykrył ~47 problemów → 8 faz wdrożenia (H1 quick fixes, H2 metadata gaps, H3 internal linking, H4 schema enrichment, H5 perf+images, H6 content, H7 intl landing, H8 real schema data) → po H8 push **awaria 500 production** (H3 batch sed przekonwertował 3 server components na `Link` z `@/i18n/navigation` który wewnętrznie używa `useLocale()` client-only hook → SSR crash) → 8 reverts cofnęły wszystko → bisect lokalny zlokalizował bug → fix `572af02` (zamiana na `<a href>` z manual locale prefix w 3 server components) → re-apply H1-H8 → produkcja stabilna `6c8f4fa`. ~35/47 problemów audytu zaadresowanych. **Wcześniejsze SEO Sprint G1-G6 + Recovery 1-E** ✅ KOMPLETNE (2026-05-09 → 2026-05-10): pełen multilingual SEO (4 locale), rich SERP, Core Web Vitals fix (LCP 6s→2-3s), PSI Mobile 34→73, Desktop 39→83. Faza 3 GSC: audyt po 4-6 tygodniach (~koniec czerwca 2026). Następna sesja: weryfikacja Rich Results, re-submit sitemap, ewentualne content expansion service pages (24 expansions H6 follow-up).
+> **Status:** Active Development — **🎯 PREMIUM SEO PLAN AKTYWNY** (4 fazy, ~6 mies horyzont). KCP FULL + kiosk-token + **Employee Management Phase 1+2 (backend unified)**; CareFlow Perioperative; Push-First Communication. SEO Sprint H1-H8 ✅ KOMPLETNY. Cykl: pełen audyt 5 niezależnymi agentami wykrył ~47 problemów → 8 faz wdrożenia (H1 quick fixes, H2 metadata gaps, H3 internal linking, H4 schema enrichment, H5 perf+images, H6 content, H7 intl landing, H8 real schema data) → po H8 push **awaria 500 production** (H3 batch sed przekonwertował 3 server components na `Link` z `@/i18n/navigation` który wewnętrznie używa `useLocale()` client-only hook → SSR crash) → 8 reverts cofnęły wszystko → bisect lokalny zlokalizował bug → fix `572af02` (zamiana na `<a href>` z manual locale prefix w 3 server components) → re-apply H1-H8 → produkcja stabilna `6c8f4fa`. ~35/47 problemów audytu zaadresowanych. **Wcześniejsze SEO Sprint G1-G6 + Recovery 1-E** ✅ KOMPLETNE (2026-05-09 → 2026-05-10): pełen multilingual SEO (4 locale), rich SERP, Core Web Vitals fix (LCP 6s→2-3s), PSI Mobile 34→73, Desktop 39→83. Faza 3 GSC: audyt po 4-6 tygodniach (~koniec czerwca 2026). Następna sesja: weryfikacja Rich Results, re-submit sitemap, ewentualne content expansion service pages (24 expansions H6 follow-up).
 
 ---
 
@@ -2461,6 +2461,70 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-11 — Employee Management Phase 1 + 2 (backend unified)
+**Pełen refaktor zarządzania pracownikami po fixach regresji Anny Litewki (brak employment_terms) i Małgorzaty Maćków-Huras (osierocony duplikat wycinał ją z grafiku online).**
+
+#### Commits:
+- `61e9442` — feat(employees): Phase 1 — DB cleanup + employment_terms trigger + filter fix
+- `2b4d86d` — feat(employees): Phase 2 — unified employee service + POST/PATCH endpoints
+
+#### Phase 1 — DB cleanup + filter fix
+
+**Migracja 120** (`120_employee_cleanup_and_terms_trigger.sql`):
+1. DELETE osieroconych duplikatów employees — `WHERE user_id IS NULL AND email LIKE 'prodentis-%@auto.mikrostomart.pl' AND is_active = false AND EXISTS aktywny duplikat o tym samym prodentis_id`. Te wpisy powstawały przez auto-discovery `/api/employee/schedule` + były dezaktywowane podczas scalania (migracja 082), zamiast usunięte. Nadal matchowały `normalizeName(name)` aktywnych pracowników — co powodowało że jednak nieaktywny duplikat wycinał aktywnego z grafiku tygodniowego.
+2. Trigger `employees_after_insert_create_terms` → AFTER INSERT ON employees → auto-create `employment_terms` (UoP 40h/26 dni urlopu/30 min buffer; Lekarz dostaje `contract_type='b2b'` inaczej `uop`). Idempotent (sprawdza valid_to IS NULL), skip dla is_active=false.
+3. Backfill `employment_terms` dla aktywnych pracowników bez nich (analog seedu z migracji 115 dla osób dodanych po 8 maja — np. Anna Litewka).
+
+**Fix `/api/employee/schedule`:**
+- **Usunięte auto-discovery** operatorów Prodentis (linie 281-341 starej wersji). To ten kod tworzył osierocone wpisy. Auto-discovery żyje teraz wyłącznie w `/api/admin/employees` jako manual sync inicjowany przez admina.
+- **Filtr dezaktywowanych** zamieniony z `freshDeactivatedNames.has(normalizeName(name))` na lookup po `prodentis_id` (deterministyczny). Fallback na nazwę tylko dla wpisów bez prodentis_id (edge case). Po fix: nawet jeśli ktoś przyszłość zostawi nieaktywny duplikat o identycznej nazwie, aktywny operator z `prodentis_id` zostaje widoczny.
+
+**Fix `/api/admin/employees`:**
+- Auto-discovery zachowany (admin świadomie syncuje), ale `nameMatch` przy próbie podpięcia `prodentis_id` filtruje tylko aktywne wpisy bez prodentis_id. Wcześniej mogło przekierować na osierocony duplikat.
+
+#### Phase 2 — unified backend service + endpointy
+
+**Nowa biblioteka `src/lib/employeeService.ts`** (430 LOC) — wspólna logika atomic dla wszystkich flow zarządzania pracownikami:
+
+- `createOrUpdateEmployee({source, name, email, prodentisId?, position?, roles?, showInBooking?, pushGroups?, sendPasswordReset?})` — find/create auth user → grant ról → UPSERT employees **po `user_id`** (klucz deterministyczny zamiast email) → employment_terms via trigger → opcjonalnie email recovery. Bezpiecznie podpina się do istniejącego wiersza employees gdy email matchuje (np. pacjent z patient portal awansowany na pracownika — nie tworzymy duplikatu).
+- `updateEmployee(id, {name?, email?, position?, showInBooking?, pushGroups?, isActive?, roles?})` — edycja per pole + diff/sync ról w `user_roles` w jednym wywołaniu (grant brakujących + revoke usuniętych) + sync `push_subscriptions.employee_groups` gdy zmieniono push_groups.
+
+Walidacja: `roles ∈ {admin,employee,patient}`, `push_groups ∈ {doctor,hygienist,reception,assistant}`, email format.
+
+**Nowe endpointy:**
+- `POST /api/admin/employees` — unified create (backend dla wizarda „Dodaj pracownika" z Phase 3 UI). Body: `{source, name, email, prodentisId?, position?, roles?, showInBooking?, pushGroups?, sendPasswordReset?}`.
+- `PATCH /api/admin/employees/[id]` — edycja per pracownik (backend dla rozwijanego wiersza z Phase 3). Wszystkie pola opcjonalne.
+
+**Refaktor `/api/admin/roles/promote`** na cienki wrapper na `createOrUpdateEmployee()`. Zachowuje backwards-compat response shape, więc dotychczasowy UI (`addEmployee`, `addManualEmployee`, `promotePatient` w `admin/page.tsx`) działa bez zmian. Likwiduje dotychczasowy upsert z `onConflict:'email'` który mógł niespodziewanie zaktualizować osierocony duplikat.
+
+#### Co zostaje bez zmian (Phase 3 zajmie się tym):
+- UI „Pracownicy" + „Uprawnienia" w admin panel — wciąż 2 osobne zakładki
+- Wizard „Dodaj pracownika" — nie ma jeszcze, na razie używane są stare addEmployee/addManualEmployee przez promote
+- `/api/admin/employees/deactivate` — działa jak wcześniej, do przemigrowania w Phase 3
+
+#### Co Marcin musi zrobić ręcznie po deploy:
+1. **Wgrać migrację 120** w Supabase SQL Editor na **OBU** projektach (produkcja + demo). Plik: `~/Desktop/migracje_supabase/migracja_120_employee_cleanup_and_terms_trigger.txt`. Migracja jest idempotentna, w BEGIN/COMMIT.
+2. Po wgraniu verification: `SELECT (SELECT COUNT(*) FROM employees WHERE email LIKE 'prodentis-%@auto.mikrostomart.pl' AND is_active = false) AS orphans_remaining;` powinno zwrócić `0`.
+
+#### Pliki:
+- `supabase_migrations/120_employee_cleanup_and_terms_trigger.sql` [NEW]
+- `src/lib/employeeService.ts` [NEW] — 430 LOC
+- `src/app/api/admin/employees/[id]/route.ts` [NEW] — PATCH endpoint
+- `src/app/api/admin/employees/route.ts` [MOD] — dodany POST + refactor auto-discovery
+- `src/app/api/employee/schedule/route.ts` [MOD] — usunięte auto-discovery + filtr po prodentis_id
+- `src/app/api/admin/roles/promote/route.ts` [MOD] — thin wrapper na employeeService
+
+#### Spodziewany efekt po deploy + wgraniu migracji:
+- Małgorzata Maćków-Huras pozostanie widoczna w grafiku (już naprawione ręcznie, ale gwarancja na przyszłość)
+- Nowi pracownicy dodawani przez „Dodaj konto" / wizard będą automatycznie mieli `employment_terms` (Anna nie miała — przez to statystyki/urlopy/algorytm overtime się wykrzaczał)
+- Backend gotowy do Phase 3 (wizard UI + rozwijany wiersz w jednej zakładce)
+- Stare osierocone duplikaty z `prodentis-*@auto.mikrostomart.pl` znikną z bazy bezpiecznie (intencyjnie dezaktywowani — np. Marcin (II), Ewelina Petyniak, Julka Plewa, Kuba Podlowski — pozostają, bo nie pasują do warunków cleanup).
+
+> ⚠️ **REQUIRES**: Wgraj `supabase_migrations/120_employee_cleanup_and_terms_trigger.sql` w Supabase SQL Editor na OBU projektach.
+> **Brak nowych env var.** Vercel auto-deployuje z pushem na main.
+
+---
 
 ### 2026-05-11 — KCP: kiosk-mode auth dla ekranu QR (rozwiązanie auto-logoutu tableta)
 **Tablet w recepcji wylogowywał się po wygaśnięciu sesji admina, tracąc ekran QR. Sesja admina musi mieć krótki TTL z powodów bezpieczeństwa. Rozwiązanie: dedykowany kiosk-token dla `/api/time/qr-current`, niezależny od Supabase auth.**
