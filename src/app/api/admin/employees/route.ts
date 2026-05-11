@@ -105,30 +105,36 @@ export async function GET() {
         const roleByEmail = new Map((employeeRoles || []).map(r => [r.email?.toLowerCase(), r]));
 
         // ─── Step 4: Auto-merge Prodentis operators into employees ───
-        // For each Prodentis doctor, find or create a matching employee record.
+        // Dla każdego operatora z Prodentis:
+        //   1. Jeśli już istnieje wiersz z tym prodentis_id (aktywny LUB nieaktywny)
+        //      → nic nie rób (admin świadomie decyduje czy go reaktywować)
+        //   2. Inaczej szukaj fuzzy match po nazwie — ale TYLKO w aktywnych
+        //      bez prodentis_id (żeby nie przekierować na osierocony duplikat
+        //      i nie podpiąć prodentis_id do dezaktywowanego konta).
+        //   3. Brak match → INSERT nowego wpisu z placeholder email.
         if (prodentisAvailable) {
             for (const [prodId, doc] of prodentisDoctors) {
-                // Already linked by prodentis_id?
+                // (1) Already linked by prodentis_id — skip
                 const linkedEmployee = employeesList.find(e => e.prodentis_id === prodId);
                 if (linkedEmployee) continue;
 
-                // Fuzzy match by name
+                // (2) Fuzzy name match — tylko aktywne BEZ prodentis_id
                 const normalizedDocName = normalizeName(doc.name);
                 const nameMatch = employeesList.find(e => {
                     if (!e.name) return false;
+                    if (e.is_active === false) return false;          // skip dezaktywowanych
+                    if (e.prodentis_id) return false;                 // skip już zlinkowanych
                     return normalizeName(e.name) === normalizedDocName;
                 });
 
                 if (nameMatch) {
-                    // Link existing employee to Prodentis
+                    // Link existing active employee to Prodentis ID
                     await supabase.from('employees')
                         .update({ prodentis_id: prodId, updated_at: new Date().toISOString() })
                         .eq('id', nameMatch.id);
                     nameMatch.prodentis_id = prodId; // update in-memory too
                 } else {
-                    // Brand new Prodentis operator — auto-create
-                    // Generate a unique placeholder email (email is NOT NULL + UNIQUE in DB)
-                    const slug = normalizeName(doc.name).replace(/\s+/g, '.') || 'unknown';
+                    // (3) Brand new Prodentis operator — auto-create
                     const placeholderEmail = `prodentis-${prodId}@auto.mikrostomart.pl`;
                     const { data: newEmp, error: insertErr } = await supabase.from('employees')
                         .insert({
