@@ -7,6 +7,7 @@
 
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { requireAdmin } from '@/lib/authGuards';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -17,6 +18,9 @@ const CLIENT_KEY = process.env.TIKTOK_CLIENT_KEY || '';
 const CLIENT_SECRET = process.env.TIKTOK_CLIENT_SECRET || '';
 
 export async function GET() {
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+
     const results: any = { steps: [] };
 
     try {

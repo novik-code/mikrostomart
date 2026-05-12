@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { requireAdmin } from '@/lib/authGuards';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -8,6 +9,9 @@ const supabase = createClient(
 
 // GET — list comment replies with filters
 export async function GET(req: NextRequest) {
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+
     try {
         const { searchParams } = new URL(req.url);
         const status = searchParams.get('status');
@@ -36,6 +40,9 @@ export async function GET(req: NextRequest) {
 
 // PATCH — update reply (approve, reject, edit text, skip)
 export async function PATCH(req: NextRequest) {
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+
     try {
         const body = await req.json();
         const { id, action, reply_text } = body;
@@ -81,6 +88,9 @@ export async function PATCH(req: NextRequest) {
 
 // DELETE — remove a reply record
 export async function DELETE(req: NextRequest) {
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+
     try {
         const { searchParams } = new URL(req.url);
         const id = searchParams.get('id');

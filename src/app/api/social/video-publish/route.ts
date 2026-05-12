@@ -11,6 +11,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { demoSanitize } from '@/lib/brandConfig';
+import { requireAdmin } from '@/lib/authGuards';
 
 export const maxDuration = 300;
 
@@ -474,6 +475,9 @@ export async function publishVideoToPlatforms(
 // HTTP POST handler — manual publish from admin UI
 // ═══════════════════════════════════════════════════════════════════
 export async function POST(req: NextRequest) {
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+
     try {
         const { video_id, platform_ids } = await req.json();
 

@@ -1,13 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { requireAdmin } from '@/lib/authGuards';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-// GET — list all platforms
+// Strip raw OAuth tokens from a platform row before returning to the client.
+// Admin UI only needs to know that a token exists + when it expires, never
+// the secret itself (audit P0-04).
+function maskPlatform(p: Record<string, any>) {
+    const { access_token, refresh_token, ...rest } = p;
+    return {
+        ...rest,
+        has_access_token: !!access_token,
+        has_refresh_token: !!refresh_token,
+        token_expires_at: p.token_expires_at ?? null,
+    };
+}
+
+// GET — list all platforms (tokens masked)
 export async function GET() {
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+
     try {
         const { data, error } = await supabase
             .from('social_platforms')
@@ -15,7 +32,7 @@ export async function GET() {
             .order('created_at', { ascending: true });
 
         if (error) throw error;
-        return NextResponse.json({ platforms: data || [] });
+        return NextResponse.json({ platforms: (data || []).map(maskPlatform) });
     } catch (err: any) {
         return NextResponse.json({ error: err.message }, { status: 500 });
     }
@@ -23,6 +40,9 @@ export async function GET() {
 
 // POST — add new platform
 export async function POST(req: NextRequest) {
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+
     try {
         const body = await req.json();
         const { platform, account_name, account_id, account_url, content_type, access_token, refresh_token, token_expires_at, config } = body;
@@ -48,7 +68,7 @@ export async function POST(req: NextRequest) {
             .single();
 
         if (error) throw error;
-        return NextResponse.json({ platform: data }, { status: 201 });
+        return NextResponse.json({ platform: maskPlatform(data) }, { status: 201 });
     } catch (err: any) {
         return NextResponse.json({ error: err.message }, { status: 500 });
     }
@@ -56,6 +76,9 @@ export async function POST(req: NextRequest) {
 
 // PUT — update platform
 export async function PUT(req: NextRequest) {
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+
     try {
         const body = await req.json();
         const { id, ...updates } = body;
@@ -72,7 +95,7 @@ export async function PUT(req: NextRequest) {
             .single();
 
         if (error) throw error;
-        return NextResponse.json({ platform: data });
+        return NextResponse.json({ platform: maskPlatform(data) });
     } catch (err: any) {
         return NextResponse.json({ error: err.message }, { status: 500 });
     }
@@ -80,6 +103,9 @@ export async function PUT(req: NextRequest) {
 
 // DELETE — remove platform
 export async function DELETE(req: NextRequest) {
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+
     try {
         const { searchParams } = new URL(req.url);
         const id = searchParams.get('id');

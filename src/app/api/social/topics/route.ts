@@ -9,7 +9,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { verifyAdmin } from '@/lib/auth';
+import { requireAdmin } from '@/lib/authGuards';
 import OpenAI from 'openai';
 import { demoSanitize } from '@/lib/brandConfig';
 
@@ -23,8 +23,8 @@ const supabase = createClient(
 
 // ── GET — list topics ──────────────────────────────────────────────
 export async function GET(req: NextRequest) {
-    const admin = await verifyAdmin();
-    if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
 
     const { searchParams } = new URL(req.url);
     const activeOnly = searchParams.get('active') === 'true';
@@ -47,8 +47,8 @@ export async function GET(req: NextRequest) {
 
 // ── POST — create topic OR generate AI topics ──────────────────────
 export async function POST(req: NextRequest) {
-    const admin = await verifyAdmin();
-    if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
 
     const body = await req.json();
 
@@ -147,8 +147,8 @@ Dostępne kategorie: ogólne, implantologia, estetyka, higiena, endodoncja, prot
 
 // ── PUT — update topic ─────────────────────────────────────────────
 export async function PUT(req: NextRequest) {
-    const admin = await verifyAdmin();
-    if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
 
     const body = await req.json();
     if (!body.id) return NextResponse.json({ error: 'ID wymagane' }, { status: 400 });
@@ -170,8 +170,8 @@ export async function PUT(req: NextRequest) {
 
 // ── DELETE — delete topic ──────────────────────────────────────────
 export async function DELETE(req: NextRequest) {
-    const admin = await verifyAdmin();
-    if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');

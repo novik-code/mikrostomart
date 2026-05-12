@@ -10,6 +10,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { requireAdmin } from '@/lib/authGuards';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -17,6 +18,9 @@ const supabase = createClient(
 );
 
 export async function POST(req: NextRequest) {
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+
     try {
         const body = await req.json();
         const { videoUrl, fileSize, fileName, isPreEdited } = body;
@@ -66,6 +70,9 @@ export async function POST(req: NextRequest) {
 
 // PUT — generate a signed upload URL for direct client-side upload
 export async function PUT(req: NextRequest) {
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+
     try {
         const body = await req.json();
         const { ext = 'mp4', contentType = 'video/mp4' } = body;
@@ -110,6 +117,9 @@ export async function PUT(req: NextRequest) {
 
 // PATCH — force-set video status (admin control)
 export async function PATCH(req: NextRequest) {
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+
     try {
         const body = await req.json();
         const { id, status = 'uploaded' } = body;
@@ -144,6 +154,9 @@ export async function PATCH(req: NextRequest) {
 
 // GET — list video queue entries
 export async function GET(req: NextRequest) {
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+
     try {
         const { searchParams } = new URL(req.url);
         const status = searchParams.get('status');
@@ -170,6 +183,9 @@ export async function GET(req: NextRequest) {
 
 // DELETE — remove a video from queue + storage
 export async function DELETE(req: NextRequest) {
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+
     try {
         const { searchParams } = new URL(req.url);
         const id = searchParams.get('id');

@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { demoSanitize } from '@/lib/brandConfig';
+import { requireAdmin } from '@/lib/authGuards';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -21,6 +22,13 @@ const APP_ID = process.env.META_APP_ID!;
 const APP_SECRET = process.env.META_APP_SECRET!;
 
 export async function GET(req: NextRequest) {
+    // Admin-only — both initiate and callback. The OAuth callback runs while
+    // the admin session cookie is still valid (FB redirects the admin's own
+    // browser back here, so the session cookie travels with it). If the admin
+    // logged out mid-flow they will need to start the connection again.
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+
     const { searchParams } = new URL(req.url);
     const code = searchParams.get('code');
     const error = searchParams.get('error');

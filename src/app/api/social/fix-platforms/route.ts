@@ -7,6 +7,7 @@
 
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { requireAdmin } from '@/lib/authGuards';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -14,6 +15,9 @@ const supabase = createClient(
 );
 
 export async function POST() {
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+
     const fixes: any[] = [];
 
     try {

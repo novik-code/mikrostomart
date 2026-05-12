@@ -7,10 +7,14 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { publishPost } from '@/lib/socialPublish';
+import { requireAdmin } from '@/lib/authGuards';
 
 export const maxDuration = 120;
 
 export async function POST(req: NextRequest) {
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+
     try {
         const { post_id } = await req.json();
 

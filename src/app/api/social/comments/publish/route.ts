@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { publishReply, CommentReplyRow } from '@/lib/socialComments';
+import { requireAdmin } from '@/lib/authGuards';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -11,6 +12,9 @@ export const maxDuration = 300; // 5 minutes for bulk publish
 
 // POST — publish a single reply or all unpublished replies
 export async function POST(req: NextRequest) {
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+
     try {
         const body = await req.json();
         const { id, publish_all } = body;

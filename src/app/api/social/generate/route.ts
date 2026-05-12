@@ -11,6 +11,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { generateSocialText, generateSocialImage, uploadImageToStorage } from '@/lib/socialAI';
 import type { Platform, ContentType } from '@/lib/socialAI';
+import { requireAdmin } from '@/lib/authGuards';
 
 export const maxDuration = 120; // image generation can be slow
 
@@ -20,6 +21,9 @@ const supabase = createClient(
 );
 
 export async function POST(req: NextRequest) {
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+
     try {
         const body = await req.json();
         const {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { requireAdmin } from '@/lib/authGuards';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -8,6 +9,9 @@ const supabase = createClient(
 
 // GET — list posts with optional status filter
 export async function GET(req: NextRequest) {
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+
     try {
         const { searchParams } = new URL(req.url);
         const status = searchParams.get('status');
@@ -34,6 +38,9 @@ export async function GET(req: NextRequest) {
 
 // POST — create manual draft post
 export async function POST(req: NextRequest) {
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+
     try {
         const body = await req.json();
         const { platform_ids, content_type, text_content, hashtags, image_url, video_url, scheduled_for, admin_notes } = body;
@@ -67,6 +74,9 @@ export async function POST(req: NextRequest) {
 
 // PUT — update post (approve, reject, edit)
 export async function PUT(req: NextRequest) {
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+
     try {
         const body = await req.json();
         const { id, action, ...updates } = body;
@@ -129,6 +139,9 @@ export async function PUT(req: NextRequest) {
 
 // DELETE — remove post
 export async function DELETE(req: NextRequest) {
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+
     try {
         const { searchParams } = new URL(req.url);
         const id = searchParams.get('id');

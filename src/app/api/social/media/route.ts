@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { requireAdmin } from '@/lib/authGuards';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -8,6 +9,9 @@ const supabase = createClient(
 
 // GET — list media with optional tag/type filter
 export async function GET(req: NextRequest) {
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+
     try {
         const { searchParams } = new URL(req.url);
         const fileType = searchParams.get('type');
@@ -39,6 +43,9 @@ export async function GET(req: NextRequest) {
 
 // POST — upload media to Supabase Storage + save record
 export async function POST(req: NextRequest) {
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+
     try {
         const formData = await req.formData();
         const file = formData.get('file') as File;
@@ -108,6 +115,9 @@ export async function POST(req: NextRequest) {
 
 // DELETE — remove media file + record
 export async function DELETE(req: NextRequest) {
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+
     try {
         const { searchParams } = new URL(req.url);
         const id = searchParams.get('id');

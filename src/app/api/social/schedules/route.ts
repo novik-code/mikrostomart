@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { requireAdmin } from '@/lib/authGuards';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -8,6 +9,9 @@ const supabase = createClient(
 
 // GET — list all schedules (with platform names)
 export async function GET() {
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+
     try {
         const { data: schedules, error } = await supabase
             .from('social_schedules')
@@ -47,6 +51,9 @@ export async function GET() {
 
 // POST — create new schedule
 export async function POST(req: NextRequest) {
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+
     try {
         const body = await req.json();
         const { name, platform_ids, content_type, ai_prompt, frequency, cron_expression, preferred_hour, preferred_days, auto_publish } = body;
@@ -80,6 +87,9 @@ export async function POST(req: NextRequest) {
 
 // PUT — update schedule
 export async function PUT(req: NextRequest) {
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+
     try {
         const body = await req.json();
         const { id, ...updates } = body;
@@ -104,6 +114,9 @@ export async function PUT(req: NextRequest) {
 
 // DELETE — remove schedule
 export async function DELETE(req: NextRequest) {
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+
     try {
         const { searchParams } = new URL(req.url);
         const id = searchParams.get('id');

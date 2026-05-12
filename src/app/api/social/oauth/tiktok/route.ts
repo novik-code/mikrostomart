@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { demoSanitize } from '@/lib/brandConfig';
+import { requireAdmin } from '@/lib/authGuards';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -21,6 +22,10 @@ const CLIENT_KEY = process.env.TIKTOK_CLIENT_KEY!;
 const CLIENT_SECRET = process.env.TIKTOK_CLIENT_SECRET!;
 
 export async function GET(req: NextRequest) {
+    // Admin-only — see /api/social/oauth/facebook for the session-cookie rationale.
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+
     const { searchParams } = new URL(req.url);
     const code = searchParams.get('code');
     const error = searchParams.get('error');
