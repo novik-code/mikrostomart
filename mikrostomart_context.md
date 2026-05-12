@@ -2462,6 +2462,38 @@ NODE_ENV=production
 
 ## 📝 Recent Changes
 
+### 2026-05-12 — Reorganizacja pulpitu Marcina + dokończenie Fazy J (3 follow-up fixes)
+
+**Marcin uporządkował pulpit**: przeniósł WSZYSTKIE AI-tracking files z top-level pulpitu do nowego folderu `~/Desktop/bałagan/`. Na pulpicie top-level pozostały tylko `KOMENDA_STARTOWA_MIKROSTOMART.md` + symlink `mikrostomart` (+ folder `migracje_supabase/` + `NOWOSIELSKI_PL_RECOVERY/` + osobiste).
+
+**Przeniesione do `~/Desktop/bałagan/`**:
+- `PLAN_PREMIUM_SEO.md`
+- `PLAN_PREMIUM_SEO_STATUS.md`
+- `PLAN_PREFLIGHT_CHECKLIST.md`
+- `MARCIN_NOWOSIELSKI_BIO_INVENTORY.md`
+- `MAPA_PROJEKTU_QUICK_LOOKUP.md`
+- Wszystkie historyczne `KOMENDA_STARTOWA_MIKROSTOMART.md.bak-*`
+
+**Zaktualizowane referencje**:
+- `KOMENDA_STARTOWA_MIKROSTOMART.md` (sekcja 0 + sekcja 2 KRYTYCZNE LOKALIZACJE + 6.2 backup instructions)
+- `memory/reference_mikrostomart_paths.md`
+- `memory/project_premium_seo_plan.md`
+- `memory/MEMORY.md` (index)
+- `mikrostomart_context.md` (ten wpis)
+
+**Również w tej sesji — 3 J-5 follow-up commits (Facebook Sharing Debugger bug hunt)**:
+- `85d213a` — fix homepage missing og:image/url/type/site_name (Next 16 fully replaces openGraph when child segment declares one — homepage musiała explicit deklarować wszystkie pola)
+- `cb152d9` — fix #2: og:type/url/site_name w `pageMetadata()` helper + fb:app_id w `other` field (later naprawione w #3 bo Next emit name= zamiast property=)
+- `6ffe4ab` — fix #3: fb:app_id z `property=` (manualne head JSX, bo Next `other` field zawsze emit'uje `name=` ale Facebook wymaga `property=`); facebook-domain-verification w `other` field (Facebook tu akceptuje `name=`); brand config dodaje `facebookAppId: '746876361690533'` (Live) + `facebookDomainVerification: 'byu0avp7yqg5k0o59jpw3i7a3ho6wu'` (Business Suite domain claim token)
+
+**Marcin ręczne (TODO)**:
+- Otwórz https://business.facebook.com/ → Settings → Brand Safety → Domains → znajdź `mikrostomart.pl` → kliknij **Verify** (potwierdzenie meta-tag verification)
+- Jeśli FB Sharing Debugger wciąż pokazuje `fb:app_id missing` po 10 min od Live mode toggle — to FB cache lag, można pominąć (kod jest poprawny, tag w `<head>` z `property=`)
+
+> **Brak migracji DB / nowych env var.** Vercel auto-deployuje z pushem na main.
+
+---
+
 ### 2026-05-12 — Premium SEO Plan: Sesja J-5 (internal linking + priceRange premium) — **FAZA J KOMPLETNA**
 
 **Piąta i ostatnia sesja Fazy J. /dla-pacjentow-przyjezdnych traci status orphan page (3 incoming linki), cross-links protetyka↔implantologia, premium signal `priceRange: $$$`. Faza J KOMPLETNA — wszystkie 5 sesji.**
@@ -3074,11 +3106,11 @@ Walidacja: `roles ∈ {admin,employee,patient}`, `push_groups ∈ {doctor,hygien
 
 #### Co zostało dostarczone w Sesji 0:
 
-**Pliki na pulpicie (4 nowe)**:
-- **`~/Desktop/PLAN_PREMIUM_SEO.md`** — pełen plan 4 faz (J/K/L/M) z sesjami szczegółowymi
-- **`~/Desktop/PLAN_PREMIUM_SEO_STATUS.md`** — tracker statusu każdej sesji + decisions log
-- **`~/Desktop/PLAN_PREFLIGHT_CHECKLIST.md`** — lista decyzji + materiałów Marcina przed kolejnymi sesjami
-- **`~/Desktop/MARCIN_NOWOSIELSKI_BIO_INVENTORY.md`** — kompletny inwentarz personal brand z citatami z archive.org + LA&HA + Magazyn Stomatologiczny
+**Pliki AI-tracking (4 nowe)** — *od 2026-05-12 wszystkie przeniesione do `~/Desktop/bałagan/` przez Marcina (KOMENDA + symlink mikrostomart zostały top-level)*:
+- **`~/Desktop/bałagan/PLAN_PREMIUM_SEO.md`** — pełen plan 4 faz (J/K/L/M) z sesjami szczegółowymi
+- **`~/Desktop/bałagan/PLAN_PREMIUM_SEO_STATUS.md`** — tracker statusu każdej sesji + decisions log
+- **`~/Desktop/bałagan/PLAN_PREFLIGHT_CHECKLIST.md`** — lista decyzji + materiałów Marcina przed kolejnymi sesjami
+- **`~/Desktop/bałagan/MARCIN_NOWOSIELSKI_BIO_INVENTORY.md`** — kompletny inwentarz personal brand z citatami z archive.org + LA&HA + Magazyn Stomatologiczny
 
 **Memory + index**:
 - `memory/project_premium_seo_plan.md` [NEW]
