@@ -1,6 +1,6 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-12 (Premium SEO **Faza J KOMPLETNA** ✅. J-5: InternationalPatientsTeaser komponent (wide+compact) na homepage + /kontakt + cross-links protetyka↔implantologia + priceRange "$$" → "$$$" premium signal; commit `a8c985d`. Faza J pełna: J-1 `2215e91`, J-2 `e07559f`, J-3 `e9f368a`, J-4 `cd406af`, J-5 `a8c985d`. Następnie CHECKPOINT J + J-MEASURE po 4 tyg.)  
+> **Last Updated:** 2026-05-12 (**🚨 HOTFIX SPRINT AKTYWOWANY** po 2 zewnętrznych audytach kodu+UX — Faza K Premium PAUSED. 9 sprintów: auth → payment → UX rez → XSS+public → SEO P2 → deps → UX → RODO → lint+CI. Plan: `~/Desktop/bałagan/PLAN_HOTFIX_SPRINT.md`. **Next: S1-1 Auth helpers**. Tego dnia wcześniej Faza J KOMPLETNA: J-1..J-5 + 3 follow-up fixes.)  
 > **Version:** Production + Demo (Dual Vercel Deployment)  
 > **Status:** Active Development — **🎯 PREMIUM SEO PLAN AKTYWNY** (4 fazy, ~6 mies horyzont). KCP FULL + kiosk-token + **Employee Management Phase 1+2+3 (KOMPLETNE — backend unified + UI z wizardem)**; CareFlow Perioperative; Push-First Communication. SEO Sprint H1-H8 ✅ KOMPLETNY. Cykl: pełen audyt 5 niezależnymi agentami wykrył ~47 problemów → 8 faz wdrożenia (H1 quick fixes, H2 metadata gaps, H3 internal linking, H4 schema enrichment, H5 perf+images, H6 content, H7 intl landing, H8 real schema data) → po H8 push **awaria 500 production** (H3 batch sed przekonwertował 3 server components na `Link` z `@/i18n/navigation` który wewnętrznie używa `useLocale()` client-only hook → SSR crash) → 8 reverts cofnęły wszystko → bisect lokalny zlokalizował bug → fix `572af02` (zamiana na `<a href>` z manual locale prefix w 3 server components) → re-apply H1-H8 → produkcja stabilna `6c8f4fa`. ~35/47 problemów audytu zaadresowanych. **Wcześniejsze SEO Sprint G1-G6 + Recovery 1-E** ✅ KOMPLETNE (2026-05-09 → 2026-05-10): pełen multilingual SEO (4 locale), rich SERP, Core Web Vitals fix (LCP 6s→2-3s), PSI Mobile 34→73, Desktop 39→83. Faza 3 GSC: audyt po 4-6 tygodniach (~koniec czerwca 2026). Następna sesja: weryfikacja Rich Results, re-submit sitemap, ewentualne content expansion service pages (24 expansions H6 follow-up).
 
@@ -2461,6 +2461,56 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-12 — 🚨 HOTFIX SPRINT AKTYWOWANY (Faza K Premium PAUSED)
+
+**Po dwóch zewnętrznych audytach (kod + UX) Marcin zlecił 9-sprintowy plan poprawek przed Fazą K.**
+
+#### Geneza
+- Audyt kodu (`~/Desktop/bałagan/RAPORT_AUDYT_MIKROSTOMART_2026-05-12.md`): **89 production vulnerabilities** (10 critical), `verifyAdmin()` faktycznie sprawdza tylko login (nie rolę admin), 49 z 76 admin endpointów wystawione, payment integrity opaty na danych klienta, stored XSS w WYSIWYG, hardcoded Prodentis API key w 5 commitach git history.
+- Audyt UX (`~/Desktop/bałagan/raport-mikrostomart-audyt.md`): 8/10 ogólnie. Mapa bólu bez disclaimera medycznego, menu desktop ukryte za hamburger, AI asystent nachodzi na formularze, kalkulator/cennik/porównywarka scroll bug.
+
+#### Decyzja Marcina
+**"jebać fazę K"** — Premium Positioning Reset PAUSED do końca Hotfix Sprint. Security pierwsze.
+
+#### Plan 9 sprintów (kolejność, NIE łączyć)
+1. **S1 — Auth** (~1-2 dni, 4 sesje): authGuards.ts (`requireAdmin/requireEmployeeOrAdmin/requireSupabaseUser`) + rebind 76 admin endpointów + social lockdown + crony manual + Prodentis key rotation
+2. **S2 — Payment Integrity** (~2-4 dni, 5 sesji): order state machine (migracja 121) + server-side cart total + verified webhook signatures + sandbox E2E
+3. **S3 — UX Rezerwacja** (~30 min, REDEFINIOWANY): formularz JUŻ MA AppointmentScheduler z Prodentis slots, problem to UX cue (audytor patrzył pre-select specjalisty). Marcin wybiera A/B/C.
+4. **S4 — XSS + Public Hardening** (~2-3 dni, 5 sesji): isomorphic-dompurify + CSP enforce + Cloudflare Turnstile na contact form + HMAC tokens dla appointment confirm/cancel + patient JWT cleanup + bucket private
+5. **S5 — SEO P2 Cleanup** (~1-2 dni, 3 sesje): `html lang="uk"` (z "ua"), robots prefiksy językowe, sitemap exclude noindex, news fallback notFound, `/wizyta/*` noindex, i18n deep merge fix (spawn'owany task po J-1)
+6. **S6 — Dependency Upgrade** (~2-3 dni, 4 sesje): Next 16 patch, next-intl, Firebase+protobufjs critical, cleanup unused
+7. **S7 — UX Follow-up** (~1-2 dni, 3 sesje): mapa bólu disclaimer medyczny + alarmowe objawy, scroll fix kalkulator/cennik/porównywarka, AI asystent positioning na formularzach, menu desktop visible + mobile redesign
+8. **S8 — RODO + 2FA** (~2-3 dni, 4 sesje): PII audit + retention policy, 2FA dla admin/staff (TOTP + recovery codes), audit log dla PII operations, AI policy + 30d retention
+9. **S9 — Lint baseline + CI** (~1 dzień, 2 sesje): eslint-baseline frozen + GitHub Actions security gates (npm audit, gitleaks, grep blockers)
+
+#### Pliki tracking
+- `~/Desktop/bałagan/PLAN_HOTFIX_SPRINT.md` — pełen plan (1.0)
+- `~/Desktop/bałagan/PLAN_HOTFIX_STATUS.md` — tracker per sesja + decisions log
+- `~/Desktop/bałagan/RAPORT_AUDYT_MIKROSTOMART_2026-05-12.md` — źródło findings P0/P1/P2
+- `~/Desktop/bałagan/raport-mikrostomart-audyt.md` — źródło findings UX
+- Memory: `project_hotfix_sprint.md` [NEW], `project_premium_seo_plan.md` [MOD — PAUSED status], `MEMORY.md` [MOD — index updated]
+- KOMENDA section 0: aktywny sprint = Hotfix, NEXT SESSION = S1-1
+
+#### Verified w sesji 0
+- **Prodentis API key `2c9bd5b4-5090-4007-8f06-936811bd0947`**: w **5 commitach** git history od `30e743d`, wciąż aktywny w 2 plikach HEAD (`consents/sign`, `employee/export-biometric`). Decyzja: rotacja w Prodentis API unieważnia klucz (NIE filter-branch — immutable history).
+- **Formularz rezerwacji**: `src/components/ReservationForm.tsx` JUŻ używa `AppointmentScheduler` (linia 9) z Prodentis slots (`/api/specialists` + `/api/prodentis/slots`). Audytor UX prawdopodobnie patrzył przed wyborem specjalisty. S3 redefiniowany na "UX cue / progress indicator".
+
+#### Total estimate
+- ~30 sesji AI w 6-7 tygodniach (~50h AI)
+- ~4-5h Marcin (Prodentis rotation, migracje 121-124, Turnstile setup, PayU/Stripe sandbox tests, menu decyzja, 2FA setup dla każdego employee)
+
+#### Reguły bezpieczeństwa (przez cały plan)
+1. Zawsze branch dla > 1 plik
+2. Smoke test prod-prawda po każdym sprincie (build + critical paths)
+3. Migracje idempotentne
+4. Backwards-compat grace period dla auth (verifyAdmin → requireAdmin przez 7-14 dni)
+5. Manual Marcin steps wyraźnie zaznaczone
+6. NIE łączyć sprintów w jeden commit
+
+> **Brak migracji DB / nowych env var w tej sesji setup** — to wszystko w przyszłych sprintach.
+
+---
 
 ### 2026-05-12 — Reorganizacja pulpitu Marcina + dokończenie Fazy J (3 follow-up fixes)
 
