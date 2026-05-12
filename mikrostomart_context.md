@@ -1,6 +1,6 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-12 (**🚨 HOTFIX SPRINT — S1-bis DONE: PMS key zarządzany z panelu admin**. `src/lib/pmsConfig.ts` helper z 3-level fallback (DB `clinic_settings.apiKey` → env `PRODENTIS_API_KEY` → null), 60s cache, invalidate po PATCH. Endpoint `/api/admin/pms-settings` z `api_key_masked` + source + PATCH apiKey + POST?action=health. UI `PmsSettingsTab.tsx` z input do wklejenia nowego klucza + Save/Test/Wyczyść + callout z PowerShell procedure (ref: `~/Desktop/bałagan/Dla dewelopera mikrostomart/INSTRUKCJA_ROTACJI_KLUCZA.md`). 15 callerów `process.env.PRODENTIS_API_KEY` → `await getProdentisKey()`. `prodentis-adapter` sync getter → async method. Commit `75bc682`, 22 plików. **Marcin może teraz rotować klucz w panelu admin** zamiast Vercel env vars — pełen workflow w docs. Stary `2c9bd5b4...` po S1-4 nadal w env, ale DB ma priorytet. Tests 15/15, build clean. **Next: S2-1 Payment Integrity start** (migracja 121 order state machine). Wcześniej **S1 SPRINT COMPLETE** (S1-1 `d8c6f53`, S1-2 `c391076`, S1-3 `1bc6ed7`, S1-4 `9f3fa64`).)  
+> **Last Updated:** 2026-05-12 (**🚨 HOTFIX SPRINT — S2-1 DONE: orders state machine** (Sprint 2 Payment Integrity start). Migracja `121_orders_state_machine.sql` (209 LOC, idempotentna) wgrana na OBU projektach Supabase (`keucogopujdolzmfajjv` + `mhosfncgasjfruiohlfo`). Schemat orders rozszerzony o: `payment_provider`, `provider_order_id` (Stripe PI / PayU orderId / P24 sessionId, indexed dla webhook lookup), `idempotency_key` (UNIQUE partial index — dedup retries), `amount_total` (server source of truth), `amount_paid` (z webhook), `updated_at` (BEFORE UPDATE trigger). `status` dostało CHECK constraint `pending|paid|failed|refunded|cancelled` z default `'pending'`. Trigger `trg_orders_status_audit` z `IF EXISTS audit_log` check — bezpieczne deploy przed S8-3. Backwards compat: legacy rows (status='paid' tylko) backfill skopiował `total_amount → amount_total/amount_paid`. Commit `e44fc30`. **Next: S2-2 server-side cart total** (`/api/cart/calculate-total` + update Stripe/PayU/P24 create endpoints — NIE czytają amount z body; update `/api/order-confirmation` żeby nie pisał status='paid' z body). Wcześniej **S1-bis DONE: PMS key zarządzany z panelu admin**. `src/lib/pmsConfig.ts` helper z 3-level fallback (DB `clinic_settings.apiKey` → env `PRODENTIS_API_KEY` → null), 60s cache, invalidate po PATCH. Endpoint `/api/admin/pms-settings` z `api_key_masked` + source + PATCH apiKey + POST?action=health. UI `PmsSettingsTab.tsx` z input do wklejenia nowego klucza + Save/Test/Wyczyść + callout z PowerShell procedure (ref: `~/Desktop/bałagan/Dla dewelopera mikrostomart/INSTRUKCJA_ROTACJI_KLUCZA.md`). 15 callerów `process.env.PRODENTIS_API_KEY` → `await getProdentisKey()`. `prodentis-adapter` sync getter → async method. Commit `75bc682`, 22 plików. **Marcin może teraz rotować klucz w panelu admin** zamiast Vercel env vars — pełen workflow w docs. Stary `2c9bd5b4...` po S1-4 nadal w env, ale DB ma priorytet. Tests 15/15, build clean. **Next: S2-1 Payment Integrity start** (migracja 121 order state machine). Wcześniej **S1 SPRINT COMPLETE** (S1-1 `d8c6f53`, S1-2 `c391076`, S1-3 `1bc6ed7`, S1-4 `9f3fa64`).)  
 
 > **Version:** Production + Demo (Dual Vercel Deployment)  
 > **Status:** Active Development — **🎯 PREMIUM SEO PLAN AKTYWNY** (4 fazy, ~6 mies horyzont). KCP FULL + kiosk-token + **Employee Management Phase 1+2+3 (KOMPLETNE — backend unified + UI z wizardem)**; CareFlow Perioperative; Push-First Communication. SEO Sprint H1-H8 ✅ KOMPLETNY. Cykl: pełen audyt 5 niezależnymi agentami wykrył ~47 problemów → 8 faz wdrożenia (H1 quick fixes, H2 metadata gaps, H3 internal linking, H4 schema enrichment, H5 perf+images, H6 content, H7 intl landing, H8 real schema data) → po H8 push **awaria 500 production** (H3 batch sed przekonwertował 3 server components na `Link` z `@/i18n/navigation` który wewnętrznie używa `useLocale()` client-only hook → SSR crash) → 8 reverts cofnęły wszystko → bisect lokalny zlokalizował bug → fix `572af02` (zamiana na `<a href>` z manual locale prefix w 3 server components) → re-apply H1-H8 → produkcja stabilna `6c8f4fa`. ~35/47 problemów audytu zaadresowanych. **Wcześniejsze SEO Sprint G1-G6 + Recovery 1-E** ✅ KOMPLETNE (2026-05-09 → 2026-05-10): pełen multilingual SEO (4 locale), rich SERP, Core Web Vitals fix (LCP 6s→2-3s), PSI Mobile 34→73, Desktop 39→83. Faza 3 GSC: audyt po 4-6 tygodniach (~koniec czerwca 2026). Następna sesja: weryfikacja Rich Results, re-submit sitemap, ewentualne content expansion service pages (24 expansions H6 follow-up).
@@ -2462,6 +2462,69 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-12 — Hotfix Sprint S2-1: Orders state machine + migracja 121 (Sprint 2 PAYMENT INTEGRITY START)
+
+**Schema-only migration laying ground for S2-2 (server cart total) and S2-3 (verified webhooks).**
+
+#### Commits
+- `e44fc30` feat(payment): S2-1 migration 121 — orders state machine
+
+#### Manual Marcin (DONE)
+- ✅ Migracja 121 wgrana na obu projektach: produkcja `keucogopujdolzmfajjv` + demo `mhosfncgasjfruiohlfo`
+- Backfill verification: ostatni SELECT zwrócił `migration_121 | total_orders | paid_orders | with_amount_total | with_idempotency_key` — wszystkie legacy rows poprawnie zmigrowane
+
+#### Co się zmieniło w schemacie `orders`
+- **Nowe kolumny** (wszystkie `IF NOT EXISTS`):
+  - `payment_provider VARCHAR(50)` — 'stripe' / 'payu' / 'p24'
+  - `provider_order_id VARCHAR(255)` — Stripe PaymentIntent.id / PayU orderId / P24 sessionId; webhook lookup
+  - `idempotency_key VARCHAR(255)` — UNIQUE partial index (NULL allowed dla legacy); client-generated UUID per submit
+  - `amount_total NUMERIC(10,2)` — server-calculated, source of truth (S2-2 ustawi)
+  - `amount_paid NUMERIC(10,2)` — z verified webhook (S2-3)
+  - `updated_at TIMESTAMPTZ` z auto-trigger
+- **State machine** (CHECK constraint, nie ENUM — łatwiejsza ewolucja):
+  - `status IN ('pending', 'paid', 'failed', 'refunded', 'cancelled')`
+  - DEFAULT `'pending'` (S2-2 będzie tworzyć rows pre-payment)
+  - Transitions enforced w aplikacji (S2-2/S2-3), nie w DB
+- **Triggery**:
+  - `trg_orders_updated_at` BEFORE UPDATE — auto-update timestamp
+  - `trg_orders_status_audit` AFTER UPDATE OF status — placeholder dla S8-3 (audit_log table, migracja 124). Funkcja sprawdza `IF EXISTS (information_schema.tables WHERE table_name='audit_log')` — no-op aż do S8-3, po S8-3 zaczyna pisać bez zmian kodu
+- **3 indeksy**:
+  - `idx_orders_provider_order_id` (partial, where not null) — webhook handler resolves provider id → local order
+  - `idx_orders_status` — admin filter
+  - `idx_orders_idempotency_key` (UNIQUE partial) — dedup retries
+- **Backfill** (idempotent):
+  - Legacy rows mają `status` w odpowiednich wartościach lub NULL → set 'paid'
+  - `amount_total IS NULL AND total_amount IS NOT NULL` → copy
+  - `amount_paid IS NULL AND status='paid'` → copy z total_amount
+
+#### Strategia state machine
+- **CHECK > ENUM**: PostgreSQL ENUM wymaga osobnej migracji aby dodać/usunąć wartości (ALTER TYPE). CHECK constraint można drop/recreate bez gymnastics. Wybrane dla łatwości iteracji.
+- **Idempotency UUID**: klient generuje (np. `crypto.randomUUID()` na frontend lub `gen_random_uuid()` server-side w S2-2). Pierwszy INSERT z danym kluczem przechodzi, każdy następny fail na UNIQUE → handler zwraca existing row (200 zamiast 500).
+- **Transitions w aplikacji**: DB pilnuje tylko enum'a wartości. Ścieżki (`pending → paid` tylko z verified webhook) wymuszane w kodzie S2-3.
+
+#### Backwards compat
+- Stare kolumny (`customer_details`, `items`, `total_amount`, `payment_id`) **NIE** ruszone
+- Stara aplikacja działa dalej — nic w kodzie jeszcze nie używa nowych kolumn
+- S2-2 wprowadzi rozdwojenie: nowe pola za rządzą, stare kolumny zostają jako legacy dla istniejących orderów
+
+#### Plik
+- `supabase_migrations/121_orders_state_machine.sql` [NEW] 209 LOC
+- `~/Desktop/migracje_supabase/migracja_121_orders_state_machine.txt` (kopia dla Marcina)
+
+#### Następne kroki
+- **S2-2** (~2h AI): server-side cart total
+  - Nowy `POST /api/cart/calculate-total` — input `{items: [{productId, quantity}]}`, server pobiera ceny z `products` table, liczy total, zwraca `{total, lineItems, idempotencyKey}`
+  - Update `/api/create-payment-intent` (Stripe) — usuń `amount` z body, oblicz server-side
+  - Update `/api/payu/create-order` — same
+  - Update `/api/p24/register` — same
+  - Update `/api/order-confirmation` — NIE pisze `status='paid'` z body, sprawdza w DB
+  - Frontend ShopModal/CartContext — wysyła tylko `items[]`, dostaje total z server
+- **S2-3** (~2h AI): webhook signatures (PayU OpenPayU-Signature, Stripe constructEvent, P24)
+- **S2-4** (~1h AI): order-confirmation cleanup
+- **S2-5** (~1h AI + Marcin sandbox): E2E PayU + Stripe sandbox test + fraud test (modified amount)
+
+---
 
 ### 2026-05-12 — Hotfix Sprint S1-bis: PMS API key managed from admin panel (follow-up to S1-4)
 
