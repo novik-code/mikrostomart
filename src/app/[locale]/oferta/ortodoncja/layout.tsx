@@ -5,7 +5,9 @@ import { buildServicePageSchemas } from '@/lib/serviceSchemas';
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
     const { locale } = await params;
-    return pageMetadata(locale, '/oferta/ortodoncja', PAGE_SEO['/oferta/ortodoncja']);
+    return pageMetadata(locale, '/oferta/ortodoncja', PAGE_SEO['/oferta/ortodoncja'], {
+        ogImage: '/og-ortodoncja.webp',
+    });
 }
 
 export default async function Layout({

@@ -8,7 +8,14 @@ import { supabase } from '@/lib/supabaseClient';
 import { getTranslations } from 'next-intl/server';
 import { brand } from '@/lib/brandConfig';
 import { breadcrumbHref, localizedBreadcrumb } from '@/lib/seo';
+import { preferWebp } from '@/lib/imageUrl';
 import { routing } from '@/i18n/routing';
+
+function schemaImageUrl(image: string | null | undefined): string {
+    if (!image) return `${brand.appUrl}/opengraph-image.png`;
+    const absolute = image.startsWith('http') ? image : `${brand.appUrl}${image}`;
+    return preferWebp(absolute) || absolute;
+}
 
 const HREFLANG_MAP: Record<string, string> = {
     pl: 'pl',
@@ -99,7 +106,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
             type: 'article',
             url: articleUrl(locale, slug),
             images: localized.image
-                ? [{ url: localized.image.startsWith('http') ? localized.image : `${brand.appUrl}${localized.image}` }]
+                ? [{ url: schemaImageUrl(localized.image) }]
                 : undefined,
         },
         twitter: {
@@ -155,9 +162,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ locale
         "@type": "NewsArticle",
         "headline": localizedArticle.title,
         "description": localizedArticle.excerpt,
-        "image": localizedArticle.image
-            ? (localizedArticle.image.startsWith('http') ? localizedArticle.image : `${brand.appUrl}${localizedArticle.image}`)
-            : `${brand.appUrl}/opengraph-image.png`,
+        "image": schemaImageUrl(localizedArticle.image),
         "datePublished": localizedArticle.date,
         "dateModified": localizedArticle.updated_at || localizedArticle.date,
         "author": {

@@ -499,7 +499,7 @@ export default function SimulatorModal() {
                             <p style={{ fontSize: '12px', color: 'white', background: 'red', margin: 0, padding: '2px 5px', fontWeight: 'bold' }}>
                                 DEBUG: WHAT AI SEES (100%)
                             </p>
-                            <img src={debugMaskSrc} style={{ width: '100%', display: 'block' }} />
+                            <img src={debugMaskSrc} alt="Debug: teeth segmentation mask used by the AI simulator" style={{ width: '100%', display: 'block' }} />
                         </div>
                     )}
 

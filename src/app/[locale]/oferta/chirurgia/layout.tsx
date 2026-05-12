@@ -5,7 +5,9 @@ import { buildServicePageSchemas } from '@/lib/serviceSchemas';
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
     const { locale } = await params;
-    return pageMetadata(locale, '/oferta/chirurgia', PAGE_SEO['/oferta/chirurgia']);
+    return pageMetadata(locale, '/oferta/chirurgia', PAGE_SEO['/oferta/chirurgia'], {
+        ogImage: '/og-chirurgia.webp',
+    });
 }
 
 export default async function Layout({

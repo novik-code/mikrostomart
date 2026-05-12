@@ -9,7 +9,14 @@ import { getTranslations } from 'next-intl/server';
 import { Metadata } from 'next';
 import { brand } from '@/lib/brandConfig';
 import { breadcrumbHref, localizedBreadcrumb } from '@/lib/seo';
+import { preferWebp } from '@/lib/imageUrl';
 import { routing } from '@/i18n/routing';
+
+function schemaImageUrl(image: string | null | undefined): string {
+    if (!image) return `${brand.appUrl}/opengraph-image.png`;
+    const absolute = image.startsWith('http') ? image : `${brand.appUrl}${image}`;
+    return preferWebp(absolute) || absolute;
+}
 
 // We import the CSS to handle legacy content inside the clean container
 import './../blog.v2.css';
@@ -116,7 +123,7 @@ export async function generateMetadata({
             type: 'article',
             url: postUrl(locale, slug),
             images: post.image
-                ? [{ url: post.image.startsWith('http') ? post.image : `${brand.appUrl}${post.image}` }]
+                ? [{ url: schemaImageUrl(post.image) }]
                 : undefined,
         },
         twitter: {
@@ -203,9 +210,7 @@ export default async function BlogPost({
         "@type": "BlogPosting",
         "headline": post.title,
         "description": post.excerpt || post.title,
-        "image": post.image
-            ? (post.image.startsWith('http') ? post.image : `${brand.appUrl}${post.image}`)
-            : `${brand.appUrl}/opengraph-image.png`,
+        "image": schemaImageUrl(post.image),
         "datePublished": post.created_at || post.published_at || post.date,
         "dateModified": post.updated_at || post.created_at || post.published_at || post.date,
         "author": {

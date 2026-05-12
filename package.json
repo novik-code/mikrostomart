@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "next dev",
     "generate:mtimes": "node scripts/generate-route-mtimes.mjs",
+    "optimize:kb-images": "node scripts/optimize-kb-images.mjs",
+    "generate:og-images": "node scripts/generate-og-images.mjs",
     "prebuild": "node scripts/generate-route-mtimes.mjs",
     "build": "next build --webpack",
     "start": "next start",

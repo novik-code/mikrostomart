@@ -8,7 +8,14 @@ import { notFound } from 'next/navigation';
 import { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { breadcrumbHref, localizedBreadcrumb } from '@/lib/seo';
+import { preferWebp } from '@/lib/imageUrl';
 import { routing } from '@/i18n/routing';
+
+function schemaImageUrl(image: string | null | undefined): string {
+    if (!image) return `${brand.appUrl}/opengraph-image.png`;
+    const absolute = image.startsWith('http') ? image : `${brand.appUrl}${image}`;
+    return preferWebp(absolute) || absolute;
+}
 
 export const dynamic = 'force-dynamic'; // Must be dynamic — depends on locale URL prefix
 
@@ -42,7 +49,7 @@ export async function generateMetadata({
 
     let { data: article } = await supabase
         .from('articles')
-        .select('title, excerpt, locale, group_id')
+        .select('title, excerpt, locale, group_id, image_url')
         .eq('slug', slug)
         .eq('locale', locale)
         .single();
@@ -51,7 +58,7 @@ export async function generateMetadata({
     if (!article) {
         const fallback = await supabase
             .from('articles')
-            .select('title, excerpt, locale, group_id')
+            .select('title, excerpt, locale, group_id, image_url')
             .eq('slug', slug)
             .eq('locale', 'pl')
             .single();
@@ -93,6 +100,7 @@ export async function generateMetadata({
             description: article.excerpt,
             type: 'article',
             url: articleUrl(locale, slug),
+            images: article.image_url ? [{ url: schemaImageUrl(article.image_url) }] : undefined,
         },
         twitter: {
             card: 'summary_large_image',
@@ -157,9 +165,7 @@ export default async function ArticlePage({
         "@type": "Article",
         "headline": article.title,
         "description": article.excerpt,
-        "image": article.image
-            ? (article.image.startsWith('http') ? article.image : `${brand.appUrl}${article.image}`)
-            : `${brand.appUrl}/opengraph-image.png`,
+        "image": schemaImageUrl(article.image),
         "datePublished": article.date,
         "dateModified": article.updated_at || article.date,
         "author": {

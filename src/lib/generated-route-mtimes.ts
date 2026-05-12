@@ -30,12 +30,12 @@ export const routeMtimes: Record<string, string> = {
     "/symulator": "2026-05-10T16:56:18+02:00",
     "/aplikacja": "2026-05-10T17:05:42+02:00",
     "/zadatek": "2026-05-09T15:51:16+02:00",
-    "/regulamin": "2026-05-10T16:56:18+02:00",
-    "/polityka-cookies": "2026-05-10T16:56:18+02:00",
-    "/polityka-prywatnosci": "2026-05-10T16:56:18+02:00",
-    "/rodo": "2026-05-10T16:56:18+02:00",
+    "/regulamin": "2026-05-12T09:32:15+02:00",
+    "/polityka-cookies": "2026-05-12T09:32:15+02:00",
+    "/polityka-prywatnosci": "2026-05-12T09:32:15+02:00",
+    "/rodo": "2026-05-12T09:32:15+02:00",
     "/privacy-policy": "2026-05-10T16:56:18+02:00"
 };
 
 /** Fallback for routes not in the map (e.g. newly added pages before next regen). */
-export const buildTime: string = "2026-05-12T07:30:34.031Z";
+export const buildTime: string = "2026-05-12T07:46:34.904Z";

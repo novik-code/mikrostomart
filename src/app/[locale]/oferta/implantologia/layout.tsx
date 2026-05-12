@@ -5,7 +5,9 @@ import { buildServicePageSchemas } from '@/lib/serviceSchemas';
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
     const { locale } = await params;
-    return pageMetadata(locale, '/oferta/implantologia', PAGE_SEO['/oferta/implantologia']);
+    return pageMetadata(locale, '/oferta/implantologia', PAGE_SEO['/oferta/implantologia'], {
+        ogImage: '/og-implantologia.webp',
+    });
 }
 
 export default async function ImplantologiaLayout({
