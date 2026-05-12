@@ -80,6 +80,12 @@ export async function generateMetadata(): Promise<Metadata> {
             "geo.placename": b.geoPlacename,
             "geo.position": b.geoPosition,
             "ICBM": b.icbm,
+            // J-5 follow-up (2026-05-12): fb:app_id enables Facebook Insights
+            // for the domain (share analytics) + unlocks Domain Verification
+            // in Business Suite. Public ID — safe to inline. Demo is excluded
+            // by the outer `isDemoMode` guard since demo runs on a different
+            // brand and shouldn't be claimed by the prod FB app.
+            ...(b.facebookAppId ? { "fb:app_id": b.facebookAppId } : {}),
         },
         appleWebApp: {
             capable: true,

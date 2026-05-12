@@ -141,6 +141,15 @@ export function pageMetadata(
         ? [{ url: ogImageUrl, width: 1200, height: 630, alt: options?.ogImageAlt || seo.ogTitle || seo.title }]
         : undefined;
 
+    // J-5 follow-up (2026-05-12): emit og:type + og:url explicitly. Next 16
+    // fully replaces the parent openGraph block whenever a child segment
+    // declares its own — without these two fields, every page using
+    // pageMetadata() shipped without them (Facebook Debugger flagged it on
+    // /oferta/implantologia after the homepage fix). siteName is also re-
+    // declared here so social previews show "Mikrostomart - Dentysta Opole"
+    // beneath the title across every service / listing / legal page.
+    const absoluteUrl = `${brand.appUrl}${localePath(locale, path)}`;
+
     return {
         title: { absolute: seo.title },
         description: seo.description,
@@ -150,8 +159,11 @@ export function pageMetadata(
             languages: buildHreflangAlternates(path),
         },
         openGraph: {
+            type: 'website',
             title: seo.ogTitle || seo.title,
             description: seo.ogDescription || seo.description,
+            url: absoluteUrl,
+            siteName: brand.ogSiteName,
             // Faza G5 (2026-05-10): per-locale OG locale (Facebook/LinkedIn share previews).
             locale: OG_LOCALE_MAP[locale] || OG_LOCALE_MAP.pl,
             ...(ogImages ? { images: ogImages } : {}),

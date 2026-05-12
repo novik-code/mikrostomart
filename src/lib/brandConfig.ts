@@ -83,6 +83,7 @@ export interface BrandConfig {
     youtubeChannelId?: string;
     githubOwner?: string;
     githubRepo?: string;
+    facebookAppId?: string;       // J-5 follow-up: fb:app_id for Facebook Insights / Domain Verification in Business Suite
 
     // === Branding Wizard (optional) ===
     logoUrl?: string;
@@ -178,6 +179,10 @@ const PROD_BRAND: BrandConfig = {
     googlePlaceId: 'ChIJ-5k3xu5SEEcRJhqtusOhhwM',
     githubOwner: 'novik-code',
     githubRepo: 'mikrostomart',
+    // J-5 follow-up (2026-05-12): Facebook App ID (Mode: Live).
+    // Used by Facebook Sharing Debugger and Domain Insights / Business Suite.
+    // Not a secret — fb:app_id is intentionally public in og: meta tags.
+    facebookAppId: '746876361690533',
 };
 
 const DEMO_BRAND: BrandConfig = {
