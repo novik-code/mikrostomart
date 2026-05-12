@@ -84,6 +84,7 @@ export interface BrandConfig {
     githubOwner?: string;
     githubRepo?: string;
     facebookAppId?: string;       // J-5 follow-up: fb:app_id for Facebook Insights / Domain Verification in Business Suite
+    facebookDomainVerification?: string;  // J-5 follow-up #3: Business Suite domain claim token (meta facebook-domain-verification)
 
     // === Branding Wizard (optional) ===
     logoUrl?: string;
@@ -183,6 +184,11 @@ const PROD_BRAND: BrandConfig = {
     // Used by Facebook Sharing Debugger and Domain Insights / Business Suite.
     // Not a secret — fb:app_id is intentionally public in og: meta tags.
     facebookAppId: '746876361690533',
+    // J-5 follow-up #3 (2026-05-12): Business Suite domain claim token from
+    // facebook.com/business/help → Brand Safety → Domains → Verify with meta-tag.
+    // Confirms ownership so Mikrostomart's FB Page can be the authoritative
+    // publisher of mikrostomart.pl links across Facebook surfaces.
+    facebookDomainVerification: 'byu0avp7yqg5k0o59jpw3i7a3ho6wu',
 };
 
 const DEMO_BRAND: BrandConfig = {

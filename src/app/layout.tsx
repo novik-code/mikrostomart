@@ -80,13 +80,14 @@ export async function generateMetadata(): Promise<Metadata> {
             "geo.placename": b.geoPlacename,
             "geo.position": b.geoPosition,
             "ICBM": b.icbm,
-            // J-5 follow-up (2026-05-12): fb:app_id enables Facebook Insights
-            // for the domain (share analytics) + unlocks Domain Verification
-            // in Business Suite. Public ID — safe to inline. Demo is excluded
-            // by the outer `isDemoMode` guard since demo runs on a different
-            // brand and shouldn't be claimed by the prod FB app.
-            ...(b.facebookAppId ? { "fb:app_id": b.facebookAppId } : {}),
+            // J-5 follow-up #3 (2026-05-12): Business Suite domain claim. Uses
+            // `name=` (different convention from fb:app_id below) which is what
+            // Facebook's domain verification scanner explicitly looks for.
+            ...(b.facebookDomainVerification ? { "facebook-domain-verification": b.facebookDomainVerification } : {}),
         },
+        // NOTE on fb:app_id: Next.js `other` always emits `<meta name="…">`,
+        // but Facebook's scraper only honours `<meta property="fb:app_id">`.
+        // We render it manually in the <head> below — see RootLayout.
         appleWebApp: {
             capable: true,
             title: 'Mikrostomart',
@@ -289,6 +290,15 @@ export default async function RootLayout({
 
     return (
         <html lang={locale}>
+            <head>
+                {/* J-5 follow-up #3: fb:app_id with property="" attribute (Facebook
+                    only parses this form; Next.js Metadata API's `other` field
+                    emits `name=""` which the FB Sharing Debugger ignores). Manual
+                    head emit guarantees the correct attribute. */}
+                {!isDemoMode && brand.facebookAppId && (
+                    <meta property="fb:app_id" content={brand.facebookAppId} />
+                )}
+            </head>
             <body className={`${inter.variable} ${playfair.variable}`} style={isDemoMode ? { paddingTop: '2rem' } : undefined}>
                 {/* Blocking script: Apply cached theme CSS vars BEFORE React hydrates to prevent flash */}
                 <script dangerouslySetInnerHTML={{ __html: `
