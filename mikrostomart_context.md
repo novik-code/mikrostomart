@@ -1,6 +1,6 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-11 (Employee Management Phase 3 — unified UI: EmployeeWizard 5-krokowy + EmployeeRow rozwijany z 4 sekcjami; usunięte zakładki „Uprawnienia" + „Pacjenci do awansowania"; admin/page.tsx -841 LOC, -25%)  
+> **Last Updated:** 2026-05-12 (Premium SEO J-1: sitemap lastModified per route z git history — 148 distinct values vs 1; Article schema +articleSection +wordCount +keywords; commit `2215e91`)  
 > **Version:** Production + Demo (Dual Vercel Deployment)  
 > **Status:** Active Development — **🎯 PREMIUM SEO PLAN AKTYWNY** (4 fazy, ~6 mies horyzont). KCP FULL + kiosk-token + **Employee Management Phase 1+2+3 (KOMPLETNE — backend unified + UI z wizardem)**; CareFlow Perioperative; Push-First Communication. SEO Sprint H1-H8 ✅ KOMPLETNY. Cykl: pełen audyt 5 niezależnymi agentami wykrył ~47 problemów → 8 faz wdrożenia (H1 quick fixes, H2 metadata gaps, H3 internal linking, H4 schema enrichment, H5 perf+images, H6 content, H7 intl landing, H8 real schema data) → po H8 push **awaria 500 production** (H3 batch sed przekonwertował 3 server components na `Link` z `@/i18n/navigation` który wewnętrznie używa `useLocale()` client-only hook → SSR crash) → 8 reverts cofnęły wszystko → bisect lokalny zlokalizował bug → fix `572af02` (zamiana na `<a href>` z manual locale prefix w 3 server components) → re-apply H1-H8 → produkcja stabilna `6c8f4fa`. ~35/47 problemów audytu zaadresowanych. **Wcześniejsze SEO Sprint G1-G6 + Recovery 1-E** ✅ KOMPLETNE (2026-05-09 → 2026-05-10): pełen multilingual SEO (4 locale), rich SERP, Core Web Vitals fix (LCP 6s→2-3s), PSI Mobile 34→73, Desktop 39→83. Faza 3 GSC: audyt po 4-6 tygodniach (~koniec czerwca 2026). Następna sesja: weryfikacja Rich Results, re-submit sitemap, ewentualne content expansion service pages (24 expansions H6 follow-up).
 
@@ -2461,6 +2461,73 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-12 — Premium SEO Plan: Sesja J-1 (sitemap freshness + Article schema enrichment)
+
+**Pierwsza sesja Fazy J Premium SEO Plan. Sitemap zyskuje per-route lastModified z git history; slug pages (NewsArticle/BlogPosting/Article) dostają articleSection + wordCount + opcjonalne keywords.**
+
+#### Commit:
+- `2215e91` — feat(seo): J-1 — sitemap lastModified per route + Article schema enrichment
+
+#### Co się zmieniło:
+
+**Sitemap freshness (problem):**
+- Pre-J-1: każda statyczna trasa (31 paths × 4 locale = 124 URLi) miała `lastModified: new Date()` — czyli wszystkie URL-e w sitemap mówiły Google "zmienione właśnie teraz" przy każdej regeneracji co 1h. Google traktował to jako noise i nie miał per-URL freshness signal.
+- Post-J-1: każda trasa ma własny `lastModified` z `git log -1 --format=%aI -- <page.tsx|layout.tsx>`. Sitemap w prod ma **148 distinct lastmod values** (vs 1 wcześniej).
+
+**Mechanika:**
+- `scripts/generate-route-mtimes.mjs` [NEW, 113 LOC] — Node script (ESM), iteruje 31 path→file mapping, pobiera newest git commit time per route file, generuje TS snapshot.
+- `src/lib/generated-route-mtimes.ts` [NEW, generated] — wyeksportowany `routeMtimes: Record<string, string>` + `buildTime` fallback.
+- `src/app/sitemap.ts` [MOD] — import `routeMtimes` + helper `lastModForPath(path)` (prefer git mtime, fallback build time). Dynamic news/KB routes już używały `post.date`/`updated_at` — nietknięte.
+- `package.json` [MOD] — `prebuild` script uruchamia generator przy każdym `npm run build` (Vercel również). `generate:mtimes` jako manualny trigger.
+
+**Article schema enrichment (3 slug pages):**
+- Pre-J-1: 9 pól w `NewsArticle`/`BlogPosting`/`Article` (headline, description, image, datePublished, dateModified, author Person+url, publisher Organization+logo, mainEntityOfPage, inLanguage).
+- Post-J-1: +3 pola → **12 pól per schema**:
+  - `articleSection` — locale-aware: PL "Aktualności"/"Blog Dr Nowosielski"/"Baza wiedzy"; EN/DE/UA odpowiedniki. Google używa do klasyfikacji topic clusters.
+  - `wordCount` — policzony z content (markdown stripping dla aktualnosci+baza-wiedzy; HTML tag stripping dla nowosielski legacy content).
+  - `keywords` — comma-separated z `post.tags`/`article.tags` jeśli pole istnieje, pomijane jeśli null/empty (no nulls w JSON-LD).
+- Wszystkie 3 pliki: `src/app/[locale]/{aktualnosci,nowosielski,baza-wiedzy}/[slug]/page.tsx`
+
+**Smoke test (potwierdzone w `npm run build` + lokalnym `npm start`):**
+- Sitemap: 148 distinct `<lastmod>` values (przed: 1)
+- /aktualnosci/[slug] PL → `articleSection: "Aktualności"`, `wordCount: 96`, schema renders
+- /en/aktualnosci/[slug] → `articleSection: "News"`, `inLanguage: "en"`
+- /baza-wiedzy/[slug] PL → `articleSection: "Baza wiedzy"`, `wordCount: 183`
+- /de/baza-wiedzy/[slug] → `articleSection: "Wissensdatenbank"`, `inLanguage: "de"`
+
+**Pre-existing bug wykryty (NIE z J-1):**
+- Server log spamuje `MISSING_MESSAGE: aktualnosci.backToNews` na każdej slug page.
+- Przyczyna: `src/i18n/request.ts` używa shallow spread `{...common, ...pages}`. `pages.json` ma top-level sekcję `aktualnosci` z innymi kluczami → nadpisuje całą `common.aktualnosci` w której był `backToNews`. Klucz przepada we wszystkich 4 locale.
+- Strona renderuje się przez error boundary (schema + content się wyświetlają, tylko back link wyświetla raw key zamiast tłumaczenia).
+- Spawn'owany jako osobny task — fix w `request.ts` (deep merge namespace) + audit pozostałych overlap sekcji.
+
+#### Pliki:
+- `scripts/generate-route-mtimes.mjs` [NEW]
+- `src/lib/generated-route-mtimes.ts` [NEW]
+- `src/app/sitemap.ts` [MOD]
+- `src/app/[locale]/aktualnosci/[slug]/page.tsx` [MOD]
+- `src/app/[locale]/nowosielski/[slug]/page.tsx` [MOD]
+- `src/app/[locale]/baza-wiedzy/[slug]/page.tsx` [MOD]
+- `package.json` [MOD] — prebuild + generate:mtimes
+
+#### Spodziewany efekt po deploy:
+- Sitemap.xml w prod ma per-URL freshness signal — Google przy kolejnym crawl widzi które strony naprawdę się zmieniły od ostatniego pobrania.
+- Rich Results Test na /aktualnosci/[slug] /nowosielski/[slug] /baza-wiedzy/[slug] pokaże enrichment: articleSection (kategoria), wordCount (długość), keywords (tagi) gdy są.
+- Cache sitemap 1h + revalidate 1y nie zmieniony — pierwsze odczyty po deploy nadal old.
+
+#### Co Marcin musi zrobić ręcznie po deploy:
+- Brak migracji DB ani env var.
+- W ramach Premium SEO Plan po J-MEASURE (4 tyg od końca Fazy J) — re-submit sitemap w GSC i sprawdź czy lastmod różny per URL.
+
+#### Co dalej (Faza J kontynuacja):
+- **Sesja J-2**: Hreflang circle audit + per-page verification (`scripts/audit-hreflang.ts` + fix layoutów bez `pageMetadata()`)
+- Następnie J-3 (KB images + per-page OG), J-4 (sklep noindex + Review schema + FAQPage), J-5 (internal linking + priceRange)
+- Pre-existing i18n shallow spread bug — spawn'owany jako osobny task (do zrobienia kiedyś między sesjami SEO; nie blokuje J)
+
+> **Brak migracji DB / nowych env var.** Vercel auto-deployuje z pushem na main.
+
+---
 
 ### 2026-05-11 — Employee Management Phase 3 (unified UI)
 **Zwieńczenie 3-fazowego refaktoru zarządzania pracownikami. UI zastąpiony wizardem + rozwijanymi wierszami.**
