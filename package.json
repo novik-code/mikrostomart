@@ -5,6 +5,8 @@
   "description": "Mikrostomart - Dental Clinic (Force Update v3.5 - 21:42)",
   "scripts": {
     "dev": "next dev",
+    "generate:mtimes": "node scripts/generate-route-mtimes.mjs",
+    "prebuild": "node scripts/generate-route-mtimes.mjs",
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",

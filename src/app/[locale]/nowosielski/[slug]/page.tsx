@@ -180,7 +180,25 @@ export default async function BlogPost({
     // BlogPosting JSON-LD schema for rich snippets in Google search.
     // dateModified prefers updated_at if available — otherwise falls back to published date,
     // because dateModified === datePublished gives Google no freshness signal.
-    const articleSchema = {
+    //
+    // J-1 (2026-05-12): added articleSection + wordCount (+ keywords if tags present).
+    // BlogPosting content is HTML (legacy import), so word count strips tags first.
+    const SECTION_LABELS: Record<string, string> = {
+        pl: 'Blog Dr Nowosielski',
+        en: "Dr Nowosielski's Blog",
+        de: 'Dr Nowosielski Blog',
+        ua: 'Блог д-ра Новосельського',
+    };
+    const wordCount = (post.content || '')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/&[a-z#0-9]+;/gi, ' ')
+        .split(/\s+/)
+        .filter(Boolean).length;
+    const tagsCsv = Array.isArray(post.tags) && post.tags.length > 0
+        ? (post.tags as string[]).join(', ')
+        : null;
+
+    const articleSchema: Record<string, unknown> = {
         "@context": "https://schema.org",
         "@type": "BlogPosting",
         "headline": post.title,
@@ -209,6 +227,9 @@ export default async function BlogPost({
             "@id": postUrl(locale, slug),
         },
         "inLanguage": locale === 'ua' ? 'uk' : locale,
+        "articleSection": SECTION_LABELS[locale] || SECTION_LABELS.pl,
+        ...(wordCount > 0 ? { wordCount } : {}),
+        ...(tagsCsv ? { keywords: tagsCsv } : {}),
     };
 
     // Breadcrumb gives slug pages a SERP breadcrumb trail (Home > Blog > [post]).

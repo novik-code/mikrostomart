@@ -3,12 +3,27 @@ import { supabase } from '@/lib/supabaseClient';
 import { brand } from '@/lib/brandConfig';
 import { isDemoMode } from '@/lib/demoMode';
 import { routing } from '@/i18n/routing';
+import { routeMtimes, buildTime } from '@/lib/generated-route-mtimes';
 
 // Faza G3 (2026-05-09): cache sitemap przez 1 godzinę.
 // Bez tego każdy ping Googlebota / każde wejście /sitemap.xml triggerowało DB query
 // do Supabase (`articles` + `news` tables). Sitemap jest zwracany ze static cache,
-// regenerowany w tle co 3600s. Wartość lastModified = czas ostatniej regeneracji.
+// regenerowany w tle co 3600s.
+//
+// Faza J-1 (2026-05-12): lastModified per-URL z git history (zamiast `new Date()`
+// dla każdej strony). Bez tego Google widział identyczną datę modyfikacji na całym
+// sitemap i ignorował freshness signal. Mtimes generowane prebuild scriptem z
+// `git log -1 --format=%aI -- <file>` per route file.
 export const revalidate = 3600;
+
+/**
+ * Per-path lastModified: prefer git mtime snapshot, fall back to build time
+ * (e.g. for paths added to sitemap.ts but not yet to the script's ROUTE_FILES map).
+ */
+function lastModForPath(path: string): Date {
+    const iso = routeMtimes[path] ?? buildTime;
+    return new Date(iso);
+}
 
 const BASE_URL = brand.appUrl;
 
@@ -45,9 +60,10 @@ function multiLocaleEntries(
     path: string,
     options: { changeFrequency: 'daily' | 'weekly' | 'monthly' | 'yearly'; priority: number }
 ): MetadataRoute.Sitemap {
+    const lastModified = lastModForPath(path);
     return routing.locales.map((locale) => ({
         url: `${BASE_URL}${localePath(locale, path)}`,
-        lastModified: new Date(),
+        lastModified,
         changeFrequency: options.changeFrequency,
         priority: options.priority,
         alternates: { languages: buildAlternates(path) },

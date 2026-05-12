@@ -132,7 +132,25 @@ export default async function ArticlePage({ params }: { params: Promise<{ locale
     // NewsArticle JSON-LD schema for rich snippets in Google News + general search.
     // dateModified prefers updated_at if available — falls back to date so Google
     // sees a freshness signal whenever Supabase tracks it.
-    const articleSchema = {
+    //
+    // J-1 (2026-05-12): added articleSection + wordCount (+ keywords if tags present)
+    // for schema completeness. Google uses these to classify content type and
+    // surface "News" rich snippets / topic clusters.
+    const SECTION_LABELS: Record<string, string> = {
+        pl: 'Aktualności',
+        en: 'News',
+        de: 'Aktuelles',
+        ua: 'Новини',
+    };
+    const wordCount = ((localizedArticle.content || '') as string)
+        .replace(/[#*`_\[\]()!\-]/g, ' ')
+        .split(/\s+/)
+        .filter(Boolean).length;
+    const tagsCsv = Array.isArray(localizedArticle.tags) && localizedArticle.tags.length > 0
+        ? (localizedArticle.tags as string[]).join(', ')
+        : null;
+
+    const articleSchema: Record<string, unknown> = {
         "@context": "https://schema.org",
         "@type": "NewsArticle",
         "headline": localizedArticle.title,
@@ -161,6 +179,9 @@ export default async function ArticlePage({ params }: { params: Promise<{ locale
             "@id": articleUrl(locale, slug),
         },
         "inLanguage": HREFLANG_MAP[locale] || locale,
+        "articleSection": SECTION_LABELS[locale] || SECTION_LABELS.pl,
+        ...(wordCount > 0 ? { wordCount } : {}),
+        ...(tagsCsv ? { keywords: tagsCsv } : {}),
     };
 
     // Breadcrumb for SERP trail: Home > News > [article title]

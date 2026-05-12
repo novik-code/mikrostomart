@@ -135,7 +135,24 @@ export default async function ArticlePage({
 
     // Article JSON-LD — knowledge base posts use Article (educational content) rather
     // than NewsArticle. Helps Google distinguish evergreen articles from news.
-    const articleSchema = {
+    //
+    // J-1 (2026-05-12): added articleSection + wordCount (+ keywords if tags present)
+    // — schema completeness boost for educational/evergreen content classification.
+    const SECTION_LABELS: Record<string, string> = {
+        pl: 'Baza wiedzy',
+        en: 'Knowledge Base',
+        de: 'Wissensdatenbank',
+        ua: 'База знань',
+    };
+    const wordCount = ((article.content || '') as string)
+        .replace(/[#*`_\[\]()!\-]/g, ' ')
+        .split(/\s+/)
+        .filter(Boolean).length;
+    const tagsCsv = Array.isArray(article.tags) && article.tags.length > 0
+        ? (article.tags as string[]).join(', ')
+        : null;
+
+    const articleSchema: Record<string, unknown> = {
         "@context": "https://schema.org",
         "@type": "Article",
         "headline": article.title,
@@ -164,6 +181,9 @@ export default async function ArticlePage({
             "@id": articleUrl(locale, slug),
         },
         "inLanguage": HREFLANG_MAP[locale] || locale,
+        "articleSection": SECTION_LABELS[locale] || SECTION_LABELS.pl,
+        ...(wordCount > 0 ? { wordCount } : {}),
+        ...(tagsCsv ? { keywords: tagsCsv } : {}),
     };
 
     // Breadcrumb: Home > Knowledge Base > [article title]
