@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sendTelegramNotification } from '@/lib/telegram';
 import { broadcastPush } from '@/lib/pushService';
+import { getProdentisKey } from '@/lib/pmsConfig';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -145,7 +146,7 @@ export async function POST(req: NextRequest) {
         let iconAdded = false;
         try {
             const PRODENTIS_API = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
-            const PRODENTIS_KEY = process.env.PRODENTIS_API_KEY || '';
+            const PRODENTIS_KEY = (await getProdentisKey()) ?? '';
             const prodentisAptId = action.prodentis_id;
 
             if (prodentisAptId && PRODENTIS_KEY) {

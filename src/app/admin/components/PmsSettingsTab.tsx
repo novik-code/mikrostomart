@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Activity, CheckCircle, XCircle, RefreshCw, Database, Plug, Info } from 'lucide-react';
+import { Activity, CheckCircle, XCircle, RefreshCw, Database, Plug, Info, Key } from 'lucide-react';
 
 interface PmsSettings {
     provider: string;
     apiUrl: string;
     hasApiKey: boolean;
+    api_key_masked: string | null;
+    source: 'db' | 'env' | 'none';
     notes: string;
     updatedAt: string | null;
     updatedBy: string | null;
@@ -17,6 +19,7 @@ interface HealthResult {
     provider: string;
     message: string;
     detail?: any;
+    keyTested?: string;
 }
 
 const PROVIDERS = [
@@ -48,13 +51,21 @@ const COMING_SOON = [
 export default function PmsSettingsTab() {
     const [settings, setSettings] = useState<PmsSettings | null>(null);
     const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
+    const [savingNotes, setSavingNotes] = useState(false);
+    const [savingKey, setSavingKey] = useState(false);
     const [testing, setTesting] = useState(false);
     const [health, setHealth] = useState<HealthResult | null>(null);
     const [msg, setMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
+    const [keyMsg, setKeyMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
     const [notes, setNotes] = useState('');
+    const [newApiKey, setNewApiKey] = useState('');
 
     useEffect(() => {
+        loadSettings();
+    }, []);
+
+    const loadSettings = () => {
+        setLoading(true);
         fetch('/api/admin/pms-settings')
             .then(r => r.json())
             .then(d => {
@@ -62,10 +73,10 @@ export default function PmsSettingsTab() {
                 setNotes(d.notes || '');
             })
             .finally(() => setLoading(false));
-    }, []);
+    };
 
     const handleSaveNotes = async () => {
-        setSaving(true);
+        setSavingNotes(true);
         setMsg(null);
         try {
             const res = await fetch('/api/admin/pms-settings', {
@@ -78,14 +89,59 @@ export default function PmsSettingsTab() {
         } catch (e: any) {
             setMsg({ type: 'err', text: e.message });
         }
-        setSaving(false);
+        setSavingNotes(false);
     };
 
-    const handleHealthCheck = async () => {
+    const handleSaveKey = async () => {
+        if (!newApiKey.trim()) return;
+        setSavingKey(true);
+        setKeyMsg(null);
+        try {
+            const res = await fetch('/api/admin/pms-settings', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ apiKey: newApiKey.trim() }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Błąd zapisu');
+            setKeyMsg({ type: 'ok', text: `Klucz zapisany w bazie ✅ (${data.api_key_masked})` });
+            setNewApiKey('');
+            await loadSettings();
+        } catch (e: any) {
+            setKeyMsg({ type: 'err', text: e.message });
+        }
+        setSavingKey(false);
+    };
+
+    const handleClearKey = async () => {
+        if (!confirm('Wyczyścić klucz z bazy? System wróci do klucza z env vars (PRODENTIS_API_KEY).')) return;
+        setSavingKey(true);
+        setKeyMsg(null);
+        try {
+            const res = await fetch('/api/admin/pms-settings', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ apiKey: '' }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Błąd');
+            setKeyMsg({ type: 'ok', text: `Klucz wyczyszczony. Źródło: ${data.source}` });
+            await loadSettings();
+        } catch (e: any) {
+            setKeyMsg({ type: 'err', text: e.message });
+        }
+        setSavingKey(false);
+    };
+
+    const handleHealthCheck = async (overrideKey?: string) => {
         setTesting(true);
         setHealth(null);
         try {
-            const res = await fetch('/api/admin/pms-settings?action=health', { method: 'POST' });
+            const res = await fetch('/api/admin/pms-settings?action=health', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(overrideKey ? { apiKey: overrideKey } : {}),
+            });
             const data = await res.json();
             setHealth(data);
         } catch {
@@ -100,6 +156,17 @@ export default function PmsSettingsTab() {
         borderRadius: 12,
         padding: '1.5rem',
         marginBottom: '1.25rem',
+    };
+
+    const inputStyle: React.CSSProperties = {
+        width: '100%',
+        padding: '0.7rem 1rem',
+        background: 'rgba(255,255,255,0.05)',
+        border: '1px solid rgba(255,255,255,0.15)',
+        borderRadius: 8,
+        color: 'var(--color-text-main)',
+        fontSize: '0.9rem',
+        fontFamily: 'monospace',
     };
 
     const badge = (text: string, color: string) => (
@@ -118,8 +185,14 @@ export default function PmsSettingsTab() {
     if (loading) return <div style={{ padding: '2rem', color: 'var(--color-text-muted)' }}>Ładowanie…</div>;
 
     const activeProvider = PROVIDERS.find(p => p.id === settings?.provider) || PROVIDERS[0];
-    const runtimeNote = `⚙️ Zmiana adaptera wymaga aktualizacji NEXT_PUBLIC_PMS_PROVIDER w Vercel → Redeploy. 
-Poniżej możesz monitorować stan połączenia i zostawić notatki dla teamu.`;
+
+    const sourceLabel = (s: PmsSettings) => {
+        if (s.source === 'db') return { icon: '🗄️', label: 'Baza danych (admin panel)', color: '#10b981' };
+        if (s.source === 'env') return { icon: '⚙️', label: 'Zmienna ENV (Vercel)', color: '#f59e0b' };
+        return { icon: '❌', label: 'Brak konfiguracji', color: '#ef4444' };
+    };
+
+    const src = settings ? sourceLabel(settings) : null;
 
     return (
         <div style={{ maxWidth: 720, padding: '0.5rem 0' }}>
@@ -149,7 +222,7 @@ Poniżej możesz monitorować stan połączenia i zostawić notatki dla teamu.`;
 
                 <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
                     <button
-                        onClick={handleHealthCheck}
+                        onClick={() => handleHealthCheck()}
                         disabled={testing}
                         style={{
                             display: 'flex', alignItems: 'center', gap: '0.4rem',
@@ -160,7 +233,6 @@ Poniżej możesz monitorować stan połączenia i zostawić notatki dla teamu.`;
                             color: '#818cf8',
                             cursor: testing ? 'wait' : 'pointer',
                             fontSize: '0.88rem', fontWeight: 600,
-                            transition: 'all 0.2s',
                         }}
                     >
                         {testing ? <RefreshCw size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <Activity size={14} />}
@@ -172,13 +244,8 @@ Poniżej możesz monitorować stan połączenia i zostawić notatki dla teamu.`;
                             {settings.apiUrl}
                         </code>
                     )}
-
-                    {settings?.hasApiKey && (
-                        <span style={{ fontSize: '0.8rem', color: '#22c55e' }}>🔑 API Key skonfigurowany</span>
-                    )}
                 </div>
 
-                {/* Health result */}
                 {health && (
                     <div style={{
                         marginTop: '0.75rem',
@@ -196,6 +263,150 @@ Poniżej możesz monitorować stan połączenia i zostawić notatki dla teamu.`;
                     </div>
                 )}
             </div>
+
+            {/* API Key management */}
+            {settings?.provider === 'prodentis' && (
+                <div style={card}>
+                    <div style={{ fontWeight: 600, marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <Key size={16} /> Klucz API (X-API-Key)
+                    </div>
+
+                    {/* Current key status */}
+                    {src && (
+                        <div style={{
+                            padding: '0.7rem 1rem',
+                            borderRadius: 8,
+                            background: 'rgba(0,0,0,0.2)',
+                            border: `1px solid ${src.color}33`,
+                            marginBottom: '1rem',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            gap: '0.75rem',
+                            flexWrap: 'wrap',
+                        }}>
+                            <div>
+                                <div style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                                    Źródło
+                                </div>
+                                <div style={{ fontSize: '0.95rem', fontWeight: 600, color: src.color, marginTop: 2 }}>
+                                    {src.icon} {src.label}
+                                </div>
+                            </div>
+                            <div style={{ textAlign: 'right' }}>
+                                <div style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>Klucz</div>
+                                <code style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', fontFamily: 'monospace' }}>
+                                    {settings.api_key_masked || '—'}
+                                </code>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* New key form */}
+                    <label style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', display: 'block', marginBottom: '0.3rem' }}>
+                        Wklej nowy klucz API
+                    </label>
+                    <input
+                        type="password"
+                        value={newApiKey}
+                        onChange={e => setNewApiKey(e.target.value)}
+                        placeholder="np. 7a3f8b2c-..."
+                        style={inputStyle}
+                    />
+
+                    {keyMsg && (
+                        <div style={{
+                            marginTop: '0.75rem',
+                            padding: '0.7rem 1rem',
+                            borderRadius: 8,
+                            background: keyMsg.type === 'ok' ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
+                            border: `1px solid ${keyMsg.type === 'ok' ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}`,
+                            color: keyMsg.type === 'ok' ? '#10b981' : '#ef4444',
+                            fontSize: '0.88rem',
+                        }}>
+                            {keyMsg.text}
+                        </div>
+                    )}
+
+                    <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.75rem', flexWrap: 'wrap' }}>
+                        <button
+                            onClick={handleSaveKey}
+                            disabled={savingKey || !newApiKey.trim()}
+                            style={{
+                                padding: '0.55rem 1.3rem',
+                                background: 'var(--color-primary)',
+                                color: '#000',
+                                border: 'none',
+                                borderRadius: 8,
+                                fontWeight: 600,
+                                cursor: savingKey || !newApiKey.trim() ? 'not-allowed' : 'pointer',
+                                opacity: savingKey || !newApiKey.trim() ? 0.5 : 1,
+                                fontSize: '0.88rem',
+                            }}
+                        >
+                            {savingKey ? 'Zapisywanie…' : 'Zapisz klucz'}
+                        </button>
+                        <button
+                            onClick={() => handleHealthCheck(newApiKey.trim() || undefined)}
+                            disabled={testing}
+                            style={{
+                                padding: '0.55rem 1.3rem',
+                                background: 'rgba(255,255,255,0.07)',
+                                color: 'var(--color-text-main)',
+                                border: '1px solid rgba(255,255,255,0.15)',
+                                borderRadius: 8,
+                                fontWeight: 600,
+                                cursor: testing ? 'wait' : 'pointer',
+                                fontSize: '0.88rem',
+                            }}
+                        >
+                            {testing ? 'Testowanie…' : '🔍 Testuj klucz'}
+                        </button>
+                        {settings?.source === 'db' && (
+                            <button
+                                onClick={handleClearKey}
+                                disabled={savingKey}
+                                style={{
+                                    padding: '0.55rem 1.3rem',
+                                    background: 'rgba(239,68,68,0.1)',
+                                    color: '#ef4444',
+                                    border: '1px solid rgba(239,68,68,0.3)',
+                                    borderRadius: 8,
+                                    fontWeight: 600,
+                                    cursor: savingKey ? 'not-allowed' : 'pointer',
+                                    fontSize: '0.88rem',
+                                    marginLeft: 'auto',
+                                }}
+                            >
+                                Wyczyść (wróć do ENV)
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Rotation info */}
+                    <div style={{
+                        marginTop: '1.25rem',
+                        padding: '0.85rem 1rem',
+                        background: 'rgba(245,158,11,0.08)',
+                        border: '1px solid rgba(245,158,11,0.25)',
+                        borderRadius: 8,
+                        fontSize: '0.83rem',
+                        color: 'var(--color-text-muted)',
+                        lineHeight: 1.65,
+                    }}>
+                        <strong style={{ color: '#f59e0b' }}>💡 Procedura rotacji klucza</strong>
+                        <ol style={{ margin: '0.5rem 0 0', paddingLeft: '1.3rem' }}>
+                            <li>Na serwerze gabinetu (PowerShell jako admin) — wygeneruj nowy klucz przez <code style={{ background: 'rgba(0,0,0,0.3)', padding: '1px 5px', borderRadius: 3 }}>POST /api/admin/rotate-key</code> (grace period 30 dni — stary klucz działa równolegle).</li>
+                            <li>Wklej <strong>nowy</strong> klucz powyżej i kliknij <em>Zapisz klucz</em>. Cache (60s) zostanie unieważniony natychmiast.</li>
+                            <li>Sprawdź <em>Testuj połączenie</em> — powinno zwrócić 200.</li>
+                            <li>Po potwierdzeniu, na serwerze gabinetu unieważnij stary klucz: <code style={{ background: 'rgba(0,0,0,0.3)', padding: '1px 5px', borderRadius: 3 }}>POST /api/admin/revoke-previous-key</code>.</li>
+                        </ol>
+                        <p style={{ margin: '0.6rem 0 0', fontSize: '0.78rem' }}>
+                            Klucz zapisany w bazie ma priorytet nad <code>PRODENTIS_API_KEY</code> z Vercel env. Pełna dokumentacja: <code>~/Desktop/bałagan/Dla dewelopera mikrostomart/INSTRUKCJA_ROTACJI_KLUCZA.md</code>.
+                        </p>
+                    </div>
+                </div>
+            )}
 
             {/* Available providers */}
             <div style={card}>
@@ -243,21 +454,13 @@ Poniżej możesz monitorować stan połączenia i zostawić notatki dla teamu.`;
                         </div>
                     ))}
                 </div>
-                <p style={{ marginTop: '0.75rem', fontSize: '0.8rem', color: 'var(--color-text-muted)', lineHeight: 1.6 }}>
-                    Każdy nowy PMS implementuje ten sam interfejs <code style={{ background: 'rgba(0,0,0,0.3)', padding: '1px 6px', borderRadius: 4 }}>PmsAdapter</code> —
-                    podłączenie nowego systemu nie wymaga zmian w logice biznesowej.
-                </p>
             </div>
 
-            {/* Info + notes */}
+            {/* Notes */}
             <div style={card}>
                 <div style={{ fontWeight: 600, marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <Info size={16} /> Informacje techniczne
+                    <Info size={16} /> Notatki (internal)
                 </div>
-                <p style={{ fontSize: '0.83rem', color: 'var(--color-text-muted)', lineHeight: 1.7, marginBottom: '1rem', whiteSpace: 'pre-line' }}>
-                    {runtimeNote}
-                </p>
-                <div style={{ marginBottom: '0.5rem', fontSize: '0.85rem', fontWeight: 500 }}>Notatki (internal)</div>
                 <textarea
                     value={notes}
                     onChange={e => setNotes(e.target.value)}
@@ -274,15 +477,15 @@ Poniżej możesz monitorować stan połączenia i zostawić notatki dla teamu.`;
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.5rem' }}>
                     <button
                         onClick={handleSaveNotes}
-                        disabled={saving}
+                        disabled={savingNotes}
                         style={{
                             padding: '0.5rem 1.25rem',
                             background: 'var(--color-primary)',
                             border: 'none', borderRadius: 8,
-                            color: '#000', fontWeight: 600, cursor: saving ? 'wait' : 'pointer',
+                            color: '#000', fontWeight: 600, cursor: savingNotes ? 'wait' : 'pointer',
                             fontSize: '0.88rem',
                         }}
-                    >{saving ? 'Zapisuję…' : 'Zapisz notatkę'}</button>
+                    >{savingNotes ? 'Zapisuję…' : 'Zapisz notatkę'}</button>
                     {msg && (
                         <span style={{ fontSize: '0.85rem', color: msg.type === 'ok' ? '#22c55e' : '#ef4444' }}>
                             {msg.text}

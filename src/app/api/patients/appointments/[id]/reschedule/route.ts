@@ -7,6 +7,7 @@ import { sendSMS } from '@/lib/smsService';
 import type { RescheduleAppointmentRequest, AppointmentActionResponse, AppointmentAction } from '@/types/appointmentActions';
 import { demoSanitize } from '@/lib/brandConfig';
 import { sendEmail } from '@/lib/emailSender';
+import { getProdentisKey } from '@/lib/pmsConfig';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -14,7 +15,6 @@ const supabase = createClient(
 );
 
 const PRODENTIS_API = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
-const PRODENTIS_KEY = process.env.PRODENTIS_API_KEY || '';
 
 export async function POST(
     request: NextRequest,
@@ -95,6 +95,7 @@ export async function POST(
         let prodentisRescheduled = false;
         let newEndTime = '';
         const prodentisAptId = appointmentAction.prodentis_id;
+        const PRODENTIS_KEY = (await getProdentisKey()) ?? '';
 
         if (prodentisAptId && PRODENTIS_KEY) {
             try {

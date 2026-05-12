@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/authGuards';
+import { getProdentisKey } from '@/lib/pmsConfig';
 
 export const dynamic = 'force-dynamic';
 
 const PRODENTIS_API = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
-const PRODENTIS_KEY = process.env.PRODENTIS_API_KEY || '';
 
 /**
  * POST /api/admin/prodentis-schedule/icon
@@ -22,6 +22,8 @@ export async function POST(request: Request) {
         if (!appointmentId || !iconId) {
             return NextResponse.json({ error: 'appointmentId and iconId required' }, { status: 400 });
         }
+
+        const PRODENTIS_KEY = (await getProdentisKey()) ?? '';
 
         const res = await fetch(`${PRODENTIS_API}/api/schedule/appointment/${appointmentId}/icon`, {
             method: 'POST',

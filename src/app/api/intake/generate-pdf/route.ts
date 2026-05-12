@@ -5,6 +5,7 @@ import fontkit from '@pdf-lib/fontkit';
 import fs from 'fs';
 import path from 'path';
 import { demoSanitize } from '@/lib/brandConfig';
+import { getProdentisKey } from '@/lib/pmsConfig';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -12,7 +13,6 @@ const supabase = createClient(
 );
 
 const PRODENTIS_API = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
-const PRODENTIS_API_KEY = process.env.PRODENTIS_API_KEY || '';
 
 // ─── Helpers ─────────────────────────────────────────────
 
@@ -447,6 +447,7 @@ export async function POST(req: NextRequest) {
 
         // Upload to Prodentis
         let prodentisSynced = false;
+        const PRODENTIS_API_KEY = (await getProdentisKey()) ?? '';
         if (patientProdentisId && PRODENTIS_API_KEY) {
             try {
                 const prodentisRes = await fetch(

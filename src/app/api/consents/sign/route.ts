@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getConsentTypesFromDB } from '@/lib/consentTypes';
+import { getProdentisKey } from '@/lib/pmsConfig';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -8,7 +9,6 @@ const supabase = createClient(
 );
 
 const PRODENTIS_API = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
-const PRODENTIS_API_KEY = process.env.PRODENTIS_API_KEY;
 
 /**
  * POST /api/consents/sign
@@ -19,8 +19,9 @@ const PRODENTIS_API_KEY = process.env.PRODENTIS_API_KEY;
  * Body: { token, consentType, signedPdfBase64, signatureDataUrl }
  */
 export async function POST(req: NextRequest) {
+    const PRODENTIS_API_KEY = await getProdentisKey();
     if (!PRODENTIS_API_KEY) {
-        console.error('[Consents/Sign] PRODENTIS_API_KEY not configured');
+        console.error('[Consents/Sign] PRODENTIS_API_KEY not configured (DB + env both empty)');
         return NextResponse.json({ error: 'Service misconfigured' }, { status: 500 });
     }
 

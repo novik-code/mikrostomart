@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { generateEKartaPdf } from '@/app/api/intake/generate-pdf/route';
+import { getProdentisKey } from '@/lib/pmsConfig';
 
 /**
  * POST /api/intake/submit
@@ -188,7 +189,7 @@ export async function POST(req: Request) {
 
     // 5. Send to Prodentis API (synchronous — Vercel kills fire-and-forget)
     const prodentisUrl = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
-    const prodentisKey = process.env.PRODENTIS_API_KEY || '';
+    const prodentisKey = (await getProdentisKey()) ?? '';
 
     let prodentisStatus = 'pending';
     let prodentisPatientId = tokenRow.prodentis_patient_id || null;

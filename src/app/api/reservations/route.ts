@@ -6,6 +6,7 @@ import { getDoctorInfo, normalizePhone, fuzzyNameMatch, extractFirstName, extrac
 import type { PatientCandidate } from '@/lib/doctorMapping';
 import { demoSanitize, brand } from '@/lib/brandConfig';
 import { sendEmail } from '@/lib/emailSender';
+import { getProdentisKey } from '@/lib/pmsConfig';
 
 export const runtime = 'nodejs';
 
@@ -144,7 +145,7 @@ export async function POST(req: NextRequest) {
         if (supabase) {
             try {
                 const prodentisUrl = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
-                const prodentisKey = process.env.PRODENTIS_API_KEY || '';
+                const prodentisKey = (await getProdentisKey()) ?? '';
                 const doctorInfo = getDoctorInfo(specialist);
                 const normalizedPhone = normalizePhone(phone);
                 const patientFirstName = extractFirstName(name);

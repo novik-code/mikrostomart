@@ -17,6 +17,7 @@ import type {
     PmsDoctor,
     PmsDocument,
 } from './types';
+import { getProdentisKey } from '@/lib/pmsConfig';
 
 export class ProdentisAdapter implements PmsAdapter {
     readonly name = 'prodentis';
@@ -31,20 +32,21 @@ export class ProdentisAdapter implements PmsAdapter {
         return process.env.PRODENTIS_API_URL || 'http://83.230.40.14:3000';
     }
 
-    private get apiKey(): string {
-        return process.env.PRODENTIS_API_KEY || '';
+    private async getApiKey(): Promise<string> {
+        return (await getProdentisKey()) ?? '';
     }
 
     private async fetchSingle<T>(baseUrl: string, path: string, options: RequestInit, timeoutMs: number): Promise<T> {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+        const apiKey = await this.getApiKey();
 
         try {
             const res = await fetch(`${baseUrl}${path}`, {
                 ...options,
                 headers: {
                     'Content-Type': 'application/json',
-                    ...(this.apiKey ? { 'X-API-Key': this.apiKey } : {}),
+                    ...(apiKey ? { 'X-API-Key': apiKey } : {}),
                     ...((options.headers as Record<string, string>) || {}),
                 },
                 signal: controller.signal,

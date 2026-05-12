@@ -6,6 +6,7 @@ import { sendTranslatedPushToUser } from '@/lib/pushService';
 import { sendSMS } from '@/lib/smsService';
 import { sendBookingConfirmedEmail, sendBookingRejectedEmail } from '@/lib/emailService';
 import { demoSanitize } from '@/lib/brandConfig';
+import { getProdentisKey } from '@/lib/pmsConfig';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,7 +16,6 @@ const supabase = createClient(
 );
 
 const PRODENTIS_API = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
-const PRODENTIS_KEY = process.env.PRODENTIS_API_KEY || '';
 
 /**
  * Try to schedule a booking in Prodentis
@@ -47,6 +47,8 @@ async function scheduleWithIds(doctorId: string, patientId: string, booking: any
     if (!patientId) {
         return { success: false, error: 'MISSING_PATIENT_ID' };
     }
+
+    const PRODENTIS_KEY = (await getProdentisKey()) ?? '';
 
     try {
         const res = await fetch(`${PRODENTIS_API}/api/schedule/appointment`, {
@@ -141,6 +143,7 @@ export async function PUT(request: Request) {
         const now = new Date().toISOString();
         let updateData: Record<string, any> = { updated_at: now };
         let scheduleResult: { success: boolean; appointmentId?: string; error?: string } | null = null;
+        const PRODENTIS_KEY = (await getProdentisKey()) ?? '';
 
         switch (action) {
             case 'approve': {

@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
 import { logAudit } from '@/lib/auditLog';
+import { getProdentisKey } from '@/lib/pmsConfig';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -10,7 +11,6 @@ const supabase = createClient(
 );
 
 const PRODENTIS_API = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
-const PRODENTIS_API_KEY = process.env.PRODENTIS_API_KEY;
 
 const polishToAscii = (str: string) => str
     .replace(/ą/g, 'a').replace(/ć/g, 'c').replace(/ę/g, 'e')
@@ -29,8 +29,9 @@ const polishToAscii = (str: string) => str
  * Body: { consentId }
  */
 export async function POST(req: NextRequest) {
+    const PRODENTIS_API_KEY = await getProdentisKey();
     if (!PRODENTIS_API_KEY) {
-        console.error('[Employee/ExportBiometric] PRODENTIS_API_KEY not configured');
+        console.error('[Employee/ExportBiometric] PRODENTIS_API_KEY not configured (DB + env both empty)');
         return NextResponse.json({ error: 'Service misconfigured' }, { status: 500 });
     }
 

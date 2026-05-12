@@ -4,6 +4,7 @@ import { requireAdmin } from '@/lib/authGuards';
 import { hasRole } from '@/lib/roles';
 import { generateCareflowReport } from '@/lib/careflowPdf';
 import { prodentisFetch } from '@/lib/prodentisFetch';
+import { getProdentisKey } from '@/lib/pmsConfig';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
@@ -138,7 +139,7 @@ export async function GET(
         });
 
         // ── Auto-export to Prodentis ──
-        const prodentisKey = process.env.PRODENTIS_API_KEY || '';
+        const prodentisKey = (await getProdentisKey()) ?? '';
         if (prodentisKey && enrollment.patient_id) {
             try {
                 const pdfBase64 = Buffer.from(pdfBytes).toString('base64');

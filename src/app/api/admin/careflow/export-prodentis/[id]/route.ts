@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { requireAdmin } from '@/lib/authGuards';
 import { hasRole } from '@/lib/roles';
 import { prodentisFetch } from '@/lib/prodentisFetch';
+import { getProdentisKey } from '@/lib/pmsConfig';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
@@ -53,7 +54,7 @@ export async function POST(
             return NextResponse.json({ error: 'No Prodentis patient ID linked to this enrollment.' }, { status: 400 });
         }
 
-        const prodentisKey = process.env.PRODENTIS_API_KEY || '';
+        const prodentisKey = (await getProdentisKey()) ?? '';
         if (!prodentisKey) {
             return NextResponse.json({ error: 'PRODENTIS_API_KEY not configured' }, { status: 500 });
         }

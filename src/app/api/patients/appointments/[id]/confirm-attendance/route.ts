@@ -6,6 +6,7 @@ import { broadcastPush } from '@/lib/pushService';
 import type { ConfirmAttendanceRequest, AppointmentActionResponse, AppointmentAction } from '@/types/appointmentActions';
 import { demoSanitize } from '@/lib/brandConfig';
 import { sendEmail } from '@/lib/emailSender';
+import { getProdentisKey } from '@/lib/pmsConfig';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -189,7 +190,7 @@ export async function POST(
         let iconAdded = false;
         try {
             const PRODENTIS_API = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
-            const PRODENTIS_KEY = process.env.PRODENTIS_API_KEY || '';
+            const PRODENTIS_KEY = (await getProdentisKey()) ?? '';
             const prodentisAptId = appointmentAction.prodentis_id;
 
             if (prodentisAptId && PRODENTIS_KEY) {

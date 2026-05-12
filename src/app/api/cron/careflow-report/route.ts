@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { generateCareflowReport } from '@/lib/careflowPdf';
 import { prodentisFetch } from '@/lib/prodentisFetch';
+import { getProdentisKey } from '@/lib/pmsConfig';
 
 export const maxDuration = 60;
 
@@ -150,7 +151,7 @@ export async function GET(req: Request) {
                 console.log(`   ✅ Report generated for ${enrollment.patient_name} (${fileName})`);
 
                 // Auto-export to Prodentis
-                const prodentisKey = process.env.PRODENTIS_API_KEY || '';
+                const prodentisKey = (await getProdentisKey()) ?? '';
                 if (prodentisKey && enrollment.patient_id) {
                     try {
                         const pdfBase64 = Buffer.from(pdfBytes).toString('base64');
