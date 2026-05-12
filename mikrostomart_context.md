@@ -1,6 +1,6 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-12 (**🚨 HOTFIX SPRINT — S1-1 DONE**. Central `src/lib/authGuards.ts` z `requireSupabaseUser/requireAdmin/requireEmployeeOrAdmin` zwracającymi discriminated union `{ ok: true; user; roles } | { ok: false; response }`. Wewnętrznie wraps istniejące `hasRole`/`getUserRoles` z `src/lib/roles.ts` (user_roles table). 5 testów Vitest (401/403/200 × 3 guards). Commit `d8c6f53`. Stary `verifyAdmin()` w `src/lib/auth.ts` zostaje — wymiana 316 callerów w S1-2. **Next: S1-2 audit + rebind /api/admin/** endpoints**. Faza K Premium PAUSED. 9 sprintów: auth → payment → UX rez → XSS+public → SEO P2 → deps → UX → RODO → lint+CI. Plan: `~/Desktop/bałagan/PLAN_HOTFIX_SPRINT.md`. Tego dnia wcześniej Faza J KOMPLETNA.)  
+> **Last Updated:** 2026-05-12 (**🚨 HOTFIX SPRINT — S1-2 DONE**. 78 admin endpoint files + `/api/products` + `/api/health/ai` zmigrowane z `verifyAdmin()` → `requireAdmin()`/`requireEmployeeOrAdmin()` z `src/lib/authGuards.ts`. **Plus** 3 unauth payment settings (stripe/payu/p24) dostały `requireAdmin` od zera — audit P0-03 fix (anonimowy PATCH mógł podmieniać klucze). Commit `c391076`, 82 plików zmienionych. `scripts/migrate_verifyAdmin.py` auto-zmigrował 63 plików, 15 ręcznie. **Stary `verifyAdmin()` zostaje** w `src/lib/auth.ts` jako deprecated alias (jeszcze 51 callerów w `/api/employee/**`, `/api/time/**`, social/cron — pójdą w S1-3/S1-4/S1-bis). Tests 15/15, build clean. **Next: S1-3 social endpoints lockdown** (19 endpointów, audit P0-04). Faza K Premium PAUSED. 9 sprintów: auth → payment → UX rez → XSS+public → SEO P2 → deps → UX → RODO → lint+CI. Plan: `~/Desktop/bałagan/PLAN_HOTFIX_SPRINT.md`. Wcześniej S1-1 (authGuards + 5 testów, commit `d8c6f53`). Tego dnia również Faza J KOMPLETNA.)  
 > **Version:** Production + Demo (Dual Vercel Deployment)  
 > **Status:** Active Development — **🎯 PREMIUM SEO PLAN AKTYWNY** (4 fazy, ~6 mies horyzont). KCP FULL + kiosk-token + **Employee Management Phase 1+2+3 (KOMPLETNE — backend unified + UI z wizardem)**; CareFlow Perioperative; Push-First Communication. SEO Sprint H1-H8 ✅ KOMPLETNY. Cykl: pełen audyt 5 niezależnymi agentami wykrył ~47 problemów → 8 faz wdrożenia (H1 quick fixes, H2 metadata gaps, H3 internal linking, H4 schema enrichment, H5 perf+images, H6 content, H7 intl landing, H8 real schema data) → po H8 push **awaria 500 production** (H3 batch sed przekonwertował 3 server components na `Link` z `@/i18n/navigation` który wewnętrznie używa `useLocale()` client-only hook → SSR crash) → 8 reverts cofnęły wszystko → bisect lokalny zlokalizował bug → fix `572af02` (zamiana na `<a href>` z manual locale prefix w 3 server components) → re-apply H1-H8 → produkcja stabilna `6c8f4fa`. ~35/47 problemów audytu zaadresowanych. **Wcześniejsze SEO Sprint G1-G6 + Recovery 1-E** ✅ KOMPLETNE (2026-05-09 → 2026-05-10): pełen multilingual SEO (4 locale), rich SERP, Core Web Vitals fix (LCP 6s→2-3s), PSI Mobile 34→73, Desktop 39→83. Faza 3 GSC: audyt po 4-6 tygodniach (~koniec czerwca 2026). Następna sesja: weryfikacja Rich Results, re-submit sitemap, ewentualne content expansion service pages (24 expansions H6 follow-up).
 
@@ -2461,6 +2461,59 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-12 — Hotfix Sprint S1-2: Admin endpoints rebind + 3 unauth settings fix
+
+**Druga sesja Hotfix Sprint — migracja 78 admin endpointów na nowe guards + zamknięcie audit P0-03 (unauth payment settings).**
+
+#### Commits
+- `c391076` feat(security): S1-2 — admin endpoints + 3 unauth settings now require role (82 plików, +626/-416)
+
+#### Co się zmieniło
+- **78 endpoint files** w `src/app/api/admin/**` + `/api/products` + `/api/health/ai` zmigrowane z legacy `verifyAdmin()` (login-only) na nowe guards z `src/lib/authGuards.ts`:
+  - Default: `requireAdmin()` (~73 plików — roles, settings, push, sms, blog, news, patients, employees, etc.)
+  - Pattern employee-or-admin: `admin/chat/messages`, `admin/chat/conversations`, `admin/careflow/stats` → `requireEmployeeOrAdmin()` (zachowanie poprzednie: admin OR employee)
+- **3 unauth payment settings** (`stripe-settings`, `payu-settings`, `p24-settings`) — dostały `requireAdmin` od zera. Audit P0-03 fix: anonimowy `PATCH /api/admin/{stripe,payu,p24}-settings` mógł zapisać dowolne klucze do `clinic_settings` (potencjał przekierowania płatności).
+- **scripts/migrate_verifyAdmin.py** — narzędzie auto-migracji (regex patterns A/C/D), 63 plików auto-zmigrowanych. Reszta (15 plików) ręcznie.
+
+#### Pattern matching strategia
+- **Pattern A** (najczęstszy): `const user = await verifyAdmin(); if (!user) return NextResponse.json({error:'Unauthorized'},{status:401});` → `const auth = await requireAdmin(); if (!auth.ok) return auth.response; const user = auth.user;`
+- **Pattern B** (helpers): brand-logo, sections, page-overrides, theme, templates × 2 — używają lokalnego `checkAdmin()` helpera. Helper rewritten by używał `requireAdmin` wewnątrz, call sites bez zmian.
+- **Pattern C** (multi-line if): `roles/*`, `employees/*` — multi-line `if (!user) {\n return ... }` → ten sam pattern co A.
+- **Pattern D** (boolean inline): `articles`, `blog/generate`, `news/generate`, `orders`, `questions`, `reservations`, `products` — `if (!(await verifyAdmin())) return ...` → `const auth = await requireAdmin(); if (!auth.ok) return auth.response;`
+- **3 settings (P0-03)**: nie miały żadnej auth → dodano `requireAdmin()` na każdym GET/PATCH/POST handlerze (9 dodanych checków).
+
+#### Plan vs reality (decyzja)
+PLAN_HOTFIX_SPRINT.md S1-2 sugerował że `schedule/`, `time-tracking/`, `leave-requests/` → `requireEmployeeOrAdmin`. **Reality**: te endpointy mają już explicit `hasRole(user.id, 'admin')` w kodzie (admin-only). Zachowaliśmy obecne zachowanie → `requireAdmin`. Architektonicznie: `/api/admin/schedule` = admin edytuje grafik, `/api/employee/schedule-view` = employee read-only. Plan może być błędny w tym fragmencie.
+
+#### Out of scope (51 pozostałych callerów verifyAdmin)
+Nie ruszone w S1-2 — outside scope:
+- **`src/app/api/employee/**`** (~45 plików) — endpointy strefy pracownika, semantycznie wymagają `requireEmployeeOrAdmin`. Plan na S1-bis lub osobny sprint.
+- **`src/app/api/time/**`** (4 pliki KCP scan) — używają verifyAdmin + hasRole employee/admin. Wymagają osobnego refaktoru — KCP-critical path.
+- **`/api/social/topics`** — pójdzie w S1-3 (full social lockdown).
+- **`/api/cron/daily-article`** — pójdzie w S1-4 (cron manual guard).
+- **`/api/fix-db-images`** — debug endpoint, low priority.
+- **`src/lib/withAuth.ts`** — dead code (zero call sites). Higher-order auth wrapper, prawdopodobnie do usunięcia w S9 cleanup.
+
+#### Wyniki
+- `npm test`: 15/15 passed (bez zmian od S1-1 — testy nie zostały dotknięte)
+- `npm run build`: clean (tylko Sentry deprecation warning, pre-existing)
+- `grep verifyAdmin src/app/api/admin/`: 0 wystąpień ✅
+- Caller pattern wyrówny: każdy admin handler ma:
+  ```ts
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth.response;
+  const user = auth.user;  // optional
+  ```
+
+#### Co dla Marcina (manual steps)
+- **Nic** — sesja AI-only. Stary `verifyAdmin()` zostaje exportowany z `src/lib/auth.ts`, więc nie ma breakage dla 51 pozostałych callerów.
+- Po deploy: spot-check admin panelu (login → roles → push → orders). Pacjent zalogowany do strefy pacjenta NIE powinien mieć dostępu do żadnego endpointu admin.
+
+#### Next
+- **S1-3** (~1.5h AI): `/api/social/*` lockdown (19 endpointów). Audit P0-04 — publiczne route'y zarządzające tokenami OAuth + service-role Supabase. Tokens masking w `/platforms`, signed state HMAC w OAuth callbacks.
+
+---
 
 ### 2026-05-12 — Hotfix Sprint S1-1: Central authGuards
 
