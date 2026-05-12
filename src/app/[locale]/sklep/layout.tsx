@@ -4,7 +4,16 @@ import { PAGE_SEO } from '@/lib/seoTranslations';
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
     const { locale } = await params;
-    return pageMetadata(locale, '/sklep', PAGE_SEO['/sklep']);
+    const base = pageMetadata(locale, '/sklep', PAGE_SEO['/sklep']);
+    // J-4: shop content is PL-only (product names, descriptions, voucher copy
+    // live in Polish). Foreign locale URLs (/en/sklep, /de/sklep, /ua/sklep)
+    // currently serve the same PL text — keeping them indexable would split
+    // ranking signals and put low-quality EN/DE/UA pages in SERP. noindex
+    // them; canonical inside `base.alternates` already points to /sklep.
+    return {
+        ...base,
+        robots: locale === 'pl' ? undefined : { index: false, follow: true },
+    };
 }
 
 export default async function Layout({

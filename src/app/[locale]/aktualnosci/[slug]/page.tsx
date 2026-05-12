@@ -7,7 +7,7 @@ import { Metadata } from 'next';
 import { supabase } from '@/lib/supabaseClient';
 import { getTranslations } from 'next-intl/server';
 import { brand } from '@/lib/brandConfig';
-import { breadcrumbHref, localizedBreadcrumb } from '@/lib/seo';
+import { breadcrumbHref, getOgLocale, localizedBreadcrumb } from '@/lib/seo';
 import { preferWebp } from '@/lib/imageUrl';
 import { routing } from '@/i18n/routing';
 
@@ -105,6 +105,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
             description: localized.excerpt,
             type: 'article',
             url: articleUrl(locale, slug),
+            locale: getOgLocale(locale),
             images: localized.image
                 ? [{ url: schemaImageUrl(localized.image) }]
                 : undefined,

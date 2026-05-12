@@ -451,6 +451,18 @@ export function hreflangCode(locale: string): string {
 }
 
 /**
+ * Maps URL prefix locale → OpenGraph `<lang>_<COUNTRY>` BCP 47-ish locale code
+ * (e.g. 'en' → 'en_US', 'ua' → 'uk_UA'). Falls back to 'pl_PL'.
+ *
+ * J-4 (2026-05-12): exposed publicly so slug pages (aktualnosci/nowosielski/
+ * baza-wiedzy) and the root layout can set per-request og:locale instead of
+ * inheriting the global hardcoded pl_PL.
+ */
+export function getOgLocale(locale: string): string {
+    return OG_LOCALE_MAP[locale] || OG_LOCALE_MAP.pl;
+}
+
+/**
  * Build an ItemList schema.org JSON-LD object for collection pages
  * (e.g. /aktualnosci listing, /sklep, /nowosielski blog list).
  *
@@ -692,5 +704,54 @@ export async function getAggregateRating(): Promise<AggregateRating | null> {
         };
     } catch {
         return null;
+    }
+}
+
+/**
+ * Fetch top positive reviews mapped to schema.org Review[] for embedding
+ * inside the Dentist entity. Eligible for Google's individual-review rich
+ * results (excerpt + star + author in SERP, "People also reviewed" card).
+ *
+ * Conservative defaults (J-4, 2026-05-12):
+ * - Only ratings >= 4 (Google penalises review aggregates that look gamed
+ *   when every individual review is a 5★ — having 4★ honest entries mixed
+ *   in is safer than uniform glowing reviews).
+ * - Skips reviews without text body — Google requires `reviewBody`.
+ * - Newest first; cap at `limit` (default 10) to keep schema bytes bounded.
+ * - Returns `[]` on error, demo mode, or empty cache. Caller should omit
+ *   `review` field entirely in that case (empty array still validates but
+ *   contributes nothing).
+ *
+ * Columns (matches src/app/api/google-reviews/route.ts):
+ *   rating · review_text · google_author_name · publish_time (ISO string)
+ */
+export async function fetchReviewSchemas(limit: number = 10): Promise<Array<Record<string, unknown>>> {
+    try {
+        const { data, error } = await supabase
+            .from('google_reviews')
+            .select('rating, review_text, google_author_name, publish_time')
+            .gte('rating', 4)
+            .not('review_text', 'is', null)
+            .order('publish_time', { ascending: false })
+            .limit(limit);
+
+        if (error || !data) return [];
+
+        return data
+            .filter((r: any) => r.review_text && r.google_author_name && typeof r.rating === 'number')
+            .map((r: any) => ({
+                '@type': 'Review',
+                author: { '@type': 'Person', name: r.google_author_name },
+                ...(r.publish_time ? { datePublished: r.publish_time } : {}),
+                reviewRating: {
+                    '@type': 'Rating',
+                    ratingValue: r.rating,
+                    bestRating: 5,
+                    worstRating: 1,
+                },
+                reviewBody: r.review_text,
+            }));
+    } catch {
+        return [];
     }
 }

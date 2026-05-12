@@ -8,7 +8,7 @@ import RevealOnScroll from '@/components/RevealOnScroll';
 import { getTranslations } from 'next-intl/server';
 import { Metadata } from 'next';
 import { brand } from '@/lib/brandConfig';
-import { breadcrumbHref, localizedBreadcrumb } from '@/lib/seo';
+import { breadcrumbHref, getOgLocale, localizedBreadcrumb } from '@/lib/seo';
 import { preferWebp } from '@/lib/imageUrl';
 import { routing } from '@/i18n/routing';
 
@@ -122,6 +122,7 @@ export async function generateMetadata({
             description,
             type: 'article',
             url: postUrl(locale, slug),
+            locale: getOgLocale(locale),
             images: post.image
                 ? [{ url: schemaImageUrl(post.image) }]
                 : undefined,

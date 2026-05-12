@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { setRequestLocale } from "next-intl/server";
 import { isDemoMode } from "@/lib/demoMode";
+import { getOgLocale } from "@/lib/seo";
 import HomeClient from "./HomeClient";
 
 // Per-locale SEO metadata for the homepage. The interactive content lives in HomeClient
@@ -57,6 +58,13 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
         openGraph: {
             title: seo.ogTitle,
             description: seo.ogDescription,
+            // J-4: declare og:locale explicitly so Facebook/LinkedIn previews
+            // for /de and /ua show the right language tag. Next.js merges
+            // openGraph keys child-over-parent, so without this we'd inherit
+            // root layout's value but only when no openGraph block is set
+            // here at all — declaring title/description here would otherwise
+            // strip the parent's locale field.
+            locale: getOgLocale(locale),
         },
         alternates: {
             canonical: locale === 'pl' ? '/' : `/${locale}`,

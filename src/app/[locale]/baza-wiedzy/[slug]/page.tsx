@@ -7,7 +7,7 @@ import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
-import { breadcrumbHref, localizedBreadcrumb } from '@/lib/seo';
+import { breadcrumbHref, getOgLocale, localizedBreadcrumb } from '@/lib/seo';
 import { preferWebp } from '@/lib/imageUrl';
 import { routing } from '@/i18n/routing';
 
@@ -100,6 +100,7 @@ export async function generateMetadata({
             description: article.excerpt,
             type: 'article',
             url: articleUrl(locale, slug),
+            locale: getOgLocale(locale),
             images: article.image_url ? [{ url: schemaImageUrl(article.image_url) }] : undefined,
         },
         twitter: {
