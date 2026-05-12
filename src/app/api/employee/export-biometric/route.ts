@@ -10,7 +10,7 @@ const supabase = createClient(
 );
 
 const PRODENTIS_API = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
-const PRODENTIS_API_KEY = process.env.PRODENTIS_API_KEY || '2c9bd5b4-5090-4007-8f06-936811bd0947';
+const PRODENTIS_API_KEY = process.env.PRODENTIS_API_KEY;
 
 const polishToAscii = (str: string) => str
     .replace(/ą/g, 'a').replace(/ć/g, 'c').replace(/ę/g, 'e')
@@ -29,6 +29,11 @@ const polishToAscii = (str: string) => str
  * Body: { consentId }
  */
 export async function POST(req: NextRequest) {
+    if (!PRODENTIS_API_KEY) {
+        console.error('[Employee/ExportBiometric] PRODENTIS_API_KEY not configured');
+        return NextResponse.json({ error: 'Service misconfigured' }, { status: 500 });
+    }
+
     try {
         const user = await verifyAdmin();
         if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

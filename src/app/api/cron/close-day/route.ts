@@ -15,6 +15,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { calculateAndPersistDay } from '@/lib/timeTracking/shiftCalculation';
 import { logCronHeartbeat } from '@/lib/cronHeartbeat';
 import { isDemoMode } from '@/lib/demoMode';
+import { requireAdmin } from '@/lib/authGuards';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -23,10 +24,12 @@ export const maxDuration = 120;
 export async function GET(req: NextRequest) {
     const authHeader = req.headers.get('authorization');
     const isManual = new URL(req.url).searchParams.get('manual') === 'true';
-    if (
+    if (isManual) {
+        const adminAuth = await requireAdmin();
+        if (!adminAuth.ok) return adminAuth.response;
+    } else if (
         authHeader !== `Bearer ${process.env.CRON_SECRET}` &&
-        process.env.NODE_ENV === 'production' &&
-        !isManual
+        process.env.NODE_ENV === 'production'
     ) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

@@ -2,6 +2,7 @@ import { isDemoMode } from '@/lib/demoMode';
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sendSMS } from '@/lib/smsService';
+import { requireAdmin } from '@/lib/authGuards';
 
 export const maxDuration = 120;
 
@@ -32,7 +33,10 @@ export async function GET(req: Request) {
     const isManualTrigger = url.searchParams.get('manual') === 'true';
     const smsTypeFilter = url.searchParams.get('sms_type') as 'post_visit' | 'week_after_visit' | null;
 
-    if (!isCronAuth && !isManualTrigger && process.env.NODE_ENV === 'production') {
+    if (isManualTrigger) {
+        const adminAuth = await requireAdmin();
+        if (!adminAuth.ok) return adminAuth.response;
+    } else if (!isCronAuth && process.env.NODE_ENV === 'production') {
         return new NextResponse('Unauthorized', { status: 401 });
     }
 

@@ -8,7 +8,7 @@ const supabase = createClient(
 );
 
 const PRODENTIS_API = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
-const PRODENTIS_API_KEY = process.env.PRODENTIS_API_KEY || '2c9bd5b4-5090-4007-8f06-936811bd0947';
+const PRODENTIS_API_KEY = process.env.PRODENTIS_API_KEY;
 
 /**
  * POST /api/consents/sign
@@ -19,6 +19,11 @@ const PRODENTIS_API_KEY = process.env.PRODENTIS_API_KEY || '2c9bd5b4-5090-4007-8
  * Body: { token, consentType, signedPdfBase64, signatureDataUrl }
  */
 export async function POST(req: NextRequest) {
+    if (!PRODENTIS_API_KEY) {
+        console.error('[Consents/Sign] PRODENTIS_API_KEY not configured');
+        return NextResponse.json({ error: 'Service misconfigured' }, { status: 500 });
+    }
+
     try {
         const { token, consentType, signedPdfBase64, signatureDataUrl, biometricData } = await req.json();
 

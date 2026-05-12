@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 import { sendTelegramNotification } from '@/lib/telegram';
 import { sendPushToGroups, sendPushToSpecificUsers, type PushGroup } from '@/lib/pushService';
 import { logCronHeartbeat } from '@/lib/cronHeartbeat';
+import { requireAdmin } from '@/lib/authGuards';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
@@ -33,7 +34,10 @@ export async function GET(req: Request) {
     const url = new URL(req.url);
     const isManualTrigger = url.searchParams.get('manual') === 'true';
 
-    if (!isCronAuth && !isManualTrigger && process.env.NODE_ENV === 'production') {
+    if (isManualTrigger) {
+        const adminAuth = await requireAdmin();
+        if (!adminAuth.ok) return adminAuth.response;
+    } else if (!isCronAuth && process.env.NODE_ENV === 'production') {
         return new NextResponse('Unauthorized', { status: 401 });
     }
 

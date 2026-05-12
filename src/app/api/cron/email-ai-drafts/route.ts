@@ -16,6 +16,7 @@ import { buildContextPrompt } from '@/lib/unifiedAI';
 import { sendTelegramNotification } from '@/lib/telegram';
 import { logCronHeartbeat } from '@/lib/cronHeartbeat';
 import { demoSanitize, brand } from '@/lib/brandConfig';
+import { requireAdmin } from '@/lib/authGuards';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
@@ -82,7 +83,10 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const isManual = searchParams.get('manual') === 'true';
 
-    if (!isManual) {
+    if (isManual) {
+        const adminAuth = await requireAdmin();
+        if (!adminAuth.ok) return adminAuth.response;
+    } else {
         const cronSecret = req.headers.get('authorization')?.replace('Bearer ', '');
         if (cronSecret !== process.env.CRON_SECRET) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

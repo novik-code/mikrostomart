@@ -27,6 +27,7 @@ import {
 import { publishVideoToPlatforms } from '@/app/api/social/video-publish/route';
 import { readFileSync, unlinkSync, existsSync, readdirSync } from 'fs';
 import { execSync } from 'child_process';
+import { requireAdmin } from '@/lib/authGuards';
 
 export const maxDuration = 300;
 
@@ -87,7 +88,10 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const isManual = searchParams.get('manual') === 'true';
 
-    if (!isManual) {
+    if (isManual) {
+        const adminAuth = await requireAdmin();
+        if (!adminAuth.ok) return adminAuth.response;
+    } else {
         const cronSecret = req.headers.get('authorization')?.replace('Bearer ', '');
         if (cronSecret !== process.env.CRON_SECRET) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

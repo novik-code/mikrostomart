@@ -8,6 +8,7 @@ import { logCronHeartbeat } from '@/lib/cronHeartbeat';
 import { randomUUID } from 'crypto';
 import { nanoid } from 'nanoid';
 import { demoSanitize, brand } from '@/lib/brandConfig';
+import { requireAdmin } from '@/lib/authGuards';
 
 export const maxDuration = 120; // Vercel function timeout (increased: many appointments + multiple DB queries per appointment)
 
@@ -75,11 +76,14 @@ export async function GET(req: Request) {
     const authHeader = req.headers.get('authorization');
     const isCronAuth = authHeader === `Bearer ${process.env.CRON_SECRET}`;
 
-    // Allow manual trigger from admin panel without auth
+    // Manual trigger from admin panel requires admin auth (was anonymous).
     const url = new URL(req.url);
     const isManualTrigger = url.searchParams.get('manual') === 'true';
 
-    if (!isCronAuth && !isManualTrigger && process.env.NODE_ENV === 'production') {
+    if (isManualTrigger) {
+        const adminAuth = await requireAdmin();
+        if (!adminAuth.ok) return adminAuth.response;
+    } else if (!isCronAuth && process.env.NODE_ENV === 'production') {
         console.error('❌ [SMS Reminders] Unauthorized access attempt');
         return new NextResponse('Unauthorized', { status: 401 });
     }

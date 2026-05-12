@@ -14,6 +14,7 @@ import { createClient } from '@supabase/supabase-js';
 import { generateSocialText, generateSocialImage, uploadImageToStorage } from '@/lib/socialAI';
 import type { Platform, ContentType } from '@/lib/socialAI';
 import { demoSanitize, brand } from '@/lib/brandConfig';
+import { requireAdmin } from '@/lib/authGuards';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
@@ -31,7 +32,10 @@ export async function GET(req: NextRequest) {
     // Auth
     const { searchParams } = new URL(req.url);
     const isManual = searchParams.get('manual') === 'true';
-    if (!isManual) {
+    if (isManual) {
+        const adminAuth = await requireAdmin();
+        if (!adminAuth.ok) return adminAuth.response;
+    } else {
         const cronSecret = req.headers.get('authorization')?.replace('Bearer ', '');
         if (cronSecret !== process.env.CRON_SECRET) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

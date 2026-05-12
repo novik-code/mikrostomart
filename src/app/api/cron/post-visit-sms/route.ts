@@ -8,6 +8,7 @@ import { logCronHeartbeat } from '@/lib/cronHeartbeat';
 import { randomUUID } from 'crypto';
 import { isSmsTypeEnabled } from '@/lib/smsSettings';
 import { demoSanitize, brand } from '@/lib/brandConfig';
+import { requireAdmin } from '@/lib/authGuards';
 
 export const maxDuration = 120;
 
@@ -115,7 +116,10 @@ export async function GET(req: Request) {
     const isManualTrigger = url.searchParams.get('manual') === 'true';
     const overrideDate = url.searchParams.get('date');
 
-    if (!isCronAuth && !isManualTrigger && process.env.NODE_ENV === 'production') {
+    if (isManualTrigger) {
+        const adminAuth = await requireAdmin();
+        if (!adminAuth.ok) return adminAuth.response;
+    } else if (!isCronAuth && process.env.NODE_ENV === 'production') {
         return new NextResponse('Unauthorized', { status: 401 });
     }
 
