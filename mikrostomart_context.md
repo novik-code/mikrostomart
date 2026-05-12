@@ -1,6 +1,6 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-12 (**🚨 HOTFIX SPRINT — S1-2 DONE**. 78 admin endpoint files + `/api/products` + `/api/health/ai` zmigrowane z `verifyAdmin()` → `requireAdmin()`/`requireEmployeeOrAdmin()` z `src/lib/authGuards.ts`. **Plus** 3 unauth payment settings (stripe/payu/p24) dostały `requireAdmin` od zera — audit P0-03 fix (anonimowy PATCH mógł podmieniać klucze). Commit `c391076`, 82 plików zmienionych. `scripts/migrate_verifyAdmin.py` auto-zmigrował 63 plików, 15 ręcznie. **Stary `verifyAdmin()` zostaje** w `src/lib/auth.ts` jako deprecated alias (jeszcze 51 callerów w `/api/employee/**`, `/api/time/**`, social/cron — pójdą w S1-3/S1-4/S1-bis). Tests 15/15, build clean. **Next: S1-3 social endpoints lockdown** (19 endpointów, audit P0-04). Faza K Premium PAUSED. 9 sprintów: auth → payment → UX rez → XSS+public → SEO P2 → deps → UX → RODO → lint+CI. Plan: `~/Desktop/bałagan/PLAN_HOTFIX_SPRINT.md`. Wcześniej S1-1 (authGuards + 5 testów, commit `d8c6f53`). Tego dnia również Faza J KOMPLETNA.)  
+> **Last Updated:** 2026-05-12 (**🚨 HOTFIX SPRINT — S1-3 DONE**. Wszystkie **19 endpointów `/api/social/*`** dostało `requireAdmin()` z `src/lib/authGuards`. Krytyczny audit P0-04 fix: dotychczas 16/19 routes używało Supabase service-role bez żadnej auth — anonimowy GET wykradał OAuth access/refresh tokens, anonimowy POST publikował na FB/IG/TikTok/YouTube, generował AI content. **Token masking** w `GET /api/social/platforms` — response strip `access_token`/`refresh_token`, zwraca `has_access_token`/`has_refresh_token` + `token_expires_at`. **OAuth × 3** (facebook/tiktok/youtube) — requireAdmin na single GET handler obsługujący initiate + callback (admin session cookie persistent w trakcie redirect z providera). Commit `1bc6ed7`, 22 plików. Tests 15/15, build clean. **P1-08 signed-state HMAC** dla OAuth pominięte — wymaga osobnego planowania (secret env + nonce + verify helper); aktualny admin-only guard pokrywa primary attack. **Next: S1-4 crony manual=true + Prodentis key rotation** (Marcin 5 min — rotacja klucza). Po S1-4 → S1 SPRINT COMPLETE → S2 Payment Integrity. Wcześniej S1-2 (`c391076`, 82 plików admin/* + 3 unauth settings P0-03 fix), S1-1 (`d8c6f53`, authGuards.ts + 5 testów). Plan: `~/Desktop/bałagan/PLAN_HOTFIX_SPRINT.md`.)  
 > **Version:** Production + Demo (Dual Vercel Deployment)  
 > **Status:** Active Development — **🎯 PREMIUM SEO PLAN AKTYWNY** (4 fazy, ~6 mies horyzont). KCP FULL + kiosk-token + **Employee Management Phase 1+2+3 (KOMPLETNE — backend unified + UI z wizardem)**; CareFlow Perioperative; Push-First Communication. SEO Sprint H1-H8 ✅ KOMPLETNY. Cykl: pełen audyt 5 niezależnymi agentami wykrył ~47 problemów → 8 faz wdrożenia (H1 quick fixes, H2 metadata gaps, H3 internal linking, H4 schema enrichment, H5 perf+images, H6 content, H7 intl landing, H8 real schema data) → po H8 push **awaria 500 production** (H3 batch sed przekonwertował 3 server components na `Link` z `@/i18n/navigation` który wewnętrznie używa `useLocale()` client-only hook → SSR crash) → 8 reverts cofnęły wszystko → bisect lokalny zlokalizował bug → fix `572af02` (zamiana na `<a href>` z manual locale prefix w 3 server components) → re-apply H1-H8 → produkcja stabilna `6c8f4fa`. ~35/47 problemów audytu zaadresowanych. **Wcześniejsze SEO Sprint G1-G6 + Recovery 1-E** ✅ KOMPLETNE (2026-05-09 → 2026-05-10): pełen multilingual SEO (4 locale), rich SERP, Core Web Vitals fix (LCP 6s→2-3s), PSI Mobile 34→73, Desktop 39→83. Faza 3 GSC: audyt po 4-6 tygodniach (~koniec czerwca 2026). Następna sesja: weryfikacja Rich Results, re-submit sitemap, ewentualne content expansion service pages (24 expansions H6 follow-up).
 
@@ -2461,6 +2461,55 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-12 — Hotfix Sprint S1-3: /api/social/* lockdown (19 endpoints, P0-04)
+
+**Trzecia sesja Hotfix Sprint — pełen lockdown social media surface (audit P0-04 + częściowy P1-08).**
+
+#### Commits
+- `1bc6ed7` feat(security): S1-3 — /api/social/* lockdown (19 endpoints, P0-04) (22 plików, +158/-16)
+
+#### Co się zmieniło
+- **Wszystkie 19 plików w `src/app/api/social/**/route.ts`** dostały `requireAdmin()` na każdym handlerze HTTP. Wcześniej 16/19 routes było całkowicie publicznych (audit P0-04).
+- **Token masking w `/api/social/platforms`**:
+  - Nowy helper `maskPlatform()` strip `access_token` i `refresh_token` z DB rows
+  - GET/POST/PUT responses zwracają `has_access_token: bool`, `has_refresh_token: bool`, `token_expires_at` zamiast raw secrets
+  - Admin UI dostaje wszystko czego potrzebuje (status, expiry), ale nigdy raw token
+- **OAuth × 3** (facebook, tiktok, youtube): single GET handler obsługuje initiate (no `code`) + callback (with `code`). `requireAdmin()` jako pierwsza rzecz w handlerze — działa dla obu, bo provider redirect przychodzi do tego samego browsera gdzie admin session cookie jest persistent. Mid-flow logout = restart connection.
+- **`/api/social/topics`** — jedyny social plik który używał `verifyAdmin()` zmigrowany na `requireAdmin` (zgodnie z S1-2 patterns).
+
+#### Pliki ruszone (per kategoria)
+- **Single-handler** (8): comments/fetch, comments/publish, debug-platforms, debug-tiktok, fix-platforms, generate, posts/learn, publish
+- **Multi-handler CRUD** (4): comments (GET+PATCH+DELETE), media (GET+POST+DELETE), posts (GET+POST+PUT+DELETE), schedules (GET+POST+PUT+DELETE)
+- **Token-sensitive** (1): platforms (GET+POST+PUT+DELETE + maskPlatform helper)
+- **Video** (2): video-upload (5 handlers), video-publish (POST handler + internal helper `publishVideoToPlatforms` zostaje internal)
+- **Topics replace** (1): topics (GET+POST+PUT+DELETE — verifyAdmin → requireAdmin)
+- **OAuth** (3): facebook, tiktok, youtube — single GET each
+
+#### Out of scope (deferred)
+- **P1-08 signed-state HMAC** dla OAuth callbacks. Wymaga:
+  - Secret env var (`OAUTH_STATE_SECRET`)
+  - Helper `generateState()` / `verifyState()` z HMAC-SHA256 + nonce + TTL
+  - Nonce storage (httpOnly cookie albo Supabase table)
+  - Verify w callback (parse state → check signature + nonce match + exp)
+  - Aktualny `requireAdmin()` na callback pokrywa primary attack (anonymous token theft). Follow-up: S1-3-bis lub osobna sesja.
+- **Cron-only social** — żadne nie istnieją obecnie jako oddzielne routes (publish/generate są admin-triggered). Gdyby powstały → `CRON_SECRET` Bearer header check zamiast requireAdmin.
+
+#### Wyniki
+- `npm test`: 15/15 passed
+- `npm run build`: clean (tylko pre-existing Sentry deprecation warning)
+- `grep verifyAdmin src/app/api/social/`: 0 wystąpień ✅
+- `grep requireAdmin src/app/api/social/`: 19 plików ✅
+- **Pozostałe verifyAdmin callery total**: 50 (employee/time/cron/withAuth/fix-db-images)
+
+#### Co dla Marcina (manual steps)
+- **Nic** — sesja AI-only.
+- Po deploy: spot-check social w admin panelu (login → social-media tab → próba załadowania platforms list). Anonimowy curl `GET /api/social/platforms` powinien zwrócić 401, nie listę z tokens.
+
+#### Next
+- **S1-4** (~1.5h AI + 5 min Marcin): crony `?manual=true` + Prodentis key rotation. Audit P1-01 + P0-05. **Manual Marcin**: rotacja klucza Prodentis API + update env `PRODENTIS_API_KEY` na obu projektach Vercel.
+
+---
 
 ### 2026-05-12 — Hotfix Sprint S1-2: Admin endpoints rebind + 3 unauth settings fix
 
