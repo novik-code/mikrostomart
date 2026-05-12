@@ -1,14 +1,20 @@
 import type { Metadata } from 'next';
 import { brand } from '@/lib/brandConfig';
+import { pageMetadata } from '@/lib/seo';
 
 // PL-only content: foreign locale URLs are noindex'd until translated.
+// hreflang circle (J-2) added for entity grouping in Google.
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
     const { locale } = await params;
     const isDefault = locale === 'pl';
+    const base = pageMetadata(locale, '/polityka-prywatnosci', {
+        pl: {
+            title: `Polityka Prywatności | ${brand.name} ${brand.cityShort}`,
+            description: `Polityka prywatności gabinetu stomatologicznego ${brand.name} w ${brand.cityShort} — jak przetwarzamy Twoje dane osobowe.`,
+        },
+    });
     return {
-        title: `Polityka Prywatności | ${brand.name} ${brand.cityShort}`,
-        description: `Polityka prywatności gabinetu stomatologicznego ${brand.name} w ${brand.cityShort} — jak przetwarzamy Twoje dane osobowe.`,
-        alternates: { canonical: '/polityka-prywatnosci' },
+        ...base,
         robots: isDefault ? undefined : { index: false, follow: true },
     };
 }
