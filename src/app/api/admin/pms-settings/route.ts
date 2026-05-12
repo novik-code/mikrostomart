@@ -147,23 +147,40 @@ export async function POST(req: NextRequest) {
         }
     }
 
-    // Prodentis health endpoint is open (no X-API-Key needed per v10.1 docs),
-    // but we send the key anyway so we can spot 401 if the proxy starts
-    // requiring it on reads in the future.
+    // Use GET /api/doctors as the smoke endpoint — it exists on the proxy,
+    // is a cheap read, and per API v10.1 docs is open (no X-API-Key needed
+    // on reads today). We still send the key so we'd notice a 401 once the
+    // proxy starts requiring auth on reads. A 200 here means: proxy reachable
+    // + DNS/tunnel OK. The key itself is fully exercised only on the next
+    // real WRITE operation (POST /api/patients, etc.), but that's safer than
+    // sending a test write here.
     const keyToTest = overrideKey || config.apiKey;
     const apiUrl = config.apiUrl;
     try {
         const headers: Record<string, string> = {};
         if (keyToTest) headers["X-API-Key"] = keyToTest;
-        const res = await fetch(`${apiUrl}/api/health`, { headers, signal: AbortSignal.timeout(5000) });
+        const res = await fetch(`${apiUrl}/api/doctors`, { headers, signal: AbortSignal.timeout(5000) });
         if (res.ok) {
             const detail = await res.json().catch(() => ({}));
+            const doctorsCount = Array.isArray((detail as { doctors?: unknown[] }).doctors)
+                ? (detail as { doctors: unknown[] }).doctors.length
+                : null;
             return NextResponse.json({
                 healthy: true,
                 provider,
-                message: `Prodentis API dostępne ✅ (${apiUrl})`,
+                message: doctorsCount !== null
+                    ? `Prodentis API dostępne ✅ (${apiUrl}, ${doctorsCount} lekarzy)`
+                    : `Prodentis API dostępne ✅ (${apiUrl})`,
                 detail,
                 keyTested: keyToTest ? "yes" : "no",
+                note: "Test sprawdza dostępność proxy. Klucz w pełni zweryfikowany przy następnej operacji write (POST /api/patients, POST /api/schedule/appointment).",
+            });
+        }
+        if (res.status === 401) {
+            return NextResponse.json({
+                healthy: false,
+                provider,
+                message: `Prodentis API odrzuca klucz (401) ❌ — sprawdź wartość lub czy stary klucz nie został revoke'owany.`,
             });
         }
         return NextResponse.json({
