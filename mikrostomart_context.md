@@ -1,6 +1,6 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-12 (Premium SEO J-1: sitemap lastModified per route z git history — 148 distinct values vs 1; Article schema +articleSection +wordCount +keywords; commit `2215e91`)  
+> **Last Updated:** 2026-05-12 (Premium SEO J-2: hreflang circle audit + fix — 120/120 URLs poprawne; refactor 4 legalnych layoutów + nowy /zadatek layout; audit script reusable jako CI gate; commit `e07559f`. J-1 wcześniej tego dnia: commit `2215e91`)  
 > **Version:** Production + Demo (Dual Vercel Deployment)  
 > **Status:** Active Development — **🎯 PREMIUM SEO PLAN AKTYWNY** (4 fazy, ~6 mies horyzont). KCP FULL + kiosk-token + **Employee Management Phase 1+2+3 (KOMPLETNE — backend unified + UI z wizardem)**; CareFlow Perioperative; Push-First Communication. SEO Sprint H1-H8 ✅ KOMPLETNY. Cykl: pełen audyt 5 niezależnymi agentami wykrył ~47 problemów → 8 faz wdrożenia (H1 quick fixes, H2 metadata gaps, H3 internal linking, H4 schema enrichment, H5 perf+images, H6 content, H7 intl landing, H8 real schema data) → po H8 push **awaria 500 production** (H3 batch sed przekonwertował 3 server components na `Link` z `@/i18n/navigation` który wewnętrznie używa `useLocale()` client-only hook → SSR crash) → 8 reverts cofnęły wszystko → bisect lokalny zlokalizował bug → fix `572af02` (zamiana na `<a href>` z manual locale prefix w 3 server components) → re-apply H1-H8 → produkcja stabilna `6c8f4fa`. ~35/47 problemów audytu zaadresowanych. **Wcześniejsze SEO Sprint G1-G6 + Recovery 1-E** ✅ KOMPLETNE (2026-05-09 → 2026-05-10): pełen multilingual SEO (4 locale), rich SERP, Core Web Vitals fix (LCP 6s→2-3s), PSI Mobile 34→73, Desktop 39→83. Faza 3 GSC: audyt po 4-6 tygodniach (~koniec czerwca 2026). Następna sesja: weryfikacja Rich Results, re-submit sitemap, ewentualne content expansion service pages (24 expansions H6 follow-up).
 
@@ -2461,6 +2461,68 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-12 — Premium SEO Plan: Sesja J-2 (hreflang circle audit + fix 24 broken URLs)
+
+**Druga sesja Fazy J. Audit script wykrył 24 prawdziwie broken URLi (4 PL-only legal pages + /zadatek bez layoutu); fix routuje wszystkie public layouty przez `pageMetadata()` z @/lib/seo.**
+
+#### Commit:
+- `e07559f` — feat(seo): J-2 — hreflang circle audit + fix 24 broken URLs
+
+#### Co się zmieniło:
+
+**Audit script `scripts/audit-hreflang.mjs` [NEW, 227 LOC]:**
+- Fetchuje każdą public URL × 4 locale (120 URLs total) z lokalnego serwera (`PORT=3789 npm start`).
+- Per URL parsuje `<link rel="alternate" hreflang="..." href="...">` z HTML i waliduje:
+  - 5 wymaganych hreflang values: `pl`, `en`, `de`, `uk`, `x-default`
+  - Brak `hreflang="ua"` (powszechny bug — ISO 639-1 dla ukraińskiego to `uk`)
+  - Self-link present (current URL appears w own alternates)
+  - Per-path circle consistency: alternates dla path /X we wszystkich 4 locale wskazują na te same docelowe paths
+- Generuje markdown report `scripts/audit-hreflang-report.md` (gitignored — lokalny artefakt)
+- Exit code: 0 jeśli 100% OK, 1 jeśli broken → reusable jako CI gate w przyszłości
+
+**Baseline audit wyniki**: 97/124 OK, 27 broken:
+- 3 false positives — homepage redirect 308 (`/en/` → `/en`). Fix: audit script urlFor() używa BASE/locale bez trailing slash dla homepage.
+- 24 real broken — 6 paths × 4 locale:
+  - **4 PL-only legal pages**: `/regulamin`, `/rodo`, `/polityka-prywatnosci`, `/polityka-cookies` — layouty deklarowały tylko `alternates: { canonical }`, brak `languages` → Next.js nie emitował hreflang w HTML.
+  - **`/zadatek`** — w ogóle brak layout.tsx → strona renderowała się bez żadnej metadata.
+
+**Fixy:**
+- 4 PL-only legal layouty refactored: każdy używa `pageMetadata(locale, '/path', { pl: {...} })` z `@/lib/seo` (pełen circle z buildHreflangAlternates) + zachowane `robots: { index: false, follow: true }` dla EN/DE/UA. Treść tych stron jest PL-only, foreign URLs serwują tę samą PL treść z canonical → /regulamin (PL). hreflang circle umożliwia Google grouping 4 URL-i jako jednej encji bez sygnalizowania że są tłumaczenia.
+- **`/zadatek/layout.tsx`** [NEW] — pageMetadata z **per-locale title+description** (PL/EN/DE/UA) bo strona faktycznie ma tłumaczenia w `messages/*/common.json` (`zadatek` namespace). robots: noindex (strona transakcyjna z URL params).
+- **`/privacy-policy`** świadomie wykluczone z audit `PUBLIC_PATHS` — EN-only legal page (TikTok API compliance), distinct content od `/polityka-prywatnosci`. Pozostałe locale są noindex + canonical → polityka-prywatnosci. Single-locale page nie potrzebuje hreflang circle.
+
+**Post-fix audit**: **120/120 OK** ✅
+
+**Pre-existing audit observation** (na future): script wykryto homepage redirect z trailing slash dla foreign locale (`/en/` → `/en`) — Next.js zachowanie. Działa OK po wykryciu w urlFor() helperze.
+
+#### Pliki:
+- `scripts/audit-hreflang.mjs` [NEW]
+- `src/app/[locale]/regulamin/layout.tsx` [MOD] +pageMetadata
+- `src/app/[locale]/rodo/layout.tsx` [MOD] +pageMetadata
+- `src/app/[locale]/polityka-prywatnosci/layout.tsx` [MOD] +pageMetadata
+- `src/app/[locale]/polityka-cookies/layout.tsx` [MOD] +pageMetadata
+- `src/app/[locale]/zadatek/layout.tsx` [NEW] +pageMetadata + per-locale title/description + noindex
+- `.gitignore` [MOD] — `scripts/audit-hreflang-report.md` (lokalny artefakt)
+- `src/lib/generated-route-mtimes.ts` [MOD] — prebuild refreshed (nowy timestamp dla 5 layoutów)
+
+#### Spodziewany efekt po deploy:
+- Wszystkie 30 public paths × 4 locale (120 URLs) deklarują kompletny hreflang circle. Google przy crawl widzi grupę tłumaczeń jako jedną encję.
+- Legal pages nie tracą noindex'u dla EN/DE/UA wariantów — canonical wskazuje na PL i Google ignoruje duplikaty.
+- `/zadatek` ma teraz metadata i noindex (przedtem indexable thin-content z URL params).
+- Audit script może być uruchamiany lokalnie lub w CI: `npm run build && PORT=3789 npm start & node scripts/audit-hreflang.mjs`.
+
+#### Co Marcin musi zrobić ręcznie po deploy:
+- Brak migracji DB ani env var.
+- Po Vercel build w GSC sprawdzić Coverage czy nie ma nowych hreflang errors (powinno być 0).
+
+#### Co dalej (Faza J kontynuacja):
+- **Sesja J-3**: KB images compression + image alt audit + per-page OG images (~2.5h AI + 30 min Marcin pre-work decyzja o OG images)
+- Następnie J-4 (sklep noindex foreign + Review schema + FAQPage + og:locale), J-5 (internal linking + priceRange premium signal)
+
+> **Brak migracji DB / nowych env var.** Vercel auto-deployuje z pushem na main.
+
+---
 
 ### 2026-05-12 — Premium SEO Plan: Sesja J-1 (sitemap freshness + Article schema enrichment)
 
