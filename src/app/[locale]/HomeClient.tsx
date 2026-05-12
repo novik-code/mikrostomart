@@ -2,6 +2,7 @@
 
 import YouTubeFeed from "@/components/YouTubeFeed";
 import GoogleReviews from "@/components/GoogleReviews";
+import InternationalPatientsTeaser from "@/components/InternationalPatientsTeaser";
 import { Link } from "@/i18n/navigation";
 import RevealOnScroll from "@/components/RevealOnScroll";
 import BeforeAfterSlider from "@/components/BeforeAfterSlider";
@@ -740,6 +741,13 @@ export default function HomeClient() {
                 .filter(s => s.visible)
                 .map(section => renderSection(section, () => setShowNotification(true), f))
             }
+
+            {/* J-5: International patients teaser. Sits after all admin-configured
+                sections (Hero, services, reviews, etc.) as a soft-sell finale
+                before footer. Locale-aware copy (PL/EN/DE/UA) makes it valuable
+                for foreign visitors who scrolled to the bottom without
+                converting on the main CTAs. */}
+            <InternationalPatientsTeaser />
 
             {/* Dynamic Notification Toast */}
             {showNotification && (

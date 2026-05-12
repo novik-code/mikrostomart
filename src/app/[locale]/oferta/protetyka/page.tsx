@@ -42,6 +42,39 @@ export default function ProtetykaPage() {
                     </div>
                 </div>
 
+                {/* J-5: cross-link to implantologia. After the reader sees prosthetic
+                    types (crown / bridge / denture / implant-supported) and the
+                    digital workflow, a single-tooth-gap scenario points naturally
+                    to implants instead of an adjacent-teeth bridge. */}
+                <div style={{
+                    marginBottom: "4rem",
+                    padding: "var(--spacing-lg)",
+                    background: "var(--color-surface)",
+                    borderRadius: "1rem",
+                    border: "1px solid rgba(var(--color-primary-rgb), 0.25)",
+                    maxWidth: "800px",
+                    margin: "0 auto 4rem auto",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "0.75rem",
+                }}>
+                    <h3 style={{ fontSize: "1.35rem", color: "var(--color-primary)", margin: 0 }}>
+                        {t('crossLinkTitle')}
+                    </h3>
+                    <p style={{ margin: 0, lineHeight: 1.7 }}>{t('crossLinkDesc')}</p>
+                    <Link
+                        href="/oferta/implantologia"
+                        style={{
+                            alignSelf: "flex-start",
+                            color: "var(--color-primary)",
+                            fontWeight: 600,
+                            textDecoration: "none",
+                        }}
+                    >
+                        {t('crossLinkCta')} →
+                    </Link>
+                </div>
+
                 {/* FAQ */}
                 <div style={{ marginBottom: "4rem" }}>
                     <h2 style={{ fontSize: "2rem", marginBottom: "2rem" }}>{t('faqTitle')}</h2>

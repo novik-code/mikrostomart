@@ -87,6 +87,37 @@ export default function ImplantologiaPage() {
                     </p>
                 </div>
 
+                {/* J-5: cross-link to protetyka. Implants and prosthetics are
+                    inherently paired — the implant is the root, the crown/bridge
+                    is the visible tooth. Naturally placed after structure
+                    explanation, before FAQ, so the reader has the concept ready. */}
+                <div style={{
+                    marginBottom: "4rem",
+                    padding: "var(--spacing-lg)",
+                    background: "var(--color-surface)",
+                    borderRadius: "1rem",
+                    border: "1px solid rgba(var(--color-primary-rgb), 0.25)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "0.75rem",
+                }}>
+                    <h3 style={{ fontSize: "1.35rem", color: "var(--color-primary)", margin: 0 }}>
+                        {t('crossLinkTitle')}
+                    </h3>
+                    <p style={{ margin: 0, lineHeight: 1.7 }}>{t('crossLinkDesc')}</p>
+                    <Link
+                        href="/oferta/protetyka"
+                        style={{
+                            alignSelf: "flex-start",
+                            color: "var(--color-primary)",
+                            fontWeight: 600,
+                            textDecoration: "none",
+                        }}
+                    >
+                        {t('crossLinkCta')} →
+                    </Link>
+                </div>
+
                 {/* FAQ */}
                 <div style={{ marginBottom: "4rem" }}>
                     <h2 style={{ fontSize: "2rem", marginBottom: "2rem" }}>{t('faqTitle')}</h2>

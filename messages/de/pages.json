@@ -150,7 +150,10 @@
         "faqA3": "Richtig gesetzte Implantate können bei guter Hygiene ein Leben lang halten.",
         "faqQ4": "Kontraindikationen",
         "faqA4": "Unkontrollierter Diabetes, Schwangerschaft, schwere Allgemeinerkrankungen, Alter unter 16 Jahren.",
-        "ctaConsult": "Beratung buchen: 570 270 470"
+        "ctaConsult": "Beratung buchen: 570 270 470",
+        "crossLinkTitle": "Das Implantat ist das Fundament — ergänzen Sie es mit Zahnersatz",
+        "crossLinkDesc": "Das Implantat selbst ist die Wurzel im Knochen. Eine vollständige Zahnrekonstruktion erfordert eine Krone oder eine prothetische Brücke. Sehen Sie unser komplettes Angebot.",
+        "crossLinkCta": "Zahnersatz ansehen"
     },
     "cennik": {
         "heroTitle": "Preisliste",
@@ -676,7 +679,10 @@
         "faqA3": "Wir scannen die Zähne mit einer 3D-Kamera (ohne Abdrücke!), senden das Projekt ins Labor. Die fertige Krone wird nach 5-7 Tagen zementiert.",
         "faqQ4": "Was sind Brücken ohne Beschleifen?",
         "faqA4": "Adhesive Brücken auf Glasfaser. Sie ermöglichen den Ersatz eines Zahnes, ohne die Nachbarzähne stark zu beschleifen.",
-        "cta": "Vereinbaren Sie einen Termin: {phone1}"
+        "cta": "Vereinbaren Sie einen Termin: {phone1}",
+        "crossLinkTitle": "Fehlt ein Zahn? Ein Implantat ist oft die beste Wahl",
+        "crossLinkDesc": "Eine Krone auf einem Implantat ersetzt den fehlenden Zahn ohne Beschleifen der Nachbarzähne. Eine dauerhafte 1:1-Lösung statt einer Brücke auf den Nachbarzähnen.",
+        "crossLinkCta": "Implantologie ansehen"
     },
     "przyjezdni": {
         "heading": "Mikrostomart für deutsche Patienten in Opole, Polen",
@@ -703,6 +709,10 @@
         "ctaTitle": "Termin buchen und Reise planen",
         "ctaSubtitle": "Kontaktieren Sie uns — wir finden den passenden Termin, empfehlen eine Übernachtung und beantworten alle Fragen vor Ihrer Anreise.",
         "ctaPrimaryLabel": "Online buchen",
-        "ctaSecondaryLabel": "Anrufen: {phone1}"
+        "ctaSecondaryLabel": "Anrufen: {phone1}",
+        "teaserBadge": "Internationale Patienten",
+        "teaserTitle": "Sie kommen aus dem Ausland nach Opole? Alles ist vorbereitet.",
+        "teaserDesc": "Kostenfreies Parken vor der Klinik · Deutsch, Englisch, Ukrainisch, Polnisch · Hotels 2–5 Min · 50 Min von A4 / Wrocław",
+        "teaserCta": "Mehr für ausländische Patienten"
     }
 }

@@ -5,6 +5,7 @@ import RevealOnScroll from "@/components/RevealOnScroll";
 import AnimatedPhone from "@/components/AnimatedPhone";
 import AnimatedAt from "@/components/AnimatedAt";
 import ContactForm from "@/components/ContactForm";
+import InternationalPatientsTeaser from "@/components/InternationalPatientsTeaser";
 import { brand } from "@/lib/brandConfig";
 import { isDemoMode } from "@/lib/demoMode";
 
@@ -201,6 +202,14 @@ export default function ContactPage() {
                     </div>
                 </div>
             </section>
+
+            {/* J-5: International patients teaser as a follow-up after Directions
+                section. Pacjenci czytający parking + hotele + języki to natural
+                lead-in dla "pełna oferta dla przyjezdnych" CTA. Compact variant
+                żeby nie kompetowało z Directions cards powyżej. */}
+            <div className="container" style={{ padding: "0 var(--spacing-md)" }}>
+                <InternationalPatientsTeaser variant="compact" />
+            </div>
 
             {/* Simple Contact Form */}
             <section className="section">

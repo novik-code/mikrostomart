@@ -150,7 +150,10 @@
         "faqA3": "Properly placed implants with good hygiene can last a lifetime.",
         "faqQ4": "Contraindications",
         "faqA4": "Uncontrolled diabetes, pregnancy, severe systemic diseases, age under 16.",
-        "ctaConsult": "Book consultation: 570 270 470"
+        "ctaConsult": "Book consultation: 570 270 470",
+        "crossLinkTitle": "The implant is the foundation — finish it with prosthetics",
+        "crossLinkDesc": "The implant itself is the root anchored in bone. A full tooth restoration requires a crown or a prosthetic bridge. See our full range of prosthetic solutions.",
+        "crossLinkCta": "Explore prosthetics"
     },
     "cennik": {
         "heroTitle": "Price List",
@@ -676,7 +679,10 @@
         "faqA3": "We scan the teeth with a 3D camera (no impressions!), send the design to the laboratory. The finished crown is cemented after 5-7 days.",
         "faqQ4": "What are non-prep bridges?",
         "faqA4": "Adhesive bridges on fiberglass. They allow for the restoration of a missing tooth without heavily grinding neighboring teeth.",
-        "cta": "Schedule an appointment: {phone1}"
+        "cta": "Schedule an appointment: {phone1}",
+        "crossLinkTitle": "Missing a tooth? An implant is often the best choice",
+        "crossLinkDesc": "A crown mounted on an implant replaces the missing tooth without grinding down the neighbours. A durable 1:1 solution instead of a bridge resting on adjacent teeth.",
+        "crossLinkCta": "Explore implantology"
     },
     "przyjezdni": {
         "heading": "Mikrostomart for International Patients in Opole, Poland",
@@ -703,6 +709,10 @@
         "ctaTitle": "Book your visit and plan your trip",
         "ctaSubtitle": "Get in touch — we will match your schedule, suggest accommodation and answer all your questions before you travel.",
         "ctaPrimaryLabel": "Book online",
-        "ctaSecondaryLabel": "Call: {phone1}"
+        "ctaSecondaryLabel": "Call: {phone1}",
+        "teaserBadge": "International patients",
+        "teaserTitle": "Visiting Opole from abroad? Everything's ready for you.",
+        "teaserDesc": "Free parking at the clinic · English, German, Ukrainian, Polish · Hotels 2–5 min away · 50 min from A4 / Wrocław",
+        "teaserCta": "Learn more for international patients"
     }
 }

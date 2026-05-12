@@ -109,7 +109,13 @@ function SchemaOrg({ aggregateRating, reviews, locale }: { aggregateRating: Aggr
         "url": brand.schemaUrl,
         "inLanguage": hreflangCode(locale),
         "telephone": isDemoMode ? undefined : `+48${brand.phone1.replace(/-/g, '')}`,
-        "priceRange": "$$",
+        // J-5 (2026-05-12): premium positioning signal. Mikrostomart targets
+        // dental tourism (DE/EN/UA) where premium expectations are baseline —
+        // M.Sc. RWTH Aachen + ZEISS microscope + Fotona laser justify $$$.
+        // Strictly schema.org-internal; users never see this in SERP. Helps
+        // Google match the clinic against "premium dental Poland" / "best
+        // dentist Opole" / "high-end dental tourism" queries.
+        "priceRange": "$$$",
         "currenciesAccepted": "PLN",
         "paymentAccepted": "Cash, Credit Card, BLIK, Apple Pay, Google Pay, Przelewy24, PayU",
         "address": {

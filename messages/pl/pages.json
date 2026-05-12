@@ -150,7 +150,10 @@
         "faqA3": "Prawidłowo wykonane implanty przy dobrej higienie mogą służyć do końca życia.",
         "faqQ4": "Przeciwwskazania",
         "faqA4": "Nieustabilizowana cukrzyca, ciąża, ciężkie choroby ogólnoustrojowe, wiek poniżej 16 lat.",
-        "ctaConsult": "Umów konsultację: 570 270 470"
+        "ctaConsult": "Umów konsultację: 570 270 470",
+        "crossLinkTitle": "Implant to fundament — uzupełnij protetyką",
+        "crossLinkDesc": "Sam implant to korzeń wszczepiony w kość. Pełne odtworzenie zęba wymaga korony lub mostu protetycznego. Sprawdź jakie rozwiązania protetyczne oferujemy.",
+        "crossLinkCta": "Zobacz protetykę"
     },
     "cennik": {
         "heroTitle": "Cennik",
@@ -676,7 +679,10 @@
         "faqA3": "Skanujemy zęby kamerą 3D (bez wycisków!), wysyłamy projekt do laboratorium. Gotową koronę cementujemy po 5-7 dniach.",
         "faqQ4": "Czym są mosty bez szlifowania?",
         "faqA4": "Mosty adhezyjne na włóknie szklanym. Pozwalają uzupełnić brak zęba bez mocnego szlifowania sąsiadów.",
-        "cta": "Umów wizytę: {phone1}"
+        "cta": "Umów wizytę: {phone1}",
+        "crossLinkTitle": "Brak zęba? Implant jest często najlepszym wyborem",
+        "crossLinkDesc": "Korona osadzona na implancie zastępuje brakujący ząb bez szlifowania sąsiednich zębów. Trwałe rozwiązanie 1:1 zamiast mostu opartego na sąsiadach.",
+        "crossLinkCta": "Zobacz implantologię"
     },
     "przyjezdni": {
         "heading": "Mikrostomart dla pacjentów spoza Opola",
@@ -703,6 +709,10 @@
         "ctaTitle": "Umów wizytę i zaplanuj podróż",
         "ctaSubtitle": "Skontaktuj się z nami w wygodny sposób — dobierzemy termin, doradzimy nocleg i odpowiemy na wszystkie pytania jeszcze przed Twoim przyjazdem.",
         "ctaPrimaryLabel": "Zarezerwuj online",
-        "ctaSecondaryLabel": "Zadzwoń: {phone1}"
+        "ctaSecondaryLabel": "Zadzwoń: {phone1}",
+        "teaserBadge": "Dla pacjentów spoza Opola",
+        "teaserTitle": "Przyjeżdżasz spoza Opola? Wszystko już przygotowane.",
+        "teaserDesc": "Bezpłatny parking przed kliniką · Polski / angielski / niemiecki / ukraiński · Hotele 2–5 minut · 50 minut od A4 i Wrocławia",
+        "teaserCta": "Sprawdź ofertę dla pacjentów przyjezdnych"
     }
 }
