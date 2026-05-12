@@ -1,6 +1,7 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-12 (**🚨 HOTFIX SPRINT — S1 SPRINT COMPLETE (S1-4 DONE)**. 12 cronów `?manual=true` wymaga `requireAdmin()` (był: anyone trigger SMS/AI cost/KCP shift force-recalc). 3 warianty cron auth zunifikowane do `if (manual) requireAdmin else CRON_SECRET`. Prodentis API key hardcoded fallback `'2c9bd5b4-...'` USUNIĘTY z 2 plików (consents/sign + employee/export-biometric) — env var only, 500 jeśli brak. Commit `9f3fa64`, 17 plików. **Note**: PRODENTIS_API_KEY waliduje NASZE własne proxy/PMS API (Marcin: "to nie oficjalne API Prodentis, sami stworzyliśmy") — procedura rotacji: Marcin generuje własny UUID/hex (`openssl rand -hex 32`), wstawia w Vercel env (oba projekty × Production+Preview) + serwerze proxy. Stary `2c9bd5b4...` w 5 commitach git history immutable ale martwy po rotacji. **🎯 S1 SPRINT COMPLETE** — auth surface (admin, social, cron, payment settings) fully gated. **Next: S2 Payment Integrity** (migracja 121 order state machine → server-side cart total → verified webhooks → E2E sandbox). Wcześniej S1-1 (`d8c6f53`), S1-2 (`c391076`), S1-3 (`1bc6ed7`). Tests 15/15, build clean. Plan: `~/Desktop/bałagan/PLAN_HOTFIX_SPRINT.md`.)  
+> **Last Updated:** 2026-05-12 (**🚨 HOTFIX SPRINT — S1-bis DONE: PMS key zarządzany z panelu admin**. `src/lib/pmsConfig.ts` helper z 3-level fallback (DB `clinic_settings.apiKey` → env `PRODENTIS_API_KEY` → null), 60s cache, invalidate po PATCH. Endpoint `/api/admin/pms-settings` z `api_key_masked` + source + PATCH apiKey + POST?action=health. UI `PmsSettingsTab.tsx` z input do wklejenia nowego klucza + Save/Test/Wyczyść + callout z PowerShell procedure (ref: `~/Desktop/bałagan/Dla dewelopera mikrostomart/INSTRUKCJA_ROTACJI_KLUCZA.md`). 15 callerów `process.env.PRODENTIS_API_KEY` → `await getProdentisKey()`. `prodentis-adapter` sync getter → async method. Commit `75bc682`, 22 plików. **Marcin może teraz rotować klucz w panelu admin** zamiast Vercel env vars — pełen workflow w docs. Stary `2c9bd5b4...` po S1-4 nadal w env, ale DB ma priorytet. Tests 15/15, build clean. **Next: S2-1 Payment Integrity start** (migracja 121 order state machine). Wcześniej **S1 SPRINT COMPLETE** (S1-1 `d8c6f53`, S1-2 `c391076`, S1-3 `1bc6ed7`, S1-4 `9f3fa64`).)  
+
 > **Version:** Production + Demo (Dual Vercel Deployment)  
 > **Status:** Active Development — **🎯 PREMIUM SEO PLAN AKTYWNY** (4 fazy, ~6 mies horyzont). KCP FULL + kiosk-token + **Employee Management Phase 1+2+3 (KOMPLETNE — backend unified + UI z wizardem)**; CareFlow Perioperative; Push-First Communication. SEO Sprint H1-H8 ✅ KOMPLETNY. Cykl: pełen audyt 5 niezależnymi agentami wykrył ~47 problemów → 8 faz wdrożenia (H1 quick fixes, H2 metadata gaps, H3 internal linking, H4 schema enrichment, H5 perf+images, H6 content, H7 intl landing, H8 real schema data) → po H8 push **awaria 500 production** (H3 batch sed przekonwertował 3 server components na `Link` z `@/i18n/navigation` który wewnętrznie używa `useLocale()` client-only hook → SSR crash) → 8 reverts cofnęły wszystko → bisect lokalny zlokalizował bug → fix `572af02` (zamiana na `<a href>` z manual locale prefix w 3 server components) → re-apply H1-H8 → produkcja stabilna `6c8f4fa`. ~35/47 problemów audytu zaadresowanych. **Wcześniejsze SEO Sprint G1-G6 + Recovery 1-E** ✅ KOMPLETNE (2026-05-09 → 2026-05-10): pełen multilingual SEO (4 locale), rich SERP, Core Web Vitals fix (LCP 6s→2-3s), PSI Mobile 34→73, Desktop 39→83. Faza 3 GSC: audyt po 4-6 tygodniach (~koniec czerwca 2026). Następna sesja: weryfikacja Rich Results, re-submit sitemap, ewentualne content expansion service pages (24 expansions H6 follow-up).
 
@@ -2461,6 +2462,64 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-12 — Hotfix Sprint S1-bis: PMS API key managed from admin panel (follow-up to S1-4)
+
+**Po S1 SPRINT COMPLETE — feature request od Marcina: rotacja klucza Prodentis bez wchodzenia do Vercel.**
+
+#### Commits
+- `75bc682` feat(security): S1-bis — manage Prodentis API key from admin panel (DB-first, env fallback) (22 plików, +496/-120)
+
+#### Co się zmieniło
+- **Helper `src/lib/pmsConfig.ts`** (NEW, 103 LOC) — `getProdentisKey()` + `getPMSConfig()` z 3-poziomowym fallbackiem:
+  1. `clinic_settings.value.apiKey` (admin-managed)
+  2. `process.env.PRODENTIS_API_KEY` (Vercel env, fallback)
+  3. `null` → 500 error w callerze
+  - 60s in-memory cache (oszczędza DB hit per request)
+  - `invalidatePMSCache()` wywoływany po PATCH endpoint → zmiana widoczna natychmiast
+  - `maskApiKey()` helper (`abc1...e9b1`)
+- **Endpoint `/api/admin/pms-settings`** rozszerzony:
+  - GET: `api_key_masked`, `source: 'db'|'env'|'none'`, `apiUrl`, `notes`, `updatedAt`, `updatedBy`
+  - PATCH: przyjmuje `apiKey` (string → save, pusty → clear DB, fall back to env)
+  - POST?action=health: optional override `apiKey` aby przetestować klucz przed zapisaniem
+- **UI `PmsSettingsTab.tsx`** rozszerzony:
+  - Sekcja "Klucz API (X-API-Key)" z masked display + source badge ('Baza danych' / 'Zmienna ENV')
+  - Pole input do nowego klucza (type=password) + buttons "Zapisz klucz" / "Testuj klucz" / "Wyczyść (wróć do ENV)"
+  - Callout z procedurą rotacji (PowerShell instructions z `~/Desktop/bałagan/Dla dewelopera mikrostomart/INSTRUKCJA_ROTACJI_KLUCZA.md`)
+- **15 callerów zaktualizowanych** — wszystkie `process.env.PRODENTIS_API_KEY || ''` → `(await getProdentisKey()) ?? ''`:
+  - `consents/sign`, `employee/export-biometric` (top-level → in-handler)
+  - `intake/{submit,generate-pdf}`, `appointments/confirm`, `reservations`
+  - `patients/appointments/{cancel,confirm-attendance,reschedule}`
+  - `admin/{online-bookings, careflow/{export-prodentis,report}, prodentis-schedule/{color,icon}}`
+  - `cron/careflow-report`
+  - `lib/pms/prodentis-adapter` — sync getter `apiKey` → async `getApiKey()` method
+
+#### Architektura rotacji (kontekst dokumentacji w `~/Desktop/bałagan/Dla dewelopera mikrostomart/`)
+- API `pms.mikrostomartapi.com` to **nasze własne** proxy (nie firma Prodentis) — Cloudflare Tunnel do serwera w klinice
+- v10.1 ma własny mechanizm rotacji: `POST /api/admin/rotate-key` (PowerShell, na serwerze, X-Admin-Token z `api-keys.json`) generuje nowy klucz z 30-dniowym grace period (oba klucze działają)
+- Workflow po S1-bis: Marcin → PowerShell rotate → wkleja nowy klucz w panelu admin Mikrostomart → DB save → cache invalidate → wszystko jeździ. Po 30 dniach (lub wcześniej) PowerShell revoke-previous-key.
+
+#### Out of scope (follow-up)
+- **prodentisFetch** helper (`src/lib/prodentisFetch.ts`) nadal nie auto-injectuje X-API-Key — caller per-route przekazuje header. Docs `DLA_DEWELOPERA_ROTACJA_KLUCZA.md` rekomenduje dodać X-API-Key do KAŻDEGO requestu (read + write) ponieważ Prodentis API v10.1+ może w przyszłości wymagać go też na GET. Clean refactor ale dotyka więcej plików — odłożone.
+
+#### Wyniki
+- `npm test`: 15/15 passed
+- `npm run build`: clean
+- `grep process.env.PRODENTIS_API_KEY src/`: 2 hits (helper + endpoint fallback chain — by design)
+- 18 plików importuje `getProdentisKey`
+
+#### Co dla Marcina (one-time setup)
+- Po deploy: zaloguj do `/admin → PMS` → zobacz "Źródło: ⚙️ Zmienna ENV (Vercel)" + masked `2c9b...0947`
+- Na serwerze PowerShell: `POST /api/admin/rotate-key` (instrukcja w INSTRUKCJA_ROTACJI_KLUCZA.md)
+- W panelu admin: wklej nowy klucz → "Zapisz klucz" → "Testuj połączenie"
+- Stary `2c9bd5b4...` w Vercel env zostaw lub wyczyść — DB key ma priorytet
+- Po 30 dniach: PowerShell `revoke-previous-key` → stary klucz martwy
+- Następne rotacje: workflow w 100% w panelu admin (po stronie Mikrostomart) + 1 PowerShell command na serwerze
+
+#### Next
+- **S2-1**: order state machine + migracja 121 (Sprint 2 Payment Integrity start)
+
+---
 
 ### 2026-05-12 — Hotfix Sprint S1-4: Cron manual=true admin guard + Prodentis key hardcoded fallback removal — **S1 SPRINT COMPLETE**
 
