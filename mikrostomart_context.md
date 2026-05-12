@@ -1,6 +1,6 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-12 (Premium SEO J-4: sklep noindex foreign + 10 Review schemas w Dentist + FAQPage na /dla-pacjentow-przyjezdnych + og:locale dynamic per request; commit `cd406af`. Tego dnia 4/5 Fazy J: J-1 `2215e91`, J-2 `e07559f`, J-3 `e9f368a`, J-4 `cd406af`)  
+> **Last Updated:** 2026-05-12 (Premium SEO **Faza J KOMPLETNA** ✅. J-5: InternationalPatientsTeaser komponent (wide+compact) na homepage + /kontakt + cross-links protetyka↔implantologia + priceRange "$$" → "$$$" premium signal; commit `a8c985d`. Faza J pełna: J-1 `2215e91`, J-2 `e07559f`, J-3 `e9f368a`, J-4 `cd406af`, J-5 `a8c985d`. Następnie CHECKPOINT J + J-MEASURE po 4 tyg.)  
 > **Version:** Production + Demo (Dual Vercel Deployment)  
 > **Status:** Active Development — **🎯 PREMIUM SEO PLAN AKTYWNY** (4 fazy, ~6 mies horyzont). KCP FULL + kiosk-token + **Employee Management Phase 1+2+3 (KOMPLETNE — backend unified + UI z wizardem)**; CareFlow Perioperative; Push-First Communication. SEO Sprint H1-H8 ✅ KOMPLETNY. Cykl: pełen audyt 5 niezależnymi agentami wykrył ~47 problemów → 8 faz wdrożenia (H1 quick fixes, H2 metadata gaps, H3 internal linking, H4 schema enrichment, H5 perf+images, H6 content, H7 intl landing, H8 real schema data) → po H8 push **awaria 500 production** (H3 batch sed przekonwertował 3 server components na `Link` z `@/i18n/navigation` który wewnętrznie używa `useLocale()` client-only hook → SSR crash) → 8 reverts cofnęły wszystko → bisect lokalny zlokalizował bug → fix `572af02` (zamiana na `<a href>` z manual locale prefix w 3 server components) → re-apply H1-H8 → produkcja stabilna `6c8f4fa`. ~35/47 problemów audytu zaadresowanych. **Wcześniejsze SEO Sprint G1-G6 + Recovery 1-E** ✅ KOMPLETNE (2026-05-09 → 2026-05-10): pełen multilingual SEO (4 locale), rich SERP, Core Web Vitals fix (LCP 6s→2-3s), PSI Mobile 34→73, Desktop 39→83. Faza 3 GSC: audyt po 4-6 tygodniach (~koniec czerwca 2026). Następna sesja: weryfikacja Rich Results, re-submit sitemap, ewentualne content expansion service pages (24 expansions H6 follow-up).
 
@@ -2461,6 +2461,98 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-12 — Premium SEO Plan: Sesja J-5 (internal linking + priceRange premium) — **FAZA J KOMPLETNA**
+
+**Piąta i ostatnia sesja Fazy J. /dla-pacjentow-przyjezdnych traci status orphan page (3 incoming linki), cross-links protetyka↔implantologia, premium signal `priceRange: $$$`. Faza J KOMPLETNA — wszystkie 5 sesji.**
+
+#### Commit:
+- `a8c985d` — feat(seo): J-5 — internal linking + priceRange premium signal
+
+#### Co się zmieniło:
+
+**1. Nowy komponent `<InternationalPatientsTeaser>` (`src/components/InternationalPatientsTeaser.tsx`, 114 LOC):**
+- Two variants: `wide` (full-bleed homepage section) i `compact` (boxed dla /kontakt)
+- Premium styling: deep-teal gradient (`#0d4f54 → #062a2d`) + gold accent (`#d4af37`) + Georgia serif headline — mirrors J-3 OG cards aesthetic
+- Locale-aware z `useTranslations('przyjezdni')`: `teaserBadge`, `teaserTitle`, `teaserDesc`, `teaserCta`
+- 16 nowych translation strings (4 keys × 4 locale) dodane do `messages/{pl,en,de,ua}/pages.json` przyjezdni namespace
+- Link do `/dla-pacjentow-przyjezdnych` używa `Link` z `@/i18n/navigation` (client component, no SSR issue)
+- Hover: gold lighten + translateX subtelnie
+
+**2. Wire HomeClient:**
+- `src/app/[locale]/HomeClient.tsx` — `<InternationalPatientsTeaser />` w wariancie `wide` wstawiony PO `{sections.filter(s => s.visible).map(...)}` (po wszystkich admin-configurable sekcjach), PRZED Notification Toast.
+- Soft-sell finale: reader scrolluje przez Hero/services/reviews → trafia na teaser jako ostatni eye-catcher przed Footer.
+- Verified: Homepage HTML zawiera `href="/dla-pacjentow-przyjezdnych"` × 2 (Footer + teaser), EN homepage pokazuje "International patients" badge ✓, DE pokazuje "Internationale Patienten" ✓.
+
+**3. Wire /kontakt:**
+- `src/app/[locale]/kontakt/page.tsx` — `<InternationalPatientsTeaser variant="compact" />` wstawiony PO sekcji "Directions" (parking/transport/A4/hotele/języki z H6) PRZED Contact Form.
+- Naturalny lead-in: pacjent czyta parking+hotele+języki → callout "pełna oferta dla pacjentów spoza Opola" w pełnej narracji.
+- Compact variant: boxed (rounded corners), `max-width: 900px`, ciaśniejszy padding niż wide.
+
+**4. Cross-links protetyka ↔ implantologia:**
+- Nowe translation keys (3 per page × 2 pages × 4 locale = 24 strings):
+  - `implantologia.crossLinkTitle`, `crossLinkDesc`, `crossLinkCta` ("Implant to fundament — uzupełnij protetyką")
+  - `protetyka.crossLinkTitle`, `crossLinkDesc`, `crossLinkCta` ("Brak zęba? Implant jest często najlepszym wyborem")
+- W `src/app/[locale]/oferta/implantologia/page.tsx` — callout block z `<Link href="/oferta/protetyka">` wstawiony PO "Technical Details" PRZED FAQ. Treść: implant to root, full restoration = crown/bridge → see protetyka.
+- W `src/app/[locale]/oferta/protetyka/page.tsx` — callout block z `<Link href="/oferta/implantologia">` wstawiony PO "Digital workflow highlight" PRZED FAQ. Treść: single tooth gap → implant + crown lepiej niż bridge szlifujący sąsiednie.
+- Styling: surface background + primary-color border (subtle) + h3 + p + inline link "→". Naturalnie wpisany w istniejący flow strony.
+
+**5. `priceRange: "$$" → "$$$"` (premium signal):**
+- `src/app/layout.tsx` SchemaOrg Dentist schema.
+- Schema.org-internal — NIE wyświetla się w SERP. Klasyfikuje klinikę jako "expensive/premium" dla Google's Knowledge Graph + Local Pack matching.
+- Aligned z Premium SEO Plan (Faza K = Premium Positioning Reset). Marcin świadomie zaakceptował 2026-05-12: "pozycjonujemy się na premium i tego się trzymamy".
+- Reversible w 1 linii jeśli measurement post-J-MEASURE wykaże regresję rankingu.
+- Verified: homepage HTML `"priceRange":"$$$"` ✓
+
+**6. Acceptance Faza J-5 osiągnięte:**
+- `/dla-pacjentow-przyjezdnych` ma **3+ incoming internal links**: (1) Footer (od H7), (2) Homepage teaser (J-5), (3) /kontakt teaser (J-5). ✓
+- Cross-links protetyka↔implantologia: ✓ obie strony linkują do siebie.
+- priceRange premium: ✓ `$$$`.
+
+#### Pliki:
+- `src/components/InternationalPatientsTeaser.tsx` [NEW] 114 LOC, wide+compact variants
+- `messages/{pl,en,de,ua}/pages.json` [MOD] +przyjezdni.teaser* (16 strings) + implantologia.crossLink* + protetyka.crossLink* (24 strings) = 40 nowych strings total
+- `src/app/[locale]/HomeClient.tsx` [MOD] import + render teaser
+- `src/app/[locale]/kontakt/page.tsx` [MOD] import + render compact teaser
+- `src/app/[locale]/oferta/implantologia/page.tsx` [MOD] callout block + Link do protetyka
+- `src/app/[locale]/oferta/protetyka/page.tsx` [MOD] callout block + Link do implantologia
+- `src/app/layout.tsx` [MOD] `priceRange: "$$$"` w Dentist schema
+
+#### Spodziewany efekt po deploy:
+- DE/EN/UA visitors na homepage / /kontakt widzą **eye-catching teaser** ze srednią-spec ich informacją (parking, języki, hotele) → klik → /dla-pacjentow-przyjezdnych (full landing z H7).
+- Google's site graph: `/dla-pacjentow-przyjezdnych` ma 3 incoming linki = ważna strona w hierarchii → lepszy crawl frequency + ranking boost.
+- Google Knowledge Graph + Local Pack: premium classification (`$$$`) → matching dla queries "premium dental Poland", "best dentist Opole", "high-end dental tourism".
+- Topical authority cross-link: implantologia ↔ protetyka linki wzmacniają temat "kompleksowa rehabilitacja zwarciowa" — w SERP dla query "implant + korona" Google może rankować obie strony razem.
+
+#### Co Marcin musi zrobić ręcznie po deploy:
+- Brak migracji DB ani env var.
+- (Opcjonalnie) Po deploy sprawdź visualnie:
+  - Homepage scroll do końca → teaser premium-styled przed Footer
+  - /kontakt scroll po Directions → compact teaser w container
+  - /oferta/implantologia scroll po Technical Details → callout do protetyka
+  - /oferta/protetyka scroll po Digital workflow → callout do implantologia
+- (Opcjonalnie) Switch locale (`/de`, `/en`, `/ua`) i sprawdź czy teasery są poprawnie przetłumaczone.
+
+#### Co dalej (CHECKPOINT FAZA J + J-MEASURE):
+- **CHECKPOINT J** (od razu po J-5): AI zaktualizuje wszystkie tracking files, Marcin manualnie:
+  - **Google Search Console** — re-submit sitemap (`https://www.mikrostomart.pl/sitemap.xml`)
+  - **Rich Results Test** dla 10 sample URLs (homepage, 6 service pages, 3 slug types) — screenshot dla porównania post-J-MEASURE
+  - Facebook Sharing Debugger dla 5 URLs (homepage PL/EN/DE, /oferta/implantologia, /dla-pacjentow-przyjezdnych) — Scrape Again żeby pokazały nowe OG cards
+- **J-MEASURE** session (~koniec maja / początek czerwca 2026, ~4 tyg od końca J): pomiar wszystkich metryk:
+  - PSI Mobile (cel 75-80 z 73 baseline), Desktop (cel 85+ z 83)
+  - Rich Results Test: FAQPage, NewsArticle, Review, AggregateRating, BreadcrumbList eligibility
+  - GSC: hreflang errors → 0, sitemap recrawl rate, foreign markets impressions delta
+  - Compare przed/po dla 10 keyword tracking (jeśli set up)
+
+- **Faza K** rozpoczyna się po J-MEASURE: **Premium Positioning Reset** (8+ sesji, 3-5 tyg). Sesja K-0 = Strategy Workshop (1h AI + 1.5h Marcin):
+  - Final D1 cennik direction (✅ wybrane = B premium-only)
+  - Walidacja BIO_INVENTORY z Marcinem
+  - Draft hero copy v0 (3 warianty hero + 3 warianty cennika UX, Marcin wybiera)
+  - Output: `~/Desktop/PLAN_K_DECISIONS.md`
+
+> **Brak migracji DB / nowych env var.** Vercel auto-deployuje z pushem na main.
+
+---
 
 ### 2026-05-12 — Premium SEO Plan: Sesja J-4 (sklep noindex + Review schemas + FAQPage + og:locale)
 
