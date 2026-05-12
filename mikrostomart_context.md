@@ -1,6 +1,6 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-12 (Premium SEO J-3: KB images PNG→WebP -96% (129MB→4.7MB) + 7 per-page OG cards 1200×630 + preferWebp() helper dla schema/OG; alt audit OK; commit `e9f368a`. Tego dnia: J-1 `2215e91` + J-2 `e07559f`)  
+> **Last Updated:** 2026-05-12 (Premium SEO J-4: sklep noindex foreign + 10 Review schemas w Dentist + FAQPage na /dla-pacjentow-przyjezdnych + og:locale dynamic per request; commit `cd406af`. Tego dnia 4/5 Fazy J: J-1 `2215e91`, J-2 `e07559f`, J-3 `e9f368a`, J-4 `cd406af`)  
 > **Version:** Production + Demo (Dual Vercel Deployment)  
 > **Status:** Active Development — **🎯 PREMIUM SEO PLAN AKTYWNY** (4 fazy, ~6 mies horyzont). KCP FULL + kiosk-token + **Employee Management Phase 1+2+3 (KOMPLETNE — backend unified + UI z wizardem)**; CareFlow Perioperative; Push-First Communication. SEO Sprint H1-H8 ✅ KOMPLETNY. Cykl: pełen audyt 5 niezależnymi agentami wykrył ~47 problemów → 8 faz wdrożenia (H1 quick fixes, H2 metadata gaps, H3 internal linking, H4 schema enrichment, H5 perf+images, H6 content, H7 intl landing, H8 real schema data) → po H8 push **awaria 500 production** (H3 batch sed przekonwertował 3 server components na `Link` z `@/i18n/navigation` który wewnętrznie używa `useLocale()` client-only hook → SSR crash) → 8 reverts cofnęły wszystko → bisect lokalny zlokalizował bug → fix `572af02` (zamiana na `<a href>` z manual locale prefix w 3 server components) → re-apply H1-H8 → produkcja stabilna `6c8f4fa`. ~35/47 problemów audytu zaadresowanych. **Wcześniejsze SEO Sprint G1-G6 + Recovery 1-E** ✅ KOMPLETNE (2026-05-09 → 2026-05-10): pełen multilingual SEO (4 locale), rich SERP, Core Web Vitals fix (LCP 6s→2-3s), PSI Mobile 34→73, Desktop 39→83. Faza 3 GSC: audyt po 4-6 tygodniach (~koniec czerwca 2026). Następna sesja: weryfikacja Rich Results, re-submit sitemap, ewentualne content expansion service pages (24 expansions H6 follow-up).
 
@@ -2461,6 +2461,82 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-12 — Premium SEO Plan: Sesja J-4 (sklep noindex + Review schemas + FAQPage + og:locale)
+
+**Czwarta sesja Fazy J. Cztery punktowe fixy techniczne: noindex foreign /sklep, per-recenzja Review schemas w Dentist entity, FAQPage schema na stronie dla pacjentów przyjezdnych, og:locale dynamic per request (homepage + 3 slug pages).**
+
+#### Commit:
+- `cd406af` — feat(seo): J-4 — sklep noindex foreign + Review schemas + FAQPage + og:locale
+
+#### Co się zmieniło:
+
+**1. `/sklep` noindex dla locale !== 'pl':**
+- Pre-J-4: `/en/sklep`, `/de/sklep`, `/ua/sklep` indexable, ale serwują **PL-only content** (nazwy produktów, opisy, voucher copy). Split ranking signals.
+- Post-J-4: layout dodaje `robots: { index: false, follow: true }` dla foreign locale. Canonical wciąż wskazuje `/sklep` (PL) — link equity rolluje się do PL.
+- Verified: `/en/sklep` HTML → `<meta name="robots" content="noindex, follow"/>` ✓; `/sklep` (PL) bez robots meta (indexable) ✓.
+
+**2. Per-recenzja `Review` schemas w Dentist entity:**
+- Pre-J-4: tylko `aggregateRating` (number) — Google widział średnią, ale **bez per-recenzja entities** dla Knowledge Panel / Local Pack reviews carousel.
+- Nowa helper w `src/lib/seo.ts`: `fetchReviewSchemas(limit = 10)`:
+  - Query: `google_reviews` table — `rating >= 4`, `review_text NOT NULL`, ordered by `publish_time DESC`, limit 10
+  - Filtr safety: skip jeśli `review_text` null / `google_author_name` null / `rating` nie liczba
+  - Mapuje na schema.org `Review` entities: `author` (Person), `datePublished`, `reviewRating` (1-5), `reviewBody`
+  - Demo guard + try/catch → zwraca `[]` on error
+- Root layout integration: `await fetchReviewSchemas(10)` → SchemaOrg component → wbudowane w `dentistSchema.review` array.
+- Verified: homepage HTML zawiera **10 Review entities**, sample `"ratingValue":5,"bestRating":5,"worstRating":1` ✓.
+- **Konsekwencja**: Google's "People also reviewed" carousel + Local Pack reviews preview + Knowledge Panel reviews — eligible.
+
+**3. FAQPage schema na `/dla-pacjentow-przyjezdnych`:**
+- Pre-J-4: H6 dodał 5 Q/A pairs w `messages/*/pages.json` (`faq.cat10q0..cat10q4` + `cat10a0..cat10a4`) × 4 locale, ale były tylko jako visual accordion. **Brak FAQPage schema** = brak rich snippet w SERP.
+- Post-J-4: `layout.tsx` używa `getTranslations('faq')` żeby wyciągnąć 5 pytań + 5 odpowiedzi, mapuje na `FAQPage` schema z `mainEntity` array Question/Answer pairs. Locale-aware (locale routing already w next-intl, więc PL pytania pokażą się na PL, DE na DE, etc.).
+- Filter: tylko jeśli `q` and `a` istnieją i `q` nie zaczyna się od raw key `cat10q...` (safety w razie missing translation).
+- Verified: `/dla-pacjentow-przyjezdnych` HTML → 1 FAQPage schema, sample Q: "Czy macie parking przy klinice?", "Czy są hotele blisko gabinetu?" ✓.
+- **Konsekwencja**: Google's FAQ rich snippet (rozwijany accordion w SERP) — eligible dla foreign visitors szukających "Zahnarzt Opole parken" / "dentist Opole English" / "стоматолог Ополе".
+
+**4. og:locale dynamic per request:**
+- Pre-J-4: root layout hardcoded `locale: 'pl_PL'` — dziedziczone przez wszystkie strony **które nie nadpisują** openGraph (slug pages je nadpisywały bez locale → Next.js merge strip'ował parent locale → wszystkie slug pages szły jako `pl_PL`). Homepage `[locale]/page.tsx` też ma own openGraph (title+description) bez locale → same issue.
+- Helper `getOgLocale(locale)` wyeksportowany z `seo.ts` (mapuje `pl→pl_PL`, `en→en_US`, `de→de_DE`, `ua→uk_UA`)
+- **5 miejsc updated**:
+  - `src/app/layout.tsx` — root `generateMetadata` używa `getLocale()` z next-intl + `getOgLocale(locale)` (dla stron które dziedziczą)
+  - `src/app/[locale]/page.tsx` — homepage `openGraph.locale: getOgLocale(locale)`
+  - `src/app/[locale]/aktualnosci/[slug]/page.tsx` — slug `openGraph.locale: getOgLocale(locale)`
+  - `src/app/[locale]/nowosielski/[slug]/page.tsx` — slug `openGraph.locale: getOgLocale(locale)`
+  - `src/app/[locale]/baza-wiedzy/[slug]/page.tsx` — slug `openGraph.locale: getOgLocale(locale)`
+- Verified: `/` → `pl_PL`, `/de` → `de_DE`, `/ua` → `uk_UA`, `/en/aktualnosci/<slug>` → `en_US` ✓.
+
+#### Pliki:
+- `src/lib/seo.ts` [MOD] — `fetchReviewSchemas(limit)` + `getOgLocale(locale)` exports
+- `src/app/layout.tsx` [MOD] — fetch reviews + pass do SchemaOrg, dynamic og:locale, SchemaOrg signature `+reviews`
+- `src/app/[locale]/page.tsx` [MOD] — homepage explicit og:locale
+- `src/app/[locale]/sklep/layout.tsx` [MOD] — robots noindex dla foreign locale
+- `src/app/[locale]/dla-pacjentow-przyjezdnych/layout.tsx` [MOD] — FAQPage schema z cat10 Q&A
+- `src/app/[locale]/{aktualnosci,nowosielski,baza-wiedzy}/[slug]/page.tsx` [MOD] — og:locale per request
+
+#### Spodziewany efekt po deploy:
+- **Sklep**: GSC po recrawl pokaże `/en/sklep` / `/de/sklep` / `/ua/sklep` jako "Excluded by 'noindex' tag" (intended). Index ranking sygnał skupiony na PL canonical.
+- **Reviews**: Google Knowledge Panel dla Mikrostomart może pokazać **reviews carousel** z 10 entries (Google bierze top N z review array + uzupełnia z GBP). Local Pack ranking +.
+- **FAQPage**: SERP dla "parking Opole stomatolog", "dentist Opole English speaking" itp. może pokazać **rozwijany FAQ block** z odpowiedziami z naszej strony.
+- **og:locale**: Facebook/LinkedIn/X share previews dla foreign locale stron pokazują poprawny język tag — bez tego social platforms domyślnie traktowali wszystkie pages jako `pl_PL` co mogło psuć language detection w niektórych platformach.
+
+#### Co Marcin musi zrobić ręcznie po deploy:
+- Brak migracji DB ani env var.
+- (Opcjonalnie) po deploy uruchom Google Rich Results Test dla:
+  - `https://www.mikrostomart.pl/` — powinien pokazać Dentist + 10× Review + AggregateRating
+  - `https://www.mikrostomart.pl/dla-pacjentow-przyjezdnych` — powinien pokazać FAQPage z 5 Q/A
+- (Opcjonalnie) Facebook Sharing Debugger dla `/de` żeby zresetować social cache i zobaczyć `og:locale: de_DE`.
+
+#### Co dalej (Faza J — ostatnia sesja):
+- **Sesja J-5**: Internal linking + priceRange premium signal (~2h AI + 20 min Marcin pre-work). Pre-work Marcin: decyzja gdzie hero CTA do `/dla-pacjentow-przyjezdnych` (homepage section? Navbar? /kontakt button?).
+  - Hero section "International patients" na homepage z linkiem
+  - CTA na /kontakt: "Visiting from abroad?"
+  - Cross-links protetyka ↔ implantologia w content
+  - Dentist schema `priceRange: "$$$"` (zamiast `"$$"`) — premium positioning
+- Następnie **CHECKPOINT FAZA J** — Marcin GSC re-submit sitemap (po wszystkich zmianach J-1 do J-5), wait 4 tyg → **J-MEASURE** session pomiar.
+
+> **Brak migracji DB / nowych env var.** Vercel auto-deployuje z pushem na main.
+
+---
 
 ### 2026-05-12 — Premium SEO Plan: Sesja J-3 (KB images WebP/AVIF + per-page OG cards + image alt audit)
 
