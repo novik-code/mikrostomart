@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { verifyAdmin } from '@/lib/auth';
+import { requireAdmin } from '@/lib/authGuards';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -14,8 +14,9 @@ const supabase = createClient(
  * Auth: admin required.
  */
 export async function GET() {
-    const user = await verifyAdmin();
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+    const user = auth.user;
 
     const { data, error } = await supabase
         .from('staff_signatures')
@@ -28,8 +29,9 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-    const user = await verifyAdmin();
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+    const user = auth.user;
 
     const { staffName, role, signatureData } = await req.json();
 
@@ -59,8 +61,9 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-    const user = await verifyAdmin();
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+    const user = auth.user;
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');

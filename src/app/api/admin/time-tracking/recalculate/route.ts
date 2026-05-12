@@ -2,7 +2,7 @@
 // Body: { date: 'YYYY-MM-DD' } — admin może ręcznie odpalić wyliczenie
 
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAdmin } from '@/lib/auth';
+import { requireAdmin } from '@/lib/authGuards';
 import { hasRole } from '@/lib/roles';
 import { calculateAndPersistDay } from '@/lib/timeTracking/shiftCalculation';
 
@@ -11,8 +11,9 @@ export const runtime = 'nodejs';
 export const maxDuration = 120;
 
 export async function POST(request: NextRequest) {
-    const user = await verifyAdmin();
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+    const user = auth.user;
     if (!(await hasRole(user.id, 'admin'))) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }

@@ -11,6 +11,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
+import { requireAdmin } from '@/lib/authGuards';
 
 function getSupabase() {
     return createClient(
@@ -27,6 +28,9 @@ function maskKey(key: string | null | undefined): string | null {
 
 // GET — return current config status
 export async function GET() {
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+
     const supabase = getSupabase();
 
     const { data, error } = await supabase
@@ -60,6 +64,9 @@ export async function GET() {
 
 // PATCH — save keys to DB
 export async function PATCH(request: Request) {
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+
     try {
         const { publishable_key, secret_key, enabled } = await request.json();
 
@@ -93,6 +100,9 @@ export async function PATCH(request: Request) {
 
 // POST?action=test — verify keys by creating a test PaymentIntent
 export async function POST(request: Request) {
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+
     try {
         const { searchParams } = new URL(request.url);
         if (searchParams.get('action') !== 'test') {

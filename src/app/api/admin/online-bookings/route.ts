@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getDoctorInfo } from '@/lib/doctorMapping';
-import { verifyAdmin } from '@/lib/auth';
+import { requireAdmin } from '@/lib/authGuards';
 import { sendTranslatedPushToUser } from '@/lib/pushService';
 import { sendSMS } from '@/lib/smsService';
 import { sendBookingConfirmedEmail, sendBookingRejectedEmail } from '@/lib/emailService';
@@ -91,8 +91,9 @@ async function scheduleWithIds(doctorId: string, patientId: string, booking: any
  */
 export async function GET(request: Request) {
     try {
-        const user = await verifyAdmin();
-        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        const auth = await requireAdmin();
+        if (!auth.ok) return auth.response;
+        const user = auth.user;
 
         const { searchParams } = new URL(request.url);
         const status = searchParams.get('status');
@@ -126,8 +127,9 @@ export async function GET(request: Request) {
  */
 export async function PUT(request: Request) {
     try {
-        const user = await verifyAdmin();
-        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        const auth = await requireAdmin();
+        if (!auth.ok) return auth.response;
+        const user = auth.user;
 
         const body = await request.json();
         const { id, action, approvedBy } = body;
@@ -252,8 +254,9 @@ export async function PUT(request: Request) {
  */
 export async function DELETE(request: Request) {
     try {
-        const user = await verifyAdmin();
-        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        const auth = await requireAdmin();
+        if (!auth.ok) return auth.response;
+        const user = auth.user;
 
         const { searchParams } = new URL(request.url);
         const id = searchParams.get('id');

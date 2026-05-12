@@ -9,6 +9,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getPayUConfig, getPayUToken } from '@/lib/payuService';
+import { requireAdmin } from '@/lib/authGuards';
 
 function getSupabase() {
     return createClient(
@@ -24,6 +25,9 @@ function maskKey(key: string | null | undefined): string | null {
 }
 
 export async function GET() {
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+
     const config = await getPayUConfig();
     return NextResponse.json({
         source: config.source,
@@ -37,6 +41,9 @@ export async function GET() {
 }
 
 export async function PATCH(request: Request) {
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+
     try {
         const { pos_id, client_id, client_secret, second_key, sandbox, enabled } = await request.json();
 
@@ -68,6 +75,9 @@ export async function PATCH(request: Request) {
 }
 
 export async function POST(request: Request) {
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+
     try {
         const { searchParams } = new URL(request.url);
         if (searchParams.get('action') !== 'test') {

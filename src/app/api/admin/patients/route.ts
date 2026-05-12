@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { verifyAdmin } from '@/lib/auth';
+import { requireAdmin } from '@/lib/authGuards';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,8 +13,9 @@ const prodentisUrl = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostoma
 
 export async function GET(request: Request) {
     try {
-        const user = await verifyAdmin();
-        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        const auth = await requireAdmin();
+        if (!auth.ok) return auth.response;
+        const user = auth.user;
 
         // Fetch all patients from Supabase
         const { data: patients, error } = await supabase
@@ -83,8 +84,9 @@ export async function GET(request: Request) {
 
 export async function DELETE(request: Request) {
     try {
-        const user = await verifyAdmin();
-        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        const auth = await requireAdmin();
+        if (!auth.ok) return auth.response;
+        const user = auth.user;
 
         const { searchParams } = new URL(request.url);
         const patientId = searchParams.get('id');

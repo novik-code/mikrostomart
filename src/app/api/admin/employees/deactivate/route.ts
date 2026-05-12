@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAdmin } from '@/lib/auth';
+import { requireAdmin } from '@/lib/authGuards';
 import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
@@ -22,10 +22,9 @@ const supabase = createClient(
  * Body: { id?: string, email?: string }  — at least one required
  */
 export async function POST(request: NextRequest) {
-    const user = await verifyAdmin();
-    if (!user) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+    const user = auth.user;
 
     try {
         const { id, email } = await request.json();
@@ -86,10 +85,9 @@ export async function POST(request: NextRequest) {
  * Body: { id: string }
  */
 export async function PATCH(request: NextRequest) {
-    const user = await verifyAdmin();
-    if (!user) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+    const user = auth.user;
 
     try {
         const { id } = await request.json();

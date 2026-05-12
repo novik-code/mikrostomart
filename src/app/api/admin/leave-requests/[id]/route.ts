@@ -4,7 +4,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { verifyAdmin } from '@/lib/auth';
+import { requireAdmin } from '@/lib/authGuards';
 import { hasRole } from '@/lib/roles';
 import { decideLeaveRequest, LEAVE_TYPE_LABELS } from '@/lib/timeTracking/leaveService';
 import { pushToUser } from '@/lib/pushService';
@@ -14,8 +14,9 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 export async function PUT(request: NextRequest, ctx: { params: Promise<{ id: string }> }) {
-    const user = await verifyAdmin();
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+    const user = auth.user;
     if (!(await hasRole(user.id, 'admin'))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     const { id } = await ctx.params;

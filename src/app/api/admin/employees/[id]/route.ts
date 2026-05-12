@@ -16,7 +16,7 @@
 // Zwraca: { success, employeeId, grantedRoles, revokedRoles, warnings, message }
 
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAdmin } from '@/lib/auth';
+import { requireAdmin } from '@/lib/authGuards';
 import { updateEmployee } from '@/lib/employeeService';
 
 export const dynamic = 'force-dynamic';
@@ -26,10 +26,9 @@ export async function PATCH(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
-    const user = await verifyAdmin();
-    if (!user) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+    const user = auth.user;
 
     const { id } = await params;
     if (!id) {

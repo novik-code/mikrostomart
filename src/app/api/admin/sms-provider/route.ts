@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { verifyAdmin } from '@/lib/auth';
+import { requireAdmin } from '@/lib/authGuards';
 import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
@@ -14,8 +14,9 @@ const supabase = createClient(
  * Returns SMS provider config status (token masked)
  */
 export async function GET() {
-    const user = await verifyAdmin();
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+    const user = auth.user;
 
     const { data, error } = await supabase
         .from('clinic_settings')
@@ -43,8 +44,9 @@ export async function GET() {
  * Body: { token?: string, sender_name?: string, test_phone?: string }
  */
 export async function PATCH(req: Request) {
-    const user = await verifyAdmin();
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+    const user = auth.user;
 
     const body = await req.json() as Record<string, string>;
     const { token, sender_name, test_phone } = body;
@@ -81,8 +83,9 @@ export async function PATCH(req: Request) {
  * Body: { phone: string }
  */
 export async function POST(req: Request) {
-    const user = await verifyAdmin();
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+    const user = auth.user;
 
     const { searchParams } = new URL(req.url);
     if (searchParams.get('action') !== 'test') {

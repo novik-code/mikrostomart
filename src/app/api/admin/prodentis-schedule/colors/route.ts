@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { verifyAdmin } from '@/lib/auth';
+import { requireAdmin } from '@/lib/authGuards';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,8 +12,9 @@ const PRODENTIS_API = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostom
  */
 export async function GET() {
     try {
-        const user = await verifyAdmin();
-        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        const auth = await requireAdmin();
+        if (!auth.ok) return auth.response;
+        const user = auth.user;
         const res = await fetch(`${PRODENTIS_API}/api/schedule/colors`, {
             signal: AbortSignal.timeout(10000),
         });

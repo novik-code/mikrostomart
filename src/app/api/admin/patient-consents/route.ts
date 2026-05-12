@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { verifyAdmin } from '@/lib/auth';
+import { requireAdmin } from '@/lib/authGuards';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -13,8 +13,9 @@ const supabase = createClient(
  * Auth: admin required.
  */
 export async function GET(req: NextRequest) {
-    const user = await verifyAdmin();
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+    const user = auth.user;
     const id = req.nextUrl.searchParams.get('id');
     const limit = parseInt(req.nextUrl.searchParams.get('limit') || '50');
     const offset = parseInt(req.nextUrl.searchParams.get('offset') || '0');

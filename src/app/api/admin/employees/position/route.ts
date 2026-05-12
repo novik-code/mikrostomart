@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAdmin } from '@/lib/auth';
+import { requireAdmin } from '@/lib/authGuards';
 import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
@@ -22,8 +22,9 @@ const VALID_GROUPS = ['doctor', 'hygienist', 'reception', 'assistant'];
  * Also accepts legacy { userId, position } for backward compat (converts to groups[]).
  */
 export async function PATCH(request: NextRequest) {
-    const adminUser = await verifyAdmin();
-    if (!adminUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+    const adminUser = auth.user;
 
     try {
         const body = await request.json();

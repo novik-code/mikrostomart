@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { verifyAdmin } from '@/lib/auth';
+import { requireAdmin } from '@/lib/authGuards';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,8 +13,9 @@ const PRODENTIS_KEY = process.env.PRODENTIS_API_KEY || '';
  */
 export async function POST(request: Request) {
     try {
-        const user = await verifyAdmin();
-        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        const auth = await requireAdmin();
+        if (!auth.ok) return auth.response;
+        const user = auth.user;
 
         const { appointmentId, iconId } = await request.json();
 

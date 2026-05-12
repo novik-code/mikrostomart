@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAdmin } from '@/lib/auth';
+import { requireAdmin } from '@/lib/authGuards';
 import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
@@ -17,8 +17,9 @@ const SETTINGS_ROW = 'pms_settings';
  * Merges with environment variable defaults.
  */
 export async function GET() {
-    const user = await verifyAdmin();
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+    const user = auth.user;
 
     try {
         const { data } = await supabase
@@ -57,8 +58,9 @@ export async function GET() {
  * until code redeploy (env vars require Vercel redeploy).
  */
 export async function PATCH(req: NextRequest) {
-    const user = await verifyAdmin();
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+    const user = auth.user;
 
     const body = await req.json();
     const { provider, notes } = body;
@@ -89,8 +91,9 @@ export async function PATCH(req: NextRequest) {
  * Tests connection to the currently configured PMS.
  */
 export async function POST(req: NextRequest) {
-    const user = await verifyAdmin();
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+    const user = auth.user;
 
     const { searchParams } = new URL(req.url);
     if (searchParams.get('action') !== 'health') {

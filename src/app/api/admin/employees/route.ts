@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAdmin } from '@/lib/auth';
+import { requireAdmin } from '@/lib/authGuards';
 import { createClient } from '@supabase/supabase-js';
 import { createOrUpdateEmployee } from '@/lib/employeeService';
 
@@ -42,10 +42,9 @@ function normalizeName(name: string): string {
  * Response: { employees: [...], prodentisAvailable: boolean }
  */
 export async function GET() {
-    const user = await verifyAdmin();
-    if (!user) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+    const user = auth.user;
 
     try {
         // ─── Step 1: Prodentis scan (background enrichment) ───────────
@@ -227,10 +226,9 @@ export async function GET() {
  * Body: { id: string, name?: string, email?: string }
  */
 export async function PATCH(request: NextRequest) {
-    const user = await verifyAdmin();
-    if (!user) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+    const user = auth.user;
 
     try {
         const { id, name, email } = await request.json();
@@ -294,10 +292,9 @@ export async function PATCH(request: NextRequest) {
  * podpięty do nowej roli.
  */
 export async function POST(request: NextRequest) {
-    const user = await verifyAdmin();
-    if (!user) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+    const user = auth.user;
 
     let body: any;
     try {

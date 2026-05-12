@@ -4,7 +4,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { verifyAdmin } from '@/lib/auth';
+import { requireAdmin } from '@/lib/authGuards';
 import { hasRole } from '@/lib/roles';
 
 export const dynamic = 'force-dynamic';
@@ -24,8 +24,9 @@ interface CorrectionPayload {
 }
 
 export async function PUT(request: NextRequest) {
-    const user = await verifyAdmin();
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+    const user = auth.user;
     if (!(await hasRole(user.id, 'admin'))) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { verifyAdmin } from '@/lib/auth';
+import { requireAdmin } from '@/lib/authGuards';
 import { hasRole } from '@/lib/roles';
 
 const supabase = createClient(
@@ -16,8 +16,9 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET() {
     try {
-        const user = await verifyAdmin();
-        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        const auth = await requireAdmin();
+        if (!auth.ok) return auth.response;
+        const user = auth.user;
 
         const { data: templates, error } = await supabase
             .from('care_templates')
@@ -45,8 +46,9 @@ export async function GET() {
  */
 export async function POST(req: NextRequest) {
     try {
-        const user = await verifyAdmin();
-        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        const auth = await requireAdmin();
+        if (!auth.ok) return auth.response;
+        const user = auth.user;
 
         const body = await req.json();
         const { name, description, procedure_types, default_medications, push_settings, steps } = body;

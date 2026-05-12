@@ -12,7 +12,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { verifyAdmin } from '@/lib/auth';
+import { requireAdmin } from '@/lib/authGuards';
 import { getAICompletion } from '@/lib/unifiedAI';
 
 const supabase = createClient(
@@ -25,8 +25,9 @@ export const maxDuration = 60;
 // ── GET — Load conversation history ────────────────────────────
 
 export async function GET() {
-    const user = await verifyAdmin();
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+    const user = auth.user;
 
     try {
         // Load all messages (newest last)
@@ -58,8 +59,9 @@ export async function GET() {
 // ── POST — Send message to trainer ─────────────────────────────
 
 export async function POST(req: NextRequest) {
-    const user = await verifyAdmin();
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+    const user = auth.user;
 
     try {
         const body = await req.json();
@@ -268,8 +270,9 @@ Jeśli analizujesz styl, ustaw "is_style_lesson": true.`;
 // ── PATCH — Approve/reject proposed KB changes ─────────────────
 
 export async function PATCH(req: NextRequest) {
-    const user = await verifyAdmin();
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+    const user = auth.user;
 
     try {
         const { action, changes } = await req.json();

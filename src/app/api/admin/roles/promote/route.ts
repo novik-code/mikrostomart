@@ -22,17 +22,16 @@
 //     isNewEmployee, employeeId, message, warnings }
 
 import { NextResponse } from 'next/server';
-import { verifyAdmin } from '@/lib/auth';
+import { requireAdmin } from '@/lib/authGuards';
 import { createOrUpdateEmployee } from '@/lib/employeeService';
 import type { UserRole } from '@/lib/roles';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
-    const adminUser = await verifyAdmin();
-    if (!adminUser) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+    const adminUser = auth.user;
 
     let body: any;
     try {

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { verifyAdmin } from '@/lib/auth';
+import { requireAdmin } from '@/lib/authGuards';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -28,8 +28,9 @@ export async function GET() {
  * Body: { consent_key, label, pdf_file, fields? }
  */
 export async function POST(request: NextRequest) {
-    const user = await verifyAdmin();
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+    const user = auth.user;
 
     const body = await request.json();
     const { consent_key, label, pdf_file, fields } = body;
@@ -71,8 +72,9 @@ export async function POST(request: NextRequest) {
  * Body: { consent_key, fields?, label?, pdf_file?, is_active? }
  */
 export async function PUT(request: NextRequest) {
-    const user = await verifyAdmin();
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+    const user = auth.user;
 
     const body = await request.json();
     const { consent_key, ...updates } = body;
@@ -110,8 +112,9 @@ export async function PUT(request: NextRequest) {
  * Body: { consent_key }
  */
 export async function DELETE(request: NextRequest) {
-    const user = await verifyAdmin();
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+    const user = auth.user;
 
     const body = await request.json();
     const { consent_key } = body;

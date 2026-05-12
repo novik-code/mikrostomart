@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { verifyAdmin } from '@/lib/auth';
-import { hasRole } from '@/lib/roles';
+import { requireEmployeeOrAdmin } from '@/lib/authGuards';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -10,16 +9,8 @@ const supabase = createClient(
 
 // GET — list all conversations
 export async function GET(request: NextRequest) {
-    const user = await verifyAdmin();
-    if (!user) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const isAdmin = await hasRole(user.id, 'admin');
-    const isEmployee = await hasRole(user.id, 'employee');
-    if (!isAdmin && !isEmployee) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    const auth = await requireEmployeeOrAdmin();
+    if (!auth.ok) return auth.response;
 
     try {
         const statusFilter = request.nextUrl.searchParams.get('status') || 'open';
@@ -77,16 +68,8 @@ export async function GET(request: NextRequest) {
 
 // PATCH — close/reopen a conversation
 export async function PATCH(request: NextRequest) {
-    const user = await verifyAdmin();
-    if (!user) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const isAdmin = await hasRole(user.id, 'admin');
-    const isEmployee = await hasRole(user.id, 'employee');
-    if (!isAdmin && !isEmployee) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    const auth = await requireEmployeeOrAdmin();
+    if (!auth.ok) return auth.response;
 
     const { conversationId, status } = await request.json();
 

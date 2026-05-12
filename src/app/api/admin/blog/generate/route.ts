@@ -2,15 +2,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { uploadToRepo } from "@/lib/githubService";
-import { verifyAdmin } from "@/lib/auth";
+import { requireAdmin } from "@/lib/authGuards";
 import { demoSanitize, brand } from '@/lib/brandConfig';
 
 export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
-    if (!(await verifyAdmin())) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
 
     try {
         const { topic, instructions, model } = await req.json();

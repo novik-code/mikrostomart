@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { verifyAdmin } from "@/lib/auth";
+import { requireAdmin } from "@/lib/authGuards";
 
 export const runtime = 'nodejs';
 
 export async function GET(req: NextRequest) {
-    if (!(await verifyAdmin())) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
 
     try {
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -29,9 +28,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-    if (!(await verifyAdmin())) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
 
     try {
         const { searchParams } = new URL(req.url);

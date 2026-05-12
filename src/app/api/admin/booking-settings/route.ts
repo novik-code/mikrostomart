@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { verifyAdmin } from '@/lib/auth';
+import { requireAdmin } from '@/lib/authGuards';
 
 /**
  * Admin API for Booking Settings
@@ -38,8 +38,9 @@ export async function GET() {
 /** PUT /api/admin/booking-settings — admin only, updates setting */
 export async function PUT(req: Request) {
     try {
-        const user = await verifyAdmin();
-        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        const auth = await requireAdmin();
+        if (!auth.ok) return auth.response;
+        const user = auth.user;
 
         const body = await req.json();
         const { min_days_ahead } = body;

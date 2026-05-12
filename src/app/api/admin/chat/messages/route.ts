@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { verifyAdmin } from '@/lib/auth';
-import { hasRole } from '@/lib/roles';
+import { requireEmployeeOrAdmin } from '@/lib/authGuards';
 import { sendTranslatedPushToUser } from '@/lib/pushService';
 import { sendChatReplyEmail } from '@/lib/emailService';
 
@@ -12,16 +11,8 @@ const supabase = createClient(
 
 // GET — load messages for a conversation
 export async function GET(request: NextRequest) {
-    const user = await verifyAdmin();
-    if (!user) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const isAdmin = await hasRole(user.id, 'admin');
-    const isEmployee = await hasRole(user.id, 'employee');
-    if (!isAdmin && !isEmployee) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    const auth = await requireEmployeeOrAdmin();
+    if (!auth.ok) return auth.response;
 
     const conversationId = request.nextUrl.searchParams.get('conversationId');
     if (!conversationId) {
@@ -61,16 +52,9 @@ export async function GET(request: NextRequest) {
 
 // POST — reception sends a reply
 export async function POST(request: NextRequest) {
-    const user = await verifyAdmin();
-    if (!user) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const isAdmin = await hasRole(user.id, 'admin');
-    const isEmployee = await hasRole(user.id, 'employee');
-    if (!isAdmin && !isEmployee) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    const auth = await requireEmployeeOrAdmin();
+    if (!auth.ok) return auth.response;
+    const user = auth.user;
 
     const { conversationId, content } = await request.json();
 

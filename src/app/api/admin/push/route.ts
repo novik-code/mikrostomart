@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAdmin } from '@/lib/auth';
+import { requireAdmin } from '@/lib/authGuards';
 import { createClient } from '@supabase/supabase-js';
 import { pushToGroups, pushToUsers, type PushGroup } from '@/lib/pushService';
 
@@ -18,8 +18,9 @@ const supabase = createClient(
  *   - stats: group-level counts
  */
 export async function GET() {
-    const adminUser = await verifyAdmin();
-    if (!adminUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+    const adminUser = auth.user;
 
     // 1. Fetch ALL active employees
     const { data: allEmployees } = await supabase
@@ -94,8 +95,9 @@ export async function GET() {
  * Send push notification to specified groups and/or individual users.
  */
 export async function POST(request: NextRequest) {
-    const adminUser = await verifyAdmin();
-    if (!adminUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+    const adminUser = auth.user;
 
     try {
         const { title, body, url, groups, userIds } = await request.json();
@@ -159,8 +161,9 @@ export async function POST(request: NextRequest) {
  * Remove an FCM token by ID.
  */
 export async function DELETE(request: NextRequest) {
-    const adminUser = await verifyAdmin();
-    if (!adminUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+    const adminUser = auth.user;
 
     try {
         const { id } = await request.json();

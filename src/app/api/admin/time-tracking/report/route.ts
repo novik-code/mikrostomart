@@ -3,7 +3,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { verifyAdmin } from '@/lib/auth';
+import { requireAdmin } from '@/lib/authGuards';
 import { hasRole } from '@/lib/roles';
 import { countWorkingDays } from '@/lib/timeTracking/leaveService';
 import { generatePdfReport, generateCsvReport, type ReportData, type ReportShift } from '@/lib/timeTracking/reportGenerator';
@@ -13,8 +13,9 @@ export const runtime = 'nodejs';
 export const maxDuration = 60;
 
 export async function GET(request: NextRequest) {
-    const user = await verifyAdmin();
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+    const user = auth.user;
     if (!(await hasRole(user.id, 'admin'))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     const url = new URL(request.url);

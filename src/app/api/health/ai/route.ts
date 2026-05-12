@@ -5,12 +5,12 @@
  * Returns status of: OpenAI API, Supabase, Knowledge Base, Prodentis tunnel,
  * Replicate, Mirage/Captions, and key Supabase tables.
  * 
- * Auth: Admin only (verifyAdmin)
+ * Auth: Admin only (requireAdmin from @/lib/authGuards)
  * Usage: ?verbose=true for detailed output
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAdmin } from '@/lib/auth';
+import { requireAdmin } from '@/lib/authGuards';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
@@ -34,10 +34,8 @@ async function timedCheck(name: string, fn: () => Promise<{ status: 'ok' | 'warn
 
 export async function GET(req: NextRequest) {
     // Auth check — admin only
-    const user = await verifyAdmin();
-    if (!user) {
-        return NextResponse.json({ error: 'Unauthorized — admin only' }, { status: 401 });
-    }
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
 
     const { searchParams } = new URL(req.url);
     const verbose = searchParams.get('verbose') === 'true';

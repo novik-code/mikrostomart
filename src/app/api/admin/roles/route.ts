@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { verifyAdmin } from '@/lib/auth';
+import { requireAdmin } from '@/lib/authGuards';
 import { getAllUsersWithRoles, grantRole, revokeRole, type UserRole } from '@/lib/roles';
 import { createClient } from '@supabase/supabase-js';
 
@@ -15,10 +15,9 @@ const supabase = createClient(
  * List all users with their roles (admin only)
  */
 export async function GET() {
-    const user = await verifyAdmin();
-    if (!user) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+    const user = auth.user;
 
     try {
         const usersWithRoles = await getAllUsersWithRoles();
@@ -122,10 +121,9 @@ export async function GET() {
  * Body: { userId: string, email: string, role: 'admin' | 'employee' | 'patient' }
  */
 export async function POST(request: Request) {
-    const adminUser = await verifyAdmin();
-    if (!adminUser) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+    const adminUser = auth.user;
 
     try {
         const { userId, email, role } = await request.json();
@@ -158,10 +156,9 @@ export async function POST(request: Request) {
  * Body: { userId: string, role: 'admin' | 'employee' | 'patient' }
  */
 export async function DELETE(request: Request) {
-    const adminUser = await verifyAdmin();
-    if (!adminUser) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+    const adminUser = auth.user;
 
     try {
         const { userId, role } = await request.json();

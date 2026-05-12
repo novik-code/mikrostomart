@@ -12,7 +12,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { verifyAdmin } from '@/lib/auth';
+import { requireAdmin } from '@/lib/authGuards';
 import { invalidateKBCache } from '@/lib/unifiedAI';
 
 const supabase = createClient(
@@ -22,8 +22,9 @@ const supabase = createClient(
 
 // ── GET — List all KB sections ───────────────────────────────
 export async function GET() {
-    const user = await verifyAdmin();
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+    const user = auth.user;
 
     const { data, error } = await supabase
         .from('ai_knowledge_base')
@@ -37,8 +38,9 @@ export async function GET() {
 
 // ── POST — Create new section ────────────────────────────────
 export async function POST(req: NextRequest) {
-    const user = await verifyAdmin();
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+    const user = auth.user;
 
     const body = await req.json();
     const { section, title, content, context_tags, priority } = body;
@@ -77,8 +79,9 @@ export async function POST(req: NextRequest) {
 
 // ── PUT — Update section ─────────────────────────────────────
 export async function PUT(req: NextRequest) {
-    const user = await verifyAdmin();
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+    const user = auth.user;
 
     const body = await req.json();
     const { section, title, content, context_tags, priority, is_active, change_reason } = body;
@@ -131,8 +134,9 @@ export async function PUT(req: NextRequest) {
 
 // ── DELETE — Remove section ──────────────────────────────────
 export async function DELETE(req: NextRequest) {
-    const user = await verifyAdmin();
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+    const user = auth.user;
 
     const { searchParams } = new URL(req.url);
     const section = searchParams.get('section');

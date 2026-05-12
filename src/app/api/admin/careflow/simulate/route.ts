@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { verifyAdmin } from '@/lib/auth';
+import { requireAdmin } from '@/lib/authGuards';
 import { hasRole } from '@/lib/roles';
 import { pushToUser } from '@/lib/pushService';
 import { sendSMS, toGSM7 } from '@/lib/smsService';
@@ -21,8 +21,9 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.mikrostomart.p
  */
 export async function POST(req: NextRequest) {
     try {
-        const user = await verifyAdmin();
-        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        const auth = await requireAdmin();
+        if (!auth.ok) return auth.response;
+        const user = auth.user;
         const isAdmin = await hasRole(user.id, 'admin');
         if (!isAdmin) return NextResponse.json({ error: 'Admin only' }, { status: 403 });
 

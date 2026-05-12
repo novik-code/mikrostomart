@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getProducts, saveProduct, deleteProductAsync, Product } from "@/lib/productService";
-import { verifyAdmin } from "@/lib/auth";
+import { requireAdmin } from "@/lib/authGuards";
 import OpenAI from "openai";
 
 export const runtime = 'nodejs';
@@ -69,9 +69,8 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-    if (!(await verifyAdmin())) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
 
     try {
         const body = await req.json();
@@ -104,9 +103,8 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-    if (!(await verifyAdmin())) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
 
     try {
         const { searchParams } = new URL(req.url);

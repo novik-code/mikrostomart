@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAdmin } from '@/lib/auth';
+import { requireAdmin } from '@/lib/authGuards';
 import { createClient } from '@supabase/supabase-js';
 import { pushByConfig, pushToUsers, pushToGroups, type PushGroup } from '@/lib/pushService';
 
@@ -19,8 +19,9 @@ const supabase = createClient(
  *   { userId: string }      — test push to a specific user (all their subscriptions)
  */
 export async function POST(request: NextRequest) {
-    const adminUser = await verifyAdmin();
-    if (!adminUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+    const adminUser = auth.user;
 
     try {
         const body = await request.json();

@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import OpenAI from "openai";
-import { verifyAdmin } from "@/lib/auth";
+import { requireAdmin } from "@/lib/authGuards";
 import { broadcastPush } from '@/lib/pushService';
 
 export const runtime = 'nodejs';
@@ -57,7 +57,7 @@ The slug must be URL-friendly (lowercase, hyphens, no special characters, no Pol
 
 // GET: List all blog posts
 export async function GET(req: NextRequest) {
-    if (!(await verifyAdmin())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    { const auth = await requireAdmin(); if (!auth.ok) return auth.response; }
 
     try {
         const supabase = getSupabase();
@@ -75,7 +75,7 @@ export async function GET(req: NextRequest) {
 
 // POST: Create new blog post + auto-translate to EN/DE/UA
 export async function POST(req: NextRequest) {
-    if (!(await verifyAdmin())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    { const auth = await requireAdmin(); if (!auth.ok) return auth.response; }
 
     try {
         const body = await req.json();
@@ -158,7 +158,7 @@ export async function POST(req: NextRequest) {
 
 // DELETE: Remove blog post + cascade all translations via group_id
 export async function DELETE(req: NextRequest) {
-    if (!(await verifyAdmin())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    { const auth = await requireAdmin(); if (!auth.ok) return auth.response; }
 
     try {
         const { searchParams } = new URL(req.url);
@@ -195,7 +195,7 @@ export async function DELETE(req: NextRequest) {
 
 // PUT: Update blog post
 export async function PUT(req: NextRequest) {
-    if (!(await verifyAdmin())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    { const auth = await requireAdmin(); if (!auth.ok) return auth.response; }
 
     try {
         const body = await req.json();

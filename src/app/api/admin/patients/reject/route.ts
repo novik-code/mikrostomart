@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { verifyAdmin } from '@/lib/auth';
+import { requireAdmin } from '@/lib/authGuards';
 import { logAudit } from '@/lib/auditLog';
 import { demoSanitize } from '@/lib/brandConfig';
 import { sendEmail } from '@/lib/emailSender';
@@ -15,8 +15,9 @@ const supabase = createClient(
 
 export async function POST(request: Request) {
     try {
-        const user = await verifyAdmin();
-        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        const auth = await requireAdmin();
+        if (!auth.ok) return auth.response;
+        const user = auth.user;
 
         const body = await request.json();
         const { patient_id, reason } = body;

@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { verifyAdmin } from '@/lib/auth';
-import { hasRole } from '@/lib/roles';
+import { requireEmployeeOrAdmin } from '@/lib/authGuards';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,11 +10,8 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET() {
     try {
-        const user = await verifyAdmin();
-        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        const isAdmin = await hasRole(user.id, 'admin');
-        const isEmployee = await hasRole(user.id, 'employee');
-        if (!isAdmin && !isEmployee) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+        const auth = await requireEmployeeOrAdmin();
+        if (!auth.ok) return auth.response;
 
         const supabase = createClient(
             process.env.NEXT_PUBLIC_SUPABASE_URL!,

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { verifyAdmin } from '@/lib/auth';
+import { requireAdmin } from '@/lib/authGuards';
 import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
@@ -22,10 +22,9 @@ const SMS_TYPES = [
  * Returns all SMS type settings with their enabled/disabled status
  */
 export async function GET() {
-    const user = await verifyAdmin();
-    if (!user) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+    const user = auth.user;
 
     try {
         const { data: settings } = await supabase
@@ -56,10 +55,9 @@ export async function GET() {
  * Body: { id: string, enabled: boolean }
  */
 export async function PATCH(req: Request) {
-    const user = await verifyAdmin();
-    if (!user) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+    const user = auth.user;
 
     try {
         const body = await req.json();

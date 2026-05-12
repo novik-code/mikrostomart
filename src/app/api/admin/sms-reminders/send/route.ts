@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sendSMS } from '@/lib/smsService';
-import { verifyAdmin } from '@/lib/auth';
+import { requireAdmin } from '@/lib/authGuards';
 
 /**
  * Manual SMS Send Endpoint (Admin Only)
@@ -27,8 +27,9 @@ export async function POST(req: Request) {
     const startTime = Date.now();
 
     try {
-        const user = await verifyAdmin();
-        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        const auth = await requireAdmin();
+        if (!auth.ok) return auth.response;
+        const user = auth.user;
 
         const body = await req.json();
         const { reminder_ids, sent_by } = body;

@@ -5,7 +5,7 @@
 // akceptuje kiosk_token cookie nawet po wygaśnięciu sesji Supabase.
 
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAdmin } from '@/lib/auth';
+import { requireAdmin } from '@/lib/authGuards';
 import { hasRole } from '@/lib/roles';
 import {
     generateKioskToken,
@@ -17,10 +17,9 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 export async function POST(request: NextRequest) {
-    const user = await verifyAdmin();
-    if (!user) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+    const user = auth.user;
     const isAdmin = await hasRole(user.id, 'admin');
     if (!isAdmin) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -73,10 +72,9 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE() {
-    const user = await verifyAdmin();
-    if (!user) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+    const user = auth.user;
     const isAdmin = await hasRole(user.id, 'admin');
     if (!isAdmin) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });

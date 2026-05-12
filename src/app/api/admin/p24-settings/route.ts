@@ -9,6 +9,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getP24Config, getP24BaseUrl } from '@/lib/p24Service';
+import { requireAdmin } from '@/lib/authGuards';
 
 function getSupabase() {
     return createClient(
@@ -25,6 +26,9 @@ function maskKey(key: string | null | undefined): string | null {
 
 // GET — return current config status
 export async function GET() {
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+
     const config = await getP24Config();
 
     return NextResponse.json({
@@ -40,6 +44,9 @@ export async function GET() {
 
 // PATCH — save credentials to DB
 export async function PATCH(request: Request) {
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+
     try {
         const { merchant_id, pos_id, crc_key, api_key, sandbox, enabled } = await request.json();
 
@@ -83,6 +90,9 @@ export async function PATCH(request: Request) {
 
 // POST?action=test — verify credentials via P24 testAccess endpoint
 export async function POST(request: Request) {
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+
     try {
         const { searchParams } = new URL(request.url);
         if (searchParams.get('action') !== 'test') {

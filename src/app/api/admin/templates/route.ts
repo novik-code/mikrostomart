@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { verifyAdmin } from '@/lib/auth';
-import { hasRole } from '@/lib/roles';
+import { requireAdmin } from '@/lib/authGuards';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -9,10 +8,8 @@ const supabase = createClient(
 );
 
 async function checkAdmin() {
-    const user = await verifyAdmin();
-    if (!user) return null;
-    const isAdmin = await hasRole(user.id, 'admin');
-    return isAdmin ? user : null;
+    const auth = await requireAdmin();
+    return auth.ok ? auth.user : null;
 }
 
 // GET — list all templates

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { verifyAdmin } from '@/lib/auth';
+import { requireAdmin } from '@/lib/authGuards';
 import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
@@ -15,10 +15,9 @@ const supabase = createClient(
  * Body: { userId: string }
  */
 export async function POST(request: Request) {
-    const adminUser = await verifyAdmin();
-    if (!adminUser) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+    const adminUser = auth.user;
 
     try {
         const { userId } = await request.json();

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { pushToUser, PushPayload } from '@/lib/pushService';
-import { verifyAdmin } from '@/lib/auth';
+import { requireAdmin } from '@/lib/authGuards';
 
 /**
  * POST /api/admin/push-send
@@ -30,8 +30,9 @@ export async function POST(req: Request) {
     console.log('🔔 [Manual Push] Starting...');
 
     try {
-        const user = await verifyAdmin();
-        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        const auth = await requireAdmin();
+        if (!auth.ok) return auth.response;
+        const user = auth.user;
 
         const body = await req.json();
         const { phone, prodentis_id, patient_name, title, body: pushBody, url, sent_by } = body;

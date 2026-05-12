@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { verifyAdmin } from '@/lib/auth';
+import { requireAdmin } from '@/lib/authGuards';
 import { demoSanitize } from '@/lib/brandConfig';
 
 /**
@@ -75,8 +75,9 @@ async function ensureTemplatesSeeded() {
  */
 export async function GET() {
     try {
-        const user = await verifyAdmin();
-        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        const auth = await requireAdmin();
+        if (!auth.ok) return auth.response;
+        const user = auth.user;
 
         await ensureTemplatesSeeded();
 
@@ -103,8 +104,9 @@ export async function GET() {
  */
 export async function PUT(req: Request) {
     try {
-        const user = await verifyAdmin();
-        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        const auth = await requireAdmin();
+        if (!auth.ok) return auth.response;
+        const user = auth.user;
 
         const body = await req.json();
         const { id, template, label } = body;
@@ -147,8 +149,9 @@ export async function PUT(req: Request) {
  */
 export async function POST(req: Request) {
     try {
-        const user = await verifyAdmin();
-        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        const auth = await requireAdmin();
+        if (!auth.ok) return auth.response;
+        const user = auth.user;
 
         const body = await req.json();
         const { key, label, template } = body;
@@ -188,8 +191,9 @@ export async function POST(req: Request) {
  */
 export async function DELETE(req: Request) {
     try {
-        const user = await verifyAdmin();
-        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        const auth = await requireAdmin();
+        if (!auth.ok) return auth.response;
+        const user = auth.user;
 
         const url = new URL(req.url);
         const id = url.searchParams.get('id');

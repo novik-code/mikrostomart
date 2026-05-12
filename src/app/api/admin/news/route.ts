@@ -1,7 +1,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { verifyAdmin } from "@/lib/auth";
+import { requireAdmin } from "@/lib/authGuards";
 
 export const runtime = 'nodejs';
 
@@ -14,7 +14,7 @@ function getSupabase() {
 
 // GET: List all news (for admin)
 export async function GET(req: NextRequest) {
-    if (!(await verifyAdmin())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    { const auth = await requireAdmin(); if (!auth.ok) return auth.response; }
 
     try {
         const supabase = getSupabase();
@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
 
 // POST: Create new news article
 export async function POST(req: NextRequest) {
-    if (!(await verifyAdmin())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    { const auth = await requireAdmin(); if (!auth.ok) return auth.response; }
 
     try {
         const body = await req.json();
@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
 
 // DELETE: Remove news article
 export async function DELETE(req: NextRequest) {
-    if (!(await verifyAdmin())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    { const auth = await requireAdmin(); if (!auth.ok) return auth.response; }
 
     try {
         const { searchParams } = new URL(req.url);
@@ -93,7 +93,7 @@ export async function DELETE(req: NextRequest) {
 
 // PUT: Update news article
 export async function PUT(req: NextRequest) {
-    if (!(await verifyAdmin())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    { const auth = await requireAdmin(); if (!auth.ok) return auth.response; }
 
     try {
         const body = await req.json();

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { verifyAdmin } from '@/lib/auth';
+import { requireAdmin } from '@/lib/authGuards';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -15,8 +15,9 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
-        const user = await verifyAdmin();
-        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        const auth = await requireAdmin();
+        if (!auth.ok) return auth.response;
+        const user = auth.user;
         const { id } = await params;
 
         const { data: template, error } = await supabase
@@ -52,8 +53,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
  */
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
-        const user = await verifyAdmin();
-        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        const auth = await requireAdmin();
+        if (!auth.ok) return auth.response;
+        const user = auth.user;
         const { id } = await params;
 
         const body = await req.json();
@@ -113,8 +115,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
  */
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
-        const user = await verifyAdmin();
-        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        const auth = await requireAdmin();
+        if (!auth.ok) return auth.response;
+        const user = auth.user;
         const { id } = await params;
 
         // Check for active enrollments

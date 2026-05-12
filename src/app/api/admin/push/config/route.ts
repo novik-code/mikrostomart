@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAdmin } from '@/lib/auth';
+import { requireAdmin } from '@/lib/authGuards';
 import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
@@ -14,8 +14,9 @@ const supabase = createClient(
  * Returns all push notification configs (one per cron notification type)
  */
 export async function GET() {
-    const adminUser = await verifyAdmin();
-    if (!adminUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+    const adminUser = auth.user;
 
     const { data, error } = await supabase
         .from('push_notification_config')
@@ -36,8 +37,9 @@ export async function GET() {
  * Body: { key: string, groups?: string[], enabled?: boolean }
  */
 export async function PATCH(request: NextRequest) {
-    const adminUser = await verifyAdmin();
-    if (!adminUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
+    const adminUser = auth.user;
 
     try {
         const { key, groups, enabled } = await request.json();
