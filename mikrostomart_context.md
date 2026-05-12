@@ -1,6 +1,6 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-12 (**🚨 HOTFIX SPRINT — S1-3 DONE**. Wszystkie **19 endpointów `/api/social/*`** dostało `requireAdmin()` z `src/lib/authGuards`. Krytyczny audit P0-04 fix: dotychczas 16/19 routes używało Supabase service-role bez żadnej auth — anonimowy GET wykradał OAuth access/refresh tokens, anonimowy POST publikował na FB/IG/TikTok/YouTube, generował AI content. **Token masking** w `GET /api/social/platforms` — response strip `access_token`/`refresh_token`, zwraca `has_access_token`/`has_refresh_token` + `token_expires_at`. **OAuth × 3** (facebook/tiktok/youtube) — requireAdmin na single GET handler obsługujący initiate + callback (admin session cookie persistent w trakcie redirect z providera). Commit `1bc6ed7`, 22 plików. Tests 15/15, build clean. **P1-08 signed-state HMAC** dla OAuth pominięte — wymaga osobnego planowania (secret env + nonce + verify helper); aktualny admin-only guard pokrywa primary attack. **Next: S1-4 crony manual=true + Prodentis key rotation** (Marcin 5 min — rotacja klucza). Po S1-4 → S1 SPRINT COMPLETE → S2 Payment Integrity. Wcześniej S1-2 (`c391076`, 82 plików admin/* + 3 unauth settings P0-03 fix), S1-1 (`d8c6f53`, authGuards.ts + 5 testów). Plan: `~/Desktop/bałagan/PLAN_HOTFIX_SPRINT.md`.)  
+> **Last Updated:** 2026-05-12 (**🚨 HOTFIX SPRINT — S1 SPRINT COMPLETE (S1-4 DONE)**. 12 cronów `?manual=true` wymaga `requireAdmin()` (był: anyone trigger SMS/AI cost/KCP shift force-recalc). 3 warianty cron auth zunifikowane do `if (manual) requireAdmin else CRON_SECRET`. Prodentis API key hardcoded fallback `'2c9bd5b4-...'` USUNIĘTY z 2 plików (consents/sign + employee/export-biometric) — env var only, 500 jeśli brak. Commit `9f3fa64`, 17 plików. **Note**: PRODENTIS_API_KEY waliduje NASZE własne proxy/PMS API (Marcin: "to nie oficjalne API Prodentis, sami stworzyliśmy") — procedura rotacji: Marcin generuje własny UUID/hex (`openssl rand -hex 32`), wstawia w Vercel env (oba projekty × Production+Preview) + serwerze proxy. Stary `2c9bd5b4...` w 5 commitach git history immutable ale martwy po rotacji. **🎯 S1 SPRINT COMPLETE** — auth surface (admin, social, cron, payment settings) fully gated. **Next: S2 Payment Integrity** (migracja 121 order state machine → server-side cart total → verified webhooks → E2E sandbox). Wcześniej S1-1 (`d8c6f53`), S1-2 (`c391076`), S1-3 (`1bc6ed7`). Tests 15/15, build clean. Plan: `~/Desktop/bałagan/PLAN_HOTFIX_SPRINT.md`.)  
 > **Version:** Production + Demo (Dual Vercel Deployment)  
 > **Status:** Active Development — **🎯 PREMIUM SEO PLAN AKTYWNY** (4 fazy, ~6 mies horyzont). KCP FULL + kiosk-token + **Employee Management Phase 1+2+3 (KOMPLETNE — backend unified + UI z wizardem)**; CareFlow Perioperative; Push-First Communication. SEO Sprint H1-H8 ✅ KOMPLETNY. Cykl: pełen audyt 5 niezależnymi agentami wykrył ~47 problemów → 8 faz wdrożenia (H1 quick fixes, H2 metadata gaps, H3 internal linking, H4 schema enrichment, H5 perf+images, H6 content, H7 intl landing, H8 real schema data) → po H8 push **awaria 500 production** (H3 batch sed przekonwertował 3 server components na `Link` z `@/i18n/navigation` który wewnętrznie używa `useLocale()` client-only hook → SSR crash) → 8 reverts cofnęły wszystko → bisect lokalny zlokalizował bug → fix `572af02` (zamiana na `<a href>` z manual locale prefix w 3 server components) → re-apply H1-H8 → produkcja stabilna `6c8f4fa`. ~35/47 problemów audytu zaadresowanych. **Wcześniejsze SEO Sprint G1-G6 + Recovery 1-E** ✅ KOMPLETNE (2026-05-09 → 2026-05-10): pełen multilingual SEO (4 locale), rich SERP, Core Web Vitals fix (LCP 6s→2-3s), PSI Mobile 34→73, Desktop 39→83. Faza 3 GSC: audyt po 4-6 tygodniach (~koniec czerwca 2026). Następna sesja: weryfikacja Rich Results, re-submit sitemap, ewentualne content expansion service pages (24 expansions H6 follow-up).
 
@@ -2461,6 +2461,98 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-12 — Hotfix Sprint S1-4: Cron manual=true admin guard + Prodentis key hardcoded fallback removal — **S1 SPRINT COMPLETE**
+
+**Czwarta i finalna sesja Sprint 1 — zamknięcie auth surface (P1-01 + P0-05).**
+
+#### Commits
+- `9f3fa64` feat(security): S1-4 — cron manual=true requires admin, drop hardcoded Prodentis key (17 plików, +79/-24)
+
+#### Co się zmieniło
+- **12 cronów `?manual=true`** zostało zabezpieczonych `requireAdmin()`. Wcześniej dowolny anonimowy user przez `?manual=true` mógł triggerować: SMS bursts, push spam, AI cost generation, KCP shift force-recalc. Niezmieniony `CRON_SECRET` Bearer header path (auto-invocation z Vercel scheduled jobs) — nie psuje istniejących cronów.
+- **3 warianty cron auth zunifikowane**:
+  - Style 1 (5 plików): `if (!isCronAuth && !isManualTrigger && NODE_ENV='production')` → unified
+  - Style 2 (3 pliki): `if (authHeader !== ... && NODE_ENV='production' && !isManual)` → unified  
+  - Style 3 (4 pliki): `if (!isManual) { check CRON_SECRET }` → unified
+  - Po: każdy `if (isManualTrigger) { requireAdmin } else if (!isCronAuth && NODE_ENV='production') { 401 }`
+- **Prodentis API key hardcoded fallback usunięty** z 2 plików:
+  - `src/app/api/consents/sign/route.ts:11`
+  - `src/app/api/employee/export-biometric/route.ts:13`
+  - Stary: `process.env.PRODENTIS_API_KEY || '2c9bd5b4-5090-4007-8f06-936811bd0947'`
+  - Nowy: `process.env.PRODENTIS_API_KEY` + per-handler check → 500 jeśli brak env
+
+#### Pliki ruszone (12 cronów + 2 Prodentis = 14 plików logicznych, 17 total z generated)
+- **Style 1** (combined check): appointment-reminders, post-visit-auto-send, post-visit-sms, task-reminders, week-after-visit-sms
+- **Style 2** (separate AND condition): close-day, forgot-clockout-notify, prodentis-end-times
+- **Style 3** (separate branch): email-ai-drafts, social-generate, social-publish, video-process
+- **Prodentis fallback**: consents/sign, employee/export-biometric
+
+#### Crony NIE ruszone (15 plików, brak `?manual=true`)
+- birthday-wishes, careflow-auto-qualify, careflow-push, careflow-report, daily-article, daily-report, deposit-reminder, noshow-followup, online-booking-digest, push-appointment-1h, push-cleanup, push-escalation, sms-auto-send, social-comments
+- Te są tylko Vercel scheduled (CRON_SECRET only) — bez manual trigger, więc nie wymagają admin guard.
+
+#### Wyniki
+- `npm test`: 15/15 passed
+- `npm run build`: clean
+- `grep '2c9bd5b4' src/`: 0 wystąpień ✅
+- `grep requireAdmin src/app/api/cron/`: 12 plików ✅
+- **Pozostałe verifyAdmin callery total**: 47 (employee/time/withAuth/fix-db-images) — odłożone do S1-bis / S9
+
+#### Co dla Marcina (manual steps — POST DEPLOY)
+**Rotacja Prodentis API key** (~5-10 min):
+
+1. **Wygeneruj nowy klucz:**
+   ```bash
+   openssl rand -hex 32
+   # lub: uuidgen | tr A-Z a-z
+   ```
+
+2. **Vercel env vars** — projekt `mikrostomart` × Production + Preview, projekt `densflow-demo` × Production + Preview:
+   - Settings → Environment Variables → `PRODENTIS_API_KEY` → edit value
+
+3. **Serwer NASZEGO PMS proxy** (gdzie validuje X-API-Key header):
+   - Edit config/env serwera proxy
+   - Restart aplikacji proxy
+   - Marcin: "to nie oficjalne API Prodentis, sami stworzyliśmy" — czyli klucz jest shared secretem między klientem (Next.js w Vercel) a Waszym proxy/tunelem
+
+4. **Lokalnie**: `~/mikrostomart/.env.local` → linia `PRODENTIS_API_KEY=...` → wklej nowy
+
+**Bezpieczna kolejność (downtime ~30s do 2 min):**
+1. Wygeneruj klucz
+2. Vercel env update (oba projekty) → automatyczny redeploy startuje
+3. **W trakcie buildu Vercel** → zmień klucz w serwerze proxy (cel: oba miejsca synchronicznie)
+4. Smoke: spróbuj podpisać consent na produkcji + employee export biometric
+
+**Stary klucz** `2c9bd5b4-5090-4007-8f06-936811bd0947` w 5 commitach git history (od `30e743d`) pozostaje immutable (NIE używamy `filter-branch` — przepisuje historię i psuje wszystkie clones), ale po rotacji proxy go nie akceptuje → publiczny secret staje się martwy.
+
+#### S1 SPRINT COMPLETE — Summary
+
+**4 sesje (S1-1 .. S1-4) zamknęły cały auth surface:**
+- **S1-1** `d8c6f53`: central `src/lib/authGuards.ts` z 3 guards + 5 testów (401/403/200)
+- **S1-2** `c391076`: 78 admin endpoints + 3 unauth settings (P0-03 fix) na nowe guards
+- **S1-3** `1bc6ed7`: 19 social endpoints + token masking + OAuth × 3 admin-only
+- **S1-4** `9f3fa64`: 12 cron manual guards + hardcoded Prodentis key fallback removal
+
+**Audit findings closed:**
+- P0-01 (verifyAdmin login-only) — closed by S1-1 + S1-2
+- P0-02 (role escalation w /api/admin/roles) — closed by S1-2
+- P0-03 (unauth payment settings stripe/payu/p24) — closed by S1-2
+- P0-04 (public /api/social/*) — closed by S1-3
+- P0-05 (hardcoded Prodentis key fallback) — closed by S1-4 (rotacja czeka na Marcin)
+- P1-01 (manual=true cron bypass) — closed by S1-4
+
+**Out of scope** (przesunięte na S1-bis / dalsze sprinty):
+- P1-08 signed-state HMAC dla OAuth callbacks (S1-3 follow-up)
+- `/api/employee/**` (~45 plików) — wymagają `requireEmployeeOrAdmin`, planowane S1-bis
+- `/api/time/**` (KCP scan) — separate refactor, KCP-critical path
+- `/api/fix-db-images` — debug endpoint, low priority
+- `src/lib/withAuth.ts` — dead code, S9 cleanup
+
+#### Next
+- **S2-1** (~1.5h AI + Marcin Supabase): migracja `121_orders_state_machine.sql` — order state machine (ENUM status, provider_order_id, idempotency_key, amount_total/paid). Audit P0-06 + P0-07 + P1-04. Bazą Sprint 2 Payment Integrity.
+
+---
 
 ### 2026-05-12 — Hotfix Sprint S1-3: /api/social/* lockdown (19 endpoints, P0-04)
 
