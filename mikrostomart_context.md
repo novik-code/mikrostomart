@@ -1,6 +1,6 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-12 (Premium SEO J-2: hreflang circle audit + fix — 120/120 URLs poprawne; refactor 4 legalnych layoutów + nowy /zadatek layout; audit script reusable jako CI gate; commit `e07559f`. J-1 wcześniej tego dnia: commit `2215e91`)  
+> **Last Updated:** 2026-05-12 (Premium SEO J-3: KB images PNG→WebP -96% (129MB→4.7MB) + 7 per-page OG cards 1200×630 + preferWebp() helper dla schema/OG; alt audit OK; commit `e9f368a`. Tego dnia: J-1 `2215e91` + J-2 `e07559f`)  
 > **Version:** Production + Demo (Dual Vercel Deployment)  
 > **Status:** Active Development — **🎯 PREMIUM SEO PLAN AKTYWNY** (4 fazy, ~6 mies horyzont). KCP FULL + kiosk-token + **Employee Management Phase 1+2+3 (KOMPLETNE — backend unified + UI z wizardem)**; CareFlow Perioperative; Push-First Communication. SEO Sprint H1-H8 ✅ KOMPLETNY. Cykl: pełen audyt 5 niezależnymi agentami wykrył ~47 problemów → 8 faz wdrożenia (H1 quick fixes, H2 metadata gaps, H3 internal linking, H4 schema enrichment, H5 perf+images, H6 content, H7 intl landing, H8 real schema data) → po H8 push **awaria 500 production** (H3 batch sed przekonwertował 3 server components na `Link` z `@/i18n/navigation` który wewnętrznie używa `useLocale()` client-only hook → SSR crash) → 8 reverts cofnęły wszystko → bisect lokalny zlokalizował bug → fix `572af02` (zamiana na `<a href>` z manual locale prefix w 3 server components) → re-apply H1-H8 → produkcja stabilna `6c8f4fa`. ~35/47 problemów audytu zaadresowanych. **Wcześniejsze SEO Sprint G1-G6 + Recovery 1-E** ✅ KOMPLETNE (2026-05-09 → 2026-05-10): pełen multilingual SEO (4 locale), rich SERP, Core Web Vitals fix (LCP 6s→2-3s), PSI Mobile 34→73, Desktop 39→83. Faza 3 GSC: audyt po 4-6 tygodniach (~koniec czerwca 2026). Następna sesja: weryfikacja Rich Results, re-submit sitemap, ewentualne content expansion service pages (24 expansions H6 follow-up).
 
@@ -2461,6 +2461,109 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-12 — Premium SEO Plan: Sesja J-3 (KB images WebP/AVIF + per-page OG cards + image alt audit)
+
+**Trzecia sesja Fazy J. KB obrazy zoptymalizowane (PNG→WebP -96%), 7 per-page OG cards generowanych z sharp + SVG template, preferWebp() helper dla schema/OG metadata.**
+
+#### Commit:
+- `e9f368a` — feat(seo): J-3 — KB image WebP/AVIF (-96%) + per-page OG cards + alt audit
+
+#### Co się zmieniło:
+
+**1. KB images PNG → WebP/AVIF (-96%):**
+- Pre-J-3: 131 KB PNG średnio ~990 KB = **130 MB** na dysku + ten sam wire weight przy każdym fetch'u z schema.org `image` URL (Googlebot, GBP, Slack, Discord, Pinterest scrapers — wszyscy którzy NIE używają next/image pipeline).
+- `scripts/optimize-kb-images.mjs` [NEW] — sharp PNG → WebP (75% quality, effort 4) + AVIF (60% quality). Idempotentny (mtime check, skipuje up-to-date siblings).
+- Output: 131 .webp (4.7 MB total, **-96%**) + 131 .avif (4.1 MB total, **-97%**).
+- DB `articles.image_url` / `news.image` / `blog_posts.image` ZACHOWUJE `.png` — bez migration, bezpiecznie. External links + non-WebP scrapers nadal działają na .png fallback.
+
+**2. `src/lib/imageUrl.ts` [NEW] — `preferWebp(url)`:**
+- Helper rewrite'uje `.png → .webp` w schema/OG metadata.
+- **Conservative**: tylko paths matching `/kb-` prefix (gdzie kontrolujemy konwerter). Inne paths pass-through bezpiecznie (bo np. `/marcin.png` może nie mieć .webp sibling → unikamy 404).
+- Obsługuje URL absolute (`https://www.mikrostomart.pl/kb-foo.png`) i relative (`/kb-foo.png`), case-insensitive `.PNG`.
+
+**3. 3 slug pages refactor — schema/OG image via `schemaImageUrl()`:**
+- `aktualnosci/[slug]`, `nowosielski/[slug]`, `baza-wiedzy/[slug]` — wszystkie 3 mają teraz lokalny helper `schemaImageUrl(image)` który:
+  1. Fallback `${brand.appUrl}/opengraph-image.png` jeśli brak image
+  2. Absolutyzuje relative path
+  3. `preferWebp()` swap'uje na `.webp` dla KB images
+- Schema.org `"image"` field + OG metadata `openGraph.images[].url` używają tego helpera.
+- `baza-wiedzy/[slug]` dodatkowo: dodano `image_url` do SELECT w generateMetadata + emit `openGraph.images` (pre-J-3 brak `images` w OG dla bazy-wiedzy).
+- Smoke test verified: `/baza-wiedzy/zeby-w-podrozy-...` schema `"image":".../kb-zeby-w-podrozy-...webp"` ✓
+
+**4. 7 per-page OG cards 1200×630:**
+- `scripts/generate-og-images.mjs` [NEW] — sharp + SVG template:
+  - Background: linear-gradient deep teal (`#0d4f54` → `#062a2d`)
+  - Gold accent (`#d4af37`) — brand wordmark top + domain bottom + accent rule
+  - Title centered (Georgia serif 76px), subtitle (26px), domain link gold
+  - Output: WebP (85% quality) + PNG fallback (legacy social scrapers)
+- 7 cards: `og-home`, `og-implantologia`, `og-leczenie-kanalowe`, `og-stomatologia-estetyczna`, `og-ortodoncja`, `og-chirurgia`, `og-protetyka`
+- Sizes: 18-31 KB WebP, 54-77 KB PNG fallback
+- Foreign locale variants inheritują ten sam OG (template locale-agnostic) — dodanie locale variants to 1-line loop change w future
+
+**5. `pageMetadata()` extended w `src/lib/seo.ts`:**
+- Nowy opcjonalny param: `options.ogImage` (path do `/og-foo.webp`) + `options.ogImageAlt`
+- Path resolved do absolute URL (`brand.appUrl` + path) bo Slack/Discord scrapers nie respect'ują `<base href>`
+- Emit'uje `openGraph.images[]` z width+height+alt + `twitter.images[]`
+
+**6. Service page layouts wired:**
+- 6 service layoutów (implantologia, leczenie-kanalowe, stomatologia-estetyczna, ortodoncja, chirurgia, protetyka) → `pageMetadata(locale, path, PAGE_SEO[path], { ogImage: '/og-{slug}.webp' })`
+- Smoke test verified per service page i per locale: `<meta property="og:image" content="https://www.mikrostomart.pl/og-implantologia.webp" />` ✓ (EN inheriting tę samą — ✓)
+
+**7. Root layout (homepage):**
+- `src/app/layout.tsx` — globalny OG image zmieniony z `/opengraph-image.png` → `/og-home.webp`
+- Strony nie mające własnego layout (FAQ, cennik, kontakt itp.) dziedziczą `og-home.webp` (lepsza fallback niż generic placeholder)
+
+**8. Image alt audit:**
+- Skan `<Image>` i `<img>` w całym src/ projekcie
+- Wykryto: 1 violation w `src/components/SimulatorModal.tsx:502` (`<img src={debugMaskSrc}>` debug overlay bez alt)
+- Fix: dodano `alt="Debug: teeth segmentation mask used by the AI simulator"`
+- Reszta projektu **clean** — wszystkie `<Image>` / `<img>` mają alt
+
+**9. npm scripts:**
+- `npm run optimize:kb-images` — re-run KB image converter (idempotentny)
+- `npm run generate:og-images` — re-generate 7 OG cards (po zmianie copy w generator)
+
+#### Pliki:
+- `scripts/optimize-kb-images.mjs` [NEW] — KB converter
+- `scripts/generate-og-images.mjs` [NEW] — OG generator
+- `src/lib/imageUrl.ts` [NEW] — preferWebp() helper
+- `src/lib/seo.ts` [MOD] — pageMetadata `ogImage` option
+- `src/app/layout.tsx` [MOD] — `/og-home.webp` zamiast `/opengraph-image.png`
+- `src/app/[locale]/oferta/{6 service paths}/layout.tsx` [MOD] — `ogImage` per page
+- `src/app/[locale]/{aktualnosci,nowosielski,baza-wiedzy}/[slug]/page.tsx` [MOD] — schemaImageUrl helper
+- `src/components/SimulatorModal.tsx` [MOD] — alt added
+- `package.json` [MOD] — optimize:kb-images + generate:og-images scripts
+- `public/kb-*.webp` × 131 [NEW] — converted KB images
+- `public/kb-*.avif` × 131 [NEW] — AVIF siblings
+- `public/og-*.webp` × 7 [NEW] — per-page social cards
+- `public/og-*.png` × 7 [NEW] — PNG fallbacks dla legacy scrapers
+
+#### Spodziewany efekt po deploy:
+- **Schema.org `image` URLs serve WebP** — Googlebot przy crawl ściąga 30 KB zamiast 1 MB per article. Crawl budget +20× efektywniejszy.
+- **Social share previews** — Facebook/LinkedIn/X/Slack/Discord pokazuje **per-page card** zamiast generic placeholder. Sharing implantologia ≠ sharing FAQ ≠ sharing homepage. Premium positioning visualny.
+- **next/image** w komponentach (header images na slug pages) niezmieniony — już używał WebP auto. Ten fix touch'uje tylko **raw URLs** w metadata.
+- **Hreflang circle + OG image** spójne między locale (foreign locales dziedziczą ten sam OG image).
+
+#### Co Marcin musi zrobić ręcznie po deploy:
+- Brak migracji DB ani env var.
+- (Opcjonalnie) wrzucić OG share na Facebook/LinkedIn debug tools żeby zresetować cache:
+  - Facebook: https://developers.facebook.com/tools/debug/ → wpisz URL → Scrape Again
+  - LinkedIn: https://www.linkedin.com/post-inspector/ → wpisz URL
+  - Bez tego social shows old cached image przez 7-30 dni.
+- (Opcjonalnie) jeśli Marcin nie lubi designu OG cards (gold + teal premium template) — można customize w `scripts/generate-og-images.mjs` COLORS + OG_PAGES, potem `npm run generate:og-images` re-runs.
+
+#### Co dalej (Faza J kontynuacja):
+- **Sesja J-4**: Sklep noindex foreign + Review schema + FAQPage przyjezdni + og:locale (~2-2.5h AI). 4 punktowe fixy:
+  1. `/sklep` noindex dla locale !== 'pl' (sklep PL-only)
+  2. Review schemas per-recenzja na homepage (z `google_reviews` table)
+  3. FAQPage schema na `/dla-pacjentow-przyjezdnych`
+  4. og:locale dynamic per locale (sprawdzić czy już jest po G5)
+- Następnie J-5 (internal linking + priceRange premium signal) → J-MEASURE
+
+> **Brak migracji DB / nowych env var.** Vercel auto-deployuje z pushem na main.
+
+---
 
 ### 2026-05-12 — Premium SEO Plan: Sesja J-2 (hreflang circle audit + fix 24 broken URLs)
 
