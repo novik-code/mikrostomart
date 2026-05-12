@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { setRequestLocale } from "next-intl/server";
 import { isDemoMode } from "@/lib/demoMode";
+import { brand } from "@/lib/brandConfig";
 import { getOgLocale } from "@/lib/seo";
 import HomeClient from "./HomeClient";
 
@@ -56,15 +57,30 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
         title: { absolute: seo.title },
         description: seo.description,
         openGraph: {
+            // J-5 follow-up (2026-05-12): Next 16 fully REPLACES openGraph
+            // when a child segment declares it (not the per-key shallow merge
+            // I assumed in J-4). So the J-3 og:image, og:type, og:site_name
+            // declared at the root layout were vanishing on homepage. Every
+            // field now lives here explicitly. Verified post-fix that all
+            // og:* tags appear in /, /en, /de, /ua HTML.
+            type: 'website',
             title: seo.ogTitle,
             description: seo.ogDescription,
-            // J-4: declare og:locale explicitly so Facebook/LinkedIn previews
-            // for /de and /ua show the right language tag. Next.js merges
-            // openGraph keys child-over-parent, so without this we'd inherit
-            // root layout's value but only when no openGraph block is set
-            // here at all — declaring title/description here would otherwise
-            // strip the parent's locale field.
             locale: getOgLocale(locale),
+            siteName: brand.ogSiteName,
+            url: locale === 'pl' ? brand.appUrl : `${brand.appUrl}/${locale}`,
+            images: [{
+                url: '/og-home.webp',
+                width: 1200,
+                height: 630,
+                alt: brand.ogImageAlt,
+            }],
+        },
+        twitter: {
+            card: 'summary_large_image',
+            title: seo.ogTitle,
+            description: seo.ogDescription,
+            images: ['/og-home.webp'],
         },
         alternates: {
             canonical: locale === 'pl' ? '/' : `/${locale}`,
