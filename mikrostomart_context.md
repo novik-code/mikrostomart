@@ -1,6 +1,7 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-12 (**🚨 HOTFIX SPRINT — S2-1 DONE: orders state machine** (Sprint 2 Payment Integrity start). Migracja `121_orders_state_machine.sql` (209 LOC, idempotentna) wgrana na OBU projektach Supabase (`keucogopujdolzmfajjv` + `mhosfncgasjfruiohlfo`). Schemat orders rozszerzony o: `payment_provider`, `provider_order_id` (Stripe PI / PayU orderId / P24 sessionId, indexed dla webhook lookup), `idempotency_key` (UNIQUE partial index — dedup retries), `amount_total` (server source of truth), `amount_paid` (z webhook), `updated_at` (BEFORE UPDATE trigger). `status` dostało CHECK constraint `pending|paid|failed|refunded|cancelled` z default `'pending'`. Trigger `trg_orders_status_audit` z `IF EXISTS audit_log` check — bezpieczne deploy przed S8-3. Backwards compat: legacy rows (status='paid' tylko) backfill skopiował `total_amount → amount_total/amount_paid`. Commit `e44fc30`. **Next: S2-2 server-side cart total** (`/api/cart/calculate-total` + update Stripe/PayU/P24 create endpoints — NIE czytają amount z body; update `/api/order-confirmation` żeby nie pisał status='paid' z body). Wcześniej **S1-bis DONE: PMS key zarządzany z panelu admin**. `src/lib/pmsConfig.ts` helper z 3-level fallback (DB `clinic_settings.apiKey` → env `PRODENTIS_API_KEY` → null), 60s cache, invalidate po PATCH. Endpoint `/api/admin/pms-settings` z `api_key_masked` + source + PATCH apiKey + POST?action=health. UI `PmsSettingsTab.tsx` z input do wklejenia nowego klucza + Save/Test/Wyczyść + callout z PowerShell procedure (ref: `~/Desktop/bałagan/Dla dewelopera mikrostomart/INSTRUKCJA_ROTACJI_KLUCZA.md`). 15 callerów `process.env.PRODENTIS_API_KEY` → `await getProdentisKey()`. `prodentis-adapter` sync getter → async method. Commit `75bc682`, 22 plików. **Marcin może teraz rotować klucz w panelu admin** zamiast Vercel env vars — pełen workflow w docs. Stary `2c9bd5b4...` po S1-4 nadal w env, ale DB ma priorytet. Tests 15/15, build clean. **Next: S2-1 Payment Integrity start** (migracja 121 order state machine). Wcześniej **S1 SPRINT COMPLETE** (S1-1 `d8c6f53`, S1-2 `c391076`, S1-3 `1bc6ed7`, S1-4 `9f3fa64`).)  
+> **Last Updated:** 2026-05-12 (**🚨 HOTFIX SPRINT — S2-2 DONE: server-side cart total**. Klient nie wysyła już `amount` do Stripe/PayU/P24 — server liczy z `products` table. Nowy 3-hop flow: `POST /api/cart/calculate-total` (items + chosenPrice → orderId + idempotencyKey + total) → `POST /api/create-payment-intent|payu/create-order|p24/register` (orderId → loadPendingOrder → use amount_total → create provider transaction → attachProviderOrder save provider_order_id) → `POST /api/order-confirmation` (orderId → lookup status → send emails/notifications jeśli paid). Nowy helper `src/lib/cartCalculator.ts` (255 LOC): walidacja qty (1..100), max 50 items, is_visible check, variable_price chosenPrice >= min_price. Frontend CheckoutForm: createPendingOrder step + warn user gdy server total ≠ local total. /platnosc page useEffect fires order-confirmation dla PayU/P24 return URL. **🌉 S2-2→S2-3 bridge**: order-confirmation ustawia status='paid' jeśli pending+provider_order_id (z `console.warn [OrderConfirm] S2-2 BRIDGE`) — tymczasowy, S2-3 webhook signature verify go usunie. Commit `600a242`, 11 plików, +773/-199. **Next: S2-3 webhook signatures** (PayU OpenPayU-Signature + Stripe constructEvent + P24 verify). Wcześniej S2-1 (`e44fc30` migracja 121 orders state machine). Plan: `~/Desktop/bałagan/PLAN_HOTFIX_SPRINT.md`.)  
+
 
 > **Version:** Production + Demo (Dual Vercel Deployment)  
 > **Status:** Active Development — **🎯 PREMIUM SEO PLAN AKTYWNY** (4 fazy, ~6 mies horyzont). KCP FULL + kiosk-token + **Employee Management Phase 1+2+3 (KOMPLETNE — backend unified + UI z wizardem)**; CareFlow Perioperative; Push-First Communication. SEO Sprint H1-H8 ✅ KOMPLETNY. Cykl: pełen audyt 5 niezależnymi agentami wykrył ~47 problemów → 8 faz wdrożenia (H1 quick fixes, H2 metadata gaps, H3 internal linking, H4 schema enrichment, H5 perf+images, H6 content, H7 intl landing, H8 real schema data) → po H8 push **awaria 500 production** (H3 batch sed przekonwertował 3 server components na `Link` z `@/i18n/navigation` który wewnętrznie używa `useLocale()` client-only hook → SSR crash) → 8 reverts cofnęły wszystko → bisect lokalny zlokalizował bug → fix `572af02` (zamiana na `<a href>` z manual locale prefix w 3 server components) → re-apply H1-H8 → produkcja stabilna `6c8f4fa`. ~35/47 problemów audytu zaadresowanych. **Wcześniejsze SEO Sprint G1-G6 + Recovery 1-E** ✅ KOMPLETNE (2026-05-09 → 2026-05-10): pełen multilingual SEO (4 locale), rich SERP, Core Web Vitals fix (LCP 6s→2-3s), PSI Mobile 34→73, Desktop 39→83. Faza 3 GSC: audyt po 4-6 tygodniach (~koniec czerwca 2026). Następna sesja: weryfikacja Rich Results, re-submit sitemap, ewentualne content expansion service pages (24 expansions H6 follow-up).
@@ -2462,6 +2463,81 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-12 — Hotfix Sprint S2-2: Server-side cart total (audit P0-06 closed)
+
+**Klient nie wysyła już `amount` do żadnego payment route — server liczy total z `products` table.**
+
+#### Commits
+- `600a242` feat(payment): S2-2 server-side cart total — payment routes pull amount from DB
+
+#### Nowy flow (3 hops)
+```
+1. POST /api/cart/calculate-total
+   Body: { items: [{ productId, quantity, chosenPrice? }], customerDetails }
+   Server: lookup products → calculate total → INSERT orders row
+           (status='pending', amount_total=<computed>, idempotency_key=<uuid>)
+   Response: { orderId, idempotencyKey, total, lineItems, currency }
+
+2. POST /api/create-payment-intent | /api/payu/create-order | /api/p24/register
+   Body: { orderId, email, ... }  ← NO amount
+   Server: loadPendingOrder(orderId) → use amount_total → create provider
+           transaction → attachProviderOrder(provider, provider_order_id)
+   Response: { clientSecret | redirectUrl, orderId, total }
+
+3. POST /api/order-confirmation (return URL or Stripe success callback)
+   Body: { orderId, customerDetails? }
+   Server: lookup orders → if status='paid' send email/Telegram/push
+                        → if status='pending' + provider_order_id: BRIDGE (S2-3 will remove)
+                        → if status='failed/cancelled': return success=false
+```
+
+#### Pliki nowe
+- `src/lib/cartCalculator.ts` (255 LOC) — `calculateCartTotal()`, `createPendingOrder()`, `loadPendingOrder()`, `attachProviderOrder()`, `CartValidationError`
+- `src/app/api/cart/calculate-total/route.ts` (66 LOC) — public endpoint, walidacja: qty 1..100, max 50 items, is_visible check, variable_price chosenPrice >= min_price
+
+#### Pliki zaktualizowane
+- `src/app/api/create-payment-intent/route.ts` — `{ amount }` → `{ orderId }`, metadata.orderId w PI
+- `src/app/api/payu/create-order/route.ts` — `extOrderId` = our orderId (umożliwia webhook resolve)
+- `src/app/api/p24/register/route.ts` — `sessionId = order_<orderId>` (deterministic correlation)
+- `src/app/api/order-confirmation/route.ts` — refaktor: `{orderId}` zamiast `{cart, total, paymentId}`, status z DB
+- `src/components/CheckoutForm.tsx` — nowy `createPendingOrder` step, state `orderId`, warn user gdy server total ≠ local total
+- `src/app/[locale]/platnosc/page.tsx` — `useEffect` fires order-confirmation dla PayU/P24 return URL (orderId z query param)
+
+#### Variable-price products (vouchery)
+Klient wysyła `chosenPrice` w item (tylko gdy `products.is_variable_price=true`). Server enforce `chosenPrice >= products.min_price`. Cart context już ma `CartItem.price` = chosen amount, checkout maps to API.
+
+#### Walidacje (cartCalculator.ts)
+- `items.length > 0 && <= 50` (CartValidationError "Empty cart" / "Too many line items")
+- `quantity 1..100` per line
+- `product exists && is_visible !== false` (CartValidationError "Product not available")
+- `is_variable_price && chosenPrice >= min_price` (CartValidationError ze szczegółową informacją)
+- `total > 0`
+
+#### Edge case: price drift mid-session
+Jeśli server-computed total ≠ local cart total (admin zmienił cenę w trakcie checkout), frontend pokazuje `confirm("Suma zaktualizowana z X PLN do Y PLN — kontynuować?")`. User decyduje czy płacić nową cenę czy anulować.
+
+#### 🌉 S2-2 → S2-3 BRIDGE (tymczasowy)
+`/api/order-confirmation` ustawia `status='paid'` jeśli widzi `status='pending' + provider_order_id is not null`. Niezabezpieczone — nie weryfikuje webhook signature. Logged z `console.warn [OrderConfirm] S2-2 BRIDGE: marked order X as paid without webhook signature verification. S2-3 will close this.`
+
+**Dlaczego bridge**: bez S2-3 webhooks PayU/P24 obecnie nic nie robią (mają commented stubs), Stripe webhook nie istnieje. Bez bridge zamówienia zostawałyby na zawsze w `'pending'` po deploy S2-2. Bridge utrzymuje email/Telegram/push notification flow działającym aż do S2-3.
+
+**S2-3 wyłączy bridge**: webhook verifies signature → ustawia 'paid' → order-confirmation widzi już 'paid' z DB, bridge branch staje się dead code. Grepable marker `[OrderConfirm] S2-2 BRIDGE` w logach + komentarz w kodzie.
+
+#### Zamykany audit
+**P0-06** (payment ufa kwotom z klienta) — attacker wysyłający `{amount: 1}` dla 3500zł produktu dostaje serwerowy total 3500zł. Brak parametru `amount` w body endpointów payment.
+
+#### Wyniki
+- `npm test`: 15/15 passed
+- `npm run build`: clean
+- 11 plików zmienionych, +773/-199
+
+#### Co dla Marcina
+- **Nic teraz** (sesja AI-only, deploy automatyczny po push)
+- **Smoke test po deployu**: spróbuj kupić cokolwiek w sklepie — full flow Stripe/PayU/P24 z return URL
+- **Next session**: S2-3 webhook signatures — wymaga `STRIPE_WEBHOOK_SECRET` w Vercel env (Stripe Dashboard → Webhooks)
+
+---
 
 ### 2026-05-12 — Hotfix Sprint S2-1: Orders state machine + migracja 121 (Sprint 2 PAYMENT INTEGRITY START)
 
