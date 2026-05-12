@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense } from 'react';
+import { Suspense, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Link } from '@/i18n/navigation';
 
@@ -12,6 +12,22 @@ function PaymentStatus() {
 
     const isSuccess = status === 'return' || status === 'success';
     const isCancelled = status === 'cancel' || status === 'error';
+
+    // Trigger /api/order-confirmation once for PayU/P24 return URL.
+    // The server reads orders.status (which the webhook updates) or applies
+    // the S2-2 bridge if provider_order_id is set but status still pending.
+    // Sends notifications/emails; safe to retry (idempotent on status='paid').
+    const confirmFired = useRef(false);
+    useEffect(() => {
+        if (confirmFired.current) return;
+        if (!isSuccess || !orderId) return;
+        confirmFired.current = true;
+        fetch('/api/order-confirmation', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ orderId }),
+        }).catch(err => console.error('[Platnosc] order-confirmation error:', err));
+    }, [isSuccess, orderId]);
 
     return (
         <div style={{

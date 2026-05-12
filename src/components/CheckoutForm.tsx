@@ -69,38 +69,92 @@ export default function CheckoutForm({ onSuccess, initialValues }: CheckoutFormP
         setStep('METHOD');
     };
 
+    const [orderId, setOrderId] = useState<string | null>(null);
+
+    /**
+     * Step 1 of S2-2 checkout: ask the server to compute the cart total
+     * from the products table and create a `status='pending'` order row.
+     * Returns the orderId we hand to Stripe/PayU/P24 below — the server
+     * uses `amount_total` from that row, NOT the value we send.
+     */
+    const createPendingOrder = async (): Promise<string | null> => {
+        const payload = {
+            items: items.map(i => ({
+                productId: i.originalId || i.id,
+                quantity: i.quantity,
+                // Variable-price products (vouchers): send chosen price; server validates >= min_price
+                ...(i.isVariablePrice ? { chosenPrice: i.price } : {}),
+            })),
+            customerDetails: formData,
+        };
+
+        try {
+            const res = await fetch('/api/cart/calculate-total', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            const data = await res.json();
+            if (!res.ok || !data.orderId) {
+                console.error('[Checkout] calculate-total failed:', data);
+                alert(`Błąd przy obliczaniu sumy: ${data.error || 'unknown'}`);
+                return null;
+            }
+            // Server-computed total may differ from the cart's local total if a
+            // product price changed mid-session. Warn the user before redirect.
+            if (typeof data.total === 'number' && Math.abs(data.total - total) > 0.01) {
+                const ok = confirm(
+                    `Suma została zaktualizowana z ${total} PLN do ${data.total} PLN ` +
+                    `(ceny mogły się zmienić). Kontynuować płatność?`
+                );
+                if (!ok) return null;
+            }
+            setOrderId(data.orderId);
+            return data.orderId as string;
+        } catch (err) {
+            console.error('[Checkout] calculate-total exception:', err);
+            return null;
+        }
+    };
+
     const handleMethodSelect = async (method: PaymentMethod) => {
         setSelectedMethod(method);
         setRedirectLoading(true);
 
         try {
+            const ord = orderId || (await createPendingOrder());
+            if (!ord) {
+                setRedirectLoading(false);
+                return;
+            }
+
             if (method === 'stripe') {
-                // Stripe: create PaymentIntent and show embedded form
+                // Stripe: create PaymentIntent (server pulls amount from orders.amount_total)
                 const res = await fetch("/api/create-payment-intent", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ amount: total, email: formData.email }),
+                    body: JSON.stringify({ orderId: ord, email: formData.email }),
                 });
                 const data = await res.json();
                 if (data.clientSecret) {
                     setClientSecret(data.clientSecret);
                     setStep('PAYMENT');
+                } else {
+                    console.error('[Stripe] No clientSecret', data);
                 }
                 setRedirectLoading(false);
 
             } else if (method === 'payu') {
-                // PayU: create order → redirect
-                const appUrl = window.location.origin;
+                // PayU: create order → redirect (server pulls amount from orders.amount_total)
                 const res = await fetch('/api/payu/create-order', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        amount: total,
+                        orderId: ord,
                         email: formData.email,
                         firstName: formData.name.split(' ')[0],
                         lastName: formData.name.split(' ').slice(1).join(' ') || formData.name,
                         description: `Zadatek — ${items.map(i => i.name).join(', ')}`,
-                        orderId: `order_${Date.now()}`,
                     }),
                 });
                 const data = await res.json();
@@ -112,19 +166,17 @@ export default function CheckoutForm({ onSuccess, initialValues }: CheckoutFormP
                 }
 
             } else if (method === 'p24') {
-                // P24: register transaction → redirect
+                // P24: register transaction → redirect (server pulls amount from orders.amount_total)
                 const appUrl = window.location.origin;
                 const res = await fetch('/api/p24/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        amount: total,
+                        orderId: ord,
                         email: formData.email,
-                        name: formData.name,
                         description: `Zadatek — ${items.map(i => i.name).join(', ')}`,
-                        sessionId: `p24_${Date.now()}`,
-                        urlReturn: `${appUrl}/platnosc?status=return&provider=p24`,
-                        urlStatus: `${appUrl}/api/p24/webhook`,
+                        returnUrl: `${appUrl}/platnosc?status=return&provider=p24&orderId=${ord}`,
+                        notifyUrl: `${appUrl}/api/p24/webhook`,
                     }),
                 });
                 const data = await res.json();
@@ -141,20 +193,22 @@ export default function CheckoutForm({ onSuccess, initialValues }: CheckoutFormP
         }
     };
 
-    // Callback when Stripe payment succeeds
-    const handlePaymentSuccess = async (paymentIntentId: string) => {
-        const orderData = {
-            cart: items,
-            total,
-            customerDetails: formData,
-            paymentId: paymentIntentId
-        };
+    // Callback when Stripe payment succeeds — confirm via orderId.
+    // Server reads status from orders table (S2-3 webhook), no amount/items
+    // sent in this body anymore.
+    const handlePaymentSuccess = async (_paymentIntentId: string) => {
+        if (!orderId) {
+            console.error('[Checkout] handlePaymentSuccess called without orderId');
+            clearCart();
+            onSuccess();
+            return;
+        }
 
         try {
             await fetch('/api/order-confirmation', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(orderData)
+                body: JSON.stringify({ orderId, customerDetails: formData }),
             });
         } catch (e) {
             console.error("Failed to trigger order confirmation:", e);
