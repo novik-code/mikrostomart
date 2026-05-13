@@ -83,11 +83,14 @@ export async function GET(req: Request) {
             attendance_confirmed: boolean;
             attendance_confirmed_at: string | null;
             status: string | null;
+            prodentis_icon_synced: boolean;
+            prodentis_icon_synced_at: string | null;
+            prodentis_icon_error: string | null;
         }>();
         if (prodentisIds.length > 0) {
             const { data: actions } = await supabase
                 .from('appointment_actions')
-                .select('id, prodentis_id, appointment_date, attendance_confirmed, attendance_confirmed_at, status')
+                .select('id, prodentis_id, appointment_date, attendance_confirmed, attendance_confirmed_at, status, prodentis_icon_synced, prodentis_icon_synced_at, prodentis_icon_error')
                 .in('prodentis_id', prodentisIds);
             (actions || []).forEach((a: any) => {
                 // Match by prodentis_id + appointment_date (unique together)
@@ -96,6 +99,9 @@ export async function GET(req: Request) {
                     attendance_confirmed: !!a.attendance_confirmed,
                     attendance_confirmed_at: a.attendance_confirmed_at,
                     status: a.status,
+                    prodentis_icon_synced: !!a.prodentis_icon_synced,
+                    prodentis_icon_synced_at: a.prodentis_icon_synced_at,
+                    prodentis_icon_error: a.prodentis_icon_error,
                 });
             });
         }
@@ -108,6 +114,9 @@ export async function GET(req: Request) {
                 attendance_confirmed: action?.attendance_confirmed || false,
                 attendance_confirmed_at: action?.attendance_confirmed_at || null,
                 appointment_action_status: action?.status || null,
+                prodentis_icon_synced: action?.prodentis_icon_synced || false,
+                prodentis_icon_synced_at: action?.prodentis_icon_synced_at || null,
+                prodentis_icon_error: action?.prodentis_icon_error || null,
             };
         });
 

@@ -1024,6 +1024,26 @@ export default function SmsRemindersTab() {
                                                                     border: '1px dashed var(--color-border)',
                                                                 }}>○ Brak kliknięcia</span>
                                                             ) : null}
+                                                            {sms.attendance_confirmed && sms.prodentis_icon_synced && (
+                                                                <span title={sms.prodentis_icon_synced_at ? `Ikona dodana: ${new Date(sms.prodentis_icon_synced_at).toLocaleString('pl-PL')}` : 'Ikona uśmiechu dodana w grafiku Prodentis'} style={{
+                                                                    padding: "0.2rem 0.5rem",
+                                                                    borderRadius: "4px",
+                                                                    fontSize: "0.75rem",
+                                                                    background: '#3b82f6',
+                                                                    color: 'white',
+                                                                    fontWeight: 600,
+                                                                }}>🔄 Prodentis ✅</span>
+                                                            )}
+                                                            {sms.attendance_confirmed && !sms.prodentis_icon_synced && sms.prodentis_icon_error && (
+                                                                <span title={`Błąd sync Prodentis: ${sms.prodentis_icon_error}\n\n${sms.prodentis_icon_error === 'appointment_cancelled_or_not_found' ? 'Wizyta prawdopodobnie odwołana w grafiku. Skontaktuj się z pacjentem.' : 'Ikona NIE została dodana w grafiku Prodentis. Sprawdź ręcznie.'}`} style={{
+                                                                    padding: "0.2rem 0.5rem",
+                                                                    borderRadius: "4px",
+                                                                    fontSize: "0.75rem",
+                                                                    background: '#dc2626',
+                                                                    color: 'white',
+                                                                    fontWeight: 600,
+                                                                }}>🔄 Prodentis ❌</span>
+                                                            )}
                                                             <span style={{
                                                                 padding: "0.2rem 0.5rem",
                                                                 borderRadius: "4px",
