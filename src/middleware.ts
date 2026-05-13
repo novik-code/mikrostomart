@@ -43,6 +43,32 @@ function shouldBypassIntl(pathname: string): boolean {
 const intlMiddleware = createIntlMiddleware(routing);
 
 /**
+ * Build Sentry CSP report-uri endpoint from existing Sentry DSN.
+ *
+ * DSN format: https://<public-key>@<host>/<project-id>
+ * Report URI: https://<host>/api/<project-id>/security/?sentry_key=<public-key>&sentry_environment=<env>
+ *
+ * Same key + host + project id, different path. Built at request time so
+ * production and demo deployments each report to their own Sentry project
+ * without needing a separate env var. Returns null if DSN is missing or
+ * malformed — caller should omit the directive in that case.
+ */
+function buildSentryCspReportUri(): string | null {
+    const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN || process.env.SENTRY_DSN;
+    if (!dsn) return null;
+    try {
+        const u = new URL(dsn);
+        const projectId = u.pathname.replace(/^\/+/, ''); // strip leading slash(es)
+        const publicKey = u.username;
+        if (!projectId || !publicKey) return null;
+        const env = process.env.VERCEL_ENV || process.env.NODE_ENV || 'production';
+        return `${u.protocol}//${u.host}/api/${projectId}/security/?sentry_key=${publicKey}&sentry_environment=${encodeURIComponent(env)}`;
+    } catch {
+        return null;
+    }
+}
+
+/**
  * Apply security headers to response.
  */
 function addSecurityHeaders(response: NextResponse): NextResponse {
@@ -52,6 +78,10 @@ function addSecurityHeaders(response: NextResponse): NextResponse {
     const prodentisOrigin = process.env.PRODENTIS_API_URL
         ? new URL(process.env.PRODENTIS_API_URL).origin
         : 'http://83.230.40.14:3000';
+
+    // Sentry CSP report endpoint — built from DSN so this works on both Mikrostomart
+    // and Demo deployments automatically. Null if DSN missing — directive is then omitted.
+    const cspReportUri = buildSentryCspReportUri();
 
     // Faza E SEO (2026-05-09): napraw next-intl Link header `hreflang="ua"` → "uk".
     // Lighthouse SEO audit oznacza `ua` jako "nieoczekiwany kod języka" bo ISO 639-1
@@ -65,7 +95,7 @@ function addSecurityHeaders(response: NextResponse): NextResponse {
         response.headers.set('link', linkHeader.replace(/hreflang="ua"/g, 'hreflang="uk"'));
     }
 
-    response.headers.set('Content-Security-Policy-Report-Only', [
+    const cspDirectives = [
         "default-src 'self'",
         "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://maps.googleapis.com https://www.googletagmanager.com https://www.googleadservices.com",
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
@@ -79,7 +109,15 @@ function addSecurityHeaders(response: NextResponse): NextResponse {
         "frame-src 'self' https://www.google.com https://www.youtube.com https://www.youtube-nocookie.com",
         "media-src 'self' blob: https://*.googlevideo.com",
         "worker-src 'self' blob:",
-    ].join('; '));
+    ];
+    // S4-2a (2026-05-13 EOD #6): send violation reports to Sentry so we can audit
+    // before flipping Report-Only off. Without this directive, violations log only
+    // to the browser console — never reach our telemetry, so we'd be flying blind
+    // when toggling to enforce. Skipped if DSN missing (e.g. local dev w/o Sentry).
+    if (cspReportUri) {
+        cspDirectives.push(`report-uri ${cspReportUri}`);
+    }
+    response.headers.set('Content-Security-Policy-Report-Only', cspDirectives.join('; '));
 
     // Additional security headers (supplements existing ones in API routes)
     response.headers.set('X-DNS-Prefetch-Control', 'on');
