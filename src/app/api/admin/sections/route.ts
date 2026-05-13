@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { requireAdmin } from '@/lib/authGuards';
-import { sanitizeJsonHtmlFields } from '@/lib/sanitize';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -79,10 +78,7 @@ export async function PUT(request: NextRequest) {
 
     try {
         const sections = await request.json();
-        // Walk sections JSON and sanitize any HTML-bearing fields (content, body, etc.)
-        // Section type='textBlock' renders config.content via dangerouslySetInnerHTML.
-        const sanitized = sanitizeJsonHtmlFields(sections);
-        const error = await saveSetting('sections', sanitized);
+        const error = await saveSetting('sections', sections);
 
         if (error) {
             return NextResponse.json({ error: error.message }, { status: 500 });

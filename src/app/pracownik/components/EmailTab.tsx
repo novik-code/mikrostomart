@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Mail, MailOpen, Send, Inbox, Star, Trash2, Search, RefreshCw, ChevronLeft, Paperclip, X, ArrowLeft, Reply, Forward, FileText, Tag, Bell, Globe, MessageCircle, Archive, Sparkles, Zap, Settings, BookOpen, GraduationCap, Plus, ToggleLeft, ToggleRight, Brain, ThumbsUp, ThumbsDown, Save, FolderOpen, ChevronDown } from 'lucide-react';
 import { demoSanitize } from '@/lib/brandConfig';
-import { sanitizeRichHtml } from '@/lib/sanitize';
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -297,9 +296,14 @@ function senderDisplay(from: { name: string; address: string }): string {
     return from.name || from.address.split('@')[0] || from.address;
 }
 
-// Sanitize HTML — uses DOMPurify (sanitizeRichHtml from @/lib/sanitize).
-// Kept as local alias so existing call-sites compile without renaming.
-const sanitizeHtml = sanitizeRichHtml;
+// Sanitize HTML — remove scripts, on* attributes
+function sanitizeHtml(html: string): string {
+    return html
+        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+        .replace(/\son\w+="[^"]*"/gi, '')
+        .replace(/\son\w+='[^']*'/gi, '')
+        .replace(/javascript:/gi, '');
+}
 
 // ─── Component ───────────────────────────────────────────────
 
