@@ -1,6 +1,8 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-13 EOD #5 (**🎯 S4-1 v2 DONE: WYSIWYG sanitization z `sanitize-html` (pure CJS, no jsdom) — P0-08 CLOSED**. Commit `73c57a3`. Te same 10 callsites co S4-1 v1, ten sam public API (`sanitizeRichHtml`/`sanitizeStrictHtml`/`sanitizeJsonHtmlFields`), inna biblioteka pod spodem (htmlparser2 zamiast jsdom). 28 unit testów XSS payloads green od pierwszego razu (43/43 w pełnym suite). **Lekcja z S4-1 v1**: weryfikacja na Vercel preview branch PRZED merge do main — preview URL `mikrostomart-git-sec-s4-1-v2-sanitize-html-...vercel.app` testowany przez Marcina (homepage + /wizyta/pierwsza-wizyta + /admin → SMS), wszystko 200, dopiero potem merge. Production probe po deploy: 5 min stable, `/` 200, `/wizyta/pierwsza-wizyta` 200, `/api/admin/page-overrides` 401 (poprawnie — auth, nie ERR_REQUIRE_ESM). Brak `jsdom` w dependency tree — zerowe ryzyko regressji jak S4-1 v1.)
+> **Last Updated:** 2026-05-13 EOD #6 (**🎯 S4-2a DONE: CSP violations wired to Sentry (P1-02 Faza 1)**. Commit `8b281df`. CSP-Report-Only istniał od SEO Faza C ale BEZ `report-uri` — violations szły tylko do user console, nigdy do Sentry. Audit pusty (zero CSP entries). Fix: DSN parser w `src/middleware.ts` rekomponuje `NEXT_PUBLIC_SENTRY_DSN` (już set w Vercel env vars) do CSP security URL Sentry. Bez nowego env var, działa automatycznie dla Mikrostomart + Demo (różne DSN-y). Verified na preview branch → response header zawiera `report-uri https://o4510988121669632.ingest.de.sentry.io/api/.../security/?sentry_key=...&sentry_environment=production`. **Czekamy 3-7 dni** żeby Sentry zebrał violations, potem **Faza 2** (toggle do enforce + uzupełnij whitelist). **🚨 Manual tasks Marcin: brak** dla S4-2a, ale wciąż migracja 123 z #4 (Prodentis sync) na OBU Supabase.)
+
+<!-- Poprzednia: 2026-05-13 EOD #5 (S4-1 v2 DONE: WYSIWYG sanitization z `sanitize-html` — P0-08 CLOSED). Commit `73c57a3`. 28 unit testów green. Preview-first workflow verified.
 
 <!-- Poprzednia: 2026-05-13 EOD #4 (**🚨 PRODENTIS ICON SYNC FIX + S4-1 v1 REVERTED + ADMIN DIAGNOSTIC TOOLS**. Hybrid retry na 404 Prodentis icon (commit `22e49fe`), migracja 123 (Marcin musi wgrać na OBU Supabase), admin diagnostic tools `06b51e2` (badge "Pacjent kliknął" + reset button). S4-1 v1 z `isomorphic-dompurify` crashował przez `ERR_REQUIRE_ESM`, revert `beec4bc`+`2f78f79`.  
 
@@ -2473,6 +2475,41 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-13 EOD #6 — Hotfix Sprint S4-2a: CSP violation reporting wired to Sentry (P1-02 Faza 1)
+
+#### Commits:
+- `8b281df` — feat(csp): S4-2a wire up CSP violations to Sentry via report-uri (P1-02)
+
+#### Tło:
+Audit przed sesją S4-2 ujawnił że CSP-Report-Only istnieje od SEO Faza C ale **bez dyrektywy `report-uri`** — violations logowane tylko do konsoli przeglądarki użytkownika, nigdy nie trafiały do żadnego endpointu. Sentry feed był pusty z CSP entries pomimo że strona ładuje Google Maps, YouTube, Stripe, FCM. Marcin szukał w UI Sentry pół godziny — sekcja "Security Headers" była w starym UI Sentry, zostala usunięta/ukryta. Ale **nie potrzebujemy UI** — CSP URL można zbudować z istniejącego DSN.
+
+#### Co się zmieniło (`src/middleware.ts`):
+- Nowy helper `buildSentryCspReportUri()` parsuje `NEXT_PUBLIC_SENTRY_DSN` / `SENTRY_DSN` (już ustawiony w Vercel env vars dla browser SDK), wyciąga `<public-key>@<host>/<project-id>` i rekomponuje:
+  ```
+  https://<host>/api/<project-id>/security/?sentry_key=<public-key>&sentry_environment=<env>
+  ```
+- Dyrektywa `report-uri ${cspReportUri}` doklejona do istniejącego `Content-Security-Policy-Report-Only` headera
+- Graceful: jeśli DSN brak (np. lokalny dev bez Sentry), dyrektywa pomijana, CSP nadal aktywne
+- `sentry_environment` automatycznie `preview`/`production` w zależności od `VERCEL_ENV` — Mikrostomart i Demo mają różne DSN-y więc każdy projekt raportuje do swojego Sentry projektu **bez nowego env var**
+
+#### Verification:
+- Branch `sec/s4-2a-csp-reporting` → Vercel preview → Marcin sprawdził Response Headers preview URL → potwierdzone że `report-uri https://o4510988121669632.ingest.de.sentry.io/api/4510988143165520/security/?sentry_key=ae5f3edf...&sentry_environment=preview` jest w nagłówku → merge do main → produkcja teraz raportuje (sentry_environment=production)
+
+#### Co dalej:
+- **Czekamy 3-7 dni** — Sentry zbiera CSP violations z realnych wizyt pacjentów (Google Maps na /kontakt, Stripe checkout, YouTube embeds, FCM push registration, OpenAI assets w czacie, etc.)
+- **S4-2 Faza 2** (osobna sesja, ~7 dni z tego punktu): audit zebranych violations → uzupełnij whitelist (Stripe `js.stripe.com`, FCM `firebaseinstallations.googleapis.com`, Cloudflare Turnstile po S4-3, inne) → toggle `Content-Security-Policy-Report-Only` → `Content-Security-Policy` (enforce) → zachowaj `report-uri` dla detection regressji post-enforce
+
+#### Znane ograniczenia obecnego CSP (do Fazy 2):
+- `script-src 'unsafe-inline'` — Next.js hydration wymaga inline scripts. To **rozbraja CSP przeciw inline XSS**. sanitize-html (S4-1 v2) jest jedyną realną obroną. W Fazie 2 rozważymy `'strict-dynamic'` + nonce, ale to duży refactor — być może pozostanie unsafe-inline jako known gap.
+- Whitelist niekompletny — brakuje Stripe, FCM/Firebase, Cloudflare Turnstile, OpenAI assets, inne. Faza 2 uzupełni na podstawie real data.
+
+#### Audit closure:
+- ✅ **P1-02 Faza 1**: CSP teraz wysyła telemetrię — observability w miejscu, można podejmować decyzje na podstawie danych zamiast zgadywania
+- ⏳ **P1-02 Faza 2**: pozostaje (toggle do enforce w osobnej sesji)
+
+#### Manual tasks dla Marcina:
+- **Brak**. Czysto kod. Wszystko już jest deploy'ed.
 
 ### 2026-05-13 EOD #5 — Hotfix Sprint S4-1 v2: WYSIWYG sanitization z `sanitize-html` (P0-08 CLOSED)
 
