@@ -58,6 +58,45 @@ export default function CheckoutForm({ onSuccess, initialValues }: CheckoutFormP
         houseNumber: initialValues?.houseNumber || '',
         apartmentNumber: initialValues?.apartmentNumber || ''
     });
+    const [autofillSource, setAutofillSource] = useState<'patient' | null>(null);
+
+    // Autofill from logged-in patient (strefa pacjenta) — runs once on mount.
+    // GET /api/patients/me returns 401 for guests (we no-op) or merged Prodentis
+    // + Supabase patient details for logged-in patients (firstName, lastName,
+    // email, phone, address.{street,houseNumber,apartmentNumber,postalCode,city}).
+    // We only fill fields the user hasn't typed yet — `initialValues` from
+    // props still wins, and any keypress after autofill is preserved.
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            try {
+                const res = await fetch('/api/patients/me', { credentials: 'include' });
+                if (!res.ok) return; // 401 (guest) or 500 — silently fall back to empty form
+                const me = await res.json();
+                if (cancelled) return;
+
+                const addr = (me.address || {}) as Record<string, string>;
+                const fullName = [me.firstName, me.lastName].filter(Boolean).join(' ').trim();
+
+                setFormData(prev => ({
+                    name: prev.name || initialValues?.name || fullName || '',
+                    email: prev.email || initialValues?.email || me.email || '',
+                    phone: prev.phone || initialValues?.phone || me.phone || '',
+                    city: prev.city || initialValues?.city || addr.city || '',
+                    zipCode: prev.zipCode || initialValues?.zipCode || addr.postalCode || '',
+                    street: prev.street || initialValues?.street || addr.street || '',
+                    houseNumber: prev.houseNumber || initialValues?.houseNumber || addr.houseNumber || '',
+                    apartmentNumber: prev.apartmentNumber || initialValues?.apartmentNumber || addr.apartmentNumber || '',
+                }));
+
+                if (fullName || me.email) setAutofillSource('patient');
+            } catch {
+                // Network error — silent, user can fill manually
+            }
+        })();
+        return () => { cancelled = true; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
@@ -296,6 +335,23 @@ export default function CheckoutForm({ onSuccess, initialValues }: CheckoutFormP
     return (
         <form onSubmit={handleAddressSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
             <h2 style={{ marginBottom: "1rem", color: "var(--color-primary)" }}>{t('deliveryData')}</h2>
+
+            {autofillSource === 'patient' && (
+                <div style={{
+                    padding: '0.7rem 1rem',
+                    background: 'rgba(16,185,129,0.08)',
+                    border: '1px solid rgba(16,185,129,0.25)',
+                    borderRadius: '8px',
+                    fontSize: '0.85rem',
+                    color: '#10b981',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                }}>
+                    <span>✓</span>
+                    <span>Dane uzupełnione z Twojego konta — sprawdź i edytuj w razie potrzeby.</span>
+                </div>
+            )}
 
             <input required name="name" value={formData.name} onChange={handleInputChange} placeholder={t('fullName')} style={inputStyle} />
             <input required type="email" name="email" value={formData.email} onChange={handleInputChange} placeholder={t('email')} style={inputStyle} />
