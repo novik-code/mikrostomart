@@ -3,10 +3,13 @@
 import { useEffect, useState } from 'react';
 
 interface StripeStatus {
-    source: 'db' | 'env' | 'none';
+    source: 'db' | 'env' | 'mixed' | 'none';
     enabled: boolean;
     publishable_key: string | null;
     secret_key_masked: string | null;
+    webhook_secret_masked: string | null;
+    has_webhook_secret: boolean;
+    webhook_source: 'db' | 'env' | 'none';
 }
 
 export default function StripeSettingsTab() {
@@ -19,6 +22,9 @@ export default function StripeSettingsTab() {
 
     const [publishableKey, setPublishableKey] = useState('');
     const [secretKey, setSecretKey] = useState('');
+    const [webhookSecret, setWebhookSecret] = useState('');
+    const [savingWebhook, setSavingWebhook] = useState(false);
+    const [webhookResult, setWebhookResult] = useState<{ ok: boolean; message?: string; error?: string } | null>(null);
     const [testPhone] = useState('');
 
     useEffect(() => {
@@ -87,10 +93,66 @@ export default function StripeSettingsTab() {
         }
     };
 
+    const handleSaveWebhook = async () => {
+        if (!webhookSecret.trim()) return;
+        setSavingWebhook(true);
+        setWebhookResult(null);
+        try {
+            const res = await fetch('/api/admin/stripe-settings', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ webhook_secret: webhookSecret.trim() }),
+            });
+            const data = await res.json();
+            if (res.ok) {
+                setWebhookResult({ ok: true, message: `Webhook secret zapisany ✅ (${data.webhook_secret_masked})` });
+                setWebhookSecret('');
+                await fetchStatus();
+            } else {
+                setWebhookResult({ ok: false, error: data.error });
+            }
+        } catch (e: unknown) {
+            setWebhookResult({ ok: false, error: e instanceof Error ? e.message : 'Błąd sieci' });
+        } finally {
+            setSavingWebhook(false);
+        }
+    };
+
+    const handleClearWebhook = async () => {
+        if (!confirm('Wyczyścić webhook secret z bazy? System wróci do env vars (STRIPE_WEBHOOK_SECRET).')) return;
+        setSavingWebhook(true);
+        setWebhookResult(null);
+        try {
+            const res = await fetch('/api/admin/stripe-settings', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ webhook_secret: '' }),
+            });
+            const data = await res.json();
+            if (res.ok) {
+                setWebhookResult({ ok: true, message: 'Webhook secret wyczyszczony — fallback na env vars.' });
+                await fetchStatus();
+            } else {
+                setWebhookResult({ ok: false, error: data.error });
+            }
+        } catch (e: unknown) {
+            setWebhookResult({ ok: false, error: e instanceof Error ? e.message : 'Błąd sieci' });
+        } finally {
+            setSavingWebhook(false);
+        }
+    };
+
     const sourceLabel = (s: StripeStatus) => {
         if (s.source === 'db') return { icon: '🗄️', label: 'Baza danych', color: '#10b981' };
         if (s.source === 'env') return { icon: '⚙️', label: 'Zmienna ENV', color: '#f59e0b' };
+        if (s.source === 'mixed') return { icon: '🔀', label: 'DB + ENV (mieszane)', color: '#8b5cf6' };
         return { icon: '❌', label: 'Brak konfiguracji', color: '#ef4444' };
+    };
+
+    const webhookSourceLabel = (s: StripeStatus) => {
+        if (s.webhook_source === 'db') return { icon: '🗄️', label: 'Baza danych', color: '#10b981' };
+        if (s.webhook_source === 'env') return { icon: '⚙️', label: 'Zmienna ENV', color: '#f59e0b' };
+        return { icon: '❌', label: 'Brak — webhook nie zadziała', color: '#ef4444' };
     };
 
     const cardStyle: React.CSSProperties = {
@@ -245,6 +307,123 @@ export default function StripeSettingsTab() {
                         {testResult.ok ? testResult.message : `❌ ${testResult.error}`}
                     </div>
                 )}
+            </div>
+
+            {/* Webhook signing secret */}
+            <div style={cardStyle}>
+                <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.4rem' }}>
+                    🔐 Webhook Signing Secret
+                </h3>
+                <p style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', lineHeight: 1.55, marginBottom: '1rem' }}>
+                    Sekret z którego korzysta `/api/stripe-webhook` aby zweryfikować że event przychodzi rzeczywiście od Stripe (constructEvent). Inny niż secret key powyżej — generowany per endpoint w Stripe Dashboard. <strong>Bez niego płatności Stripe pozostaną w statusie pending</strong> i nie pójdzie email.
+                </p>
+
+                {status && (
+                    <div style={{
+                        padding: '0.65rem 1rem',
+                        borderRadius: 8,
+                        background: 'rgba(0,0,0,0.2)',
+                        border: `1px solid ${webhookSourceLabel(status).color}33`,
+                        marginBottom: '0.85rem',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        flexWrap: 'wrap',
+                        gap: '0.75rem',
+                    }}>
+                        <div>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                                Źródło
+                            </div>
+                            <div style={{ fontSize: '0.92rem', fontWeight: 600, color: webhookSourceLabel(status).color, marginTop: 2 }}>
+                                {webhookSourceLabel(status).icon} {webhookSourceLabel(status).label}
+                            </div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)' }}>Secret</div>
+                            <code style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', fontFamily: 'monospace' }}>
+                                {status.webhook_secret_masked || '—'}
+                            </code>
+                        </div>
+                    </div>
+                )}
+
+                <label style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', display: 'block', marginBottom: '0.3rem' }}>
+                    Wklej nowy webhook secret
+                </label>
+                <input
+                    type="password"
+                    value={webhookSecret}
+                    onChange={e => setWebhookSecret(e.target.value)}
+                    placeholder="whsec_..."
+                    style={inputStyle}
+                />
+
+                {webhookResult && (
+                    <div style={{
+                        padding: '0.7rem 1rem',
+                        borderRadius: '8px',
+                        background: webhookResult.ok ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
+                        border: `1px solid ${webhookResult.ok ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}`,
+                        color: webhookResult.ok ? '#10b981' : '#ef4444',
+                        fontSize: '0.88rem',
+                        marginBottom: '0.75rem',
+                    }}>
+                        {webhookResult.ok ? webhookResult.message : `❌ ${webhookResult.error}`}
+                    </div>
+                )}
+
+                <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                    <button
+                        onClick={handleSaveWebhook}
+                        disabled={savingWebhook || !webhookSecret.trim()}
+                        style={{ ...btnStyle(true), opacity: savingWebhook || !webhookSecret.trim() ? 0.5 : 1 }}
+                    >
+                        {savingWebhook ? 'Zapisywanie…' : 'Zapisz webhook secret'}
+                    </button>
+                    {status?.webhook_source === 'db' && (
+                        <button
+                            onClick={handleClearWebhook}
+                            disabled={savingWebhook}
+                            style={{
+                                padding: '0.6rem 1.4rem',
+                                background: 'rgba(239,68,68,0.1)',
+                                color: '#ef4444',
+                                border: '1px solid rgba(239,68,68,0.3)',
+                                borderRadius: 8,
+                                fontWeight: 600,
+                                cursor: savingWebhook ? 'not-allowed' : 'pointer',
+                                fontSize: '0.9rem',
+                            }}
+                        >
+                            Wyczyść (wróć do ENV)
+                        </button>
+                    )}
+                </div>
+
+                <div style={{
+                    marginTop: '1rem',
+                    padding: '0.8rem 1rem',
+                    background: 'rgba(245,158,11,0.08)',
+                    border: '1px solid rgba(245,158,11,0.25)',
+                    borderRadius: 8,
+                    fontSize: '0.82rem',
+                    color: 'var(--color-text-muted)',
+                    lineHeight: 1.65,
+                }}>
+                    <strong style={{ color: '#f59e0b' }}>💡 Skąd wziąć webhook secret</strong>
+                    <ol style={{ margin: '0.45rem 0 0', paddingLeft: '1.3rem' }}>
+                        <li>
+                            <a href="https://dashboard.stripe.com/webhooks" target="_blank" rel="noopener noreferrer"
+                                style={{ color: 'var(--color-primary)' }}>Stripe Dashboard → Webhooks</a> → <strong>+ Add endpoint</strong>
+                            <br />(w nowym Dashboard zakładka jest w lewym dolnym rogu jako <code>{`>_ Developers`}</code>)
+                        </li>
+                        <li>Endpoint URL: <code>https://mikrostomart.pl/api/stripe-webhook</code></li>
+                        <li>Events to send: <code>payment_intent.succeeded</code>, <code>payment_intent.payment_failed</code>, <code>payment_intent.canceled</code></li>
+                        <li>Po utworzeniu: kliknij <em>Reveal</em> przy <strong>Signing secret</strong> → kopiuj wartość <code>whsec_...</code></li>
+                        <li>Wklej powyżej i <em>Zapisz</em>. DB ma priorytet nad env — możesz zostawić Vercel env pusty.</li>
+                    </ol>
+                </div>
             </div>
 
             {/* Info */}

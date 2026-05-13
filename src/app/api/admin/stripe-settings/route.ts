@@ -12,6 +12,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
 import { requireAdmin } from '@/lib/authGuards';
+import { getStripeConfig } from '@/lib/stripeService';
 
 function getSupabase() {
     return createClient(
@@ -26,72 +27,97 @@ function maskKey(key: string | null | undefined): string | null {
     return `${prefix}_...${key.slice(-4)}`;
 }
 
-// GET — return current config status
+function maskWebhookSecret(secret: string | null | undefined): string | null {
+    if (!secret) return null;
+    // Stripe webhook secrets are `whsec_...` (always — we validate the prefix on save)
+    return `whsec_...${secret.slice(-4)}`;
+}
+
+// GET — return current config status (API keys + webhook secret, all masked)
 export async function GET() {
     const auth = await requireAdmin();
     if (!auth.ok) return auth.response;
 
-    const supabase = getSupabase();
-
-    const { data, error } = await supabase
-        .from('clinic_settings')
-        .select('value')
-        .eq('key', 'stripe_settings')
-        .single();
-
-    const envSecret = process.env.STRIPE_SECRET_KEY || null;
-    const envPublishable = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || null;
-
-    if (error || !data?.value) {
-        return NextResponse.json({
-            source: envSecret ? 'env' : 'none',
-            enabled: !!envSecret,
-            publishable_key: envPublishable,
-            secret_key_masked: maskKey(envSecret),
-        });
-    }
-
-    const s = data.value as { publishable_key?: string; secret_key?: string; enabled?: boolean };
-    const hasDb = !!(s.publishable_key && s.secret_key);
+    // Use stripeService so the resolution logic stays in one place
+    const config = await getStripeConfig();
 
     return NextResponse.json({
-        source: hasDb ? 'db' : (envSecret ? 'env' : 'none'),
-        enabled: hasDb ? (s.enabled ?? false) : !!envSecret,
-        publishable_key: s.publishable_key || envPublishable || null,
-        secret_key_masked: hasDb ? maskKey(s.secret_key) : maskKey(envSecret),
+        source: config.source,
+        enabled: config.enabled,
+        publishable_key: config.publishableKey,
+        secret_key_masked: maskKey(config.secretKey),
+        webhook_secret_masked: maskWebhookSecret(config.webhookSecret),
+        has_webhook_secret: !!config.webhookSecret,
+        webhook_source: config.webhookSource,
     });
 }
 
-// PATCH — save keys to DB
+// PATCH — save keys / webhook secret to DB
+// Accepts any subset of: { publishable_key, secret_key, webhook_secret, enabled }.
+// Empty-string values for *_key / webhook_secret clear that field (fall back to env).
 export async function PATCH(request: Request) {
     const auth = await requireAdmin();
     if (!auth.ok) return auth.response;
 
     try {
-        const { publishable_key, secret_key, enabled } = await request.json();
+        const body = await request.json();
+        const { publishable_key, secret_key, webhook_secret, enabled } = body as {
+            publishable_key?: string;
+            secret_key?: string;
+            webhook_secret?: string;
+            enabled?: boolean;
+        };
 
-        if (!publishable_key || !secret_key) {
-            return NextResponse.json({ error: 'publishable_key and secret_key required' }, { status: 400 });
+        // Validate non-empty submitted values. Empty string is treated as "clear".
+        if (typeof publishable_key === 'string' && publishable_key.length > 0 && !publishable_key.startsWith('pk_')) {
+            return NextResponse.json({ error: 'Invalid publishable key (must start with pk_)' }, { status: 400 });
         }
-
-        if (!publishable_key.startsWith('pk_') || !secret_key.startsWith('sk_')) {
-            return NextResponse.json({ error: 'Invalid Stripe key format (pk_... / sk_...)' }, { status: 400 });
+        if (typeof secret_key === 'string' && secret_key.length > 0 && !secret_key.startsWith('sk_')) {
+            return NextResponse.json({ error: 'Invalid secret key (must start with sk_)' }, { status: 400 });
+        }
+        if (typeof webhook_secret === 'string' && webhook_secret.length > 0 && !webhook_secret.startsWith('whsec_')) {
+            return NextResponse.json({ error: 'Invalid webhook secret (must start with whsec_)' }, { status: 400 });
         }
 
         const supabase = getSupabase();
 
+        // Read existing so we preserve fields the caller didn't touch
+        const { data: existing } = await supabase
+            .from('clinic_settings')
+            .select('value')
+            .eq('key', 'stripe_settings')
+            .maybeSingle();
+        const current = (existing?.value as Record<string, unknown> | null) || {};
+
+        const value: Record<string, unknown> = { ...current };
+        if (publishable_key !== undefined) {
+            if (publishable_key.length > 0) value.publishable_key = publishable_key;
+            else delete value.publishable_key;
+        }
+        if (secret_key !== undefined) {
+            if (secret_key.length > 0) value.secret_key = secret_key;
+            else delete value.secret_key;
+        }
+        if (webhook_secret !== undefined) {
+            if (webhook_secret.length > 0) value.webhook_secret = webhook_secret;
+            else delete value.webhook_secret;
+        }
+        if (enabled !== undefined) value.enabled = enabled;
+        else if (value.enabled === undefined) value.enabled = true;
+
         const { error } = await supabase
             .from('clinic_settings')
-            .upsert({
-                key: 'stripe_settings',
-                value: { publishable_key, secret_key, enabled: enabled ?? true },
-            }, { onConflict: 'key' });
+            .upsert({ key: 'stripe_settings', value }, { onConflict: 'key' });
 
         if (error) {
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
 
-        return NextResponse.json({ ok: true, secret_key_masked: maskKey(secret_key) });
+        return NextResponse.json({
+            ok: true,
+            secret_key_masked: maskKey(typeof value.secret_key === 'string' ? value.secret_key : null),
+            webhook_secret_masked: maskWebhookSecret(typeof value.webhook_secret === 'string' ? value.webhook_secret : null),
+        });
     } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Unknown error';
         return NextResponse.json({ error: message }, { status: 500 });

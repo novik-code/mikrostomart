@@ -30,23 +30,27 @@ import { markOrderPaid, markOrderTerminal } from "@/lib/paymentWebhooks";
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
-    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-    if (!webhookSecret) {
-        console.error("[Stripe webhook] STRIPE_WEBHOOK_SECRET not configured");
-        return NextResponse.json({ error: "Webhook not configured" }, { status: 503 });
-    }
-
     const signature = req.headers.get("stripe-signature");
     if (!signature) {
         console.error("[Stripe webhook] Missing stripe-signature header");
         return NextResponse.json({ error: "Missing signature" }, { status: 400 });
     }
 
+    // Both secret_key (for the Stripe SDK) and webhook_secret (for
+    // constructEvent) come from getStripeConfig — DB first, env fallback.
+    // After S2-3-bis the admin can paste the webhook signing secret in
+    // /admin → Stripe tab; before that we still read from env so existing
+    // deployments keep working.
     const config = await getStripeConfig();
     if (!config.secretKey) {
         console.error("[Stripe webhook] Stripe API secret not configured");
         return NextResponse.json({ error: "Stripe not configured" }, { status: 503 });
     }
+    if (!config.webhookSecret) {
+        console.error("[Stripe webhook] Webhook signing secret not configured (DB or STRIPE_WEBHOOK_SECRET env)");
+        return NextResponse.json({ error: "Webhook not configured" }, { status: 503 });
+    }
+    const webhookSecret = config.webhookSecret;
     const stripe = new Stripe(config.secretKey);
 
     let event: Stripe.Event;
