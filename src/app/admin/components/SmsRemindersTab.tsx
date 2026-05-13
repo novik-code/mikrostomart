@@ -102,6 +102,32 @@ export default function SmsRemindersTab() {
         }
     };
 
+    const handleResetConfirmation = async (appointmentActionId: string, patientName: string) => {
+        if (!confirm(
+            `Cofnąć potwierdzenie obecności dla:\n\n${patientName}\n\n` +
+            `Po cofnięciu pacjent będzie mógł ponownie kliknąć link SMS.\n` +
+            `UWAGA: ikona uśmiechu w Prodentis pozostanie — usuń ją ręcznie w grafiku.`
+        )) return;
+
+        try {
+            const res = await fetch('/api/admin/appointments/reset-confirmation', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ appointment_action_id: appointmentActionId })
+            });
+
+            const data = await res.json();
+            if (res.ok) {
+                fetchSmsReminders();
+                alert(`✅ ${data.message || 'Potwierdzenie cofnięte'}`);
+            } else {
+                alert(`❌ Błąd: ${data.error || 'Nieznany błąd'}`);
+            }
+        } catch (err) {
+            alert(`❌ Błąd sieci: ${err instanceof Error ? err.message : 'unknown'}`);
+        }
+    };
+
     const handleDeleteAllDrafts = async () => {
         if (!confirm(`Usunąć wszystkie szkice SMS (${smsStats.draft})?`)) return;
 
@@ -978,14 +1004,34 @@ export default function SmsRemindersTab() {
                                                                 📞 {sms.phone} {appointmentTime && `• ⏰ ${appointmentTime}`} • 👨‍⚕️ {sms.doctor_name}
                                                             </div>
                                                         </div>
-                                                        <span style={{
-                                                            padding: "0.2rem 0.5rem",
-                                                            borderRadius: "4px",
-                                                            fontSize: "0.75rem",
-                                                            background: sms.status === 'sent' ? '#4caf50' : '#f44336',
-                                                            color: 'white',
-                                                            alignSelf: 'flex-start'
-                                                        }}>{sms.status}</span>
+                                                        <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                                                            {sms.attendance_confirmed ? (
+                                                                <span title={sms.attendance_confirmed_at ? `Kliknięte: ${new Date(sms.attendance_confirmed_at).toLocaleString('pl-PL')}` : 'Pacjent potwierdził obecność'} style={{
+                                                                    padding: "0.2rem 0.5rem",
+                                                                    borderRadius: "4px",
+                                                                    fontSize: "0.75rem",
+                                                                    background: '#10b981',
+                                                                    color: 'white',
+                                                                    fontWeight: 600,
+                                                                }}>✅ Pacjent kliknął</span>
+                                                            ) : sms.status === 'sent' ? (
+                                                                <span title="SMS wysłany, pacjent jeszcze nie kliknął linku" style={{
+                                                                    padding: "0.2rem 0.5rem",
+                                                                    borderRadius: "4px",
+                                                                    fontSize: "0.75rem",
+                                                                    background: 'rgba(255,255,255,0.08)',
+                                                                    color: 'var(--color-text-muted)',
+                                                                    border: '1px dashed var(--color-border)',
+                                                                }}>○ Brak kliknięcia</span>
+                                                            ) : null}
+                                                            <span style={{
+                                                                padding: "0.2rem 0.5rem",
+                                                                borderRadius: "4px",
+                                                                fontSize: "0.75rem",
+                                                                background: sms.status === 'sent' ? '#4caf50' : '#f44336',
+                                                                color: 'white',
+                                                            }}>{sms.status}</span>
+                                                        </div>
                                                     </div>
 
                                                     <div style={{ padding: "0.75rem", background: "var(--color-background)", borderRadius: "4px", marginBottom: "0.75rem", fontSize: "0.88rem", lineHeight: "1.6" }}>
@@ -997,6 +1043,13 @@ export default function SmsRemindersTab() {
                                                             onClick={() => handleResendSms(sms)}
                                                             style={{ padding: "0.4rem 0.9rem", background: "var(--color-primary)", border: "none", borderRadius: "4px", color: "black", cursor: "pointer", fontWeight: "bold", fontSize: "0.85rem" }}
                                                         >🔄 Wyślij ponownie</button>
+                                                        {sms.attendance_confirmed && sms.appointment_action_id && (
+                                                            <button
+                                                                onClick={() => handleResetConfirmation(sms.appointment_action_id, sms.patient_name || sms.phone)}
+                                                                title="Resetuje potwierdzenie obecności w bazie. Umożliwia retest tego samego linku SMS. Ikona w Prodentis pozostaje — usuń ręcznie."
+                                                                style={{ padding: "0.4rem 0.9rem", background: "#f59e0b", border: "none", borderRadius: "4px", color: "white", cursor: "pointer", fontSize: "0.85rem", fontWeight: 600 }}
+                                                            >↩️ Cofnij potwierdzenie</button>
+                                                        )}
                                                         <button
                                                             onClick={() => handleDeleteSms(sms.id)}
                                                             style={{ padding: "0.4rem 0.9rem", background: "var(--color-error)", border: "none", borderRadius: "4px", color: "white", cursor: "pointer", fontSize: "0.85rem" }}

@@ -71,6 +71,46 @@ export async function GET(req: Request) {
             throw new Error(`Failed to fetch reminders: ${error.message}`);
         }
 
+        // Enrich each SMS with confirmation status from appointment_actions.
+        // The two tables share (prodentis_id, appointment_date) — both are upserted
+        // by /api/cron/appointment-reminders for the same Prodentis appointment.
+        // We batch this to avoid N+1 — one IN() query for all SMS prodentis_ids.
+        const prodentisIds = Array.from(
+            new Set((reminders || []).map(r => r.prodentis_id).filter(Boolean))
+        );
+        const actionByKey = new Map<string, {
+            id: string;
+            attendance_confirmed: boolean;
+            attendance_confirmed_at: string | null;
+            status: string | null;
+        }>();
+        if (prodentisIds.length > 0) {
+            const { data: actions } = await supabase
+                .from('appointment_actions')
+                .select('id, prodentis_id, appointment_date, attendance_confirmed, attendance_confirmed_at, status')
+                .in('prodentis_id', prodentisIds);
+            (actions || []).forEach((a: any) => {
+                // Match by prodentis_id + appointment_date (unique together)
+                actionByKey.set(`${a.prodentis_id}|${a.appointment_date}`, {
+                    id: a.id,
+                    attendance_confirmed: !!a.attendance_confirmed,
+                    attendance_confirmed_at: a.attendance_confirmed_at,
+                    status: a.status,
+                });
+            });
+        }
+        const enrichedReminders = (reminders || []).map((r: any) => {
+            const key = `${r.prodentis_id}|${r.appointment_date}`;
+            const action = actionByKey.get(key);
+            return {
+                ...r,
+                appointment_action_id: action?.id || null,
+                attendance_confirmed: action?.attendance_confirmed || false,
+                attendance_confirmed_at: action?.attendance_confirmed_at || null,
+                appointment_action_status: action?.status || null,
+            };
+        });
+
         // Get stats
         const { data: allReminders } = await supabase
             .from('sms_reminders')
@@ -85,7 +125,7 @@ export async function GET(req: Request) {
         };
 
         return NextResponse.json({
-            reminders: reminders || [],
+            reminders: enrichedReminders,
             stats
         });
 
