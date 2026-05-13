@@ -74,44 +74,21 @@ export async function POST(req: NextRequest) {
         }
 
         if (order.status === "pending") {
-            // S2-2 → S2-3 bridge: until verified webhooks land in S2-3,
-            // accept the return URL as proof of payment IF the provider had
-            // already taken our order (provider_order_id is set). This keeps
-            // emails flowing during the transition. S2-3 will replace this
-            // with a Stripe constructEvent / PayU OpenPayU-Signature /
-            // P24 verify step and remove this branch.
-            if (order.provider_order_id) {
-                const { error: bridgeErr } = await supabase
-                    .from("orders")
-                    .update({
-                        status: "paid",
-                        amount_paid: order.amount_total,
-                    })
-                    .eq("id", orderId)
-                    .eq("status", "pending"); // optimistic — don't clobber a webhook that beat us
-                if (bridgeErr) {
-                    console.error("[OrderConfirm] Bridge update failed:", bridgeErr);
-                } else {
-                    console.warn(
-                        `[OrderConfirm] S2-2 BRIDGE: marked order ${orderId} as paid without webhook signature verification. S2-3 will close this.`
-                    );
-                    order.status = "paid";
-                    order.amount_paid = order.amount_total;
-                }
-            } else {
-                // No provider id yet means the user is hitting this endpoint
-                // before Stripe/PayU/P24 even accepted the order — definitely
-                // not paid. Tell the frontend to retry.
-                return NextResponse.json(
-                    {
-                        success: false,
-                        pending: true,
-                        message: "Czekam na potwierdzenie z bramki płatności",
-                        orderId,
-                    },
-                    { status: 202 }
-                );
-            }
+            // S2-3 onwards: status='paid' lands ONLY through a verified webhook
+            // (Stripe-Signature constructEvent / PayU OpenPayU-Signature /
+            // P24 sign + remote verify). The webhook usually arrives before
+            // the user finishes their redirect, but there's a small window —
+            // tell the frontend to retry/poll. The S2-2 bridge that set paid
+            // from this endpoint without verification has been removed.
+            return NextResponse.json(
+                {
+                    success: false,
+                    pending: true,
+                    message: "Czekam na potwierdzenie z bramki płatności",
+                    orderId,
+                },
+                { status: 202 }
+            );
         }
 
         if (order.status === "failed" || order.status === "cancelled") {

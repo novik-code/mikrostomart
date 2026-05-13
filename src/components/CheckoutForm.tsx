@@ -233,8 +233,10 @@ export default function CheckoutForm({ onSuccess, initialValues }: CheckoutFormP
     };
 
     // Callback when Stripe payment succeeds — confirm via orderId.
-    // Server reads status from orders table (S2-3 webhook), no amount/items
-    // sent in this body anymore.
+    // Server reads status from orders table (S2-3 webhook sets 'paid');
+    // the Stripe webhook usually fires within 1–3s of the PaymentIntent
+    // succeeding, but can lag. Fire-and-poll: don't block the success UI,
+    // retry the confirmation up to ~20s on 202 (pending).
     const handlePaymentSuccess = async (_paymentIntentId: string) => {
         if (!orderId) {
             console.error('[Checkout] handlePaymentSuccess called without orderId');
@@ -243,15 +245,25 @@ export default function CheckoutForm({ onSuccess, initialValues }: CheckoutFormP
             return;
         }
 
-        try {
-            await fetch('/api/order-confirmation', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ orderId, customerDetails: formData }),
-            });
-        } catch (e) {
-            console.error("Failed to trigger order confirmation:", e);
-        }
+        (async () => {
+            const POLL_INTERVAL_MS = 2000;
+            const MAX_ATTEMPTS = 10;
+            for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+                try {
+                    const res = await fetch('/api/order-confirmation', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ orderId, customerDetails: formData }),
+                    });
+                    if (res.status !== 202) return; // 200 (paid) or 4xx terminal — stop
+                } catch (e) {
+                    console.error('[Checkout] order-confirmation retry error:', e);
+                }
+                if (attempt < MAX_ATTEMPTS) {
+                    await new Promise(r => setTimeout(r, POLL_INTERVAL_MS));
+                }
+            }
+        })();
 
         clearCart();
         onSuccess();

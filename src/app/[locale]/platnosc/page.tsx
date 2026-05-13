@@ -13,20 +13,45 @@ function PaymentStatus() {
     const isSuccess = status === 'return' || status === 'success';
     const isCancelled = status === 'cancel' || status === 'error';
 
-    // Trigger /api/order-confirmation once for PayU/P24 return URL.
-    // The server reads orders.status (which the webhook updates) or applies
-    // the S2-2 bridge if provider_order_id is set but status still pending.
-    // Sends notifications/emails; safe to retry (idempotent on status='paid').
+    // Trigger /api/order-confirmation for PayU/P24 return URL. The server
+    // reads orders.status — after S2-3 this only flips to 'paid' once the
+    // verified webhook fires, which can lag the user's redirect by 1–10s.
+    // So we poll: retry every 2s up to ~20s, stop on first success or
+    // explicit failure. Safe to repeat (markOrderPaid + email path are
+    // idempotent on status='paid').
     const confirmFired = useRef(false);
     useEffect(() => {
         if (confirmFired.current) return;
         if (!isSuccess || !orderId) return;
         confirmFired.current = true;
-        fetch('/api/order-confirmation', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ orderId }),
-        }).catch(err => console.error('[Platnosc] order-confirmation error:', err));
+
+        let cancelled = false;
+        const POLL_INTERVAL_MS = 2000;
+        const MAX_ATTEMPTS = 10; // ~20s total
+        let attempts = 0;
+
+        const tick = async () => {
+            if (cancelled) return;
+            attempts += 1;
+            try {
+                const res = await fetch('/api/order-confirmation', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ orderId }),
+                });
+                if (res.status === 202 && attempts < MAX_ATTEMPTS) {
+                    // Webhook hasn't fired yet; retry shortly
+                    setTimeout(tick, POLL_INTERVAL_MS);
+                }
+                // 200 (paid) / 4xx (terminal) / max attempts → stop
+            } catch (err) {
+                console.error('[Platnosc] order-confirmation error:', err);
+                if (attempts < MAX_ATTEMPTS) setTimeout(tick, POLL_INTERVAL_MS);
+            }
+        };
+
+        tick();
+        return () => { cancelled = true; };
     }, [isSuccess, orderId]);
 
     return (
