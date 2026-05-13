@@ -1,6 +1,8 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-13 EOD (**🚨 HOTFIX SPRINT — S2 4.5/5 DONE: pełen payment integrity działa w prod na real money**. Marcin zrobił live Stripe BLIK 2 PLN — end-to-end pipeline od koszyka do `orders.status='paid'` zadziałał po 2 fixach (Test→Live mode webhook + apex→www URL). Order `1423061e-65a1-4dbc-9d68-b03594967760`, PI `pi_3TWXW13hsbyR4nR90tsUVFoJ`. **Bug 1**: Stripe Dashboard ma osobne webhook lists per Test/Live mode (toggle prawy górny róg). **Bug 2**: apex `mikrostomart.pl` robi 307 redirect do `www.mikrostomart.pl`, Stripe NIE follow'uje redirectów dla POST (signed body integrity). Marcin Live webhook + URL z www → Resend evt_3TWXW1 → success. Commit `da93c1f` doc updates: `/admin → Stripe` callout `(z www!)`, `/api/stripe-webhook` header docstring z `^^^ www IS MANDATORY`, S2_5_E2E_CHECKLIST.md troubleshooting tabela. **Audit zamknięte przez Sprint 2**: P0-06 (client amount, S2-2), P0-07 (PayU webhook signature, S2-3), P1-04 (status z klienta, S2-4). **S2-5 status**: ✅ Test 1 (Stripe live), ⏳ Test 2-6 (PayU/P24 sandbox + 4 fraud + email idempotency + polling — Marcin może zrobić w wolnym czasie, NIE blokuje S3). **Migracja 122 status**: niepotwierdzony — AI zapyta na początku S3 (Stripe payment nie wymagał notified_at, ale `/api/order-confirmation` polling tak; jeśli kolumna nie istnieje endpoint zwróci 500). **Next: S3 UX rezerwacji** — Marcin wybiera A (progress bar)/B (hint)/C (skip). Plan: `~/Desktop/bałagan/PLAN_HOTFIX_SPRINT.md`. Status tracker: `~/Desktop/bałagan/PLAN_HOTFIX_STATUS.md`.)  
+> **Last Updated:** 2026-05-13 EOD (**🚨 HOTFIX SPRINT — S3 DONE: reservation security + integrity hardening (S3 redefined)**. Po Marcinowej weryfikacji audytora UX okazało się, że formularz `/rezerwacja` JEST spięty z Prodentis (oryginalny finding "brak pól na termin" niepoprawny — picker dat/godzin pojawia się po wyborze specjalisty). Zamiast kosmetyki UX Marcin zrobił 6 realnych poprawek (commit `ace0dfa`): rate limit /api/reservations 5/min + /api/prodentis/slots 30/min, server-side slot revalidation (re-query Prodentis przy POST, 409 jeśli slot zajęty, graceful gdy Prodentis down), demo mode guard (mock slots + skip Telegram/email/push/Prodentis writes), idempotency dedup phone+date+time 60s, telefon w fallback komunikacie AppointmentScheduler, submit disabled + hint chooseSpecialistFirst i18n w 4 locale do wyboru specjalisty/data/godzina. Plus basic server-side input validation (regex date/time + past-check + phone length). **Next: S4 XSS + public hardening** (~2-3 dni, 5 sesji, P0-08 + P0-09 + P1-02 + P1-03 + P1-07).)  
+
+<!-- Poprzednia: 2026-05-13 EOD (**🚨 HOTFIX SPRINT — S2 4.5/5 DONE: pełen payment integrity działa w prod na real money**. Stripe live BLIK 2 PLN end-to-end, 2 webhook fixy (Test→Live mode + apex→www URL). Audit zamknięte: P0-06+P0-07+P1-04.
 
 <!-- Poprzednia: 2026-05-13 (**🚨 HOTFIX SPRINT — S2-4 DONE: order-confirmation read-only + email idempotency**.
 
@@ -2467,6 +2469,73 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-13 EOD — Hotfix Sprint S3: Reservation security + integrity hardening (S3 redefined)
+
+#### Commits:
+- `ace0dfa` — fix(reservation): security + integrity hardening (Hotfix S3 redefined)
+
+#### Tło — redefinicja S3:
+Audyt UX zauważył że "formularz rezerwacji nie ma pól na termin". Marcin poprosił o weryfikację przed implementacją. Pełen audit (Explore agent + ręczny review) wykazał:
+- Formularz `/rezerwacja` JEST spięty z Prodentis przez `/api/prodentis/slots` (Cloudflare Tunnel `pms.mikrostomartapi.com`) i `POST /api/reservations` (patient search/create + email + Telegram + push)
+- Date/time picker (`AppointmentScheduler`) pojawia się **po wyborze specjalisty** (linia 401 ReservationForm.tsx: `{selectedSpecialist && <AppointmentScheduler...>`)
+- Brak dead code / starych ścieżek rezerwacji — Navbar (6×), Footer (2×), sitemap.ts wszystkie wskazują tylko na `/rezerwacja`
+- Brak hardcoded linków do booksy/znanylekarz/docplanner/prodentis subdomain
+- Wszystkie 4 locale (pl/en/de/ua) kompletne `reservationForm` keys
+
+**Audytor patrzył przed wyborem specjalisty i przegapił conditional flow.**
+
+Zamiast kosmetyki UX (4-step progress bar / hint / skip) Marcin wybrał wszystkie 6 realnych poprawek wykrytych podczas audytu — bezpieczeństwo i integrity.
+
+#### Co się zmieniło:
+
+1. **Rate limit (`@/lib/rateLimit`)**
+   - `POST /api/reservations` → 5/min per IP, 429 z Retry-After 60
+   - `GET /api/prodentis/slots` → 30/min per IP (form fetchuje 5 dni w paralelu = 30 wystarczy na 6 week clicks/min)
+   - Klucze: `reservation:IP` i `slots:IP` (persistent via Supabase `rate_limit_entries`, fallback in-memory)
+
+2. **Server-side slot validation** (`/api/reservations`)
+   - Po basic validation re-query Prodentis dla request date (duration 30)
+   - Sprawdza czy submitted time slot (`HH:MM`) jest w returned ISO slot.start
+   - Jeśli nie: 409 "Requested slot is no longer available"
+   - Graceful fallback: jeśli Prodentis offline/timeout → log warning + allow przejść (żeby Prodentis hiccup nie blokował legitnych użytkowników)
+
+3. **Demo mode guard**
+   - `/api/prodentis/slots`: jeśli `isDemoMode` → return synthetic 5 slots (10:00, 10:30, 11:00, 11:30, 12:00 dla Marcina) na requested date — demo flow działa bez hittowania prod Prodentis
+   - `/api/reservations`: jeśli `isDemoMode` → skip Telegram (`sendTelegramNotification`), skip patient/admin emails, skip `broadcastPush('admin'/'employee')`, skip cały OnlineBooking section (Prodentis patient search/create + intake token)
+   - Save do DB i Supabase nadal działa — demo demonstruje "your reservation was saved" UX
+
+4. **Idempotency dedup** (`/api/reservations`)
+   - Przed insert: SELECT z `reservations` gdzie `phone+date+time` w ostatnich 60s
+   - Jeśli istnieje → return `{success: true, duplicate: true}` (idempotent response)
+   - Non-fatal: jeśli dedup query failuje, log warning, normalna ścieżka
+
+5. **Telefon w fallback komunikacie** (`AppointmentScheduler.tsx`)
+   - Import `brand` z `@/lib/brandConfig`
+   - Komunikat error: `"Nie udało się pobrać terminów. Spróbuj później lub zadzwoń: ${brand.phone1} / ${brand.phone2}."`
+   - Pacjent widzi numer (`570-270-470` / `570-810-800`) zamiast samego "zadzwoń"
+
+6. **Submit disabled + hint** (`ReservationForm.tsx`)
+   - Submit button: `disabled={isSubmitting || !rodoConsent || !selectedSpecialistId || !selectedDate || !selectedTime}`
+   - Hint inline (italic, muted, centered) gdy specialist/date/time pusty: `t('chooseSpecialistFirst')`
+   - i18n key `chooseSpecialistFirst` w pl/en/de/ua
+
+7. **Basic server-side input validation** (`/api/reservations`)
+   - `date` regex `^\d{4}-\d{2}-\d{2}$`, `time` regex `^\d{2}:\d{2}$`, requested datetime not in past (5min grace), phone length ≥9
+   - 400 z opisem błędu jeśli walidacja failuje (przed jakimkolwiek DB write / Prodentis call)
+
+#### Pliki:
+- `src/app/api/reservations/route.ts` (+86/-9): rate limit, input validation, idempotency, slot revalidation, demo guards
+- `src/app/api/prodentis/slots/route.ts` (+25/-2): rate limit, demo mock slots, regex validation
+- `src/components/ReservationForm.tsx` (+12/-2): disabled submit + hint
+- `src/components/scheduler/AppointmentScheduler.tsx` (+2/-1): import brand, phone w error
+- `messages/{pl,en,de,ua}/common.json`: `chooseSpecialistFirst` key
+
+#### Audit nie były to konkretne findings z RAPORT_AUDYT — to były problemy odkryte w trakcie weryfikacji S3. Mogą jednak być rozważane jako pre-emptive cover dla:
+- DoS-style spam (rate limit)
+- Slot manipulation via crafted POST (slot revalidation)
+- Demo→prod data contamination (demo guard)
+- Form double-submit (idempotency)
 
 ### 2026-05-13 EOD — S2-5 Test 1: Stripe live BLIK 2 PLN end-to-end + 2 critical webhook fixes
 
