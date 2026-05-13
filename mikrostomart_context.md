@@ -1,6 +1,8 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-13 (**🚨 HOTFIX SPRINT — S2-3 DONE: verified webhook signatures**. `orders.status='paid'` ustawia się WYŁĄCZNIE przez verified provider webhook. **PayU P0-07 fix**: usunięte short-circuit `signatureHeader && !verify` (brak nagłówka był silently accepted). **Stripe webhook NEW** `/api/stripe-webhook` z `constructEvent(body, sig, STRIPE_WEBHOOK_SECRET)`. **P24** dwustopniowy verify (lokalna SHA-384 + remote `/transaction/verify`). Helper `src/lib/paymentWebhooks.ts` z `markOrderPaid` (idempotency + amount equality + optimistic UPDATE chroniący przed race conditions). **S2-2 bridge usunięty** z order-confirmation — pending → 202. `/platnosc` + Stripe success callback polling co 2s × 10 prób (~20s). Commit `65f0ae3`, 10 plików, +525/-141. **Marcin manual step**: Stripe Dashboard → Webhooks → Add endpoint `/api/stripe-webhook` (events PI succeeded/failed/canceled) → copy Signing Secret → Vercel env `STRIPE_WEBHOOK_SECRET=whsec_...` (oba projekty × Prod+Preview). PayU/P24 secrets już są w `clinic_settings`. **Next: S2-4 order-confirmation cleanup** (read-only, idempotency notyfikacji przez `notified_at` migracja 122). Wcześniej S2-2 (`600a242`), S2-1 (`e44fc30`). Plan: `~/Desktop/bałagan/PLAN_HOTFIX_SPRINT.md`.)  
+> **Last Updated:** 2026-05-13 (**🚨 HOTFIX SPRINT — S2-4 DONE: order-confirmation read-only + email idempotency**. `/api/order-confirmation` jest teraz pełen read-only na orders (poza atomic `notified_at` lock dla email idempotency). Atomic UPDATE `WHERE id = $1 AND notified_at IS NULL` — pierwszy poll z 10× retry w `/platnosc` + CheckoutForm wygrywa race, kolejne dostają 200 `alreadyNotified: true` + skip email/Telegram/push. **Migracja 122** `orders.notified_at TIMESTAMPTZ` + partial index (wgraj na OBU Supabase). Body order-confirmation shrunk do `{orderId, locale?}` — `customerDetails` usunięte (są w `orders.customer_details` z S2-2 calculate-total). Cleanup stub `TODO: Mark order as paid` komentarze w webhooks. Commit `95b5c5b`, 7 plików. **Stripe webhook bonus**: `STRIPE_WEBHOOK_SECRET` można też zmieniać z panelu admin (commit `c51f764`) — pattern jak Prodentis/PMS w S1-bis. **Marcin manual step**: wgraj migrację 122 na OBU Supabase (`~/Desktop/migracje_supabase/migracja_122_orders_notified_at.txt`) PRZED S2-5 testem. **Next: S2-5 E2E sandbox test** (Marcin manual, ~30-45 min, checklist w `~/Desktop/bałagan/S2_5_E2E_CHECKLIST.md`). Wcześniej S2-3 (`65f0ae3` verified webhooks), S2-2 (`600a242`), S2-1 (`e44fc30`). Sprint 2 — 4/5 sesji done. Plan: `~/Desktop/bałagan/PLAN_HOTFIX_SPRINT.md`.)  
+
+<!-- Poprzednia: 2026-05-13 (**🚨 HOTFIX SPRINT — S2-3 DONE: verified webhook signatures**.
 
 
 > **Version:** Production + Demo (Dual Vercel Deployment)  
@@ -2463,6 +2465,82 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-13 — Hotfix Sprint S2-4: order-confirmation read-only + notified_at email idempotency
+
+**Closes the request side of order-confirmation. Nothing on the response path writes to `orders` apart from a one-shot `notified_at` flip used as an email lock.**
+
+#### Commits
+- `95b5c5b` feat(payment): S2-4 order-confirmation read-only + notified_at email idempotency
+- (Bonus z poprzedniej sesji) `c51f764` feat(stripe): webhook signing secret manageable from admin panel — DB-first jak Prodentis w S1-bis. Marcin może rotować `STRIPE_WEBHOOK_SECRET` z `/admin → Stripe`.
+
+#### Migracja 122
+- `supabase_migrations/122_orders_notified_at.sql` [NEW] — idempotent
+- Dodaje `orders.notified_at TIMESTAMPTZ`
+- Partial index `WHERE status='paid'` dla monitoringu "paid but never notified"
+- Kopia: `~/Desktop/migracje_supabase/migracja_122_orders_notified_at.txt`
+- **🚨 Marcin manual step**: wgraj na obu projektach Supabase (produkcja + demo) PRZED S2-5 testem. Bez tego order-confirmation zwróci 500.
+
+#### Co się zmieniło w `/api/order-confirmation`
+- **Atomic notified_at lock**:
+  ```sql
+  UPDATE orders SET notified_at = NOW()
+  WHERE id = $1 AND notified_at IS NULL
+  RETURNING id
+  ```
+  Pierwszy parallel poll wygrywa race, kolejne dostają 200 `alreadyNotified: true` + skip wszystkie side-effects (email/Telegram/push).
+- **Body shrunk** do `{ orderId, locale? }` — `customerDetails` usunięte (są w `orders.customer_details` z S2-2 calculate-total).
+- **Read-only na orders** poza notified_at lock. Wszystkie inne pola czytane z DB row utworzonej w calculate-total.
+
+#### Dlaczego email idempotency był potrzebny
+S2-3 polling:
+- `/platnosc` useEffect: 10× co 2s na 202 (PayU/P24 return URL)
+- `CheckoutForm.handlePaymentSuccess`: same 10× polling (Stripe embedded form)
+
+Race condition (typical Stripe timing):
+```
+T+0s    User klika "Pay" w Stripe → frontend success callback
+T+0s    handlePaymentSuccess poll #1 → POST /order-confirmation → 202 (status pending)
+T+2s    Stripe webhook → markOrderPaid → status='paid'
+T+2s    handlePaymentSuccess poll #2 → POST /order-confirmation → 200 (paid) → SEND email
+T+4s    handlePaymentSuccess poll #3 → POST /order-confirmation → 200 (paid) → SEND email ← duplicate!
+```
+
+Po S2-4:
+```
+T+2s    poll #2 → atomic UPDATE notified_at → RETURNING id → got row → SEND email
+T+4s    poll #3 → atomic UPDATE notified_at → RETURNING id → empty (already set) → 200 alreadyNotified
+```
+
+#### Cleanup
+- Stub `// TODO: Mark order as paid` komentarze w docstrings `payu/webhook` i `p24/webhook` (legacy z pre-S2-3 — markOrderPaid jest wired up od S2-3)
+- Frontend `CheckoutForm.handlePaymentSuccess`: body bez `customerDetails` (komentarz dokumentuje "S2-4: orderId only — customer details are already on the orders row")
+
+#### Audit zamknięty
+- **P0-06** — `/api/order-confirmation` już całkowicie izolowane od mutacji `orders.status` i `orders.customer_details`. Nie da się sfałszować zamówienia.
+
+#### Bonus z poprzedniej sesji (commit `c51f764`)
+- **Stripe webhook secret w panelu admin** — `STRIPE_WEBHOOK_SECRET` można rotować z `/admin → Stripe → Webhook Signing Secret` zamiast Vercel env. Pattern jak Prodentis w S1-bis (DB-first, env fallback). UI z masked display + procedurą setup (link do Stripe Dashboard `>_ Developers`).
+- `stripeService.ts`: `getStripeConfig()` zwraca `webhookSecret` + `webhookSource` (`db | env | none`). API keys i webhook secret resolve niezależnie — jeśli różne źródła → `source: 'mixed'`.
+
+#### Wyniki
+- `npm test`: 15/15
+- `npm run build`: clean
+- `grep "S2-2 BRIDGE" / "TODO.*Mark.*paid"` w src/: 0 hits ✅
+
+#### Sprint 2 status: 4/5 sesji done
+- ✅ S2-1: migracja 121 (`e44fc30`)
+- ✅ S2-2: server-side cart total (`600a242`)
+- ✅ S2-3: verified webhook signatures (`65f0ae3`) + bonus `c51f764` Stripe webhook secret w admin
+- ✅ S2-4: order-confirmation cleanup + email idempotency (`95b5c5b`)
+- ⏳ **S2-5: Manual sandbox test** — checklist w `~/Desktop/bałagan/S2_5_E2E_CHECKLIST.md`, ~30-45 min Marcin
+
+#### Co dla Marcina
+1. **Wgraj migrację 122** na OBU projektach Supabase (`~/Desktop/migracje_supabase/migracja_122_orders_notified_at.txt`) — bez tego order-confirmation zwróci 500
+2. **Stripe webhook setup** (jeśli jeszcze nie zrobione): Stripe Dashboard → Developers → Webhooks → Add endpoint LUB użyj nowego pola w `/admin → Stripe → Webhook Signing Secret`
+3. **Sandbox test** wg `S2_5_E2E_CHECKLIST.md` — 6 testów, zaraportuj wyniki
+
+---
 
 ### 2026-05-13 — Hotfix Sprint S2-3: Verified webhook signatures (audit P0-07 closed, bridge removed)
 
