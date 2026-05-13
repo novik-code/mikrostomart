@@ -1,8 +1,6 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-13 EOD #3 (**🚨 HOTFIX SPRINT — S4-1 DONE: WYSIWYG sanitization z DOMPurify (P0-08)**. Audit ujawnił że scope P0-08 jest szerszy niż plan — Marcin wybrał Maximum scope. Commit `d3af6be`: nowy `src/lib/sanitize.ts` (sanitizeRichHtml + sanitizeStrictHtml + sanitizeJsonHtmlFields z hook'iem rel=noopener noreferrer dla target=_blank), 28 unit testów XSS payloads w `src/lib/__tests__/sanitize.test.ts` (script, svg, iframe, event handlers, javascript:/data: URLs, polyglots — 43/43 testów green w pełnym suite). Defense-in-depth: sanityzacja przy SAVE w 5 admin endpointach (appointment-instructions, blog POST+PUT+translated-insert, news POST+PUT z content+content_en/de/ua, sections via JSON walk, page-overrides via JSON walk) ORAZ przy RENDER w 5 miejscach (wizyta/[type], nowosielski/[slug] z zachowaniem WP entity decoding, HomeClient TextBlockSection, EmailTab z aliasem sanitizeHtml→sanitizeRichHtml usuwającym home-brew regex, AppointmentInstructionsEditor contentEditable + preview). DOMPurify gotcha: `ALLOWED_URI_REGEXP` waliduje WSZYSTKIE wartości atrybutów (też `target="_blank"`) — usunięta, bazujemy na defaults DOMPurify blokujących javascript:/data:/vbscript:. **Next: S4-2 CSP enforce** (~1h AI, audit Sentry violations + toggle Content-Security-Policy-Report-Only → enforce).)  
-
-<!-- Poprzednia: 2026-05-13 EOD #2 (**🚨 HOTFIX SPRINT — S3 DONE: reservation security + integrity hardening (S3 redefined)**. 6 realnych poprawek (rate limit + slot validation + demo guard + idempotency + phone fallback + disabled submit). Commit `ace0dfa`.
+> **Last Updated:** 2026-05-13 EOD (**🚨 HOTFIX SPRINT — S3 DONE: reservation security + integrity hardening (S3 redefined)**. Po Marcinowej weryfikacji audytora UX okazało się, że formularz `/rezerwacja` JEST spięty z Prodentis (oryginalny finding "brak pól na termin" niepoprawny — picker dat/godzin pojawia się po wyborze specjalisty). Zamiast kosmetyki UX Marcin zrobił 6 realnych poprawek (commit `ace0dfa`): rate limit /api/reservations 5/min + /api/prodentis/slots 30/min, server-side slot revalidation (re-query Prodentis przy POST, 409 jeśli slot zajęty, graceful gdy Prodentis down), demo mode guard (mock slots + skip Telegram/email/push/Prodentis writes), idempotency dedup phone+date+time 60s, telefon w fallback komunikacie AppointmentScheduler, submit disabled + hint chooseSpecialistFirst i18n w 4 locale do wyboru specjalisty/data/godzina. Plus basic server-side input validation (regex date/time + past-check + phone length). **Next: S4 XSS + public hardening** (~2-3 dni, 5 sesji, P0-08 + P0-09 + P1-02 + P1-03 + P1-07).)  
 
 <!-- Poprzednia: 2026-05-13 EOD (**🚨 HOTFIX SPRINT — S2 4.5/5 DONE: pełen payment integrity działa w prod na real money**. Stripe live BLIK 2 PLN end-to-end, 2 webhook fixy (Test→Live mode + apex→www URL). Audit zamknięte: P0-06+P0-07+P1-04.
 
@@ -2471,57 +2469,6 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
-
-### 2026-05-13 EOD #3 — Hotfix Sprint S4-1: WYSIWYG sanitization z DOMPurify (P0-08)
-
-#### Commits:
-- `d3af6be` — feat(security): S4-1 WYSIWYG sanitization with DOMPurify (P0-08)
-
-#### Tło:
-Plan S4-1 zakładał tylko `/api/admin/appointment-instructions` + `/wizyta/[type]`. Audit przed implementacją ujawnił, że **ten sam wzorzec (raw HTML w DB → `dangerouslySetInnerHTML` bez sanityzacji) występuje też w blogu, news (4 locale kolumny), sections homepage, page-overrides oraz w EmailTab (home-brew regex `sanitizeHtml` niewystarczający przeciw polyglotom)**. Marcin wybrał Maximum scope (Średni + news + page-overrides + unit testy XSS).
-
-#### Co się zmieniło:
-
-**Nowy `src/lib/sanitize.ts`** (101 LOC):
-- `sanitizeRichHtml(input)` — permissive whitelist: `p`, `h1-h6`, `b`/`i`/`em`/`strong`/`u`/`s`, `ul`/`ol`/`li`, `a[href|title|target|rel]`, `blockquote`, `code`, `pre`, `span`, `div`, `hr`, `sub`/`sup`. Strip: `script`, `iframe`, `style`, `link`, `meta`, `object`, `embed`, `form`, `input`, `button`, `svg`, `math`, `base`, `applet`, `frame`. Strip event handlers (`on*`), `style`, `srcdoc`, `formaction`, `xlink:href`. Strip data attributes. Domyślne DOMPurify blokuje `javascript:`/`data:`/`vbscript:` w `href`.
-- `sanitizeStrictHtml(input)` — inline-only: `b`/`i`/`em`/`strong`/`br`/`a`. Dla AI email drafts.
-- `sanitizeJsonHtmlFields(value)` — rekursywny walk przez JSON, sanityzuje tylko stringi przy kluczach z `HTML_FIELD_NAMES` (`content`, `html`, `body`, `description`, `text`, `content_en/de/ua`, `description_en/de/ua`). URL/tytuł/identyfikatory zostają nietknięte (nie HTML-entity-encoded).
-- Hook `afterSanitizeAttributes`: jeśli `<a target="_blank">` → wymuś `rel="noopener noreferrer"` (anty tab-nabbing).
-- **DOMPurify gotcha (rozwiązana)**: `ALLOWED_URI_REGEXP` waliduje WSZYSTKIE wartości atrybutów (włącznie z `target="_blank"`), nie tylko URI. Usunięta — bazujemy na default schemes blocking DOMPurify.
-
-**Unit testy** `src/lib/__tests__/sanitize.test.ts` (218 LOC, 28 testów):
-- XSS payloads: `<script>`, `onerror`, `<svg onload>`, `javascript:`, `data:text/html`, `<iframe>`, `<style>`, style attr, `<p onmouseover>`, polyglot `<svg><script>`, `<object>`/`<embed>`, `<form>`/`<input>`, `<meta refresh>`, `data-*`, `srcdoc`
-- Positive cases: headings/lists/formatting preserved, mailto/tel/relative/fragment URLs preserved, `target="_blank"` + forced `rel="noopener noreferrer"`, empty/null/non-string → `""`, plain text unchanged
-- sanitizeStrictHtml: block tags stripped, inline preserved, script/handlers stripped
-- sanitizeJsonHtmlFields: only known HTML field names sanitized (`content`/`description`), URLs untouched, nested arrays/objects walked, i18n `content_*` fields covered, primitives passed through
-- **Wynik**: 43/43 testów green w pełnym suite (28 sanitize + 11 brandConfig + 4 authGuards)
-
-**Save endpoints (layer 1 — sanityzacja przy INSERT/UPDATE)**:
-1. `src/app/api/admin/appointment-instructions/[type]/route.ts` PUT — `content: sanitizeRichHtml(content)`
-2. `src/app/api/admin/blog/route.ts` POST + PUT + translated-insert — `content` sanityzowany w 3 miejscach (PL insert, translation insert, PUT update)
-3. `src/app/api/admin/news/route.ts` POST + PUT — `content`, `content_en`, `content_de`, `content_ua` sanityzowane
-4. `src/app/api/admin/sections/route.ts` PUT — `sanitizeJsonHtmlFields(sections)` przed `saveSetting`
-5. `src/app/api/admin/page-overrides/route.ts` PUT — `sanitizeJsonHtmlFields(overrides)` przed `saveSetting`
-
-**Render sites (layer 2 — sanityzacja przy OUTPUT, defense-in-depth)**:
-1. `src/app/[locale]/wizyta/[type]/page.tsx` linia 393 — `__html: sanitizeRichHtml(instruction.content)`
-2. `src/app/[locale]/nowosielski/[slug]/page.tsx` — usunięto regex-based `cleanHtml` (style/class strip + script strip), zastąpione DOMPurify. Zachowana funkcja `decodeWpEntities` dla `&#8211;` → `–` itd. (legacy WP import compat)
-3. `src/app/[locale]/HomeClient.tsx` linia 335 — `TextBlockSection` `__html: sanitizeRichHtml(config.content)`
-4. `src/app/pracownik/components/EmailTab.tsx` — usunięto home-brew regex `sanitizeHtml(html)` (4 linie regex anty-script/event), zastąpione przez `const sanitizeHtml = sanitizeRichHtml` (alias — nie wymaga zmiany call-sites)
-5. `src/components/AppointmentInstructionsEditor.tsx` linie 372 + 497 — contentEditable initial value + landing preview sanityzowane
-
-#### Audit closure:
-- ✅ **P0-08 stored XSS w WYSIWYG**: zamknięte. Acceptance criterion (POST `<script>alert(1)</script>` w treści instrukcji → DB ma escaped, nie wykonywany) spełnione przez 28 unit testów + manual verification path.
-
-#### Manual tasks dla Marcina:
-- **Brak**. Żadnych migracji, żadnych env vars. Wszystko code-only.
-
-#### Pliki:
-- `package.json` + `package-lock.json` (+1 dep: `isomorphic-dompurify@^3.12.0`)
-- 5 admin route.ts (sanitize on save)
-- 5 render sites (sanitize on output)
-- 2 nowe pliki: `src/lib/sanitize.ts` + `src/lib/__tests__/sanitize.test.ts`
-- Razem: 14 plików, +897/-49
 
 ### 2026-05-13 EOD — Hotfix Sprint S3: Reservation security + integrity hardening (S3 redefined)
 
