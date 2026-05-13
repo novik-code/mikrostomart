@@ -1,6 +1,8 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-13 EOD #4 (**🚨 PRODENTIS ICON SYNC FIX + S4-1 REVERTED + ADMIN DIAGNOSTIC TOOLS**. Dzień zawiły: (1) `d3af6be` S4-1 WYSIWYG sanitization z `isomorphic-dompurify` wywołał `ERR_REQUIRE_ESM` z `@exodus/bytes` w jsdom→html-encoding-sniffer chain na cold-start Vercel funkcji → strona 500-owała przez ~1h → revert `beec4bc`+`2f78f79` przywrócił prod. (2) Marcin zauważył że "ikona uśmiechu" w grafiku Prodentis przestała się dodawać w środku dnia po SMS-confirm. Diagnostic tools `06b51e2` w admin/Komunikacja/SMS sent tab (badge "✅ Pacjent kliknął" + button "↩️ Cofnij potwierdzenie" + nowy endpoint `/api/admin/appointments/reset-confirmation`). Vercel log + odpowiedź dewelopera proxy → **ROOT CAUSE**: recepcja przenosi/odwołuje wizyty w Prodentis desktop, Prodentis soft-deletes (deleted=1) i tworzy NOWY wpis z nowym id_schedule, nasz prodentis_id zapisany 7:00 staje się stale → POST /icon zwraca 404. (3) Fix `22e49fe`: hybrid retry — przy 404 GET /by-date z matching po phone last-9-digits + HH:MM → znajdź nowy ID → persist + retry. Jeśli wizyta naprawdę odwołana (brak match) → Telegram alert "🚨 SYNC PADŁ" do gabinet chat. **Migracja 123** (idempotent ADD COLUMN IF NOT EXISTS): kolumny `prodentis_icon_synced`, `_synced_at`, `_error` w appointment_actions + partial index. Admin panel: drugi badge "🔄 Prodentis ✅/❌" obok "Pacjent kliknął" z tooltipem error reason. **🚨 Manual task Marcin: wgraj migrację 123 na obu Supabase**. **P0-08 (XSS) pozostaje otwarte** — S4-1 v2 z `sanitize-html` (pure CJS, no jsdom) w kolejnej sesji. **Sprint 3 ✅, S4-1 ❌ reverted, S4-1 v2 PENDING**.)  
+> **Last Updated:** 2026-05-13 EOD #5 (**🎯 S4-1 v2 DONE: WYSIWYG sanitization z `sanitize-html` (pure CJS, no jsdom) — P0-08 CLOSED**. Commit `73c57a3`. Te same 10 callsites co S4-1 v1, ten sam public API (`sanitizeRichHtml`/`sanitizeStrictHtml`/`sanitizeJsonHtmlFields`), inna biblioteka pod spodem (htmlparser2 zamiast jsdom). 28 unit testów XSS payloads green od pierwszego razu (43/43 w pełnym suite). **Lekcja z S4-1 v1**: weryfikacja na Vercel preview branch PRZED merge do main — preview URL `mikrostomart-git-sec-s4-1-v2-sanitize-html-...vercel.app` testowany przez Marcina (homepage + /wizyta/pierwsza-wizyta + /admin → SMS), wszystko 200, dopiero potem merge. Production probe po deploy: 5 min stable, `/` 200, `/wizyta/pierwsza-wizyta` 200, `/api/admin/page-overrides` 401 (poprawnie — auth, nie ERR_REQUIRE_ESM). Brak `jsdom` w dependency tree — zerowe ryzyko regressji jak S4-1 v1.)
+
+<!-- Poprzednia: 2026-05-13 EOD #4 (**🚨 PRODENTIS ICON SYNC FIX + S4-1 v1 REVERTED + ADMIN DIAGNOSTIC TOOLS**. Hybrid retry na 404 Prodentis icon (commit `22e49fe`), migracja 123 (Marcin musi wgrać na OBU Supabase), admin diagnostic tools `06b51e2` (badge "Pacjent kliknął" + reset button). S4-1 v1 z `isomorphic-dompurify` crashował przez `ERR_REQUIRE_ESM`, revert `beec4bc`+`2f78f79`.  
 
 <!-- Poprzednia: 2026-05-13 EOD (**🚨 HOTFIX SPRINT — S3 DONE: reservation security + integrity hardening (S3 redefined)**. 6 realnych poprawek (rate limit + slot validation + demo guard + idempotency + phone fallback + disabled submit). Commit `ace0dfa`.
 
@@ -2471,6 +2473,59 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-13 EOD #5 — Hotfix Sprint S4-1 v2: WYSIWYG sanitization z `sanitize-html` (P0-08 CLOSED)
+
+#### Commits:
+- `73c57a3` — feat(security): S4-1 v2 WYSIWYG sanitization with sanitize-html (P0-08)
+
+#### Tło:
+S4-1 v1 (`d3af6be` z 2026-05-13 EOD #3) został zrewertowany kilka godzin temu po crashu produkcji przez `ERR_REQUIRE_ESM` z `@exodus/bytes` w jsdom dependency tree `isomorphic-dompurify`. P0-08 (stored XSS) pozostało otwarte. Marcin poprosił o S4-1 v2 z biblioteką pure-CJS, no jsdom — wybór padł na `sanitize-html` (htmlparser2-backed, ~50 KB, brak DOM).
+
+#### Co się zmieniło:
+- **Tylko biblioteka pod spodem zmieniona** — wszystko inne identyczne jak S4-1 v1
+- Public API `sanitize.ts`: bez zmian (`sanitizeRichHtml`, `sanitizeStrictHtml`, `sanitizeJsonHtmlFields`)
+- Wszystkie 10 callsites: bez zmian (5 save endpoints + 5 render sites)
+- Threat coverage: same (script, iframe, object, embed, form, meta, event handlers, javascript:/data:/vbscript: URLs, polyglots, data attributes, srcdoc)
+- Whitelist: same (p, h1-h6, b/i/em/strong/u/s, ul/ol/li, a [href|title|target|rel], blockquote, code, pre, span, div, hr, sub, sup)
+
+#### Różnice API DOMPurify vs sanitize-html (dla referencji):
+| DOMPurify (v1) | sanitize-html (v2) |
+|---|---|
+| `ALLOWED_TAGS: [...]` | `allowedTags: [...]` |
+| `ALLOWED_ATTR: ['href', ...]` (lista globalna) | `allowedAttributes: { a: [...], '*': [...] }` (mapa per tag) |
+| `ALLOWED_URI_REGEXP` (gotcha — walidu​je też target/rel) | `allowedSchemes: ['http', 'https', ...]` (tylko schemes) |
+| `addHook('afterSanitizeAttributes', fn)` (global) | `transformTags: { a: fn }` (per tag) |
+| `FORBID_TAGS`, `FORBID_ATTR` (lista) | `disallowedTagsMode: 'discard'` (mode) |
+
+#### Krytyczna lekcja z S4-1 v1 → preview-first workflow:
+1. Push do feature branch (NIE do main) → Vercel auto-tworzy preview deployment
+2. Sprawdź preview URL (`mikrostomart-git-<branch>-...vercel.app`) — Marcin (zalogowany do Vercel) bypassuje 401 deployment protection
+3. Curl test 3 ścieżek: `/`, `/wizyta/<type>`, `/api/admin/page-overrides` — wszystkie muszą zwrócić 200 (lub 401 dla admin endpointu, NIE 500)
+4. **Tylko po success → merge do main**
+5. Po deploy do prod: 5-min stable probe potwierdzający że nowy build nie pada
+
+#### Testy: 28 unit testów w `src/lib/__tests__/sanitize.test.ts`:
+- 15 XSS payloads: script, onerror, svg-onload, javascript:, data:, iframe, style, style-attr, onmouseover, polyglot svg+script, object/embed, form/input, meta-refresh, data-*, srcdoc
+- 7 positive: headings/lists/formatting preserved, mailto:/tel:, relative/fragment URLs, target=_blank → rel=noopener noreferrer hardening, empty/null/non-string → "", plain text unchanged
+- 3 sanitizeStrictHtml: block tags stripped, inline preserved, scripts stripped
+- 5 sanitizeJsonHtmlFields: only known HTML keys sanitized, walks nested, i18n locale variants, primitives passed through
+- **43/43 testów green** (28 sanitize + 11 brandConfig + 4 authGuards)
+
+#### Pliki (14 changed, +485/-52):
+- `package.json` + `package-lock.json` (dependency: `sanitize-html@^2.17.3` + `@types/sanitize-html@^2.16.1`)
+- `src/lib/sanitize.ts` NEW (116 LOC)
+- `src/lib/__tests__/sanitize.test.ts` NEW (218 LOC)
+- 5 save endpoints (`appointment-instructions`, `blog`, `news`, `sections`, `page-overrides`)
+- 5 render sites (`wizyta/[type]`, `nowosielski/[slug]` z WP entity decoder, `HomeClient TextBlockSection`, `EmailTab` alias, `AppointmentInstructionsEditor`)
+
+#### Audit closure:
+- ✅ **P0-08 stored XSS w WYSIWYG** — zamknięte
+- Defense-in-depth dwóch warstw (save + render), 28 unit testów XSS payloads, sanitize-html jako trusted library (apostrophecms maintained)
+
+#### Manual tasks dla Marcina:
+- **Brak** dla S4-1 v2 (kod-only, żadnych migracji ani env vars)
+- ⚠️ **Migracja 123** (z #4 Prodentis sync fix) wciąż wymaga wgrania na OBU Supabase: `~/Desktop/migracje_supabase/migracja_123_appointment_actions_prodentis_sync_status.txt`
 
 ### 2026-05-13 EOD #4 — Prodentis icon sync FIX (stale ID refresh + retry + alert) + S4-1 reverted + admin diagnostic tools
 
