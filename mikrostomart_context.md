@@ -1,6 +1,6 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-12 (**🚨 HOTFIX SPRINT — S2-2 DONE: server-side cart total**. Klient nie wysyła już `amount` do Stripe/PayU/P24 — server liczy z `products` table. Nowy 3-hop flow: `POST /api/cart/calculate-total` (items + chosenPrice → orderId + idempotencyKey + total) → `POST /api/create-payment-intent|payu/create-order|p24/register` (orderId → loadPendingOrder → use amount_total → create provider transaction → attachProviderOrder save provider_order_id) → `POST /api/order-confirmation` (orderId → lookup status → send emails/notifications jeśli paid). Nowy helper `src/lib/cartCalculator.ts` (255 LOC): walidacja qty (1..100), max 50 items, is_visible check, variable_price chosenPrice >= min_price. Frontend CheckoutForm: createPendingOrder step + warn user gdy server total ≠ local total. /platnosc page useEffect fires order-confirmation dla PayU/P24 return URL. **🌉 S2-2→S2-3 bridge**: order-confirmation ustawia status='paid' jeśli pending+provider_order_id (z `console.warn [OrderConfirm] S2-2 BRIDGE`) — tymczasowy, S2-3 webhook signature verify go usunie. Commit `600a242`, 11 plików, +773/-199. **Next: S2-3 webhook signatures** (PayU OpenPayU-Signature + Stripe constructEvent + P24 verify). Wcześniej S2-1 (`e44fc30` migracja 121 orders state machine). Plan: `~/Desktop/bałagan/PLAN_HOTFIX_SPRINT.md`.)  
+> **Last Updated:** 2026-05-13 (**🚨 HOTFIX SPRINT — S2-3 DONE: verified webhook signatures**. `orders.status='paid'` ustawia się WYŁĄCZNIE przez verified provider webhook. **PayU P0-07 fix**: usunięte short-circuit `signatureHeader && !verify` (brak nagłówka był silently accepted). **Stripe webhook NEW** `/api/stripe-webhook` z `constructEvent(body, sig, STRIPE_WEBHOOK_SECRET)`. **P24** dwustopniowy verify (lokalna SHA-384 + remote `/transaction/verify`). Helper `src/lib/paymentWebhooks.ts` z `markOrderPaid` (idempotency + amount equality + optimistic UPDATE chroniący przed race conditions). **S2-2 bridge usunięty** z order-confirmation — pending → 202. `/platnosc` + Stripe success callback polling co 2s × 10 prób (~20s). Commit `65f0ae3`, 10 plików, +525/-141. **Marcin manual step**: Stripe Dashboard → Webhooks → Add endpoint `/api/stripe-webhook` (events PI succeeded/failed/canceled) → copy Signing Secret → Vercel env `STRIPE_WEBHOOK_SECRET=whsec_...` (oba projekty × Prod+Preview). PayU/P24 secrets już są w `clinic_settings`. **Next: S2-4 order-confirmation cleanup** (read-only, idempotency notyfikacji przez `notified_at` migracja 122). Wcześniej S2-2 (`600a242`), S2-1 (`e44fc30`). Plan: `~/Desktop/bałagan/PLAN_HOTFIX_SPRINT.md`.)  
 
 
 > **Version:** Production + Demo (Dual Vercel Deployment)  
@@ -2463,6 +2463,97 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-13 — Hotfix Sprint S2-3: Verified webhook signatures (audit P0-07 closed, bridge removed)
+
+**Status `'paid'` ustawia się TYLKO z verified provider webhook event.**
+
+#### Commits
+- `65f0ae3` feat(security): S2-3 verified webhooks — orders.status='paid' only via signed events
+
+#### Co się zmieniło
+- **Helper `src/lib/paymentWebhooks.ts`** [NEW, 161 LOC]:
+  - `markOrderPaid({orderId, providerOrderId, provider, amountPaid})` — 4 walidacje: idempotency (already_paid early return), state guard (must be 'pending'), amount equality (tolerance 0), optimistic UPDATE z `.eq('status','pending')` chroni przed race conditions parallel webhook
+  - `markOrderTerminal(orderId, 'failed'|'cancelled', provider, providerOrderId?)` — idempotent, only transitions from pending
+  - `findOrderByProviderId(providerOrderId, provider)` — helper dla webhooks bez direct orderId
+  - Result type: discriminated union `{ok:true, status:'paid'|'already_paid'} | {ok:false, reason:'not_found'|'amount_mismatch'|'invalid_state'|'db_error'}`
+- **`/api/payu/webhook`** — **CRITICAL FIX** dla audit P0-07:
+  - Stary kod: `if (signatureHeader && !verifyPayUSignature(...)) return 400` — short-circuit gdy brak nagłówka → silently accepted
+  - Nowy: `if (!signatureHeader) return 400` + `if (!verify) return 400` — zawsze wymaga
+  - Lookup orders po `extOrderId` (= nasz `orders.id` z S2-2)
+  - COMPLETED → markOrderPaid, CANCELED → markOrderTerminal, PENDING/WAITING → ack only
+- **`/api/stripe-webhook`** [NEW, 133 LOC]:
+  - `stripe.webhooks.constructEvent(rawBody, signature, STRIPE_WEBHOOK_SECRET)` — Stripe SDK weryfikuje + parse
+  - Handle: `payment_intent.succeeded` (markOrderPaid), `payment_intent.payment_failed` (markOrderTerminal failed), `payment_intent.canceled` (markOrderTerminal cancelled)
+  - Lookup orderId via `pi.metadata.orderId` (set w S2-2 `/api/create-payment-intent`)
+  - Stripe sends `amount_received` w cents → `/100` na PLN
+- **`/api/p24/webhook`** — dwustopniowy verify (existing) + nowa integracja z markOrderPaid:
+  - Local sign SHA-384 verify (existing)
+  - Remote `/api/v1/transaction/verify` (existing)
+  - Extract orderId z `sessionId = 'order_<uuid>'` (S2-2 sets to this format)
+  - markOrderPaid (idempotent, sprawdza amount)
+- **`/api/order-confirmation`** — **S2-2 bridge USUNIĘTY**:
+  - Stary kod (S2-2): jeśli status='pending' + provider_order_id → set 'paid' bez verify, z `console.warn [OrderConfirm] S2-2 BRIDGE`
+  - Nowy kod (S2-3): pending → 202 "Czekam na potwierdzenie z bramki płatności"
+  - Status='paid' wyłącznie z verified webhook teraz
+- **`/platnosc` page + `CheckoutForm.handlePaymentSuccess`** — retry polling:
+  - 10× co 2s na 202 (~20s window)
+  - Stop on 200 (paid) lub 4xx (terminal)
+  - Webhook zwykle przychodzi 1-3s, ale czasem do 10s — polling pokrywa worst case
+  - Fire-and-poll w async block — nie blokuje success UI
+
+#### Audit zamknięty
+- **P0-07** (PayU webhook signature bypass) — krytyczna luka usunięta
+- **P0-06 follow-up** — `status='paid'` żelaznie tylko z verified event (już zamknięte częściowo w S2-2, teraz finalne)
+
+#### Race conditions
+Provider webhook może odpalić 2-3x (PayU IPN retries, Stripe retry on 5xx). `markOrderPaid` jest fully idempotent:
+1. Pierwszy webhook → markOrderPaid → optimistic UPDATE `WHERE status='pending'` → success → 'paid'
+2. Drugi webhook (retry) → markOrderPaid → SELECT pokazuje 'paid' → early return `{ok:true, status:'already_paid'}` → 200 OK
+3. Race race (jednoczesne webhooks) → jeden UPDATE przechodzi `.eq('status','pending')`, drugi zwraca 0 rows → also returns already_paid
+
+#### Flow Stripe + Email (typical timing)
+```
+T+0s    User klika "Pay" w Stripe Elements
+T+1s    PaymentIntent.succeeded → frontend success callback
+T+1s    handlePaymentSuccess → POST /order-confirmation → 202 (status nadal pending)
+T+2s    Stripe webhook → constructEvent → markOrderPaid → orders.status='paid'
+T+3s    handlePaymentSuccess retry #1 → POST /order-confirmation → 200 paid → email/Telegram/push
+```
+
+W przypadku PayU/P24 (redirect flow):
+```
+T+0s    User klika "Pay" w PayU → redirect do PayU.com
+T+5s    User kończy płatność na PayU → redirect z powrotem na /platnosc?orderId=...
+T+5s    /platnosc useEffect → POST /order-confirmation → 202 (webhook jeszcze nie zdążył)
+T+8s    PayU IPN webhook → orders.status='paid'
+T+9s    /platnosc retry #2 → 200 paid → email
+```
+
+#### Manual Marcin step (krytyczne dla Stripe!)
+Bez tego Stripe płatności pozostaną w 'pending' i nie wyślą emaila (PayU/P24 działają — używają DB secrets).
+1. Stripe Dashboard → Developers → Webhooks → **Add endpoint**
+   - URL: `https://mikrostomart.pl/api/stripe-webhook`
+   - Events: `payment_intent.succeeded`, `payment_intent.payment_failed`, `payment_intent.canceled`
+   - Copy Signing secret (`whsec_...`)
+2. Vercel env vars OBA projekty × Production+Preview:
+   - `STRIPE_WEBHOOK_SECRET=whsec_...`
+3. Vercel auto-redeploy
+
+#### Wyniki
+- `npm test`: 15/15 passed
+- `npm run build`: clean
+- `grep "S2-2 BRIDGE" src/`: 0 hits ✅
+
+#### Out of scope (S2-4)
+- `/api/order-confirmation` cleanup — pełen read-only, `notified_at` column (migracja 122) dla idempotency emaila
+- Email sending bezpośrednio z webhook (alternative architecture) — zostawiamy frontend-driven flow
+
+#### Następne kroki
+- **S2-4** (~1h AI + Marcin migracja 122): order-confirmation cleanup, `notified_at` column, drop legacy fields
+- **S2-5** (~1h AI + Marcin sandbox): E2E PayU + Stripe + P24 sandbox test, fraud test z modified amount
+
+---
 
 ### 2026-05-12 — Hotfix Sprint S2-2: Server-side cart total (audit P0-06 closed)
 
