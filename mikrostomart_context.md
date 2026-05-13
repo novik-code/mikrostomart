@@ -1,6 +1,8 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-13 (**🚨 HOTFIX SPRINT — S2-4 DONE: order-confirmation read-only + email idempotency**. `/api/order-confirmation` jest teraz pełen read-only na orders (poza atomic `notified_at` lock dla email idempotency). Atomic UPDATE `WHERE id = $1 AND notified_at IS NULL` — pierwszy poll z 10× retry w `/platnosc` + CheckoutForm wygrywa race, kolejne dostają 200 `alreadyNotified: true` + skip email/Telegram/push. **Migracja 122** `orders.notified_at TIMESTAMPTZ` + partial index (wgraj na OBU Supabase). Body order-confirmation shrunk do `{orderId, locale?}` — `customerDetails` usunięte (są w `orders.customer_details` z S2-2 calculate-total). Cleanup stub `TODO: Mark order as paid` komentarze w webhooks. Commit `95b5c5b`, 7 plików. **Stripe webhook bonus**: `STRIPE_WEBHOOK_SECRET` można też zmieniać z panelu admin (commit `c51f764`) — pattern jak Prodentis/PMS w S1-bis. **Marcin manual step**: wgraj migrację 122 na OBU Supabase (`~/Desktop/migracje_supabase/migracja_122_orders_notified_at.txt`) PRZED S2-5 testem. **Next: S2-5 E2E sandbox test** (Marcin manual, ~30-45 min, checklist w `~/Desktop/bałagan/S2_5_E2E_CHECKLIST.md`). Wcześniej S2-3 (`65f0ae3` verified webhooks), S2-2 (`600a242`), S2-1 (`e44fc30`). Sprint 2 — 4/5 sesji done. Plan: `~/Desktop/bałagan/PLAN_HOTFIX_SPRINT.md`.)  
+> **Last Updated:** 2026-05-13 EOD (**🚨 HOTFIX SPRINT — S2 4.5/5 DONE: pełen payment integrity działa w prod na real money**. Marcin zrobił live Stripe BLIK 2 PLN — end-to-end pipeline od koszyka do `orders.status='paid'` zadziałał po 2 fixach (Test→Live mode webhook + apex→www URL). Order `1423061e-65a1-4dbc-9d68-b03594967760`, PI `pi_3TWXW13hsbyR4nR90tsUVFoJ`. **Bug 1**: Stripe Dashboard ma osobne webhook lists per Test/Live mode (toggle prawy górny róg). **Bug 2**: apex `mikrostomart.pl` robi 307 redirect do `www.mikrostomart.pl`, Stripe NIE follow'uje redirectów dla POST (signed body integrity). Marcin Live webhook + URL z www → Resend evt_3TWXW1 → success. Commit `da93c1f` doc updates: `/admin → Stripe` callout `(z www!)`, `/api/stripe-webhook` header docstring z `^^^ www IS MANDATORY`, S2_5_E2E_CHECKLIST.md troubleshooting tabela. **Audit zamknięte przez Sprint 2**: P0-06 (client amount, S2-2), P0-07 (PayU webhook signature, S2-3), P1-04 (status z klienta, S2-4). **S2-5 status**: ✅ Test 1 (Stripe live), ⏳ Test 2-6 (PayU/P24 sandbox + 4 fraud + email idempotency + polling — Marcin może zrobić w wolnym czasie, NIE blokuje S3). **Migracja 122 status**: niepotwierdzony — AI zapyta na początku S3 (Stripe payment nie wymagał notified_at, ale `/api/order-confirmation` polling tak; jeśli kolumna nie istnieje endpoint zwróci 500). **Next: S3 UX rezerwacji** — Marcin wybiera A (progress bar)/B (hint)/C (skip). Plan: `~/Desktop/bałagan/PLAN_HOTFIX_SPRINT.md`. Status tracker: `~/Desktop/bałagan/PLAN_HOTFIX_STATUS.md`.)  
+
+<!-- Poprzednia: 2026-05-13 (**🚨 HOTFIX SPRINT — S2-4 DONE: order-confirmation read-only + email idempotency**.
 
 <!-- Poprzednia: 2026-05-13 (**🚨 HOTFIX SPRINT — S2-3 DONE: verified webhook signatures**.
 
@@ -2465,6 +2467,89 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-13 EOD — S2-5 Test 1: Stripe live BLIK 2 PLN end-to-end + 2 critical webhook fixes
+
+**Marcin zrobił prawdziwą płatność BLIK 2 PLN przez Stripe live mode — pierwszy end-to-end test pipeline w real money. Pierwsze 6 prób webhook delivery padło, znalezione i fixed 2 osobne bugi.**
+
+#### Commits
+- `da93c1f` docs(stripe): require www.mikrostomart.pl in webhook URL
+
+#### Bug 1: Test mode vs Live mode mismatch
+- Stripe Dashboard ma OSOBNE listy webhook endpoints dla Test mode i Live mode (toggle w prawym GÓRNYM rogu)
+- Marcin utworzył webhook w Test mode podczas początkowego setup po S2-3
+- Płatność BLIK 2 PLN była real money → Live mode
+- Stripe webhook UI pokazywał "No event deliveries found" bo to był Test mode endpoint który nigdy nie dostawał Live events
+- Fix Marcin: przełączył toggle → utworzył webhook w Live mode (osobny signing secret — oba zaczynają `whsec_...` ale Live i Test wartości są różne)
+- AI docs update w `S2_5_E2E_CHECKLIST.md` troubleshooting tabela: explicit warning "No event deliveries found → Test mode vs Live mode mismatch"
+
+#### Bug 2: 307 redirect apex → www, Stripe nie follow'uje
+- URL `https://mikrostomart.pl/api/stripe-webhook` (apex, BEZ www) → DNS/Vercel robi 307 redirect do canonical `https://www.mikrostomart.pl/api/stripe-webhook`
+- **Stripe webhook NIE follow'uje redirectów dla POST requests** — celowo, bo POST body + signed payload byłyby integrity-invalidated po redirect z nową konkatencją
+- Wszystkie 6 delivery attempts padły z **307 ERR**:
+  - charge.updated 9:48:26
+  - charge.succeeded 9:48:23
+  - payment_intent.succeeded 9:48:23
+  - payment_intent.requires_action 9:48:09
+  - payment_intent.created 9:47:52
+  - payment_intent.created 9:47:38
+- Fix Marcin: w Stripe Dashboard webhook endpoint → Edit destination → zmienił URL na `https://www.mikrostomart.pl/api/stripe-webhook` (z `www.`) + kliknął **Resend** na `evt_3TWXW1...` (payment_intent.succeeded)
+- AI commit `da93c1f` zaktualizował 3 miejsca dokumentujące URL:
+  - `src/app/admin/components/StripeSettingsTab.tsx` callout: `Endpoint URL: https://www.mikrostomart.pl/api/stripe-webhook (z www!) — apex mikrostomart.pl przekierowuje 307 na www, a Stripe webhook nie follow'uje redirectów`
+  - `src/app/api/stripe-webhook/route.ts` header docstring z `^^^ www IS MANDATORY` warning + test/live mode warning
+  - `~/Desktop/bałagan/S2_5_E2E_CHECKLIST.md` troubleshooting tabela: `307 ERR → URL bez www → zmień endpoint URL`
+
+#### Dowód że pełen pipeline działa end-to-end w prod (real money)
+
+```
+1. User w sklepie → koszyk → checkout → wybiera Stripe → BLIK
+2. POST /api/cart/calculate-total
+   → tworzy orders row: status='pending', amount_total=2.00, idempotency_key=<uuid>, customer_details
+3. POST /api/create-payment-intent { orderId, email }
+   → loadPendingOrder → Stripe PI z metadata.orderId
+   → attachProviderOrder → orders.provider_order_id='pi_3TWXW13hsbyR4nR90tsUVFoJ'
+4. User płaci BLIK (real 2 PLN)
+5. Stripe webhook → payment_intent.succeeded → POST https://www.mikrostomart.pl/api/stripe-webhook
+6. constructEvent(rawBody, sig, STRIPE_WEBHOOK_SECRET) → verified
+7. markOrderPaid({orderId, providerOrderId, provider:'stripe', amountPaid:2.00})
+   → idempotency check (status not already 'paid')
+   → state guard (must be 'pending')
+   → amount equality (2.00 === orders.amount_total)
+   → optimistic UPDATE WHERE status='pending'
+8. orders.status='paid', amount_paid=2.00, payment_provider='stripe'
+9. Marcin zweryfikował w Supabase Studio: ✅ wszystko jak należy
+```
+
+#### Audit zamknięte przez Sprint 2 (do tego momentu)
+- ✅ **P0-06**: payment trusts client amount → ZAMKNIĘTE (S2-2 server-side cart total)
+- ✅ **P0-07**: PayU webhook bez signature accepted → ZAMKNIĘTE (S2-3 verified webhooks)
+- ✅ **P1-04**: payment ufa statusowi z klienta → ZAMKNIĘTE (S2-4 read-only order-confirmation)
+
+#### Sprint 2 status: 4.5/5
+- ✅ S2-1: migracja 121 (`e44fc30`)
+- ✅ S2-2: server-side cart total (`600a242`)
+- ✅ S2-3: verified webhook signatures (`65f0ae3`) + bonus `c51f764` Stripe webhook secret w admin
+- ✅ S2-4: order-confirmation cleanup + email idempotency (`95b5c5b`) + migracja 122
+- 🟡 S2-5: częściowo done. Test 1 ✅ (Stripe live BLIK). Test 2-6 (PayU/P24/fraud/idempotency/polling) — Marcin może zrobić w wolnym czasie, NIE blokuje S3.
+
+#### Status migracji 122 — pending verification
+Marcin nie potwierdził explicit czy wgrał migrację 122. Stripe BLIK payment zadziałał, ale to wymagało tylko:
+- `markOrderPaid` (aktualizuje `status/amount_paid/payment_provider/provider_order_id` — nie używa `notified_at`)
+- NIE wymagało `/api/order-confirmation` polling
+
+Jeśli Marcin nie odwiedził `/platnosc?orderId=...` po success page Stripe, to `/api/order-confirmation` może nigdy nie zostało wywołane. Niemożliwe rozróżnić bez zapytania.
+
+**Action item** na początek S3 sesji: AI zapyta Marcina:
+1. "Czy migracja 122 została wgrana na OBU Supabase (produkcja + demo)?"
+2. "Czy widziałeś email order confirmation + Telegram po Stripe BLIK 2 PLN?" — jeśli tak, to migracja 122 musi być wgrana
+3. Jeśli nie wgrana: Marcin wgrać `~/Desktop/migracje_supabase/migracja_122_orders_notified_at.txt` na obu Supabase PRZED dalszymi testami
+
+#### Co dalej
+- **Następna sesja: S3 UX rezerwacji** — decyzja Marcina A (4-step progress bar) / B (hint pod specjalistą) / C (skip — formularz OK)
+- **Pre-requisites**: Sprint 2 funkcjonalnie complete; S2-5 reszta opcjonalna; migracja 122 verify w S3
+- Po S3 → S4 XSS + public hardening (P0-08 + P0-09 + P1-07 Turnstile + P1-02 HMAC + P1-03 patient JWT)
+
+---
 
 ### 2026-05-13 — Hotfix Sprint S2-4: order-confirmation read-only + notified_at email idempotency
 
