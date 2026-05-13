@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { requireAdmin } from '@/lib/authGuards';
+import { sanitizeRichHtml } from '@/lib/sanitize';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -35,14 +36,14 @@ export async function PUT(
             important_notes
         } = body;
 
-        // Update instruction
+        // Update instruction — sanitize HTML content at the boundary (defense layer 1)
         const { data, error } = await supabase
             .from('appointment_instructions')
             .update({
                 title,
                 subtitle,
                 icon,
-                content,
+                content: sanitizeRichHtml(content),
                 preparation_time,
                 what_to_bring,
                 important_notes,

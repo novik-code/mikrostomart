@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { requireAdmin } from '@/lib/authGuards';
+import { sanitizeJsonHtmlFields } from '@/lib/sanitize';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -72,7 +73,9 @@ export async function PUT(request: NextRequest) {
 
     try {
         const overrides = await request.json();
-        const error = await saveSetting('page_overrides', overrides);
+        // Sanitize any HTML-bearing fields in the overrides JSON (defense layer 1).
+        const sanitized = sanitizeJsonHtmlFields(overrides);
+        const error = await saveSetting('page_overrides', sanitized);
 
         if (error) {
             return NextResponse.json({ error: error.message }, { status: 500 });

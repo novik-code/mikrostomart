@@ -11,6 +11,7 @@ import { brand } from '@/lib/brandConfig';
 import { breadcrumbHref, getOgLocale, localizedBreadcrumb } from '@/lib/seo';
 import { preferWebp } from '@/lib/imageUrl';
 import { routing } from '@/i18n/routing';
+import { sanitizeRichHtml } from '@/lib/sanitize';
 
 function schemaImageUrl(image: string | null | undefined): string {
     if (!image) return `${brand.appUrl}/opengraph-image.png`;
@@ -150,19 +151,9 @@ export default async function BlogPost({
 
     const dateLocale = LOCALE_DATE_MAP[locale] || 'pl-PL';
 
-    // Reuse the cleaning logic, but now it sits inside a constrained layout
-    const cleanHtml = (html: string) => {
-        let cleaned = html
-            .replace(/style="[^"]*"/gi, '')
-            .replace(/style='[^']*'/gi, '')
-            .replace(/class="[^"]*"/gi, '')
-            .replace(/class='[^']*'/gi, '')
-            .replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gim, "")
-            .replace(/<h2/g, '<h2>')
-            .replace(/<h3/g, '<h3>')
-            .replace(/<div>\s*<\/div>/g, '');
-
-        // Aggressive Entity Decoding (Including potential double encoding)
+    // Sanitize with DOMPurify (defense layer 2), then decode legacy WP entities
+    // (style/class stripping is no longer needed — DOMPurify drops both).
+    const decodeWpEntities = (html: string) => {
         const entities: { [key: string]: string } = {
             '&#8211;': '–', '&amp;#8211;': '–',
             '&#8212;': '—', '&amp;#8212;': '—',
@@ -174,16 +165,14 @@ export default async function BlogPost({
             '&#038;': '&', '&amp;#038;': '&',
             '&#38;': '&', '&amp;#38;': '&'
         };
-
+        let out = html;
         for (const [entity, replacement] of Object.entries(entities)) {
-            // Replace all occurrences
-            cleaned = cleaned.split(entity).join(replacement);
+            out = out.split(entity).join(replacement);
         }
-
-        return cleaned;
+        return out;
     };
 
-    const sanitizedContent = cleanHtml(post.content);
+    const sanitizedContent = decodeWpEntities(sanitizeRichHtml(post.content));
 
     // BlogPosting JSON-LD schema for rich snippets in Google search.
     // dateModified prefers updated_at if available — otherwise falls back to published date,

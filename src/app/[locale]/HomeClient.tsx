@@ -11,6 +11,7 @@ import { useTranslations } from "next-intl";
 import { useTheme, usePresetId } from "@/context/ThemeContext";
 import { isDemoMode } from "@/lib/demoMode";
 import { getPresetContent } from "@/lib/presetContent";
+import { sanitizeRichHtml } from "@/lib/sanitize";
 import DensFlowLightPage from "@/components/DensFlowLightPage";
 import DentalLuxePage from "@/components/DentalLuxePage";
 import FreshSmilePage from "@/components/FreshSmilePage";
@@ -332,7 +333,7 @@ function TextBlockSection({ config }: { config: Record<string, any> }) {
             <RevealOnScroll>
                 <div
                     style={{ maxWidth: '800px', margin: '0 auto', lineHeight: 1.8 }}
-                    dangerouslySetInnerHTML={{ __html: config.content }}
+                    dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(config.content) }}
                 />
             </RevealOnScroll>
         </section>

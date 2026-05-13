@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import styles from './AppointmentInstructionsEditor.module.css';
+import { sanitizeRichHtml } from '@/lib/sanitize';
 
 interface AppointmentInstruction {
     id: string;
@@ -363,13 +364,13 @@ export default function AppointmentInstructionsEditor() {
                                             </div>
                                         </div>
 
-                                        {/* Content Editable Area */}
+                                        {/* Content Editable Area — initial value sanitized (defense layer 2) */}
                                         <div
                                             ref={contentEditorRef}
                                             className={styles.contentEditable}
                                             contentEditable
                                             suppressContentEditableWarning
-                                            dangerouslySetInnerHTML={{ __html: editedInstruction?.content || '' }}
+                                            dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(editedInstruction?.content || '') }}
                                             onInput={() => {
                                                 // Content is synced on save via ref
                                             }}
@@ -491,10 +492,10 @@ export default function AppointmentInstructionsEditor() {
                                 </div>
                             )}
 
-                            {/* Main Content */}
+                            {/* Main Content — sanitized preview */}
                             <div
                                 className={styles.landingContent}
-                                dangerouslySetInnerHTML={{ __html: getCurrentContent() }}
+                                dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(getCurrentContent()) }}
                             />
 
                             {/* Simulated CTA */}
