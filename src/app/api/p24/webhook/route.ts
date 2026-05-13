@@ -12,7 +12,8 @@
  *
  * Local-order lookup: in /api/p24/register (S2-2) we set
  *     sessionId = `order_${orderId}`
- * so we extract our local orderId from the prefix.
+ * so we extract our local orderId from the prefix. The legacy
+ * `// TODO: Mark order as paid` comment from pre-S2-3 is gone.
  */
 
 import { NextResponse } from "next/server";

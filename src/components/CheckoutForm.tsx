@@ -253,7 +253,9 @@ export default function CheckoutForm({ onSuccess, initialValues }: CheckoutFormP
                     const res = await fetch('/api/order-confirmation', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ orderId, customerDetails: formData }),
+                        // S2-4: orderId only — customer details are already on
+                        // the orders row (populated during calculate-total).
+                        body: JSON.stringify({ orderId }),
                     });
                     if (res.status !== 202) return; // 200 (paid) or 4xx terminal — stop
                 } catch (e) {

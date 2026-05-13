@@ -11,33 +11,40 @@ export const runtime = "nodejs";
 /**
  * POST /api/order-confirmation
  *
- * Called by the frontend on the return URL after the user comes back from
- * Stripe / PayU / P24. Triggers admin/buyer email + Telegram/push notifications.
+ * Read-only on `orders` — only side effects (email, Telegram, push).
+ * Called from the return URL on /platnosc and from CheckoutForm.handle
+ * PaymentSuccess. Both pollers may hit this endpoint several times
+ * around the moment a verified webhook flips status='paid' (S2-3); to
+ * avoid sending duplicate emails we acquire a lock through
+ *   UPDATE orders SET notified_at = NOW() WHERE id = $1 AND notified_at IS NULL
+ * — exactly one caller gets the row back; everyone else gets a 200 with
+ * `alreadyNotified: true` and skips the side-effects.
  *
- * S2-2 semantics: this endpoint NO LONGER mutates `orders.status`. The
- * source of truth for "is this paid" is the verified provider webhook
- * (S2-3) which sets `status='paid'` and `amount_paid`. Here we just look
- * up the row by orderId and act on whatever the webhook already wrote.
+ * Body: { orderId: string, locale?: string }
  *
- * Body: { orderId: string, customerDetails?: {...}, locale?: string }
- *   - orderId comes from /api/cart/calculate-total response (frontend
- *     keeps it across the redirect to / from the provider)
+ * Responses:
+ *   200 { success: true,  orderId, status: 'paid' }              first poll, side-effects fired
+ *   200 { success: true,  orderId, status: 'paid', alreadyNotified: true }  later polls
+ *   202 { success: false, pending: true, orderId }              webhook hasn't arrived yet
+ *   200 { success: false, status: 'failed'|'cancelled' }        terminal non-success
+ *   400/404 on input problems
  *
- * Behaviour:
- *   - status='paid'        → send full "thank you" email + admin alerts
- *   - status='pending'     → return 202: webhook hasn't fired yet, frontend
- *                            can poll or just trust the email path later
- *   - status='failed'      → return 200 with success=false
- *   - any other            → 400
+ * What used to write to orders (S2-2): nothing now. The S2-2 bridge
+ * (set paid here) was removed in S2-3. The legacy `customerDetails`
+ * upsert from this endpoint was removed in S2-4 — orders.customer_details
+ * is captured during /api/cart/calculate-total when the row is first
+ * inserted.
  *
- * Audit P0-06 closed: client can no longer write status='paid' from body.
+ * Audit P0-06 fully closed: this endpoint never mutates status or
+ * customer fields and cannot be used to forge an order. The only state
+ * change here is `notified_at` (timestamp-only, used purely for email
+ * idempotency).
  */
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json().catch(() => ({}));
-        const { orderId, customerDetails: bodyCustomerDetails, locale: requestLocale } = body as {
+        const { orderId, locale: requestLocale } = body as {
             orderId?: string;
-            customerDetails?: Record<string, string>;
             locale?: string;
         };
 
@@ -56,7 +63,7 @@ export async function POST(req: NextRequest) {
 
         const { data: order, error: lookupError } = await supabase
             .from("orders")
-            .select("id, status, amount_total, amount_paid, items, customer_details, payment_provider, provider_order_id, created_at")
+            .select("id, status, amount_total, amount_paid, items, customer_details, payment_provider, provider_order_id, created_at, notified_at")
             .eq("id", orderId)
             .single();
 
@@ -64,22 +71,9 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Order not found" }, { status: 404 });
         }
 
-        // If the frontend collected extra customer details on the return page,
-        // persist them once (only if missing — never overwrite verified data).
-        if (bodyCustomerDetails && !order.customer_details) {
-            await supabase
-                .from("orders")
-                .update({ customer_details: bodyCustomerDetails })
-                .eq("id", orderId);
-        }
-
         if (order.status === "pending") {
-            // S2-3 onwards: status='paid' lands ONLY through a verified webhook
-            // (Stripe-Signature constructEvent / PayU OpenPayU-Signature /
-            // P24 sign + remote verify). The webhook usually arrives before
-            // the user finishes their redirect, but there's a small window —
-            // tell the frontend to retry/poll. The S2-2 bridge that set paid
-            // from this endpoint without verification has been removed.
+            // Webhook hasn't fired yet — frontend will retry (10× × 2s in
+            // /platnosc and CheckoutForm).
             return NextResponse.json(
                 {
                     success: false,
@@ -102,8 +96,35 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: `Unexpected status: ${order.status}` }, { status: 400 });
         }
 
-        // ── status === 'paid' — send notifications ───────────────────────────
-        const customerDetails = (order.customer_details || bodyCustomerDetails || {}) as Record<string, string>;
+        // ── Idempotency lock — first poll wins the race ─────────────────────
+        // Two atomic guarantees:
+        //   1. WHERE notified_at IS NULL  →  parallel polls see UPDATE return
+        //      zero rows for everyone but one.
+        //   2. status = 'paid' check above is loaded before the UPDATE, but
+        //      the UPDATE itself doesn't re-check status — that's fine, status
+        //      transitions paid → refunded happen only via S8 admin actions,
+        //      which won't race against notify polling.
+        const { data: locked, error: lockErr } = await supabase
+            .from("orders")
+            .update({ notified_at: new Date().toISOString() })
+            .eq("id", orderId)
+            .is("notified_at", null)
+            .select("id")
+            .maybeSingle();
+
+        if (lockErr) {
+            console.error("[OrderConfirm] notified_at lock failed:", lockErr);
+            return NextResponse.json({ error: "Lock failed" }, { status: 500 });
+        }
+
+        if (!locked) {
+            // Another poll already sent the notifications. Tell the frontend
+            // we're done — success page can render the thank-you.
+            return NextResponse.json({ success: true, orderId, status: "paid", alreadyNotified: true });
+        }
+
+        // ── status === 'paid' AND we hold the lock — send notifications ──────
+        const customerDetails = (order.customer_details || {}) as Record<string, string>;
         const cart = Array.isArray(order.items) ? (order.items as Array<Record<string, unknown>>) : [];
         const total = Number(order.amount_paid ?? order.amount_total ?? 0);
         const orderDate = new Date(order.created_at).toLocaleString("pl-PL", { timeZone: "Europe/Warsaw" });
