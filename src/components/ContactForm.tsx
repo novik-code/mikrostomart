@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Paperclip, X } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { Turnstile, TurnstileInstance } from "@marsidev/react-turnstile";
 
 // Schema Validation
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -35,19 +36,15 @@ export default function ContactForm() {
     const [fileName, setFileName] = useState<string | null>(null);
     const t = useTranslations('contactForm');
 
-    // Captcha State
-    const [num1, setNum1] = useState(0);
-    const [num2, setNum2] = useState(0);
-    const [userAnswer, setUserAnswer] = useState("");
-    // Honeypot (anti-bot)
+    // Cloudflare Turnstile state (replaces math captcha — better UX, anti-bot)
+    const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+    const turnstileRef = useRef<TurnstileInstance | null>(null);
+    // Honeypot kept as belt-and-suspenders defense alongside Turnstile (zero UX cost)
     const [honeypot, setHoneypot] = useState("");
     // RODO consent
     const [rodoConsent, setRodoConsent] = useState(false);
 
-    useEffect(() => {
-        setNum1(Math.floor(Math.random() * 10) + 1);
-        setNum2(Math.floor(Math.random() * 10) + 1);
-    }, []);
+    const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
     const {
         register,
@@ -71,16 +68,16 @@ export default function ContactForm() {
 
 
     const onSubmit = async (data: ContactFormData) => {
-        // Honeypot check — bots fill hidden fields
+        // Honeypot check — bots auto-fill hidden fields. Fail silently.
         if (honeypot) {
-            // Silently "succeed" to fool the bot
             setIsSuccess(true);
             return;
         }
 
-        // Captcha Validation
-        if (parseInt(userAnswer) !== num1 + num2) {
-            setError(`Błędny wynik działania. Ile to jest ${num1} + ${num2}?`);
+        // Turnstile token must be present before submission. Submit button is
+        // already disabled until widget completes, but guard here for safety.
+        if (!turnstileToken) {
+            setError(t('captchaError') || 'Please complete the verification challenge.');
             return;
         }
 
@@ -115,22 +112,29 @@ export default function ContactForm() {
                     email: data.email,
                     subject: data.subject,
                     message: data.message,
-                    attachment: attachmentData
+                    attachment: attachmentData,
+                    turnstileToken,
                 }),
             });
 
-            if (!response.ok) throw new Error("Błąd wysyłania wiadomości");
+            if (!response.ok) {
+                if (response.status === 429) {
+                    throw new Error(t('errorRateLimit') || 'Too many messages. Please wait a few minutes.');
+                }
+                if (response.status === 403) {
+                    throw new Error(t('errorVerification') || 'Verification failed. Please refresh and try again.');
+                }
+                throw new Error("Błąd wysyłania wiadomości");
+            }
 
             setIsSuccess(true);
             reset();
             setFileName(null);
-            setUserAnswer("");
-            // Regenerate Captcha
-            setNum1(Math.floor(Math.random() * 10) + 1);
-            setNum2(Math.floor(Math.random() * 10) + 1);
+            setTurnstileToken(null);
+            turnstileRef.current?.reset(); // re-issue a fresh challenge for next submit
 
         } catch (err) {
-            setError(t('errorGeneral'));
+            setError(err instanceof Error ? err.message : t('errorGeneral'));
         } finally {
             setIsSubmitting(false);
         }
@@ -302,49 +306,22 @@ export default function ContactForm() {
 
             {error && <div style={{ color: "#ff4d4d", background: "rgba(255, 0, 0, 0.1)", padding: "10px", borderRadius: "5px", fontSize: "0.9rem" }}>{error}</div>}
 
-            {/* MATH CAPTCHA */}
-            <div style={{
-                background: "rgba(0,0,0,0.2)",
-                padding: "1rem",
-                borderRadius: "var(--radius-md)",
-                border: "1px solid var(--color-surface-hover)",
-            }}>
-                <label style={{ display: "block", marginBottom: "0.8rem", fontSize: "0.9rem", color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "1px" }}>
-                    {t('captchaLabel')}
-                </label>
-                <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-                    <div style={{
-                        fontSize: "1.2rem",
-                        fontWeight: "bold",
-                        color: "var(--color-primary)",
-                        background: "rgba(255,255,255,0.05)",
-                        padding: "0.5rem 1rem",
-                        borderRadius: "4px",
-                        letterSpacing: "2px"
-                    }}>
-                        {num1} + {num2} = ?
-                    </div>
-                    <input
-                        type="text"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
-                        value={userAnswer}
-                        onChange={(e) => setUserAnswer(e.target.value)}
-                        placeholder={t('captchaPlaceholder')}
-                        style={{
-                            width: "80px",
-                            padding: "0.6rem",
-                            background: "rgba(255, 255, 255, 0.1)",
-                            border: "1px solid var(--color-surface-hover)",
-                            borderRadius: "var(--radius-md)",
-                            color: "var(--color-text-main)",
-                            outline: "none",
-                            textAlign: "center",
-                            fontSize: "0.9rem"
+            {/* CLOUDFLARE TURNSTILE — invisible challenge, replaces math captcha (better UX, harder for bots) */}
+            {turnstileSiteKey && (
+                <div style={{ display: 'flex', justifyContent: 'center', minHeight: '70px' }}>
+                    <Turnstile
+                        ref={turnstileRef}
+                        siteKey={turnstileSiteKey}
+                        onSuccess={(token) => setTurnstileToken(token)}
+                        onExpire={() => setTurnstileToken(null)}
+                        onError={() => setTurnstileToken(null)}
+                        options={{
+                            theme: 'dark',
+                            size: 'normal',
                         }}
                     />
                 </div>
-            </div>
+            )}
 
             {/* HONEYPOT — hidden from humans, bots auto-fill */}
             <div style={{ position: 'absolute', left: '-9999px', opacity: 0, height: 0, overflow: 'hidden' }} aria-hidden="true">
@@ -379,7 +356,7 @@ export default function ContactForm() {
 
             <button
                 type="submit"
-                disabled={isSubmitting || !rodoConsent}
+                disabled={isSubmitting || !rodoConsent || !turnstileToken}
                 className="btn-primary"
                 style={{
                     width: "100%",
@@ -388,8 +365,8 @@ export default function ContactForm() {
                     justifyContent: "center",
                     alignItems: "center",
                     gap: "0.5rem",
-                    opacity: (isSubmitting || !rodoConsent) ? 0.7 : 1,
-                    cursor: (isSubmitting || !rodoConsent) ? "not-allowed" : "pointer",
+                    opacity: (isSubmitting || !rodoConsent || !turnstileToken) ? 0.7 : 1,
+                    cursor: (isSubmitting || !rodoConsent || !turnstileToken) ? "not-allowed" : "pointer",
                     marginTop: "0.5rem"
                 }}
             >
