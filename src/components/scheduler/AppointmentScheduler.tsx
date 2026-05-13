@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Loader2, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 import { format, addDays, startOfWeek, isSameDay, parseISO, getMinutes } from 'date-fns';
 import { pl } from 'date-fns/locale';
+import { brand } from '@/lib/brandConfig';
 
 interface Slot {
     doctor: string;
@@ -101,7 +102,7 @@ export default function AppointmentScheduler({ specialistId, specialistName, onS
             setSelectedDateView(firstDayWithSlots || weekDates[0]);
 
         } catch (err) {
-            setError("Nie udało się pobrać terminów. Spróbuj później lub zadzwoń.");
+            setError(`Nie udało się pobrać terminów. Spróbuj później lub zadzwoń: ${brand.phone1} / ${brand.phone2}.`);
         } finally {
             setLoading(false);
         }

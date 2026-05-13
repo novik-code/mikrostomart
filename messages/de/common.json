@@ -134,6 +134,7 @@
         "attachmentLabel": "Anhang (optional)",
         "attachmentHint": "Foto oder Röntgenbild (max 5MB)",
         "attachmentError": "Erlaubte Formate: .jpg, .png, .pdf",
+        "chooseSpecialistFirst": "Wählen Sie einen Spezialisten und einen verfügbaren Termin, um Ihre Reservierung zu senden.",
         "submit": "Reservierung senden",
         "submitting": "Wird gesendet...",
         "successTitle": "Reservierung gesendet!",

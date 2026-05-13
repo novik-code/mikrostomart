@@ -1,14 +1,43 @@
 import { NextResponse } from 'next/server';
+import { checkRateLimit, getClientIP } from '@/lib/rateLimit';
+import { isDemoMode } from '@/lib/demoMode';
 
 export const dynamic = 'force-dynamic'; // Always fetch fresh data
 
 export async function GET(request: Request) {
+    // Rate limit: 30 requests per minute per IP.
+    // The form fetches 5 days in parallel per week navigation, so 30 = ~6 week clicks/min.
+    const ip = getClientIP(request);
+    const rl = await checkRateLimit(`slots:${ip}`, 30, 60_000);
+    if (!rl.allowed) {
+        return NextResponse.json(
+            { error: 'Too many slot requests. Please slow down.' },
+            { status: 429, headers: { 'Retry-After': '60' } }
+        );
+    }
+
     const { searchParams } = new URL(request.url);
     const date = searchParams.get('date');
     const duration = searchParams.get('duration');
 
-    if (!date) {
-        return NextResponse.json({ error: 'Missing date parameter' }, { status: 400 });
+    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        return NextResponse.json({ error: 'Missing or invalid date parameter' }, { status: 400 });
+    }
+
+    // Demo mode: return synthetic slots so the demo flow works without hitting prod Prodentis.
+    // Generates 10:00, 10:30, 11:00, 11:30, 12:00 for Marcin on the requested date.
+    if (isDemoMode) {
+        const times = ['10:00', '10:30', '11:00', '11:30', '12:00'];
+        const slots = times.map(t => {
+            const [h, m] = t.split(':');
+            return {
+                doctor: '0100000001',
+                doctorName: 'Marcin Nowosielski',
+                start: `${date}T${h}:${m}:00+01:00`,
+                end: `${date}T${h}:${(parseInt(m) + parseInt(duration || '30')).toString().padStart(2, '0')}:00+01:00`,
+            };
+        });
+        return NextResponse.json(slots);
     }
 
     const apiUrl = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';

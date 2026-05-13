@@ -134,6 +134,7 @@
         "attachmentLabel": "Attachment (optional)",
         "attachmentHint": "Photo or X-ray (max 5MB)",
         "attachmentError": "Allowed formats: .jpg, .png, .pdf",
+        "chooseSpecialistFirst": "Select a specialist and an available time to send your reservation.",
         "submit": "Send Reservation",
         "submitting": "Sending...",
         "successTitle": "Reservation sent!",

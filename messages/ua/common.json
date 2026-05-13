@@ -134,6 +134,7 @@
         "attachmentLabel": "Вкладення (необов'язково)",
         "attachmentHint": "Фото або рентген (макс. 5MB)",
         "attachmentError": "Дозволені формати: .jpg, .png, .pdf",
+        "chooseSpecialistFirst": "Виберіть спеціаліста та доступний час, щоб надіслати бронювання.",
         "submit": "Надіслати бронювання",
         "submitting": "Надсилання...",
         "successTitle": "Бронювання надіслано!",

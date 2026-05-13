@@ -7,13 +7,42 @@ import type { PatientCandidate } from '@/lib/doctorMapping';
 import { demoSanitize, brand } from '@/lib/brandConfig';
 import { sendEmail } from '@/lib/emailSender';
 import { getProdentisKey } from '@/lib/pmsConfig';
+import { checkRateLimit, getClientIP } from '@/lib/rateLimit';
+import { isDemoMode } from '@/lib/demoMode';
 
 export const runtime = 'nodejs';
 
 export async function POST(req: NextRequest) {
     try {
+        // Rate limit: 5 reservation submissions per minute per IP
+        const ip = getClientIP(req);
+        const rl = await checkRateLimit(`reservation:${ip}`, 5, 60_000);
+        if (!rl.allowed) {
+            return NextResponse.json(
+                { error: 'Too many reservation attempts. Please wait a minute and try again.' },
+                { status: 429, headers: { 'Retry-After': '60' } }
+            );
+        }
+
         const body = await req.json();
         const { name, firstName: formFirstName, lastName: formLastName, email, phone, specialist, specialistName, date, time, description, attachment, locale: requestLocale } = body;
+
+        // Basic input validation — date must be YYYY-MM-DD, time HH:MM, not in the past
+        if (!date || typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+            return NextResponse.json({ error: 'Invalid date format' }, { status: 400 });
+        }
+        if (!time || typeof time !== 'string' || !/^\d{2}:\d{2}$/.test(time)) {
+            return NextResponse.json({ error: 'Invalid time format' }, { status: 400 });
+        }
+        const [y, mo, d] = date.split('-').map(Number);
+        const [hh, mm] = time.split(':').map(Number);
+        const requestedDateTime = new Date(y, mo - 1, d, hh, mm);
+        if (isNaN(requestedDateTime.getTime()) || requestedDateTime.getTime() < Date.now() - 5 * 60_000) {
+            return NextResponse.json({ error: 'Cannot reserve a slot in the past' }, { status: 400 });
+        }
+        if (!phone || typeof phone !== 'string' || phone.length < 9) {
+            return NextResponse.json({ error: 'Invalid phone number' }, { status: 400 });
+        }
         // Use separate firstName/lastName if provided, otherwise fall back to splitting name
         const patientFirstName = formFirstName || name?.split(/\s+/)[0] || '';
         const patientLastName = formLastName || name?.split(/\s+/).slice(1).join(' ') || '';
@@ -32,6 +61,65 @@ export async function POST(req: NextRequest) {
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://keucogopujdolzmfajjv.supabase.co';
         const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
         const supabase = supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
+
+        // Idempotency: deduplicate same phone+date+time within 60s window
+        // Prevents duplicates on double-click or network retry
+        if (supabase) {
+            try {
+                const sixtySecondsAgo = new Date(Date.now() - 60_000).toISOString();
+                const { data: dupes } = await supabase
+                    .from('reservations')
+                    .select('id')
+                    .eq('phone', phone)
+                    .eq('date', date)
+                    .eq('time', time)
+                    .gte('created_at', sixtySecondsAgo)
+                    .limit(1);
+                if (dupes && dupes.length > 0) {
+                    console.log(`[Reservation] Idempotent duplicate detected (phone=${phone}, ${date} ${time}), returning existing.`);
+                    return NextResponse.json({ success: true, duplicate: true });
+                }
+            } catch (dedupErr) {
+                console.error('[Reservation] Dedup check failed (non-fatal):', dedupErr);
+            }
+        }
+
+        // Server-side slot validation — re-query Prodentis and verify slot is actually available.
+        // Skipped in demo mode (no live Prodentis). If Prodentis is unreachable, log + allow (graceful).
+        if (!isDemoMode) {
+            try {
+                const prodentisUrl = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
+                const slotCheckRes = await fetch(
+                    `${prodentisUrl}/api/slots/free?date=${date}&duration=30`,
+                    {
+                        headers: { 'Content-Type': 'application/json' },
+                        cache: 'no-store',
+                        signal: AbortSignal.timeout(4000),
+                    }
+                );
+                if (slotCheckRes.ok) {
+                    const slotData: Array<{ doctor: string; doctorName: string; start: string }> = await slotCheckRes.json();
+                    // Slot.start is ISO with timezone (Warsaw). Check by date+HH:MM substring match.
+                    const hhmm = time;
+                    const matchingSlot = slotData.find(s => {
+                        if (!s.start || !s.start.startsWith(date)) return false;
+                        // Extract HH:MM from ISO timestamp (slice 11-16 covers "HH:MM")
+                        return s.start.slice(11, 16) === hhmm;
+                    });
+                    if (!matchingSlot) {
+                        console.warn(`[Reservation] Slot not in Prodentis available list: ${date} ${time}, specialist=${specialist}`);
+                        return NextResponse.json(
+                            { error: 'Requested slot is no longer available. Please pick another time.' },
+                            { status: 409 }
+                        );
+                    }
+                } else {
+                    console.warn(`[Reservation] Prodentis slot-check returned ${slotCheckRes.status} — allowing through (graceful).`);
+                }
+            } catch (slotErr) {
+                console.warn('[Reservation] Prodentis slot-check unreachable — allowing through (graceful):', (slotErr as any)?.message);
+            }
+        }
 
         // Save to Database (Supabase) — capture reservation ID
         let reservationId: string | null = null;
@@ -97,22 +185,24 @@ export async function POST(req: NextRequest) {
         const patientSubject = patientEmail.subject;
         const patientHtml = patientEmail.html;
 
-        // Send Telegram
-        if (telegramMessage) {
+        // Send Telegram (skip in demo to avoid spamming prod chat)
+        if (telegramMessage && !isDemoMode) {
             await sendTelegramNotification(telegramMessage, 'default');
         }
 
-        // Push notification to admin + employees
-        broadcastPush('admin', 'new_reservation', {
-            name, specialist: specialistName || '', date: date || '', time: time || '',
-        }, '/admin').catch(console.error);
-        broadcastPush('employee', 'new_reservation', {
-            name, specialist: specialistName || '', date: date || '', time: time || '',
-        }, '/pracownik').catch(console.error);
+        // Push notification to admin + employees (skip in demo)
+        if (!isDemoMode) {
+            broadcastPush('admin', 'new_reservation', {
+                name, specialist: specialistName || '', date: date || '', time: time || '',
+            }, '/admin').catch(console.error);
+            broadcastPush('employee', 'new_reservation', {
+                name, specialist: specialistName || '', date: date || '', time: time || '',
+            }, '/pracownik').catch(console.error);
+        }
 
-        // Send Emails
+        // Send Emails (skip in demo — don't spam real gabinet inbox from demo deployment)
         const resendKey = process.env.RESEND_API_KEY;
-        if (resendKey) {
+        if (resendKey && !isDemoMode) {
             const adminEmail = demoSanitize('gabinet@mikrostomart.pl');
 
             const adminAttachments = attachment && attachment.content
@@ -138,11 +228,12 @@ export async function POST(req: NextRequest) {
 
         // ═══════════════════════════════════════════════════════════
         //  ONLINE BOOKING — Patient matching with double verification
+        //  Skipped in demo mode (no live Prodentis to write to).
         // ═══════════════════════════════════════════════════════════
         let intakeUrl: string | null = null;
         let isNewPatient = false;
 
-        if (supabase) {
+        if (supabase && !isDemoMode) {
             try {
                 const prodentisUrl = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
                 const prodentisKey = (await getProdentisKey()) ?? '';

@@ -493,9 +493,15 @@ export default function ReservationForm() {
 
             {error && <div style={{ color: "#ff4d4d", background: "rgba(255, 0, 0, 0.1)", padding: "10px", borderRadius: "5px", fontSize: "0.9rem" }}>{error}</div>}
 
+            {(!selectedSpecialistId || !selectedDate || !selectedTime) && (
+                <p style={{ fontSize: "0.85rem", color: "var(--color-text-muted)", fontStyle: "italic", textAlign: "center", margin: 0 }}>
+                    {t('chooseSpecialistFirst')}
+                </p>
+            )}
+
             <button
                 type="submit"
-                disabled={isSubmitting || !rodoConsent}
+                disabled={isSubmitting || !rodoConsent || !selectedSpecialistId || !selectedDate || !selectedTime}
                 className="btn-primary"
                 style={{
                     width: "100%",
@@ -504,8 +510,8 @@ export default function ReservationForm() {
                     justifyContent: "center",
                     alignItems: "center",
                     gap: "0.5rem",
-                    opacity: (isSubmitting || !rodoConsent) ? 0.7 : 1,
-                    cursor: (isSubmitting || !rodoConsent) ? "not-allowed" : "pointer"
+                    opacity: (isSubmitting || !rodoConsent || !selectedSpecialistId || !selectedDate || !selectedTime) ? 0.7 : 1,
+                    cursor: (isSubmitting || !rodoConsent || !selectedSpecialistId || !selectedDate || !selectedTime) ? "not-allowed" : "pointer"
                 }}
             >
                 {isSubmitting ? t('submitting') : t('submit')}

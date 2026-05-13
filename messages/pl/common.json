@@ -134,6 +134,7 @@
         "attachmentLabel": "Załącznik (opcjonalnie)",
         "attachmentHint": "Zdjęcie lub RTG (max 5MB)",
         "attachmentError": "Dozwolone formaty: .jpg, .png, .pdf",
+        "chooseSpecialistFirst": "Wybierz specjalistę i dogodny termin, aby wysłać rezerwację.",
         "submit": "Wyślij Rezerwację",
         "submitting": "Wysyłanie...",
         "successTitle": "Rezerwacja wysłana!",
