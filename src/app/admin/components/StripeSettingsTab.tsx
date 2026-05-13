@@ -418,7 +418,7 @@ export default function StripeSettingsTab() {
                                 style={{ color: 'var(--color-primary)' }}>Stripe Dashboard → Webhooks</a> → <strong>+ Add endpoint</strong>
                             <br />(w nowym Dashboard zakładka jest w lewym dolnym rogu jako <code>{`>_ Developers`}</code>)
                         </li>
-                        <li>Endpoint URL: <code>https://mikrostomart.pl/api/stripe-webhook</code></li>
+                        <li>Endpoint URL: <code>https://www.mikrostomart.pl/api/stripe-webhook</code> <strong>(z www!)</strong> — apex `mikrostomart.pl` przekierowuje 307 na www, a Stripe webhook nie follow'uje redirectów</li>
                         <li>Events to send: <code>payment_intent.succeeded</code>, <code>payment_intent.payment_failed</code>, <code>payment_intent.canceled</code></li>
                         <li>Po utworzeniu: kliknij <em>Reveal</em> przy <strong>Signing secret</strong> → kopiuj wartość <code>whsec_...</code></li>
                         <li>Wklej powyżej i <em>Zapisz</em>. DB ma priorytet nad env — możesz zostawić Vercel env pusty.</li>

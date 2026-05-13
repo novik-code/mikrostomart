@@ -6,11 +6,20 @@
  *
  * Setup (Marcin manual, see PLAN_HOTFIX_STATUS.md S2-3):
  *   1. Stripe Dashboard → Developers → Webhooks → Add endpoint
- *      URL:    https://mikrostomart.pl/api/stripe-webhook
- *      Events: payment_intent.succeeded, payment_intent.payment_failed
+ *      URL:    https://www.mikrostomart.pl/api/stripe-webhook
+ *              ^^^ www IS MANDATORY. apex mikrostomart.pl returns
+ *              307 → www, and Stripe webhooks do NOT follow redirects
+ *              for POST (would lose body integrity for the signature).
+ *              Make sure the Stripe dashboard "Test mode" toggle
+ *              (top-right) matches the mode you intend to receive
+ *              events from — live and test webhooks are separate lists.
+ *      Events: payment_intent.succeeded, payment_intent.payment_failed,
+ *              payment_intent.canceled
  *   2. Copy the Signing secret (whsec_...)
- *   3. Vercel env var STRIPE_WEBHOOK_SECRET = whsec_... on both projects
- *      (mikrostomart + densflow-demo), Production + Preview.
+ *   3. Either paste it into /admin → Stripe → Webhook Signing Secret
+ *      (S2-3-bis, DB-first) OR set Vercel env var STRIPE_WEBHOOK_SECRET
+ *      on both projects (mikrostomart + densflow-demo) ×
+ *      Production + Preview.
  *
  * We use the live config from getStripeConfig() for the API secret key,
  * but the WEBHOOK signing secret stays in env vars: it's a separate
