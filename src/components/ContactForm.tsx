@@ -44,7 +44,17 @@ export default function ContactForm() {
     // RODO consent
     const [rodoConsent, setRodoConsent] = useState(false);
 
-    const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+    // Cloudflare Turnstile site key. NEXT_PUBLIC_TURNSTILE_SITE_KEY env var is
+    // the preferred source (visible in dashboard, can be rotated). Hardcoded
+    // fallback below exists so the widget renders even when the env var didn't
+    // make it into the bundle (e.g. Vercel "Sensitive" flag stripped it from
+    // client-side injection, or Preview env scope missing). Site key is PUBLIC
+    // by Cloudflare design — it appears in the rendered HTML/JS bundle
+    // anyway, so there's no secrecy loss in hardcoding the fallback. The
+    // matching SECRET key (server-side) stays in env vars and is what actually
+    // authorizes verification.
+    const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY
+        || '0x4AAAAAADN3DS_czkcNj-aD';
 
     const {
         register,
