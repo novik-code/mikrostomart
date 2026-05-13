@@ -1,6 +1,8 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-13 EOD (**🚨 HOTFIX SPRINT — S3 DONE: reservation security + integrity hardening (S3 redefined)**. Po Marcinowej weryfikacji audytora UX okazało się, że formularz `/rezerwacja` JEST spięty z Prodentis (oryginalny finding "brak pól na termin" niepoprawny — picker dat/godzin pojawia się po wyborze specjalisty). Zamiast kosmetyki UX Marcin zrobił 6 realnych poprawek (commit `ace0dfa`): rate limit /api/reservations 5/min + /api/prodentis/slots 30/min, server-side slot revalidation (re-query Prodentis przy POST, 409 jeśli slot zajęty, graceful gdy Prodentis down), demo mode guard (mock slots + skip Telegram/email/push/Prodentis writes), idempotency dedup phone+date+time 60s, telefon w fallback komunikacie AppointmentScheduler, submit disabled + hint chooseSpecialistFirst i18n w 4 locale do wyboru specjalisty/data/godzina. Plus basic server-side input validation (regex date/time + past-check + phone length). **Next: S4 XSS + public hardening** (~2-3 dni, 5 sesji, P0-08 + P0-09 + P1-02 + P1-03 + P1-07).)  
+> **Last Updated:** 2026-05-13 EOD #4 (**🚨 PRODENTIS ICON SYNC FIX + S4-1 REVERTED + ADMIN DIAGNOSTIC TOOLS**. Dzień zawiły: (1) `d3af6be` S4-1 WYSIWYG sanitization z `isomorphic-dompurify` wywołał `ERR_REQUIRE_ESM` z `@exodus/bytes` w jsdom→html-encoding-sniffer chain na cold-start Vercel funkcji → strona 500-owała przez ~1h → revert `beec4bc`+`2f78f79` przywrócił prod. (2) Marcin zauważył że "ikona uśmiechu" w grafiku Prodentis przestała się dodawać w środku dnia po SMS-confirm. Diagnostic tools `06b51e2` w admin/Komunikacja/SMS sent tab (badge "✅ Pacjent kliknął" + button "↩️ Cofnij potwierdzenie" + nowy endpoint `/api/admin/appointments/reset-confirmation`). Vercel log + odpowiedź dewelopera proxy → **ROOT CAUSE**: recepcja przenosi/odwołuje wizyty w Prodentis desktop, Prodentis soft-deletes (deleted=1) i tworzy NOWY wpis z nowym id_schedule, nasz prodentis_id zapisany 7:00 staje się stale → POST /icon zwraca 404. (3) Fix `22e49fe`: hybrid retry — przy 404 GET /by-date z matching po phone last-9-digits + HH:MM → znajdź nowy ID → persist + retry. Jeśli wizyta naprawdę odwołana (brak match) → Telegram alert "🚨 SYNC PADŁ" do gabinet chat. **Migracja 123** (idempotent ADD COLUMN IF NOT EXISTS): kolumny `prodentis_icon_synced`, `_synced_at`, `_error` w appointment_actions + partial index. Admin panel: drugi badge "🔄 Prodentis ✅/❌" obok "Pacjent kliknął" z tooltipem error reason. **🚨 Manual task Marcin: wgraj migrację 123 na obu Supabase**. **P0-08 (XSS) pozostaje otwarte** — S4-1 v2 z `sanitize-html` (pure CJS, no jsdom) w kolejnej sesji. **Sprint 3 ✅, S4-1 ❌ reverted, S4-1 v2 PENDING**.)  
+
+<!-- Poprzednia: 2026-05-13 EOD (**🚨 HOTFIX SPRINT — S3 DONE: reservation security + integrity hardening (S3 redefined)**. 6 realnych poprawek (rate limit + slot validation + demo guard + idempotency + phone fallback + disabled submit). Commit `ace0dfa`.
 
 <!-- Poprzednia: 2026-05-13 EOD (**🚨 HOTFIX SPRINT — S2 4.5/5 DONE: pełen payment integrity działa w prod na real money**. Stripe live BLIK 2 PLN end-to-end, 2 webhook fixy (Test→Live mode + apex→www URL). Audit zamknięte: P0-06+P0-07+P1-04.
 
@@ -2469,6 +2471,83 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-13 EOD #4 — Prodentis icon sync FIX (stale ID refresh + retry + alert) + S4-1 reverted + admin diagnostic tools
+
+#### Commits (po S3):
+- `d3af6be` ❌ feat(security): S4-1 WYSIWYG sanitization with DOMPurify (P0-08) — **CRASHED PROD**
+- `d98defd` ❌ docs: S4-1 done
+- `2f78f79` 🔄 Revert "docs: S4-1 done"
+- `beec4bc` 🔄 Revert "feat(security): S4-1 WYSIWYG..."
+- `06b51e2` ✅ feat(admin): SMS confirmation diagnostic tools — status badge + reset
+- `22e49fe` ✅ fix(prodentis): refresh stale ID on 404 + persist sync status + Telegram alert
+
+#### Tło — S4-1 crash (1-godzinny prod outage):
+- 11:38 push S4-1 (isomorphic-dompurify, Maximum scope per pierwotny plan)
+- Build OK na Vercel, ale cold-start funkcji serverless rzucał `ERR_REQUIRE_ESM` przy `require()` `@exodus/bytes/encoding-lite.js` (ESM-only) z `html-encoding-sniffer` w jsdom dependency tree
+- Strona 500-owała dla `/`, `/wizyta/*`, `/api/admin/page-overrides` (każdy bundle który pociągnął sanitize.ts pośrednio)
+- 12:41 reverts pushnięte, 12:43 prod recovery do 200
+
+**Lekcja**: nigdy nie pushować dependency z `jsdom` (lub ciągnącej jsdom transitively) na main bez testowania na Vercel preview deployment first. Build success ≠ runtime success.
+
+#### Tło — Prodentis icon sync bug:
+Po reverts S4-1 Marcin zauważył, że wciąż jeden objaw nie wraca: ikona "pacjent potwierdził obecność" przestała pojawiać się w grafiku Prodentis po SMS-confirm. Działa Telegram + push (czasem opóźniony), ale ikona NIE. Rotacja klucza była wczoraj (2026-05-12), rano działało — problem zaczął się **w środku dnia 2026-05-13**.
+
+**Workflow diagnostyczny w jednej sesji**:
+1. Diagnostic tools `06b51e2`: admin Komunikacja/SMS/Wysłane teraz pokazuje per row "✅ Pacjent kliknął" (z timestamp tooltip) lub "○ Brak kliknięcia". Plus button "↩️ Cofnij potwierdzenie" → reset attendance_confirmed + status='pending' żeby ten sam pacjent mógł retestować ten sam link SMS.
+2. Marcin zrobił test: jeden pacjent (apt `0100213775`) → 404 z proxy. Drugi pacjent (apt `0100217003`) → 200 OK. **Czyli endpoint działa selektywnie**.
+3. Zlecenie do developera proxy (`~/Desktop/ZLECENIE_PRODENTIS_PROXY_ICON_404.md`) — developer odpisał (`~/Desktop/ODPOWIEDZ_ICON_404.md`):
+   - Root cause: recepcja w Prodentis desktop przenosi/odwołuje wizyty → stary wpis dostaje `deleted=1` → tworzy się NOWY wpis z nowym `id_schedule`. Proxy poprawnie zwraca 404 dla starego ID.
+   - Rekomendacja: po stronie naszej app — przed POST /icon weryfikuj aktualność `prodentis_id` (Opcja A check, B search, C refresh).
+
+#### Co się zmieniło (commit `22e49fe`):
+
+**Migracja 123** (idempotent, `ADD COLUMN IF NOT EXISTS`):
+```sql
+ALTER TABLE appointment_actions
+    ADD COLUMN IF NOT EXISTS prodentis_icon_synced BOOLEAN DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS prodentis_icon_synced_at TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS prodentis_icon_error TEXT;
+
+CREATE INDEX IF NOT EXISTS idx_appointment_actions_icon_sync_failed
+    ON appointment_actions (attendance_confirmed, prodentis_icon_synced)
+    WHERE attendance_confirmed = TRUE AND prodentis_icon_synced = FALSE;
+```
+
+**`src/app/api/appointments/confirm/route.ts`** — hybrid retry logic:
+1. Spróbuj `POST /api/schedule/appointment/{stored_id}/icon` (~95% wizyt — fast path)
+2. Jeśli 404 → `GET /api/appointments/by-date?date=YYYY-MM-DD` → znajdź wizytę matching po `patient_phone.replace(/\D/g,'').slice(-9)` + `date.slice(11,16)` (HH:MM)
+3. Jeśli znaleziono fresh ID:
+   - `UPDATE appointment_actions SET prodentis_id = freshId WHERE id = appointmentId` (persist na przyszłość)
+   - Retry POST /icon z fresh ID → 200 ✅
+4. Jeśli brak match (wizyta naprawdę odwołana) → Telegram alert do gabinet chat `🚨 SYNC PRODENTIS PADŁ — sprawdź ręcznie` z imieniem + telefon + termin + lekarz + powód
+5. Zawsze persist: `prodentis_icon_synced` + `_synced_at` + `_error` na `appointment_actions`
+
+**`src/app/api/admin/sms-reminders/route.ts`** GET — enrichment teraz włącza 3 dodatkowe pola sync status w response.
+
+**`src/app/admin/components/SmsRemindersTab.tsx`** — drugi badge w wierszu SMS sent:
+- `🔄 Prodentis ✅` (niebieski) jeśli `prodentis_icon_synced=true`, tooltip z `_synced_at`
+- `🔄 Prodentis ❌` (czerwony) jeśli `prodentis_icon_error` set, tooltip z error reason + sugestia działania (`appointment_cancelled_or_not_found` → "Wizyta prawdopodobnie odwołana w grafiku. Skontaktuj się z pacjentem.")
+
+#### Manual tasks dla Marcina:
+- ⚠️ **Wgraj migrację 123** w Supabase SQL Editor na OBU projektach (produkcja `keucogopujdolzmfajjv` + demo `mhosfncgasjfruiohlfo`). Kopia: `~/Desktop/migracje_supabase/migracja_123_appointment_actions_prodentis_sync_status.txt`. Idempotentna — bezpieczna do uruchomienia wielokrotnego.
+- Po wgraniu: każdy kolejny pacjent klikający SMS confirm-link będzie miał persistowany status sync. Failowe wizyty (recepcja odwołała, nie ma matchu) wywołają natychmiast Telegram alert do gabinet chat.
+
+#### Audit closure:
+- ✅ Prodentis icon sync bug — fix wdrożony + tracking persistowany + alert system
+- ❌ P0-08 (stored XSS w WYSIWYG) — **otwarte** (S4-1 reverted, oczekuje S4-1 v2 z `sanitize-html`)
+
+#### Pliki:
+- `supabase_migrations/123_appointment_actions_prodentis_sync_status.sql` NEW (+ kopia txt na pulpit Marcina)
+- `src/app/api/appointments/confirm/route.ts` (+121/-21)
+- `src/app/api/admin/sms-reminders/route.ts` (+ enrichment fields)
+- `src/app/admin/components/SmsRemindersTab.tsx` (+ Prodentis sync badges)
+- `src/app/api/admin/appointments/reset-confirmation/route.ts` NEW (z commit 06b51e2)
+- Razem: 6 plików zmienionych, ~400 LOC zmiany
+
+#### Files na pulpicie do referencji:
+- `~/Desktop/ZLECENIE_PRODENTIS_PROXY_ICON_404.md` — zlecenie dla dewelopera proxy (już rozwiązane, ale zostaw na archive)
+- `~/Desktop/ODPOWIEDZ_ICON_404.md` — odpowiedź dewelopera (kluczowa diagnoza)
 
 ### 2026-05-13 EOD — Hotfix Sprint S3: Reservation security + integrity hardening (S3 redefined)
 
