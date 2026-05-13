@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import OpenAI from "openai";
 import { requireAdmin } from "@/lib/authGuards";
 import { broadcastPush } from '@/lib/pushService';
+import { sanitizeRichHtml } from '@/lib/sanitize';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -93,7 +94,7 @@ export async function POST(req: NextRequest) {
             title: body.title,
             slug: body.slug || body.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
             excerpt: body.excerpt || "",
-            content: body.content || "",
+            content: sanitizeRichHtml(body.content || ""),
             date: body.date,
             image: body.image || null,
             tags: body.tags || [],
@@ -124,7 +125,7 @@ export async function POST(req: NextRequest) {
                         title: translated.title,
                         slug: translated.slug || `${payload.slug}-${targetLocale}`,
                         excerpt: translated.excerpt,
-                        content: translated.content,
+                        content: sanitizeRichHtml(translated.content),
                         date: payload.date,
                         image: payload.image, // Same image for all locales
                         tags: translated.tags || payload.tags,
@@ -208,7 +209,7 @@ export async function PUT(req: NextRequest) {
                 title: body.title,
                 slug: body.slug,
                 excerpt: body.excerpt,
-                content: body.content,
+                content: sanitizeRichHtml(body.content),
                 date: body.date,
                 image: body.image,
                 tags: body.tags

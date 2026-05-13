@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { Link } from '@/i18n/navigation';
 import styles from './appointment.module.css';
+import { sanitizeRichHtml } from '@/lib/sanitize';
 
 interface AppointmentInstruction {
     appointment_type: string;
@@ -387,10 +388,10 @@ export default function AppointmentPreparationPage() {
                             </div>
                         )}
 
-                        {/* HTML Content */}
+                        {/* HTML Content — sanitized at render (defense layer 2) */}
                         <div
                             className={styles.htmlContent}
-                            dangerouslySetInnerHTML={{ __html: instruction.content }}
+                            dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(instruction.content) }}
                         />
                     </div>
                 </div>

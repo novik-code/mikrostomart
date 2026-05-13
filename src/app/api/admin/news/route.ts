@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { requireAdmin } from "@/lib/authGuards";
+import { sanitizeRichHtml } from "@/lib/sanitize";
 
 export const runtime = 'nodejs';
 
@@ -48,7 +49,7 @@ export async function POST(req: NextRequest) {
             title: body.title,
             slug: body.slug || body.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
             excerpt: body.excerpt || "",
-            content: body.content || "",
+            content: sanitizeRichHtml(body.content || ""),
             date: body.date,
             image: body.image || "/images/placeholder.jpg",
             // i18n locale columns
@@ -58,9 +59,9 @@ export async function POST(req: NextRequest) {
             excerpt_en: body.excerpt_en || null,
             excerpt_de: body.excerpt_de || null,
             excerpt_ua: body.excerpt_ua || null,
-            content_en: body.content_en || null,
-            content_de: body.content_de || null,
-            content_ua: body.content_ua || null,
+            content_en: body.content_en ? sanitizeRichHtml(body.content_en) : null,
+            content_de: body.content_de ? sanitizeRichHtml(body.content_de) : null,
+            content_ua: body.content_ua ? sanitizeRichHtml(body.content_ua) : null,
         };
 
         const { data, error } = await supabase.from('news').insert(payload).select().single();
@@ -106,7 +107,7 @@ export async function PUT(req: NextRequest) {
                 title: body.title,
                 slug: body.slug,
                 excerpt: body.excerpt,
-                content: body.content,
+                content: body.content !== undefined ? sanitizeRichHtml(body.content) : undefined,
                 date: body.date,
                 image: body.image,
                 // i18n locale columns
@@ -116,9 +117,9 @@ export async function PUT(req: NextRequest) {
                 excerpt_en: body.excerpt_en ?? undefined,
                 excerpt_de: body.excerpt_de ?? undefined,
                 excerpt_ua: body.excerpt_ua ?? undefined,
-                content_en: body.content_en ?? undefined,
-                content_de: body.content_de ?? undefined,
-                content_ua: body.content_ua ?? undefined,
+                content_en: body.content_en !== undefined ? sanitizeRichHtml(body.content_en) : undefined,
+                content_de: body.content_de !== undefined ? sanitizeRichHtml(body.content_de) : undefined,
+                content_ua: body.content_ua !== undefined ? sanitizeRichHtml(body.content_ua) : undefined,
             })
             .eq('id', body.id)
             .select()
