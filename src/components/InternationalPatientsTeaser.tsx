@@ -28,10 +28,15 @@ export default function InternationalPatientsTeaser({ variant = 'wide' }: { vari
         <section
             aria-label={t('teaserBadge')}
             style={{
-                background: 'linear-gradient(135deg, #0d4f54 0%, #062a2d 100%)',
+                // Match the rest of the homepage: dark surface + thin gold accent.
+                // Was a teal gradient (#0d4f54 → #062a2d) which clashed with the
+                // black/gold palette used elsewhere — restyled 2026-05-13.
+                background: 'linear-gradient(180deg, var(--color-surface) 0%, var(--color-background) 100%)',
                 color: '#ffffff',
                 padding: isCompact ? 'var(--spacing-lg) 0' : 'var(--spacing-xl) 0',
                 margin: isCompact ? 'var(--spacing-md) 0' : 'var(--spacing-lg) 0',
+                borderTop: '1px solid rgba(var(--color-primary-rgb), 0.18)',
+                borderBottom: '1px solid rgba(var(--color-primary-rgb), 0.18)',
                 borderRadius: isCompact ? 'var(--radius-md)' : 0,
             }}
         >
@@ -49,10 +54,10 @@ export default function InternationalPatientsTeaser({ variant = 'wide' }: { vari
             >
                 <span
                     style={{
-                        fontSize: '0.85rem',
-                        letterSpacing: '0.18em',
+                        fontSize: '0.78rem',
+                        letterSpacing: '0.2em',
                         textTransform: 'uppercase',
-                        color: '#d4af37',
+                        color: 'var(--color-primary)',
                         fontWeight: 600,
                     }}
                 >
@@ -61,21 +66,21 @@ export default function InternationalPatientsTeaser({ variant = 'wide' }: { vari
                 <h2
                     style={{
                         fontFamily: 'var(--font-heading), Georgia, serif',
-                        fontSize: isCompact ? 'clamp(1.5rem, 3vw, 2rem)' : 'clamp(1.8rem, 3.5vw, 2.5rem)',
-                        lineHeight: 1.2,
+                        fontSize: isCompact ? 'clamp(1.4rem, 2.8vw, 1.9rem)' : 'clamp(1.6rem, 3vw, 2.2rem)',
+                        lineHeight: 1.25,
                         margin: 0,
                         fontWeight: 600,
-                        color: '#ffffff',
+                        color: 'var(--color-text-main, #ffffff)',
                     }}
                 >
                     {t('teaserTitle')}
                 </h2>
                 <p
                     style={{
-                        fontSize: '1.05rem',
-                        lineHeight: 1.6,
+                        fontSize: '1rem',
+                        lineHeight: 1.65,
                         margin: 0,
-                        color: '#cfd8d9',
+                        color: 'var(--color-text-muted, #a8b2b3)',
                         maxWidth: '780px',
                     }}
                 >
@@ -88,14 +93,15 @@ export default function InternationalPatientsTeaser({ variant = 'wide' }: { vari
                         display: 'inline-flex',
                         alignItems: 'center',
                         gap: '0.5rem',
-                        padding: '0.85rem 1.6rem',
-                        background: '#d4af37',
-                        color: '#062a2d',
+                        padding: '0.75rem 1.4rem',
+                        background: 'transparent',
+                        color: 'var(--color-primary)',
+                        border: '1px solid var(--color-primary)',
                         textDecoration: 'none',
-                        fontWeight: 700,
-                        fontSize: '1rem',
+                        fontWeight: 600,
+                        fontSize: '0.95rem',
                         borderRadius: 'var(--radius-sm)',
-                        transition: 'transform 0.18s ease, background 0.18s ease',
+                        transition: 'background 0.18s ease, color 0.18s ease, transform 0.18s ease',
                     }}
                     className="intl-teaser-cta"
                 >
@@ -104,7 +110,8 @@ export default function InternationalPatientsTeaser({ variant = 'wide' }: { vari
                 </Link>
                 <style>{`
                     .intl-teaser-cta:hover {
-                        background: #ffd961 !important;
+                        background: var(--color-primary) !important;
+                        color: var(--color-background) !important;
                         transform: translateX(2px);
                     }
                 `}</style>
