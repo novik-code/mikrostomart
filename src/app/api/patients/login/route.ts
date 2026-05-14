@@ -185,7 +185,14 @@ export async function POST(request: Request) {
 
         const response = NextResponse.json({
             success: true,
-            token, // kept for backward compatibility
+            // S4-5: `token` removed from response body. The JWT now lives ONLY
+            // in the httpOnly cookie set below — JS can't read it, so a
+            // future XSS payload (if it bypasses sanitize-html from S4-1 v2)
+            // can't exfiltrate the patient session.
+            // Patient API endpoints all use verifyTokenFromRequest from
+            // @/lib/jwt which falls back to the httpOnly cookie when the
+            // Authorization header is missing — so removing the body-token
+            // doesn't break any existing fetch in the patient zone.
             patient: {
                 ...patientDetails,
                 // Override with Supabase data if exists

@@ -39,11 +39,12 @@ export default function PatientLogin() {
 
             const data = await response.json();
 
-            if (response.ok && data.success && data.token) {
-                // Store JWT token in cookie
-                document.cookie = `patient_token=${data.token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Strict`;
-
-                // Store patient data in localStorage
+            if (response.ok && data.success) {
+                // S4-5: token is now ONLY in the httpOnly cookie set by the
+                // server response — no JS-readable copy, no localStorage of
+                // the JWT. patient_data localStorage stays (display-only
+                // profile info, not credentials; same-origin XSS can read
+                // it but can't impersonate the user without the cookie).
                 localStorage.setItem('patient_data', JSON.stringify(data.patient));
 
                 router.push('/strefa-pacjenta/dashboard');

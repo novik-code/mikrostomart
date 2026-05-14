@@ -79,15 +79,22 @@ export async function PUT(req: NextRequest) {
 
         const fileName = `videos/raw_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
 
-        // Ensure bucket exists
+        // Ensure bucket exists — kept as a safety net for fresh environments
+        // (e.g. demo Supabase project bootstrap). On established projects the
+        // bucket is configured by migration 125 with stricter limits; this
+        // fallback now mirrors those (100 MB, video/image MIMEs only).
         const { data: buckets } = await supabase.storage.listBuckets();
         const bucketExists = buckets?.some(b => b.name === 'social-media');
         if (!bucketExists) {
             await supabase.storage.createBucket('social-media', {
                 public: true,
-                fileSizeLimit: 524288000, // 500MB
+                fileSizeLimit: 104857600, // 100 MB (S4-5 hardened, was 500 MB)
+                allowedMimeTypes: [
+                    'video/mp4', 'video/quicktime', 'video/webm',
+                    'image/jpeg', 'image/png', 'image/webp',
+                ],
             });
-            console.log('[Video Upload] Created social-media bucket');
+            console.log('[Video Upload] Created social-media bucket (locked-down config)');
         }
 
         // Create a signed upload URL (valid for 1 hour)
