@@ -3,6 +3,32 @@ import { getRequestConfig } from 'next-intl/server';
 import { routing } from './routing';
 import { brandI18nParams } from '@/lib/brandConfig';
 
+// S5-3 (2026-05-15): deep merge instead of shallow.
+// Shallow `{...common, ...pages}` silently dropped sub-keys whenever both files
+// declared the same top-level namespace (e.g. `common.aktualnosci.backToNews` +
+// `pages.aktualnosci.{...}` → backToNews lost, MISSING_MESSAGE in slug page).
+// Audit (2026-05-15) found 2 overlapping namespaces per locale × 2 lost sub-keys.
+type MessageObject = Record<string, unknown>;
+function deepMerge<T extends MessageObject>(target: T, source: T): T {
+    const result: MessageObject = { ...target };
+    for (const [key, value] of Object.entries(source)) {
+        const existing = result[key];
+        const bothObjects =
+            existing &&
+            typeof existing === 'object' &&
+            !Array.isArray(existing) &&
+            value &&
+            typeof value === 'object' &&
+            !Array.isArray(value);
+        if (bothObjects) {
+            result[key] = deepMerge(existing as MessageObject, value as MessageObject);
+        } else {
+            result[key] = value;
+        }
+    }
+    return result as T;
+}
+
 export default getRequestConfig(async ({ requestLocale }) => {
     // URL-based locale resolution (Faza 2 SEO Recovery 2026-05-09):
     // requestLocale comes from the [locale] segment in the URL. next-intl middleware
@@ -16,7 +42,7 @@ export default getRequestConfig(async ({ requestLocale }) => {
 
     return {
         locale,
-        messages: { ...common, ...pages },
+        messages: deepMerge(common, pages),
         // Auto-inject brand tokens into ALL translations so {brandName} etc. resolve
         // without needing manual brandI18nParams() in every component
         defaultTranslationValues: brandI18nParams(),
