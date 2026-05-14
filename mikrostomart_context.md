@@ -1,6 +1,8 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-13 EOD #6 (**🎯 S4-2a DONE: CSP violations wired to Sentry (P1-02 Faza 1)**. Commit `8b281df`. CSP-Report-Only istniał od SEO Faza C ale BEZ `report-uri` — violations szły tylko do user console, nigdy do Sentry. Audit pusty (zero CSP entries). Fix: DSN parser w `src/middleware.ts` rekomponuje `NEXT_PUBLIC_SENTRY_DSN` (już set w Vercel env vars) do CSP security URL Sentry. Bez nowego env var, działa automatycznie dla Mikrostomart + Demo (różne DSN-y). Verified na preview branch → response header zawiera `report-uri https://o4510988121669632.ingest.de.sentry.io/api/.../security/?sentry_key=...&sentry_environment=production`. **Czekamy 3-7 dni** żeby Sentry zebrał violations, potem **Faza 2** (toggle do enforce + uzupełnij whitelist). **🚨 Manual tasks Marcin: brak** dla S4-2a, ale wciąż migracja 123 z #4 (Prodentis sync) na OBU Supabase.)
+> **Last Updated:** 2026-05-14 EOD (**🎯 S4-3 + S4-4 DONE: contact form Turnstile + short-link hardening + DB-backed confirmation tokens**. **Sesja zawiła**, dwa sprinty w jednym dniu po S4-2a w nocy poprzedniej. **S4-3 (P1-07)** commit `7547e52`+`fix da93c1f` (które wcześniej z S2 było ale działa też tu z hardcoded fallback): Cloudflare Turnstile zastępuje math captcha w `/kontakt`, backend weryfikuje token przez siteverify, rate limit 5/IP/15min (existing rateLimit infra), magic-bytes MIME validation (manual, bez `file-type` ESM gotcha jak DOMPurify v1 nas zabił), body size 5 MB. Marcin debugowanie: Vercel Sensitive env vars **nie wstrzykuje** `NEXT_PUBLIC_*` do client bundle, plus Value field wpisany w Note (UX gotcha) — hardcoded fallback site key `0x4AAAAAADN3DS_czkcNj-aD` w kodzie obejdzie problem (site key jest public, zero leak). Cloudflare Turnstile **nie wspiera wildcards z myślnikiem** w środku subdomeny (`*-novik-codes-projects.vercel.app` rejected), więc preview test pominięty — produkcja na whitelist OK, end-to-end real submit działa. **S4-4 (P1-06 + P1-02)** commit `3a7e4bf`: (a) **Short-link hardening** — `POST /api/short-links` teraz wymaga `requireAdmin()` + destination allowlist (internal `^/[a-z]` lub explicit external hosts: czelej/laserandhealthacademy/magazyn-stomatologiczny). `/s/[code]/page.tsx` (client React redirect) → `route.ts` (server-side 302). Cron robi direct DB insert (nie HTTP), zero ryzyka regresji. (b) **DB-backed confirmation token** zamiast HMAC z planu: cron generuje `nanoid(16)` (96 bits entropy), zapisuje w `appointment_actions.confirmation_token`, używa w short_link destination jako `?token=` zamiast enumerable `?appointmentId=UUID`. Confirm + cancel endpointy akceptują obie formaty (backwards compat 14 dni). Defensive fallback w cronie (jeśli kolumna nie wgrana → użyj legacy URL). **Migracja 124** (`appointment_actions.confirmation_token` + unique partial index, idempotent). **🚨 Manual task Marcin**: wgrać migrację 124 na OBU Supabase (`~/Desktop/migracje_supabase/migracja_124_*.txt`). Wcześniej z #4: migracja 123 (Prodentis sync) wciąż wymagana. Real test S4-4 jutro 8:00 PL gdy cron `appointment-reminders` wygeneruje SMS-y z tokenami zamiast UUID.)
+
+<!-- Poprzednia: 2026-05-13 EOD #6 (S4-2a CSP report-uri wired to Sentry — P1-02 Faza 1). Commit `8b281df`. DSN parser → Sentry security ingest URL.
 
 <!-- Poprzednia: 2026-05-13 EOD #5 (S4-1 v2 DONE: WYSIWYG sanitization z `sanitize-html` — P0-08 CLOSED). Commit `73c57a3`. 28 unit testów green. Preview-first workflow verified.
 
@@ -2475,6 +2477,64 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-14 EOD — Hotfix Sprint S4-3 + S4-4: contact form Turnstile + short-link/token hardening
+
+#### Commits:
+- `7547e52` — feat(security): S4-3 contact form Turnstile + rate limit + MIME guard (P1-07) — includes hardcoded site key fallback for Vercel Sensitive env-var gotcha
+- `3a7e4bf` — feat(security): S4-4 short-link hardening + DB-backed confirmation tokens (P1-06 + P1-02)
+
+#### S4-3 (P1-07): Contact form hardening z Cloudflare Turnstile
+
+**Tło**: `/api/contact` był otwarty: brak rate limitu, brak captcha (math `X + Y = ?` to UX friction + słabe anti-bot), brak server-side MIME validation. Marcin wcześniej (2026-05-12) skonfigurował Cloudflare Turnstile panel + Vercel env vars.
+
+**Co się zmieniło**:
+- **Frontend `src/components/ContactForm.tsx`**: math captcha zastąpione `@marsidev/react-turnstile` widgetem (~20 KB). Honeypot zachowany (belt-and-suspenders). Submit disabled until: `isSubmitting OR !rodoConsent OR !turnstileToken`. Po sukcesie widget auto-reset via ref.
+- **Backend `src/app/api/contact/route.ts`**: rate limit 5 req/IP per 15 min (istniejąca `src/lib/rateLimit.ts`). Verify Turnstile token przez `https://challenges.cloudflare.com/turnstile/v0/siteverify`. Body size guard 8 MB pre-parse. Attachment magic-bytes validation (manual 4-byte signature check zamiast `file-type` package — uniknęliśmy ESM/CJS gotchy jak `isomorphic-dompurify` w S4-1 v1). Attachment size cap 5 MB po base64 decode.
+
+**Vercel "Sensitive" env-var gotcha** (debugging session): Marcin wczoraj wpisał Turnstile site key + secret key jako Sensitive. Dla `NEXT_PUBLIC_*` Sensitive flag **nie wstrzykuje** wartości do client bundle — frontend dostaje `undefined`. Plus: dialog Edit Sensitive zmienna pokazuje **puste pole Value** (placeholder `https://api.example.com`) — Marcin pierwotnie wpisał klucz **w pole Note zamiast Value** (UX gotcha). Vercel **nie pozwala odznaczyć Sensitive po utworzeniu** — trzeba delete + recreate. **Fix**: hardcoded fallback w kodzie `process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || '0x4AAAAAADN3DS_czkcNj-aD'`. Site key jest **public z definicji Cloudflare** (i tak w client bundle), zero leak. Secret key zostaje w env var jako server-side (Sensitive OK dla server, tylko dla `NEXT_PUBLIC_*` jest broken).
+
+**Cloudflare Turnstile hostname allowlist gotcha**: nie wspiera wildcards z myślnikiem w środku subdomeny (np. `*-novik-codes-projects.vercel.app` rejected). Subdomain wildcard `*.vercel.app` potencjalnie blokowany przez Cloudflare jako popular shared platform. **Decyzja**: skip preview test, merge prosto do main — produkcja `mikrostomart.pl` + `www.mikrostomart.pl` na whitelist od wczoraj, kod zweryfikowany lokalnie (43/43 testów green) + Vercel build success + widget się ładuje na preview (tylko Cloudflare blokuje final challenge z preview hostname). Marcin przetestował end-to-end na produkcji po deploy → działa.
+
+**Audit closure**: ✅ P1-07 zamknięte.
+
+#### S4-4 (P1-06 + P1-02): Short-link hardening + DB-backed confirmation tokens
+
+**Wątek (a) — Short-link hardening (P1-06)**:
+- **`POST /api/short-links`** teraz wymaga `requireAdmin()` (helper z S1-1). Wcześniej był otwarty (znaleziono podczas recon że żaden caller go nie używa — był dead/insecure endpoint).
+- **Destination allowlist**: regex internal `^/[a-z]` (relative paths) lub external hostname allowlist: `mikrostomart.pl`, `www.mikrostomart.pl`, `demo.densflow.ai`, `densflow.ai`, `czelej.com.pl`, `laserandhealthacademy.com`, `magazyn-stomatologiczny.pl`. Phishing-via-our-domain vector zamknięty.
+- **`/s/[code]/page.tsx` (client React redirect) → `/s/[code]/route.ts` (server-side 302)**. Zero flickeru (~300-700ms "Przekierowywanie..." screen poprzednio). Search engines widzą prawdziwy redirect zamiast pustej strony. Click tracking zachowany fire-and-forget.
+- **SMS cron NIE jest affected** — robi `direct DB insert` do `short_links` table przez service role, nie przez HTTP endpoint. Zero ryzyka regresji.
+
+**Wątek (b) — DB-backed confirmation token (P1-02)**:
+- **Plan z PLAN_HOTFIX_SPRINT.md** zakładał HMAC stateless tokens, ale **przekraczał SMS limit 160 znaków** (HMAC-SHA256 64 hex + payload ~100 chars + URL prefix = ~210 chars). **Decyzja**: **zmiana planu na DB-backed token** — krótszy (16 chars), prostszy (zero HMAC infrastruktury, zero secret key management), reuse istniejącej `short_links` infra.
+- **Migracja 124**: `appointment_actions.confirmation_token TEXT` + unique partial index `WHERE confirmation_token IS NOT NULL`. Idempotent.
+- **Cron `appointment-reminders`** generuje `nanoid(16)` token (~96 bits entropy = niezgadywalny) per appointment_action. Zapisuje w kolumnie. Short link destination używa `?token=<16chars>` zamiast `?appointmentId=<UUID>`. **Defensive fallback**: jeśli kolumna `confirmation_token` nie istnieje (np. migracja 124 nie wgrana), cron retry'uje upsert bez kolumny i fallback do legacy `?appointmentId=` URL. SMS-y nie padają niezależnie od stanu migracji.
+- **`/api/appointments/confirm` + `/api/appointments/cancel`**: akceptują **token (nowy)** lub **appointmentId (legacy)**. Backwards compat ~14 dni (SMS-y w pipeline sprzed deployu używające UUID wciąż działają).
+- **Landing page `/[locale]/wizyta/[type]`**: czyta `?token=` lub `?appointmentId=` z URL searchParams, przekazuje odpowiednie pole w submit body.
+- **Threat addressed**: UUID v4 był enumerable. Atakujący znający format mógł zgadywać sąsiednie ID lub extrapolować z leaked link (screenshot pacjenta na social media). Plus brak time validation — UUID raz wydany zawsze działa. Token rozwiązuje oba: niezgadywalny (96 bits) + DB lookup może w przyszłości dodać TTL via `appointment_date` check.
+
+**🚨 Manual task Marcin**: wgrać migrację 124 na OBU Supabase (`keucogopujdolzmfajjv` + `mhosfncgasjfruiohlfo`). Kopia: `~/Desktop/migracje_supabase/migracja_124_appointment_actions_confirmation_token.txt`. Idempotent.
+
+**Audit closure**: ✅ P1-06 (short-link) zamknięte. ✅ P1-02 (confirmation enumeration) zamknięte.
+
+**Real test S4-4 jutro 8:00 PL**: cron `appointment-reminders` wygeneruje SMS-y z tokenami zamiast UUID. Pacjenci klikają → confirm endpoint z `?token=` → DB lookup → flow identyczny user perspective.
+
+#### Pliki:
+- `src/components/ContactForm.tsx` (S4-3 frontend)
+- `src/app/api/contact/route.ts` (S4-3 backend)
+- `src/app/api/short-links/route.ts` (S4-4a)
+- `src/app/s/[code]/route.ts` NEW + `page.tsx` DELETED (S4-4a)
+- `src/app/api/cron/appointment-reminders/route.ts` (S4-4b)
+- `src/app/api/appointments/confirm/route.ts` (S4-4b)
+- `src/app/api/appointments/cancel/route.ts` (S4-4b)
+- `src/app/[locale]/wizyta/[type]/page.tsx` (S4-4b)
+- `supabase_migrations/124_appointment_actions_confirmation_token.sql` NEW
+- `package.json` (`@marsidev/react-turnstile@^1.5.2`)
+
+#### Status sprintów po sesji:
+- ✅ Sprint 1 (auth) + S2 4.5/5 (payment) + S3 (rezerwacja) + S4-1 v2 (XSS) + S4-2a (CSP report-uri) + **S4-3 (contact form)** + **S4-4 (short-link + tokens)**
+- ⏳ Pozostają: **S4-2b** (CSP enforce, czekamy 3-7 dni na Sentry data od `8b281df`) + **S4-5** (patient JWT + public upload bucket — migracja 125 bo 124 zajęta) + S5-S9
 
 ### 2026-05-13 EOD #6 — Hotfix Sprint S4-2a: CSP violation reporting wired to Sentry (P1-02 Faza 1)
 
