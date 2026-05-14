@@ -118,6 +118,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     );
 
     // ── Interactive tools (medium priority) — multi-locale ──
+    // S5-1 (2026-05-15): /zadatek removed — page is noindex globally (Faza J-2)
+    // because it has no organic search intent (one-purpose payment landing).
     const toolPaths = [
         '/mapa-bolu',
         '/kalkulator-leczenia',
@@ -125,23 +127,34 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         '/selfie',
         '/symulator',
         '/aplikacja',
-        '/zadatek',
     ];
     const toolRoutes = toolPaths.flatMap((path) =>
         multiLocaleEntries(path, { changeFrequency: 'monthly', priority: 0.7 })
     );
 
-    // ── Legal pages (low priority) — multi-locale ──
-    const legalPaths = [
+    // ── Legal pages (low priority) ──
+    // S5-1 (2026-05-15): PL legal pages (regulamin/polityka-cookies/
+    // polityka-prywatnosci/rodo) emit ONLY the PL URL — foreign locales render
+    // the same Polish text and would compete for the wrong queries / get marked
+    // as duplicate content. /privacy-policy stays multi-locale because it's the
+    // dedicated international privacy page (separate folder, translated content).
+    const plOnlyLegalPaths = [
         '/regulamin',
         '/polityka-cookies',
         '/polityka-prywatnosci',
         '/rodo',
-        '/privacy-policy',
     ];
-    const legalRoutes = legalPaths.flatMap((path) =>
-        multiLocaleEntries(path, { changeFrequency: 'yearly', priority: 0.3 })
-    );
+    const plOnlyLegalRoutes: MetadataRoute.Sitemap = plOnlyLegalPaths.map((path) => ({
+        url: `${BASE_URL}${path}`,
+        lastModified: lastModForPath(path),
+        changeFrequency: 'yearly' as const,
+        priority: 0.3,
+    }));
+    const internationalLegalRoutes = multiLocaleEntries('/privacy-policy', {
+        changeFrequency: 'yearly',
+        priority: 0.3,
+    });
+    const legalRoutes = [...plOnlyLegalRoutes, ...internationalLegalRoutes];
 
     // ── Dynamic: news articles from DB (multi-locale via title_en/de/ua, content_en/de/ua) ──
     // News uses the same slug across all locales (one row in `news` table per article,

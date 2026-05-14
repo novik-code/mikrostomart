@@ -288,8 +288,13 @@ export default async function RootLayout({
     const branded = deepBrandReplace(rawMessages);
     const messages = isDemoMode ? deepSanitize(branded) : branded;
 
+    // S5-1 (2026-05-15): URL prefix 'ua' → ISO 639-1 'uk' (Ukrainian) for <html lang>.
+    // Hreflang already maps via HREFLANG_MAP in sitemap.ts; html lang was the last
+    // place still emitting non-standard 'ua'. Googlebot/screen readers expect 'uk'.
+    const htmlLang = locale === 'ua' ? 'uk' : locale;
+
     return (
-        <html lang={locale}>
+        <html lang={htmlLang}>
             <head>
                 {/* J-5 follow-up #3: fb:app_id with property="" attribute (Facebook
                     only parses this form; Next.js Metadata API's `other` field
