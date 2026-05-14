@@ -1,6 +1,8 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-14 EOD (**🎯 S4-3 + S4-4 DONE: contact form Turnstile + short-link hardening + DB-backed confirmation tokens**. **Sesja zawiła**, dwa sprinty w jednym dniu po S4-2a w nocy poprzedniej. **S4-3 (P1-07)** commit `7547e52`+`fix da93c1f` (które wcześniej z S2 było ale działa też tu z hardcoded fallback): Cloudflare Turnstile zastępuje math captcha w `/kontakt`, backend weryfikuje token przez siteverify, rate limit 5/IP/15min (existing rateLimit infra), magic-bytes MIME validation (manual, bez `file-type` ESM gotcha jak DOMPurify v1 nas zabił), body size 5 MB. Marcin debugowanie: Vercel Sensitive env vars **nie wstrzykuje** `NEXT_PUBLIC_*` do client bundle, plus Value field wpisany w Note (UX gotcha) — hardcoded fallback site key `0x4AAAAAADN3DS_czkcNj-aD` w kodzie obejdzie problem (site key jest public, zero leak). Cloudflare Turnstile **nie wspiera wildcards z myślnikiem** w środku subdomeny (`*-novik-codes-projects.vercel.app` rejected), więc preview test pominięty — produkcja na whitelist OK, end-to-end real submit działa. **S4-4 (P1-06 + P1-02)** commit `3a7e4bf`: (a) **Short-link hardening** — `POST /api/short-links` teraz wymaga `requireAdmin()` + destination allowlist (internal `^/[a-z]` lub explicit external hosts: czelej/laserandhealthacademy/magazyn-stomatologiczny). `/s/[code]/page.tsx` (client React redirect) → `route.ts` (server-side 302). Cron robi direct DB insert (nie HTTP), zero ryzyka regresji. (b) **DB-backed confirmation token** zamiast HMAC z planu: cron generuje `nanoid(16)` (96 bits entropy), zapisuje w `appointment_actions.confirmation_token`, używa w short_link destination jako `?token=` zamiast enumerable `?appointmentId=UUID`. Confirm + cancel endpointy akceptują obie formaty (backwards compat 14 dni). Defensive fallback w cronie (jeśli kolumna nie wgrana → użyj legacy URL). **Migracja 124** (`appointment_actions.confirmation_token` + unique partial index, idempotent). **🚨 Manual task Marcin**: wgrać migrację 124 na OBU Supabase (`~/Desktop/migracje_supabase/migracja_124_*.txt`). Wcześniej z #4: migracja 123 (Prodentis sync) wciąż wymagana. Real test S4-4 jutro 8:00 PL gdy cron `appointment-reminders` wygeneruje SMS-y z tokenami zamiast UUID.)
+> **Last Updated:** 2026-05-14 EOD #2 (**🎯 S4-5 DONE — Patient JWT hardening (P1-03) + social-media bucket lockdown (P0-09)**. Commit `fc8f27f`. Wątek (a): `/api/patients/login` usunięto `token` z JSON response (zostaje tylko httpOnly cookie). Frontend `login/page.tsx` usunięto `document.cookie = patient_token=${data.token}` — JS-readable copy zniknął. Verified na preview deployment: DevTools → Cookies pokazuje tylko 1 `patient_token` z flagą HttpOnly ✓ Secure ✓ SameSite=Strict, Local Storage zawiera tylko `patient_data` (display-only), dashboard ładuje się normalnie przez httpOnly cookie + `verifyTokenFromRequest` fallback. Wątek (b): migracja **125** dropuje policies `"Allow video uploads"` (anyone INSERT do `videos/*`) + `"Allow service delete social-media"` (anyone DELETE — misleading name). Plus bucket `file_size_limit` 500MB → 100MB + `allowed_mime_types` restricted do video/image. Zostaje `"Allow public read"` bo wideo musi być publicznie odczytywalne dla YouTube/TikTok publication. Code: `createBucket` fallback w `/api/social/video-upload` mirror migracji (100MB + MIME restrict). Frontend upload przez signedUploadUrl + service_role bypass RLS = unaffected. **🚨 Manual task Marcin**: wgrać migrację 125 na OBU Supabase (`~/Desktop/migracje_supabase/migracja_125_*.txt`). Plus poprzednie pending: migracje 124, 123, 122. **Sprint 4 prawie COMPLETE** — pozostaje tylko S4-2b (CSP enforce, czekamy ~tydzień na Sentry data od `8b281df`). Po S4-2b wracamy do S5 SEO P2 cleanup.)
+
+<!-- Poprzednia: 2026-05-14 EOD (**🎯 S4-3 + S4-4 DONE: contact form Turnstile + short-link hardening + DB-backed confirmation tokens**. **Sesja zawiła**, dwa sprinty w jednym dniu po S4-2a w nocy poprzedniej. **S4-3 (P1-07)** commit `7547e52`+`fix da93c1f` (które wcześniej z S2 było ale działa też tu z hardcoded fallback): Cloudflare Turnstile zastępuje math captcha w `/kontakt`, backend weryfikuje token przez siteverify, rate limit 5/IP/15min (existing rateLimit infra), magic-bytes MIME validation (manual, bez `file-type` ESM gotcha jak DOMPurify v1 nas zabił), body size 5 MB. Marcin debugowanie: Vercel Sensitive env vars **nie wstrzykuje** `NEXT_PUBLIC_*` do client bundle, plus Value field wpisany w Note (UX gotcha) — hardcoded fallback site key `0x4AAAAAADN3DS_czkcNj-aD` w kodzie obejdzie problem (site key jest public, zero leak). Cloudflare Turnstile **nie wspiera wildcards z myślnikiem** w środku subdomeny (`*-novik-codes-projects.vercel.app` rejected), więc preview test pominięty — produkcja na whitelist OK, end-to-end real submit działa. **S4-4 (P1-06 + P1-02)** commit `3a7e4bf`: (a) **Short-link hardening** — `POST /api/short-links` teraz wymaga `requireAdmin()` + destination allowlist (internal `^/[a-z]` lub explicit external hosts: czelej/laserandhealthacademy/magazyn-stomatologiczny). `/s/[code]/page.tsx` (client React redirect) → `route.ts` (server-side 302). Cron robi direct DB insert (nie HTTP), zero ryzyka regresji. (b) **DB-backed confirmation token** zamiast HMAC z planu: cron generuje `nanoid(16)` (96 bits entropy), zapisuje w `appointment_actions.confirmation_token`, używa w short_link destination jako `?token=` zamiast enumerable `?appointmentId=UUID`. Confirm + cancel endpointy akceptują obie formaty (backwards compat 14 dni). Defensive fallback w cronie (jeśli kolumna nie wgrana → użyj legacy URL). **Migracja 124** (`appointment_actions.confirmation_token` + unique partial index, idempotent). **🚨 Manual task Marcin**: wgrać migrację 124 na OBU Supabase (`~/Desktop/migracje_supabase/migracja_124_*.txt`). Wcześniej z #4: migracja 123 (Prodentis sync) wciąż wymagana. Real test S4-4 jutro 8:00 PL gdy cron `appointment-reminders` wygeneruje SMS-y z tokenami zamiast UUID.)
 
 <!-- Poprzednia: 2026-05-13 EOD #6 (S4-2a CSP report-uri wired to Sentry — P1-02 Faza 1). Commit `8b281df`. DSN parser → Sentry security ingest URL.
 
@@ -2477,6 +2479,74 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-14 EOD #2 — Hotfix Sprint S4-5: Patient JWT hardening + social-media bucket lockdown
+
+#### Commits:
+- `fc8f27f` — feat(security): S4-5 patient JWT hardening + social-media bucket lockdown (P0-09 + P1-03)
+
+#### Wątek (a) — Patient JWT cleanup (P1-03):
+
+**Tło problemu** (recon przed implementacją):
+- `/api/patients/login` zwracał JWT zarówno w `response.cookies.set('patient_token', token, { httpOnly: true })` ORAZ w JSON body `{ token, patient }` (commit history mówi "kept for backward compatibility")
+- Frontend `login/page.tsx:44` brał `data.token` z JSON i robił `document.cookie = patient_token=${data.token}; ...` — **non-httpOnly cookie** z tym samym kluczem, JS-readable
+- `usePatientAuth.ts:43-47` czytał token przez `document.cookie` (non-httpOnly!) i używał w `Authorization: Bearer ${token}` headers we wszystkich patient API fetches
+- httpOnly cookie istniał ale był **decorative** — nikt go nie używał
+- XSS attacker (przez sanitize-html bypass z S4-1 v2) mógł zrobić `document.cookie` exfiltrate i zdobyć patient session
+
+**Audit przed implementacją**: wszystkie patient API endpointy (`src/app/api/patients/*`) używają `verifyTokenFromRequest` z `src/lib/jwt.ts` które ma dual-path: Authorization header OR httpOnly cookie. Czyli backend **już ma fallback do cookie** — po usunięciu `data.token` z JSON i `document.cookie` write, frontend's `getAuthToken()` zwróci null, Authorization Bearer header będzie pusty, server fallback do httpOnly cookie → action transparent.
+
+**Zmiany**:
+1. `src/app/api/patients/login/route.ts`: usunięto `token,` z JSON response payload. Comment opisujący S4-5 rationale dodany.
+2. `src/app/[locale]/strefa-pacjenta/login/page.tsx`: usunięto `if (data.token)` check + `document.cookie = patient_token=${data.token}...` write. `localStorage.setItem('patient_data', ...)` zachowany (display-only profile info, nie credentials).
+
+**Verification na preview**:
+- DevTools → Application → Cookies: jeden `patient_token` z **HttpOnly ✓, Secure ✓, SameSite=Strict ✓**, brak duplikatu non-httpOnly
+- DevTools → Local Storage: tylko `patient_data` (display info), zero token
+- Dashboard ładuje się normalnie — wszystkie fetche pobierają dane przez cookie auth, bez Bearer header
+
+**Pozostały scope (przyszły sprint, low priority)**:
+- `usePatientAuth.getAuthToken()` można w przyszłości usunąć — zwraca teraz `null` zawsze (cookie httpOnly, JS nie czyta)
+- Wszystkie patient API fetches mają `Authorization: Bearer ${token}` headers — będą puste/pominięte przez Browser. Można usunąć dla cleanup, ale nie blokuje funkcjonalności.
+
+**Audit closure**: ✅ P1-03 zamknięte. JWT nie jest już dostępny z JS — XSS exfiltration vector closed.
+
+#### Wątek (b) — Social-media bucket lockdown (P0-09):
+
+**Tło problemu** (recon z migracji 085):
+- Migracja 085 utworzyła bucket `social-media` z **dwoma open policies**:
+  - `"Allow video uploads"` — `FOR INSERT WITH CHECK (bucket_id = 'social-media' AND foldername[1] = 'videos')` — anyone (incl. anon) może INSERT do `videos/*`. Designed dla "direct browser upload" ale praktyce frontend uses signedUploadUrl + service_role (which bypassuje RLS) — policy była dziurawa i unused.
+  - `"Allow service delete social-media"` — `FOR DELETE USING (bucket_id = 'social-media')` — anyone może DELETE (mimo nazwy "service delete", policy nie sprawdzała roli).
+- Plus bucket `file_size_limit = 524288000` (500MB) bez restrict MIME types
+
+**Plan migracji 125** (`125_social_media_bucket_lockdown.sql`, idempotentna):
+- DROP `"Allow video uploads"` policy
+- DROP `"Allow service delete social-media"` policy
+- Bucket `file_size_limit`: 500MB → 100MB
+- Bucket `allowed_mime_types`: tylko `video/mp4`, `video/quicktime`, `video/webm`, `image/jpeg`, `image/png`, `image/webp`
+- Zachowano `"Allow public read social-media"` — wideo musi być publicznie odczytywalne dla YouTube/TikTok/Meta API publication
+
+**Code update**:
+- `/api/social/video-upload/route.ts` `createBucket` fallback (linia 86-90) zmieniony żeby mirror nowych limitów: 100MB + MIME restrict. Fallback fires tylko na fresh environments (demo Supabase bootstrap); established projects są governed przez migrację.
+
+**Frontend upload flow nie wymaga zmian**: admin → `PUT /api/social/video-upload` (requireAdmin) → backend tworzy `signedUploadUrl` używając service_role (bypass RLS) → frontend uploads bezpośrednio do Supabase Storage. Po migracji 125, **service_role wciąż bypassuje RLS** więc upload działa identycznie. Zmieniona tylko **anonymous access** (drop dziurawych policies).
+
+**Audit closure**: ✅ P0-09 zamknięte (po wgraniu migracji 125 na Supabase). Anyone INSERT/DELETE attack vector closed.
+
+#### Manual tasks dla Marcina:
+- 🚨 **Wgrać migrację 125** w Supabase SQL Editor na OBU projektach (`keucogopujdolzmfajjv` + `mhosfncgasjfruiohlfo`). Kopia: `~/Desktop/migracje_supabase/migracja_125_social_media_bucket_lockdown.txt`. Idempotentna (DROP IF EXISTS + UPDATE).
+- ⚠️ Wciąż pending: migracje 124 (confirmation_token), 123 (Prodentis sync), 122 (orders notified_at). Wszystkie idempotentne, bezpieczne do wgrania razem.
+
+#### Pliki:
+- `src/app/api/patients/login/route.ts` (usunięto token z JSON, comment)
+- `src/app/[locale]/strefa-pacjenta/login/page.tsx` (usunięto document.cookie write, comment)
+- `src/app/api/social/video-upload/route.ts` (createBucket fallback updated)
+- `supabase_migrations/125_social_media_bucket_lockdown.sql` NEW
+
+#### Status sprintów po sesji #2:
+- ✅ Sprint 1 (auth) + S2 4.5/5 (payment) + S3 (rezerwacja) + S4-1 v2 (XSS) + S4-2a (CSP report-uri) + S4-3 (contact form) + S4-4 (short-link/token) + **S4-5 (patient JWT + bucket lockdown)**
+- ⏳ Pozostaje: **S4-2b** (CSP enforce, czekamy ~tydzień na Sentry data od `8b281df` 2026-05-13) + S5-S9
+- 🎯 **Sprint 4 prawie complete** — po S4-2b cały security hardening zamknięty. Co więcej zostało otwarte z audytu: P0-09 czeka na migrację 125, P1-02 Faza 2 (S4-2b CSP enforce), P1-05 (contact form honeypot/captcha — częściowo zamknięte przez S4-3 Turnstile, ale to było P1-07 też), P1-08 (dependency upgrade — Sprint 6).
 
 ### 2026-05-14 EOD — Hotfix Sprint S4-3 + S4-4: contact form Turnstile + short-link/token hardening
 
