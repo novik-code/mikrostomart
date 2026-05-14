@@ -1,35 +1,53 @@
-"use client";
-
-import Link from 'next/link';
-import Image from 'next/image';
-import { useTranslations } from "next-intl";
-import { useLocale } from "next-intl";
-import { useState, useEffect } from 'react';
+import { getTranslations } from 'next-intl/server';
+import { supabase } from '@/lib/supabaseClient';
 import RevealOnScroll from '@/components/RevealOnScroll';
+import NewsCarousel, { NewsArticle } from './NewsCarousel';
 
-export default function NewsPage() {
-    const [articles, setArticles] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
-    const t = useTranslations('aktualnosci');
-    const locale = useLocale();
+// S5-2 (2026-05-15): server component listing.
+// Previously this was "use client" + useEffect fetch → curl /aktualnosci returned
+// no <article> markup, Googlebot saw a blank page. Now news rows are fetched on
+// the server and rendered in initial HTML. The carousel UI (scroll arrows) lives
+// in NewsCarousel.tsx as a client island. Foreign locales only show articles with
+// a translation (consistent with [slug] page returning 404 for missing translations).
 
-    useEffect(() => {
-        const fetchNews = async () => {
-            try {
-                const res = await fetch(`/api/news?locale=${locale}`);
-                if (res.ok) {
-                    const data = await res.json();
-                    setArticles(data);
-                }
-            } catch (error) {
-                console.error("Failed to fetch news:", error);
-            } finally {
-                setLoading(false);
-            }
-        };
+export const revalidate = 600; // 10 min — news listing changes a few times a day at most
 
-        fetchNews();
-    }, [locale]);
+const SUPPORTED_LOCALES = ['en', 'de', 'ua'] as const;
+type LocaleSuffix = typeof SUPPORTED_LOCALES[number];
+function isLocaleSuffix(s: string): s is LocaleSuffix {
+    return (SUPPORTED_LOCALES as readonly string[]).includes(s);
+}
+
+async function fetchArticles(locale: string): Promise<NewsArticle[]> {
+    const { data } = await supabase
+        .from('news')
+        .select('id, slug, date, title, excerpt, image, title_en, title_de, title_ua, excerpt_en, excerpt_de, excerpt_ua')
+        .order('date', { ascending: false });
+
+    if (!data) return [];
+
+    const isForeign = locale !== 'pl' && isLocaleSuffix(locale);
+    return data
+        .filter((row: any) => {
+            if (!row.slug) return false;
+            // Skip articles without a translation in the requested foreign locale.
+            if (isForeign && !row[`title_${locale}`]) return false;
+            return true;
+        })
+        .map((row: any) => ({
+            id: row.id ?? row.slug,
+            slug: row.slug,
+            title: isForeign ? row[`title_${locale}`] : row.title,
+            excerpt: isForeign ? (row[`excerpt_${locale}`] || row.excerpt) : row.excerpt,
+            image: row.image,
+            date: row.date,
+        }));
+}
+
+export default async function NewsPage({ params }: { params: Promise<{ locale: string }> }) {
+    const { locale } = await params;
+    const t = await getTranslations('aktualnosci');
+    const articles = await fetchArticles(locale);
 
     return (
         <main style={{ background: "var(--color-background)" }}>
@@ -41,192 +59,13 @@ export default function NewsPage() {
                         background: "linear-gradient(135deg, var(--color-text), var(--color-primary))",
                         WebkitBackgroundClip: "text",
                         WebkitTextFillColor: "transparent",
-                        textAlign: "center"
+                        textAlign: "center",
                     }}>
                         {t('title')}
                     </h1>
                 </RevealOnScroll>
 
-                <style jsx global>{`
-                    .news-carousel::-webkit-scrollbar {
-                        display: none;
-                    }
-                    .news-carousel {
-                        -ms-overflow-style: none;
-                        scrollbar-width: none;
-                    }
-                    .news-carousel-item {
-                        flex: 0 0 auto;
-                        width: clamp(280px, 85vw, 400px);
-                        scroll-snap-align: start;
-                        scroll-snap-stop: always;
-                    }
-                    @media (min-width: 768px) {
-                        .news-carousel-item {
-                            width: calc(50% - 1rem);
-                        }
-                    }
-                    @media (min-width: 1024px) {
-                        .news-carousel-item {
-                            width: calc(33.333% - 1.34rem); 
-                        }
-                    }
-                `}</style>
-
-                {/* Carousel Container with Arrows */}
-                <div style={{ position: "relative", margin: "0 -2rem", padding: "0 2rem" }}>
-
-                    {/* LEFT ARROW */}
-                    <button
-                        className="gallery-nav-btn gallery-nav-btn-prev"
-                        onClick={() => {
-                            const container = document.querySelector('.news-carousel');
-                            if (container) {
-                                container.scrollBy({ left: -320, behavior: 'smooth' });
-                            }
-                        }}
-                        title={t('prev')}
-                        style={{
-                            left: '0',
-                            top: '50%',
-                            transform: 'translateY(-50%)',
-                            zIndex: 40,
-                            position: 'absolute'
-                        }}
-                    >
-                        ❮
-                    </button>
-
-                    {/* RIGHT ARROW */}
-                    <button
-                        className="gallery-nav-btn gallery-nav-btn-next"
-                        onClick={() => {
-                            const container = document.querySelector('.news-carousel');
-                            if (container) {
-                                container.scrollBy({ left: 320, behavior: 'smooth' });
-                            }
-                        }}
-                        title={t('next')}
-                        style={{
-                            right: '0',
-                            top: '50%',
-                            transform: 'translateY(-50%)',
-                            zIndex: 40,
-                            position: 'absolute'
-                        }}
-                    >
-                        ❯
-                    </button>
-
-                    <div
-                        className="news-carousel"
-                        style={{
-                            display: "flex",
-                            overflowX: "auto",
-                            gap: "2rem",
-                            scrollSnapType: "x mandatory",
-                            paddingBottom: "2rem",
-                            paddingLeft: "0.5rem",
-                            paddingRight: "0.5rem",
-                            WebkitOverflowScrolling: "touch"
-                        }}>
-                        {loading ? (
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', padding: '4rem 2rem', gap: '1.5rem' }}>
-                                <div style={{ width: '48px', height: '48px', border: '3px solid rgba(var(--color-primary-dark-rgb),0.15)', borderTop: '3px solid var(--color-primary)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-                                <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>{t('loading')}</p>
-                                <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-                            </div>
-                        ) : articles.length === 0 ? (
-                            <p style={{ textAlign: "center", width: "100%", padding: "2rem" }}>{t('empty')}</p>
-                        ) : articles.map((article) => (
-                            <div
-                                key={article.id}
-                                className="news-carousel-item"
-                            >
-                                <div style={{ width: "100%", height: "100%" }}>
-                                    <RevealOnScroll animation="fade-up">
-                                        {/* href must include locale prefix (except for default PL) so client-side
-                                            navigation stays in the current language. After URL-based i18n migration
-                                            (Faza 2), `/aktualnosci/<slug>` resolves to PL — visiting it from EN page
-                                            caused mid-navigation locale loss / unclickable cards. */}
-                                        <Link href={`${locale === 'pl' ? '' : `/${locale}`}/aktualnosci/${article.slug}`} style={{ textDecoration: 'none' }}>
-                                            <article style={{
-                                                background: "var(--color-surface)",
-                                                borderRadius: "var(--radius-md)",
-                                                overflow: "hidden",
-                                                border: "1px solid var(--color-border)",
-                                                transition: "transform 0.3s ease, box-shadow 0.3s ease",
-                                                height: "100%",
-                                                display: "flex",
-                                                flexDirection: "column",
-                                                minHeight: "450px"
-                                            }}
-                                                className="hover-card"
-                                            >
-                                                <div style={{ position: "relative", height: "250px", width: "100%" }}>
-                                                    <Image
-                                                        src={article.image || '/images/placeholder.jpg'}
-                                                        alt={article.title}
-                                                        fill
-                                                        sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                                                        loading="lazy"
-                                                        style={{ objectFit: "cover" }}
-                                                    />
-                                                </div>
-                                                <div style={{ padding: "1.5rem", flex: 1, display: "flex", flexDirection: "column" }}>
-                                                    <h2 style={{
-                                                        fontSize: "1.25rem",
-                                                        marginBottom: "1rem",
-                                                        color: "var(--color-text)"
-                                                    }}>
-                                                        {article.title}
-                                                    </h2>
-                                                    <p style={{
-                                                        color: "var(--color-text-muted)",
-                                                        fontSize: "0.95rem",
-                                                        lineHeight: "1.6",
-                                                        marginBottom: "1.5rem",
-                                                        flex: 1,
-                                                        display: "-webkit-box",
-                                                        WebkitLineClamp: 3,
-                                                        WebkitBoxOrient: "vertical",
-                                                        overflow: "hidden"
-                                                    }}>
-                                                        {article.excerpt}
-                                                    </p>
-                                                    <div style={{
-                                                        display: "flex",
-                                                        justifyContent: "space-between",
-                                                        alignItems: "center",
-                                                        marginTop: "auto"
-                                                    }}>
-                                                        <span style={{
-                                                            color: "var(--color-primary)",
-                                                            fontSize: "0.875rem",
-                                                            fontWeight: 600,
-                                                        }}>
-                                                            {article.date}
-                                                        </span>
-                                                        <span style={{
-                                                            color: "var(--color-primary)",
-                                                            fontWeight: 600,
-                                                            fontSize: "0.9rem",
-                                                            display: "flex",
-                                                            alignItems: "center",
-                                                            gap: "0.5rem"
-                                                        }}>
-                                                            {t('readMore')} &rarr;
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </article>
-                                        </Link>
-                                    </RevealOnScroll>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
+                <NewsCarousel locale={locale} articles={articles} />
             </div>
         </main>
     );

@@ -2,7 +2,7 @@
 import RevealOnScroll from '@/components/RevealOnScroll';
 import Link from 'next/link';
 import Image from 'next/image';
-import { permanentRedirect } from 'next/navigation';
+import { notFound, permanentRedirect } from 'next/navigation';
 import { Metadata } from 'next';
 import { supabase } from '@/lib/supabaseClient';
 import { getTranslations } from 'next-intl/server';
@@ -10,6 +10,16 @@ import { brand } from '@/lib/brandConfig';
 import { breadcrumbHref, getOgLocale, localizedBreadcrumb } from '@/lib/seo';
 import { preferWebp } from '@/lib/imageUrl';
 import { routing } from '@/i18n/routing';
+
+// S5-2 (2026-05-15): if a foreign locale lacks a translation for this article,
+// return 404 instead of silently serving the PL fallback content. Foreign-locale
+// URLs without their own translation pollute Google with duplicate-content
+// signals (same Polish text under /en/aktualnosci/<slug>, /de/..., /ua/...) and
+// confuse hreflang. The PL URL stays available — only the unsupported locales 404.
+function hasTranslation(article: any, locale: string): boolean {
+    if (locale === 'pl') return true;
+    return Boolean(article[`title_${locale}`]);
+}
 
 function schemaImageUrl(image: string | null | undefined): string {
     if (!image) return `${brand.appUrl}/opengraph-image.png`;
@@ -62,17 +72,24 @@ async function getArticle(slug: string) {
 // Allow dynamic paths
 export const dynamicParams = true;
 
-// Generate static params for all locales × all article slugs.
-// After Faza 2 i18n: params is { locale, slug } not just { slug }.
+// Generate static params only for (locale, slug) pairs where a translation exists.
+// PL is always present; EN/DE/UA only when the corresponding title_{locale} is set.
+// S5-2 (2026-05-15): previously emitted full Cartesian product, which prerendered
+// foreign URLs with PL fallback content (duplicate-content SEO penalty).
 export async function generateStaticParams() {
-    const { data: articles } = await supabase.from('news').select('slug');
+    const { data: articles } = await supabase
+        .from('news')
+        .select('slug, title_en, title_de, title_ua');
     if (!articles) return [];
-    const locales = ['pl', 'en', 'de', 'ua'];
-    // Cartesian product: every locale × every slug. Locales without translation
-    // simply fall back to PL via localizeArticle().
-    return articles.flatMap(({ slug }) =>
-        locales.map((locale) => ({ locale, slug }))
-    );
+    const params: Array<{ locale: string; slug: string }> = [];
+    for (const article of articles) {
+        if (!article.slug) continue;
+        params.push({ locale: 'pl', slug: article.slug });
+        if (article.title_en) params.push({ locale: 'en', slug: article.slug });
+        if (article.title_de) params.push({ locale: 'de', slug: article.slug });
+        if (article.title_ua) params.push({ locale: 'ua', slug: article.slug });
+    }
+    return params;
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string; slug: string }> }): Promise<Metadata> {
@@ -80,6 +97,10 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     const article = await getArticle(slug);
     const t = await getTranslations('aktualnosci');
     if (!article) return { title: t('articleNotFound') };
+    if (!hasTranslation(article, locale)) {
+        // S5-2: 404 short-circuit — keep metadata minimal, page calls notFound().
+        return { robots: { index: false, follow: false } };
+    }
     const localized = localizeArticle(article, locale);
 
     // News articles share the same slug across locales (translations live in {field}_{locale} columns).
@@ -131,6 +152,11 @@ export default async function ArticlePage({ params }: { params: Promise<{ locale
         const localePrefix = locale === 'pl' ? '' : `/${locale}`;
         // permanentRedirect = HTTP 308 (better for SEO than 307 from regular redirect)
         permanentRedirect(`${localePrefix}/aktualnosci`);
+    }
+
+    // S5-2: foreign locale without translation → 404 (don't serve PL fallback).
+    if (!hasTranslation(article, locale)) {
+        notFound();
     }
 
     // Use locale from URL params (more reliable than getLocale() which depends on
