@@ -17,23 +17,32 @@ const supabase = createClient(
  */
 export async function POST(req: NextRequest) {
     try {
-        const { appointmentId, patientId, prodentisId } = await req.json();
+        const { appointmentId, token, patientId, prodentisId } = await req.json();
 
-        if (!appointmentId) {
+        // S4-4: support both lookup paths. New format is token-based
+        // (random nanoid(16), not enumerable). Legacy format is the
+        // appointment UUID, kept for ~14 days of grace so SMS messages
+        // already in the pipeline keep working.
+        if (!token && !appointmentId) {
             return NextResponse.json(
-                { error: 'Missing appointmentId' },
+                { error: 'Missing token or appointmentId' },
                 { status: 400 }
             );
         }
 
-        console.log('[CONFIRM-PUBLIC] Attempting confirmation:', { appointmentId, patientId, prodentisId });
+        console.log('[CONFIRM-PUBLIC] Attempting confirmation:', {
+            lookup: token ? 'token' : 'appointmentId (legacy)',
+            patientId,
+            prodentisId,
+        });
 
-        // Get appointment action by ID
-        const { data: action, error: actionError } = await supabase
+        // Get appointment action by token (new) or id (legacy).
+        const query = supabase
             .from('appointment_actions')
-            .select('*')
-            .eq('id', appointmentId)
-            .single();
+            .select('*');
+        const { data: action, error: actionError } = await (token
+            ? query.eq('confirmation_token', token).single()
+            : query.eq('id', appointmentId).single());
 
         if (actionError || !action) {
             console.error('[CONFIRM-PUBLIC] Appointment not found:', actionError);
@@ -42,6 +51,10 @@ export async function POST(req: NextRequest) {
                 { status: 404 }
             );
         }
+
+        // The rest of the flow keeps using `action.id` for DB writes,
+        // so capture it as `appointmentId` for downstream code below.
+        const resolvedAppointmentId = action.id;
 
         console.log('[CONFIRM-PUBLIC] Found appointment:', {
             id: action.id,
@@ -87,7 +100,7 @@ export async function POST(req: NextRequest) {
                 status: 'attendance_confirmed',
                 updated_at: new Date().toISOString()
             })
-            .eq('id', appointmentId);
+            .eq('id', resolvedAppointmentId);
 
         if (updateError) {
             console.error('[CONFIRM-PUBLIC] Update error:', updateError);
@@ -233,7 +246,7 @@ export async function POST(req: NextRequest) {
                         await supabase
                             .from('appointment_actions')
                             .update({ prodentis_id: freshId })
-                            .eq('id', appointmentId);
+                            .eq('id', resolvedAppointmentId);
                         res = await postIcon(freshId);
                         console.log(`[CONFIRM-PUBLIC] Prodentis icon attempt 2: ${freshId} -> ${res.status}`);
                     } else {
@@ -263,7 +276,7 @@ export async function POST(req: NextRequest) {
                     prodentis_icon_synced_at: iconAdded ? new Date().toISOString() : null,
                     prodentis_icon_error: iconAdded ? null : iconErrorReason,
                 })
-                .eq('id', appointmentId);
+                .eq('id', resolvedAppointmentId);
         } catch (persistErr) {
             console.error('[CONFIRM-PUBLIC] Failed to persist sync status:', persistErr);
         }

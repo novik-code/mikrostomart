@@ -26,12 +26,19 @@ export default function AppointmentPreparationPage() {
     const [notFound, setNotFound] = useState(false);
     const [confirmationStatus, setConfirmationStatus] = useState<'idle' | 'confirming' | 'confirmed' | 'already-confirmed' | 'cancelling' | 'cancelled' | 'already-cancelled'>('idle');
 
-    // Extract appointment details from URL
+    // Extract appointment details from URL.
+    // S4-4: token (16-char random) is the new format from SMS reminders.
+    // appointmentId (UUID) is the legacy format kept for ~14 days of grace
+    // so links already sent before S4-4 deploy keep working.
+    const token = searchParams.get('token');
     const appointmentId = searchParams.get('appointmentId');
     const appointmentDate = searchParams.get('date');
     const appointmentTime = searchParams.get('time');
     const doctorName = searchParams.get('doctor');
     const patientId = searchParams.get('patientId');
+    // The confirm/cancel endpoints accept either field. We pass whichever
+    // the URL carried.
+    const hasIdentifier = !!(token || appointmentId);
 
     useEffect(() => {
         const fetchInstruction = async () => {
@@ -57,7 +64,7 @@ export default function AppointmentPreparationPage() {
     }, [params.type]);
 
     const handleConfirm = async () => {
-        if (!appointmentId) {
+        if (!hasIdentifier) {
             alert('Brak ID wizyty');
             return;
         }
@@ -69,9 +76,9 @@ export default function AppointmentPreparationPage() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    appointmentId,
+                    ...(token ? { token } : { appointmentId }),
                     patientId,
-                    prodentisId: appointmentId
+                    prodentisId: appointmentId || undefined,
                 })
             });
 
@@ -95,7 +102,7 @@ export default function AppointmentPreparationPage() {
     };
 
     const handleCancel = async () => {
-        if (!appointmentId) {
+        if (!hasIdentifier) {
             alert('Brak ID wizyty');
             return;
         }
@@ -110,9 +117,9 @@ export default function AppointmentPreparationPage() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    appointmentId,
+                    ...(token ? { token } : { appointmentId }),
                     patientId,
-                    prodentisId: appointmentId
+                    prodentisId: appointmentId || undefined,
                 })
             });
 
@@ -219,7 +226,7 @@ export default function AppointmentPreparationPage() {
                                 </div>
 
                                 {/* Confirmation Buttons - Only show if appointmentId exists */}
-                                {appointmentId && confirmationStatus !== 'confirmed' && confirmationStatus !== 'cancelled' && (
+                                {hasIdentifier && confirmationStatus !== 'confirmed' && confirmationStatus !== 'cancelled' && (
                                     <div style={{
                                         marginTop: '2rem',
                                         display: 'flex',

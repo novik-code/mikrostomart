@@ -486,6 +486,14 @@ export async function GET(req: Request) {
                     const appointmentEndDate = new Date(appointment.date);
                     appointmentEndDate.setMinutes(appointmentEndDate.getMinutes() + 30);
 
+                    // Generate a 16-char random confirmation token (96 bits entropy).
+                    // S4-4: replaces the enumerable UUID appointmentId in SMS links
+                    // with a random token, breaking the UUID-guessing attack vector.
+                    // Migration 124 added the column; if the upsert fails because the
+                    // column hasn't been deployed to this Supabase project yet, the
+                    // catch path below falls back to the legacy appointmentId-only URL.
+                    const confirmationToken = nanoid(16);
+
                     // Upsert appointment_action (update if exists, insert if not)
                     const { data: actionData, error: actionError } = await supabase
                         .from('appointment_actions')
@@ -500,6 +508,7 @@ export async function GET(req: Request) {
                             doctor_name: doctorName,
                             appointment_type: appointmentType,
                             status: 'pending',
+                            confirmation_token: confirmationToken,
                             created_at: new Date().toISOString(),
                             updated_at: new Date().toISOString()
                         }, {
@@ -509,15 +518,53 @@ export async function GET(req: Request) {
                         .select()
                         .single();
 
-                    if (actionError) {
-                        console.error(`   ⚠️  Failed to upsert appointment_action:`, actionError);
-                    } else {
-                        const finalActionId = actionData?.id || appointmentActionId;
-                        console.log(`   ✅ Appointment action upserted (ID: ${finalActionId})`);
+                    // If the column doesn't exist yet (migration 124 not applied on this
+                    // Supabase), retry without confirmation_token so SMS cron still runs.
+                    let actionDataFinal = actionData;
+                    let actionErrorFinal = actionError;
+                    let tokenInUrl: string | null = confirmationToken;
+                    if (actionError && /confirmation_token/i.test(actionError.message || '')) {
+                        console.warn(`   ⚠️  confirmation_token column not present yet — retrying without (legacy fallback)`);
+                        const legacy = await supabase
+                            .from('appointment_actions')
+                            .upsert({
+                                id: appointmentActionId,
+                                patient_id: patientId,
+                                prodentis_id: appointment.id,
+                                patient_name: appointment.patientName || 'Nieznany pacjent',
+                                patient_phone: appointment.patientPhone || 'Brak',
+                                appointment_date: appointment.date,
+                                appointment_end_date: appointmentEndDate.toISOString(),
+                                doctor_name: doctorName,
+                                appointment_type: appointmentType,
+                                status: 'pending',
+                                created_at: new Date().toISOString(),
+                                updated_at: new Date().toISOString()
+                            }, {
+                                onConflict: 'prodentis_id,appointment_date',
+                                ignoreDuplicates: false
+                            })
+                            .select()
+                            .single();
+                        actionDataFinal = legacy.data;
+                        actionErrorFinal = legacy.error;
+                        tokenInUrl = null; // signal: use legacy URL format
+                    }
 
-                        // 10. Generate short link for landing page
+                    if (actionErrorFinal) {
+                        console.error(`   ⚠️  Failed to upsert appointment_action:`, actionErrorFinal);
+                    } else {
+                        const finalActionId = actionDataFinal?.id || appointmentActionId;
+                        console.log(`   ✅ Appointment action upserted (ID: ${finalActionId}, token: ${tokenInUrl ? 'yes' : 'legacy'})`);
+
+                        // 10. Generate short link for landing page.
+                        // New format (with token): /wizyta/[type]?token=<16chars>&date=...&time=...&doctor=...
+                        // Legacy fallback (if column not deployed): /wizyta/[type]?appointmentId=<UUID>&...
                         const appointmentSlug = mapAppointmentTypeToSlug(appointmentType);
-                        const fullUrl = `${brand.appUrl}/wizyta/${appointmentSlug}?appointmentId=${finalActionId}&date=${targetDateStr}&time=${appointmentTime}&doctor=${encodeURIComponent(doctorName)}`;
+                        const idParam = tokenInUrl
+                            ? `token=${tokenInUrl}`
+                            : `appointmentId=${finalActionId}`;
+                        const fullUrl = `${brand.appUrl}/wizyta/${appointmentSlug}?${idParam}&date=${targetDateStr}&time=${appointmentTime}&doctor=${encodeURIComponent(doctorName)}`;
 
                         const shortCode = nanoid(6);
 

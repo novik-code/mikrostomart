@@ -16,23 +16,28 @@ const supabase = createClient(
  */
 export async function POST(req: NextRequest) {
     try {
-        const { appointmentId, patientId, prodentisId } = await req.json();
+        const { appointmentId, token, patientId, prodentisId } = await req.json();
 
-        if (!appointmentId) {
+        // S4-4: accept token (new) or appointmentId (legacy, 14-day grace).
+        if (!token && !appointmentId) {
             return NextResponse.json(
-                { error: 'Missing appointmentId' },
+                { error: 'Missing token or appointmentId' },
                 { status: 400 }
             );
         }
 
-        console.log('[CANCEL-PUBLIC] Attempting cancellation:', { appointmentId, patientId, prodentisId });
+        console.log('[CANCEL-PUBLIC] Attempting cancellation:', {
+            lookup: token ? 'token' : 'appointmentId (legacy)',
+            patientId,
+            prodentisId,
+        });
 
-        // Get appointment action by ID
-        const { data: action, error: actionError } = await supabase
+        const query = supabase
             .from('appointment_actions')
-            .select('*')
-            .eq('id', appointmentId)
-            .single();
+            .select('*');
+        const { data: action, error: actionError } = await (token
+            ? query.eq('confirmation_token', token).single()
+            : query.eq('id', appointmentId).single());
 
         if (actionError || !action) {
             console.error('[CANCEL-PUBLIC] Appointment not found:', actionError);
@@ -41,6 +46,10 @@ export async function POST(req: NextRequest) {
                 { status: 404 }
             );
         }
+
+        // Keep downstream code using action.id (which is what the DB
+        // expects for further updates).
+        const resolvedAppointmentId = action.id;
 
         console.log('[CANCEL-PUBLIC] Found appointment:', {
             id: action.id,
@@ -84,7 +93,7 @@ export async function POST(req: NextRequest) {
                 reschedule_requested_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
             })
-            .eq('id', appointmentId);
+            .eq('id', resolvedAppointmentId);
 
         if (updateError) {
             console.error('[CANCEL-PUBLIC] Update error:', updateError);
