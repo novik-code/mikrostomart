@@ -2482,6 +2482,82 @@ NODE_ENV=production
 
 ## 📝 Recent Changes
 
+### 2026-05-15 — S5-4 cross-locale 301 redirect + cron heartbeat early-return fix + S6-1 dependency upgrade triage
+
+#### Commits:
+- `c6a3f80` — fix(cron): log appointment-reminders heartbeat on empty-appointments path
+- `c7ff142` — feat(seo): S5-4 cross-locale 301 redirect (baza-wiedzy + aktualnosci)
+
+#### S5-4: cross-locale 301 redirect (post-S5-2 follow-up)
+
+**Problem (z GSC raportu 2026-05-15)**: 1354 podstron 404 w Google Search Console, większość to `/baza-wiedzy/{slug}` z **mieszanymi locale** (np. `/en/baza-wiedzy/ein-lacheln-...` = EN URL z DE slug, `/baza-wiedzy/zuby-pid-mikroskopom-...` = PL URL z UA slug). Pochodzenie: stara hreflang konfiguracja + stary fallback `[slug]/page.tsx` zwracał 200 z PL contentem dla cross-locale URL → Google zaindeksował → po S5-2 fix (404 dla cross-locale) → Google widzi 404 i deindeksuje powoli (2-6 mies.).
+
+**Live test stanu przed fix**: `curl /baza-wiedzy/wurzelkanalbehandlung-laser` → 404 (DE slug w PL URL, fallback do PL nie znajduje slugu w PL).
+
+**Fix S5-4** zamienia 404 → **301 redirect** na canonical locale (gdzie slug faktycznie istnieje):
+
+1. **`baza-wiedzy/[slug]/page.tsx`** (KB articles, per-locale rows linked by `group_id`):
+   - Nowy helper `findSlugInAnyLocale(slug)` — query `articles` bez filtra locale, zwraca pierwszy locale który ma ten slug
+   - Po PL fallback fail: jeśli slug istnieje w innym locale → `permanentRedirect(/{found_locale}/baza-wiedzy/{slug})` (HTTP 308)
+   - Jeśli slug nie istnieje nigdzie → `notFound()` (true 404 zachowane)
+   - `generateMetadata` zwraca `robots:noindex` dla cross-locale przed redirect (race protection)
+
+2. **`aktualnosci/[slug]/page.tsx`** (news, one row z translations w `title_xx` columns):
+   - Replaced S5-2 `notFound()` → `permanentRedirect(/aktualnosci/{slug})` (PL canonical) bo news slug jest **shared cross-locale**, PL zawsze istnieje dla każdego valid slug
+   - `generateMetadata` zwraca `robots:noindex` dla cross-locale przed redirect
+   - Removed unused `notFound` import
+
+**Live smoke test (po Vercel deploy)**:
+- `curl /baza-wiedzy/wurzelkanalbehandlung-laser` → **308 → `/de/baza-wiedzy/wurzelkanalbehandlung-laser`** ✓
+- `curl /baza-wiedzy/nonexistent-fake-zzz` → **404** ✓ (true not-found zachowane)
+- `curl /de/baza-wiedzy/wurzelkanalbehandlung-laser` → **200** ✓ (canonical działa)
+
+**Pliki**: `src/app/[locale]/baza-wiedzy/[slug]/page.tsx` (+38/-7), `src/app/[locale]/aktualnosci/[slug]/page.tsx` (+11/-6).
+
+**Oczekiwany efekt**: Google przy następnym crawl tych ~1354 URL-i dostanie 308 zamiast 404 → przepisuje swoją bazę w ~2-4 tyg. (zamiast 2-6 mies. dla 404). Bonus: external backlinks (np. ze starych blog postów, social media) na cross-locale URL teraz prowadzą do właściwej wersji zamiast martwego 404.
+
+#### Heartbeat fix: appointment-reminders early-return
+
+**Problem (zdiagnozowany 2026-05-15 rano)**: Marcin zauważył że cron `appointment-reminders` "nie wygenerował SMS-ów". Diagnoza wykazała że cron faktycznie odpalił się o 9:00 PL (codzienny `0 7 * * *`), ale generował na sobotę = 0 wizyt = early return BEZ wywołania `logCronHeartbeat()`. Heartbeat tabela pokazywała wczorajszy timestamp → wyglądało jak "cron broken". Skomplikowana diagnostyka:
+1. Sprawdzono `cron_heartbeats` tabelę — wszystkie cronu z 2026-03-02 lub późniejsze, ostatni `appointment-reminders` z wczoraj
+2. Sprawdzono `sms_reminders` — wczorajsze SMS-y mają `sms_message_id` z SMSAPI (REALNIE wysłane)
+3. Cron `15 8 * * 5` o 10:15 PL utworzył **20 nowych draftów** na poniedziałek 2026-05-18 z S4-4 token URLami (`?token=cDBZ6l6bLzRfd6TE` zamiast `?appointmentId=UUID`) — S4-4 system działa end-to-end
+4. Cron `sms-auto-send?targetDate=monday` o 11:00 PL wysłał wszystkie 20 SMS-ów na poniedziałek (verified `status=sent`)
+
+**Fix**: dodanie `await logCronHeartbeat('appointment-reminders', 'ok', 'No appointments for ${targetDateStr} (${label})', Date.now() - startTime);` przed early return w linii 149-158 `appointment-reminders/route.ts`.
+
+**Pliki**: `src/app/api/cron/appointment-reminders/route.ts` (+8/-2).
+
+**Pozostały dług techniczny** (do osobnej sesji): `sms-auto-send/route.ts` w ogóle nie importuje `logCronHeartbeat` — to wyjaśnia "Awaiting first monitored run" od 73 dni mimo że cron wysyła SMS-y. Plus 7 innych cronów ma podobny problem (`birthday-wishes`, `daily-article`, `online-booking-digest`, `post-visit-auto-send`, `push-appointment-1h`, `push-cleanup`, `week-after-visit-sms`). **Nie tykane dziś** żeby nie zakłócić aktywnych cronów — fix w przyszłej sesji systemowej.
+
+#### S6-1: Dependency upgrade triage (output: PLAN_DEPENDENCY_UPGRADES.md)
+
+**Wynik `npm audit --omit=dev` na main (commit `84d3cc4` przed dzisiejszych zmian)**: **58 vulnerabilities prod** (2 critical, 14 high, 29 moderate, 13 low). Plan oryginalny PLAN_HOTFIX_SPRINT.md S6 mówił 89/10/28 — obecny stan **lepiej** niż planowano (część vulns auto-fixowana przez transitive bumps + S4-1 v2 `sanitize-html` swap z DOMPurify).
+
+**Najważniejsze findingi triage**:
+1. **`jimp ^1.6.0` w package.json ale NIGDZIE w src/** — usunięcie zamknie 10+ moderate vulns zerowym kosztem (S6-4)
+2. **`@ducanh2912/next-pwa@10.2.9` jest LATEST**, vuln range to `>=10.2.7`, fix = downgrade do `10.2.6` lub replace na `serwist` (S6-5 wymaga decyzji Marcina A/B/C)
+3. **`sanitize-html ^2.17.3` ma critical XSS** — to nasz S4-1 v2 anti-XSS layer! Patch update wymagany (S6-3)
+4. **`next 16.1.1 → 16.2.6` patch w `^16`** — non-breaking, zamyka 3 high (DoS image, HTTP smuggling, deserialization) (S6-2)
+5. `web-push`, `shotstack`, `ffmpeg-static` — wszystkie aktywnie używane, **NIE usuwać** wbrew planowi PLAN_HOTFIX_SPRINT.md S6-4
+
+**Plan podziału S6 na 5 sprintów** (`~/Desktop/bałagan/PLAN_DEPENDENCY_UPGRADES.md`, 281 linii):
+- S6-2 (1.5h, LOW) — Next patch + safe transitives → 1 critical + 8 high
+- S6-3 (30 min, LOW) — sanitize-html patch → 1 critical
+- S6-4 (30 min, LOW) — usunięcie jimp → 10 moderate
+- S6-5 (1-2h, MED-HIGH + Marcin decision) — next-pwa A/B/C → 5 high
+- S6-6 (1h, LOW) — minor bumps (next-intl, firebase, Sentry, drobne) → 13 low + reszta
+
+**End state goal**: `npm audit --omit=dev` → 0 critical, 0 high.
+
+#### Status tracking
+- Heartbeat fix: zmergowany na origin/main `c6a3f80` (fast-forward z brancha `fix/cron-heartbeat-on-empty-appointments`)
+- S5-4: zmergowany na origin/main `c7ff142` (fast-forward z brancha `seo/s5-4-cross-locale-301`)
+- S6-1: tylko triage + plan, ZERO zmian w kodzie/deps. Plan w `~/Desktop/bałagan/PLAN_DEPENDENCY_UPGRADES.md`.
+- **Następna sesja: S6-2** (Next.js patch + safe transitives) — z planem szczegółowym
+
+---
+
 ### 2026-05-15 — Hotfix Sprint S5 COMPLETE: SEO P2 cleanup (html lang + robots + sitemap noindex + news 404 + listing SSR + wizyta noindex + i18n deep merge)
 
 #### Commits:
