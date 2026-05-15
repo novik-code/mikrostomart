@@ -4,12 +4,35 @@ import RevealOnScroll from '@/components/RevealOnScroll';
 // H3 BUG FIX (2026-05-10): server components NIE mogą używać Link z
 // @/i18n/navigation. Manualny <a> z locale prefix.
 import Image from 'next/image';
-import { notFound } from 'next/navigation';
+import { notFound, permanentRedirect } from 'next/navigation';
 import { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { breadcrumbHref, getOgLocale, localizedBreadcrumb } from '@/lib/seo';
 import { preferWebp } from '@/lib/imageUrl';
 import { routing } from '@/i18n/routing';
+
+// S5-4 (2026-05-15): if a slug doesn't exist in the requested locale but DOES
+// exist in another locale (cross-locale URL — typical Google ghost from old
+// hreflang/fallback config that returned 200 with PL content), redirect 301 to
+// the canonical locale URL instead of returning 404. Speeds up Google
+// deindexation of the historical wrong URLs (1354 in GSC as of 2026-05-15) and
+// lets external backlinks land on the correct page. Returns null when the slug
+// genuinely doesn't exist anywhere (true 404).
+async function findSlugInAnyLocale(slug: string): Promise<string | null> {
+    const { data } = await supabase
+        .from('articles')
+        .select('locale')
+        .eq('slug', slug)
+        .limit(1)
+        .single();
+    return data?.locale ?? null;
+}
+
+function localePathForArticle(locale: string, slug: string): string {
+    return locale === 'pl'
+        ? `/baza-wiedzy/${slug}`
+        : `/${locale}/baza-wiedzy/${slug}`;
+}
 
 function schemaImageUrl(image: string | null | undefined): string {
     if (!image) return `${brand.appUrl}/opengraph-image.png`;
@@ -54,7 +77,8 @@ export async function generateMetadata({
         .eq('locale', locale)
         .single();
 
-    // Fallback: PL version with the same slug
+    // Fallback: PL version with the same slug (legacy KB articles where the
+    // PL slug serves all locales until translations are imported).
     if (!article) {
         const fallback = await supabase
             .from('articles')
@@ -65,7 +89,16 @@ export async function generateMetadata({
         article = fallback.data;
     }
 
-    if (!article) return { title: t('notFound') };
+    if (!article) {
+        // S5-4: cross-locale slug — page() will issue a 301 redirect.
+        // Return minimal noindex metadata so the brief render before redirect
+        // (rare race) doesn't index a 404 page.
+        const foundLocale = await findSlugInAnyLocale(slug);
+        if (foundLocale) {
+            return { robots: { index: false, follow: true } };
+        }
+        return { title: t('notFound') };
+    }
 
     // Build hreflang from group_id — each translation lives as a separate row.
     const languages: Record<string, string> = {};
@@ -127,7 +160,9 @@ export default async function ArticlePage({
         .eq('locale', locale)
         .single();
 
-    // Fallback: try Polish version if not found in current locale
+    // Fallback: try Polish version if not found in current locale (legacy
+    // articles where the PL slug serves multiple locales until translations
+    // land in the DB).
     if (!article) {
         const { data: fallback } = await supabase
             .from('articles')
@@ -139,6 +174,15 @@ export default async function ArticlePage({
     }
 
     if (!article) {
+        // S5-4 (2026-05-15): cross-locale slug — slug exists in another locale
+        // (Google's historical wrong URL from old hreflang/fallback config).
+        // Redirect 301 to canonical locale URL instead of 404 — accelerates
+        // GSC deindexation of ~1354 historical wrong URLs and gives external
+        // backlinks a soft landing on the right page.
+        const foundLocale = await findSlugInAnyLocale(slug);
+        if (foundLocale && foundLocale !== locale) {
+            permanentRedirect(localePathForArticle(foundLocale, slug));
+        }
         notFound();
     }
 

@@ -2,7 +2,7 @@
 import RevealOnScroll from '@/components/RevealOnScroll';
 import Link from 'next/link';
 import Image from 'next/image';
-import { notFound, permanentRedirect } from 'next/navigation';
+import { permanentRedirect } from 'next/navigation';
 import { Metadata } from 'next';
 import { supabase } from '@/lib/supabaseClient';
 import { getTranslations } from 'next-intl/server';
@@ -15,7 +15,13 @@ import { routing } from '@/i18n/routing';
 // return 404 instead of silently serving the PL fallback content. Foreign-locale
 // URLs without their own translation pollute Google with duplicate-content
 // signals (same Polish text under /en/aktualnosci/<slug>, /de/..., /ua/...) and
-// confuse hreflang. The PL URL stays available — only the unsupported locales 404.
+// confuse hreflang.
+//
+// S5-4 (2026-05-15): upgraded from 404 → 301 redirect to PL. News slugs are
+// shared across locales (one row in `news` table, translations in {field}_{locale}
+// columns) — so the canonical version is always PL. Sending the user/Googlebot
+// to PL is more useful than 404, and Google deindexes the foreign URL faster
+// when it sees a permanent redirect.
 function hasTranslation(article: any, locale: string): boolean {
     if (locale === 'pl') return true;
     return Boolean(article[`title_${locale}`]);
@@ -98,8 +104,9 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     const t = await getTranslations('aktualnosci');
     if (!article) return { title: t('articleNotFound') };
     if (!hasTranslation(article, locale)) {
-        // S5-2: 404 short-circuit — keep metadata minimal, page calls notFound().
-        return { robots: { index: false, follow: false } };
+        // S5-4: page() will permanentRedirect to PL — keep metadata noindex
+        // for the brief render window before redirect kicks in.
+        return { robots: { index: false, follow: true } };
     }
     const localized = localizeArticle(article, locale);
 
@@ -154,9 +161,12 @@ export default async function ArticlePage({ params }: { params: Promise<{ locale
         permanentRedirect(`${localePrefix}/aktualnosci`);
     }
 
-    // S5-2: foreign locale without translation → 404 (don't serve PL fallback).
+    // S5-4 (2026-05-15): foreign locale without translation → 301 redirect to
+    // PL canonical (was 404 from S5-2). News slug is shared across locales, so
+    // PL always exists for any valid slug. Sending Google a 301 deindexes the
+    // wrong URL faster than 404 + lands external backlinks on the PL article.
     if (!hasTranslation(article, locale)) {
-        notFound();
+        permanentRedirect(`/aktualnosci/${slug}`);
     }
 
     // Use locale from URL params (more reliable than getLocale() which depends on
