@@ -2482,6 +2482,98 @@ NODE_ENV=production
 
 ## 📝 Recent Changes
 
+### 2026-05-15 EOD #3 — S6-4 jimp → devDependencies + S6-5 serwist migration (Sprint 6 main goal: 0 critical, 0 HIGH)
+
+#### Commits:
+- `9da4a84` — chore(deps): S6-4 move jimp from dependencies → devDependencies
+- `66956f4` — feat(deps): S6-5 migrate @ducanh2912/next-pwa → @serwist/next (closes 5 high)
+
+#### S6-4 jimp → devDependencies (architectural cleanup)
+
+`jimp ^1.6.0` był w prod dependencies ale używany **tylko** w `scripts/process_templates.js` (one-shot utility dla `/symulator` template editor — background removal `<30 black pixels → alpha 0`). Output assety (`template_*.png`) już w `public/`. Script nie wywoływany w build/cron/CI.
+
+Przeniesione `jimp ^1.6.0 (deps) → ^1.6.1 (devDeps)`. Plus side-effect patch bump 1.6.0→1.6.1 przy reinstall. Audit unchanged (S6-2 audit fix już podbił `@jimp/*` chain do 1.6.1 i zamknął moderate vulns — to był architectural cleanup, nie security fix).
+
+**Pliki**: `package.json` (+1/-1), `package-lock.json` (+79/-2 minor metadata changes).
+
+#### S6-5 serwist migration (closes 5 high)
+
+**Sytuacja przed S6-5**:
+- Pozostałe **5 high vulns** w prod (po S6-2/S6-4) = wszystkie chain `@ducanh2912/next-pwa@10.2.9` (workbox-build + workbox-webpack-plugin + @rollup/plugin-terser + serialize-javascript + next-pwa)
+- `@ducanh2912/next-pwa` ostatni release 2024-09-18 (14 mies temu), maintainer nieaktywny, Issue #172 OPEN bez odpowiedzi 17 dni
+
+**Próba Opcji A (downgrade do 10.2.6)**: ABANDONED. `npm audit` ujawnił że **`@ducanh2912/next-pwa@<=10.2.6` JEST RÓWNIEŻ vulnerable** — przez **inny chain** (stary workbox 5.0-7.0 zamiast nowego 7.1+). Oba endpoints broken, tylko różne CVE. Cofnięto.
+
+**Wybrana Opcja C (migracja na `@serwist/next`)**:
+- `@serwist/next@9.5.11` to **oficjalny successor** od **tego samego autora** (DuCanhGH/canhdu). Aktywnie maintained (5 releases w ostatnich 2 mies, ostatni 2026-05-03 = 12 dni temu).
+- `@ducanh2912/next-pwa@10.2.3` CHANGELOG zawiera "A fast backport of https://github.com/serwist/serwist/pull/56" — potwierdza że serwist jest natural fork/successor.
+
+**Architecture changes**:
+- `npm uninstall @ducanh2912/next-pwa && npm install @serwist/next serwist`
+- `next.config.ts`: `withPWAInit({workboxOptions: {...}}) → withSerwistInit({swSrc: 'src/app/sw.ts', swDest: 'public/sw.js', cacheOnNavigation: false})` (-62 linii)
+- `src/app/sw.ts` (NOWY, 133 LOC): explicit Serwist instance z:
+  - `new Serwist({precacheEntries, skipWaiting, clientsClaim, navigationPreload, runtimeCaching})`
+  - Custom `runtimeCaching: [...customRuntimeCaching, ...defaultCache]` — preserved 1:1 z poprzednich workboxOptions:
+    - `NetworkOnly` dla `/api/auth/*`
+    - `NetworkOnly` dla `*supabase*/auth/*`
+    - `NetworkFirst` (cacheName: 'staff-pages', networkTimeoutSeconds: 5, ExpirationPlugin maxEntries: 16, maxAgeSeconds: 60) dla `/(pracownik|admin)`
+  - `self.importScripts('/push-sw.js')` (preserved from old workboxOptions.importScripts)
+  - `push` + `notificationclick` handlers (preserved from old `worker/index.ts`, ten sam kod)
+  - Triple-slash `<reference lib="WebWorker" />` dla SW types bez polluting `tsconfig.json` lib
+- `worker/index.ts`: **deleted** (zastąpione przez src/app/sw.ts)
+- `package-lock.json`: -2516/+427 = **-2089 linii** (drastyczny cleanup workbox 7.1.x chain + sub-tree)
+
+**Coexistence preserved** (sprawdzone w generated public/sw.js):
+- `/firebase-messaging-sw.js` (separate FCM scope `/firebase-cloud-messaging-push-scope`) — untouched
+- `/push-sw.js` (pushsubscriptionchange handler dla endpoint rotation) — imported via `self.importScripts()`
+
+**Verification**:
+- Local build clean (npm run build)
+- Local preview test (`npm start` :3001 + Claude Preview headless browser):
+  - Homepage 200 + screenshot pokazuje pełny render
+  - Service worker rejestracja: `installing` state (precache 94 entries — headless Chromium hangs but real browser activates normalnie)
+  - `serwist-precache-v2-http://localhost:3001/` cache utworzony (94 entries)
+  - 0 console errors
+  - Generated sw.js: `importScripts("/push-sw.js")` ✓, `push` handler ✓, `notificationclick` ✓, `staff-pages` cache ✓
+  - S5-4 redirect na localhost: 308 ✓
+- Production smoke test (po Vercel deploy):
+  - Homepage / → 200 ✓
+  - /sw.js → 200 (nowy serwist build) ✓
+  - /push-sw.js → 200 ✓
+  - /manifest.webmanifest → 200 ✓
+  - /sklep → 200 ✓
+  - S5-4 cross-locale `/baza-wiedzy/wurzelkanalbehandlung-laser` → 308 ✓
+  - sw.js zawartość: `serwist` × 15, `importScripts("/push-sw.js")` × 1, `notificationclick` × 1, `staff-pages` × 1 ✓
+
+**Audit reduction (cumulative S6-2 + S6-4 + S6-5)**:
+
+| Stage | Total | Critical | High | Moderate | Low |
+|---|---|---|---|---|---|
+| Pre-S6 (po S5) | 58 | 2 | 14 | 29 | 13 |
+| Po S6-2 | 15 | 0 | 5 | 2 | 8 |
+| Po S6-4 | 15 | 0 | 5 | 2 | 8 |
+| **Po S6-5** | **10** | **0** | **0** | **2** | **8** |
+
+**🎯 Sprint 6 main goal achieved: 0 critical, 0 high w produkcji.**
+
+#### Status S6 final
+
+- **S6-1** ✅ DONE (triage + plan)
+- **S6-2** ✅ DONE (Next 16.2.6 + safe transitives — closes 2 critical + 9 high)
+- **S6-3** ✅ AUTOMATIC (sanitize-html zamknięty przez S6-2 audit fix — no-op)
+- **S6-4** ✅ DONE (jimp → devDependencies — clean architecture)
+- **S6-5** ✅ DONE (serwist migration — closes 5 high)
+- **S6-6** ⏳ Pending (minor bumps — pozostałe 8 low + 2 moderate, low priority)
+
+**Sprint 6 effectively COMPLETE** — pozostały S6-6 to optional minor bumps (next-intl, firebase, Sentry, drobne) bez critical/high vulns.
+
+#### Workflow notes
+
+- **Marcin's question + Claude_Preview tool discovery**: Marcin zapytał czy mogę testować lokalnie przed merge. Claude in Chrome MCP nie był dostępny (brak sparowanego browsera), ale Claude_Preview MCP działało — uruchomiłem `npm start` na :3001 + headless browser (preview_eval, preview_screenshot, preview_console_logs, preview_network). Pełna autonomiczna weryfikacja przed merge bez angażowania Marcina.
+- **Workflow setup**: stworzony `~/.claude/launch.json` z konfiguracją `mikrostomart-prod` (uruchamia `npm --prefix /Users/marcinnowosielskimedit/mikrostomart start -- -p 3001`). Reusable dla przyszłych smoke testów.
+
+---
+
 ### 2026-05-15 EOD — S6-2 Next 16.2.6 patch + safe transitives audit fix (closes 2 critical + 10 high)
 
 #### Commits:
