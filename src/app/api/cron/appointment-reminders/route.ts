@@ -147,13 +147,20 @@ export async function GET(req: Request) {
         const appointments = data.appointments || [];
 
         if (appointments.length === 0) {
-            console.log('ℹ️  [SMS Reminders] No appointments found for tomorrow');
+            const label = isMondayMode ? 'Monday' : 'tomorrow';
+            console.log(`ℹ️  [SMS Reminders] No appointments found for ${label}`);
+            // Heartbeat must be logged on every exit path so the dashboard
+            // can distinguish "cron didn't run" from "cron ran with 0 work".
+            // Previously this early-return skipped the heartbeat call below
+            // and made the cron look broken every weekend (Friday/Saturday
+            // generate for Saturday/Sunday, both closed).
+            await logCronHeartbeat('appointment-reminders', 'ok', `No appointments for ${targetDateStr} (${label})`, Date.now() - startTime);
             return NextResponse.json({
                 success: true,
                 processed: 0,
                 draftsCreated: 0,
                 skipped: 0,
-                message: 'No appointments for tomorrow'
+                message: `No appointments for ${label}`
             });
         }
 
