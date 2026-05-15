@@ -2482,6 +2482,81 @@ NODE_ENV=production
 
 ## 📝 Recent Changes
 
+### 2026-05-15 EOD — S6-2 Next 16.2.6 patch + safe transitives audit fix (closes 2 critical + 10 high)
+
+#### Commits:
+- `08e6a8c` — chore(deps): S6-2 Next 16.2.6 patch + npm audit fix safe transitives
+
+#### Wynik (audit reduction)
+
+| | Przed S6-2 | Po S6-2 | Redukcja |
+|---|---|---|---|
+| Critical | 2 | **0** | -100% |
+| High | 14 | **5** | -64% |
+| Moderate | 29 | **2** | -93% |
+| Low | 13 | **8** | -38% |
+| **TOTAL** | **58** | **15** | **-74%** |
+
+#### Co zrobione
+
+**Manual bumps** (package.json):
+- `next 16.1.1 → ^16.2.6` (security patch w `^16`, **non-breaking**) — closes 3 high: DoS via Image Optimizer remotePatterns, HTTP request smuggling in rewrites, HTTP request deserialization DoS in RSC
+- `eslint-config-next 16.1.1 → ^16.2.6` (sync z next)
+
+**`npm audit fix` (bez `--force`, safe non-breaking transitives)** — 1552 linie zmiany w package-lock.json:
+- **`protobufjs`** (CRITICAL: arbitrary code execution + bytes field code injection + crafted DoS) ← critical #1 zamknięty
+- **`sanitize-html`** (CRITICAL: XSS via `xmp` raw-text passthrough) ← critical #2 zamknięty. **To nasz S4-1 v2 anti-XSS layer** — bonus: S6-3 z planu PLAN_DEPENDENCY_UPGRADES.md jest teraz **no-op** (auto-fix go pokrył).
+- `lodash` (HIGH: Prototype Pollution + Code Injection)
+- `@babel/plugin-transform-modules-systemjs` (HIGH: arbitrary code on malicious input)
+- `fast-uri` (HIGH: path traversal + host confusion)
+- `fast-xml-builder` (HIGH: attribute values bypass)
+- `minimatch` (HIGH: ReDoS x3)
+- `picomatch` (HIGH: Method Injection POSIX classes + ReDoS extglob)
+- `rollup` (HIGH: Arbitrary File Write via Path Traversal)
+- `terser-webpack-plugin` (HIGH: serialize-javascript chain)
+- `firebase-admin` chain low vulns (uuid)
+
+#### Pozostałe 5 high
+
+Wszystkie z chain `@ducanh2912/next-pwa@10.2.9`:
+- `workbox-build` (7.1.0 - 7.4.0)
+- `workbox-webpack-plugin` (7.1.0 - 7.4.0)
+- `@rollup/plugin-terser` (0.2.0 - 0.4.4)
+- `serialize-javascript` (RCE via RegExp.flags + CPU exhaustion)
+- `@ducanh2912/next-pwa` (>=10.2.7)
+
+`npm audit fix` proponuje **downgrade do 10.2.6** (`@ducanh2912/next-pwa@10.2.7+` to vulnerable range). **S6-5 wymaga decyzji Marcina A/B/C** (downgrade vs replace na `serwist` vs wait for upstream patch).
+
+#### Build + smoke test
+
+- `npm run build` clean
+- Pre-existing warnings unchanged: Sentry `disableLogger` deprecation (S6-6 fix via `@sentry/nextjs@10.53.1`), `middleware → proxy` rename Next 16 (osobny refactor, świadomie pominięty)
+- Vercel auto-deploy produkcji + smoke test po ~100s:
+  - Homepage / → 200 ✓
+  - /sklep → 200 ✓
+  - /kontakt → 200 ✓
+  - S5-4 cross-locale `/baza-wiedzy/wurzelkanalbehandlung-laser` → 308 → /de/... ✓
+  - S5-2 SSR `/aktualnosci` → 14 `<article>` tagów w initial HTML ✓
+  - /robots.txt → 48 Disallow entries (S5-1 prefiksowane) ✓
+
+#### Workflow notes
+
+- Marcin wybrał **bezpośredni merge bez preview test** — Next 16.1.1 → 16.2.6 to patch w obrębie ^16, ryzyko niskie
+- Branch utworzony, push do brancha (Vercel preview), merge ff-only, push, cleanup local + remote branch — 5 min od commit do produkcji
+- Brak push'y w czasie aktywnych cronów (`careflow-push` co 5 min, `email-ai-drafts` co godzinę) — Vercel handles cron in-flight gracefully
+
+#### Status S6 po S6-2
+
+- **S6-2 ✅ DONE** — Next patch + safe transitives (closes 2 critical + 10 high)
+- **S6-3 ✅ AUTOMATIC** — sanitize-html critical zamknięty przez S6-2 audit fix (był osobnym sprintem w planie, no-op teraz)
+- **S6-4 ⏳ PENDING** — jimp removal (10 moderate → 0)
+- **S6-5 ⏳ PENDING** — `@ducanh2912/next-pwa` decision A/B/C (5 high)
+- **S6-6 ⏳ PENDING** — minor bumps (next-intl, firebase, Sentry, drobne) (8 low + 2 moderate)
+
+End state goal po S6-6: `npm audit --omit=dev` → 0 critical, 0 high. Po S6-2 jesteśmy w **0 critical, 5 high** — tylko S6-5 (next-pwa decision) blokuje nas przed osiągnięciem celu 0 high.
+
+---
+
 ### 2026-05-15 — S5-4 cross-locale 301 redirect + cron heartbeat early-return fix + S6-1 dependency upgrade triage
 
 #### Commits:
