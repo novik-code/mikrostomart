@@ -1,51 +1,25 @@
 import type { NextConfig } from "next";
-import withPWAInit from "@ducanh2912/next-pwa";
+import withSerwistInit from "@serwist/next";
 import createNextIntlPlugin from 'next-intl/plugin';
 import { withSentryConfig } from "@sentry/nextjs";
 
-const withPWA = withPWAInit({
-  dest: "public",
+// S6-5 (2026-05-15): migracja z @ducanh2912/next-pwa do @serwist/next.
+// Tego samego autora (DuCanhGH/canhdu), serwist to oficjalny successor.
+// Powód: 5 high CVE w @ducanh2912/next-pwa chain (workbox-build, serialize-javascript)
+// + maintainer abandonware (last release 2024-09-18).
+//
+// API różnice:
+// - withPWAInit({ workboxOptions: {...} }) → withSerwistInit({ swSrc, swDest, ... })
+// - workboxOptions.runtimeCaching + skipWaiting + clientsClaim + importScripts
+//   → przeniesione do app/sw.ts (explicit Serwist instance).
+// - workboxOptions.navigateFallbackDenylist → cacheOnNavigation: false (nie cache'ujemy
+//   żadnych nawigacji domyślnie; staff pages mają explicit NetworkFirst w app/sw.ts).
+// - worker/index.ts (auto-injection) → app/sw.ts (explicit, full control).
+const withSerwist = withSerwistInit({
+  swSrc: "src/app/sw.ts",
+  swDest: "public/sw.js",
+  cacheOnNavigation: false,
   disable: process.env.NODE_ENV === "development",
-  workboxOptions: {
-    disableDevLogs: true,
-    skipWaiting: true,
-    clientsClaim: true,
-    // Import push notification handlers into the service worker
-    importScripts: ['/push-sw.js'],
-    // Don't use navigation fallback for auth-sensitive pages
-    navigateFallbackDenylist: [
-      /^\/pracownik/,
-      /^\/admin/,
-      /^\/api\//,
-      /^\/auth\//,
-      /^\/strefa-pacjenta\/login/,
-    ],
-    runtimeCaching: [
-      // Auth API routes: always go to network, never cache
-      {
-        urlPattern: /^https?:\/\/.*\/api\/auth\/.*/i,
-        handler: 'NetworkOnly',
-      },
-      // Supabase auth endpoints: never cache
-      {
-        urlPattern: /^https?:\/\/.*supabase.*\/auth\/.*/i,
-        handler: 'NetworkOnly',
-      },
-      // Login/pracownik/admin page navigations: network first, no cache
-      {
-        urlPattern: /^https?:\/\/.*\/(pracownik|admin)(\/.*)?$/i,
-        handler: 'NetworkFirst',
-        options: {
-          cacheName: 'staff-pages',
-          expiration: {
-            maxEntries: 16,
-            maxAgeSeconds: 60, // 1 minute max cache
-          },
-          networkTimeoutSeconds: 5,
-        },
-      },
-    ],
-  },
 });
 
 // Force Deploy Timestamp: 2025-12-31 21:42
@@ -215,7 +189,7 @@ const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
 // Wrap with Sentry for error tracking and source maps
 export default withSentryConfig(
-  withNextIntl(withPWA(nextConfig)),
+  withNextIntl(withSerwist(nextConfig)),
   {
     // Sentry org and project (set via SENTRY_ORG and SENTRY_PROJECT env vars)
     org: process.env.SENTRY_ORG,
