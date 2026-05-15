@@ -1,6 +1,8 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-14 EOD #2 (**🎯 S4-5 DONE — Patient JWT hardening (P1-03) + social-media bucket lockdown (P0-09)**. Commit `fc8f27f`. Wątek (a): `/api/patients/login` usunięto `token` z JSON response (zostaje tylko httpOnly cookie). Frontend `login/page.tsx` usunięto `document.cookie = patient_token=${data.token}` — JS-readable copy zniknął. Verified na preview deployment: DevTools → Cookies pokazuje tylko 1 `patient_token` z flagą HttpOnly ✓ Secure ✓ SameSite=Strict, Local Storage zawiera tylko `patient_data` (display-only), dashboard ładuje się normalnie przez httpOnly cookie + `verifyTokenFromRequest` fallback. Wątek (b): migracja **125** dropuje policies `"Allow video uploads"` (anyone INSERT do `videos/*`) + `"Allow service delete social-media"` (anyone DELETE — misleading name). Plus bucket `file_size_limit` 500MB → 100MB + `allowed_mime_types` restricted do video/image. Zostaje `"Allow public read"` bo wideo musi być publicznie odczytywalne dla YouTube/TikTok publication. Code: `createBucket` fallback w `/api/social/video-upload` mirror migracji (100MB + MIME restrict). Frontend upload przez signedUploadUrl + service_role bypass RLS = unaffected. **🚨 Manual task Marcin**: wgrać migrację 125 na OBU Supabase (`~/Desktop/migracje_supabase/migracja_125_*.txt`). Plus poprzednie pending: migracje 124, 123, 122. **Sprint 4 prawie COMPLETE** — pozostaje tylko S4-2b (CSP enforce, czekamy ~tydzień na Sentry data od `8b281df`). Po S4-2b wracamy do S5 SEO P2 cleanup.)
+> **Last Updated:** 2026-05-15 (**🌐 SPRINT 5 SEO P2 CLEANUP COMPLETE — html lang + robots prefiksy + sitemap noindex + news 404 fallback + listing SSR + wizyta noindex + i18n deep merge fix**. 3 sesje, 3 commity zmergowane na origin/main. **S5-1** `1ef1cab`: `<html lang>` mapuje `'ua'` → ISO 639-1 `'uk'` (linia 292 layout.tsx). `robots.ts` rewrite — 12 prywatnych ścieżek × 4 prefiksy locale (`''`, `/en`, `/de`, `/ua`) + dodano `/wizyta/` przed S5-2; teraz Googlebot blokowany na `/en/strefa-pacjenta/`, `/de/admin/`, `/ua/ekarta/` etc. (wcześniej tylko PL bez prefixu). `sitemap.ts`: usunięto `/zadatek` (noindex z J-2), PL legal pages (regulamin/cookies/prywatnosci/rodo) emit tylko PL prefix; `/privacy-policy` zostaje multi-locale (dedicated international page). **S5-2** `58c7cfd`: `aktualnosci/[slug]/page.tsx` dodaje `notFound()` w generateMetadata + page gdy `locale != pl` AND brak `title_{locale}` (wcześniej silent PL fallback = duplicate content w en/de/ua). `generateStaticParams` filtrowane — emituje tylko (locale, slug) z istniejącym tłumaczeniem. `aktualnosci/page.tsx` client→server component (revalidate 10min, fetch direct supabase); carousel UI z arrows + RevealOnScroll wyrwane do nowego `NewsCarousel.tsx` client island; foreign locale pomija artykuły bez tłumaczenia. `wizyta/[type]/layout.tsx` (nowy plik): `metadata.robots: { index: false, follow: false }` (wizyta to per-appointment landing, brak organic intent + leak appointment_type strings). **S5-3** `320d7c0`: `src/i18n/request.ts` shallow `{...common, ...pages}` → recursive `deepMerge()`. Audit (Node script) potwierdził overlap `aktualnosci` namespace × 4 locale: `backToNews` + `articleNotFound` (z common.json) były nadpisywane przez pages.aktualnosci → MISSING_MESSAGE w server log. Deep merge odzyskał 8 brakujących tłumaczeń (2 × 4 locale). `oferta` namespace OK (pages superset common). **Następna sesja: S6-1 dependency upgrade triage** — Marcin postanowił przeskoczyć S4-2b (CSP enforce, paused do czasu Sentry data lub w ogóle pomija) i lecimy z S6 (deps) → S7 (UX) → S8 (RODO/2FA) → S9 (lint+CI) → potem wrót do Fazy K Premium SEO.)
+
+<!-- Poprzednia: 2026-05-14 EOD #2 (**🎯 S4-5 DONE — Patient JWT hardening (P1-03) + social-media bucket lockdown (P0-09)**. Commit `fc8f27f` + docs `90e79dd`. Wątek (a): `/api/patients/login` usunięto `token` z JSON response. Frontend `login/page.tsx` usunięto `document.cookie = patient_token=${data.token}`. Verified preview: 1 cookie HttpOnly+Secure+SameSite=Strict, dashboard ładuje przez httpOnly. Wątek (b): migracja **125** dropuje policies `"Allow video uploads"` + `"Allow service delete"`. Bucket `file_size_limit` 500MB → 100MB + restrict do video/image. **🚨 Manual task Marcin**: wgrać migrację 125 + 124, 123, 122. **Sprint 4 prawie COMPLETE** — pozostaje tylko S4-2b CSP enforce.)
 
 <!-- Poprzednia: 2026-05-14 EOD (**🎯 S4-3 + S4-4 DONE: contact form Turnstile + short-link hardening + DB-backed confirmation tokens**. **Sesja zawiła**, dwa sprinty w jednym dniu po S4-2a w nocy poprzedniej. **S4-3 (P1-07)** commit `7547e52`+`fix da93c1f` (które wcześniej z S2 było ale działa też tu z hardcoded fallback): Cloudflare Turnstile zastępuje math captcha w `/kontakt`, backend weryfikuje token przez siteverify, rate limit 5/IP/15min (existing rateLimit infra), magic-bytes MIME validation (manual, bez `file-type` ESM gotcha jak DOMPurify v1 nas zabił), body size 5 MB. Marcin debugowanie: Vercel Sensitive env vars **nie wstrzykuje** `NEXT_PUBLIC_*` do client bundle, plus Value field wpisany w Note (UX gotcha) — hardcoded fallback site key `0x4AAAAAADN3DS_czkcNj-aD` w kodzie obejdzie problem (site key jest public, zero leak). Cloudflare Turnstile **nie wspiera wildcards z myślnikiem** w środku subdomeny (`*-novik-codes-projects.vercel.app` rejected), więc preview test pominięty — produkcja na whitelist OK, end-to-end real submit działa. **S4-4 (P1-06 + P1-02)** commit `3a7e4bf`: (a) **Short-link hardening** — `POST /api/short-links` teraz wymaga `requireAdmin()` + destination allowlist (internal `^/[a-z]` lub explicit external hosts: czelej/laserandhealthacademy/magazyn-stomatologiczny). `/s/[code]/page.tsx` (client React redirect) → `route.ts` (server-side 302). Cron robi direct DB insert (nie HTTP), zero ryzyka regresji. (b) **DB-backed confirmation token** zamiast HMAC z planu: cron generuje `nanoid(16)` (96 bits entropy), zapisuje w `appointment_actions.confirmation_token`, używa w short_link destination jako `?token=` zamiast enumerable `?appointmentId=UUID`. Confirm + cancel endpointy akceptują obie formaty (backwards compat 14 dni). Defensive fallback w cronie (jeśli kolumna nie wgrana → użyj legacy URL). **Migracja 124** (`appointment_actions.confirmation_token` + unique partial index, idempotent). **🚨 Manual task Marcin**: wgrać migrację 124 na OBU Supabase (`~/Desktop/migracje_supabase/migracja_124_*.txt`). Wcześniej z #4: migracja 123 (Prodentis sync) wciąż wymagana. Real test S4-4 jutro 8:00 PL gdy cron `appointment-reminders` wygeneruje SMS-y z tokenami zamiast UUID.)
 
@@ -2479,6 +2481,92 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-15 — Hotfix Sprint S5 COMPLETE: SEO P2 cleanup (html lang + robots + sitemap noindex + news 404 + listing SSR + wizyta noindex + i18n deep merge)
+
+#### Commits:
+- `1ef1cab` — feat(seo): S5-1 html lang + robots prefiksy + sitemap noindex
+- `58c7cfd` — feat(seo): S5-2 news 404 + listing SSR + wizyta noindex
+- `320d7c0` — fix(i18n): S5-3 deep merge common + pages messages
+
+#### S5-1: html lang + robots prefiksy + sitemap noindex
+
+**Trzy zmiany w trzech plikach:**
+
+1. **`src/app/layout.tsx:292`** — `<html lang>` mapuje URL prefix `'ua'` → ISO 639-1 `'uk'` (Ukrainian). Hreflang już mapował przez `HREFLANG_MAP` w sitemap.ts; html lang był ostatnim miejscem emitującym non-standard `'ua'`. Googlebot i screen readers oczekują `'uk'`.
+
+2. **`src/app/robots.ts`** — pełen rewrite (32 → 47 linii). Wcześniej blokował tylko 11 ścieżek bez prefiksu — `Disallow: /strefa-pacjenta/` ale `/en/strefa-pacjenta/`, `/de/admin/`, `/ua/ekarta/` były dostępne dla Googlebota. Teraz:
+   ```ts
+   const PRIVATE_PATHS = ['/api/', '/admin/', '/pracownik/', '/strefa-pacjenta/',
+     '/ekarta/', '/mapa-bolu/editor', '/auth/', '/zgody/', '/qr-display',
+     '/s/', '/opieka/', '/wizyta/']; // 12 ścieżek
+   const LOCALE_PREFIXES = ['', '/en', '/de', '/ua'];
+   const disallow = LOCALE_PREFIXES.flatMap(p => PRIVATE_PATHS.map(path => `${p}${path}`));
+   // 48 disallow entries
+   ```
+   Dodano `/wizyta/` jako preemptywny block przed S5-2 noindex.
+
+3. **`src/app/sitemap.ts`** — usunięto `/zadatek` z `toolPaths` (noindex od J-2, nie powinien być w sitemap). PL legal pages (`regulamin`, `polityka-cookies`, `polityka-prywatnosci`, `rodo`) wyjęte z `multiLocaleEntries` → emitują tylko PL URL (foreign locales renderowały ten sam Polish text → Google duplicate-content signal). `/privacy-policy` zostaje multi-locale (dedicated international page, separate folder z tłumaczeniami).
+
+**Pliki**: `src/app/layout.tsx`, `src/app/robots.ts`, `src/app/sitemap.ts`.
+
+**Acceptance**:
+- ✅ `/ua/*` HTML → `<html lang="uk">`
+- ✅ `/en/strefa-pacjenta/`, `/de/admin/`, `/ua/ekarta/` → blocked w robots.txt
+- ✅ Sitemap nie zawiera `/en/regulamin`, `/de/zadatek`
+
+#### S5-2: News fallback + listing SSR + wizyta noindex
+
+**Cztery zmiany:**
+
+1. **`src/app/[locale]/aktualnosci/[slug]/page.tsx`** — dodano helper `hasTranslation(article, locale)` (PL zawsze true, foreign tylko gdy `title_{locale}` istnieje). `generateMetadata` zwraca minimalny `{ robots: { index: false, follow: false } }` gdy brak tłumaczenia. `ArticlePage` po fetchu wywołuje `notFound()` zamiast silent PL fallback. Wcześniej `/en/aktualnosci/<polish-only-slug>` serwował PL content w EN URL = duplicate content + confused hreflang.
+
+2. **`generateStaticParams`** w tym samym pliku — wcześniej Cartesian product (4 locales × N slugs); teraz iteruje per-article i emituje tylko (locale, slug) z istniejącym tłumaczeniem (PL zawsze + EN/DE/UA tylko gdy `title_{locale}`).
+
+3. **`src/app/[locale]/aktualnosci/page.tsx`** — pełen refaktor client → server component. Wcześniej `"use client"` + `useEffect` fetch → `curl /aktualnosci` zwracał blank page (Googlebot widział nic). Teraz async server component z direct supabase fetch (revalidate 600s = 10 min), filtruje artykuły bez tłumaczenia w foreign locale (zgodnie ze [slug] guardem). Carousel UI (scroll arrows + RevealOnScroll wrapping cards) wyrwany do nowego pliku **`src/app/[locale]/aktualnosci/NewsCarousel.tsx`** (`"use client"` island, otrzymuje articles jako prop).
+
+4. **`src/app/[locale]/wizyta/[type]/layout.tsx`** (nowy plik) — `metadata.robots: { index: false, follow: false }`. Wizyta to per-appointment landing reachable via SMS/email, brak organic search intent, leak appointment_type strings. Ten layout jest server component nadrzędny do client `page.tsx` (layouts mogą eksportować metadata nawet gdy page jest client).
+
+**Pliki**: `src/app/[locale]/aktualnosci/[slug]/page.tsx` (+25/-12), `src/app/[locale]/aktualnosci/page.tsx` (refaktor: 234 → 75 linii), `src/app/[locale]/aktualnosci/NewsCarousel.tsx` (nowy, 166 linii), `src/app/[locale]/wizyta/[type]/layout.tsx` (nowy, 13 linii).
+
+**Acceptance**:
+- ✅ `/en/aktualnosci/<polish-only-slug>` → 404
+- ✅ `curl /aktualnosci | grep '<article'` → matches w initial HTML
+- ✅ `/wizyta/krotka` HTML head zawiera `<meta name="robots" content="noindex,nofollow">`
+
+#### S5-3: i18n deep merge fix
+
+**Problem** (audit):
+```
+PL — common: 26 pages: 30 overlap: 2 → oferta, aktualnosci
+  ⚠️ aktualnosci.* keys lost in shallow merge: backToNews, articleNotFound
+EN/DE/UA — same pattern (× 4 locale = 8 lost translations).
+```
+
+`src/i18n/request.ts` używał `messages: { ...common, ...pages }` (shallow). Gdy oba pliki deklarowały top-level klucz `aktualnosci`, `pages.aktualnosci` zastępowało **całość** `common.aktualnosci` zamiast się scalać → `backToNews` + `articleNotFound` znikały → MISSING_MESSAGE w server log dla każdego entry/leave [slug] page.
+
+**Fix**: zaimplementowany `deepMerge<T>()` (recursive merge dla obiektów, last-wins dla scalars/arrays). `oferta` namespace OK (pages.oferta to superset common.oferta — 4 keys w obu).
+
+**Pliki**: `src/i18n/request.ts` (+25/-3).
+
+**Verify** (Node sanity script):
+```
+PL/aktualnosci — shallow: 6 deep: 8 ✓ recovered: articleNotFound, backToNews
+EN/aktualnosci — same recovery
+DE/aktualnosci — same recovery
+UA/aktualnosci — same recovery
+```
+
+#### Szerszy kontekst (Hotfix Sprint state)
+
+S5 ✅ COMPLETE zamyka SEO P2 cleanup. Marcin (2026-05-15) postanowił **przeskoczyć S4-2b** (CSP enforce — `Report-Only` → enforce, czeka na ~tydzień Sentry data od `8b281df` 2026-05-13). S4-2b wraca później albo zostaje pominięty (Report-Only nadal raportuje violations do Sentry, więc widoczność jest).
+
+**Następna sesja: S6-1 dependency upgrade triage** (~1h AI, output `~/Desktop/bałagan/PLAN_DEPENDENCY_UPGRADES.md`). Po S6 → S7 (UX) → S8 (RODO/2FA) → S9 (lint+CI) → wrót do Fazy K Premium SEO.
+
+#### Status tracking
+- `~/Desktop/bałagan/PLAN_HOTFIX_STATUS.md` zaktualizowany: S4-3, S4-4, S4-5 oznaczone DONE; S4-2b PAUSED; S5-1, S5-2, S5-3 oznaczone DONE; NEXT SESSION wskazuje na S6-1.
+
+---
 
 ### 2026-05-14 EOD #2 — Hotfix Sprint S4-5: Patient JWT hardening + social-media bucket lockdown
 
