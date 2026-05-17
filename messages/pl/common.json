@@ -113,7 +113,17 @@
         "message": "Strona korzysta z plików cookies w celu realizacji usług i zgodnie z",
         "policyLink": "Polityką Plików Cookies",
         "details": "Możesz określić warunki przechowywania lub dostępu do mechanizmu cookie w Twojej przeglądarce.",
-        "accept": "Akceptuję"
+        "accept": "Akceptuję wszystko",
+        "settings": "Ustawienia szczegółowe",
+        "savePreferences": "Zapisz wybór",
+        "cancel": "Anuluj",
+        "modalTitle": "Twoje preferencje cookies",
+        "necessaryLabel": "Niezbędne",
+        "necessaryDesc": "Wymagane do działania strony (logowanie, koszyk, sesja). Nie można wyłączyć.",
+        "aiMemoryLabel": "Pamięć rozmów AI (90 dni)",
+        "aiMemoryDesc": "Pozwala asystentom AI (czat, cennik) pamiętać Twoje wcześniejsze pytania. Bez tego rozmowa zaczyna się od zera. Treść może zawierać dane wrażliwe — szczegóły w polityce prywatności §11.",
+        "analyticsLabel": "Analityka błędów (Sentry)",
+        "analyticsDesc": "Anonimowe statystyki błędów i wydajności pomagają nam ulepszać stronę. Bez identyfikacji osobistej."
     },
     "bookConsultationCta": "Umów Konsultację",
     "youtubeFeed": {

@@ -17,6 +17,7 @@ const supabase = createClient(
  *
  *  - employee_audit_log: keep 90 days (Art. 30 RODO — security audit retention)
  *  - login_attempts:     keep 24 hours (rate limit history, anything older is irrelevant)
+ *  - ai_conversations:   delete past expires_at (90 days default, per privacy policy §11)
  *
  * Called by Vercel Cron daily at 03:30 UTC (04:30/05:30 PL depending on DST).
  *
@@ -51,14 +52,18 @@ export async function GET(req: NextRequest) {
     const auditCutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
     const loginCutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
+    const now = new Date().toISOString();
+
     const results: {
         dry_run: boolean;
         employee_audit_log: { cutoff: string; deleted: number | null; error: string | null };
         login_attempts: { cutoff: string; deleted: number | null; error: string | null };
+        ai_conversations: { cutoff: string; deleted: number | null; error: string | null };
     } = {
         dry_run: dryRun,
         employee_audit_log: { cutoff: auditCutoff, deleted: null, error: null },
         login_attempts: { cutoff: loginCutoff, deleted: null, error: null },
+        ai_conversations: { cutoff: now, deleted: null, error: null },
     };
 
     // ── employee_audit_log (90 days) ──
@@ -102,6 +107,28 @@ export async function GET(req: NextRequest) {
             console.error('[AuditCleanup] login_attempts error:', error);
         } else {
             console.log(`[AuditCleanup] login_attempts: deleted ${count ?? 0} entries older than ${loginCutoff}`);
+        }
+    }
+
+    // ── ai_conversations (per-row expires_at) ──
+    if (dryRun) {
+        const { count, error } = await supabase
+            .from('ai_conversations')
+            .select('*', { count: 'exact', head: true })
+            .lt('expires_at', now);
+        results.ai_conversations.deleted = count ?? 0;
+        results.ai_conversations.error = error?.message ?? null;
+    } else {
+        const { count, error } = await supabase
+            .from('ai_conversations')
+            .delete({ count: 'exact' })
+            .lt('expires_at', now);
+        results.ai_conversations.deleted = count ?? 0;
+        results.ai_conversations.error = error?.message ?? null;
+        if (error) {
+            console.error('[AuditCleanup] ai_conversations error:', error);
+        } else {
+            console.log(`[AuditCleanup] ai_conversations: deleted ${count ?? 0} conversations past expires_at`);
         }
     }
 

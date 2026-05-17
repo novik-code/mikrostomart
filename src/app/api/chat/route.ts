@@ -1,8 +1,10 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { checkRateLimit, getClientIP } from '@/lib/rateLimit';
 import fs from 'fs';
 import path from 'path';
 import { getAICompletion } from '@/lib/unifiedAI';
+import { logAIConversation, hashIp, getIpFromRequest } from '@/lib/aiConversationLog';
+import { verifyTokenFromRequest } from '@/lib/jwt';
 
 // Tools Definition
 const tools = [
@@ -24,7 +26,7 @@ const tools = [
     }
 ];
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
     const ip = getClientIP(req);
     const rl = await checkRateLimit(`chat:${ip}`, 20);
     if (!rl.allowed) {
@@ -32,7 +34,7 @@ export async function POST(req: Request) {
     }
 
     try {
-        const { messages } = await req.json();
+        const { messages, anonId, consent } = await req.json();
 
         if (!messages || !Array.isArray(messages)) {
             return NextResponse.json({ error: 'Invalid messages format' }, { status: 400 });
@@ -104,6 +106,29 @@ export async function POST(req: Request) {
             fs.appendFileSync(chatLogPath, JSON.stringify(logEntry) + '\n');
         } catch (e) {
             console.error("Logging failed", e);
+        }
+
+        // S8-4 D4=C+: persist AI conversation per privacy policy §11
+        // Logged-in patient: always (disclosed). Anonymous: only with cookie opt-in.
+        try {
+            const patientPayload = verifyTokenFromRequest(req);
+            const lastUserMsg = messages[messages.length - 1];
+            const userText = typeof lastUserMsg?.content === 'string'
+                ? lastUserMsg.content
+                : (Array.isArray(lastUserMsg?.content) ? '[Image/Mixed content]' : '');
+
+            await logAIConversation({
+                userId: patientPayload?.userId || null,
+                anonId: anonId || null,
+                ipHash: hashIp(getIpFromRequest(req)),
+                context: 'patient_chat',
+                userMessage: userText,
+                assistantMessage: reply || '',
+                consentGiven: consent === true,
+            });
+        } catch (logErr) {
+            // Non-blocking — never fail AI response on logging error
+            console.error('[chat] logAIConversation error:', logErr);
         }
 
         return NextResponse.json({ reply });

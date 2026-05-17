@@ -113,7 +113,17 @@
         "message": "This website uses cookies to provide services in accordance with the",
         "policyLink": "Cookie Policy",
         "details": "You can specify the conditions for storing or accessing cookies in your browser.",
-        "accept": "Accept"
+        "accept": "Accept all",
+        "settings": "Detailed settings",
+        "savePreferences": "Save choice",
+        "cancel": "Cancel",
+        "modalTitle": "Your cookie preferences",
+        "necessaryLabel": "Necessary",
+        "necessaryDesc": "Required for the site to function (login, cart, session). Cannot be disabled.",
+        "aiMemoryLabel": "AI conversation memory (90 days)",
+        "aiMemoryDesc": "Allows AI assistants (chat, pricing) to remember your earlier questions. Without this, every conversation starts from scratch. Content may contain sensitive data — see privacy policy §11.",
+        "analyticsLabel": "Error analytics (Sentry)",
+        "analyticsDesc": "Anonymous error and performance statistics help us improve the site. No personal identification."
     },
     "bookConsultationCta": "Book a Consultation",
     "youtubeFeed": {

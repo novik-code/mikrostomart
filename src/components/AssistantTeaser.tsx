@@ -156,10 +156,12 @@ export default function AssistantTeaser() {
 
             const apiMessages = [...historyForApi, apiMessage].slice(-10);
 
+            const { getAIChatExtras } = await import("@/lib/aiConsentClient");
+            const extras = getAIChatExtras();
             const response = await fetch("/api/chat", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ messages: apiMessages }),
+                body: JSON.stringify({ messages: apiMessages, ...extras }),
             });
             const data = await response.json();
 

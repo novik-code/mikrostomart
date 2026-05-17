@@ -1,6 +1,6 @@
 "use client";
 
-import { Lock, Mail, Shield, Database, UserCheck } from "lucide-react";
+import { Lock, Mail, Shield, Database, UserCheck, Sparkles, HeartPulse, Eye, Scale, Building2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import RevealOnScroll from "@/components/RevealOnScroll";
 import { demoSanitize } from '@/lib/brandConfig';
@@ -97,6 +97,57 @@ export default function PrivacyPolicyPage() {
                                     gabinet@mikrostomart.pl
                                 </a>.
                             </p>
+                        </PolicyCard>
+                    </RevealOnScroll>
+
+                    {/* S8-4 (Hotfix RODO): AI + medical data + audit + rights + processors */}
+                    <RevealOnScroll animation="fade-up" delay={400}>
+                        <PolicyCard icon={<Sparkles size={22} color="var(--color-primary)" />} title={t('sec5Title')}>
+                            <p>{t('sec5Text')}</p>
+                        </PolicyCard>
+                    </RevealOnScroll>
+
+                    <RevealOnScroll animation="fade-up" delay={500}>
+                        <PolicyCard icon={<HeartPulse size={22} color="var(--color-primary)" />} title={t('sec6Title')}>
+                            <p>{t('sec6Text')}</p>
+                        </PolicyCard>
+                    </RevealOnScroll>
+
+                    <RevealOnScroll animation="fade-up" delay={600}>
+                        <PolicyCard icon={<Eye size={22} color="var(--color-primary)" />} title={t('sec7Title')}>
+                            <p>{t('sec7Text')}</p>
+                        </PolicyCard>
+                    </RevealOnScroll>
+
+                    <RevealOnScroll animation="fade-up" delay={700}>
+                        <PolicyCard icon={<Scale size={22} color="var(--color-primary)" />} title={t('sec8Title')}>
+                            <p style={{ marginBottom: "0.75rem" }}>{t('sec8Intro')}</p>
+                            <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                                {[t('sec8Li1'), t('sec8Li2'), t('sec8Li3'), t('sec8Li4')].map((item, i) => (
+                                    <li key={i} style={{ padding: "0.4rem 0 0.4rem 1.25rem", position: "relative" }}>
+                                        <span style={{ position: "absolute", left: 0, top: "0.85rem", width: "4px", height: "4px", borderRadius: "50%", background: "var(--color-primary)", opacity: 0.5 }} />
+                                        {item}
+                                    </li>
+                                ))}
+                            </ul>
+                        </PolicyCard>
+                    </RevealOnScroll>
+
+                    <RevealOnScroll animation="fade-up" delay={800}>
+                        <PolicyCard icon={<Building2 size={22} color="var(--color-primary)" />} title={t('sec9Title')}>
+                            <p style={{ marginBottom: "0.75rem" }}>{t('sec9Intro')}</p>
+                            <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                                {[
+                                    t('sec9Li1'), t('sec9Li2'), t('sec9Li3'), t('sec9Li4'),
+                                    t('sec9Li5'), t('sec9Li6'), t('sec9Li7'), t('sec9Li8'),
+                                    t('sec9Li9'), t('sec9Li10'), t('sec9Li11'),
+                                ].map((item, i) => (
+                                    <li key={i} style={{ padding: "0.4rem 0 0.4rem 1.25rem", position: "relative" }}>
+                                        <span style={{ position: "absolute", left: 0, top: "0.85rem", width: "4px", height: "4px", borderRadius: "50%", background: "var(--color-primary)", opacity: 0.5 }} />
+                                        {item}
+                                    </li>
+                                ))}
+                            </ul>
                         </PolicyCard>
                     </RevealOnScroll>
 

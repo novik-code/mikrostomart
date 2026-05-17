@@ -113,7 +113,17 @@
         "message": "Diese Website verwendet Cookies zur Bereitstellung von Diensten gemäß der",
         "policyLink": "Cookie-Richtlinie",
         "details": "Sie können die Bedingungen für das Speichern oder Zugreifen auf Cookies in Ihrem Browser festlegen.",
-        "accept": "Akzeptieren"
+        "accept": "Alle akzeptieren",
+        "settings": "Detaillierte Einstellungen",
+        "savePreferences": "Auswahl speichern",
+        "cancel": "Abbrechen",
+        "modalTitle": "Ihre Cookie-Einstellungen",
+        "necessaryLabel": "Notwendig",
+        "necessaryDesc": "Erforderlich für die Funktion der Website (Anmeldung, Warenkorb, Sitzung). Kann nicht deaktiviert werden.",
+        "aiMemoryLabel": "KI-Gesprächsspeicher (90 Tage)",
+        "aiMemoryDesc": "Ermöglicht KI-Assistenten (Chat, Preise), Ihre früheren Fragen zu speichern. Ohne dies beginnt jedes Gespräch von vorne. Inhalt kann sensible Daten enthalten — siehe Datenschutzerklärung §11.",
+        "analyticsLabel": "Fehleranalyse (Sentry)",
+        "analyticsDesc": "Anonyme Fehler- und Leistungsstatistiken helfen uns, die Website zu verbessern. Keine persönliche Identifikation."
     },
     "bookConsultationCta": "Beratung buchen",
     "youtubeFeed": {

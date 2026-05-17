@@ -1,8 +1,10 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { checkRateLimit, getClientIP } from '@/lib/rateLimit';
 import { getAICompletion } from '@/lib/unifiedAI';
+import { logAIConversation, hashIp, getIpFromRequest } from '@/lib/aiConversationLog';
+import { verifyTokenFromRequest } from '@/lib/jwt';
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
     const ip = getClientIP(req);
     const rl = await checkRateLimit(`cennik:${ip}`, 20);
     if (!rl.allowed) {
@@ -10,7 +12,7 @@ export async function POST(req: Request) {
     }
 
     try {
-        const { messages } = await req.json();
+        const { messages, anonId, consent } = await req.json();
 
         if (!messages || !Array.isArray(messages)) {
             return NextResponse.json({ error: 'Invalid messages format' }, { status: 400 });
@@ -50,6 +52,27 @@ export async function POST(req: Request) {
             console.log('PRICING_QUERY:', JSON.stringify(logEntry));
         } catch (e) {
             console.error("Pricing logging failed", e);
+        }
+
+        // S8-4 D4=C+: persist AI conversation (consent-gated for anon)
+        try {
+            const patientPayload = verifyTokenFromRequest(req);
+            const lastUserMsg = messages[messages.length - 1];
+            const userText = typeof lastUserMsg?.content === 'string'
+                ? lastUserMsg.content
+                : (Array.isArray(lastUserMsg?.content) ? '[Image/Mixed content]' : '');
+
+            await logAIConversation({
+                userId: patientPayload?.userId || null,
+                anonId: anonId || null,
+                ipHash: hashIp(getIpFromRequest(req)),
+                context: 'cennik_chat',
+                userMessage: userText,
+                assistantMessage: reply || '',
+                consentGiven: consent === true,
+            });
+        } catch (logErr) {
+            console.error('[cennik-chat] logAIConversation error:', logErr);
         }
 
         return NextResponse.json({ reply });

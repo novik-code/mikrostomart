@@ -32,8 +32,15 @@ import { CookieConsentButton } from './CookieConsentButton';
 export default async function CookieConsent() {
     const cookieStore = await cookies();
     const consent = cookieStore.get('cookie_consent')?.value;
-    if (consent === 'true') {
-        return null;
+
+    // v1 backwards-compat: plain 'true' string from old single-button banner
+    // v2: JSON-encoded { accepted, ai_memory, analytics, marketing }
+    if (consent === 'true') return null;
+    if (consent) {
+        try {
+            const parsed = JSON.parse(decodeURIComponent(consent));
+            if (parsed?.accepted) return null;
+        } catch { /* invalid value — show banner again */ }
     }
 
     const t = await getTranslations('cookies');
@@ -75,8 +82,20 @@ export default async function CookieConsent() {
                 </div>
             </div>
 
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: "1rem" }}>
-                <CookieConsentButton acceptText={t('accept')} />
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "1rem", flexWrap: "wrap" }}>
+                <CookieConsentButton
+                    acceptText={t('accept')}
+                    settingsText={t('settings')}
+                    saveText={t('savePreferences')}
+                    cancelText={t('cancel')}
+                    aiMemoryLabel={t('aiMemoryLabel')}
+                    aiMemoryDesc={t('aiMemoryDesc')}
+                    analyticsLabel={t('analyticsLabel')}
+                    analyticsDesc={t('analyticsDesc')}
+                    necessaryLabel={t('necessaryLabel')}
+                    necessaryDesc={t('necessaryDesc')}
+                    modalTitle={t('modalTitle')}
+                />
             </div>
         </div>
     );

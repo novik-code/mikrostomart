@@ -175,11 +175,14 @@ export default function CennikPage() {
                 .slice(-8)
                 .map((m) => ({ role: m.role, content: m.content }));
 
+            const { getAIChatExtras } = await import("@/lib/aiConsentClient");
+            const extras = getAIChatExtras();
             const response = await fetch("/api/cennik-chat", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     messages: [...historyForApi, { role: "user", content: contentToSend }],
+                    ...extras,
                 }),
             });
 
