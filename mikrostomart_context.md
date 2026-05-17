@@ -2482,6 +2482,62 @@ NODE_ENV=production
 
 ## 📝 Recent Changes
 
+### 2026-05-17 #2 — S7-1 mapa bólu medical disclaimers (compliance + legal)
+
+#### Commit:
+- `a3b0981` — feat(ux): S7-1 mapa bólu medical disclaimers (compliance + legal)
+
+#### Co zrobione
+
+Audyt zewnętrzny 2026-05-12 (`raport-mikrostomart-audyt.md` sekcja 8 "Mapa bólu") wytknął brak medycznych disclaimerów przy wynikach narzędzia diagnostycznego. Trzy elementy zaimplementowane w modal wyniku (po wyborze zęba przez użytkownika):
+
+**1. EMERGENCY banner (red, conditional dla `urgency === 'high'`)**:
+- Tytuł: "⚠️ Pilny kontakt medyczny"
+- Lista alarmowych objawów per audyt: obrzęk twarzy, gorączka, trudności w oddychaniu/połykaniu → 112 lub SOR
+- Two CTAs:
+  - "Zadzwoń 112" (`tel:112`) — uniwersalny alarm
+  - "Skontaktuj się z kliniką ({brand.phone1})" (`tel:570-270-470`)
+- Pokazywany wyłącznie dla high-severity — żeby nie dezaktualizować bannera przez over-exposure na łagodnych przypadkach
+
+**2. MEDICAL DISCLAIMER (zawsze widoczny)**:
+- "🩺 To narzędzie nie jest diagnozą medyczną. Wyniki są informacyjne — w razie wątpliwości skonsultuj się z lekarzem dentystą."
+- Pod opisem severity, przed Symptoms card. Subtle ale always-on.
+
+**3. PHARMACIST disclaimer (zawsze widoczny, pod Advice card)**:
+- "💊 Przed zastosowaniem jakichkolwiek leków skonsultuj się z farmaceutą lub lekarzem, zwłaszcza jeśli przyjmujesz inne leki, jesteś w ciąży lub karmisz piersią."
+- Advice często zawiera konkretne dawkowanie (np. `ibuprofen 400mg co 6h`, `ibuprofen 400mg + paracetamol 500mg`). Zostawione bo Marcin jest lekarzem i może rekomendować, ale każdy wynik ma teraz legal protection note.
+
+#### Pliki
+
+- **`src/app/[locale]/mapa-bolu/PainMapInteractive.tsx`** (+85/-2):
+  - Import `brand` z `@/lib/brandConfig` dla `phone1`
+  - 3 nowe sekcje w modal między `description` a `Symptoms card` + po `Advice` card
+  - Emergency banner conditional renderowany przez `activeLevel.urgency === 'high'`
+- **`messages/{pl,en,de,ua}/common.json`** (mapaBoluUI namespace): 6 nowych kluczy × 4 locale = **24 tłumaczenia**:
+  - `medicalDisclaimer`, `medsConsultPharmacist`, `emergencyTitle`, `emergencyText`, `emergencyCall112`, `emergencyClinic`
+
+#### Verification
+
+- Build clean (npm run build)
+- Claude_Preview headless smoke (production mode `:3001`):
+  - Navigate `/mapa-bolu`, click rect (tooth zone 47 = Dolna Prawa Siódemka)
+  - Toggle severity high (🔴 Zaawansowane)
+  - Verify all 5 markers present: medicalDisclaimer, emergencyTitle, emergencyText z "112"+"obrzęk", medsPharmacist, "Zadzwoń 112" button
+  - Screenshot wizualnie potwierdza: red banner z pełnym tekstem + "Zadzwoń 112" + "Skontaktuj się z kliniką (570-270-470)"
+- Production smoke po Vercel deploy (4 locale verified):
+  - PL `/mapa-bolu`: "Pilny kontakt medyczny" + "To narzędzie nie jest" w HTML preload
+  - EN `/en/mapa-bolu`: "Urgent medical contact" + "This tool is not"
+  - DE `/de/mapa-bolu`: "Dringender medizinischer" + "Dieses Tool ist keine"
+  - UA `/ua/mapa-bolu`: "Терміновий медичний" + "Цей інструмент"
+
+#### Status Sprint 7
+
+- **S7-1 ✅ DONE** (mapa bólu medical disclaimer)
+- **S7-2 ⏳** scroll fix + AI asystent positioning (kalkulator/cennik/porównywarka scrollIntoView po zmianie pytania + AI asystent hide gdy `input:focus` na mobile)
+- **S7-3 ⏳** menu desktop + mobile redesign (Marcin musi wybrać 5-6 pozycji top menu)
+
+---
+
 ### 2026-05-17 — S6-6 minor bumps (Sprint 6 COMPLETE)
 
 #### Commit:
