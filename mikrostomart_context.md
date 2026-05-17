@@ -2482,6 +2482,57 @@ NODE_ENV=production
 
 ## 📝 Recent Changes
 
+### 2026-05-17 #3 — S7-2 scroll fix kalkulator/porównywarka + AssistantTeaser positioning
+
+#### Commit:
+- `f86f337` — feat(ux): S7-2 scroll fix kalkulator/porównywarka + AssistantTeaser positioning
+
+#### Co zrobione
+
+Audyt 2026-05-12 wytknął dwa UX issues:
+1. "Po interakcjach w kalkulatorze/cenniku/porównywarce widok potrafi znaleźć się za nisko albo poza najważniejszą treścią."
+2. "AI asystent może nachodzić na formularze, szczególnie na mobile."
+
+**SCROLL FIX (kalkulator + porównywarka)**:
+- `src/app/[locale]/kalkulator-leczenia/page.tsx` (+13/-1):
+  - Import `useRef` + `useEffect`
+  - `cardRef` + `isInitialRender` ref (skip pierwsze renderowanie żeby user nie widział auto-scrolla na otwarciu)
+  - `useEffect` na `[step, questionIndex]` → `requestAnimationFrame(() => cardRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' }))`
+  - `ref={cardRef}` na `<div style={S.container}>` linia 563
+- `src/app/[locale]/porownywarka/page.tsx` (+13/-1): identyczny pattern
+- **Cennik SKIP** — to chat AI z własnym auto-scroll `messagesEndRef` (linia 47-49), nie quiz/calculator. Nie wymaga zmiany.
+
+**ASSISTANT TEASER positioning** (`src/components/AssistantTeaser.tsx`, +49/-7):
+- `DIMMED_PATHS = ["/rezerwacja", "/kontakt"]` — nowy const
+- `isDimmed` = `pathname?.endsWith(...)` któregokolwiek z DIMMED_PATHS
+  - size 52×52 → **40×40**, opacity 1 → **0.5**, icon size 22 → 18
+  - hover restore na pełen alpha (mouseenter trigger)
+- `isInputFocused` state + `focusin`/`focusout` listeners na document
+  - Tylko gdy `matchMedia('(max-width: 768px)').matches` = mobile (desktop unchanged)
+  - `isEditableElement` check (INPUT/TEXTAREA/SELECT/contentEditable)
+  - `opacity → 0`, `pointerEvents → 'none'` gdy isInputFocused
+  - transition all 0.3s smooth
+- `HIDDEN_PATHS` unchanged (`/mapa-bolu, /symulator, /cennik` całkowicie ukrywane — pre-existing)
+
+#### Verification (Claude_Preview headless smoke)
+
+| Test | Wynik |
+|---|---|
+| `/kalkulator-leczenia` scroll fix | scroll 800px → 557.5px po click pierwszego tile (delta -242.5) ✓ |
+| `/kalkulator-leczenia` teaser default | 52×52 + opacity 1 (non-dimmed) ✓ |
+| `/rezerwacja` teaser dimmed | 40×40 + opacity 0.5 ✓ |
+| `/kontakt` teaser dimmed | 40×40 + opacity 0.5 ✓ |
+| `/kontakt` mobile (383px) + input focus | opacity 0.5 → 0.048 (transitioning do 0) + pointerEvents 'none' ✓ |
+| Production smoke (4 paths) | kalkulator/porównywarka/rezerwacja/kontakt wszystkie 200 ✓ |
+
+#### Status Sprint 7
+
+- **S7-1 ✅ DONE** mapa bólu medical disclaimers
+- **S7-2 ✅ DONE** scroll fix + AI asystent positioning
+- **S7-3 ⏳** menu desktop + mobile redesign (Marcin musi wybrać 5-6 top menu pozycji)
+
+---
+
 ### 2026-05-17 #2 — S7-1 mapa bólu medical disclaimers (compliance + legal)
 
 #### Commit:
