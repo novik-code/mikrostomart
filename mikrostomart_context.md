@@ -1,6 +1,10 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-15 (**🌐 SPRINT 5 SEO P2 CLEANUP COMPLETE — html lang + robots prefiksy + sitemap noindex + news 404 fallback + listing SSR + wizyta noindex + i18n deep merge fix**. 3 sesje, 3 commity zmergowane na origin/main. **S5-1** `1ef1cab`: `<html lang>` mapuje `'ua'` → ISO 639-1 `'uk'` (linia 292 layout.tsx). `robots.ts` rewrite — 12 prywatnych ścieżek × 4 prefiksy locale (`''`, `/en`, `/de`, `/ua`) + dodano `/wizyta/` przed S5-2; teraz Googlebot blokowany na `/en/strefa-pacjenta/`, `/de/admin/`, `/ua/ekarta/` etc. (wcześniej tylko PL bez prefixu). `sitemap.ts`: usunięto `/zadatek` (noindex z J-2), PL legal pages (regulamin/cookies/prywatnosci/rodo) emit tylko PL prefix; `/privacy-policy` zostaje multi-locale (dedicated international page). **S5-2** `58c7cfd`: `aktualnosci/[slug]/page.tsx` dodaje `notFound()` w generateMetadata + page gdy `locale != pl` AND brak `title_{locale}` (wcześniej silent PL fallback = duplicate content w en/de/ua). `generateStaticParams` filtrowane — emituje tylko (locale, slug) z istniejącym tłumaczeniem. `aktualnosci/page.tsx` client→server component (revalidate 10min, fetch direct supabase); carousel UI z arrows + RevealOnScroll wyrwane do nowego `NewsCarousel.tsx` client island; foreign locale pomija artykuły bez tłumaczenia. `wizyta/[type]/layout.tsx` (nowy plik): `metadata.robots: { index: false, follow: false }` (wizyta to per-appointment landing, brak organic intent + leak appointment_type strings). **S5-3** `320d7c0`: `src/i18n/request.ts` shallow `{...common, ...pages}` → recursive `deepMerge()`. Audit (Node script) potwierdził overlap `aktualnosci` namespace × 4 locale: `backToNews` + `articleNotFound` (z common.json) były nadpisywane przez pages.aktualnosci → MISSING_MESSAGE w server log. Deep merge odzyskał 8 brakujących tłumaczeń (2 × 4 locale). `oferta` namespace OK (pages superset common). **Następna sesja: S6-1 dependency upgrade triage** — Marcin postanowił przeskoczyć S4-2b (CSP enforce, paused do czasu Sentry data lub w ogóle pomija) i lecimy z S6 (deps) → S7 (UX) → S8 (RODO/2FA) → S9 (lint+CI) → potem wrót do Fazy K Premium SEO.)
+> **Last Updated:** 2026-05-17 #8 (**🔐 S8-2 2FA TOTP for staff DONE — admin mandatory + opt-in pracownicy**. Migracja 126 + library otplib v12 + 3 lib helpers (totp/mfaSession/twoFactorService) + 7 API endpointów + UI strony (/pracownik/security setup wizard, /auth/2fa-challenge login challenge, admin SecurityTab) + middleware enforcement + 69/69 testów. Hybrid recovery (D3=C): peer reset z TOTP code admina-reseter + audit log RODO Art. 30. Wszyscy 4 admini (Marcin, gabinet, Justyna, Elżbieta) zostaną przekierowani do setup przy następnym logowaniu po deploy. **🚨 Manual Marcin**: (1) migracja 126 na obu Supabase, (2) env var MFA_SESSION_SECRET (openssl rand -hex 32) na obu Vercel, (3) powiadomić innych adminów. Verification Claude_Preview: /auth/2fa-challenge renders bez auth + TOTP/backup toggle działa + screenshot OK + 0 console errors, /pracownik/security redirect to login bez sesji. Build clean. **Wcześniej**: 2026-05-17 #7 S8-1 PII Audit + Retention Policy DONE — research-only.
+
+<!-- Poprzednia Last Updated: 2026-05-17 #7 (**📋 S8-1 PII AUDIT + RETENTION POLICY DONE — research-only, zero kod/DB**. Output: `~/Desktop/bałagan/PLAN_RODO_PII_AUDIT.md` (47 tabel/storage buckets z PII zinwentaryzowane, plan techniczny dla S8-2/S8-3/S8-4/S8-5/S8-6 + 6 decyzji Marcina D1-D6). Kluczowe ustalenia: (1) `patient_intake_submissions` (PESEL + medical_survey + signature_data + biometric_data) to **Art. 9 RODO** — retention 20 lat (art. 29 ust. 1 ustawy o prawach pacjenta); (2) `/api/patients/export-data` NIE eksportuje 9 tabel z PII pacjenta (intake_submissions, consents, biometric, cancelled_appointments, sms_reminders, fcm_tokens, careflow_*, email_*) — Art. 15 RODO gap; (3) `/api/patients/delete-account` anonimizuje TYLKO patients row, NIE kasuje prodentis_id ani powiązanych tabel; (4) `employee_audit_log` + `login_attempts` mają komentarze retention ale brak cron; (5) 9 tabel rośnie monotonicznie bez retention; (6) AI conversations `/api/chat` + `/api/cennik-chat` NIE persiste w DB; (7) RLS enabled na wszystkich PII tabelach (mig 081 z dec 2025); (8) `intake-pdfs` + `consent-pdfs` storage buckets słusznie permanent (Art. 17.3.b wyjątek). Sprint 7 zakończony 2026-05-17 #6 (commit `599644a` S7-3 fix #6 AssistantTeaser overlap). Sprint 8 update: S8-1 ✅, pozostają S8-2 2FA staff TOTP (~2h + Marcin authenticator setup), S8-3 audit log + retention cron 90d, S8-4 AI policy + RODO update + UI buttons. Następna sesja: S8-2 2FA staff (migracja 126). **Wcześniej**: 2026-05-15 SPRINT 5 SEO P2 CLEANUP COMPLETE — html lang + robots prefiksy + sitemap noindex + news 404 fallback + listing SSR + wizyta noindex + i18n deep merge fix.) -->
+
+<!-- Poprzednia Last Updated: 2026-05-15 (**🌐 SPRINT 5 SEO P2 CLEANUP COMPLETE — html lang + robots prefiksy + sitemap noindex + news 404 fallback + listing SSR + wizyta noindex + i18n deep merge fix**. 3 sesje, 3 commity zmergowane na origin/main. **S5-1** `1ef1cab`: `<html lang>` mapuje `'ua'` → ISO 639-1 `'uk'` (linia 292 layout.tsx). `robots.ts` rewrite — 12 prywatnych ścieżek × 4 prefiksy locale (`''`, `/en`, `/de`, `/ua`) + dodano `/wizyta/` przed S5-2; teraz Googlebot blokowany na `/en/strefa-pacjenta/`, `/de/admin/`, `/ua/ekarta/` etc. (wcześniej tylko PL bez prefixu). `sitemap.ts`: usunięto `/zadatek` (noindex z J-2), PL legal pages (regulamin/cookies/prywatnosci/rodo) emit tylko PL prefix; `/privacy-policy` zostaje multi-locale (dedicated international page). **S5-2** `58c7cfd`: `aktualnosci/[slug]/page.tsx` dodaje `notFound()` w generateMetadata + page gdy `locale != pl` AND brak `title_{locale}` (wcześniej silent PL fallback = duplicate content w en/de/ua). `generateStaticParams` filtrowane — emituje tylko (locale, slug) z istniejącym tłumaczeniem. `aktualnosci/page.tsx` client→server component (revalidate 10min, fetch direct supabase); carousel UI z arrows + RevealOnScroll wyrwane do nowego `NewsCarousel.tsx` client island; foreign locale pomija artykuły bez tłumaczenia. `wizyta/[type]/layout.tsx` (nowy plik): `metadata.robots: { index: false, follow: false }` (wizyta to per-appointment landing, brak organic intent + leak appointment_type strings). **S5-3** `320d7c0`: `src/i18n/request.ts` shallow `{...common, ...pages}` → recursive `deepMerge()`. Audit (Node script) potwierdził overlap `aktualnosci` namespace × 4 locale: `backToNews` + `articleNotFound` (z common.json) były nadpisywane przez pages.aktualnosci → MISSING_MESSAGE w server log. Deep merge odzyskał 8 brakujących tłumaczeń (2 × 4 locale). `oferta` namespace OK (pages superset common). **Następna sesja: S6-1 dependency upgrade triage** — Marcin postanowił przeskoczyć S4-2b (CSP enforce, paused do czasu Sentry data lub w ogóle pomija) i lecimy z S6 (deps) → S7 (UX) → S8 (RODO/2FA) → S9 (lint+CI) → potem wrót do Fazy K Premium SEO.) -->
 
 <!-- Poprzednia: 2026-05-14 EOD #2 (**🎯 S4-5 DONE — Patient JWT hardening (P1-03) + social-media bucket lockdown (P0-09)**. Commit `fc8f27f` + docs `90e79dd`. Wątek (a): `/api/patients/login` usunięto `token` z JSON response. Frontend `login/page.tsx` usunięto `document.cookie = patient_token=${data.token}`. Verified preview: 1 cookie HttpOnly+Secure+SameSite=Strict, dashboard ładuje przez httpOnly. Wątek (b): migracja **125** dropuje policies `"Allow video uploads"` + `"Allow service delete"`. Bucket `file_size_limit` 500MB → 100MB + restrict do video/image. **🚨 Manual task Marcin**: wgrać migrację 125 + 124, 123, 122. **Sprint 4 prawie COMPLETE** — pozostaje tylko S4-2b CSP enforce.)
 
@@ -2481,6 +2485,207 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-17 #8 — S8-2 2FA TOTP for staff (admin mandatory + opt-in pracownicy)
+
+#### Commits:
+- `sec/s8-2-2fa-staff` branch → main (ff merge)
+- Migracja 126 wymaga manual wgrywki na obu Supabase
+- Env var `MFA_SESSION_SECRET` wymaga manual setup w Vercel
+
+#### Co zrobione
+
+Pełen system 2FA TOTP (Time-based One-Time Password) dla pracowników i adminów. Hybrid recovery model (D3=C): peer reset z wymaganym TOTP code admina-reseter + audit log.
+
+#### Nowe pliki
+
+**Migracja**: `supabase_migrations/126_employee_2fa.sql` — dodaje `totp_secret`, `totp_enabled`, `totp_backup_codes[]`, `totp_setup_at`, `totp_verified_at`, `totp_last_used_at` w `employees`. Idempotent.
+
+**Helpery** (3):
+- `src/lib/totp.ts` — otplib wrapper: `generateSecret`, `buildOtpauthUrl`, `generateQrDataUrl`, `verifyCode` (±1 step tolerance = 90s clock drift), `generateBackupCodes` (8 codes XXXXX-XXXXX hex format, bcrypt hashed), `verifyBackupCode`, `consumeBackupCode`
+- `src/lib/mfaSession.ts` — HMAC-signed httpOnly cookie `mfa_session` z TTL 8h. Stateless verification w middleware bez DB hit. Wymaga env var `MFA_SESSION_SECRET` (32-byte hex).
+- `src/lib/twoFactorService.ts` — business logic: `startSetup`, `verifyAndEnable`, `verifyChallenge`, `verifyBackupChallenge`, `disable`, `adminReset`, `regenerateBackupCodes`, `listEmployees2FAStatus`, `getTwoFactorStatus`
+
+**API endpointy** (7):
+- `POST /api/auth/2fa/setup` — generuje secret + QR + 8 backup codes (employee+admin)
+- `POST /api/auth/2fa/verify` — verify setup code, enable 2FA, set mfa_session
+- `POST /api/auth/2fa/challenge` — login second step (accept TOTP or backup code)
+- `DELETE /api/auth/2fa/disable` — wyłączenie (wymaga current TOTP lub backup)
+- `POST /api/auth/2fa/regenerate-backup-codes` — fresh 8 codes (wymaga current TOTP)
+- `GET /api/auth/2fa/status` — status dla calling user + isAdmin flag
+- `POST /api/admin/2fa/reset` — admin resetuje 2FA pracownika (peer reset z own TOTP + reason + audit log RODO Art. 30)
+- `GET /api/admin/2fa/status` — list wszystkich employees z 2FA status dla SecurityTab
+
+**UI** (3):
+- `src/app/auth/2fa-challenge/page.tsx` — login challenge: input 6 cyfr (auto-submit po 6th digit), toggle do backup code (XXXXX-XXXXX), logout link
+- `src/app/pracownik/security/page.tsx` — setup wizard (3 kroki: QR scan → verify → backup codes save) + manage screen (regenerate backup codes + disable). `?force=true` query param dla admin enforce. Suspense wrapper dla useSearchParams.
+- `src/app/admin/components/SecurityTab.tsx` — admin dashboard: lista pracowników z 2FA status (👑 Adminzy / 👷 Pracownicy aktywni / 📦 Nieaktywni), reset modal z hybrid recovery (own TOTP + reason)
+
+**Middleware enforcement** (`src/middleware.ts`):
+- Po Supabase auth check → `enforce2FA(request, userId, pathname)`
+- Skip dla: `/auth/2fa-challenge`, `/api/auth/2fa/*`, `/api/admin/2fa/*`, `/admin/login`, `/admin/update-password`, `/pracownik/login`, `/pracownik/reset-haslo`, `/pracownik/security`, `/api/auth/signout`
+- Tylko dla `/admin`, `/pracownik`, `/api/admin`, `/api/employee`
+- Admin bez 2FA → redirect `/pracownik/security?force=true` (mandatory per D3=B)
+- 2FA enabled + brak valid mfa_session → redirect `/auth/2fa-challenge?redirect=<path>`
+- Fail-open dla błędów DB lookup (Sentry warning)
+
+**Tests** (`src/lib/__tests__/`):
+- `totp.test.ts` — 18 testów: secret generation, otpauth URL, verifyCode (correct/wrong/malformed/whitespace), backup codes (format/uniqueness/hashing), verifyBackupCode (with/without hyphen, malformed), consumeBackupCode (immutability)
+- `mfaSession.test.ts` — 7 testów: round-trip token, reject undefined/empty/malformed/tampered/wrong-secret/expired tokens
+- **69/69 testów passed** (54 pre-existing + 25 nowych dla S8-2)
+
+#### Admin sidebar integration
+
+`src/app/admin/page.tsx`:
+- Dodany dynamic import `SecurityTab` (`{ssr: false}`)
+- Typ `activeTab` rozszerzony o `'security'`
+- NavItem "🔒 Bezpieczeństwo (2FA)" w sidebar
+- Render `{activeTab === 'security' && <SecurityTab />}`
+
+#### Dependencies
+
+`package.json` (+3): `otplib@^12.0.1` (downgrade z v13 — v13 ma incompatible API), `qrcode@^1.x`, `@types/qrcode` (dev)
+
+#### Lock decyzji (z PLAN_RODO_PII_AUDIT.md sekcja 5)
+
+| D# | Wariant | Status |
+|---|---|---|
+| D1 | A — 20 lat backup `patient_intake_submissions` | ✅ |
+| D2 | B — status quo + policy + 5y purge cron (S8-5) | ✅ |
+| D3 | B — opt-in pracownicy, mandatory admin + Hybrid recovery (P1=C) + Wszyscy opt-in od razu (P2=A) | ✅ Implemented |
+| D4 | C+ — persist AI conversations (user_id + cookie/IP), 90d retention | ✅ Locked (impl w S8-4) |
+| D5 | C — ZIP full export (JSON + PDF + signed-consents + intake) | ✅ Locked (impl w S8-6) |
+| D6 | B — pgcrypto encryption, jako nowy sprint S8-7 | ✅ Locked (S8-7 osobny) |
+
+#### Admin list (4 w DB)
+
+Per `SELECT * FROM user_roles WHERE role='admin'`:
+1. `dr.nowosielski@gmail.com` (Marcin)
+2. `gabinet@mikrostomart.pl` (gabinet)
+3. `litewka.justyna@gmail.com` (Justyna)
+4. `elizabethhh1@o2.pl` (Elżbieta)
+
+Wszyscy 4 zostaną przekierowani do setup wizard przy pierwszym logowaniu po deploy.
+
+#### Verification (Claude_Preview smoke test)
+
+- `/auth/2fa-challenge` renders bez auth — input one-time-code, toggle do backup XXXXX-XXXXX działa, screenshot OK
+- `/pracownik/security` redirects do login bez sesji (middleware enforcement)
+- Build clean (tylko pre-existing Sentry warnings)
+- 69/69 tests passed
+
+#### 🚨 Manual tasks Marcin po deploy (krytyczne, blokują 2FA)
+
+1. **Wgrać migrację 126** na OBU Supabase projektach (produkcja + demo): `~/Desktop/migracje_supabase/migracja_126_employee_2fa.txt`. Idempotent.
+
+2. **Dodać env var `MFA_SESSION_SECRET`** na OBU Vercel projektach (`mikrostomart` + `densflow-demo`) × Production + Preview:
+   ```bash
+   openssl rand -hex 32
+   ```
+   Bez tego cookie verify rzuca error, 2FA challenge nie zadziała.
+
+3. **Powiadomić 3 pozostałych adminów** PRZED kolejnym ich logowaniem:
+   - Justyna (`litewka.justyna@gmail.com`)
+   - Elżbieta (`elizabethhh1@o2.pl`)
+   - gabinet@ (gabinet)
+   - Każdy musi 5-10 minut na: zainstalowanie Google Authenticator/Authy → setup wizard `/pracownik/security` → zapisać 8 backup codes
+
+4. **Marcin first**: po deploy + env var + migracja → zaloguj się jako admin → zostanie przekierowany do `/pracownik/security?force=true` → setup → zapisz backup codes w 1Password
+
+5. **Test peer reset**: po setup wszystkich adminów, w razie awarii innego admina (zgubił phone + nie ma backup codes) idź `/admin → 🔒 Bezpieczeństwo (2FA) → Reset` z własnym TOTP + reason → audit log w `employee_audit_log`
+
+#### Status Sprint 8
+
+- **S8-1 ✅ DONE** (research-only PII audit)
+- **S8-2 ✅ DONE** (2FA TOTP staff)
+- **S8-3 ⏳** Audit log endpoint wrappers + retention cron 90d
+- **S8-4 ⏳** AI policy + RODO update + UI buttons (D4 implementation)
+- **S8-5 ⏳ (opcjonalne)** Consolidated retention crons
+- **S8-6 ⏳ (opcjonalne)** Export-data ZIP fix (D5)
+- **S8-7 ⏳ (nowa sesja)** pgcrypto encryption PESEL/medical (D6)
+
+Cumulative: 7/9 sprintów done + S8-1 + S8-2.
+
+---
+
+### 2026-05-17 #7 — S8-1 PII Audit + Retention Policy (research-only, zero kod/DB)
+
+#### Output:
+- `~/Desktop/bałagan/PLAN_RODO_PII_AUDIT.md` (single deliverable, ~600 linii)
+
+#### Co zrobione
+
+Pełen audit zgodności RODO dla wszystkich tabel Supabase z PII. **47 tabel/storage buckets zinwentaryzowanych** z kolumnami PII, legal basis (Art. 6 / Art. 9), retention policy (obowiązująca vs obecna), wrażliwość (🟢/🟡/🔴).
+
+#### Kluczowe ustalenia (8)
+
+1. **`patient_intake_submissions`** (PESEL + medical_survey 40 pól + signature_data + biometric_data + 11 zgód RODO) to **Art. 9 RODO** (dane medyczne) — retention **20 lat** zgodnie z art. 29 ust. 1 ustawy o prawach pacjenta z 2008. Obecna sytuacja OK (`intake-pdfs` storage permanent), ale brak formal retention policy doc.
+
+2. **`/api/patients/export-data` NIE eksportuje 9 tabel z PII pacjenta** — compliance gap RODO Art. 15 ("right of access"). Brakujące tabele: `patient_intake_submissions`, `patient_consents` (+ signature_data + biometric_data), `cancelled_appointments`, `sms_reminders` (by phone), `appointment_actions`, `fcm_tokens`, `careflow_enrollments` + tasks + reports, `email_compose_drafts`/`email_ai_drafts` (jeśli pacjent pisał maila), storage files (`intake-pdfs`/`consent-pdfs` signed PDFs). Plus referenced tabele `patient_chat_messages` + `patient_appointment_actions` **prawdopodobnie nie istnieją** jako tabele (sprawdzić czy to widoki lub legacy names).
+
+3. **`/api/patients/delete-account`** anonimizuje TYLKO `patients` row (first_name='Usunięty', last_name='Pacjent', phone='deleted_xxx', email=null). NIE kasuje `prodentis_id` (linkable z external Prodentis) ani powiązanych tabel (sms_reminders/online_bookings/appointment_actions/careflow z plain patient_phone/patient_name). Decyzja D2: Wariant B (status quo + jasna info w polityce prywatności, RODO Art. 17.3.b wyjątek dla dokumentacji medycznej) rekomendowana.
+
+4. **`employee_audit_log` (mig 066) + `login_attempts` (mig 063)** mają komentarze "Auto-cleanup: keep 90 days" / "delete >24h" ale **brak cron** który to wykonuje. Tabele rosną wiecznie. Fix: 1h roboty w S8-3 lub osobnym sprincie retention crons.
+
+5. **9 tabel rośnie monotonicznie bez retention** (poza `push_notifications_log` z istniejącym `push-cleanup`): `patient_intake_tokens` (TTL `expires_at` ale brak cron), `consent_tokens`, `short_links`, `sms_reminders`, `appointment_actions`, `cancelled_appointments`, `birthday_wishes`, `online_bookings`, `email_ai_drafts` + skipped + compose_drafts, `fcm_tokens` (stale push subscriptions), `social_video_queue` + storage `social-media` bucket.
+
+6. **AI conversations `/api/chat` + `/api/cennik-chat` NIE persiste** w DB (minimal RODO burden). Ale pacjent może wkleić PESEL/medical → wysyłka do OpenAI **musi być disclosed** w polityce prywatności (S8-4 task). Persistent AI conversations: `ai_trainer_messages` (admin chat z AI Trainer, mig 108), `email_ai_drafts` + `email_compose_drafts` (zawierają patient email content — 🔴 Art. 9 jeśli medical).
+
+7. **RLS enabled** na wszystkich PII tabelach po migracji `081_security_advisor_fixes` (grudzień 2025). Tabele typu `patient_intake_submissions`/`patient_intake_tokens`/`patient_consents`/`consent_tokens`/`login_attempts` to **service_role only** (no anon/authenticated policies = full bypass dla Next.js API routes). Do sprawdzenia w S8-3: `fcm_tokens`, `email_*`, `careflow_*`.
+
+8. **Storage buckets** — `intake-pdfs` + `consent-pdfs` słusznie permanent (Art. 17.3.b wyjątek dokumentacja medyczna). `social-media` bucket zawiera uploaded video (mogą pokazywać twarz pacjenta = Art. 9 jeśli zgoda Art. 9.2.a) — brak retention policy mimo zaostrzonych S4-5 (mig 125) policies. `task-images` bucket brak retention.
+
+#### Plan techniczny dla kolejnych sesji S8
+
+**S8-2** (next): 2FA staff TOTP (~2h + Marcin authenticator setup) — migracja 126 + endpointy `/api/auth/2fa/*` + UI wizard + middleware enforce + admin override endpoint. Decyzja Marcina D3 pending: mandatory od deploy vs opt-in 30 dni.
+
+**S8-3**: Audit log endpoint wrappers (~1.5h) — wrap `/api/employee/patient-*` + `/api/employee/export-biometric` + `/api/admin/patients/*` + `/api/admin/patient-consents/*` z `logAuditEvent()` + cron 90 dni retention dla `employee_audit_log` + `login_attempts` 24h.
+
+**S8-4**: AI policy + RODO update (~1.5h) — update `polityka-prywatnosci` × 4 locale (sekcje AI + dane medyczne Art. 9 + audit log + third-party processors lista), update `regulamin`, update PDF `/rodo`, UI buttons w patient dashboard ("Pobierz moje dane" + "Usuń konto").
+
+**S8-5 (opcjonalny)**: Consolidated retention cron `/api/cron/data-retention-cleanup` (~2h) — DRY_RUN flag dla 2-4 tygodni produkcji, cleanup 15+ tabel zgodnie z policy doc.
+
+**S8-6 (opcjonalny)**: Export-data fix (~2h) — add missing 9 tables + ZIP format zgodnie z D5 (JSON + signed PDFs + intake PDFs).
+
+#### Decyzje Marcina pending (D1-D6)
+
+| ID | Decyzja | Rekomendacja |
+|---|---|---|
+| D1 | Retention `patient_intake_submissions` — 20 lat (A) vs delete po sync (B) | A |
+| D2 | Cascade anonymize delete-account — pełen (A) vs status quo + policy (B) | B |
+| D3 | 2FA staff — mandatory od deploy (A) vs opt-in 30 dni + admin mandatory (B) | B |
+| D4 | AI conversations retention — zero persist (A) vs anonymous (B) vs with user_id (C) | A |
+| D5 | Export-data format — JSON (A) vs PDF (B) vs ZIP (C) | C |
+| D6 | App-layer encryption pgcrypto+KMS dla PESEL/medical/signature — status quo (A) vs encrypt (B) | A do >5000 pacjentów |
+
+#### Pliki czytane (research)
+
+- `~/Desktop/bałagan/RAPORT_AUDYT_MIKROSTOMART_2026-05-12.md` (sekcja Bezpieczeństwo/RODO + P0/P1)
+- `~/Desktop/bałagan/raport-mikrostomart-audyt.md` (sekcja 19 RODO/AI/dane medyczne)
+- Migracje: 054 (patient_intake_tokens), 058 (consent_tokens + patient_consents), 062 (cancelled_appointments), 063 (login_attempts), 065 (biometric_signature), 066 (employee_audit_log), 110 (careflow_system)
+- API: `/api/patients/delete-account/route.ts`, `/api/patients/export-data/route.ts`, `/api/cron/push-cleanup/route.ts`
+- 26 crons w `vercel.json` — `push-cleanup` jest jedynym istniejącym retention cron'em
+
+#### Co NIE zostało zrobione (zgodnie ze scope research-only)
+
+- Zero zmian w kodzie
+- Zero zmian w migracjach (najwyższa nadal 125)
+- Zero zmian w `.env`
+- Zero zmian w polityce prywatności
+- Brak push'y na origin/main (tylko docs commit, ale Recent Changes update jest lokalny — nie pushujemy bo Marcin może chcieć review)
+
+#### Status Sprint 8
+
+- **S8-1 ✅ DONE**
+- **S8-2 ⏳** 2FA staff TOTP (next session, ~2h + Marcin authenticator setup, MEDIUM risk)
+- **S8-3 ⏳** Audit log wrappers + retention cron (~1.5h)
+- **S8-4 ⏳** AI policy + RODO + UI buttons (~1.5h)
+- **S8-5 ⏳ (opcjonalne)** Consolidated retention crons (~2h)
+- **S8-6 ⏳ (opcjonalne)** Export-data fix (~2h)
+
+**Hotfix Sprint cumulative**: S1+S2+S3+S4+S5+S6+S7 done (S4-2b paused), S8-1 done, pozostały S8-2/S8-3/S8-4 + S9 → wrót do Fazy K Premium SEO.
+
+---
 
 ### 2026-05-17 #6 — S7-3 fix: AssistantTeaser podnieś nad MobileBottomBar
 

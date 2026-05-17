@@ -1,7 +1,9 @@
 import { createServerClient } from "@supabase/ssr";
+import { createClient } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
 import createIntlMiddleware from 'next-intl/middleware';
 import { routing } from './i18n/routing';
+import { verifyMfaSessionToken, MFA_COOKIE_NAME } from "./lib/mfaSession";
 
 /**
  * Known search engine bot user-agent patterns.
@@ -283,7 +285,94 @@ async function handleSupabaseAuth(request: NextRequest) {
         }
     }
 
+    // ─── S8-2 2FA Enforcement ────────────────────────────────────────────
+    // After Supabase auth check, ensure 2FA is satisfied for protected routes.
+    // Skip during login flow, password update, /auth/2fa-challenge, and 2FA API.
+    if (user) {
+        const mfaCheck = await enforce2FA(request, user.id, pathname);
+        if (mfaCheck) {
+            return addSecurityHeaders(mfaCheck);
+        }
+    }
+
     return addSecurityHeaders(response);
+}
+
+/**
+ * S8-2 2FA enforcement.
+ *
+ * Rules:
+ *   - Skip for login pages, password update, /auth/2fa-challenge, and 2FA APIs
+ *     (chicken-and-egg: user must reach setup/challenge without 2FA cookie)
+ *   - If user is admin AND 2FA NOT enabled → redirect to /pracownik/security?force=true
+ *     (mandatory per D3 = Wariant B)
+ *   - If user has 2FA enabled AND no valid mfa_session cookie → redirect to /auth/2fa-challenge
+ *
+ * Lookup employee row via service_role (RLS doesn't matter here, server-only).
+ */
+async function enforce2FA(request: NextRequest, userId: string, pathname: string): Promise<NextResponse | null> {
+    // Skip paths that 2FA setup/challenge themselves need to work
+    const SKIP_2FA_PATHS = [
+        '/auth/2fa-challenge',
+        '/api/auth/2fa/',
+        '/api/admin/2fa/',
+        '/admin/login',
+        '/admin/update-password',
+        '/pracownik/login',
+        '/pracownik/reset-haslo',
+        '/api/auth/signout',
+        '/pracownik/security',  // user needs to reach security page to setup 2FA
+    ];
+    if (SKIP_2FA_PATHS.some(p => pathname === p || pathname.startsWith(p))) {
+        return null;
+    }
+
+    // Only enforce on /admin and /pracownik routes (and admin/employee API paths)
+    const PROTECTED_PREFIXES = ['/admin', '/pracownik', '/api/admin', '/api/employee'];
+    if (!PROTECTED_PREFIXES.some(p => pathname.startsWith(p))) {
+        return null;
+    }
+
+    // Look up employee + role data
+    try {
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        if (!supabaseUrl || !serviceKey) return null;
+
+        const admin = createClient(supabaseUrl, serviceKey);
+
+        const [{ data: employee }, { data: roles }] = await Promise.all([
+            admin.from('employees').select('totp_enabled').eq('user_id', userId).maybeSingle(),
+            admin.from('user_roles').select('role').eq('user_id', userId),
+        ]);
+
+        const isAdmin = (roles || []).some(r => r.role === 'admin');
+        const totpEnabled = Boolean(employee?.totp_enabled);
+
+        // Case 1: Admin without 2FA → force setup
+        if (isAdmin && !totpEnabled) {
+            const url = new URL('/pracownik/security?force=true', request.url);
+            return NextResponse.redirect(url);
+        }
+
+        // Case 2: 2FA enabled but no valid mfa_session → challenge
+        if (totpEnabled) {
+            const cookie = request.cookies.get(MFA_COOKIE_NAME)?.value;
+            const session = verifyMfaSessionToken(cookie);
+            if (!session || session.userId !== userId) {
+                const url = new URL('/auth/2fa-challenge', request.url);
+                url.searchParams.set('redirect', pathname);
+                return NextResponse.redirect(url);
+            }
+        }
+
+        return null;
+    } catch (err) {
+        console.error('[middleware 2FA] enforce error:', err);
+        // Fail open: if 2FA check breaks, allow through (don't lock everyone out from bugs).
+        // Production should monitor Sentry for this error.
+        return null;
+    }
 }
 
 export const config = {
