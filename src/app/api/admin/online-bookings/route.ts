@@ -7,6 +7,7 @@ import { sendSMS } from '@/lib/smsService';
 import { sendBookingConfirmedEmail, sendBookingRejectedEmail } from '@/lib/emailService';
 import { demoSanitize } from '@/lib/brandConfig';
 import { getProdentisKey } from '@/lib/pmsConfig';
+import { logAudit } from '@/lib/auditLog';
 
 export const dynamic = 'force-dynamic';
 
@@ -245,6 +246,22 @@ export async function PUT(request: Request) {
             );
         }
 
+        // GDPR audit log (Art. 30 RODO) — admin booking action
+        logAudit({
+            userId: user.id, userEmail: user.email || '',
+            action: `admin_booking_${action}`,
+            resourceType: 'online_booking',
+            resourceId: id,
+            patientName: data?.patient_name || undefined,
+            metadata: {
+                action,
+                schedule_status: data?.schedule_status || null,
+                prodentis_appointment_id: data?.prodentis_appointment_id || null,
+                appointment_date: data?.appointment_date || null,
+            },
+            request,
+        });
+
         return NextResponse.json({ booking: data });
     } catch (err: any) {
         return NextResponse.json({ error: err.message }, { status: 500 });
@@ -268,6 +285,13 @@ export async function DELETE(request: Request) {
             return NextResponse.json({ error: 'id required' }, { status: 400 });
         }
 
+        // Capture patient name for audit
+        const { data: bookingToDelete } = await supabase
+            .from('online_bookings')
+            .select('patient_name, appointment_date, schedule_status')
+            .eq('id', id)
+            .maybeSingle();
+
         const { error } = await supabase
             .from('online_bookings')
             .delete()
@@ -277,6 +301,18 @@ export async function DELETE(request: Request) {
             console.error('[OnlineBookings DELETE] Error:', error);
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
+
+        logAudit({
+            userId: user.id, userEmail: user.email || '',
+            action: 'admin_delete_booking', resourceType: 'online_booking',
+            resourceId: id,
+            patientName: bookingToDelete?.patient_name || undefined,
+            metadata: {
+                appointment_date: bookingToDelete?.appointment_date || null,
+                schedule_status: bookingToDelete?.schedule_status || null,
+            },
+            request,
+        });
 
         return NextResponse.json({ success: true });
     } catch (err: any) {

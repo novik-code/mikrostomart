@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/authGuards';
+import { logAudit } from '@/lib/auditLog';
 
 export const dynamic = 'force-dynamic';
 
@@ -56,6 +57,15 @@ export async function GET(request: Request) {
         }));
 
         console.log(`[Patient Search] Found ${patients.length} patients for query "${query}"`);
+
+        if (patients.length > 0) {
+            logAudit({
+                userId: user.id, userEmail: user.email || '',
+                action: 'admin_search_patients', resourceType: 'patient_search',
+                metadata: { query, resultCount: patients.length },
+                request,
+            });
+        }
 
         return NextResponse.json({ patients, total: data.total || patients.length });
 

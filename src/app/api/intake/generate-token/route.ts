@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { demoSanitize } from '@/lib/brandConfig';
+import { requireEmployeeOrAdmin } from '@/lib/authGuards';
+import { logAudit } from '@/lib/auditLog';
 
 /**
  * POST /api/intake/generate-token
@@ -21,6 +23,11 @@ import { demoSanitize } from '@/lib/brandConfig';
  * Response: { token, url, expiresAt }
  */
 export async function POST(req: Request) {
+    // S8-3: add auth check (was missing — slip from S1 audit). Token grants
+    // access to fill patient medical card via QR → must be employee-initiated.
+    const auth = await requireEmployeeOrAdmin();
+    if (!auth.ok) return auth.response;
+
     const supabase = createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -72,6 +79,21 @@ export async function POST(req: Request) {
 
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || demoSanitize('https://www.mikrostomart.pl');
     const url = `${baseUrl}/ekarta/${data.token}`;
+
+    logAudit({
+        userId: auth.user.id, userEmail: auth.user.email || createdByEmployee,
+        action: 'create_intake_token', resourceType: 'patient_intake_token',
+        resourceId: data.token,
+        patientName: (prefillFirstName || prefillLastName)
+            ? `${prefillFirstName || ''} ${prefillLastName || ''}`.trim()
+            : undefined,
+        metadata: {
+            prodentis_patient_id: prodentisPatientId || null,
+            appointment_id: appointmentId || null,
+            expires_in_hours: expiresInHours,
+        },
+        request: req,
+    });
 
     return NextResponse.json({
         token: data.token,

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { requireEmployeeOrAdmin } from '@/lib/authGuards';
+import { logAudit } from '@/lib/auditLog';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -78,12 +79,29 @@ export async function PATCH(request: NextRequest) {
     }
 
     try {
+        // Capture patient name for audit
+        const { data: conv } = await supabase
+            .from('chat_conversations')
+            .select('patient_name, patient_id')
+            .eq('id', conversationId)
+            .maybeSingle();
+
         const { error } = await supabase
             .from('chat_conversations')
             .update({ status })
             .eq('id', conversationId);
 
         if (error) throw error;
+
+        logAudit({
+            userId: auth.user.id, userEmail: auth.user.email || '',
+            action: status === 'closed' ? 'admin_close_chat' : 'admin_reopen_chat',
+            resourceType: 'chat_conversation',
+            resourceId: conversationId,
+            patientName: conv?.patient_name || undefined,
+            metadata: { patient_id: conv?.patient_id || null },
+            request,
+        });
 
         return NextResponse.json({ success: true });
     } catch (error) {

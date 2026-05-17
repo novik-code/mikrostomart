@@ -115,6 +115,10 @@
         {
             "path": "/api/cron/prodentis-end-times",
             "schedule": "0 1 * * *"
+        },
+        {
+            "path": "/api/cron/audit-log-cleanup",
+            "schedule": "30 3 * * *"
         }
     ]
 }

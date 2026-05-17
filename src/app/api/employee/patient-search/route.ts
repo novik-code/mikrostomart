@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
+import { logAudit } from '@/lib/auditLog';
 
 export const dynamic = 'force-dynamic';
 
@@ -56,6 +57,16 @@ export async function GET(request: Request) {
             phone: p.phone ? p.phone.replace(/^\+/, '') : '',
             fullName: `${p.firstName || ''} ${p.lastName || ''}`.trim(),
         }));
+
+        // GDPR audit log (Art. 30 RODO) — fires only for non-trivial searches
+        if (query.length >= 2 && patients.length > 0) {
+            logAudit({
+                userId: user.id, userEmail: user.email || '',
+                action: 'search_patients', resourceType: 'patient_search',
+                metadata: { query, resultCount: patients.length },
+                request,
+            });
+        }
 
         return NextResponse.json({ patients, total: data.total || patients.length });
 

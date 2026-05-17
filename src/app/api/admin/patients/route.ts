@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { requireAdmin } from '@/lib/authGuards';
+import { logAudit } from '@/lib/auditLog';
 
 export const dynamic = 'force-dynamic';
 
@@ -74,6 +75,9 @@ export async function GET(request: Request) {
             })
         );
 
+        // List view NOT logged (frequent dashboard polling = noise in audit log).
+        // Only specific patient deep-reads + actions are logged.
+
         return NextResponse.json({ patients: enrichedPatients });
 
     } catch (error: any) {
@@ -95,6 +99,13 @@ export async function DELETE(request: Request) {
             return NextResponse.json({ error: 'Missing patient ID' }, { status: 400 });
         }
 
+        // Audit log BEFORE delete (so we can capture patient name if needed)
+        const { data: patientToDelete } = await supabase
+            .from('patients')
+            .select('first_name, last_name, prodentis_id, phone')
+            .eq('id', patientId)
+            .maybeSingle();
+
         // Delete from Supabase
         const { error } = await supabase
             .from('patients')
@@ -105,6 +116,15 @@ export async function DELETE(request: Request) {
             console.error('[Admin] Delete error:', error);
             return NextResponse.json({ error: 'Failed to delete patient' }, { status: 500 });
         }
+
+        logAudit({
+            userId: user.id, userEmail: user.email || '',
+            action: 'admin_delete_patient', resourceType: 'patient',
+            resourceId: patientId,
+            patientName: patientToDelete ? `${patientToDelete.first_name || ''} ${patientToDelete.last_name || ''}`.trim() : undefined,
+            metadata: { prodentis_id: patientToDelete?.prodentis_id || null },
+            request,
+        });
 
         return NextResponse.json({ success: true });
 

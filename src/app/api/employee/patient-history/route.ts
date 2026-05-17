@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
+import { logAudit } from '@/lib/auditLog';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,6 +55,15 @@ export async function GET(req: Request) {
         }
 
         const data = await response.json();
+
+        // GDPR audit log (Art. 30 RODO)
+        logAudit({
+            userId: user.id, userEmail: user.email || '',
+            action: 'view_patient_history', resourceType: 'patient',
+            resourceId: patientId,
+            metadata: { limit, count: Array.isArray(data) ? data.length : (data?.appointments?.length ?? 0) },
+            request: req,
+        });
 
         return NextResponse.json(data);
 

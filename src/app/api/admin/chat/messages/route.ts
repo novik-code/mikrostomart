@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { requireEmployeeOrAdmin } from '@/lib/authGuards';
 import { sendTranslatedPushToUser } from '@/lib/pushService';
 import { sendChatReplyEmail } from '@/lib/emailService';
+import { logAudit } from '@/lib/auditLog';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -42,6 +43,25 @@ export async function GET(request: NextRequest) {
             .order('created_at', { ascending: true });
 
         if (error) throw error;
+
+        // GDPR audit log — deep read of patient chat (sensitive)
+        // Log only when there are messages (skip empty conversation polling)
+        if (messages && messages.length > 0) {
+            const { data: conv } = await supabase
+                .from('chat_conversations')
+                .select('patient_name, patient_id')
+                .eq('id', conversationId)
+                .maybeSingle();
+
+            logAudit({
+                userId: auth.user.id, userEmail: auth.user.email || '',
+                action: 'admin_read_patient_chat', resourceType: 'chat_conversation',
+                resourceId: conversationId,
+                patientName: conv?.patient_name || undefined,
+                metadata: { patient_id: conv?.patient_id || null, messageCount: messages.length },
+                request,
+            });
+        }
 
         return NextResponse.json({ messages: messages || [] });
     } catch (error) {
@@ -132,6 +152,14 @@ export async function POST(request: NextRequest) {
                 } catch { /* non-critical */ }
             })();
         }
+
+        logAudit({
+            userId: user.id, userEmail: user.email || '',
+            action: 'admin_reply_patient_chat', resourceType: 'chat_conversation',
+            resourceId: conversationId,
+            metadata: { patient_id: conv?.patient_id || null, messageLength: content.trim().length },
+            request,
+        });
 
         return NextResponse.json({ message });
     } catch (error) {
