@@ -2482,6 +2482,99 @@ NODE_ENV=production
 
 ## 📝 Recent Changes
 
+### 2026-05-17 #5 — S7-3 fix: hamburger burst hidden + Dodatki ▾ dropdown (zachowuje 1:1 stary scope)
+
+#### Commit:
+- `47637d4` — fix(ux): S7-3 menu fix — ukryj hamburger burst na desktop + dodaj Dodatki ▾
+
+#### Problem (zauważony przez Marcina screenshot)
+
+Po S7-3 luxury (commit `c383528`):
+1. **Hamburger burst nadal aktywny na desktopie** → `desktopMenuWrapper` miał `display: flex` (z `flex: 1` spacer). Na hover pokazywał LEFT links (O nas/Metamorfozy/Oferta/Aktualności) + RIGHT links (Strefa Pacjenta/Kontakt + Dodatki ▾ dropdown). **Visual mess + duplikacja** z nowym top nav (Oferta/Metamorfozy/Kontakt × 2, Narzędzia ▾ vs Dodatki ▾ z tymi samymi tools).
+2. **Po ukryciu hamburger burst, desktop top nav miał TYLKO 11 entry points** vs 18 w starym burst. **Brakowało 9 items**: O nas, Aktualności, Baza wiedzy, Blog, Sklep, Zadatek, Selfie, Asystent (modal), Podziel się opinią (modal).
+
+Marcin: "albo wrzuć wszystko w narzędzia, albo zrób dodatkową sekcję dodatki". Wybór: drugi dropdown (Wariant B — lepsze UX niż 15-item single dropdown).
+
+#### Fix
+
+**1. CSS** (`src/components/Navbar.module.css`):
+- `.desktopMenuWrapper { display: none; }` (z `display: flex`) — hamburger burst kompletnie ukryty na desktop. Mobile media query niezmieniony bo już ma `display: none` na mobile.
+- `.desktopTopNav { flex: 1; justify-content: center; }` — zajmuje miejsce po ukrytym wrapperze, top nav wycentrowany między logo a CTA.
+
+**2. JSX** (`src/components/Navbar.tsx`): dodany drugi dropdown **"Dodatki ▾"** w desktop top nav, między Narzędzia ▾ a Kontakt. Items (1:1 z mappingiem old hamburger burst Dodatki dropdown):
+- ℹ️ O nas
+- 📰 Aktualności
+- 📚 Baza wiedzy (gdy `f.knowledgeBase`)
+- 👨‍⚕️ Blog (gdy `f.blog`)
+- 🛍️ Sklep (gdy `f.shop`)
+- 💳 Wpłać Zadatek
+- 🤳 Selfie z Doktorem (gdy `f.selfie`)
+- 🤖 Wirtualny Asystent (button → modal `openChat()`)
+- ⭐ Podziel się opinią (button → modal `openSurvey()`)
+
+State: `topNavMoreOpen` analogicznie do `topNavToolsOpen`. Label używa istniejący `nav.extras` ("Dodatki" / "Extras" / "Extras" / "Додатки") × 4 locale — **bez nowych i18n kluczy**.
+
+#### Final layout desktop top nav
+
+```
+[Logo] · Oferta · Cennik · Metamorfozy · Narzędzia ▾ · Dodatki ▾ · Kontakt
++ [Umów wizytę] + [PL]
+```
+
+**6 visible items + 6 Narzędzia ▾ items + 9 Dodatki ▾ items = 21 entry points** (vs 18 w starym hamburger burst — **więcej**, lepiej zorganizowane).
+
+#### Audit zachowania 1:1 vs stary hamburger burst
+
+| Stary item | Lokalizacja teraz |
+|---|---|
+| O nas | Dodatki ▾ |
+| Metamorfozy | top nav visible |
+| Oferta | top nav visible |
+| Aktualności | Dodatki ▾ |
+| Mapa bólu | Narzędzia ▾ |
+| Kalkulator | Narzędzia ▾ |
+| Porównywarka | Narzędzia ▾ |
+| Cennik | top nav visible (był też w starym burst Dodatki) |
+| Baza wiedzy | Dodatki ▾ |
+| Blog | Dodatki ▾ |
+| Sklep | Dodatki ▾ |
+| Symulator | Narzędzia ▾ |
+| Asystent | Dodatki ▾ |
+| Zadatek | Dodatki ▾ |
+| Selfie | Dodatki ▾ |
+| Podziel się opinią | Dodatki ▾ |
+| Strefa Pacjenta | Narzędzia ▾ (przeniesione z hamburger burst right inline) |
+| Kontakt | top nav visible |
+
+**Wszystkie 18 items zachowane + 1 NEW** (Aplikacja w Narzędzia ▾) = 19+ entry points na desktopie.
+
+#### Mobile menu unchanged
+4 sekcje × 20 items + search + recently visited — wszystko z S7-3 luxury (`c383528`) bez zmian.
+
+#### Verification
+
+- Build clean (npm run build)
+- Claude_Preview headless smoke desktop 1280×800:
+  - 6 top nav items widoczne ✓
+  - `desktopMenuWrapper display: none` (hamburger burst ukryty) ✓
+  - `hamburger display: none` (mobile button ukryty na desktop) ✓
+  - Dodatki ▾ dropdown click: 9 items wszystkie obecne ✓
+  - Screenshot: czysty layout bez duplikatów, dropdown otwarte pokazuje pełną listę
+- Claude_Preview headless smoke mobile 375×812:
+  - Bottom bar 3 CTAs visible ✓
+  - Mobile menu open: 4 sekcje × 20 items expanded ✓
+  - Audit 1:1 vs stary mobile: wszystkie items + 1 NEW (Aplikacja) ✓
+- Production smoke po Vercel deploy:
+  - Homepage 200, 5 `topNavLink` w SSR HTML
+  - "Dodatki" × 1, "Aktualności" × 4, "Wirtualny Asystent" × 2, "Wpłać Zadatek" × 1 w HTML preload (i18n)
+  - Dropdown items render tylko po user open (AnimatePresence conditional — expected)
+
+#### Status Sprint 7
+
+S7-3 fix #5 zachowuje pełen scope hamburger burst (zero items lost) + clean visual layout (zero duplikacji). Sprint 7 COMPLETE bez regresji.
+
+---
+
 ### 2026-05-17 #4 — S7-3 LUXURY menu (desktop top nav + mobile sections + bottom bar) → SPRINT 7 COMPLETE
 
 #### Commit:
