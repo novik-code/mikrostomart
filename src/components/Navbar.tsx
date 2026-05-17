@@ -148,6 +148,7 @@ export default function Navbar() {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     // S7-3 (2026-05-17): nowy state dla luxury menu
     const [topNavToolsOpen, setTopNavToolsOpen] = useState(false);  // desktop Narzędzia ▾
+    const [topNavMoreOpen, setTopNavMoreOpen] = useState(false);  // S7-3 fix #5: desktop Dodatki ▾
     const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['main']));  // mobile collapsible
     const [searchQuery, setSearchQuery] = useState('');  // luxury hamburger search
     const [recentPaths, setRecentPaths] = useState<string[]>([]);
@@ -379,6 +380,82 @@ export default function Navbar() {
                                     <Link href="/aplikacja" className={styles.topNavDropdownLink} onClick={() => setTopNavToolsOpen(false)}>
                                         📱 {t('app')}
                                     </Link>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
+
+                    {/* S7-3 fix #5 (2026-05-17): Dodatki ▾ dropdown — zawiera
+                        items które były w starym hamburger burst, a nie zmieściły
+                        się w Narzędzia ▾ (O nas/Aktualności/Baza wiedzy/Blog/Sklep/
+                        Zadatek/Selfie/Asystent/Opinion). Audit zachowuje 1:1 stary
+                        scope hamburger burst — niczego nie tracimy z menu. */}
+                    <div
+                        className={styles.topNavDropdownWrapper}
+                        onMouseEnter={() => setTopNavMoreOpen(true)}
+                        onMouseLeave={() => setTopNavMoreOpen(false)}
+                    >
+                        <button
+                            className={styles.topNavLink}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', cursor: 'pointer', font: 'inherit' }}
+                            onClick={() => setTopNavMoreOpen(o => !o)}
+                            aria-expanded={topNavMoreOpen}
+                            aria-haspopup="true"
+                        >
+                            {t('extras')} <span style={{ fontSize: '0.65em', opacity: 0.7 }}>▾</span>
+                        </button>
+                        <AnimatePresence>
+                            {topNavMoreOpen && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: -8 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -5 }}
+                                    transition={{ duration: 0.18, ease: 'easeOut' }}
+                                    className={styles.topNavDropdown}
+                                >
+                                    <Link href="/o-nas" className={styles.topNavDropdownLink} onClick={() => setTopNavMoreOpen(false)}>
+                                        ℹ️ {t('about')}
+                                    </Link>
+                                    <Link href="/aktualnosci" className={styles.topNavDropdownLink} onClick={() => setTopNavMoreOpen(false)}>
+                                        📰 {t('news')}
+                                    </Link>
+                                    {f.knowledgeBase && (
+                                        <Link href="/baza-wiedzy" className={styles.topNavDropdownLink} onClick={() => setTopNavMoreOpen(false)}>
+                                            📚 {t('knowledgeBase')}
+                                        </Link>
+                                    )}
+                                    {f.blog && (
+                                        <Link href="/nowosielski" className={styles.topNavDropdownLink} onClick={() => setTopNavMoreOpen(false)}>
+                                            👨‍⚕️ {t('blog')}
+                                        </Link>
+                                    )}
+                                    {f.shop && (
+                                        <Link href="/sklep" className={styles.topNavDropdownLink} onClick={() => setTopNavMoreOpen(false)}>
+                                            🛍️ {t('shop')}
+                                        </Link>
+                                    )}
+                                    <Link href="/zadatek" className={styles.topNavDropdownLink} onClick={() => setTopNavMoreOpen(false)}>
+                                        💳 {t('deposit')}
+                                    </Link>
+                                    {f.selfie && (
+                                        <Link href="/selfie" className={styles.topNavDropdownLink} onClick={() => setTopNavMoreOpen(false)}>
+                                            🤳 {t('selfie')}
+                                        </Link>
+                                    )}
+                                    <button
+                                        className={styles.topNavDropdownLink}
+                                        onClick={() => { openChat(); setTopNavMoreOpen(false); }}
+                                        style={{ background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', font: 'inherit', width: '100%' }}
+                                    >
+                                        🤖 {t('assistant')}
+                                    </button>
+                                    <button
+                                        className={styles.topNavDropdownLink}
+                                        onClick={() => { openSurvey(); setTopNavMoreOpen(false); }}
+                                        style={{ background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', font: 'inherit', width: '100%' }}
+                                    >
+                                        ⭐ {t('shareOpinion')}
+                                    </button>
                                 </motion.div>
                             )}
                         </AnimatePresence>
