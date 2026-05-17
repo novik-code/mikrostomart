@@ -2482,6 +2482,50 @@ NODE_ENV=production
 
 ## 📝 Recent Changes
 
+### 2026-05-17 #6 — S7-3 fix: AssistantTeaser podnieś nad MobileBottomBar
+
+#### Commit:
+- `599644a` — fix(ux): AssistantTeaser podnieś nad MobileBottomBar (S7-3 fix #6)
+
+#### Problem (zauważony przez Marcina po S7-3 fix #5)
+
+Na mobile (≤768px) ikona Wirtualny Asystent (`AssistantTeaser`) — pływający button w lewym dolnym rogu — zasłaniała **Telefon CTA** w pierwszym slot `MobileBottomBar`.
+
+Pozycje przed fix:
+- AssistantTeaser: `position: fixed; bottom: 24px; left: 24px; width: 52px` → zajmuje 24-76px od dolnej krawędzi viewport, lewa kolumna
+- MobileBottomBar: `position: fixed; bottom: 0; height: ~60px + safe-area; grid 1fr×1fr×1fr` → pierwszy slot Telefon zajmuje 0-125px szerokości (na 375px viewport) i 0-60px od dolnej
+- **Przecięcie**: 24-60px lewy dolny róg = teaser zasłaniał Telefon CTA
+
+#### Fix
+
+`src/components/AssistantTeaser.tsx` (+22/-10):
+- Nowy state `isMobileViewport` z `useEffect` setupującym `matchMedia('(max-width: 768px)')` + `change` event listener (reaguje też na rotate/resize)
+- Refaktor istniejącego `useEffect` dla `isInputFocused` — warunek `mq.matches` przeniesiony z mount-time do handler (focusin/focusout sprawdzają media query in-time), eliminuje race condition gdy user resize'uje
+- Inline style `bottom`:
+  ```ts
+  bottom: isMobileViewport
+      ? 'calc(60px + env(safe-area-inset-bottom) + 12px)'
+      : '24px'
+  ```
+- Na mobile teaser pływa **~72px + safe-area** od dolnej (powyżej bar + 12px gap)
+- Desktop niezmieniony: `24px` (bar `display: none` na >768px więc kolizja niemożliwa)
+
+#### Verification (Claude_Preview headless mobile 424px)
+
+- Teaser bottom CSS: `72px` (mobile branch active) ✓
+- `teaserRect.bottom`: 846.5px
+- `phoneRect.top`: 850.9px
+- **Gap: 4.4px** (zero overlap, plus mały visual breathing room)
+- `xOverlap: true` (oba w lewej kolumnie, expected)
+- `yOverlap: false` (teaser nad bar) ✓
+- `overlaps: false` ✓
+
+#### Status Sprint 7 (final)
+
+S7-1 ✅ + S7-2 ✅ + S7-3 ✅ + S7-3 fix #5 (hamburger burst hidden + Dodatki ▾) + S7-3 fix #6 (AssistantTeaser overlap). **Sprint 7 COMPLETE** bez zauważalnych regresji.
+
+---
+
 ### 2026-05-17 #5 — S7-3 fix: hamburger burst hidden + Dodatki ▾ dropdown (zachowuje 1:1 stary scope)
 
 #### Commit:
