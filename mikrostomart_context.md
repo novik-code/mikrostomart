@@ -2482,6 +2482,109 @@ NODE_ENV=production
 
 ## 📝 Recent Changes
 
+### 2026-05-17 #4 — S7-3 LUXURY menu (desktop top nav + mobile sections + bottom bar) → SPRINT 7 COMPLETE
+
+#### Commit:
+- `c383528` — feat(ux): S7-3 luxury menu — desktop top nav + mobile sections + bottom bar
+
+#### Co zrobione (zakres LUXURY wybrany przez Marcina)
+
+Audyt 2026-05-12 sekcje 3-5 wytknął 3 UX issues:
+1. Desktop nav ukryta za hamburger → user nie widzi kluczowych sekcji
+2. Mobile hamburger drobny + nieoczywisty, menu długie wymaga scrollowania
+3. Brak sticky mobile CTAs (Telefon/Rezerwacja/Mapa bólu)
+
+#### Faza 1: Desktop top nav (mikrostomart hamburger layout)
+- Dodano visible inline nav między logo a animowanym hamburger burst
+- **5 pozycji + 1 CTA**: Oferta · Cennik · Metamorfozy · **Narzędzia ▾** · Kontakt + "Umów wizytę" + hamburger (uzupełnienie pełnej mapy strony)
+- **Narzędzia ▾ dropdown** na hover/click: 🦷 Mapa bólu · 🧮 Kalkulator · ⚖️ Porównywarka · ✨ Symulator (modal) · 👤 Strefa pacjenta · 📱 Aplikacja
+- CSS: `.desktopTopNav` (flex+gap), `.topNavLink` (hover effect), `.topNavDropdown` (absolute positioned z motion.div animacją)
+- `@media (max-width: 900px) { display: none }` — na mobile tylko hamburger
+
+#### Faza 2: Mobile hamburger redesign
+- Powiększony **48×48** (z H5 fixu 44×44) + subtle border + bg
+- Label **"MENU"** obok ikony (i18n: `nav.menuLabel` × 4 locale)
+
+#### Faza 3 + 5 LUXURY: Mobile menu overlay → Bento site map
+
+Kompletny rewrite mobileMenu overlay (~115 linii nowego JSX):
+- 🔍 **Site search** (`input[type=search]`) — case-insensitive label match, filtered list zastępuje sekcje gdy query niepusty
+- 🕒 **Recently visited** (chips, max 6) — persistent localStorage tracking, effect na pathname change, skip dla admin/auth/api paths
+- 📂 **4 collapsible sections** z AnimatePresence height animation:
+  - **GŁÓWNE** (expanded by default): Umów wizytę / Oferta / Cennik / Metamorfozy / Kontakt
+  - **NARZĘDZIA**: Mapa bólu / Kalkulator / Porównywarka / Symulator / Selfie z doktorem
+  - **KONTO I APLIKACJA**: Strefa pacjenta / Aplikacja / Zadatek
+  - **WIĘCEJ**: O nas / Aktualności / Baza wiedzy / Blog / Sklep / Asystent AI / Podziel się opinią
+- Wszystkie items z emoji ikoną (24px width column) + bold label
+- CSS: `.mobileSection`, `.mobileSectionHeader` (button toggle z ▾ chevron), `.mobileSectionContent` (motion height animation), `.luxurySearch` (border focus ring), `.luxuryRecentChip` (pill style)
+
+#### Faza 4: MobileBottomBar.tsx (NOWY komponent)
+
+`src/components/MobileBottomBar.tsx` (135 LOC):
+- **3 sticky CTAs**: 📞 **Telefon** (`tel:brand.phone1`) | 📅 **Wizyta** (`/rezerwacja`) | 🦷 **Ból zęba** (`/mapa-bolu`)
+- `grid-template-columns: 1fr 1fr 1fr`, `position: fixed; bottom: 0; z-index: 9998`
+- `backdrop-filter: blur(16px)`, border-top primary glow, `env(safe-area-inset-bottom)` padding (iPhone notch)
+- **Hide on mobile input:focus** (reuse S7-2 pattern: matchMedia + focusin/out listeners + isEditable check)
+- `@media (max-width: 768px) only` — hidden na desktop
+- body padding-bottom 60px na mobile żeby content nie był pod barem
+
+Integration: `ThemeLayout.tsx` dynamic import (`ssr: false` bo używa `window.matchMedia`) + render po Footer (last in DOM = always on top).
+
+#### Faza 6: i18n × 4 locale
+
+`messages/{pl,en,de,ua}/common.json` `nav` namespace — 14 nowych kluczy × 4 locale = **56 nowych tłumaczeń**:
+- `tools`, `menuLabel`, `sectionMain`, `sectionTools`, `sectionAccount`, `sectionOther`
+- `app`, `bottomBarPhone`, `bottomBarBooking`, `bottomBarPainMap`
+- `mapSearchPlaceholder`, `luxuryMapTitle`, `luxuryQuickActions`, `luxuryRecentlyVisited`
+
+Total nav keys: 21 → **35 (+14)** per locale.
+
+#### Verification (Claude_Preview headless smoke)
+
+**Mobile viewport 383px**:
+- ✅ Bottom bar widoczny: Telefon (tel:570-270-470) | Wizyta | Ból zęba
+- ✅ Hamburger z "MENU" label + 48×48 touch target
+- ✅ Otworzony menu: search input + recently visited chip (🏠) + 4 sekcje (Główne expanded, Narzędzia/Konto/Więcej collapsed) z 18 items
+- ✅ Screenshot pokazuje pełen luxury layout z dark theme glow
+
+**Desktop top nav** (element w DOM, hidden by CSS na viewport <900px):
+- ✅ 5 pozycji: Oferta / Cennik / Metamorfozy / Narzędzia ▾ / Kontakt
+- ✅ `display: none` na <900px (poprawne mobile hide)
+- ✅ `display: flex` na ≥901px (powyżej breakpoint)
+
+**Production smoke po Vercel deploy**:
+- Homepage 200, /oferta 200, /aplikacja 200
+- SSR HTML zawiera `desktopTopNav` × 1, `topNavLink` × 5, "Narzędzia" × 7
+- Bottom bar load po hydration client-side (dynamic ssr:false — oczekiwane)
+
+#### Status Sprint 7 → COMPLETE
+
+- **S7-1 ✅ DONE** (`a3b0981`) mapa bólu medical disclaimers
+- **S7-2 ✅ DONE** (`f86f337`) scroll fix kalkulator/porównywarka + AssistantTeaser positioning
+- **S7-3 ✅ DONE** (`c383528`) luxury menu — desktop top nav + mobile sections + bottom bar
+
+🎯 **Sprint 7 effectively COMPLETE** — wszystkie 3 sesje merged na main. Audyt sekcje 3-5 zaadresowane:
+- ✅ Desktop nav widoczna (audyt: "ukryta za ikoną menu osłabia użyteczność")
+- ✅ Mobile menu z sekcjami + szybsza nawigacja (audyt: "ograniczyć menu mobile do głównych kategorii, rozwijać podsekcje")
+- ✅ Mobile bottom bar (audyt: "Dodać sticky bottom bar na mobile: Telefon, Rezerwacja, Mapa bólu")
+- ✅ Luxury bonus: site search + recently visited (poza scope audytu)
+
+#### Hotfix Sprint status (cumulative)
+
+- ✅ S1 COMPLETE (auth)
+- ✅ S2 4.5/5 (payment integrity)
+- ✅ S3 COMPLETE (reservation security)
+- ✅ S4 4.5/5 (XSS + public hardening, S4-2b paused)
+- ✅ S5 + S5-4 COMPLETE (SEO P2 cleanup + cross-locale 301)
+- ✅ S6 COMPLETE (dependency upgrade — 0 critical, 0 high)
+- ✅ **S7 COMPLETE** (UX follow-up)
+- ⏳ S8 RODO + 2FA staff (4 sesje: PII audit, 2FA staff, audit log, AI policy)
+- ⏳ S9 lint baseline + CI gates (2 sesje)
+
+Po S9 → wrót do Fazy K Premium SEO.
+
+---
+
 ### 2026-05-17 #3 — S7-2 scroll fix kalkulator/porównywarka + AssistantTeaser positioning
 
 #### Commit:
