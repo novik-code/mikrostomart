@@ -20,7 +20,21 @@
         "contact": "Контакт",
         "booking": "Записатися на прийом",
         "bookConsultation": "Записатися на консультацію",
-        "patientZone": "Зона пацієнта"
+        "patientZone": "Зона пацієнта",
+        "tools": "Інструменти",
+        "menuLabel": "Меню",
+        "sectionMain": "Головне",
+        "sectionTools": "Інструменти",
+        "sectionAccount": "Обліковий запис і додаток",
+        "sectionOther": "Більше",
+        "app": "Додаток",
+        "bottomBarPhone": "Телефон",
+        "bottomBarBooking": "Візит",
+        "bottomBarPainMap": "Зубний біль",
+        "mapSearchPlaceholder": "Пошук на сайті…",
+        "luxuryMapTitle": "Карта сайту",
+        "luxuryQuickActions": "Швидкі дії",
+        "luxuryRecentlyVisited": "Нещодавно відвідані"
     },
     "hero": {
         "tagline": "Мікроскопічна Художня Стоматологія",

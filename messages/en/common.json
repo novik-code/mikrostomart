@@ -20,7 +20,21 @@
         "contact": "Contact",
         "booking": "Book a Visit",
         "bookConsultation": "Book a Consultation",
-        "patientZone": "Patient Zone"
+        "patientZone": "Patient Zone",
+        "tools": "Tools",
+        "menuLabel": "Menu",
+        "sectionMain": "Main",
+        "sectionTools": "Tools",
+        "sectionAccount": "Account & app",
+        "sectionOther": "More",
+        "app": "App",
+        "bottomBarPhone": "Phone",
+        "bottomBarBooking": "Booking",
+        "bottomBarPainMap": "Toothache",
+        "mapSearchPlaceholder": "Search the site…",
+        "luxuryMapTitle": "Site map",
+        "luxuryQuickActions": "Quick actions",
+        "luxuryRecentlyVisited": "Recently visited"
     },
     "hero": {
         "tagline": "Microscopic Artistic Dentistry",

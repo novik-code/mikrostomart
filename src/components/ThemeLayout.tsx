@@ -32,6 +32,9 @@ import Footer from '@/components/Footer';
 // ładuje go w SSR HTML od razu, więc nie blokuje wskaźnika.
 const BackgroundVideo = dynamic(() => import('@/components/BackgroundVideo'), { ssr: false });
 const AssistantTeaser = dynamic(() => import('@/components/AssistantTeaser'), { ssr: false });
+// S7-3 LUXURY (2026-05-17): MobileBottomBar — sticky 📞/📅/🦷 dla mobile.
+// dynamic z ssr:false bo używa window.matchMedia.
+const MobileBottomBar = dynamic(() => import('@/components/MobileBottomBar'), { ssr: false });
 const PWAInstallPrompt = dynamic(() => import('@/components/PWAInstallPrompt'), { ssr: false });
 const SimulatorModal = dynamic(() => import('@/components/SimulatorModal'), { ssr: false });
 const OpinionSurvey = dynamic(() => import('@/components/OpinionSurvey'), { ssr: false });
@@ -93,6 +96,10 @@ function ThemedContent({ children }: { children: ReactNode }) {
                 {!skipGlobalChrome && <Footer />}
                 {f.simulatorModal && <SimulatorModal />}
                 {f.opinionSurvey && <OpinionSurvey />}
+                {/* S7-3 LUXURY: sticky bottom bar mobile (3 CTAs).
+                    Render po Footer żeby był ostatni element w DOM = always on top.
+                    skipGlobalChrome warunek wyłącza dla embedded/admin pages. */}
+                {!skipGlobalChrome && <MobileBottomBar />}
             </div>
         </>
     );

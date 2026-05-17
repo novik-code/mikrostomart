@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from '@/i18n/navigation';
+import { usePathname } from '@/i18n/navigation';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslations } from 'next-intl';
@@ -14,6 +15,28 @@ import { useSimulator } from "@/context/SimulatorContext";
 import { useOpinion } from "@/context/OpinionContext";
 import { useTheme } from "@/context/ThemeContext";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+
+// S7-3 LUXURY (2026-05-17): persistent state — recently visited paths
+// (localStorage). Used in luxury hamburger overlay's "Recently visited" section.
+const RECENT_PATHS_KEY = 'mikrostomart_recent_paths';
+const RECENT_PATHS_LIMIT = 6;
+function pushRecentPath(path: string) {
+    if (typeof window === 'undefined') return;
+    try {
+        const raw = localStorage.getItem(RECENT_PATHS_KEY);
+        const list: string[] = raw ? JSON.parse(raw) : [];
+        const filtered = list.filter(p => p !== path);
+        filtered.unshift(path);
+        localStorage.setItem(RECENT_PATHS_KEY, JSON.stringify(filtered.slice(0, RECENT_PATHS_LIMIT)));
+    } catch { /* localStorage may be unavailable */ }
+}
+function getRecentPaths(): string[] {
+    if (typeof window === 'undefined') return [];
+    try {
+        const raw = localStorage.getItem(RECENT_PATHS_KEY);
+        return raw ? JSON.parse(raw) : [];
+    } catch { return []; }
+}
 
 /* ═══════════════════════════════════════════
    FRAMER MOTION ANIMATION VARIANTS
@@ -123,6 +146,35 @@ export default function Navbar() {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isDesktopMenuOpen, setIsDesktopMenuOpen] = useState(false);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    // S7-3 (2026-05-17): nowy state dla luxury menu
+    const [topNavToolsOpen, setTopNavToolsOpen] = useState(false);  // desktop Narzędzia ▾
+    const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['main']));  // mobile collapsible
+    const [searchQuery, setSearchQuery] = useState('');  // luxury hamburger search
+    const [recentPaths, setRecentPaths] = useState<string[]>([]);
+
+    const pathname = usePathname();
+
+    // Track page visit for "Recently visited" luxury feature.
+    useEffect(() => {
+        if (!pathname) return;
+        // Don't track admin/auth/api/private paths
+        if (/^\/(api|admin|pracownik|auth|strefa-pacjenta\/login|qr-display)/.test(pathname)) return;
+        pushRecentPath(pathname);
+    }, [pathname]);
+
+    // Load recent paths when overlay opens (avoids reading localStorage on every render).
+    useEffect(() => {
+        if (isMenuOpen) setRecentPaths(getRecentPaths());
+    }, [isMenuOpen]);
+
+    const toggleSection = (key: string) => {
+        setExpandedSections(prev => {
+            const next = new Set(prev);
+            if (next.has(key)) next.delete(key);
+            else next.add(key);
+            return next;
+        });
+    };
     const { openChat } = useAssistant();
     const { openSimulator } = useSimulator();
     const { openSurvey } = useOpinion();
@@ -262,7 +314,81 @@ export default function Navbar() {
                 </motion.div>
 
                 {/* ═══════════════════════════════════════════════════
-                    DESKTOP: Animated Hamburger Menu
+                    S7-3 LUXURY (2026-05-17): DESKTOP TOP NAV — 5 widocznych pozycji
+                    Audyt: "Na desktopie standardowa nawigacja jest ukryta za
+                    ikoną menu. To wygląda minimalistycznie, ale osłabia użyteczność."
+                    Pozycje: Oferta · Cennik · Metamorfozy · Narzędzia ▾ · Kontakt
+                    Hamburger (poniżej) zostaje jako uzupełnienie pełnej mapy strony.
+                    ═══════════════════════════════════════════════════ */}
+                <div className={styles.desktopTopNav}>
+                    <Link href="/oferta" className={styles.topNavLink}>{t('services')}</Link>
+                    <Link href="/cennik" className={styles.topNavLink}>{t('pricing')}</Link>
+                    {f.metamorphoses && (
+                        <Link href="/metamorfozy" className={styles.topNavLink}>{t('transformations')}</Link>
+                    )}
+
+                    {/* Narzędzia ▾ dropdown */}
+                    <div
+                        className={styles.topNavDropdownWrapper}
+                        onMouseEnter={() => setTopNavToolsOpen(true)}
+                        onMouseLeave={() => setTopNavToolsOpen(false)}
+                    >
+                        <button
+                            className={styles.topNavLink}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', cursor: 'pointer', font: 'inherit' }}
+                            onClick={() => setTopNavToolsOpen(o => !o)}
+                            aria-expanded={topNavToolsOpen}
+                            aria-haspopup="true"
+                        >
+                            {t('tools')} <span style={{ fontSize: '0.65em', opacity: 0.7 }}>▾</span>
+                        </button>
+                        <AnimatePresence>
+                            {topNavToolsOpen && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: -8 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -5 }}
+                                    transition={{ duration: 0.18, ease: 'easeOut' }}
+                                    className={styles.topNavDropdown}
+                                >
+                                    {f.painMap && (
+                                        <Link href="/mapa-bolu" className={styles.topNavDropdownLink} onClick={() => setTopNavToolsOpen(false)}>
+                                            🦷 {t('painMap')}
+                                        </Link>
+                                    )}
+                                    {f.treatmentCalculator && (
+                                        <Link href="/kalkulator-leczenia" className={styles.topNavDropdownLink} onClick={() => setTopNavToolsOpen(false)}>
+                                            🧮 {t('treatmentCalculator')}
+                                        </Link>
+                                    )}
+                                    {f.comparator && (
+                                        <Link href="/porownywarka" className={styles.topNavDropdownLink} onClick={() => setTopNavToolsOpen(false)}>
+                                            ⚖️ {t('comparator')}
+                                        </Link>
+                                    )}
+                                    <button
+                                        className={styles.topNavDropdownLink}
+                                        onClick={() => { openSimulator(); setTopNavToolsOpen(false); }}
+                                        style={{ background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', font: 'inherit', width: '100%' }}
+                                    >
+                                        ✨ {t('smileSimulator')}
+                                    </button>
+                                    <Link href="/strefa-pacjenta/" className={styles.topNavDropdownLink} onClick={() => setTopNavToolsOpen(false)}>
+                                        👤 {t('patientZone')}
+                                    </Link>
+                                    <Link href="/aplikacja" className={styles.topNavDropdownLink} onClick={() => setTopNavToolsOpen(false)}>
+                                        📱 {t('app')}
+                                    </Link>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
+
+                    <Link href="/kontakt" className={styles.topNavLink}>{t('contact')}</Link>
+                </div>
+
+                {/* ═══════════════════════════════════════════════════
+                    DESKTOP: Animated Hamburger Menu (uzupełnienie — pełna mapa strony)
                     Links burst outward from center on hover
                     ═══════════════════════════════════════════════════ */}
                 <div
@@ -451,59 +577,165 @@ export default function Navbar() {
 
                 {/* ═══════════════════════════════════════════════════
                     MOBILE: Classic Hamburger + Full-screen Overlay
+                    S7-3 LUXURY: powiększony button + label "Menu" obok ikony
+                    (audyt: drobna ikona menu źle czytelna na mobile).
                     ═══════════════════════════════════════════════════ */}
                 <button
                     className={styles.hamburger}
                     onClick={toggleMenu}
-                    aria-label="Menu"
+                    aria-label={t('menuLabel')}
                     aria-expanded={isMenuOpen}
                 >
                     <span className={`${styles.bar} ${isMenuOpen ? styles.barOpen : ''}`}></span>
                     <span className={`${styles.bar} ${isMenuOpen ? styles.barOpen : ''}`}></span>
                     <span className={`${styles.bar} ${isMenuOpen ? styles.barOpen : ''}`}></span>
+                    <span className={styles.hamburgerLabel}>{t('menuLabel')}</span>
                 </button>
 
-                {/* Mobile Menu Overlay */}
+                {/* ═══════════════════════════════════════════════════
+                    S7-3 LUXURY (2026-05-17): Mobile menu overlay → site map.
+                    Audyt: "Ograniczyć menu mobile do głównych kategorii i
+                    rozwinąć podsekcje dopiero po kliknięciu" + luxury bonus:
+                    search bar + recently visited chips.
+                    ═══════════════════════════════════════════════════ */}
                 <div className={`${styles.mobileMenu} ${isMenuOpen ? styles.mobileMenuOpen : ''}`}>
                     <div className={styles.mobileLinks}>
-                        <Link href="/o-nas" className={styles.mobileLink} onClick={closeMenu}>{t('about')}</Link>
-                        {f.metamorphoses && <Link href="/metamorfozy" className={styles.mobileLink} onClick={closeMenu}>{t('transformations')}</Link>}
-                        <Link href="/oferta" className={styles.mobileLink} onClick={closeMenu}>{t('services')}</Link>
-                        <Link href="/aktualnosci" className={styles.mobileLink} onClick={closeMenu}>{t('news')}</Link>
+                        {/* LUXURY: Site search */}
+                        <input
+                            type="search"
+                            className={styles.luxurySearch}
+                            placeholder={t('mapSearchPlaceholder')}
+                            value={searchQuery}
+                            onChange={e => setSearchQuery(e.target.value)}
+                            aria-label={t('mapSearchPlaceholder')}
+                        />
 
-                        <div style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '1px' }}>{t('extras')}</div>
-                        {f.painMap && <Link href="/mapa-bolu" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem', color: '#e2d1b3', fontWeight: 'bold' }}>🗺️ {t('painMap')}</Link>}
-                        {f.treatmentCalculator && <Link href="/kalkulator-leczenia" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem', color: '#e2d1b3', fontWeight: 'bold' }}>🧮 {t('treatmentCalculator')}</Link>}
-                        {f.comparator && <Link href="/porownywarka" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem', color: '#e2d1b3', fontWeight: 'bold' }}>⚖️ {t('comparator')}</Link>}
-                        <Link href="/cennik" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem', color: '#e2d1b3', fontWeight: 'bold' }}>💰 {t('pricing')}</Link>
-                        {f.knowledgeBase && <Link href="/baza-wiedzy" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem', color: '#e2d1b3' }}>📚 {t('knowledgeBase')}</Link>}
-                        {f.blog && <Link href="/nowosielski" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem', color: '#e2d1b3', fontWeight: 'bold' }}>👨‍⚕️ {t('blog')}</Link>}
-                        {f.shop && <Link href="/sklep" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem', color: '#e2d1b3' }}>🛍️ {t('shop')}</Link>}
-                        <Link href="/zadatek" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem', color: '#e2d1b3', fontWeight: 'bold' }}>💳 {t('deposit')}</Link>
-                        {f.selfie && <Link href="/selfie" className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', marginBottom: '0.5rem', color: '#e2d1b3', fontWeight: 'bold' }}>🤳 {t('selfie')}</Link>}
-                        <button
-                            onClick={() => { openSimulator(); closeMenu(); }}
-                            className={styles.mobileLink}
-                            style={{ display: 'block', padding: '0.75rem 1.5rem', width: '100%', textAlign: 'center', color: '#e2d1b3', fontWeight: 'bold', border: 'none', background: 'transparent', marginTop: '10px' }}
-                        >
-                            ✨ {t('smileSimulator')}
-                        </button>
-                        <button
-                            onClick={() => { openChat(); closeMenu(); }}
-                            className={styles.mobileLink}
-                            style={{ display: 'block', width: '100%', padding: '0.75rem 1.5rem', textAlign: 'center', color: '#e2d1b3', background: 'transparent', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}
-                        >
-                            🤖 {t('assistant')}
-                        </button>
-                        <button
-                            onClick={() => { openSurvey(); closeMenu(); }}
-                            className={styles.mobileLink}
-                            style={{ display: 'block', width: '100%', padding: '0.75rem 1.5rem', textAlign: 'center', color: '#e2d1b3', background: 'transparent', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}
-                        >
-                            ⭐ {t('shareOpinion')}
-                        </button>
-                        <Link href="/strefa-pacjenta/" className={styles.mobileLink} onClick={closeMenu}>{t('patientZone')}</Link>
-                        <Link href="/kontakt" className={styles.mobileLink} onClick={closeMenu}>{t('contact')}</Link>
+                        {/* LUXURY: Recently visited (chips) */}
+                        {recentPaths.length > 0 && !searchQuery && (
+                            <div style={{ marginBottom: '1rem' }}>
+                                <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.4rem', fontWeight: 700 }}>
+                                    {t('luxuryRecentlyVisited')}
+                                </div>
+                                <div>
+                                    {recentPaths.slice(0, 6).map(p => (
+                                        <Link key={p} href={p} className={styles.luxuryRecentChip} onClick={closeMenu}>
+                                            {p === '/' ? '🏠' : p.slice(0, 30)}
+                                        </Link>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {(() => {
+                            // S7-3: build full link list — used for search filtering + section render
+                            type LinkItem = { href?: string; label: string; icon?: string; section: string; onClick?: () => void };
+                            const allLinks: LinkItem[] = [
+                                // MAIN — najważniejsze CTAs zawsze widoczne
+                                { href: '/rezerwacja', label: t('booking'), icon: '📅', section: 'main' },
+                                { href: '/oferta', label: t('services'), icon: '🦷', section: 'main' },
+                                { href: '/cennik', label: t('pricing'), icon: '💰', section: 'main' },
+                                ...(f.metamorphoses ? [{ href: '/metamorfozy', label: t('transformations'), icon: '✨', section: 'main' }] : []),
+                                { href: '/kontakt', label: t('contact'), icon: '📞', section: 'main' },
+                                // TOOLS
+                                ...(f.painMap ? [{ href: '/mapa-bolu', label: t('painMap'), icon: '🦷', section: 'tools' }] : []),
+                                ...(f.treatmentCalculator ? [{ href: '/kalkulator-leczenia', label: t('treatmentCalculator'), icon: '🧮', section: 'tools' }] : []),
+                                ...(f.comparator ? [{ href: '/porownywarka', label: t('comparator'), icon: '⚖️', section: 'tools' }] : []),
+                                { label: t('smileSimulator'), icon: '✨', section: 'tools', onClick: () => { openSimulator(); closeMenu(); } },
+                                ...(f.selfie ? [{ href: '/selfie', label: t('selfie'), icon: '🤳', section: 'tools' }] : []),
+                                // ACCOUNT
+                                { href: '/strefa-pacjenta/', label: t('patientZone'), icon: '👤', section: 'account' },
+                                { href: '/aplikacja', label: t('app'), icon: '📱', section: 'account' },
+                                { href: '/zadatek', label: t('deposit'), icon: '💳', section: 'account' },
+                                // OTHER
+                                { href: '/o-nas', label: t('about'), icon: 'ℹ️', section: 'other' },
+                                { href: '/aktualnosci', label: t('news'), icon: '📰', section: 'other' },
+                                ...(f.knowledgeBase ? [{ href: '/baza-wiedzy', label: t('knowledgeBase'), icon: '📚', section: 'other' }] : []),
+                                ...(f.blog ? [{ href: '/nowosielski', label: t('blog'), icon: '👨‍⚕️', section: 'other' }] : []),
+                                ...(f.shop ? [{ href: '/sklep', label: t('shop'), icon: '🛍️', section: 'other' }] : []),
+                                { label: t('assistant'), icon: '🤖', section: 'other', onClick: () => { openChat(); closeMenu(); } },
+                                { label: t('shareOpinion'), icon: '⭐', section: 'other', onClick: () => { openSurvey(); closeMenu(); } },
+                            ];
+
+                            // LUXURY: search filter (case-insensitive label match)
+                            const q = searchQuery.trim().toLowerCase();
+                            const filtered = q
+                                ? allLinks.filter(l => l.label.toLowerCase().includes(q))
+                                : allLinks;
+
+                            const renderLink = (l: LinkItem, idx: number) => {
+                                const content = (
+                                    <span style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '0.65rem 1rem' }}>
+                                        <span style={{ fontSize: '1.2rem', width: '24px', textAlign: 'center' }}>{l.icon}</span>
+                                        <span style={{ fontSize: '0.95rem', fontWeight: 600 }}>{l.label}</span>
+                                    </span>
+                                );
+                                if (l.href) {
+                                    return (
+                                        <Link key={`${l.href}-${idx}`} href={l.href} className={styles.mobileLink} onClick={closeMenu} style={{ display: 'block', color: '#e2d1b3', textDecoration: 'none' }}>
+                                            {content}
+                                        </Link>
+                                    );
+                                }
+                                return (
+                                    <button key={`btn-${idx}`} onClick={l.onClick} className={styles.mobileLink} style={{ display: 'block', width: '100%', textAlign: 'left', color: '#e2d1b3', background: 'transparent', border: 'none', cursor: 'pointer' }}>
+                                        {content}
+                                    </button>
+                                );
+                            };
+
+                            // If searching, show flat filtered list (no sections)
+                            if (q) {
+                                return (
+                                    <div>
+                                        {filtered.length === 0 && (
+                                            <div style={{ padding: '1rem', color: 'var(--color-text-muted)', fontSize: '0.9rem', textAlign: 'center' }}>
+                                                –
+                                            </div>
+                                        )}
+                                        {filtered.map(renderLink)}
+                                    </div>
+                                );
+                            }
+
+                            // Otherwise: 4 collapsible sections, "main" expanded by default
+                            const sections: Array<{ key: string; label: string }> = [
+                                { key: 'main', label: t('sectionMain') },
+                                { key: 'tools', label: t('sectionTools') },
+                                { key: 'account', label: t('sectionAccount') },
+                                { key: 'other', label: t('sectionOther') },
+                            ];
+
+                            return sections.map(({ key, label }) => {
+                                const items = allLinks.filter(l => l.section === key);
+                                if (items.length === 0) return null;
+                                const isOpen = expandedSections.has(key);
+                                return (
+                                    <div key={key} className={styles.mobileSection}>
+                                        <button
+                                            className={styles.mobileSectionHeader}
+                                            onClick={() => toggleSection(key)}
+                                            aria-expanded={isOpen}
+                                        >
+                                            <span>{label}</span>
+                                            <span className={`${styles.mobileSectionChevron} ${isOpen ? styles.mobileSectionChevronOpen : ''}`}>▾</span>
+                                        </button>
+                                        <AnimatePresence initial={false}>
+                                            {isOpen && (
+                                                <motion.div
+                                                    initial={{ height: 0, opacity: 0 }}
+                                                    animate={{ height: 'auto', opacity: 1 }}
+                                                    exit={{ height: 0, opacity: 0 }}
+                                                    transition={{ duration: 0.25, ease: 'easeOut' }}
+                                                    className={styles.mobileSectionContent}
+                                                >
+                                                    {items.map(renderLink)}
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
+                                    </div>
+                                );
+                            });
+                        })()}
                     </div>
                 </div>
             </div>

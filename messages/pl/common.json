@@ -20,7 +20,21 @@
         "contact": "Kontakt",
         "booking": "Umów wizytę",
         "bookConsultation": "Umów Konsultację",
-        "patientZone": "Strefa Pacjenta"
+        "patientZone": "Strefa Pacjenta",
+        "tools": "Narzędzia",
+        "menuLabel": "Menu",
+        "sectionMain": "Główne",
+        "sectionTools": "Narzędzia",
+        "sectionAccount": "Konto i aplikacja",
+        "sectionOther": "Więcej",
+        "app": "Aplikacja",
+        "bottomBarPhone": "Telefon",
+        "bottomBarBooking": "Wizyta",
+        "bottomBarPainMap": "Ból zęba",
+        "mapSearchPlaceholder": "Szukaj strony…",
+        "luxuryMapTitle": "Mapa strony",
+        "luxuryQuickActions": "Szybkie akcje",
+        "luxuryRecentlyVisited": "Ostatnio odwiedzone"
     },
     "hero": {
         "tagline": "Mikroskopowa Stomatologia Artystyczna",

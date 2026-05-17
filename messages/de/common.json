@@ -20,7 +20,21 @@
         "contact": "Kontakt",
         "booking": "Termin buchen",
         "bookConsultation": "Beratung buchen",
-        "patientZone": "Patientenbereich"
+        "patientZone": "Patientenbereich",
+        "tools": "Tools",
+        "menuLabel": "Menü",
+        "sectionMain": "Haupt",
+        "sectionTools": "Tools",
+        "sectionAccount": "Konto & App",
+        "sectionOther": "Mehr",
+        "app": "App",
+        "bottomBarPhone": "Anrufen",
+        "bottomBarBooking": "Termin",
+        "bottomBarPainMap": "Zahnschmerz",
+        "mapSearchPlaceholder": "Seite durchsuchen…",
+        "luxuryMapTitle": "Site-Karte",
+        "luxuryQuickActions": "Schnellaktionen",
+        "luxuryRecentlyVisited": "Zuletzt besucht"
     },
     "hero": {
         "tagline": "Mikroskopische Künstlerische Zahnmedizin",

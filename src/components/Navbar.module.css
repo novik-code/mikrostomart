@@ -609,3 +609,182 @@
 
     /* hamburger class is already shared */
 }
+/* ═══════════════════════════════════════════════════════════════
+   S7-3 LUXURY (2026-05-17): Desktop top nav — widoczne 5-6 pozycji
+   Audyt: standardowa nawigacja ma być widoczna na desktopie.
+   ═══════════════════════════════════════════════════════════════ */
+.desktopTopNav {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0 1rem;
+}
+
+.topNavLink {
+    color: var(--color-text-main, #e2d1b3);
+    text-decoration: none;
+    font-size: 0.92rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    padding: 0.5rem 0.85rem;
+    border-radius: 8px;
+    transition: color 0.2s ease, background 0.2s ease;
+    white-space: nowrap;
+}
+
+.topNavLink:hover {
+    color: var(--color-primary, #967D5B);
+    background: rgba(var(--color-primary-rgb, 150,125,91), 0.08);
+}
+
+.topNavDropdownWrapper {
+    position: relative;
+}
+
+.topNavDropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    min-width: 240px;
+    background: var(--color-surface, rgba(18, 20, 24, 0.98));
+    border: 1px solid rgba(var(--color-primary-rgb), 0.15);
+    border-radius: var(--radius-md, 12px);
+    box-shadow: 0 15px 40px rgba(0,0,0,0.6), 0 0 20px rgba(var(--color-primary-rgb), 0.05);
+    padding: 0.5rem 0;
+    z-index: 200;
+}
+
+.topNavDropdownLink {
+    display: block;
+    padding: 0.6rem 1rem;
+    color: var(--color-text-main, #e2d1b3);
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.topNavDropdownLink:hover {
+    background: rgba(var(--color-primary-rgb), 0.1);
+    color: var(--color-primary);
+}
+
+/* Hide desktop top nav on mobile (≤ 900px = standard breakpoint mikrostomart) */
+@media (max-width: 900px) {
+    .desktopTopNav {
+        display: none;
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   S7-3 LUXURY: Mobile hamburger redesign — powiększony + label "Menu"
+   Audyt: "Zastąpić drobną ikonę menu wyraźnym przyciskiem hamburger
+   albo ikoną z etykietą Menu".
+   ═══════════════════════════════════════════════════════════════ */
+.hamburgerLabel {
+    display: none;
+}
+@media (max-width: 900px) {
+    .hamburgerLabel {
+        display: inline-block;
+        margin-left: 6px;
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--color-text-main, #e2d1b3);
+        vertical-align: middle;
+    }
+    .hamburger {
+        /* powiększ touch target: 48×48, oczywisty kształt */
+        min-width: 48px !important;
+        min-height: 48px !important;
+        padding: 0 10px !important;
+        border-radius: 10px;
+        background: rgba(var(--color-primary-rgb), 0.06) !important;
+        border: 1px solid rgba(var(--color-primary-rgb), 0.18) !important;
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   S7-3 LUXURY: Mobile menu sekcje collapsible
+   ═══════════════════════════════════════════════════════════════ */
+.mobileSection {
+    width: 100%;
+    margin-bottom: 0.5rem;
+}
+
+.mobileSectionHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    padding: 0.85rem 1.25rem;
+    background: rgba(var(--color-primary-rgb), 0.08);
+    border: 1px solid rgba(var(--color-primary-rgb), 0.15);
+    border-radius: 10px;
+    color: var(--color-primary, #c89c5e);
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    margin-bottom: 0.25rem;
+}
+
+.mobileSectionChevron {
+    transition: transform 0.25s ease;
+    opacity: 0.7;
+}
+
+.mobileSectionChevronOpen {
+    transform: rotate(180deg);
+}
+
+.mobileSectionContent {
+    overflow: hidden;
+    padding: 0.25rem 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   S7-3 LUXURY: Bento map (luxury hamburger overlay)
+   ═══════════════════════════════════════════════════════════════ */
+.luxurySearch {
+    width: 100%;
+    padding: 0.7rem 1rem;
+    margin-bottom: 1rem;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(var(--color-primary-rgb), 0.2);
+    border-radius: 10px;
+    color: var(--color-text-main, #e2d1b3);
+    font-size: 0.95rem;
+}
+
+.luxurySearch:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.15);
+}
+
+.luxuryRecentChip {
+    display: inline-block;
+    padding: 4px 10px;
+    margin: 0 4px 4px 0;
+    background: rgba(var(--color-primary-rgb), 0.1);
+    border: 1px solid rgba(var(--color-primary-rgb), 0.25);
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--color-text-main, #e2d1b3);
+    text-decoration: none;
+    transition: background 0.2s ease;
+}
+
+.luxuryRecentChip:hover {
+    background: rgba(var(--color-primary-rgb), 0.2);
+}
+
+.luxuryRecentChip:empty {
+    display: none;
+}
