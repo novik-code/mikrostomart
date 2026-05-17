@@ -373,7 +373,13 @@
         "softTissues": "Soft Tissues",
         "softTissuesSub": "Tongue · Palate · Throat",
         "metaTitle": "Tooth Pain Map | {brandName}",
-        "metaDescription": "Interactive tooth pain map — point to the tooth that hurts and we'll suggest possible causes."
+        "metaDescription": "Interactive tooth pain map — point to the tooth that hurts and we'll suggest possible causes.",
+        "medicalDisclaimer": "🩺 This tool is not a medical diagnosis. Results are informational — consult a dentist if in doubt.",
+        "medsConsultPharmacist": "💊 Before taking any medications, consult a pharmacist or doctor, especially if you take other medicines, are pregnant or breastfeeding.",
+        "emergencyTitle": "⚠️ Urgent medical contact",
+        "emergencyText": "If you have: severe facial swelling, fever, difficulty breathing or swallowing — call 112 immediately or go to the emergency room. These symptoms may indicate a developing infection requiring immediate intervention.",
+        "emergencyCall112": "Call 112",
+        "emergencyClinic": "Contact the clinic"
     },
     "language": {
         "pl": "Polski",

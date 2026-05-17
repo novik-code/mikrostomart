@@ -373,7 +373,13 @@
         "softTissues": "Weichgewebe",
         "softTissuesSub": "Zunge · Gaumen · Rachen",
         "metaTitle": "Zahnschmerz-Karte | {brandName}",
-        "metaDescription": "Interaktive Zahnschmerz-Karte — zeigen Sie auf den schmerzenden Zahn und wir nennen mögliche Ursachen."
+        "metaDescription": "Interaktive Zahnschmerz-Karte — zeigen Sie auf den schmerzenden Zahn und wir nennen mögliche Ursachen.",
+        "medicalDisclaimer": "🩺 Dieses Tool ist keine medizinische Diagnose. Die Ergebnisse dienen nur zur Information — konsultieren Sie im Zweifelsfall einen Zahnarzt.",
+        "medsConsultPharmacist": "💊 Konsultieren Sie vor der Einnahme von Medikamenten einen Apotheker oder Arzt, insbesondere wenn Sie andere Medikamente einnehmen, schwanger sind oder stillen.",
+        "emergencyTitle": "⚠️ Dringender medizinischer Kontakt",
+        "emergencyText": "Bei: starker Gesichtsschwellung, Fieber, Atem- oder Schluckbeschwerden — rufen Sie sofort 112 an oder gehen Sie in die Notaufnahme. Diese Symptome können auf eine sich entwickelnde Infektion hinweisen, die sofortiges Eingreifen erfordert.",
+        "emergencyCall112": "112 anrufen",
+        "emergencyClinic": "Klinik kontaktieren"
     },
     "language": {
         "pl": "Polski",

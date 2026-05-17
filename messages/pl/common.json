@@ -373,7 +373,13 @@
         "softTissues": "Tkanki Miękkie",
         "softTissuesSub": "Język · Podniebienie · Gardło",
         "metaTitle": "Mapa Bólu Zębów | {brandName}",
-        "metaDescription": "Interaktywna mapa bólu zębów — wskaż ząb, który boli, a podpowiemy co może być przyczyną."
+        "metaDescription": "Interaktywna mapa bólu zębów — wskaż ząb, który boli, a podpowiemy co może być przyczyną.",
+        "medicalDisclaimer": "🩺 To narzędzie nie jest diagnozą medyczną. Wyniki są informacyjne — w razie wątpliwości skonsultuj się z lekarzem dentystą.",
+        "medsConsultPharmacist": "💊 Przed zastosowaniem jakichkolwiek leków skonsultuj się z farmaceutą lub lekarzem, zwłaszcza jeśli przyjmujesz inne leki, jesteś w ciąży lub karmisz piersią.",
+        "emergencyTitle": "⚠️ Pilny kontakt medyczny",
+        "emergencyText": "Jeśli masz: silny obrzęk twarzy, gorączkę, trudności w oddychaniu lub połykaniu — natychmiast zadzwoń pod 112 lub udaj się na SOR. Te objawy mogą wskazywać na rozwijającą się infekcję wymagającą natychmiastowej interwencji.",
+        "emergencyCall112": "Zadzwoń 112",
+        "emergencyClinic": "Skontaktuj się z kliniką"
     },
     "language": {
         "pl": "Polski",

@@ -5,6 +5,7 @@ import { type ZoneInfo, type SeverityLevel, type TipItem } from './SymptomData';
 import { getSymptomData } from './getSymptomData';
 import { Link } from '@/i18n/navigation';
 import { useTranslations, useLocale } from 'next-intl';
+import { brand } from '@/lib/brandConfig';
 
 // ─────────────────────────────────────────────────────────────
 // PREMIUM DENTAL MAP — Multi-severity system
@@ -507,6 +508,72 @@ export default function PainMapInteractive() {
                             {activeLevel.description}
                         </p>
 
+                        {/* S7-1 (2026-05-17): EMERGENCY banner — pokazywany dla high severity.
+                            Audyt wymagał komunikatu o alarmowych objawach (obrzęk twarzy, gorączka,
+                            duszność/dysfagia) → pilny kontakt 112 lub klinika. */}
+                        {activeLevel.urgency === 'high' && (
+                            <div style={{
+                                background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.35)',
+                                borderRadius: '14px', padding: '14px 16px', marginBottom: '14px',
+                            }}>
+                                <div style={{
+                                    color: '#f87171', fontSize: '13px', fontWeight: 700,
+                                    marginBottom: '6px', letterSpacing: '0.02em',
+                                }}>
+                                    {t('emergencyTitle')}
+                                </div>
+                                <p style={{
+                                    color: 'rgba(255,255,255,0.7)', fontSize: '12.5px',
+                                    lineHeight: 1.55, margin: '0 0 10px',
+                                }}>
+                                    {t('emergencyText')}
+                                </p>
+                                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                    <a
+                                        href="tel:112"
+                                        style={{
+                                            flex: '1 1 auto', textAlign: 'center',
+                                            padding: '8px 12px', borderRadius: '10px',
+                                            background: '#dc2626', color: '#fff',
+                                            fontSize: '12px', fontWeight: 700,
+                                            textDecoration: 'none', minWidth: '120px',
+                                        }}
+                                    >
+                                        {t('emergencyCall112')}
+                                    </a>
+                                    <a
+                                        href={`tel:${(brand.phone1 || '').replace(/\s/g, '')}`}
+                                        style={{
+                                            flex: '1 1 auto', textAlign: 'center',
+                                            padding: '8px 12px', borderRadius: '10px',
+                                            background: 'rgba(255,255,255,0.06)',
+                                            border: '1px solid rgba(255,255,255,0.12)',
+                                            color: 'rgba(255,255,255,0.85)',
+                                            fontSize: '12px', fontWeight: 600,
+                                            textDecoration: 'none', minWidth: '140px',
+                                        }}
+                                    >
+                                        {t('emergencyClinic')} ({brand.phone1})
+                                    </a>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* S7-1 (2026-05-17): MEDICAL DISCLAIMER — zawsze widoczny.
+                            Wymóg audytu: jasne info że narzędzie nie zastępuje lekarza. */}
+                        <div style={{
+                            background: 'rgba(var(--color-primary-rgb),0.05)',
+                            border: '1px solid rgba(var(--color-primary-rgb),0.15)',
+                            borderRadius: '12px', padding: '10px 14px', marginBottom: '14px',
+                        }}>
+                            <p style={{
+                                color: 'rgba(255,255,255,0.55)', fontSize: '11.5px',
+                                lineHeight: 1.5, margin: 0,
+                            }}>
+                                {t('medicalDisclaimer')}
+                            </p>
+                        </div>
+
                         {/* Symptoms card */}
                         <div style={{
                             background: 'rgba(255,255,255,0.03)', borderRadius: '16px',
@@ -634,7 +701,7 @@ export default function PainMapInteractive() {
                         {/* Advice card */}
                         <div style={{
                             background: 'rgba(var(--color-primary-rgb),0.04)', borderRadius: '16px',
-                            padding: '16px', marginBottom: '24px',
+                            padding: '16px', marginBottom: '12px',
                             border: '1px solid rgba(var(--color-primary-rgb),0.1)',
                         }}>
                             <span style={{
@@ -649,6 +716,22 @@ export default function PainMapInteractive() {
                                 lineHeight: 1.6, margin: 0,
                             }}>
                                 {activeLevel.advice}
+                            </p>
+                        </div>
+
+                        {/* S7-1 (2026-05-17): PHARMACIST disclaimer — pod advice które często
+                            zawiera konkretne dawkowanie leków (ibuprofen 400mg etc.). Wymóg audytu:
+                            zalecenia lekowe muszą być poprzedzone ostrzeżeniem o konsultacji. */}
+                        <div style={{
+                            background: 'rgba(251,191,36,0.06)',
+                            border: '1px solid rgba(251,191,36,0.2)',
+                            borderRadius: '12px', padding: '10px 14px', marginBottom: '24px',
+                        }}>
+                            <p style={{
+                                color: 'rgba(255,255,255,0.6)', fontSize: '11.5px',
+                                lineHeight: 1.5, margin: 0,
+                            }}>
+                                {t('medsConsultPharmacist')}
                             </p>
                         </div>
 
