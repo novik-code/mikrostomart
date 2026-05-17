@@ -11,6 +11,11 @@ import { useTranslations } from "next-intl";
 // Pages where the teaser should be hidden (interactive tools)
 const HIDDEN_PATHS = ["/mapa-bolu", "/symulator", "/cennik"];
 
+// S7-2 (2026-05-17): pages where the teaser stays visible ALE jest mniejszy /
+// bardziej przezroczysty — żeby nie nachodził na długie formularze.
+// Audyt: "AI asystent może nachodzić na formularze, szczególnie na mobile".
+const DIMMED_PATHS = ["/rezerwacja", "/kontakt"];
+
 interface Message {
     role: "user" | "assistant";
     content: string;
@@ -33,6 +38,39 @@ export default function AssistantTeaser() {
     ];
     const [isVisible, setIsVisible] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
+
+    // S7-2 (2026-05-17): hide teaser on mobile when any input is focused.
+    // Floating icon at bottom-left otherwise blocks the soft keyboard area.
+    const [isInputFocused, setIsInputFocused] = useState(false);
+    useEffect(() => {
+        const isMobile = typeof window !== 'undefined'
+            && window.matchMedia('(max-width: 768px)').matches;
+        if (!isMobile) return;
+
+        const isEditableElement = (el: Element | null): boolean => {
+            if (!el) return false;
+            const tag = el.tagName;
+            return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT'
+                || (el as HTMLElement).isContentEditable;
+        };
+
+        const onFocusIn = (e: FocusEvent) => {
+            if (isEditableElement(e.target as Element)) setIsInputFocused(true);
+        };
+        const onFocusOut = (e: FocusEvent) => {
+            if (isEditableElement(e.target as Element)) setIsInputFocused(false);
+        };
+
+        document.addEventListener('focusin', onFocusIn);
+        document.addEventListener('focusout', onFocusOut);
+        return () => {
+            document.removeEventListener('focusin', onFocusIn);
+            document.removeEventListener('focusout', onFocusOut);
+        };
+    }, []);
+
+    // S7-2: dim/shrink na stronach z długimi formularzami (rezerwacja, kontakt).
+    const isDimmed = DIMMED_PATHS.some(p => pathname?.endsWith(p));
 
     // Chat State
     const [messages, setMessages] = useState<Message[]>([
@@ -174,8 +212,9 @@ export default function AssistantTeaser() {
                         bottom: '24px',
                         left: '24px',
                         zIndex: 99999,
-                        width: '52px',
-                        height: '52px',
+                        // S7-2: dimmed na rezerwacja/kontakt = mniejszy 40px zamiast 52px
+                        width: isDimmed ? '40px' : '52px',
+                        height: isDimmed ? '40px' : '52px',
                         borderRadius: '50%',
                         border: '2px solid rgba(var(--color-primary-rgb), 0.6)',
                         background: 'rgba(18, 20, 24, 0.85)',
@@ -188,13 +227,17 @@ export default function AssistantTeaser() {
                         boxShadow: isHovered
                             ? '0 0 20px rgba(var(--color-primary-rgb), 0.4), 0 8px 32px rgba(0,0,0,0.5)'
                             : '0 4px 16px rgba(0,0,0,0.4)',
+                        // S7-2: na input:focus mobile → hide (opacity 0 + pointer-events none).
+                        // Na dimmed pages → reduced opacity 0.5. Hover restore na pełen alpha.
+                        opacity: isInputFocused ? 0 : (isDimmed && !isHovered ? 0.5 : 1),
+                        pointerEvents: isInputFocused ? 'none' : 'auto',
                         transform: isHovered ? 'scale(1.1)' : 'scale(1)',
                         transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                         animation: 'assistantPulse 3s ease-in-out infinite',
                     }}
                 >
                     <MessageCircle
-                        size={22}
+                        size={isDimmed ? 18 : 22}
                         color="var(--color-primary)"
                         style={{
                             transition: 'transform 0.3s ease',

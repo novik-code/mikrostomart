@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { Link } from "@/i18n/navigation";
 import { useTranslations, useLocale } from "next-intl";
 import { type TreatmentPath, type Variant, type Stage } from "./treatmentData";
@@ -460,6 +460,22 @@ export default function KalkulatorLeczeniaPage() {
     const [result, setResult] = useState<Variant | null>(null);
     const [hoveredTile, setHoveredTile] = useState<string | null>(null);
 
+    // S7-2 (2026-05-17): scroll top of card into view after step/question change.
+    // Audyt: "Po interakcjach widok potrafi znaleźć się za nisko albo poza
+    // najważniejszą treścią". Skip initial render (select step, q0) — user
+    // właśnie otworzył stronę, nie chcemy zerowego scrolla.
+    const cardRef = useRef<HTMLDivElement>(null);
+    const isInitialRender = useRef(true);
+    useEffect(() => {
+        if (isInitialRender.current) {
+            isInitialRender.current = false;
+            return;
+        }
+        requestAnimationFrame(() => {
+            cardRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+        });
+    }, [step, questionIndex]);
+
     // Lead form state
     const [showLeadForm, setShowLeadForm] = useState(false);
     const [leadName, setLeadName] = useState("");
@@ -560,7 +576,7 @@ export default function KalkulatorLeczeniaPage() {
                 </p>
             </section>
 
-            <div style={S.container}>
+            <div ref={cardRef} style={S.container}>
 
                 {/* ═══════ STEP A: Service Selection ═══════ */}
                 {step === "select" && (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { Link } from "@/i18n/navigation";
 import { useTranslations, useLocale } from "next-intl";
 import type { Comparator, ScoredMethod, TableCell } from "./comparatorTypes";
@@ -558,6 +558,20 @@ export default function PorownywarkaPage() {
     const [answers, setAnswers] = useState<Record<string, string>>({});
     const [hoveredTile, setHoveredTile] = useState<string | null>(null);
 
+    // S7-2 (2026-05-17): scroll top of card after step/question change.
+    // Same pattern as kalkulator-leczenia. Skip initial render.
+    const cardRef = useRef<HTMLDivElement>(null);
+    const isInitialRender = useRef(true);
+    useEffect(() => {
+        if (isInitialRender.current) {
+            isInitialRender.current = false;
+            return;
+        }
+        requestAnimationFrame(() => {
+            cardRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+        });
+    }, [step, questionIndex]);
+
     // Lead form
     const [showLeadForm, setShowLeadForm] = useState(false);
     const [leadName, setLeadName] = useState("");
@@ -699,7 +713,7 @@ export default function PorownywarkaPage() {
                 </p>
             </section>
 
-            <div style={S.container}>
+            <div ref={cardRef} style={S.container}>
 
                 {/* ═══ STEP 0: Category ═══ */}
                 {step === "category" && (
