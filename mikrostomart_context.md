@@ -2482,6 +2482,107 @@ NODE_ENV=production
 
 ## 📝 Recent Changes
 
+### 2026-05-17 — S6-6 minor bumps (Sprint 6 COMPLETE)
+
+#### Commit:
+- `b71ad42` — chore(deps): S6-6 minor bumps (maintenance, Sprint 6 COMPLETE)
+
+#### Co zrobione
+
+`npm update` (safe bumps w obrębie `^` ranges z package.json) + targeted bump `react`/`react-dom` z pinned `19.2.3` na `^19.2.6`.
+
+**Bumps (`npm update`)**:
+- `@sentry/nextjs 10.42.0 → 10.53.1` (**bonus: fix pre-existing `disableLogger` deprecation warning**)
+- `@stripe/react-stripe-js 5.4.1 → 5.6.1`, `@stripe/stripe-js 8.6.0 → 8.11.0`, `stripe 20.1.0 → 20.4.1` (wszystkie w obrębie current major)
+- `@supabase/supabase-js 2.90.1 → 2.105.4`
+- `@types/node 20.19.27 → 20.19.41`, `@types/react 19.2.7 → 19.2.14`
+- `@yudiel/react-qr-scanner 2.5.1 → 2.6.0`
+- `autoprefixer 10.4.23 → 10.5.0`, `tailwindcss 4.1.18 → 4.3.0`, `postcss 8.5.8 → 8.5.14`
+- `dotenv 17.2.3 → 17.4.2`
+- `eslint 9.39.2 → 9.39.4` (patch w obrębie v9)
+- `firebase 12.11.0 → 12.13.0`
+- `framer-motion 12.23.26 → 12.38.0`
+- `nanoid 5.1.6 → 5.1.11` (S4-4 dep)
+- `nodemailer 8.0.5 → 8.0.7`
+- `openai 6.15.0 → 6.38.0`
+- `pdfjs-dist 4.8.69 → 4.10.38` (patch w obrębie v4)
+- `react-hook-form 7.69.0 → 7.76.0`
+- `vitest 4.1.2 → 4.1.6`, `zod 4.4.1 → 4.4.3`
+
+**Targeted bump**:
+- `react 19.2.3` (pinned) → `^19.2.6` (caret + patch bump)
+- `react-dom 19.2.3` (pinned) → `^19.2.6`
+
+**Intentionally NOT bumped** (major lub 0.x risky — wymagałyby osobnego sprintu):
+- `@stripe/react-stripe-js 5 → 6`, `@stripe/stripe-js 8 → 9`, `stripe 20 → 22` (wszystkie major)
+- `@supabase/ssr 0.8.0 → 0.10.3` (0.x — risky nawet dla minor)
+- `@types/node v20 → v25` (major — Node version pin)
+- `@types/nodemailer 7 → 8` (major)
+- `eslint 9 → 10` (major)
+- `lucide-react 0.x → 1.x` (major)
+- `pdfjs-dist 4 → 5` (major)
+- `typescript 5 → 6` (major)
+- `@mediapipe/tasks-vision RC version` (skip — pre-release)
+
+#### Audit i build
+
+- **Audit unchanged** vs po S6-5: 10 vulns (8 low, 2 moderate, **0 critical, 0 high**) — to maintenance bumps, nie security fix
+- **Build clean**. Pre-existing warnings:
+  - ✅ ELIMINATED: `@sentry/nextjs disableLogger` deprecation (po bumpie do 10.53.1)
+  - ⏳ Remaining: `middleware → proxy` rename Next 16 (świadomie pominięty refactor, separate sprint)
+
+#### Verification
+
+- Local build clean
+- Claude_Preview headless smoke test (12 paths tested):
+  - Homepage 200 + screenshot OK
+  - /sklep, /kontakt, /rezerwacja, /aktualnosci → 200
+  - /en/o-nas, /ua/oferta → 200 (i18n routing OK)
+  - **S5-4 cross-locale** /baza-wiedzy/wurzelkanalbehandlung-laser → 308 ✓
+  - **S5-4 canonical** /de/baza-wiedzy/... → 200 ✓
+  - /sw.js, /push-sw.js, /manifest.webmanifest → 200
+  - 0 console errors
+- Production smoke test po Vercel deploy:
+  - Homepage 200, /sklep 200, /kontakt 200
+  - S5-4 redirect 308 ✓
+  - /sw.js 200, /push-sw.js 200, /manifest 200
+  - Vercel cache MISS = fresh deploy confirmed
+
+#### 🎯 Sprint 6 COMPLETE
+
+Wszystkie podsprinty zamknięte:
+- **S6-1** ✅ triage + plan (`~/Desktop/bałagan/PLAN_DEPENDENCY_UPGRADES.md`)
+- **S6-2** ✅ Next 16.2.6 + safe transitives (`08e6a8c`) — 2 critical + 9 high closed
+- **S6-3** ✅ AUTOMATIC (sanitize-html zamknięty przez S6-2 audit fix) — no-op
+- **S6-4** ✅ jimp → devDependencies (`9da4a84`) — architectural cleanup
+- **S6-5** ✅ @serwist/next migration (`66956f4`) — 5 high closed
+- **S6-6** ✅ minor bumps (`b71ad42`) — maintenance + Sentry warning fix
+
+**Cumulative audit reduction Sprint 6**:
+
+| Stage | Total | Critical | High | Moderate | Low |
+|---|---|---|---|---|---|
+| Pre-S6 (po S5, 2026-05-15) | 58 | 2 | 14 | 29 | 13 |
+| **Po S6 (2026-05-17)** | **10** | **0** ✅ | **0** ✅ | 2 | 8 |
+
+**Reduction: -82%** total vulns, **-100%** critical + high.
+
+#### Status Hotfix Sprint po Sprint 6
+
+- ✅ S1 SPRINT COMPLETE (auth)
+- ✅ S2 4.5/5 (payment integrity)
+- ✅ S3 SPRINT COMPLETE (reservation security)
+- ✅ S4 4.5/5 (XSS + public hardening, S4-2b paused)
+- ✅ S5 SPRINT COMPLETE + S5-4 (SEO P2 cleanup + cross-locale 301)
+- ✅ **S6 SPRINT COMPLETE** (dependency upgrade)
+- ⏳ S7 UX follow-up (mapa bólu disclaimer + scroll + menu) — **NEXT**
+- ⏳ S8 RODO + 2FA staff
+- ⏳ S9 lint baseline + CI gates
+
+Po S9 wracamy do Fazy K Premium SEO.
+
+---
+
 ### 2026-05-15 EOD #3 — S6-4 jimp → devDependencies + S6-5 serwist migration (Sprint 6 main goal: 0 critical, 0 HIGH)
 
 #### Commits:
