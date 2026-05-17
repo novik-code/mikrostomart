@@ -41,11 +41,17 @@ export default function AssistantTeaser() {
 
     // S7-2 (2026-05-17): hide teaser on mobile when any input is focused.
     // Floating icon at bottom-left otherwise blocks the soft keyboard area.
+    // S7-3 fix #6 (2026-05-17): track `isMobileViewport` reactively so floating
+    // icon can be positioned ABOVE the MobileBottomBar (sticky 60px+safe-area
+    // strip at bottom) and not overlap the Phone CTA in left slot.
     const [isInputFocused, setIsInputFocused] = useState(false);
+    const [isMobileViewport, setIsMobileViewport] = useState(false);
     useEffect(() => {
-        const isMobile = typeof window !== 'undefined'
-            && window.matchMedia('(max-width: 768px)').matches;
-        if (!isMobile) return;
+        if (typeof window === 'undefined') return;
+        const mq = window.matchMedia('(max-width: 768px)');
+        const apply = () => setIsMobileViewport(mq.matches);
+        apply();
+        mq.addEventListener('change', apply);
 
         const isEditableElement = (el: Element | null): boolean => {
             if (!el) return false;
@@ -53,17 +59,17 @@ export default function AssistantTeaser() {
             return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT'
                 || (el as HTMLElement).isContentEditable;
         };
-
         const onFocusIn = (e: FocusEvent) => {
-            if (isEditableElement(e.target as Element)) setIsInputFocused(true);
+            // input:focus hide-on-mobile only — desktop nieaffected
+            if (mq.matches && isEditableElement(e.target as Element)) setIsInputFocused(true);
         };
         const onFocusOut = (e: FocusEvent) => {
-            if (isEditableElement(e.target as Element)) setIsInputFocused(false);
+            if (mq.matches && isEditableElement(e.target as Element)) setIsInputFocused(false);
         };
-
         document.addEventListener('focusin', onFocusIn);
         document.addEventListener('focusout', onFocusOut);
         return () => {
+            mq.removeEventListener('change', apply);
             document.removeEventListener('focusin', onFocusIn);
             document.removeEventListener('focusout', onFocusOut);
         };
@@ -209,7 +215,13 @@ export default function AssistantTeaser() {
                     aria-label={t('ariaOpenAssistant')}
                     style={{
                         position: 'fixed',
-                        bottom: '24px',
+                        // S7-3 fix #6: na mobile podnieś nad MobileBottomBar
+                        // (60px + env(safe-area-inset-bottom) + 12px gap) żeby
+                        // ikona nie zasłaniała Phone CTA w lewym slot bar.
+                        // Desktop niezmieniony: 24px od dolnej krawędzi.
+                        bottom: isMobileViewport
+                            ? 'calc(60px + env(safe-area-inset-bottom) + 12px)'
+                            : '24px',
                         left: '24px',
                         zIndex: 99999,
                         // S7-2: dimmed na rezerwacja/kontakt = mniejszy 40px zamiast 52px
