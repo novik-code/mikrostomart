@@ -350,7 +350,13 @@ export default function ConsentSigningPage() {
             // Use pdfjs-dist legacy build for Safari/iOS compatibility
             // Legacy build avoids modern JS features (private fields, etc.) that break on Safari
             const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
-            pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
+            // Worker version MUST match installed pdfjs-dist (package.json). Query string
+            // is bumped on each pdfjs update to force PWA/HTTP cache miss — without to,
+            // stale workers from poprzedniej wersji powodują "API does not match Worker"
+            // crash i pacjent nie może podpisać zgody. Po npm update pdfjs-dist:
+            //   1. cp node_modules/pdfjs-dist/legacy/build/pdf.worker.min.mjs public/
+            //   2. bump ?v= tutaj do nowej wersji (zgodnej z package.json)
+            pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs?v=4.10.38';
 
             const pdf = await pdfjsLib.getDocument({
                 data: pdfBytes,
