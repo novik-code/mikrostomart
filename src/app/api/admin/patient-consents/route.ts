@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { requireAdmin } from '@/lib/authGuards';
+import { readPatientConsentPii } from '@/lib/encryptedPiiFields';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -30,21 +31,31 @@ export async function GET(req: NextRequest) {
                 .single();
 
             if (error) throw error;
-            return NextResponse.json(data);
+
+            // S8-7: decrypt PII (signature_data, biometric_data) before returning to admin viewer.
+            const pii = readPatientConsentPii(data);
+            return NextResponse.json({
+                ...data,
+                signature_data: pii.signature_data,
+                biometric_data: pii.biometric_data,
+                signature_data_encrypted: undefined,
+                biometric_data_encrypted: undefined,
+            });
         }
 
         // List consents (without heavy biometric data)
         const { data, error, count } = await supabase
             .from('patient_consents')
-            .select('id, patient_name, prodentis_patient_id, consent_type, consent_label, file_url, file_name, signed_at, prodentis_synced, created_by, biometric_data', { count: 'exact' })
+            .select('id, patient_name, prodentis_patient_id, consent_type, consent_label, file_url, file_name, signed_at, prodentis_synced, created_by, biometric_data, biometric_data_encrypted', { count: 'exact' })
             .order('signed_at', { ascending: false })
             .range(offset, offset + limit - 1);
 
         if (error) throw error;
 
-        // For list view, only include biometric summary (not full strokes)
-        const simplified = (data || []).map(c => {
-            const bio = c.biometric_data;
+        // For list view, decrypt biometric to compute summary, then drop full payload.
+        const simplified = (data || []).map((c: any) => {
+            const pii = readPatientConsentPii(c);
+            const bio: any = pii.biometric_data;
             return {
                 ...c,
                 biometric_data: bio ? {
@@ -56,6 +67,7 @@ export async function GET(req: NextRequest) {
                     pointerType: bio.deviceInfo?.pointerType || 'unknown',
                     strokeCount: bio.strokes?.length || 0,
                 } : null,
+                biometric_data_encrypted: undefined,
             };
         });
 

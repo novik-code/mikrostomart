@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getConsentTypesFromDB } from '@/lib/consentTypes';
 import { getProdentisKey } from '@/lib/pmsConfig';
+import { prepareConsentInsert } from '@/lib/encryptedPiiFields';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -135,6 +136,12 @@ export async function POST(req: NextRequest) {
         }
 
         // Save record
+        // S8-7: signature_data + biometric_data encrypted via prepareConsentInsert.
+        const consentPiiPayload = prepareConsentInsert({
+            signature_data: signatureDataUrl || null,
+            biometric_data: biometricData || null,
+        });
+
         const { data: consent, error: insertErr } = await supabase
             .from('patient_consents')
             .insert({
@@ -144,11 +151,10 @@ export async function POST(req: NextRequest) {
                 consent_label: consentInfo.label,
                 file_url: fileUrl,
                 file_name: fileName,
-                signature_data: signatureDataUrl || null,
-                biometric_data: biometricData || null,
                 created_by: tokenRow.created_by || null,
                 prodentis_synced: prodentisSynced,
                 metadata: {},
+                ...consentPiiPayload,
             })
             .select('id')
             .single();

@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
 import { logAudit } from '@/lib/auditLog';
+import { readIntakeSubmissionPii } from '@/lib/encryptedPiiFields';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -43,7 +44,7 @@ export async function GET(req: NextRequest) {
         if (tokenIds.length) {
             const { data: byToken } = await supabase
                 .from('patient_intake_submissions')
-                .select('id, first_name, last_name, signature_data, medical_survey, submitted_at, pdf_url, prodentis_patient_id')
+                .select('id, first_name, last_name, signature_data, signature_data_encrypted, medical_survey, medical_survey_encrypted, submitted_at, pdf_url, prodentis_patient_id')
                 .in('token_id', tokenIds)
                 .order('submitted_at', { ascending: false })
                 .limit(1);
@@ -53,7 +54,7 @@ export async function GET(req: NextRequest) {
         if (!submissions.length) {
             const { data: byProdentis } = await supabase
                 .from('patient_intake_submissions')
-                .select('id, first_name, last_name, signature_data, medical_survey, submitted_at, pdf_url, prodentis_patient_id')
+                .select('id, first_name, last_name, signature_data, signature_data_encrypted, medical_survey, medical_survey_encrypted, submitted_at, pdf_url, prodentis_patient_id')
                 .eq('prodentis_patient_id', prodentisId)
                 .order('submitted_at', { ascending: false })
                 .limit(1);
@@ -71,13 +72,16 @@ export async function GET(req: NextRequest) {
             request: req,
         });
 
+        // S8-7: decrypt PII (signature_data, medical_survey) — prefers encrypted column, fallback to plaintext.
+        const piiDecrypted = intake ? readIntakeSubmissionPii(intake) : null;
+
         return NextResponse.json({
             intake: intake ? {
                 id: intake.id,
                 firstName: intake.first_name,
                 lastName: intake.last_name,
-                hasSignature: !!intake.signature_data,
-                signatureData: intake.signature_data,
+                hasSignature: !!piiDecrypted?.signature_data,
+                signatureData: piiDecrypted?.signature_data ?? null,
                 pdfUrl: intake.pdf_url || null,
                 createdAt: intake.submitted_at,
             } : null,

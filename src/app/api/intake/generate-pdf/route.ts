@@ -6,6 +6,7 @@ import fs from 'fs';
 import path from 'path';
 import { demoSanitize } from '@/lib/brandConfig';
 import { getProdentisKey } from '@/lib/pmsConfig';
+import { readIntakeSubmissionPii } from '@/lib/encryptedPiiFields';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -151,6 +152,17 @@ function buildSections(submission: any): Section[] {
 // ─── PDF Builder ─────────────────────────────────────────
 
 async function generateEKartaPdf(submission: any): Promise<Uint8Array> {
+    // S8-7: decrypt PII fields (pesel, medical_survey, medical_notes, signature_data)
+    // before building PDF — prefers encrypted column, falls back to plaintext.
+    const pii = readIntakeSubmissionPii(submission);
+    submission = {
+        ...submission,
+        pesel: pii.pesel,
+        medical_survey: pii.medical_survey,
+        medical_notes: pii.medical_notes,
+        signature_data: pii.signature_data,
+    };
+
     const pdfDoc = await PDFDocument.create();
     pdfDoc.registerFontkit(fontkit);
 

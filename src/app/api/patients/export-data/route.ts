@@ -4,6 +4,7 @@ import { verifyTokenFromRequest } from '@/lib/jwt';
 import { demoSanitize } from '@/lib/brandConfig';
 import { getUserAIConversations } from '@/lib/aiConversationLog';
 import JSZip from 'jszip';
+import { readIntakeSubmissionPii } from '@/lib/encryptedPiiFields';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -138,14 +139,24 @@ export async function GET(request: NextRequest) {
         }
 
         // ── 7. Intake submissions (S8-4) ──
+        // S8-7: pesel + medical_notes decrypted via readIntakeSubmissionPii.
         let intakeSubmissions: Array<{ id: string; pdf_url?: string; submitted_at?: string }> = [];
         if (patient.prodentis_id) {
             const { data: intake } = await supabase
                 .from('patient_intake_submissions')
-                .select('id, first_name, last_name, pesel, birth_date, gender, street, postal_code, city, phone, email, marketing_consent, contact_consent, rodo_consent, medical_notes, submitted_at, pdf_url')
+                .select('id, first_name, last_name, pesel, pesel_encrypted, birth_date, gender, street, postal_code, city, phone, email, marketing_consent, contact_consent, rodo_consent, medical_notes, medical_notes_encrypted, submitted_at, pdf_url')
                 .eq('prodentis_patient_id', patient.prodentis_id)
                 .order('submitted_at', { ascending: false });
-            intakeSubmissions = (intake || []) as typeof intakeSubmissions;
+            intakeSubmissions = ((intake || []) as any[]).map((row) => {
+                const pii = readIntakeSubmissionPii(row);
+                return {
+                    ...row,
+                    pesel: pii.pesel,
+                    medical_notes: pii.medical_notes,
+                    pesel_encrypted: undefined,
+                    medical_notes_encrypted: undefined,
+                };
+            }) as typeof intakeSubmissions;
         }
 
         // ── 8. Patient consents (S8-4) ──

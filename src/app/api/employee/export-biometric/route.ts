@@ -4,6 +4,7 @@ import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
 import { logAudit } from '@/lib/auditLog';
 import { getProdentisKey } from '@/lib/pmsConfig';
+import { readPatientConsentPii } from '@/lib/encryptedPiiFields';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -51,7 +52,7 @@ export async function POST(req: NextRequest) {
         // Fetch consent with full biometric data
         const { data: consent, error } = await supabase
             .from('patient_consents')
-            .select('id, patient_name, prodentis_patient_id, consent_type, consent_label, signature_data, biometric_data, signed_at, metadata')
+            .select('id, patient_name, prodentis_patient_id, consent_type, consent_label, signature_data, signature_data_encrypted, biometric_data, biometric_data_encrypted, signed_at, metadata')
             .eq('id', consentId)
             .single();
 
@@ -63,6 +64,9 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'No Prodentis patient ID — cannot export' }, { status: 400 });
         }
 
+        // S8-7: decrypt signature_data + biometric_data — prefers encrypted column, fallback to plaintext.
+        const consentPii = readPatientConsentPii(consent);
+
         const date = new Date(consent.signed_at).toISOString().slice(0, 10);
         const safeName = polishToAscii(consent.patient_name);
         const safeType = polishToAscii(consent.consent_type);
@@ -73,11 +77,11 @@ export async function POST(req: NextRequest) {
         };
 
         // 1. Export signature as PNG
-        if (consent.signature_data) {
+        if (consentPii.signature_data) {
             try {
                 // signature_data is a data URL: "data:image/png;base64,..."
-                const base64Match = consent.signature_data.match(/^data:image\/\w+;base64,(.+)$/);
-                const pngBase64 = base64Match ? base64Match[1] : consent.signature_data;
+                const base64Match = consentPii.signature_data.match(/^data:image\/\w+;base64,(.+)$/);
+                const pngBase64 = base64Match ? base64Match[1] : consentPii.signature_data;
                 const signatureFileName = `Podpis_${safeType}_${safeName}_${date}.png`;
 
                 const res = await fetch(
@@ -113,9 +117,9 @@ export async function POST(req: NextRequest) {
         }
 
         // 2. Export biometric data as JSON
-        if (consent.biometric_data) {
+        if (consentPii.biometric_data) {
             try {
-                const biometricJson = JSON.stringify(consent.biometric_data, null, 2);
+                const biometricJson = JSON.stringify(consentPii.biometric_data, null, 2);
                 const jsonBase64 = Buffer.from(biometricJson, 'utf-8').toString('base64');
                 const biometricFileName = `Biometria_${safeType}_${safeName}_${date}.json`;
 

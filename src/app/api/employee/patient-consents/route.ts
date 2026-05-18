@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
 import { logAudit } from '@/lib/auditLog';
+import { readPatientConsentPii } from '@/lib/encryptedPiiFields';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -31,7 +32,7 @@ export async function GET(req: NextRequest) {
     try {
         let query = supabase
             .from('patient_consents')
-            .select('id, consent_type, consent_label, file_url, file_name, signed_at, prodentis_synced, biometric_data, signature_data, metadata')
+            .select('id, consent_type, consent_label, file_url, file_name, signed_at, prodentis_synced, biometric_data, biometric_data_encrypted, signature_data, signature_data_encrypted, metadata')
             .order('signed_at', { ascending: false });
 
         if (prodentisId) {
@@ -54,7 +55,20 @@ export async function GET(req: NextRequest) {
             request: req,
         });
 
-        return NextResponse.json({ consents: data || [] });
+        // S8-7: decrypt PII per row — prefers encrypted column, falls back to plaintext.
+        const decryptedConsents = (data || []).map((row: any) => {
+            const pii = readPatientConsentPii(row);
+            return {
+                ...row,
+                signature_data: pii.signature_data,
+                biometric_data: pii.biometric_data,
+                // strip encrypted columns from response (caller doesn't need them)
+                signature_data_encrypted: undefined,
+                biometric_data_encrypted: undefined,
+            };
+        });
+
+        return NextResponse.json({ consents: decryptedConsents });
     } catch (err: any) {
         console.error('[PatientConsents] Error:', err);
         return NextResponse.json({ error: err.message }, { status: 500 });

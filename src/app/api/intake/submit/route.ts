@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { generateEKartaPdf } from '@/app/api/intake/generate-pdf/route';
 import { getProdentisKey } from '@/lib/pmsConfig';
+import { prepareIntakeSubmissionInsert } from '@/lib/encryptedPiiFields';
 
 /**
  * POST /api/intake/submit
@@ -149,6 +150,15 @@ export async function POST(req: Request) {
     const medicalNotes = sections.join('\n');
 
     // 3. Save submission to Supabase
+    // S8-7: PII (pesel, medical_survey, medical_notes, signature_data) encrypted via
+    // prepareIntakeSubmissionInsert — writes both plaintext (transition) and encrypted columns.
+    const piiPayload = prepareIntakeSubmissionInsert({
+        pesel: formData.pesel || null,
+        medical_survey: survey,
+        medical_notes: medicalNotes,
+        signature_data: formData.signatureData || null,
+    });
+
     const { data: submission, error: subErr } = await supabase
         .from('patient_intake_submissions')
         .insert({
@@ -157,7 +167,6 @@ export async function POST(req: Request) {
             last_name: formData.lastName,
             middle_name: formData.middleName || null,
             maiden_name: formData.maidenName || null,
-            pesel: formData.pesel || null,
             birth_date: formData.birthDate || null,
             gender: formData.gender || null,
             street: formData.street || null,
@@ -168,10 +177,8 @@ export async function POST(req: Request) {
             marketing_consent: formData.marketingConsent || false,
             contact_consent: formData.contactConsent !== false,
             rodo_consent: formData.rodoConsent !== false,
-            medical_survey: survey,
-            medical_notes: medicalNotes,
-            signature_data: formData.signatureData || null,
             prodentis_status: 'pending',
+            ...piiPayload,
         })
         .select('id')
         .single();
