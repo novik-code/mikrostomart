@@ -22,6 +22,15 @@ type Device = {
     lastUsedAt: string | null;
 };
 
+type Passkey = {
+    id: string;
+    name: string;
+    createdAt: string;
+    lastUsedAt: string | null;
+    deviceType: string | null;
+    backedUp: boolean;
+};
+
 type SetupData = {
     deviceId: string;
     qrDataUrl: string;
@@ -94,6 +103,16 @@ function SecurityPage() {
     // Help modal
     const [showHelp, setShowHelp] = useState(false);
 
+    // Passkeys state
+    const [passkeys, setPasskeys] = useState<Passkey[]>([]);
+    const [passkeySupported, setPasskeySupported] = useState(false);
+    const [addPasskeyStep, setAddPasskeyStep] = useState<"name" | "registering" | "done" | null>(null);
+    const [addPasskeyName, setAddPasskeyName] = useState("");
+    const [addPasskeyError, setAddPasskeyError] = useState("");
+    const [addPasskeySubmitting, setAddPasskeySubmitting] = useState(false);
+    const [removePasskeyTarget, setRemovePasskeyTarget] = useState<Passkey | null>(null);
+    const [removePasskeySubmitting, setRemovePasskeySubmitting] = useState(false);
+
     async function fetchStatus() {
         try {
             const res = await fetch("/api/auth/2fa/status");
@@ -122,14 +141,37 @@ function SecurityPage() {
         }
     }
 
+    async function fetchPasskeys() {
+        try {
+            const res = await fetch("/api/auth/passkeys");
+            if (!res.ok) return;
+            const data = await res.json();
+            setPasskeys(data.passkeys || []);
+        } catch (err) {
+            console.error("[Security] fetch passkeys:", err);
+        }
+    }
+
     async function refreshAll() {
         setLoading(true);
-        await Promise.all([fetchStatus(), fetchDevices()]);
+        await Promise.all([fetchStatus(), fetchDevices(), fetchPasskeys()]);
         setLoading(false);
     }
 
     useEffect(() => {
         refreshAll();
+        // Sprawdź czy przeglądarka obsługuje WebAuthn (passkey)
+        if (typeof window !== "undefined" && "PublicKeyCredential" in window) {
+            // Check też czy platform authenticator dostępny (FaceID/TouchID/Hello)
+            if (window.PublicKeyCredential && typeof window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable === "function") {
+                window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
+                    .then(available => setPasskeySupported(available))
+                    .catch(() => setPasskeySupported(false));
+            } else {
+                // WebAuthn available but no platform check — assume supported for security keys
+                setPasskeySupported(true);
+            }
+        }
     }, []);
 
     // ─── First-time setup wizard ─────────────────────────────────────────
@@ -332,6 +374,109 @@ function SecurityPage() {
     }
 
     // ─── Disable 2FA + regenerate backup codes ───────────────────────────
+    // ─── Passkey add flow ─────────────────────────────────────────────────
+    async function startAddPasskey() {
+        setAddPasskeyStep("name");
+        setAddPasskeyName("");
+        setAddPasskeyError("");
+    }
+
+    async function submitAddPasskey(e: React.FormEvent) {
+        e.preventDefault();
+        setAddPasskeyError("");
+        setAddPasskeySubmitting(true);
+        try {
+            // 1. Begin: server zwraca options + sets challenge cookie
+            const beginRes = await fetch("/api/auth/passkeys/register/begin", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ deviceName: addPasskeyName.trim() || "Passkey" }),
+            });
+            if (!beginRes.ok) {
+                const data = await beginRes.json();
+                setAddPasskeyError(
+                    data.error === "device_name_taken" ? "Klucz o tej nazwie już istnieje."
+                    : data.error === "max_passkeys_reached" ? "Osiągnąłeś limit 10 kluczy."
+                    : `Błąd: ${data.error}`
+                );
+                return;
+            }
+            const { options } = await beginRes.json();
+
+            // 2. Browser API: prompt biometric (FaceID/TouchID/Hello)
+            setAddPasskeyStep("registering");
+            const { startRegistration } = await import("@simplewebauthn/browser");
+            let regResponse;
+            try {
+                regResponse = await startRegistration({ optionsJSON: options });
+            } catch (err) {
+                const errMsg = (err as Error).message || "";
+                if (errMsg.includes("excluded") || errMsg.includes("already registered")) {
+                    setAddPasskeyError("To urządzenie ma już zarejestrowany klucz dla tego konta.");
+                } else if (errMsg.includes("not allowed") || errMsg.includes("cancelled")) {
+                    setAddPasskeyError("Anulowane przez użytkownika lub przeglądarkę.");
+                } else {
+                    setAddPasskeyError(`Błąd przeglądarki: ${errMsg.slice(0, 100)}`);
+                }
+                setAddPasskeyStep("name");
+                return;
+            }
+
+            // 3. Finish: wyślij response do servera dla weryfikacji
+            const finishRes = await fetch("/api/auth/passkeys/register/finish", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    deviceName: addPasskeyName.trim() || "Passkey",
+                    response: regResponse,
+                }),
+            });
+            if (!finishRes.ok) {
+                const data = await finishRes.json();
+                setAddPasskeyError(`Weryfikacja serwera nie powiodła się: ${data.error}`);
+                setAddPasskeyStep("name");
+                return;
+            }
+
+            setAddPasskeyStep("done");
+            await fetchPasskeys();
+        } catch (err) {
+            console.error("[Security] add passkey:", err);
+            setAddPasskeyError(`Wystąpił błąd: ${(err as Error).message}`);
+            setAddPasskeyStep("name");
+        } finally {
+            setAddPasskeySubmitting(false);
+        }
+    }
+
+    function cancelAddPasskey() {
+        setAddPasskeyStep(null);
+        setAddPasskeyName("");
+        setAddPasskeyError("");
+    }
+
+    async function submitRemovePasskey() {
+        if (!removePasskeyTarget) return;
+        setRemovePasskeySubmitting(true);
+        try {
+            const res = await fetch(`/api/auth/passkeys/${removePasskeyTarget.id}`, {
+                method: "DELETE",
+            });
+            if (!res.ok) {
+                const data = await res.json();
+                alert(`Błąd: ${data.error}`);
+                return;
+            }
+            setRemovePasskeyTarget(null);
+            await fetchPasskeys();
+        } catch (err) {
+            console.error("[Security] remove passkey:", err);
+            alert(`Wystąpił błąd: ${(err as Error).message}`);
+        } finally {
+            setRemovePasskeySubmitting(false);
+        }
+    }
+
     async function submitDisable(e: React.FormEvent) {
         e.preventDefault();
         setDisableError("");
@@ -657,6 +802,123 @@ Po zużyciu wszystkich kodów wygeneruj nowe w panelu /pracownik/security.
                             + Dodaj kolejne urządzenie
                         </button>
 
+                        {/* ─── Passkeys section ──────────────────────────────────── */}
+                        <h2 style={h2Style}>🔐 Klucze biometryczne (FaceID / TouchID / Hello)</h2>
+                        <p style={{ color: "#94a3b8", fontSize: "0.85rem", marginBottom: 12 }}>
+                            Alternatywa dla wpisywania 6-cyfrowych kodów TOTP. Po zalogowaniu
+                            hasłem zatwierdzasz logowanie biometrią (twarz / palec / PIN urządzenia).
+                            Klucze passkey są <strong>phishing-resistant</strong> — sekret żyje
+                            w Secure Enclave urządzenia i nigdy go nie opuszcza.
+                        </p>
+
+                        {!passkeySupported && (
+                            <div style={infoBoxStyle}>
+                                ℹ️ Twoja przeglądarka nie obsługuje WebAuthn lub nie wykryto
+                                czytnika biometrycznego (FaceID/TouchID/Windows Hello). Możesz
+                                nadal używać kodów TOTP z aplikacji Authenticator.
+                            </div>
+                        )}
+
+                        {passkeySupported && (
+                            <>
+                                <div style={{ marginBottom: 12 }}>
+                                    {passkeys.length === 0 && (
+                                        <p style={{ color: "#94a3b8", fontStyle: "italic", padding: 12 }}>
+                                            Brak kluczy biometrycznych. Dodaj klucz dla wygodniejszego logowania.
+                                        </p>
+                                    )}
+                                    {passkeys.map(p => (
+                                        <div key={p.id} style={deviceRowStyle}>
+                                            <div style={{ flex: 1 }}>
+                                                <div style={{ color: "#fff", fontWeight: 500 }}>
+                                                    🔐 {p.name}
+                                                    {p.backedUp && (
+                                                        <span style={{ color: "#10b981", fontSize: "0.75rem", marginLeft: 8 }}>
+                                                            ☁️ sync iCloud/Google
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div style={{ color: "#64748b", fontSize: "0.8rem", marginTop: 2 }}>
+                                                    Dodano: {new Date(p.createdAt).toLocaleDateString("pl-PL")}
+                                                    {p.lastUsedAt && (
+                                                        <> · Ostatnio: {new Date(p.lastUsedAt).toLocaleString("pl-PL")}</>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div style={{ display: "flex", gap: 6 }}>
+                                                <button
+                                                    onClick={() => setRemovePasskeyTarget(p)}
+                                                    style={smallDangerBtnStyle}
+                                                    title="Usuń klucz biometryczny"
+                                                >
+                                                    🗑️
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {!addPasskeyStep && (
+                                    <button onClick={startAddPasskey} style={primaryBtnStyle}>
+                                        + Dodaj klucz biometryczny (FaceID / TouchID / Hello)
+                                    </button>
+                                )}
+
+                                {addPasskeyStep === "name" && (
+                                    <form onSubmit={submitAddPasskey} style={{ marginTop: 12 }}>
+                                        <h3 style={{ color: "#fff", marginBottom: 8 }}>Dodaj klucz biometryczny</h3>
+                                        <p style={{ color: "#cbd5e1", marginBottom: 8, fontSize: "0.9rem" }}>
+                                            Nazwij klucz (np. <em>„iPhone — FaceID"</em>, <em>„MacBook Touch ID"</em>).
+                                            Następnie zatwierdź biometrycznie w prompt'cie przeglądarki.
+                                        </p>
+                                        <input
+                                            type="text"
+                                            maxLength={60}
+                                            value={addPasskeyName}
+                                            onChange={(e) => setAddPasskeyName(e.target.value)}
+                                            placeholder="iPhone — FaceID"
+                                            autoFocus
+                                            style={{ ...codeInputStyle, fontFamily: "inherit", letterSpacing: "normal", textAlign: "left", fontSize: "1rem" }}
+                                        />
+                                        {addPasskeyError && <p style={errorStyle}>{addPasskeyError}</p>}
+                                        <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                                            <button type="submit" disabled={addPasskeySubmitting || addPasskeyName.trim().length === 0} style={primaryBtnStyle}>
+                                                {addPasskeySubmitting ? "Tworzenie..." : "Dodaj klucz →"}
+                                            </button>
+                                            <button type="button" onClick={cancelAddPasskey} style={secondaryBtnStyle}>
+                                                Anuluj
+                                            </button>
+                                        </div>
+                                    </form>
+                                )}
+
+                                {addPasskeyStep === "registering" && (
+                                    <div style={{ marginTop: 12, padding: 16, background: "#0f172a", borderRadius: 8, textAlign: "center" }}>
+                                        <p style={{ color: "#cbd5e1", marginBottom: 4 }}>
+                                            🔐 <strong>Zatwierdź biometrycznie</strong>
+                                        </p>
+                                        <p style={{ color: "#94a3b8", fontSize: "0.85rem" }}>
+                                            System poprosi o FaceID / TouchID / PIN. Jeśli prompt nie pojawia się,
+                                            sprawdź ekran telefonu lub czytnik biometryczny.
+                                        </p>
+                                    </div>
+                                )}
+
+                                {addPasskeyStep === "done" && (
+                                    <div style={{ marginTop: 12, padding: 16, background: "#064e3b", borderRadius: 8 }}>
+                                        <h3 style={{ color: "#10b981", marginBottom: 8 }}>✅ Klucz biometryczny dodany</h3>
+                                        <p style={{ color: "#cbd5e1", marginBottom: 12 }}>
+                                            Przy następnym logowaniu zobaczysz przycisk <em>„🔐 Zaloguj biometrią"</em>
+                                            obok pola TOTP — jeden klik + glance/dotyk i jesteś w środku.
+                                        </p>
+                                        <button onClick={cancelAddPasskey} style={primaryBtnStyle}>
+                                            Wróć do listy
+                                        </button>
+                                    </div>
+                                )}
+                            </>
+                        )}
+
                         {/* Disable / regenerate sections */}
                         {!showRegen && !showDisable && (
                             <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 24 }}>
@@ -952,6 +1214,31 @@ Po zużyciu wszystkich kodów wygeneruj nowe w panelu /pracownik/security.
                     </div>
                 )}
 
+                {/* ─── Remove passkey confirmation ──────────────────────────── */}
+                {removePasskeyTarget && (
+                    <div style={modalOverlayStyle} onClick={() => !removePasskeySubmitting && setRemovePasskeyTarget(null)}>
+                        <div style={modalStyle} onClick={e => e.stopPropagation()}>
+                            <h3 style={{ color: "#fff", marginBottom: 12 }}>
+                                🗑️ Usuń klucz biometryczny: {removePasskeyTarget.name}
+                            </h3>
+                            <div style={infoBoxStyle}>
+                                ℹ️ Klucz biometryczny zostanie usunięty z Twojego konta. Pozostałe
+                                metody logowania (TOTP / inne passkeys) działają bez zmian.
+                                Jeśli chcesz później używać tego urządzenia ponownie — dodaj klucz
+                                jeszcze raz.
+                            </div>
+                            <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                                <button onClick={submitRemovePasskey} disabled={removePasskeySubmitting} style={dangerBtnStyle}>
+                                    {removePasskeySubmitting ? "Usuwanie..." : "🗑️ Tak, usuń"}
+                                </button>
+                                <button onClick={() => setRemovePasskeyTarget(null)} style={secondaryBtnStyle}>
+                                    Anuluj
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {/* ─── Help modal — debiloodporny przewodnik ───────────────── */}
                 {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
             </div>
@@ -1188,6 +1475,58 @@ function HelpModal({ onClose }: { onClose: () => void }) {
                         wyłączone całkowicie i backup codes unieważnione. Po tym musisz robić
                         pełny setup od nowa.
                     </p>
+                </HelpSection>
+
+                <HelpSection title="🔐 Klucze biometryczne (FaceID / TouchID / Hello) — najwygodniejsze">
+                    <p>
+                        Najszybsza i najwygodniejsza metoda logowania: po haśle zatwierdzasz
+                        biometrią (twarz / palec / PIN urządzenia). Bez wpisywania 6-cyfrowych
+                        kodów. Bezpieczniejsze niż TOTP — sekret żyje w Secure Enclave
+                        urządzenia, <strong>nie da się go skraść phishingiem</strong>.
+                    </p>
+                    <p style={{ marginTop: 8 }}><strong>Jak dodać klucz biometryczny:</strong></p>
+                    <ol style={listStyle}>
+                        <li>
+                            Na stronie security przewiń do sekcji <em>„🔐 Klucze biometryczne"</em>.
+                        </li>
+                        <li>
+                            Kliknij <strong>„+ Dodaj klucz biometryczny"</strong>.
+                        </li>
+                        <li>
+                            Wpisz nazwę (np. <em>„iPhone — FaceID"</em>, <em>„MacBook Touch ID"</em>) →
+                            klik „Dodaj klucz →".
+                        </li>
+                        <li>
+                            Przeglądarka/system zapyta o biometrię — pokaż twarz (FaceID) /
+                            dotknij czytnika (TouchID/Hello) / wpisz PIN urządzenia.
+                        </li>
+                        <li>
+                            „✅ Klucz biometryczny dodany". Od teraz na ekranie logowania
+                            zobaczysz duży niebieski przycisk <strong>„🔐 Zaloguj biometrią"</strong>
+                            obok pola TOTP.
+                        </li>
+                    </ol>
+                    <p style={{ marginTop: 10 }}><strong>Co dobrze wiedzieć:</strong></p>
+                    <ul style={listStyle}>
+                        <li>
+                            <strong>iPhone/iPad/Mac</strong> z iCloud Keychain — klucz syncuje się
+                            między wszystkimi Twoimi urządzeniami Apple. Setup raz na iPhone
+                            → działa od razu na Macu i iPadzie. Badge ☁️ obok klucza pokazuje sync.
+                        </li>
+                        <li>
+                            <strong>Android</strong> z Google Password Manager — analogicznie,
+                            sync między telefonem a Chrome na innych urządzeniach.
+                        </li>
+                        <li>
+                            Klucze biometryczne to <em>alternatywa</em> dla TOTP, NIE zamiennik.
+                            TOTP nadal działa — możesz wybrać przy każdym logowaniu.
+                        </li>
+                        <li>
+                            Każdy klucz może być usunięty bez kodu — wystarczy klik 🗑️ (passkey
+                            wymaga biometrycznej weryfikacji przy każdym użyciu, więc nie ma
+                            ryzyka „skradzionego klucza").
+                        </li>
+                    </ul>
                 </HelpSection>
 
                 <HelpSection title="🍎 Dla iPhone / iOS">

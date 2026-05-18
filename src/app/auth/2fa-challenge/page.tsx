@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 function ChallengeForm() {
@@ -14,6 +14,74 @@ function ChallengeForm() {
     const [submitting, setSubmitting] = useState(false);
     const [backupRemaining, setBackupRemaining] = useState<number | null>(null);
     const [remember, setRemember] = useState(false);
+
+    // Passkey support detection
+    const [passkeyAvailable, setPasskeyAvailable] = useState(false);
+    const [passkeySubmitting, setPasskeySubmitting] = useState(false);
+
+    useEffect(() => {
+        // Sprawdź czy WebAuthn jest dostępny w przeglądarce
+        if (typeof window !== "undefined" && "PublicKeyCredential" in window) {
+            setPasskeyAvailable(true);
+        }
+    }, []);
+
+    async function handlePasskeyLogin() {
+        setError("");
+        setPasskeySubmitting(true);
+        try {
+            // 1. Begin: server zwraca options + sets challenge cookie
+            const beginRes = await fetch("/api/auth/passkeys/authenticate/begin", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+            });
+            if (!beginRes.ok) {
+                const data = await beginRes.json();
+                if (data.error === "no_passkeys") {
+                    setError("Brak zarejestrowanych kluczy biometrycznych na tym koncie. Użyj kodu TOTP.");
+                } else {
+                    setError(`Błąd: ${data.error}`);
+                }
+                return;
+            }
+            const { options } = await beginRes.json();
+
+            // 2. Browser API: prompt biometric
+            const { startAuthentication } = await import("@simplewebauthn/browser");
+            let authResponse;
+            try {
+                authResponse = await startAuthentication({ optionsJSON: options });
+            } catch (err) {
+                const msg = (err as Error).message || "";
+                if (msg.includes("not allowed") || msg.includes("cancelled") || msg.includes("aborted")) {
+                    setError("Anulowane przez użytkownika.");
+                } else {
+                    setError(`Błąd przeglądarki: ${msg.slice(0, 100)}`);
+                }
+                return;
+            }
+
+            // 3. Finish: server verify + setMfaSessionCookie
+            const finishRes = await fetch("/api/auth/passkeys/authenticate/finish", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ response: authResponse, remember }),
+            });
+            if (!finishRes.ok) {
+                const data = await finishRes.json();
+                setError(`Weryfikacja serwera nie powiodła się: ${data.error}`);
+                return;
+            }
+
+            // Success — redirect
+            router.replace(redirectTo);
+        } catch (err) {
+            console.error("[2FA passkey] login:", err);
+            setError(`Wystąpił błąd: ${(err as Error).message}`);
+        } finally {
+            setPasskeySubmitting(false);
+        }
+    }
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
@@ -80,6 +148,39 @@ function ChallengeForm() {
                     ? "Wpisz 6-cyfrowy kod z aplikacji Authenticator"
                     : "Wpisz backup code (XXXXX-XXXXX)"}
             </p>
+
+            {/* Passkey login — preferowana metoda gdy dostępna */}
+            {passkeyAvailable && mode === "totp" && (
+                <>
+                    <button
+                        type="button"
+                        onClick={handlePasskeyLogin}
+                        disabled={passkeySubmitting || submitting}
+                        style={{
+                            ...primaryBtnStyle,
+                            width: "100%",
+                            background: "linear-gradient(135deg, #3b82f6, #1d4ed8)",
+                            color: "#fff",
+                            marginBottom: 12,
+                            opacity: passkeySubmitting ? 0.6 : 1,
+                        }}
+                    >
+                        {passkeySubmitting ? "Weryfikacja biometryczna..." : "🔐 Zaloguj biometrią (FaceID / TouchID)"}
+                    </button>
+                    <div style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 12,
+                        margin: "12px 0 16px 0",
+                        color: "#64748b",
+                        fontSize: "0.8rem",
+                    }}>
+                        <div style={{ flex: 1, height: 1, background: "#334155" }} />
+                        <span>LUB</span>
+                        <div style={{ flex: 1, height: 1, background: "#334155" }} />
+                    </div>
+                </>
+            )}
 
             <form onSubmit={handleSubmit}>
                 <input
