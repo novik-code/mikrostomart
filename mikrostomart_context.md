@@ -1,6 +1,8 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-18 (**🔓 ANDROID CAMERA FIX + 🔐 2FA MULTI-DEVICE SUPPORT**. Dwa commity tej sesji: `c0fa000` (fix Permissions-Policy `camera=()` → `camera=(self)` — Android Chrome ściśle egzekwował pusty header i blokował getUserMedia, iOS Safari ignorował stąd różnica. Fix odblokuje KCP skaner QR + /selfie + /symulator + Voice Assistant na Androidzie. Verified preview header poprawny). `feat/2fa-multi-device` (Migracja 128 + nowa tabela `employee_2fa_devices` + 3 nowe endpointy `/api/auth/2fa/devices` CRUD + UI lista urządzeń w /pracownik/security z "Dodaj kolejne urządzenie" wizard + admin SecurityTab kolumna "Urządzenia" + backward compat dla istniejących setupów Marcin/gabinet/Justyna/Elżbieta przez backfill "Urządzenie 1"). Use case: konto `gabinet@mikrostomart.pl` (recepcja, wiele osób). Stary system (mig 126) miał 1 sekret per konto — teraz każda osoba może mieć własne urządzenie TOTP z per-device revoke i audit (last_used_at per device). Backup codes nadal shared (8 per konto). Max 10 urządzeń. **🚨 Manual Marcin**: (1) wgrać migrację 128 na OBU Supabase (~/Desktop/migracje_supabase/migracja_128_employee_2fa_devices.txt — idempotent). (2) Migracja 127 z poprzedniej sesji (ai_conversations) nadal wymagana. (3) Po deploy: przetestuj skaner QR na Androidzie, dodaj drugie urządzenie 2FA do gabinet@. **Status Hotfix Sprint**: 11/11 mandatory done. Pozostałe S8-7 (pgcrypto) + S9 (lint+CI). Multi-device 2FA pomimo że poza original plan S8-2 — zaspokaja realny use case shared accounts recepcji.
+> **Last Updated:** 2026-05-18 #2 (**🔐 BIG SECURITY DAY — 12 commitów: Android camera, multi-device 2FA, Passkeys/WebAuthn, retention crons, export ZIP, fix bugs**). Cumulative sesja: `c0fa000` Android camera (Permissions-Policy `camera=(self)`) + `059901d`+`1427672` multi-device 2FA (mig 128 + 3 endpointy CRUD + UI + admin SecurityTab kolumna) + `546826b` signout endpoint + sec link w pracownik + Samsung Authenticator UX + `7cb3550` pdfjs worker 4.10.38 fix (e-karta zgody) + middleware `.mjs` exclusion + `cc62a85` disabled device cleanup bez code + `aafad5f` HelpModal debiloodporny przewodnik 9 sekcji + `7f47f14` "Zaufaj urządzeniu 30 dni" (Opcja B mfaSession TTL) + `55282b9` **Passkeys/WebAuthn** (mig 129 + library @simplewebauthn v13.3 + 6 endpointów + UI w security + button "Zaloguj biometrią" w 2FA challenge + HelpModal Passkey section, FaceID/TouchID/Hello jako alternatywa dla TOTP, iOS Keychain syncs, phishing-resistant) + `199f410` backup_codes_not_generated deadlock fix + Wyloguj button na security + `29cee3c` **S8-5 retention cron** (12 tabel, dry-run default 2 tyg, daily 04:00 UTC) + `2a46ff8` **S8-6 export-data ZIP** (Art. 15 full export, JSZip 3.10.1, 13 sekcji JSON + PDFs z consent-pdfs + intake-pdfs buckets, README.txt z RODO articles). **Hotfix Sprint cumulative**: S1+S2+S3+S4+S5+S6+S7+S8-1+S8-2+S8-3+S8-4+S8-5+S8-6 done. Pozostałe S8-7 (pgcrypto, ~3-4h osobny sprint) + S9 (lint+CI, ~3-4h). **🚨 Manual Marcin krytyczne**: wgrać migrację **127** (ai_conversations, S8-4), **128** (employee_2fa_devices, multi-device), **129** (employee_passkeys, WebAuthn) na OBU Supabase. Test scenariusze w Recent Changes section. Po 2 tygodniach: zdjąć `?dry_run=true` z S8-5 cron path w `vercel.json`.
+
+<!-- Poprzednia: 2026-05-18 (**🔓 ANDROID CAMERA FIX + 🔐 2FA MULTI-DEVICE SUPPORT**. Dwa commity tej sesji: `c0fa000` (fix Permissions-Policy `camera=()` → `camera=(self)` — Android Chrome ściśle egzekwował pusty header i blokował getUserMedia, iOS Safari ignorował stąd różnica. Fix odblokuje KCP skaner QR + /selfie + /symulator + Voice Assistant na Androidzie. Verified preview header poprawny). `feat/2fa-multi-device` (Migracja 128 + nowa tabela `employee_2fa_devices` + 3 nowe endpointy `/api/auth/2fa/devices` CRUD + UI lista urządzeń w /pracownik/security z "Dodaj kolejne urządzenie" wizard + admin SecurityTab kolumna "Urządzenia" + backward compat dla istniejących setupów Marcin/gabinet/Justyna/Elżbieta przez backfill "Urządzenie 1"). Use case: konto `gabinet@mikrostomart.pl` (recepcja, wiele osób). Stary system (mig 126) miał 1 sekret per konto — teraz każda osoba może mieć własne urządzenie TOTP z per-device revoke i audit (last_used_at per device). Backup codes nadal shared (8 per konto). Max 10 urządzeń. **🚨 Manual Marcin**: (1) wgrać migrację 128 na OBU Supabase (~/Desktop/migracje_supabase/migracja_128_employee_2fa_devices.txt — idempotent). (2) Migracja 127 z poprzedniej sesji (ai_conversations) nadal wymagana. (3) Po deploy: przetestuj skaner QR na Androidzie, dodaj drugie urządzenie 2FA do gabinet@. **Status Hotfix Sprint**: 11/11 mandatory done. Pozostałe S8-7 (pgcrypto) + S9 (lint+CI). Multi-device 2FA pomimo że poza original plan S8-2 — zaspokaja realny use case shared accounts recepcji.
 
 <!-- Poprzednia Last Updated 2026-05-17 #11: SPRINT 8 EFFECTIVELY COMPLETE — S8-1+S8-2+S8-3+S8-4 done w jednej sesji (3cfa44c + 76a6e96 + 083b780). -->
 
@@ -2491,6 +2493,92 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-18 #2 — Big security day: Passkeys + retention + export ZIP + bug fixes (12 commitów cumulative)
+
+Pełen dzień security/RODO. **Cumulative 12 commitów** w jeden dzień obejmujące: 2 fixy systemowe (Android camera + pdfjs worker), nowy multi-device 2FA system + Passkeys (WebAuthn), trzy bugfixy (disabled device, backup_codes deadlock, brak Wyloguj), HelpModal + remember-device UX, S8-5 retention cron, S8-6 export ZIP.
+
+#### Commity (chronologicznie):
+
+| # | Commit | Co | Sprint |
+|---|---|---|---|
+| 1 | `c0fa000` | Permissions-Policy `camera=(self)` — odblokuj kamerę na Android Chrome (Android Chrome ścisłe egzekwowanie `camera=()` blokowało getUserMedia, iOS ignorował) | fix |
+| 2 | `059901d` | Multi-device 2FA core: migracja 128 + `employee_2fa_devices` + 3 nowe endpointy `/api/auth/2fa/devices` CRUD + UI lista urządzeń + admin SecurityTab "Urządzenia" kolumna + trigger sync | feat |
+| 3 | `1427672` | docs: 2026-05-18 — Android camera fix + 2FA multi-device | docs |
+| 4 | `546826b` | `/api/auth/signout` endpoint server-side (Supabase signOut + clearMfaSession + redirect) + button "Bezpieczeństwo" w pracownik header + Android Authenticator UX (banner + deep link `otpauth://`) | feat |
+| 5 | `7cb3550` | pdfjs worker version mismatch fix po S6-6 npm update (4.8.69 → 4.10.38). Cache-bust `?v=4.10.38` + middleware matcher exclusion `.mjs` (`mjs` brak → routowanie przez page logic → 404). Naprawia podpisywanie zgód pacjenta. | fix |
+| 6 | `cc62a85` | removeDevice dla disabled device bez proof code — naprawia dead-lock gdy first-time setup przerwany przed backup codes display (orphan row, brak working secret) | fix |
+| 7 | `aafad5f` | HelpModal "📘 Przewodnik 2FA krok po kroku" — 9 sekcji accordion (native `<details>`) w /pracownik/security. Sekcje: Co to / Pierwsza konfiguracja / Add device / Remove / iOS / Android / Backup codes / Recovery / FAQ. ESC + X + overlay close. | feat |
+| 8 | `7f47f14` | "Zaufaj urządzeniu na 30 dni" (Opcja B): mfaSession TTL 8h → 30d gdy checkbox zaznaczony. Endpoint challenge accept `{remember: boolean}`. UI checkbox z ostrzeżeniem "tylko własne urządzenie". | feat |
+| 9 | `55282b9` | **Passkeys/WebAuthn** (Opcja A): migracja 129 `employee_passkeys` + library @simplewebauthn v13.3 + service `passkeyService.ts` + challenge cookie helper + 6 endpointów (register begin/finish, authenticate begin/finish, list, remove/rename) + UI sekcja "🔐 Klucze biometryczne" w security + button "Zaloguj biometrią" w 2FA challenge + HelpModal Passkey section. iOS Keychain syncs (badge ☁️), phishing-resistant. Alternatywa dla TOTP. | feat |
+| 10 | `199f410` | `backup_codes_not_generated` deadlock fix (Justyna case): startSetup resetuje `employees.totp_backup_codes` razem z cleanup orphan disabled devices. Plus button "🚪 Wyloguj" na security page (krytyczne w forced state). | fix |
+| 11 | `29cee3c` | **S8-5 consolidated retention cron** `/api/cron/data-retention-cleanup` daily 04:00 UTC z `?dry_run=true` przez 2 tygodnie. 12 tabel: patient_intake_tokens (30d), consent_tokens, short_links (1y, clicks=0), sms_reminders (180d), appointment_actions (180d), cancelled_appointments (5y legal), online_bookings (1y), birthday_wishes (currentYear-2), email_ai_drafts (90d), email_compose_drafts (90d), fcm_tokens (90d), social_video_queue (90d). DRY_RUN counts, real delete po 2 tyg gdy Marcin zdejmie param. | feat |
+| 12 | `2a46ff8` | **S8-6 export-data ZIP** (Art. 15 right of access full): JSZip 3.10.1 → ZIP z `data.json` (13 sekcji including 5 missing po S8-1 audit: cancelled_appointments, birthday_wishes, fcm_tokens, careflow, email_drafts) + `pdfs/` (signed consents + e-karty z Storage) + README.txt. Fix legacy table names (`patient_chat_messages` → `chat_messages` JOIN conversations, `patient_appointment_actions` → `appointment_actions`). UI update w `/strefa-pacjenta/profil`. | feat |
+
+#### Nowe migracje (3 — wszystkie NIE WGRANE)
+- **127** `ai_conversations` (S8-4 z poprzedniej sesji, nadal pending)
+- **128** `employee_2fa_devices` (multi-device 2FA — backfill istniejących sekretów z mig 126 jako "Urządzenie 1" dla Marcin/gabinet/Justyna/Elżbieta) + trigger `sync_employee_totp_enabled`
+- **129** `employee_passkeys` (WebAuthn — credential_id UNIQUE, public_key, counter, transports, device_type, backed_up)
+
+Kopie .txt w `~/Desktop/migracje_supabase/migracja_{127,128,129}_*.txt`. Wszystkie idempotentne.
+
+#### Nowe dependencies
+- `@simplewebauthn/server@13.3.0` + `@simplewebauthn/browser@13.3.0` (Passkeys)
+- `jszip@3.10.1` + `@types/jszip@3.4.0` (export ZIP)
+
+#### Nowe cron jobs (1 nowy + 1 z S8-3)
+- `audit-log-cleanup` daily 03:30 UTC (już w produkcji z S8-3)
+- **`data-retention-cleanup` daily 04:00 UTC** (S8-5, z `?dry_run=true` przez 2 tyg)
+
+#### Nowy plik dependencji
+- `src/lib/passkeyService.ts` (~430 LOC) — WebAuthn service layer z deriveRpConfig
+- `src/lib/passkeyChallenge.ts` (~130 LOC) — signed httpOnly cookie helper dla begin/finish flow
+
+#### Pliki dotknięte (wszystkie ze sesji)
+
+| Sekcja | Plik |
+|---|---|
+| Config | `next.config.ts` (Permissions-Policy), `vercel.json` (cron) |
+| Middleware | `src/middleware.ts` (.mjs/.wasm exclusion) |
+| Service | `src/lib/twoFactorService.ts` (refactor multi-device + bugfix), `src/lib/mfaSession.ts` (remember TTL), `src/lib/passkeyService.ts` [NEW], `src/lib/passkeyChallenge.ts` [NEW] |
+| API | `/api/auth/signout/route.ts` [NEW], `/api/auth/2fa/devices/*` (3 nowe), `/api/auth/passkeys/*` (6 nowych), `/api/auth/2fa/challenge/route.ts` (remember), `/api/auth/2fa/setup/route.ts` (deviceId+otpauthUrl), `/api/cron/data-retention-cleanup/route.ts` [NEW], `/api/patients/export-data/route.ts` (rewrite ZIP) |
+| UI | `/pracownik/page.tsx` (Bezpieczeństwo button), `/pracownik/security/page.tsx` (sekcja Passkeys + HelpModal + Wyloguj + 7-step add device + backup codes fix + UX poprawki), `/auth/2fa-challenge/page.tsx` (Passkey button + Remember checkbox), `[locale]/strefa-pacjenta/profil/page.tsx` (Export ZIP button), `/zgody/[token]/page.tsx` (pdfjs cache-bust) |
+| Migracje | `supabase_migrations/128_employee_2fa_devices.sql` [NEW], `129_employee_passkeys.sql` [NEW] |
+| Public | `public/pdf.worker.min.mjs` (updated to 4.10.38) |
+| Admin | `src/app/admin/components/SecurityTab.tsx` (kolumna Urządzenia) |
+
+#### 🚨 Manual taski Marcin po deploy (krytyczne)
+
+1. **Wgrać 3 migracje** na OBU Supabase (produkcja + demo):
+   - `~/Desktop/migracje_supabase/migracja_127_ai_conversations.txt` (S8-4)
+   - `~/Desktop/migracje_supabase/migracja_128_employee_2fa_devices.txt` (multi-device 2FA)
+   - `~/Desktop/migracje_supabase/migracja_129_employee_passkeys.txt` (WebAuthn)
+   Wszystkie idempotentne, można wgrać razem w SQL Editor jednym przyciskiem.
+2. **Test Android camera** (Samsung/Motorola): `/pracownik` → Czas pracy → Skanuj QR → powinien prompt o kamerę + scanner aktywny.
+3. **Test multi-device 2FA na gabinet@**: dodaj telefony recepcji (Samsung + Motorola) zgodnie z instrukcją w HelpModal `/pracownik/security` → "❓ Przewodnik".
+4. **Test Passkey z iPhone**: `/pracownik/security` → "🔐 Klucze biometryczne" → "+ Dodaj klucz biometryczny" → FaceID prompt → po zalogowaniu się ponownie zobaczysz niebieski button "Zaloguj biometrią".
+5. **Test export ZIP**: zaloguj jako pacjent → /strefa-pacjenta/profil → "📁 Pobierz moje dane (ZIP)" → download powinien zwrócić ZIP z data.json + pdfs/ folder.
+6. **Po 2 tygodniach** monitoringu cron retention (sanity check counts w cron_heartbeats summary): edytuj `vercel.json`, usuń `?dry_run=true` z path `/api/cron/data-retention-cleanup`.
+7. **Powiadom 3 innych adminów** o 2FA (Justyna, Elżbieta, gabinet@) — przy następnym logowaniu redirect na security?force=true.
+8. (Opcjonalne) Zrotuj `MFA_SESSION_SECRET` — Marcin pokazał secret w czacie AI.
+
+#### Decyzje architektoniczne (kluczowe)
+
+- **Permissions-Policy `camera=(self)` zamiast `camera=()`**: pusty paren = global deny w tym self → Android Chrome blokuje, iOS ignoruje. `(self)` pozwala domenie własnej, blokuje cross-origin iframes.
+- **Multi-device 2FA przez per-device sekrety**: per-device revoke + audit (last_used_at). Backward compat backfill z mig 126 jako "Urządzenie 1". Backup codes shared per account (8 kodów). Max 10 urządzeń.
+- **Trigger sync employees.totp_enabled**: cache "any device enabled" dla middleware enforce2FA bez JOIN.
+- **Passkeys jako alternatywa dla TOTP, nie zamiennik**: ten sam mfa_session cookie → middleware nie odróżnia źródła. User wybiera metodę przy logowaniu.
+- **WebAuthn rpID = parent domain** (`mikrostomart.pl`): działa dla `www.` i bare. Preview deploys dostają unikalny rpID per hostname (limited use case).
+- **DRY_RUN safety pattern**: nowe destruktywne crony deployowane z `?dry_run=true` przez 2 tygodnie, real delete dopiero po sanity check counts.
+- **ZIP export z PDFs z Storage**: JSZip blob type unika TS strict Buffer/Uint8Array clash z NextResponse BodyInit.
+- **Disabled device no-proof remove**: secret nigdy nie aktywowany = brak attack surface = bezpieczne cleanup bez code.
+- **Cache-bust pattern dla static assets z npm deps**: `?v=X.Y.Z` w workerSrc po każdym npm update (pdfjs przypadek — npm update nie aktualizuje plików spoza node_modules).
+
+#### Wcześniej (2026-05-18) — sesja early morning
+
+`c0fa000` Android camera fix był pierwszy z dnia, kontekst w poprzednim Recent Changes entry.
+
+---
 
 ### 2026-05-18 — Android camera fix + 2FA multi-device support
 
