@@ -325,14 +325,51 @@ export async function removeDevice(
 
     const { data: target, error: targetErr } = await supabase
         .from('employee_2fa_devices')
-        .select('id')
+        .select('id, enabled')
         .eq('id', deviceId)
         .eq('employee_id', employee.id)
         .maybeSingle();
 
     if (targetErr || !target) return { ok: false, error: 'device_not_found' };
 
-    // Verify proof (TOTP from any enabled device OR backup code)
+    // Pominięcie verify dla disabled devices (mid-setup, never verified by user).
+    //
+    // Disabled device = secret został wygenerowany serwer-side ale user nigdy nie
+    // potwierdził kodem (np. zamknął kartę w trakcie setup, lub pierwsza próba
+    // dodania nigdy nie dotarła do "Krok 3 verify"). Nikt nie ma tego sekretu
+    // w aplikacji Authenticator → device nie daje żadnego dostępu → bezpieczne
+    // jest usunięcie bez proof code.
+    //
+    // Bez tego: orphan disabled rows zostają w DB na zawsze gdy:
+    //   - first-time setup przerwany przed backup codes display → user nie zna
+    //     backup codes (jeszcze niewyświetlone) → nie może zalogować pełnym
+    //     code (jeszcze nie ma żadnego enabled device) → DELETE wymaga proof
+    //     → DEAD LOCK.
+    //   - add-device flow przerwany przed verify → nie tak krytyczne (user może
+    //     użyć code z innego enabled device), ale lepsze UX bez extra friction.
+    if (!target.enabled) {
+        const { error: delErr } = await supabase
+            .from('employee_2fa_devices')
+            .delete()
+            .eq('id', target.id);
+
+        if (delErr) {
+            console.error('[2FA] removeDevice (disabled) delete error:', delErr);
+            return { ok: false, error: 'database_error' };
+        }
+
+        // Check remaining enabled devices for allDisabled flag
+        const { data: remaining } = await supabase
+            .from('employee_2fa_devices')
+            .select('id')
+            .eq('employee_id', employee.id)
+            .eq('enabled', true);
+
+        const allDisabled = !remaining || remaining.length === 0;
+        return { ok: true, allDisabled };
+    }
+
+    // Enabled device — wymagaj proof of possession.
     const verified = await verifyAnyCode(employee.id, proofCode, employee.totp_backup_codes || []);
     if (!verified.ok) return { ok: false, error: 'invalid_code' };
 

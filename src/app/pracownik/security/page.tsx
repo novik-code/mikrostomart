@@ -614,7 +614,7 @@ Po zużyciu wszystkich kodów wygeneruj nowe w panelu /pracownik/security.
                                         <button
                                             onClick={() => { setRemoveTarget(d); setRemoveCode(""); setRemoveError(""); }}
                                             style={smallDangerBtnStyle}
-                                            title="Usuń"
+                                            title={d.enabled ? "Usuń urządzenie" : "Anuluj niedokończony setup"}
                                         >
                                             🗑️
                                         </button>
@@ -859,35 +859,65 @@ Po zużyciu wszystkich kodów wygeneruj nowe w panelu /pracownik/security.
                 {removeTarget && (
                     <div style={modalOverlayStyle} onClick={() => !removeSubmitting && setRemoveTarget(null)}>
                         <div style={modalStyle} onClick={e => e.stopPropagation()}>
-                            <h3 style={{ color: "#fff", marginBottom: 12 }}>🗑️ Usuń urządzenie: {removeTarget.name}</h3>
-                            <div style={warningBoxStyle}>
-                                ⚠️ Po usunięciu to urządzenie nie będzie mogło wygenerować
-                                kodu logowania. Jeśli to ostatnie urządzenie — 2FA zostanie
-                                wyłączone i backup codes unieważnione.
-                            </div>
-                            <form onSubmit={submitRemove}>
-                                <p style={{ color: "#cbd5e1", fontSize: "0.9rem", marginBottom: 12 }}>
-                                    Wpisz kod TOTP z dowolnego (innego) urządzenia lub backup code:
-                                </p>
-                                <input
-                                    type="text"
-                                    maxLength={11}
-                                    value={removeCode}
-                                    onChange={(e) => setRemoveCode(e.target.value)}
-                                    placeholder="123456 lub XXXXX-XXXXX"
-                                    autoFocus
-                                    style={codeInputStyle}
-                                />
-                                {removeError && <p style={errorStyle}>{removeError}</p>}
-                                <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-                                    <button type="submit" disabled={removeSubmitting || !removeCode} style={dangerBtnStyle}>
-                                        {removeSubmitting ? "Usuwanie..." : "🗑️ Usuń urządzenie"}
-                                    </button>
-                                    <button type="button" onClick={() => setRemoveTarget(null)} style={secondaryBtnStyle}>
-                                        Anuluj
-                                    </button>
-                                </div>
-                            </form>
+                            {!removeTarget.enabled ? (
+                                /* Disabled device (mid-setup) — no code required.
+                                   Nikt nie ma jeszcze sekretu w aplikacji Authenticator,
+                                   więc bezpieczne jest po prostu usunięcie orphan row. */
+                                <>
+                                    <h3 style={{ color: "#fff", marginBottom: 12 }}>
+                                        🗑️ Anuluj niedokończony setup: {removeTarget.name}
+                                    </h3>
+                                    <div style={infoBoxStyle}>
+                                        ℹ️ To urządzenie nigdy nie zostało aktywowane (setup
+                                        został przerwany przed potwierdzeniem kodu). Nikt nie ma
+                                        sekretu w aplikacji Authenticator, więc bezpieczne jest
+                                        po prostu usunięcie tego wpisu i rozpoczęcie setup'u od
+                                        nowa.
+                                    </div>
+                                    <form onSubmit={submitRemove}>
+                                        <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                                            <button type="submit" disabled={removeSubmitting} style={dangerBtnStyle}>
+                                                {removeSubmitting ? "Usuwanie..." : "🗑️ Tak, usuń"}
+                                            </button>
+                                            <button type="button" onClick={() => setRemoveTarget(null)} style={secondaryBtnStyle}>
+                                                Anuluj
+                                            </button>
+                                        </div>
+                                    </form>
+                                </>
+                            ) : (
+                                <>
+                                    <h3 style={{ color: "#fff", marginBottom: 12 }}>🗑️ Usuń urządzenie: {removeTarget.name}</h3>
+                                    <div style={warningBoxStyle}>
+                                        ⚠️ Po usunięciu to urządzenie nie będzie mogło wygenerować
+                                        kodu logowania. Jeśli to ostatnie urządzenie — 2FA zostanie
+                                        wyłączone i backup codes unieważnione.
+                                    </div>
+                                    <form onSubmit={submitRemove}>
+                                        <p style={{ color: "#cbd5e1", fontSize: "0.9rem", marginBottom: 12 }}>
+                                            Wpisz kod TOTP z dowolnego (innego) urządzenia lub backup code:
+                                        </p>
+                                        <input
+                                            type="text"
+                                            maxLength={11}
+                                            value={removeCode}
+                                            onChange={(e) => setRemoveCode(e.target.value)}
+                                            placeholder="123456 lub XXXXX-XXXXX"
+                                            autoFocus
+                                            style={codeInputStyle}
+                                        />
+                                        {removeError && <p style={errorStyle}>{removeError}</p>}
+                                        <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                                            <button type="submit" disabled={removeSubmitting || !removeCode} style={dangerBtnStyle}>
+                                                {removeSubmitting ? "Usuwanie..." : "🗑️ Usuń urządzenie"}
+                                            </button>
+                                            <button type="button" onClick={() => setRemoveTarget(null)} style={secondaryBtnStyle}>
+                                                Anuluj
+                                            </button>
+                                        </div>
+                                    </form>
+                                </>
+                            )}
                         </div>
                     </div>
                 )}

@@ -25,18 +25,19 @@ export async function DELETE(
 
     const { id: deviceId } = await params;
 
+    // Code może być pusty dla disabled device (mid-setup cleanup) — twoFactorService
+    // sprawdza target.enabled i pomija verify gdy device był jeszcze nieaktywowany.
+    // Endpoint NIE waliduje że code jest non-empty, bo niedokończony setup nie ma
+    // żadnego working secret w aplikacji user'a.
     let body: { code?: string };
     try {
         body = await request.json();
     } catch {
-        return NextResponse.json({ error: 'invalid_body' }, { status: 400 });
+        body = {};
     }
+    const code = typeof body.code === 'string' ? body.code : '';
 
-    if (!body.code || typeof body.code !== 'string') {
-        return NextResponse.json({ error: 'code_required' }, { status: 400 });
-    }
-
-    const result = await removeDevice(auth.user.id, deviceId, body.code);
+    const result = await removeDevice(auth.user.id, deviceId, code);
     if (!result.ok) {
         const status = result.error === 'invalid_code' ? 400
             : result.error === 'device_not_found' ? 404
