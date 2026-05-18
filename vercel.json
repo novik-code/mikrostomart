@@ -119,6 +119,10 @@
         {
             "path": "/api/cron/audit-log-cleanup",
             "schedule": "30 3 * * *"
+        },
+        {
+            "path": "/api/cron/data-retention-cleanup?dry_run=true",
+            "schedule": "0 4 * * *"
         }
     ]
 }
