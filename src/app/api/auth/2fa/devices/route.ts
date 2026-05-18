@@ -62,6 +62,7 @@ export async function POST(request: NextRequest) {
         ok: true,
         deviceId: result.data.deviceId,
         qrDataUrl: result.data.qrDataUrl,
+        otpauthUrl: result.data.otpauthUrl,
         secret: result.data.secret,
         backupCodes: result.data.backupCodes,
     });

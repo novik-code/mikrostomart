@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import {
     generateSecret,
     generateQrDataUrl,
+    buildOtpauthUrl,
     verifyCode,
     generateBackupCodes,
     verifyBackupCode,
@@ -39,6 +40,13 @@ export type AddDeviceResult = {
     deviceId: string;
     secret: string;
     qrDataUrl: string;
+    /**
+     * Raw otpauth:// URL — przekazywany do UI jako deep link button.
+     * Na Androidzie klik w `<a href="otpauth://...">` może otworzyć zainstalowaną
+     * aplikację Authenticator z preconfigurowanym wpisem. Fallback: user wpisuje
+     * secret ręcznie lub używa wbudowanego scanner'a w Authenticator app.
+     */
+    otpauthUrl: string;
     /** Backup codes returned only at first-time setup. null on subsequent devices. */
     backupCodes: string[] | null;
 };
@@ -176,6 +184,7 @@ export async function addDevice(
     // Include device name in OTPAUTH label so user can distinguish in their app:
     // "Mikrostomart (Justyna iPhone)" → email:Mikrostomart-Justyna iPhone
     const labelEmail = `${email} (${finalName})`;
+    const otpauthUrl = buildOtpauthUrl(labelEmail, secret);
     const qrDataUrl = await generateQrDataUrl(labelEmail, secret);
 
     // Backup codes: only generate if this is the first device
@@ -228,6 +237,7 @@ export async function addDevice(
             deviceId: inserted.id,
             secret,
             qrDataUrl,
+            otpauthUrl,
             backupCodes: backupCodesPlain,
         },
     };
@@ -761,7 +771,7 @@ export async function startSetup(
     userId: string,
     email: string
 ): Promise<
-    | { ok: true; data: { secret: string; qrDataUrl: string; backupCodes: string[]; deviceId: string } }
+    | { ok: true; data: { secret: string; qrDataUrl: string; otpauthUrl: string; backupCodes: string[]; deviceId: string } }
     | { ok: false; error: string }
 > {
     // Check if user already has any enabled device
@@ -798,6 +808,7 @@ export async function startSetup(
         data: {
             secret: result.data.secret,
             qrDataUrl: result.data.qrDataUrl,
+            otpauthUrl: result.data.otpauthUrl,
             backupCodes: result.data.backupCodes,
             deviceId: result.data.deviceId,
         },

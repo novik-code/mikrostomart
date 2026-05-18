@@ -39,6 +39,7 @@ export async function POST() {
     return NextResponse.json({
         ok: true,
         qrDataUrl: result.data.qrDataUrl,
+        otpauthUrl: result.data.otpauthUrl,
         secret: result.data.secret,
         backupCodes: result.data.backupCodes,
         deviceId: result.data.deviceId,

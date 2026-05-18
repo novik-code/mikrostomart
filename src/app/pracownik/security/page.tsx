@@ -25,6 +25,12 @@ type Device = {
 type SetupData = {
     deviceId: string;
     qrDataUrl: string;
+    /**
+     * Raw otpauth:// URL — używany jako deep link `<a href>` na mobile. Klik na
+     * Androidzie powinien otworzyć zainstalowaną aplikację Authenticator z
+     * preconfigurowanym wpisem (działa też na iOS jeśli user ma app handler).
+     */
+    otpauthUrl: string;
     secret: string;
     backupCodes: string[] | null;
 };
@@ -138,6 +144,7 @@ function SecurityPage() {
             setSetupData({
                 deviceId: data.deviceId,
                 qrDataUrl: data.qrDataUrl,
+                otpauthUrl: data.otpauthUrl,
                 secret: data.secret,
                 backupCodes: data.backupCodes,
             });
@@ -207,6 +214,7 @@ function SecurityPage() {
             setAddDeviceData({
                 deviceId: data.deviceId,
                 qrDataUrl: data.qrDataUrl,
+                otpauthUrl: data.otpauthUrl,
                 secret: data.secret,
                 backupCodes: data.backupCodes,
             });
@@ -450,21 +458,7 @@ Po zużyciu wszystkich kodów wygeneruj nowe w panelu /pracownik/security.
                 {setupStep === "qr" && setupData && (
                     <div>
                         <h2 style={h2Style}>Krok 1 z 3: Zeskanuj QR code</h2>
-                        <p style={{ color: "#cbd5e1", marginBottom: 16 }}>
-                            Otwórz aplikację Authenticator i zeskanuj kod poniżej:
-                        </p>
-                        <div style={{ textAlign: "center", marginBottom: 16, padding: 16, background: "#fff", borderRadius: 8 }}>
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={setupData.qrDataUrl} alt="QR code" width={280} height={280} />
-                        </div>
-                        <details style={{ marginBottom: 16 }}>
-                            <summary style={{ color: "#94a3b8", cursor: "pointer", fontSize: "0.85rem" }}>
-                                ❓ QR nie działa? Wpisz secret ręcznie
-                            </summary>
-                            <div style={{ marginTop: 8, padding: 12, background: "#0f172a", borderRadius: 6, fontFamily: "monospace", fontSize: "0.9rem", wordBreak: "break-all" }}>
-                                {setupData.secret}
-                            </div>
-                        </details>
+                        <QrSetupBlock data={setupData} />
                         <button onClick={() => setSetupStep("verify")} style={primaryBtnStyle}>
                             ✓ Zeskanowałem — dalej
                         </button>
@@ -774,22 +768,7 @@ Po zużyciu wszystkich kodów wygeneruj nowe w panelu /pracownik/security.
                 {addDeviceStep === "qr" && addDeviceData && (
                     <div>
                         <h2 style={h2Style}>Dodaj nowe urządzenie — krok 2 z 3: Zeskanuj QR</h2>
-                        <p style={{ color: "#cbd5e1", marginBottom: 16 }}>
-                            Na nowym urządzeniu otwórz aplikację Authenticator i zeskanuj
-                            kod poniżej:
-                        </p>
-                        <div style={{ textAlign: "center", marginBottom: 16, padding: 16, background: "#fff", borderRadius: 8 }}>
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={addDeviceData.qrDataUrl} alt="QR code" width={280} height={280} />
-                        </div>
-                        <details style={{ marginBottom: 16 }}>
-                            <summary style={{ color: "#94a3b8", cursor: "pointer", fontSize: "0.85rem" }}>
-                                ❓ QR nie działa? Wpisz secret ręcznie
-                            </summary>
-                            <div style={{ marginTop: 8, padding: 12, background: "#0f172a", borderRadius: 6, fontFamily: "monospace", fontSize: "0.9rem", wordBreak: "break-all" }}>
-                                {addDeviceData.secret}
-                            </div>
-                        </details>
+                        <QrSetupBlock data={addDeviceData} />
                         <div style={{ display: "flex", gap: 8 }}>
                             <button onClick={() => setAddDeviceStep("verify")} style={primaryBtnStyle}>
                                 ✓ Zeskanowałem — dalej
@@ -914,6 +893,95 @@ Po zużyciu wszystkich kodów wygeneruj nowe w panelu /pracownik/security.
                 )}
             </div>
         </div>
+    );
+}
+
+/**
+ * Reusable QR setup block — używany w first-time setup (krok 1 z 3) i w add-device
+ * (krok 2 z 3). Pokazuje:
+ *   - Banner z instrukcją "Otwórz Authenticator app, NIE aparat"
+ *   - Wyraźne ostrzeżenie dla Android (Samsung Camera/Bixby Vision domyślnie nie
+ *     potrafią obsłużyć otpauth:// URI — open default camera scanning to webview błąd)
+ *   - QR PNG do scan
+ *   - Deep link `<a href="otpauth://...">` — na Androidzie otwiera zarejestrowany
+ *     Authenticator app handler (Google Authenticator / Authy), na iOS analogicznie
+ *   - Secret jako visible code + przycisk Kopiuj (fallback gdy QR nie działa)
+ */
+function QrSetupBlock({ data }: { data: SetupData }) {
+    const [copied, setCopied] = useState(false);
+
+    async function copySecret() {
+        try {
+            await navigator.clipboard.writeText(data.secret);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2500);
+        } catch {
+            // Clipboard API niedostępne (np. starsze przeglądarki, brak HTTPS) — fallback
+            window.prompt("Skopiuj secret ręcznie:", data.secret);
+        }
+    }
+
+    return (
+        <>
+            <div style={infoBoxStyle}>
+                📱 <strong>Otwórz aplikację Authenticator</strong> (Google Authenticator / Authy / 1Password)
+                na urządzeniu, które ma generować kody → wybierz <em>„+&nbsp;Dodaj konto"</em>
+                lub <em>„Skanuj kod QR"</em> → następnie zeskanuj kod poniżej.
+            </div>
+            <div style={warningBoxStyle}>
+                🚨 <strong>Android (Samsung): NIE używaj domyślnego aparatu telefonu</strong> ani Bixby Vision —
+                ten QR otwiera się TYLKO w aplikacji Authenticator. Jeśli aparat zamiast Authentcatora
+                wraca do podglądu zdjęć, użyj przycisku „Otwórz w aplikacji" poniżej lub wpisz secret ręcznie.
+            </div>
+            <div style={{ textAlign: "center", marginBottom: 16, padding: 16, background: "#fff", borderRadius: 8 }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={data.qrDataUrl} alt="QR code dla 2FA" width={280} height={280} />
+            </div>
+            <a
+                href={data.otpauthUrl}
+                style={{
+                    ...secondaryBtnStyle,
+                    display: "block",
+                    textAlign: "center",
+                    textDecoration: "none",
+                    marginBottom: 6,
+                }}
+            >
+                📲 Otwórz w aplikacji Authenticator
+            </a>
+            <p style={{ color: "#94a3b8", fontSize: "0.78rem", margin: "0 0 16px 0", textAlign: "center" }}>
+                ↑ Tap na urządzeniu z zainstalowaną aplikacją Authenticator
+            </p>
+            <div style={{ background: "#0f172a", padding: 12, borderRadius: 8, marginBottom: 16, border: "1px solid #334155" }}>
+                <p style={{ color: "#94a3b8", fontSize: "0.85rem", margin: "0 0 8px 0" }}>
+                    Alternatywa — wpisz secret ręcznie w aplikacji:
+                </p>
+                <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
+                    <code
+                        style={{
+                            flex: 1,
+                            fontFamily: "monospace",
+                            fontSize: "0.95rem",
+                            color: "#fff",
+                            wordBreak: "break-all",
+                            background: "#1e293b",
+                            padding: "10px 12px",
+                            borderRadius: 6,
+                            userSelect: "all",
+                        }}
+                    >
+                        {data.secret}
+                    </code>
+                    <button
+                        type="button"
+                        onClick={copySecret}
+                        style={{ ...secondaryBtnStyle, padding: "8px 14px", whiteSpace: "nowrap" }}
+                    >
+                        {copied ? "✓ Skopiowano" : "📋 Kopiuj"}
+                    </button>
+                </div>
+            </div>
+        </>
     );
 }
 

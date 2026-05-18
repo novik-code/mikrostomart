@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 import { useRouter } from "next/navigation";
-import { LogOut, ChevronLeft, ChevronRight, Calendar, RefreshCw, CheckSquare, Plus, User, AlertTriangle, Trash2, Clock, X, Bell, Bot, Lightbulb, ThumbsUp, MessageSquare, MessageCircle, Send, Menu, Search, Mail, Settings } from "lucide-react";
+import { LogOut, ChevronLeft, ChevronRight, Calendar, RefreshCw, CheckSquare, Plus, User, AlertTriangle, Trash2, Clock, X, Bell, Bot, Lightbulb, ThumbsUp, MessageSquare, MessageCircle, Send, Menu, Search, Mail, Settings, Shield } from "lucide-react";
 import VoiceAssistant from "@/components/VoiceAssistant";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import PushNotificationPrompt from "@/components/PushNotificationPrompt";
@@ -353,6 +353,36 @@ export default function EmployeePage() {
                     </div>
                 </div>
 
+                <button
+                    onClick={() => router.push('/pracownik/security')}
+                    title="Bezpieczeństwo (2FA) — urządzenia, backup codes"
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        background: 'rgba(255,255,255,0.05)',
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        borderRadius: '0.5rem',
+                        padding: '0.5rem 1rem',
+                        color: 'rgba(255,255,255,0.7)',
+                        cursor: 'pointer',
+                        fontSize: '0.85rem',
+                        transition: 'all 0.2s',
+                    }}
+                    onMouseEnter={(e) => {
+                        e.currentTarget.style.background = 'rgba(212, 175, 55, 0.1)';
+                        e.currentTarget.style.borderColor = 'rgba(212, 175, 55, 0.3)';
+                        e.currentTarget.style.color = '#d4af37';
+                    }}
+                    onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
+                        e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
+                        e.currentTarget.style.color = 'rgba(255,255,255,0.7)';
+                    }}
+                >
+                    <Shield size={16} />
+                    Bezpieczeństwo
+                </button>
                 <button
                     onClick={handleLogout}
                     style={{
