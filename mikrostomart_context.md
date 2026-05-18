@@ -1,6 +1,9 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-18 #3 (**🔐 S8-7 pgcrypto DONE — application-layer AES-256-GCM encryption dla Art. 9 PII**). Commit `ad7031c`. Migracja 130 (+5 kolumn na `patient_intake_submissions`: pesel_encrypted/pesel_hash/medical_survey_encrypted/medical_notes_encrypted/signature_data_encrypted; +2 kolumny na `patient_consents`: signature_data_encrypted/biometric_data_encrypted; +1 index na pesel_hash). Lib `src/lib/fieldEncryption.ts` (node:crypto AES-256-GCM, HMAC-SHA256, env-based keys, fail-soft) + `encryptedPiiFields.ts` (high-level prepare*Insert/read* helpers z dual-column transition pattern). 40/40 unit testów. 2 write paths wrapped (`/api/intake/submit`, `/api/consents/sign`), 6 read paths wrapped (employee/admin patient-intake + patient-consents + export-biometric + generate-pdf + export-data). Backfill script z keyset pagination batch 25. **LIVE backfill produkcja zakończony 2026-05-18 EOD**: 152 intake + 1226 consent rows (1378 total) encrypted, 0 errors, 141.9s. Round-trip verification: 3/3 ✅. Plaintext columns ZOSTAJĄ w bazie ~2 tyg jako rollback safety; drop w osobnej migracji 131. **🚨 Manual Marcin**: dodał już `ENCRYPTION_KEY` + `ENCRYPTION_HMAC_SALT` na obu Vercel projektach (32-byte hex each), wgrał migrację 130 na obu Supabase, Vercel redeploy zrobiony. Klucze zapisane w 1Password+paper sejf — utrata = nieodwracalna utrata wszystkich zaszyfrowanych PESEL/medical/signature/biometric. **Sprint 8 COMPLETE** (S8-1..S8-7). Pozostaje tylko S9 (lint baseline+CI gates) → wrót do Fazy K Premium SEO.
+> **Last Updated:** 2026-05-18 #4 (**🎉 SPRINT 9 DONE — HOTFIX SPRINT COMPLETE (S1-S9)**). Commit `b245a0b` (chore(ci): S9 — lint baseline + GitHub Actions gates + P1-06 cleanup). Trzy rzeczy: (1) ESLint baseline gate — `scripts/lint-baseline.mjs` zamraża 1525 errors / 322 files w `.eslint-baseline.json`, `npm run lint:ci` fail tylko na regression (file gaining errors lub new file with errors); (2) GitHub Actions workflows w `.github/workflows/`: `lint.yml` (lint:ci + tsc --noEmit) + `security.yml` (npm audit critical/high fail + gitleaks secret scanning + 2 grep tripwires — NEXT_PUBLIC_*SERVICE*ROLE* i leaked Prodentis key string); trigger pull_request + push main + weekly security re-audit; (3) P1-06 closeout (audyt 2026-05-12, memory błędnie raportowała done w S1) — 12 użyć `NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY` fallback w 10 plikach API usuniętych batch sed, non-null assertion zachowana. Lokalne smoke: tsc clean, lint:ci pass (1525=1525), 109/109 tests, build clean, negative smoke wykrył regression poprawnie. **Hotfix Sprint COMPLETE** (S1-S9 + S8-1..S8-7 wszystkie) → wrót do **Fazy K Premium SEO Positioning Reset**. Z opcjonalnych paused: S2-bis + S4-2b CSP enforce.
+
+<!-- Poprzednia Last Updated 2026-05-18 #3: S8-7 pgcrypto DONE — application-layer AES-256-GCM encryption dla Art. 9 PII (commit ad7031c). Migracja 130, lib fieldEncryption.ts + encryptedPiiFields.ts, 40/40 tests, 1378 rows encrypted produkcja. -->
+
 
 <!-- Poprzednia: 2026-05-18 #2 (**🔐 BIG SECURITY DAY — 12 commitów: Android camera, multi-device 2FA, Passkeys/WebAuthn, retention crons, export ZIP, fix bugs**). Cumulative sesja: `c0fa000` Android camera (Permissions-Policy `camera=(self)`) + `059901d`+`1427672` multi-device 2FA (mig 128 + 3 endpointy CRUD + UI + admin SecurityTab kolumna) + `546826b` signout endpoint + sec link w pracownik + Samsung Authenticator UX + `7cb3550` pdfjs worker 4.10.38 fix (e-karta zgody) + middleware `.mjs` exclusion + `cc62a85` disabled device cleanup bez code + `aafad5f` HelpModal debiloodporny przewodnik 9 sekcji + `7f47f14` "Zaufaj urządzeniu 30 dni" (Opcja B mfaSession TTL) + `55282b9` **Passkeys/WebAuthn** (mig 129 + library @simplewebauthn v13.3 + 6 endpointów + UI w security + button "Zaloguj biometrią" w 2FA challenge + HelpModal Passkey section, FaceID/TouchID/Hello jako alternatywa dla TOTP, iOS Keychain syncs, phishing-resistant) + `199f410` backup_codes_not_generated deadlock fix + Wyloguj button na security + `29cee3c` **S8-5 retention cron** (12 tabel, dry-run default 2 tyg, daily 04:00 UTC) + `2a46ff8` **S8-6 export-data ZIP** (Art. 15 full export, JSZip 3.10.1, 13 sekcji JSON + PDFs z consent-pdfs + intake-pdfs buckets, README.txt z RODO articles). **Hotfix Sprint cumulative**: S1+S2+S3+S4+S5+S6+S7+S8-1+S8-2+S8-3+S8-4+S8-5+S8-6 done. Pozostałe S8-7 (pgcrypto, ~3-4h osobny sprint) + S9 (lint+CI, ~3-4h). **🚨 Manual Marcin krytyczne**: wgrać migrację **127** (ai_conversations, S8-4), **128** (employee_2fa_devices, multi-device), **129** (employee_passkeys, WebAuthn) na OBU Supabase. Test scenariusze w Recent Changes section. Po 2 tygodniach: zdjąć `?dry_run=true` z S8-5 cron path w `vercel.json`.
 
@@ -2495,6 +2498,130 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-18 #4 — 🎉 SPRINT 9: lint baseline + GitHub Actions CI + P1-06 cleanup — HOTFIX SPRINT COMPLETE
+
+**Hotfix Sprint zamknięty. Wszystkie 9 sprintów done (S1-S9 + S8-1..S8-7). Wrót do Fazy K Premium SEO.**
+
+#### Commit
+- `b245a0b` — chore(ci): S9 — lint baseline + GitHub Actions gates + P1-06 cleanup
+- `fc9ca5c` — docs: S8-7 finalize — Last Updated + backfill script keyset pagination (commit przygotowawczy, working tree cleanup z poprzedniej sesji S8-7)
+
+#### Co zrobione
+
+**1. ESLint baseline gate (`scripts/lint-baseline.mjs` + `.eslint-baseline.json`)**
+
+Repo ma ~1500 pre-existing lint errors zaakumulowane przez 2 lata aktywnego rozwoju (KCP + CareFlow + AI + i18n + Hotfix). Fixowanie wszystkiego w jednym PR by'oby niemożliwe. Zamiast tego:
+- `scripts/lint-baseline.mjs` (210 LOC) — Node ESM script z dwoma trybami:
+  - `npm run lint:baseline` (`--update`) — snapshot mode: regeneruje `.eslint-baseline.json` z per-file error counts
+  - `npm run lint:ci` (default) — compare mode: porównuje aktualny eslint output vs baseline, exit 1 na regression
+- Reguły regresji:
+  - File w baseline z większą liczbą errors → FAIL
+  - Nowy plik z jakimkolwiek errorem → FAIL (new files must be clean)
+  - File w baseline z mniejszą liczbą errors → improvement (OK)
+  - File usunięty/wyfixowany całkowicie → improvement (OK)
+- Warnings deliberately ignored — przy 2195 warnings byłoby unmanageable. Treat as advisory.
+- `.eslint-baseline.json` snapshot at this commit: **1525 errors / 322 files / 484 warnings** (warnings nie zliczane w gate)
+- `eslint.config.mjs` zaktualizowany — exclude generated/minified `public/*` files (sw.js, workbox-*, firebase-messaging-sw.js, pdf.worker.min.mjs, *.min.{js,mjs})
+
+**2. GitHub Actions workflows (`.github/workflows/`)**
+
+Brak workflows w repo pre-S9 — Vercel deploy + lokalne testy były single point of verification. Po S9:
+
+- **`lint.yml`** (48 LOC) — trigger pull_request + push main:
+  - `npm run lint:ci` (baseline gate)
+  - `npx tsc --noEmit` (TypeScript strict check)
+  - Cancel in-flight runs on same ref (concurrency group `lint-${ref}`)
+- **`security.yml`** (99 LOC) — trigger pull_request + push main + weekly Monday 06:00 UTC:
+  - **`npm-audit` job**: `npm audit --omit=dev --audit-level=high` (fail tylko na new critical/high; moderate/low pass)
+  - **`gitleaks` job**: gitleaks-action@v2 z `fetch-depth: 0` (full history scan, catches secret added 6 commits ago)
+  - **`grep-blockers` job** — repo-specific tripwires:
+    - Block `NEXT_PUBLIC_*SERVICE*ROLE*` references (service-role keys leaking do client bundle, P1-06)
+    - Block literal Prodentis key string `2c9bd5b4-5090-4007-8f06-936811bd0947` (defense-in-depth tripwire; klucz rotowany w S1-4 ale string w history immutable)
+
+**3. P1-06 closeout — `NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY` fallbacks usunięte**
+
+Audyt 2026-05-12 P1-06 flagował 6 routes z fallbacks `process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY`. Memory raportowała "done w S1" — fresh grep w S9 znalazł 12 occurrences w 10 plikach:
+- `src/app/api/contact/route.ts`
+- `src/app/api/admin/reservations/route.ts`
+- `src/app/api/admin/articles/route.ts` (2×)
+- `src/app/api/admin/blog/route.ts`
+- `src/app/api/admin/news/route.ts`
+- `src/app/api/admin/orders/route.ts`
+- `src/app/api/admin/questions/route.ts` (2×)
+- `src/app/api/ask-expert/route.ts`
+- `src/app/api/fix-db-images/route.ts`
+- `src/lib/productService.ts`
+
+Batch sed `s/ \|\| process\.env\.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY//g`:
+- Pattern `KEY || KEY!` → `KEY!` (non-null assertion zachowana)
+- Pattern `KEY || KEY` → `KEY` (bez assertion)
+
+Po fix: jeśli `SUPABASE_SERVICE_ROLE_KEY` env var nie ustawiona, endpoint fail safely (500 z descriptive error) zamiast leak service-role key do client bundle.
+
+#### Smoke testy
+
+- `npx tsc --noEmit` → exit 0 (clean)
+- `npm run lint:ci` → "1525 errors current vs 1525 baseline ✓ No regressions"
+- `npm test` → 7/7 test files, 109/109 tests passed
+- `npm run build` → exit 0 (clean)
+- **Negative smoke** (artificial regression test): hack baseline tymczasowo na `worst_file: 0` → lint:ci poprawnie wypisał `src/app/admin/page.tsx: 0 → 95 (+95)` regression. (Bash pipe ate exit code w teście; node script poprawnie wywołuje `process.exit(1)` co GitHub Actions czyta directly.)
+- **Grep tripwires** po P1-06 cleanup: 0 matches dla `NEXT_PUBLIC_*SERVICE*ROLE*` ✓, 0 matches dla Prodentis key ✓
+
+#### Pliki
+
+- `scripts/lint-baseline.mjs` [NEW] — 210 LOC baseline + comparator
+- `.eslint-baseline.json` [NEW] — 328 lines snapshot, committed
+- `.github/workflows/lint.yml` [NEW]
+- `.github/workflows/security.yml` [NEW]
+- `eslint.config.mjs` [MOD] — +9 globalIgnores entries dla public/ generated
+- `package.json` [MOD] — `lint:baseline` + `lint:ci` scripts
+- 10 plików `src/app/api/**/route.ts` + `src/lib/productService.ts` [MOD] — 12 fallback removals
+
+**Total**: 17 files changed, 711 insertions, 13 deletions.
+
+#### Spodziewany efekt po deploy
+
+- **Każdy PR od teraz**: GitHub Actions tab pokazuje status `lint` + `security` jobs. Reviewerzy widzą zielone/czerwone od razu.
+- **Regression hat**: nowe lint errors blokują merge. Existing 1525 errors zamrożone — można je gradually fixować (każdy fix → lint:ci pokazuje improvement, baseline regenerate manually).
+- **Secret leaks**: gitleaks catches accidentally committed API keys natychmiast w PR. Pre-S9 takie secrety mogłyby siedzieć w history przez tygodnie.
+- **Dependency rot**: weekly audit catches nowe CVE w pinned deps. Pre-S9 audity były ad-hoc.
+- **Service-role leak prevention**: grep tripwire blokuje nowy NEXT_PUBLIC_*SERVICE*ROLE* od commit'u-1.
+
+#### Co Marcin musi zrobić ręcznie
+
+- Brak migracji DB, brak nowych env vars.
+- **Po pierwszym push z S9** Vercel deploy zajdzie auto, ale GitHub Actions też zacznie biegać. Sprawdź tab "Actions" w https://github.com/novik-code/mikrostomart — pierwszy run lint.yml + security.yml powinien być zielony.
+- Jeśli kiedyś chcesz świadomie podnieść baseline (np. zaakceptować nowe lint errors w dużym refaktorze): `npm run lint:baseline` regeneruje snapshot, commit `.eslint-baseline.json` osobnym commit'em z opisem.
+
+#### Hotfix Sprint COMPLETE — podsumowanie
+
+Wszystkie 9 sprintów done w 6 dni roboczych (2026-05-12 → 2026-05-18):
+- **S1** Auth helpers + admin/social/cron lockdown + Prodentis key rotation
+- **S2** Payment integrity (state machine, server cart, verified webhooks)
+- **S3** Rezerwacja hardening (rate limit, slot revalidation, idempotency)
+- **S4** XSS sanitization + CSP + Turnstile + HMAC tokens + patient JWT cleanup + bucket private
+- **S5** SEO P2 (`html lang=uk`, robots prefixes, sitemap noindex, i18n deep merge, news SSR)
+- **S6** Dependency upgrade (Next + next-intl + Firebase + cleanup; npm audit zero high)
+- **S7** UX (mapa bólu disclaimers + scroll fixes + luxury menu)
+- **S8** RODO + 2FA + Passkeys + audit log + retention crons + export ZIP + pgcrypto Art. 9 encryption
+- **S9** Lint baseline + GitHub Actions security/lint gates + P1-06 cleanup
+
+Plus poza original scope: Android camera fix, multi-device 2FA, Passkeys/WebAuthn implementation, signout endpoint, HelpModal przewodnik, "Zaufaj urządzeniu 30 dni", disabled device cleanup.
+
+**Pozostałe opcjonalne (paused, NIE blokują Fazy K)**:
+- S2-bis (low priority, payment hardening details)
+- S4-2b CSP enforce (Marcin chose Report-Only — Sentry zbiera data, można aktywować kiedyś)
+- Drop plaintext PII columns (migracja 131) — sanity check ~2 tyg od S8-7 (po 2026-06-01)
+- Lint baseline gradual fix (zmniejszanie 1525 → 0 stopniowo)
+
+#### Następna sesja
+
+**🟢 Wrót do Fazy K Premium Positioning Reset** (`~/Desktop/bałagan/PLAN_PREMIUM_SEO.md`). Pierwsza sesja: **K-0 Strategy Workshop** (~1h AI + 1.5h Marcin solo). Output: `~/Desktop/bałagan/PLAN_K_DECISIONS.md`.
+
+> **Brak migracji DB / nowych env var.** Vercel auto-deployuje z pushem na main.
+
+---
 
 ### 2026-05-18 #3 — S8-7 pgcrypto: application-layer AES-256-GCM encryption dla Art. 9 PII (Sprint 8 COMPLETE)
 
