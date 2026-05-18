@@ -13,6 +13,7 @@ function ChallengeForm() {
     const [error, setError] = useState("");
     const [submitting, setSubmitting] = useState(false);
     const [backupRemaining, setBackupRemaining] = useState<number | null>(null);
+    const [remember, setRemember] = useState(false);
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
@@ -22,7 +23,7 @@ function ChallengeForm() {
             const res = await fetch("/api/auth/2fa/challenge", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ code, type: mode }),
+                body: JSON.stringify({ code, type: mode, remember }),
             });
             if (!res.ok) {
                 const data = await res.json();
@@ -102,6 +103,33 @@ function ChallengeForm() {
                     style={codeInputStyle}
                 />
                 {error && <p style={errorStyle}>{error}</p>}
+                <label style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    color: "#cbd5e1",
+                    fontSize: "0.85rem",
+                    cursor: "pointer",
+                    marginTop: 14,
+                    padding: 10,
+                    background: "#0f172a",
+                    border: "1px solid #334155",
+                    borderRadius: 6,
+                }}>
+                    <input
+                        type="checkbox"
+                        checked={remember}
+                        onChange={(e) => setRemember(e.target.checked)}
+                        style={{ width: 18, height: 18, accentColor: "#d4af37" }}
+                    />
+                    <span>
+                        <strong>Zaufaj temu urządzeniu na 30 dni</strong>
+                        <br />
+                        <span style={{ color: "#94a3b8", fontSize: "0.78rem" }}>
+                            Nie pytaj o kod 2FA przez najbliższy miesiąc na tej przeglądarce. Zaznacz tylko na własnym, prywatnym urządzeniu.
+                        </span>
+                    </span>
+                </label>
                 <button
                     type="submit"
                     disabled={submitting || !code}

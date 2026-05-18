@@ -1112,8 +1112,16 @@ function HelpModal({ onClose }: { onClose: () => void }) {
                         </li>
                     </ol>
                     <p style={{ marginTop: 8, color: "#94a3b8", fontStyle: "italic" }}>
-                        Od teraz przy każdym logowaniu (po haśle) wpiszesz kod 6 cyfr z aplikacji.
+                        Od teraz przy logowaniu (po haśle) wpiszesz kod 6 cyfr z aplikacji.
                     </p>
+                    <div style={{ marginTop: 10, padding: 10, background: "#064e3b", borderRadius: 6, color: "#a7f3d0", fontSize: "0.85rem" }}>
+                        💡 <strong>Tip — żeby nie klepać kodu codziennie</strong>: na ekranie 2FA
+                        po wpisaniu kodu zaznacz checkbox <em>„Zaufaj temu urządzeniu na 30
+                        dni"</em>. Przez najbliższy miesiąc nie będziesz musiał wpisywać kodu
+                        na tej przeglądarce/komputerze. Zaznaczaj TYLKO na <strong>własnym
+                        prywatnym</strong> urządzeniu (NIE na publicznym/wspólnym komputerze
+                        — wtedy ktoś inny miałby dostęp przez 30 dni).
+                    </div>
                 </HelpSection>
 
                 <HelpSection title="➕ Dodawanie kolejnego urządzenia (konta wspólne)">
@@ -1273,7 +1281,11 @@ function HelpModal({ onClose }: { onClose: () => void }) {
                 </HelpSection>
 
                 <HelpSection title="🛠 Częste problemy (FAQ)">
-                    <p><strong>Kod 6-cyfrowy „nieprawidłowy" mimo że dobrze przepisuję:</strong></p>
+                    <p><strong>Czy muszę za każdym razem wpisywać kod 6 cyfr?</strong></p>
+                    <ul style={listStyle}>
+                        <li>Domyślnie tak — co 8 godzin (typowy dzień pracy). ALE: jeśli na ekranie 2FA zaznaczysz checkbox <em>„Zaufaj temu urządzeniu na 30 dni"</em>, na tej przeglądarce/komputerze nie będziesz musiał wpisywać kodu przez miesiąc. Robisz to TYLKO na własnym prywatnym urządzeniu.</li>
+                    </ul>
+                    <p style={{ marginTop: 10 }}><strong>Kod 6-cyfrowy „nieprawidłowy" mimo że dobrze przepisuję:</strong></p>
                     <ul style={listStyle}>
                         <li>Sprawdź czas na telefonie — musi być sync z internetem (Ustawienia → Data i godzina → Automatycznie). TOTP toleruje ±30s odchyłki, dłuższe psuje kody.</li>
                         <li>Kod się zmienia co 30s — wpisuj szybko, nie czekaj.</li>

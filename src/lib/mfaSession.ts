@@ -2,7 +2,8 @@ import crypto from 'crypto';
 import { cookies } from 'next/headers';
 
 const COOKIE_NAME = 'mfa_session';
-const TTL_SECONDS = 8 * 60 * 60; // 8 hours (typical workday session)
+const TTL_DEFAULT_SECONDS = 8 * 60 * 60; // 8h — typical workday session
+const TTL_REMEMBER_SECONDS = 30 * 24 * 60 * 60; // 30d — "Zaufaj urządzeniu" opt-in dłuższa sesja
 
 function getSecret(): string {
     const secret = process.env.MFA_SESSION_SECRET;
@@ -28,9 +29,17 @@ function sign(payload: string): string {
  * Payload: {userId, expiresAt}
  *
  * Stored in httpOnly cookie. Middleware checks this on each admin/employee request.
+ *
+ * `remember=true` wydłuża TTL z 8h na 30 dni — używane gdy user zaznaczył
+ * "Zaufaj temu urządzeniu" na ekranie 2FA challenge. Trade-off: jeśli ktoś
+ * fizycznie przejmie urządzenie, dostęp 30 dni bez ponownego 2FA. Mitigacja:
+ * user może w każdej chwili wymusić logout (akcja Wyloguj czyści cookie),
+ * admin może zresetować 2FA pracownika (clearuje wszystkie sesje przy
+ * następnym middleware check).
  */
-export function createMfaSessionToken(userId: string): string {
-    const expiresAt = Date.now() + TTL_SECONDS * 1000;
+export function createMfaSessionToken(userId: string, remember: boolean = false): string {
+    const ttlSeconds = remember ? TTL_REMEMBER_SECONDS : TTL_DEFAULT_SECONDS;
+    const expiresAt = Date.now() + ttlSeconds * 1000;
     const payload = JSON.stringify({ userId, expiresAt });
     const encoded = Buffer.from(payload).toString('base64url');
     const signature = sign(encoded);
@@ -39,16 +48,18 @@ export function createMfaSessionToken(userId: string): string {
 
 /**
  * Set the MFA session cookie. Call after successful 2FA verification.
+ * `remember=true` ustawia cookie z TTL 30 dni zamiast standardowych 8h.
  */
-export async function setMfaSessionCookie(userId: string): Promise<void> {
-    const token = createMfaSessionToken(userId);
+export async function setMfaSessionCookie(userId: string, remember: boolean = false): Promise<void> {
+    const token = createMfaSessionToken(userId, remember);
+    const ttlSeconds = remember ? TTL_REMEMBER_SECONDS : TTL_DEFAULT_SECONDS;
     const cookieStore = await cookies();
     cookieStore.set(COOKIE_NAME, token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         path: '/',
-        maxAge: TTL_SECONDS,
+        maxAge: ttlSeconds,
     });
 }
 

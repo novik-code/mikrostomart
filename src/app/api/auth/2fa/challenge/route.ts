@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     const auth = await requireEmployeeOrAdmin();
     if (!auth.ok) return auth.response;
 
-    let body: { code?: string; type?: string };
+    let body: { code?: string; type?: string; remember?: boolean };
     try {
         body = await request.json();
     } catch {
@@ -46,7 +46,10 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: result.error }, { status });
     }
 
-    await setMfaSessionCookie(auth.user.id);
+    // remember=true → mfa_session TTL 30 dni (zaufane urządzenie)
+    // remember=false/undefined → standardowe 8h (typowy workday)
+    const remember = body.remember === true;
+    await setMfaSessionCookie(auth.user.id, remember);
 
     return NextResponse.json({
         ok: true,
