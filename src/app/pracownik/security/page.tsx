@@ -91,6 +91,9 @@ function SecurityPage() {
     const [regenSubmitting, setRegenSubmitting] = useState(false);
     const [newBackupCodes, setNewBackupCodes] = useState<string[] | null>(null);
 
+    // Help modal
+    const [showHelp, setShowHelp] = useState(false);
+
     async function fetchStatus() {
         try {
             const res = await fetch("/api/auth/2fa/status");
@@ -418,9 +421,36 @@ Po zużyciu wszystkich kodów wygeneruj nowe w panelu /pracownik/security.
     return (
         <div style={pageStyle}>
             <div style={cardStyle}>
-                <h1 style={h1Style}>🔒 Ustawienia bezpieczeństwa</h1>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 8 }}>
+                    <h1 style={{ ...h1Style, marginBottom: 0 }}>🔒 Ustawienia bezpieczeństwa</h1>
+                    <button
+                        type="button"
+                        onClick={() => setShowHelp(true)}
+                        style={{ ...secondaryBtnStyle, padding: "8px 14px", fontSize: "0.85rem", whiteSpace: "nowrap" }}
+                        title="Otwórz przewodnik krok po kroku"
+                    >
+                        ❓ Przewodnik
+                    </button>
+                </div>
                 <p style={subtitleStyle}>
                     Two-Factor Authentication (2FA) — dodatkowa warstwa zabezpieczeń konta.
+                    <br />
+                    <button
+                        type="button"
+                        onClick={() => setShowHelp(true)}
+                        style={{
+                            background: "transparent",
+                            border: "none",
+                            color: "#38bdf8",
+                            textDecoration: "underline",
+                            cursor: "pointer",
+                            padding: 0,
+                            fontSize: "inherit",
+                            marginTop: 6,
+                        }}
+                    >
+                        📘 Pierwszy raz tu jesteś? Otwórz przewodnik krok po kroku →
+                    </button>
                 </p>
 
                 {isForced && !status?.enabled && (
@@ -921,10 +951,406 @@ Po zużyciu wszystkich kodów wygeneruj nowe w panelu /pracownik/security.
                         </div>
                     </div>
                 )}
+
+                {/* ─── Help modal — debiloodporny przewodnik ───────────────── */}
+                {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
             </div>
         </div>
     );
 }
+
+/**
+ * Debiloodporny przewodnik 2FA dla pracownika. Otwierany z linku/przycisku na
+ * /pracownik/security. Pełen modal z accordion sekcjami (native <details>).
+ *
+ * Sekcje:
+ *   1. Co to jest 2FA i po co
+ *   2. Pierwsza konfiguracja (krok po kroku)
+ *   3. Dodawanie kolejnego urządzenia
+ *   4. Usuwanie urządzenia
+ *   5. iPhone/iOS specifics
+ *   6. Android (Samsung szczególnie) specifics
+ *   7. Backup codes — co to jest, gdzie trzymać
+ *   8. Pomocy! Zgubiłem telefon (recovery options)
+ *   9. Częste problemy (FAQ)
+ */
+function HelpModal({ onClose }: { onClose: () => void }) {
+    // Obsługa ESC do zamknięcia
+    useEffect(() => {
+        function onKey(e: KeyboardEvent) {
+            if (e.key === "Escape") onClose();
+        }
+        document.addEventListener("keydown", onKey);
+        return () => document.removeEventListener("keydown", onKey);
+    }, [onClose]);
+
+    return (
+        <div
+            style={{
+                position: "fixed",
+                inset: 0,
+                background: "rgba(0,0,0,0.85)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 1100,
+                padding: 16,
+                overflowY: "auto",
+            }}
+            onClick={onClose}
+        >
+            <div
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                    maxWidth: 720,
+                    width: "100%",
+                    maxHeight: "90vh",
+                    overflowY: "auto",
+                    background: "#1e293b",
+                    borderRadius: 12,
+                    padding: "24px 28px",
+                    border: "1px solid #334155",
+                    position: "relative",
+                }}
+            >
+                {/* Sticky header z X */}
+                <div
+                    style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        marginBottom: 16,
+                        paddingBottom: 12,
+                        borderBottom: "1px solid #334155",
+                        position: "sticky",
+                        top: 0,
+                        background: "#1e293b",
+                        zIndex: 10,
+                        paddingTop: 4,
+                    }}
+                >
+                    <h2 style={{ color: "#fff", fontSize: "1.4rem", margin: 0, fontWeight: 600 }}>
+                        📘 Przewodnik 2FA krok po kroku
+                    </h2>
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        aria-label="Zamknij"
+                        style={{
+                            background: "transparent",
+                            border: "1px solid #475569",
+                            color: "#cbd5e1",
+                            width: 36,
+                            height: 36,
+                            borderRadius: 6,
+                            cursor: "pointer",
+                            fontSize: "1.2rem",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                        }}
+                    >
+                        ✕
+                    </button>
+                </div>
+
+                <p style={{ color: "#cbd5e1", fontSize: "0.95rem", marginBottom: 18, lineHeight: 1.5 }}>
+                    Two-Factor Authentication (2FA) to dodatkowa warstwa zabezpieczeń konta —
+                    przy logowaniu oprócz hasła wpiszesz kod 6 cyfr z aplikacji na telefonie.
+                    Kliknij każdy nagłówek poniżej żeby rozwinąć szczegóły.
+                </p>
+
+                <HelpSection title="❓ Co to jest 2FA i po co mi to?" open>
+                    <p>
+                        Hasło można skraść (phishing, wyciek danych, podejrzeć przy wpisywaniu).
+                        2FA dodaje DRUGI faktor — coś co masz <em>fizycznie</em> przy sobie
+                        (telefon z aplikacją Authenticator). Nawet jeśli ktoś pozna Twoje
+                        hasło, bez tego telefonu się nie zaloguje.
+                    </p>
+                    <p style={{ marginTop: 8 }}>
+                        Kod 6 cyfr zmienia się co 30 sekund — generowany lokalnie na Twoim
+                        telefonie (offline, bez internetu). Aplikacje które polecamy: <strong>Google Authenticator</strong> (najprostszy), <strong>Authy</strong> (z chmurą), <strong>1Password</strong> (jeśli już używasz menedżera haseł).
+                    </p>
+                </HelpSection>
+
+                <HelpSection title="🚀 Pierwsza konfiguracja (NA START)">
+                    <ol style={listStyle}>
+                        <li>
+                            <strong>Zainstaluj aplikację Authenticator</strong> na swoim
+                            telefonie z Play Store (Android) lub App Store (iOS). Polecamy
+                            Google Authenticator.
+                        </li>
+                        <li>
+                            Na tej stronie kliknij niebieski przycisk <strong>„🚀 Rozpocznij
+                            konfigurację 2FA"</strong>.
+                        </li>
+                        <li>
+                            Pojawi się kod QR. <strong>Otwórz aplikację Authenticator NA
+                            TELEFONIE</strong> (nie aparat telefonu!) → tap <strong>„+"</strong>
+                            → <strong>„Zeskanuj kod QR"</strong> → skieruj kamerę na QR z
+                            tego ekranu.
+                        </li>
+                        <li>
+                            Aplikacja doda nowy wpis „Mikrostomart" z 6-cyfrowym kodem
+                            (zmienia się co 30s). Kliknij <strong>„✓ Zeskanowałem — dalej"</strong>
+                            na komputerze.
+                        </li>
+                        <li>
+                            Wpisz 6-cyfrowy kod z aplikacji → <strong>„Potwierdź kod"</strong>.
+                        </li>
+                        <li>
+                            <strong style={{ color: "#fbbf24" }}>🚨 KRYTYCZNY KROK:</strong>
+                            {" "}pojawi się 8 backup codes (kody ratunkowe).
+                            <strong> ZAPISZ JE TERAZ</strong> w bezpiecznym miejscu (1Password,
+                            sejf na recepcji, kartka). Każdy do użycia raz — gdyby
+                            telefon przepadł. Po opuszczeniu tej strony NIE BĘDĄ JUŻ POKAZANE.
+                            Kliknij „📥 Pobierz jako .txt".
+                        </li>
+                        <li>
+                            Zaznacz checkbox „Zapisałem kody…" i kliknij <strong>„✅ Gotowe —
+                            włącz 2FA"</strong>.
+                        </li>
+                    </ol>
+                    <p style={{ marginTop: 8, color: "#94a3b8", fontStyle: "italic" }}>
+                        Od teraz przy każdym logowaniu (po haśle) wpiszesz kod 6 cyfr z aplikacji.
+                    </p>
+                </HelpSection>
+
+                <HelpSection title="➕ Dodawanie kolejnego urządzenia (konta wspólne)">
+                    <p>
+                        Idealne dla konta <code>gabinet@</code> używanego przez kilka osób
+                        recepcji — każda osoba dodaje swój własny telefon i każdy działa
+                        niezależnie. Maksymalnie 10 urządzeń na konto.
+                    </p>
+                    <ol style={listStyle}>
+                        <li>
+                            Na komputerze (NIE na telefonie który dodajesz) wejdź na <code>/pracownik/security</code>.
+                        </li>
+                        <li>
+                            W sekcji „📱 Twoje urządzenia" kliknij <strong>„+ Dodaj kolejne
+                            urządzenie"</strong>.
+                        </li>
+                        <li>
+                            Wpisz <strong>nazwę urządzenia</strong> (np. „Recepcja — Justyna iPhone",
+                            „Recepcja — Samsung Galaxy"). Krótka, opisowa, żeby później wiedzieć
+                            kto jakim się loguje.
+                        </li>
+                        <li>
+                            Kliknij „Dalej →". Pojawi się <strong>NOWY QR</strong> (inny od
+                            poprzednich — każde urządzenie ma własny sekret).
+                        </li>
+                        <li>
+                            Na nowym telefonie otwórz Authenticator → „+" → „Zeskanuj kod QR" →
+                            skanuj QR z ekranu komputera.
+                        </li>
+                        <li>
+                            Wpisz na komputerze 6-cyfrowy kod z NOWEGO telefonu (uwaga: kody z
+                            iPhone i Samsunga są RÓŻNE w tym samym czasie — to normalne).
+                        </li>
+                        <li>
+                            „✅ Urządzenie dodane" → klik „Wróć do listy urządzeń". Nowy telefon
+                            pojawi się na liście z badge ✅.
+                        </li>
+                    </ol>
+                    <p style={{ marginTop: 8, color: "#fbbf24" }}>
+                        ❗ <strong>NIE skanuj tego samego QR w dwóch telefonach.</strong> To by
+                        zrobiło z nich kopie — brak per-device revoke. Zawsze <em>„+ Dodaj
+                        kolejne urządzenie"</em> = nowy QR = własny sekret.
+                    </p>
+                </HelpSection>
+
+                <HelpSection title="🗑️ Usuwanie urządzenia">
+                    <p>
+                        Gdy ktoś odchodzi z pracy lub zgubi telefon — usuwamy jego urządzenie,
+                        pozostałe nadal działają.
+                    </p>
+                    <ol style={listStyle}>
+                        <li>W sekcji „📱 Twoje urządzenia" kliknij <strong>🗑️</strong> obok urządzenia do usunięcia.</li>
+                        <li>
+                            <strong>Dla aktywnego urządzenia (✅)</strong>: wpisz kod TOTP z
+                            <em> dowolnego INNEGO</em> telefonu (lub backup code) → „🗑️ Usuń urządzenie".
+                        </li>
+                        <li>
+                            <strong>Dla urządzenia w trakcie setupu (⏳ „setup w toku")</strong>: po prostu
+                            kliknij „Tak, usuń" — bez kodu (bo nikt nie ma jeszcze działającego sekretu).
+                        </li>
+                    </ol>
+                    <p style={{ marginTop: 8, color: "#94a3b8" }}>
+                        Uwaga: jeśli usuwasz <strong>ostatnie</strong> urządzenie — 2FA zostanie
+                        wyłączone całkowicie i backup codes unieważnione. Po tym musisz robić
+                        pełny setup od nowa.
+                    </p>
+                </HelpSection>
+
+                <HelpSection title="🍎 Dla iPhone / iOS">
+                    <p><strong>iPhone obsługuje QR „otpauth://" natywnie</strong> — masz dwie opcje:</p>
+                    <ul style={listStyle}>
+                        <li>
+                            <strong>Opcja A — Google Authenticator / Authy / 1Password</strong>:
+                            otwórz aplikację → „+" → „Skanuj kod QR". Tak samo jak na Androidzie.
+                        </li>
+                        <li>
+                            <strong>Opcja B — wbudowany iCloud Keychain</strong> (iOS 15+):
+                            otwórz <em>Aparat</em> iPhone'a → skieruj na QR → tap żółty banner
+                            „Otwórz w Hasła" → potwierdź. Kody pojawią się w
+                            <em> Ustawienia → Hasła</em>. Bonus: synchronizacja między iPhone, iPad,
+                            Mac przez iCloud.
+                        </li>
+                    </ul>
+                    <p style={{ marginTop: 8 }}>
+                        Możesz też kliknąć <strong>„📲 Otwórz w aplikacji Authenticator"</strong>
+                        {" "}na ekranie setupu — iOS zaproponuje wybór aplikacji jeśli masz kilka.
+                    </p>
+                </HelpSection>
+
+                <HelpSection title="🤖 Dla Android (Samsung — uwaga!)">
+                    <div style={{ background: "#7c2d12", color: "#fed7aa", padding: 10, borderRadius: 6, marginBottom: 10 }}>
+                        🚨 <strong>NIE używaj domyślnego aparatu telefonu</strong> ani Bixby Vision
+                        (Samsung). One nie potrafią otworzyć QR z <code>otpauth://</code> i wracają
+                        do podglądu zdjęć. Wymagana jest aplikacja Authenticator.
+                    </div>
+                    <ol style={listStyle}>
+                        <li>Zainstaluj <strong>Google Authenticator</strong> z Play Store.</li>
+                        <li>
+                            Otwórz aplikację → tap <strong>„+"</strong> w prawym dolnym rogu →
+                            wybierz <strong>„Zeskanuj kod QR"</strong>.
+                        </li>
+                        <li>Skieruj kamerę telefonu na QR z ekranu komputera.</li>
+                        <li>Aplikacja doda wpis i pokaże 6-cyfrowy kod.</li>
+                    </ol>
+                    <p style={{ marginTop: 8 }}>
+                        <strong>Alternatywa</strong> jeśli skaner nie czyta QR: na ekranie setupu
+                        skopiuj „secret" przyciskiem <strong>📋 Kopiuj</strong> → w Authenticator
+                        wybierz „+" → <em>„Wprowadź klucz konfiguracji"</em> → wpisz nazwę konta
+                        i wklej secret.
+                    </p>
+                </HelpSection>
+
+                <HelpSection title="🔑 Backup codes — co to jest, gdzie trzymać">
+                    <p>
+                        8 jednorazowych kodów ratunkowych (format <code>XXXXX-XXXXX</code>)
+                        wygenerowanych przy pierwszej konfiguracji 2FA. Każdy <strong>do
+                        użycia TYLKO RAZ</strong> — alternatywa dla kodu z telefonu w skrajnych
+                        przypadkach (zgubiony telefon, brak innego urządzenia).
+                    </p>
+                    <p style={{ marginTop: 8 }}><strong>Gdzie trzymać:</strong></p>
+                    <ul style={listStyle}>
+                        <li>✅ Menedżer haseł (1Password, Bitwarden, Apple Passwords)</li>
+                        <li>✅ Zamknięty sejf w gabinecie (wydrukowane na papierze)</li>
+                        <li>✅ Zaszyfrowany dokument w chmurze (np. iCloud Notes z Face ID)</li>
+                        <li>❌ NIE: email, plik na pulpicie, screenshot w galerii, kartka na biurku</li>
+                    </ul>
+                    <p style={{ marginTop: 8 }}>
+                        Gdy zostanie Ci ≤ 2 kody (badge ostrzegawczy w panelu) — wygeneruj nowe
+                        klikiem „🔄 Wygeneruj nowe backup codes" (wymaga kodu TOTP z telefonu —
+                        stare zostaną unieważnione).
+                    </p>
+                </HelpSection>
+
+                <HelpSection title="🆘 Zgubiłem telefon — co teraz?">
+                    <p>Trzy ścieżki odzysku konta, w kolejności preferowanej:</p>
+                    <ol style={listStyle}>
+                        <li>
+                            <strong>Masz drugi telefon z 2FA</strong> (multi-device) — po prostu
+                            zaloguj się kodem z niego. Po zalogowaniu wejdź na <code>/pracownik/security</code>
+                            i 🗑️ usuń utracone urządzenie (wymaga kodu z aktywnego telefonu).
+                        </li>
+                        <li>
+                            <strong>Masz backup code</strong> — na ekranie 2FA challenge kliknij
+                            „📱 Zgubiłem phone — użyj backup code", wpisz format <code>XXXXX-XXXXX</code>.
+                            Każdy kod do użycia raz. Po zalogowaniu usuń utracone urządzenie
+                            i wygeneruj nowe backup codes.
+                        </li>
+                        <li>
+                            <strong>Nie masz ani drugiego telefonu ani backup codes</strong> —
+                            poproś innego admina (Marcin lub kogokolwiek z dostępem do panelu
+                            admin) o reset Twojego 2FA. Idą do <em>Admin → 🔒 Bezpieczeństwo (2FA)</em>
+                            → klik „🔄 Reset" obok Twojego konta → wpisują swój kod TOTP +
+                            powód (audit log RODO). Po tym Twoje 2FA jest zerowane — przy
+                            następnym logowaniu robisz pełny setup od nowa.
+                        </li>
+                    </ol>
+                </HelpSection>
+
+                <HelpSection title="🛠 Częste problemy (FAQ)">
+                    <p><strong>Kod 6-cyfrowy „nieprawidłowy" mimo że dobrze przepisuję:</strong></p>
+                    <ul style={listStyle}>
+                        <li>Sprawdź czas na telefonie — musi być sync z internetem (Ustawienia → Data i godzina → Automatycznie). TOTP toleruje ±30s odchyłki, dłuższe psuje kody.</li>
+                        <li>Kod się zmienia co 30s — wpisuj szybko, nie czekaj.</li>
+                        <li>Sprawdź czy wpisujesz kod z DOBREGO wpisu w Authenticator (jeśli masz wiele kont).</li>
+                    </ul>
+                    <p style={{ marginTop: 10 }}><strong>Widzę „Urządzenie 1 (setup w toku)" i nie mogę dokończyć:</strong></p>
+                    <ul style={listStyle}>
+                        <li>Kliknij 🗑️ obok tego urządzenia → „Tak, usuń" (bez kodu). Potem rozpocznij setup od nowa „🚀 Rozpocznij konfigurację".</li>
+                    </ul>
+                    <p style={{ marginTop: 10 }}><strong>Aparat na Samsungu nie reaguje na QR:</strong></p>
+                    <ul style={listStyle}>
+                        <li>Nie używaj aparatu — otwórz NAJPIERW Google Authenticator, dopiero potem „+" → „Skanuj QR".</li>
+                    </ul>
+                    <p style={{ marginTop: 10 }}><strong>Backup codes mi się skończyły:</strong></p>
+                    <ul style={listStyle}>
+                        <li>Zaloguj się TOTP-em z telefonu → /pracownik/security → „🔄 Wygeneruj nowe backup codes" → wpisz aktualny kod → zapisz nowe 8 kodów.</li>
+                    </ul>
+                </HelpSection>
+
+                <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 20, paddingTop: 16, borderTop: "1px solid #334155" }}>
+                    <button type="button" onClick={onClose} style={primaryBtnStyle}>
+                        Rozumiem — zamknij
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+/**
+ * Accordion section using native <details> — bez JS state, accessible by default,
+ * keyboard-navigable. `open` prop wymusza otwartą pierwszą sekcję.
+ */
+function HelpSection({ title, children, open }: { title: string; children: React.ReactNode; open?: boolean }) {
+    return (
+        <details
+            open={open}
+            style={{
+                marginBottom: 10,
+                border: "1px solid #334155",
+                borderRadius: 8,
+                overflow: "hidden",
+                background: "#0f172a",
+            }}
+        >
+            <summary
+                style={{
+                    padding: "12px 16px",
+                    color: "#fff",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    fontSize: "1rem",
+                    listStyle: "none",
+                    userSelect: "none",
+                }}
+            >
+                {title}
+            </summary>
+            <div
+                style={{
+                    padding: "0 16px 14px 16px",
+                    color: "#cbd5e1",
+                    fontSize: "0.9rem",
+                    lineHeight: 1.55,
+                }}
+            >
+                {children}
+            </div>
+        </details>
+    );
+}
+
+const listStyle: React.CSSProperties = {
+    margin: "8px 0",
+    paddingLeft: 24,
+    lineHeight: 1.6,
+};
 
 /**
  * Reusable QR setup block — używany w first-time setup (krok 1 z 3) i w add-device
