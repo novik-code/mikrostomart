@@ -12,6 +12,8 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
+    "lint:baseline": "node scripts/lint-baseline.mjs --update",
+    "lint:ci": "node scripts/lint-baseline.mjs",
     "test": "vitest run"
   },
   "dependencies": {

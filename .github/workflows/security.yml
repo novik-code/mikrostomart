@@ -1,0 +1,99 @@
+name: Security
+
+# S9-2 (Hotfix Sprint, 2026-05-18): three security gates that the rest of
+# the Hotfix Sprint's hardening relies on. Without these, the next leaked
+# Prodentis-style secret or auth bypass would just sit in the repo until
+# someone manually noticed.
+#
+# 1. npm audit — fails on new critical/high vulnerabilities in prod deps.
+#    After S6 (dependency sprint) the audit is clean; we don't want it
+#    silently rotting again.
+# 2. Secret scanning (gitleaks) — catches accidentally committed API keys,
+#    tokens, .env contents. The Prodentis key from 30e743d would have been
+#    caught here.
+# 3. Grep blockers — repo-specific patterns that should never appear:
+#    - NEXT_PUBLIC_*SERVICE*ROLE*  (service-role key in client bundle)
+#    - The known-leaked Prodentis key string (defense-in-depth tripwire
+#      even though the key itself is rotated)
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    # Weekly Monday 06:00 UTC re-audit so new advisories against pinned
+    # deps surface even without code changes.
+    - cron: '0 6 * * 1'
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  npm-audit:
+    name: npm audit (prod deps)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install
+        run: npm ci --no-audit --no-fund
+
+      - name: Audit production deps (fail on high+)
+        # --audit-level=high → fail only on high/critical; moderate/low logged but pass.
+        # --omit=dev → ignore devDeps (lint/test/build tools sometimes flagged irrelevantly).
+        run: npm audit --omit=dev --audit-level=high
+
+  gitleaks:
+    name: Secret scanning
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history so gitleaks can scan past commits (catches a leaked
+          # secret that was added 6 commits ago, not just current diff).
+          fetch-depth: 0
+
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  grep-blockers:
+    name: Repo-specific tripwires
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Block NEXT_PUBLIC_*SERVICE*ROLE* references
+        # `NEXT_PUBLIC_*` env vars end up in the client bundle. A service-role
+        # Supabase key with that prefix would leak full DB write access to every
+        # visitor. P1-06 from the 2026-05-12 audit.
+        run: |
+          if grep -rEn 'NEXT_PUBLIC_[A-Z_]*SERVICE[A-Z_]*ROLE[A-Z_]*' \
+                src/ scripts/ messages/ supabase_migrations/ 2>/dev/null; then
+            echo "::error::Found NEXT_PUBLIC_*SERVICE*ROLE* reference. Service-role keys must NOT be public."
+            exit 1
+          fi
+          echo "✓ No NEXT_PUBLIC_*SERVICE*ROLE* references"
+
+      - name: Block leaked Prodentis API key string
+        # Tripwire for the key rotated in S1-4. The string staying out of new
+        # files is defense-in-depth — the original commits in history can't
+        # be cleaned (immutable), but new occurrences = immediate fail.
+        run: |
+          if grep -rn '2c9bd5b4-5090-4007-8f06-936811bd0947' \
+                src/ scripts/ 2>/dev/null; then
+            echo "::error::Found the leaked Prodentis API key string. It was rotated — this string must not appear in new code."
+            exit 1
+          fi
+          echo "✓ No leaked Prodentis key reference"

@@ -178,7 +178,7 @@ export async function POST(req: NextRequest) {
             try {
                 const { createClient } = require('@supabase/supabase-js');
                 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://keucogopujdolzmfajjv.supabase.co';
-                const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY;
+                const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
                 if (supabaseKey) {
                     const supabase = createClient(supabaseUrl, supabaseKey);

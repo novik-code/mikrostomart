@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
     try {
         // Use fallback URL logic same as other endpoints
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://keucogopujdolzmfajjv.supabase.co';
-        const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY!;
+        const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
         const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -41,7 +41,7 @@ export async function DELETE(req: NextRequest) {
         if (!id) return NextResponse.json({ error: "Missing ID" }, { status: 400 });
 
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://keucogopujdolzmfajjv.supabase.co';
-        const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY!;
+        const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
         const supabase = createClient(supabaseUrl, supabaseServiceKey);
 

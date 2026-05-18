@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
     try {
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://keucogopujdolzmfajjv.supabase.co';
         // Use service role key to ensure we can read all orders regardless of RLS
-        const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY;
+        const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
         if (!supabaseServiceKey) {
             console.error("CRITICAL: Missing SUPABASE_SERVICE_ROLE_KEY in API route");
