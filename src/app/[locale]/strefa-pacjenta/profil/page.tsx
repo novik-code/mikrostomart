@@ -616,25 +616,34 @@ export default function PatientProfile() {
                             🛡️ Twoje dane (RODO)
                         </h2>
                         <p style={{ color: 'rgba(255, 255, 255, 0.5)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
-                            Zgodnie z RODO masz prawo do pobrania swoich danych oraz usunięcia konta.
+                            Zgodnie z RODO Art. 15 (right of access) masz prawo do pobrania
+                            wszystkich swoich danych — eksport zwraca ZIP zawierający data.json
+                            + folder pdfs/ z podpisanymi zgodami i wypełnionymi e-kartami.
                         </p>
 
                         <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
                             <button
-                                onClick={() => {
-                                    const token = getAuthToken();
-                                    const headers: Record<string, string> = {};
-                                    if (token) headers['Authorization'] = `Bearer ${token}`;
-                                    fetch('/api/patients/export-data', { headers })
-                                        .then(res => res.blob())
-                                        .then(blob => {
-                                            const url = URL.createObjectURL(blob);
-                                            const a = document.createElement('a');
-                                            a.href = url;
-                                            a.download = `${demoSanitize("moje-dane-mikrostomart")}-${new Date().toISOString().split('T')[0]}.json`;
-                                            a.click();
-                                            URL.revokeObjectURL(url);
-                                        });
+                                onClick={async () => {
+                                    try {
+                                        const token = getAuthToken();
+                                        const headers: Record<string, string> = {};
+                                        if (token) headers['Authorization'] = `Bearer ${token}`;
+                                        const res = await fetch('/api/patients/export-data', { headers });
+                                        if (!res.ok) {
+                                            alert(`Nie udało się pobrać danych. Status: ${res.status}`);
+                                            return;
+                                        }
+                                        const blob = await res.blob();
+                                        const url = URL.createObjectURL(blob);
+                                        const a = document.createElement('a');
+                                        a.href = url;
+                                        // S8-6: endpoint zwraca teraz ZIP (z PDFs), nie JSON
+                                        a.download = `${demoSanitize("moje-dane-mikrostomart")}-${new Date().toISOString().split('T')[0]}.zip`;
+                                        a.click();
+                                        URL.revokeObjectURL(url);
+                                    } catch (err) {
+                                        alert(`Błąd podczas pobierania: ${(err as Error).message}`);
+                                    }
                                 }}
                                 style={{
                                     padding: '0.75rem 1.5rem',
@@ -646,7 +655,7 @@ export default function PatientProfile() {
                                     transition: 'all 0.2s',
                                 }}
                             >
-                                💾 Pobierz moje dane
+                                📁 Pobierz moje dane (ZIP)
                             </button>
 
                             <button
