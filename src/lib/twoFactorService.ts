@@ -816,7 +816,16 @@ export async function startSetup(
     if (!status) return { ok: false, error: 'employee_not_found' };
     if (status.enabled) return { ok: false, error: 'already_enabled' };
 
-    // Clean up any orphan disabled devices from a previous abandoned setup
+    // Clean up any orphan disabled devices from a previous abandoned setup.
+    //
+    // Plus reset backup codes — pierwsza próba setupu mogła wygenerować backup
+    // codes i zapisać w employees.totp_backup_codes, ALE user nigdy nie dotarł
+    // do kroku 3 (gdzie codes są wyświetlone). Następna próba addDevice widzi
+    // hasBackupCodes=true → NIE generuje nowych → krok 3 dostaje null →
+    // 'backup_codes_not_generated' error → user zablokowany.
+    //
+    // Bezpieczne: nie ma enabled device → totp_enabled=false → user nie zna
+    // i nie używa backup codes. Wyczyść je żeby addDevice wygenerowało fresh.
     const { data: employee } = await supabase
         .from('employees')
         .select('id')
@@ -829,6 +838,14 @@ export async function startSetup(
             .delete()
             .eq('employee_id', employee.id)
             .eq('enabled', false);
+
+        // Reset backup codes (orphan z poprzedniego abandoned setup) — safe bo
+        // status.enabled === false guard powyżej gwarantuje że user nie ma
+        // żadnego active 2FA.
+        await supabase
+            .from('employees')
+            .update({ totp_backup_codes: [] })
+            .eq('id', employee.id);
     }
 
     const result = await addDevice(userId, email);

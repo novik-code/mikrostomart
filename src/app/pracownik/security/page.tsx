@@ -566,16 +566,34 @@ Po zużyciu wszystkich kodów wygeneruj nowe w panelu /pracownik/security.
     return (
         <div style={pageStyle}>
             <div style={cardStyle}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 8 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
                     <h1 style={{ ...h1Style, marginBottom: 0 }}>🔒 Ustawienia bezpieczeństwa</h1>
-                    <button
-                        type="button"
-                        onClick={() => setShowHelp(true)}
-                        style={{ ...secondaryBtnStyle, padding: "8px 14px", fontSize: "0.85rem", whiteSpace: "nowrap" }}
-                        title="Otwórz przewodnik krok po kroku"
-                    >
-                        ❓ Przewodnik
-                    </button>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <button
+                            type="button"
+                            onClick={() => setShowHelp(true)}
+                            style={{ ...secondaryBtnStyle, padding: "8px 14px", fontSize: "0.85rem", whiteSpace: "nowrap" }}
+                            title="Otwórz przewodnik krok po kroku"
+                        >
+                            ❓ Przewodnik
+                        </button>
+                        {/*
+                          Wyloguj button na security page — krytyczne gdy user jest w
+                          forced state (admin bez 2FA, redirect z middleware) i utknie
+                          z błędem (np. backup_codes_not_generated, lub mid-setup
+                          przerwanym). Bez tego button user nie ma jak opuścić strony
+                          poza zamknięciem tab — i przy następnym wejściu znowu trafi
+                          tu sam. /api/auth/signout czyści Supabase + mfa_session +
+                          redirect do /pracownik/login.
+                        */}
+                        <a
+                            href="/api/auth/signout"
+                            style={{ ...secondaryBtnStyle, padding: "8px 14px", fontSize: "0.85rem", whiteSpace: "nowrap", color: "#fca5a5", borderColor: "#7f1d1d", textDecoration: "none", display: "inline-block" }}
+                            title="Wyloguj się — czyści sesję i mfa_session"
+                        >
+                            🚪 Wyloguj
+                        </a>
+                    </div>
                 </div>
                 <p style={subtitleStyle}>
                     Two-Factor Authentication (2FA) — dodatkowa warstwa zabezpieczeń konta.
