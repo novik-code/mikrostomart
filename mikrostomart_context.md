@@ -1,8 +1,14 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-17 #8 (**🔐 S8-2 2FA TOTP for staff DONE — admin mandatory + opt-in pracownicy**. Migracja 126 + library otplib v12 + 3 lib helpers (totp/mfaSession/twoFactorService) + 7 API endpointów + UI strony (/pracownik/security setup wizard, /auth/2fa-challenge login challenge, admin SecurityTab) + middleware enforcement + 69/69 testów. Hybrid recovery (D3=C): peer reset z TOTP code admina-reseter + audit log RODO Art. 30. Wszyscy 4 admini (Marcin, gabinet, Justyna, Elżbieta) zostaną przekierowani do setup przy następnym logowaniu po deploy. **🚨 Manual Marcin**: (1) migracja 126 na obu Supabase, (2) env var MFA_SESSION_SECRET (openssl rand -hex 32) na obu Vercel, (3) powiadomić innych adminów. Verification Claude_Preview: /auth/2fa-challenge renders bez auth + TOTP/backup toggle działa + screenshot OK + 0 console errors, /pracownik/security redirect to login bez sesji. Build clean. **Wcześniej**: 2026-05-17 #7 S8-1 PII Audit + Retention Policy DONE — research-only.
+> **Last Updated:** 2026-05-18 (**🔓 ANDROID CAMERA FIX + 🔐 2FA MULTI-DEVICE SUPPORT**. Dwa commity tej sesji: `c0fa000` (fix Permissions-Policy `camera=()` → `camera=(self)` — Android Chrome ściśle egzekwował pusty header i blokował getUserMedia, iOS Safari ignorował stąd różnica. Fix odblokuje KCP skaner QR + /selfie + /symulator + Voice Assistant na Androidzie. Verified preview header poprawny). `feat/2fa-multi-device` (Migracja 128 + nowa tabela `employee_2fa_devices` + 3 nowe endpointy `/api/auth/2fa/devices` CRUD + UI lista urządzeń w /pracownik/security z "Dodaj kolejne urządzenie" wizard + admin SecurityTab kolumna "Urządzenia" + backward compat dla istniejących setupów Marcin/gabinet/Justyna/Elżbieta przez backfill "Urządzenie 1"). Use case: konto `gabinet@mikrostomart.pl` (recepcja, wiele osób). Stary system (mig 126) miał 1 sekret per konto — teraz każda osoba może mieć własne urządzenie TOTP z per-device revoke i audit (last_used_at per device). Backup codes nadal shared (8 per konto). Max 10 urządzeń. **🚨 Manual Marcin**: (1) wgrać migrację 128 na OBU Supabase (~/Desktop/migracje_supabase/migracja_128_employee_2fa_devices.txt — idempotent). (2) Migracja 127 z poprzedniej sesji (ai_conversations) nadal wymagana. (3) Po deploy: przetestuj skaner QR na Androidzie, dodaj drugie urządzenie 2FA do gabinet@. **Status Hotfix Sprint**: 11/11 mandatory done. Pozostałe S8-7 (pgcrypto) + S9 (lint+CI). Multi-device 2FA pomimo że poza original plan S8-2 — zaspokaja realny use case shared accounts recepcji.
 
-<!-- Poprzednia Last Updated: 2026-05-17 #7 (**📋 S8-1 PII AUDIT + RETENTION POLICY DONE — research-only, zero kod/DB**. Output: `~/Desktop/bałagan/PLAN_RODO_PII_AUDIT.md` (47 tabel/storage buckets z PII zinwentaryzowane, plan techniczny dla S8-2/S8-3/S8-4/S8-5/S8-6 + 6 decyzji Marcina D1-D6). Kluczowe ustalenia: (1) `patient_intake_submissions` (PESEL + medical_survey + signature_data + biometric_data) to **Art. 9 RODO** — retention 20 lat (art. 29 ust. 1 ustawy o prawach pacjenta); (2) `/api/patients/export-data` NIE eksportuje 9 tabel z PII pacjenta (intake_submissions, consents, biometric, cancelled_appointments, sms_reminders, fcm_tokens, careflow_*, email_*) — Art. 15 RODO gap; (3) `/api/patients/delete-account` anonimizuje TYLKO patients row, NIE kasuje prodentis_id ani powiązanych tabel; (4) `employee_audit_log` + `login_attempts` mają komentarze retention ale brak cron; (5) 9 tabel rośnie monotonicznie bez retention; (6) AI conversations `/api/chat` + `/api/cennik-chat` NIE persiste w DB; (7) RLS enabled na wszystkich PII tabelach (mig 081 z dec 2025); (8) `intake-pdfs` + `consent-pdfs` storage buckets słusznie permanent (Art. 17.3.b wyjątek). Sprint 7 zakończony 2026-05-17 #6 (commit `599644a` S7-3 fix #6 AssistantTeaser overlap). Sprint 8 update: S8-1 ✅, pozostają S8-2 2FA staff TOTP (~2h + Marcin authenticator setup), S8-3 audit log + retention cron 90d, S8-4 AI policy + RODO update + UI buttons. Następna sesja: S8-2 2FA staff (migracja 126). **Wcześniej**: 2026-05-15 SPRINT 5 SEO P2 CLEANUP COMPLETE — html lang + robots prefiksy + sitemap noindex + news 404 fallback + listing SSR + wizyta noindex + i18n deep merge fix.) -->
+<!-- Poprzednia Last Updated 2026-05-17 #11: SPRINT 8 EFFECTIVELY COMPLETE — S8-1+S8-2+S8-3+S8-4 done w jednej sesji (3cfa44c + 76a6e96 + 083b780). -->
+
+<!-- Poprzednia Last Updated 2026-05-17 #8: S8-2 2FA TOTP for staff DONE. -->
+
+<!-- Poprzednia Last Updated 2026-05-17 #7: S8-1 PII AUDIT + RETENTION POLICY DONE — research-only. -->
+
+
 
 <!-- Poprzednia Last Updated: 2026-05-15 (**🌐 SPRINT 5 SEO P2 CLEANUP COMPLETE — html lang + robots prefiksy + sitemap noindex + news 404 fallback + listing SSR + wizyta noindex + i18n deep merge fix**. 3 sesje, 3 commity zmergowane na origin/main. **S5-1** `1ef1cab`: `<html lang>` mapuje `'ua'` → ISO 639-1 `'uk'` (linia 292 layout.tsx). `robots.ts` rewrite — 12 prywatnych ścieżek × 4 prefiksy locale (`''`, `/en`, `/de`, `/ua`) + dodano `/wizyta/` przed S5-2; teraz Googlebot blokowany na `/en/strefa-pacjenta/`, `/de/admin/`, `/ua/ekarta/` etc. (wcześniej tylko PL bez prefixu). `sitemap.ts`: usunięto `/zadatek` (noindex z J-2), PL legal pages (regulamin/cookies/prywatnosci/rodo) emit tylko PL prefix; `/privacy-policy` zostaje multi-locale (dedicated international page). **S5-2** `58c7cfd`: `aktualnosci/[slug]/page.tsx` dodaje `notFound()` w generateMetadata + page gdy `locale != pl` AND brak `title_{locale}` (wcześniej silent PL fallback = duplicate content w en/de/ua). `generateStaticParams` filtrowane — emituje tylko (locale, slug) z istniejącym tłumaczeniem. `aktualnosci/page.tsx` client→server component (revalidate 10min, fetch direct supabase); carousel UI z arrows + RevealOnScroll wyrwane do nowego `NewsCarousel.tsx` client island; foreign locale pomija artykuły bez tłumaczenia. `wizyta/[type]/layout.tsx` (nowy plik): `metadata.robots: { index: false, follow: false }` (wizyta to per-appointment landing, brak organic intent + leak appointment_type strings). **S5-3** `320d7c0`: `src/i18n/request.ts` shallow `{...common, ...pages}` → recursive `deepMerge()`. Audit (Node script) potwierdził overlap `aktualnosci` namespace × 4 locale: `backToNews` + `articleNotFound` (z common.json) były nadpisywane przez pages.aktualnosci → MISSING_MESSAGE w server log. Deep merge odzyskał 8 brakujących tłumaczeń (2 × 4 locale). `oferta` namespace OK (pages superset common). **Następna sesja: S6-1 dependency upgrade triage** — Marcin postanowił przeskoczyć S4-2b (CSP enforce, paused do czasu Sentry data lub w ogóle pomija) i lecimy z S6 (deps) → S7 (UX) → S8 (RODO/2FA) → S9 (lint+CI) → potem wrót do Fazy K Premium SEO.) -->
 
@@ -2485,6 +2491,177 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-18 — Android camera fix + 2FA multi-device support
+
+#### Commits:
+- `c0fa000` — fix(security): Permissions-Policy camera=(self) — odblokuj kamere na Android
+- `<feat/2fa-multi-device merge>` — feat(2fa): multi-device support — N urządzeń per konto z per-device revoke
+
+#### Android camera fix (commit c0fa000)
+
+**Problem**: KCP skaner QR (`/pracownik` → Czas pracy → "Skanuj QR") nie uruchamiał kamery na urządzeniach z Androidem (Chrome). Na iOS Safari działał.
+
+**Root cause**: `next.config.ts:81` miał globalny header `Permissions-Policy: camera=(), microphone=(), geolocation=()`. Pusty `()` w spec Permissions-Policy = "deny all origins (włącznie z self)". Android Chrome ściśle to egzekwował i `getUserMedia` był odrzucony zanim w ogóle wyświetlono prompt o uprawnienia. iOS Safari ma znane braki w obsłudze Permissions-Policy i często ignoruje header, stąd działało.
+
+**Fix (1 linia)**: `camera=()` → `camera=(self)`, `microphone=()` → `microphone=(self)`. `geolocation=()` zostaje deny (nieużywane). Pozwala domenie własnej używać kamery/mikrofonu, zachowując blokadę dla iframe/embeds cross-origin.
+
+**Affected paths** (wszystkie odblokowane na Androidzie): `/pracownik` (KCP skaner), `/selfie` (camera capture), `/symulator` (StudioCapture), Voice Assistant (Web Speech API).
+
+**Verification**: preview server → `Permissions-Policy: camera=(self), microphone=(self), geolocation=()` w response. Marcin testuje na Androidzie po deploy.
+
+#### 2FA multi-device (feat/2fa-multi-device branch)
+
+**Use case**: konto `gabinet@mikrostomart.pl` używane przez wiele osób recepcji. Każda osoba chce własne urządzenie TOTP, z możliwością cofnięcia dostępu pojedynczemu urządzeniu (np. gdy ktoś odchodzi z pracy) bez resetu pozostałych.
+
+**Migracja 128** (`128_employee_2fa_devices.sql`, idempotentna):
+- Nowa tabela `employee_2fa_devices` (id, employee_id FK, device_name, totp_secret, enabled, created_at, last_used_at). UNIQUE(employee_id, device_name). Max 10 per konto.
+- Backfill: dla każdego employee z `totp_secret IS NOT NULL` (mig 126) — INSERT do `employee_2fa_devices` jako "Urządzenie 1" z istniejącym sekretem + flagą enabled. Marcin/gabinet@/Justyna/Elżbieta nadal działają bez resetu.
+- Trigger `sync_employee_totp_enabled()` utrzymuje `employees.totp_enabled` jako cache "any device enabled" — middleware (`enforce2FA`) używa tego bez JOIN.
+- RLS service-role only.
+- `employees.totp_backup_codes` ZOSTAJE w `employees` (shared per account — 8 kodów niezależnych od devices, fallback gdy zgubisz WSZYSTKIE telefony).
+
+**twoFactorService.ts refaktor (~720 LOC)**:
+- Nowe API: `addDevice`, `verifyAndEnableDevice`, `listDevices`, `removeDevice`, `renameDevice`, `disableAll`, `verifyAnyCode` (helper)
+- `verifyChallenge()` loops over enabled devices, matches first, updates `last_used_at` na matched device + `employees.totp_last_used_at`
+- Backup codes generowane TYLKO przy pierwszym device, kolejne dostają `null`
+- Backward compat wrappers: `startSetup`, `verifyAndEnable`, `disable` — wciąż działają (legacy endpointy nie wymagają zmian externally)
+
+**Nowe endpointy** (`/api/auth/2fa/devices/*`):
+- `GET /devices` — list user's devices (no secrets exposed)
+- `POST /devices` — add additional device (returns QR+secret, no backup codes — already exist)
+- `POST /devices/[id]/verify` — enable specific device po user scans QR
+- `DELETE /devices/[id]` — remove device (wymaga TOTP z any enabled device LUB backup code). Jeśli ostatnie urządzenie → clear backup codes + mfa_session cookie
+- `PATCH /devices/[id]` — rename device
+
+**Istniejące endpointy** (bez zmian externally — backward compat wrappers):
+- `POST /api/auth/2fa/setup` (now returns also `deviceId`)
+- `POST /api/auth/2fa/verify`, `/challenge`, `/disable`, `/status`, `/regenerate-backup-codes`
+- `POST /api/admin/2fa/reset`, `GET /api/admin/2fa/status`
+
+**UI `/pracownik/security`** (rewrite ~600 LOC):
+- First-time setup wizard zachowany (działa jak wcześniej)
+- Po enable: sekcja "📱 Twoje urządzenia" z listą (name, last_used_at, badge enabled/setup-w-toku) + actions (rename ✏️, remove 🗑️)
+- Button "+ Dodaj kolejne urządzenie" → flow: input name → POST `/devices` → QR + secret → input code → POST `/devices/[id]/verify` → done
+- Rename modal (PATCH `/devices/[id]`) + Remove modal (DELETE `/devices/[id]` z code)
+- "Wyłącz 2FA" teraz pokazuje liczbę urządzeń do usunięcia
+
+**Admin SecurityTab**:
+- Nowa kolumna "Urządzenia" pokazuje liczbę enabled devices per pracownik (color hint dla 2+ urządzeń)
+- `listEmployees2FAStatus()` zwraca `device_count` + `enabled_device_count`
+
+#### Verification
+- Build clean, zero TS errors
+- Preview smoke: 6 nowych endpointów zwracają 401 dla unauth, /pracownik/security strona 200 (Suspense fallback)
+- 0 errors w server logach po start
+
+#### 🚨 Manual Marcin po deploy
+1. **Wgrać migrację 128** na OBU Supabase (produkcja + demo): `~/Desktop/migracje_supabase/migracja_128_employee_2fa_devices.txt`. Idempotentna.
+2. **Migracja 127** (ai_conversations, S8-4) nadal wymagana z poprzedniej sesji.
+3. **Test na Androidzie**: zaloguj się jako admin → /pracownik → Czas pracy → "Skanuj QR" → powinien być prompt o kamerę + scanner aktywny.
+4. **Test multi-device 2FA** na konto `gabinet@`: /pracownik/security → "Dodaj kolejne urządzenie" → nazwa np. "Justyna iPhone" → scan QR drugim telefonem → wpisz code → done. Sprawdź że oba urządzenia generują różne kody ale oba działają przy logowaniu.
+
+#### Status sprint
+- Camera fix: bezpośrednio na main bo trywialna 1-linia security
+- 2FA multi-device: feat/2fa-multi-device → merge fast-forward → main
+- Hotfix Sprint 11/11 mandatory done + bonus multi-device. Pozostałe S8-7 pgcrypto + S9 lint+CI.
+
+---
+
+### 2026-05-17 #11 — S8-4 RODO update + AI conversations persist (D4=C+) + cookie consent v2
+
+#### Commit:
+- `083b780` — feat(rodo): S8-4 AI policy + cookie consent v2 + privacy policy expansion (D4=C+, D5 partial)
+
+#### Wymagane manual
+
+- 🚨 **Wgrać migrację 127** na OBU Supabase: `~/Desktop/migracje_supabase/migracja_127_ai_conversations.txt`. Idempotentna. Bez tego /api/chat + /api/cennik-chat przy próbie persist konwersacji rzucą non-fatal error (rozmowy nie zapisane).
+- Brak nowych env var (reuse MFA_SESSION_SECRET jako salt do IP hashing).
+
+#### Co zrobione (skrótowo)
+
+**Persist AI conversations (D4=C+)**:
+- Migracja 127 `ai_conversations` (user_id LUB anon_id, ip_hash HMAC SHA-256 z MFA_SESSION_SECRET salt, context, messages JSONB, consent_given, expires_at 90d). Service-role RLS.
+- `src/lib/aiConversationLog.ts` + `aiConsentClient.ts` (frontend cookie helpers + anonId UUID v4 + getAIMemoryConsent z v2 JSON parse)
+- `/api/chat` + `/api/cennik-chat` wire'd: logged-in zawsze, anon z opt-in
+- 24h session windowing (append do existing < 24h)
+
+**Cookie consent v2 granular**:
+- `CookieConsent.tsx` server: parsuje JSON v2 LUB legacy 'true' (backwards compat)
+- `CookieConsentButton.tsx`: 2 buttony (Akceptuj wszystko / Ustawienia szczegółowe) + modal z 3 checkboxami (Niezbędne always-on, AI memory 90d, Analityka)
+- 11 nowych translation keys × 4 locale = 44 strings
+
+**Polityka prywatności v2 (Opcja A — kolejne karty)**:
+- **9 sekcji × 4 locale** (~200 strings legal text new):
+  - V. AI i analiza automatyczna (~150 słów per locale)
+  - VI. Dane medyczne Art. 9 RODO (~200 słów)
+  - VII. Audyt dostępu Art. 30 RODO
+  - VIII. Twoje prawa — 4 bullets (Art. 15/17/7/77)
+  - IX. Lista 11 podmiotów przetwarzających Art. 28 RODO (z SCC + DPA gdzie dotyczy)
+- `polityka-prywatnosci/page.tsx` z 5 nowymi PolicyCard + Sparkles/HeartPulse/Eye/Scale/Building2 ikony
+
+**Cron retention rozszerzony**:
+- `/api/cron/audit-log-cleanup` (z S8-3) + ai_conversations DELETE WHERE expires_at < now()
+
+**Export-data RODO Art. 15 fix (D5 partial)**:
+- `/api/patients/export-data` + 4 nowe sekcje: aiConversations, smsReminders (by phone), intakeSubmissions (PESEL!), patientConsents (signed PDFs URLs)
+- Format JSON (full ZIP w S8-6 osobno)
+
+#### Verification
+- Build clean (Sentry warnings pre-existing only)
+- 69/69 tests passed
+- Claude_Preview smoke: /polityka-prywatnosci 9 sekcji + cookie banner v2 z modal 3 checkboxów ✓
+
+#### Status Sprint 8
+- S8-1 ✅ + S8-2 ✅ + S8-3 ✅ + **S8-4 ✅** — **Sprint 8 effectively COMPLETE** (mandatory done)
+- Pozostałe (opcjonalne): S8-5 consolidated retention crons, S8-6 export-data ZIP, S8-7 D6 pgcrypto encryption (osobny sprint)
+- Następna sesja: **S9 lint+CI** lub powrót do **Fazy K Premium SEO**
+
+---
+
+### 2026-05-17 #10 — S8-3 Audit log coverage + retention cron 90d (RODO Art. 30)
+
+#### Commit:
+- `76a6e96` — feat(security): S8-3 audit log coverage + retention cron 90d (RODO Art. 30)
+
+#### Co zrobione
+
+**Cron retention** `/api/cron/audit-log-cleanup` daily 03:30 UTC:
+- `employee_audit_log` 90 dni retention (Art. 30 RODO)
+- `login_attempts` 24h retention (rate limit history)
+- DRY_RUN flag dla safe testing + admin manual trigger `?manual=true`
+
+**8 endpointów wrapped z `logAudit()`**:
+- `/api/employee/patient-history` (view_patient_history)
+- `/api/employee/patient-search` (search_patients, only when results > 0)
+- `/api/employee/patient-appointments` (view_patient_appointments)
+- `/api/admin/patients/search` (admin_search_patients)
+- `/api/admin/patients DELETE` (admin_delete_patient — captures name pre-delete)
+- `/api/admin/chat/conversations PATCH` (admin_close_chat / admin_reopen_chat)
+- `/api/admin/chat/messages GET` (admin_read_patient_chat, skip empty polling)
+- `/api/admin/chat/messages POST` (admin_reply_patient_chat)
+- `/api/admin/online-bookings PUT` (admin_booking_{approve,reject,schedule,fail,pick_patient})
+- `/api/admin/online-bookings DELETE` (admin_delete_booking)
+- `/api/intake/generate-token` (create_intake_token) **+ bonus security fix**: dodany `requireEmployeeOrAdmin` auth (slip z S1 audit, endpoint był otwarty!)
+
+**Świadomie POMINIĘTE** (frequent polling = audit noise):
+- `/api/admin/patients GET` (list dashboard)
+- `/api/admin/cancelled-appointments GET`
+- `/api/admin/chat/conversations GET` (polling)
+
+**Admin UI tab "🕵️ Audyt RODO"**:
+- `/api/admin/audit-log` GET — paginated (max 500), filtrowane po user/action/resource/patient/date. requireAdmin only.
+- `AuditLogTab.tsx` (~370 LOC) zarejestrowany w admin sidebar
+- 50+ akcji z labelami PL czytelnymi dla audytorów non-tech
+- Modal ze szczegółami + eksport CSV + paginacja
+
+#### Verification
+- Build clean, 69/69 tests passed
+- Claude_Preview smoke: 401 dla unauth requests ✓
+
+#### Manual Marcin: brak — cron auto-startuje, tab pojawi się w sidebar
+
+---
 
 ### 2026-05-17 #8 — S8-2 2FA TOTP for staff (admin mandatory + opt-in pracownicy)
 
