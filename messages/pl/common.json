@@ -42,6 +42,50 @@
         "title2": "które zmieniają życie.",
         "description": "W {brandName} łączymy precyzję technologii z wrażliwością sztuki. Odkryj stomatologię, która przywraca pewność siebie."
     },
+    "heroSlideshow": {
+        "regionLabel": "Główna prezentacja kliniki",
+        "prevLabel": "Poprzedni slajd",
+        "nextLabel": "Następny slajd",
+        "goToSlide": "Przejdź do slajdu {idx} z {total}",
+        "slideOf": "Slajd {idx} z {total}"
+    },
+    "heroSlides": {
+        "emotional": {
+            "tagline": "Mikroskopowa Stomatologia Artystyczna",
+            "title1": "Tworzymy uśmiechy,",
+            "title2": "które zmieniają życie.",
+            "description": "W {brandName} łączymy precyzję technologii z wrażliwością sztuki. Odkryj stomatologię, która przywraca pewność siebie i radość uśmiechu.",
+            "ctaText": "Umów wizytę"
+        },
+        "authority": {
+            "tagline": "Drugi w Polsce z Master of Science",
+            "title1": "Master of Science",
+            "title2": "w Laser Dentistry — RWTH Aachen.",
+            "description": "Dr Marcin Nowosielski — drugi w Polsce dentysta z dyplomem M.Sc. RWTH Aachen (z wyróżnieniem, 2021). Autor książki Własny gabinet (Czelej 2024), wykładowca międzynarodowego LA&HA Symposium.",
+            "ctaText": "Poznaj zespół"
+        },
+        "technology": {
+            "tagline": "Bez kompromisów technologicznych",
+            "title1": "Mikroskop ZEISS",
+            "title2": "+ laser Fotona LightWalker.",
+            "description": "Każde leczenie kanałowe i mikrochirurgia pod 25× powiększeniem mikroskopu ZEISS. Stomatologia laserowa Fotona — bezbólowe zabiegi bez wiertła. Implantologia cyfrowa z planowaniem 3D.",
+            "ctaText": "Zobacz ofertę"
+        },
+        "specialty": {
+            "tagline": "Endodoncja mikroskopowa",
+            "title1": "Trudny ząb?",
+            "title2": "Wyzwanie, nie problem.",
+            "description": "Ratujemy zęby najgorzej rokujące — leczenie kanałowe pod mikroskopem ZEISS, re-endo, mikrochirurgia endodontyczna z laserem Er:YAG. Często alternatywa dla ekstrakcji i implantu.",
+            "ctaText": "Sprawdź na Mapie Bólu"
+        },
+        "international": {
+            "tagline": "Pacjenci z 5 krajów",
+            "title1": "Opole, ul. Centralna 33a —",
+            "title2": "PL · DE · CZ · AT · UA.",
+            "description": "Od 2016 roku obsługujemy pacjentów polskich oraz przyjezdnych z Niemiec, Czech, Austrii i Ukrainy. Obsługa wielojęzyczna (PL/EN/DE), parking, hotele w okolicy, rachunki dla niemieckich kas chorych.",
+            "ctaText": "Dla pacjentów spoza Opola"
+        }
+    },
     "values": {
         "heading": "Co nas wyróżnia",
         "precision": "Precyzja",

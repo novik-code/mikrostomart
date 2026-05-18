@@ -42,6 +42,50 @@
         "title2": "that change lives.",
         "description": "At {brandName}, we combine the precision of technology with the sensitivity of art. Discover dentistry that restores confidence."
     },
+    "heroSlideshow": {
+        "regionLabel": "Clinic main presentation",
+        "prevLabel": "Previous slide",
+        "nextLabel": "Next slide",
+        "goToSlide": "Go to slide {idx} of {total}",
+        "slideOf": "Slide {idx} of {total}"
+    },
+    "heroSlides": {
+        "emotional": {
+            "tagline": "Microscopic Artistic Dentistry",
+            "title1": "We create smiles",
+            "title2": "that change lives.",
+            "description": "At {brandName}, we combine the precision of technology with the sensitivity of art. Discover dentistry that restores confidence and the joy of smiling.",
+            "ctaText": "Book a visit"
+        },
+        "authority": {
+            "tagline": "Second in Poland with Master of Science",
+            "title1": "Master of Science",
+            "title2": "in Laser Dentistry — RWTH Aachen.",
+            "description": "Dr Marcin Nowosielski — second dentist in Poland with M.Sc. RWTH Aachen (with distinction, 2021). Author of Own Dental Practice (Czelej 2024), lecturer at international LA&HA Symposium.",
+            "ctaText": "Meet the team"
+        },
+        "technology": {
+            "tagline": "No technological compromises",
+            "title1": "ZEISS microscope",
+            "title2": "+ Fotona LightWalker laser.",
+            "description": "Every root canal treatment and microsurgery under 25× magnification with ZEISS microscope. Fotona laser dentistry — painless procedures without drilling. Digital implantology with 3D planning.",
+            "ctaText": "See our services"
+        },
+        "specialty": {
+            "tagline": "Microscopic endodontics",
+            "title1": "Difficult tooth?",
+            "title2": "A challenge, not a problem.",
+            "description": "We save the most compromised teeth — root canal under ZEISS microscope, re-endo treatments, endodontic microsurgery with Er:YAG laser. Often an alternative to extraction and implant.",
+            "ctaText": "Check the Pain Map"
+        },
+        "international": {
+            "tagline": "Patients from 5 countries",
+            "title1": "Opole, Centralna 33a —",
+            "title2": "PL · DE · CZ · AT · UA.",
+            "description": "Since 2016 we serve Polish patients and visitors from Germany, Czech Republic, Austria and Ukraine. Multilingual service (PL/EN/DE), parking, hotels nearby, invoices for German health insurance.",
+            "ctaText": "For international patients"
+        }
+    },
     "values": {
         "heading": "What Sets Us Apart",
         "precision": "Precision",

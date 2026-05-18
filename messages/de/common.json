@@ -42,6 +42,50 @@
         "title2": "die Leben verändern.",
         "description": "Bei {brandName} verbinden wir technologische Präzision mit künstlerischer Sensibilität. Entdecken Sie Zahnmedizin, die Selbstvertrauen zurückgibt."
     },
+    "heroSlideshow": {
+        "regionLabel": "Hauptpräsentation der Klinik",
+        "prevLabel": "Vorherige Folie",
+        "nextLabel": "Nächste Folie",
+        "goToSlide": "Zu Folie {idx} von {total} springen",
+        "slideOf": "Folie {idx} von {total}"
+    },
+    "heroSlides": {
+        "emotional": {
+            "tagline": "Mikroskopische Künstlerische Zahnmedizin",
+            "title1": "Wir schaffen Lächeln,",
+            "title2": "die Leben verändern.",
+            "description": "Bei {brandName} verbinden wir technologische Präzision mit künstlerischer Sensibilität. Entdecken Sie Zahnmedizin, die Selbstvertrauen und Lächelnfreude zurückgibt.",
+            "ctaText": "Termin buchen"
+        },
+        "authority": {
+            "tagline": "Zweiter in Polen mit Master of Science",
+            "title1": "Master of Science",
+            "title2": "in Laser Dentistry — RWTH Aachen.",
+            "description": "Dr. Marcin Nowosielski — zweiter Zahnarzt in Polen mit M.Sc. RWTH Aachen (mit Auszeichnung, 2021). Autor des Buches Eigene Praxis (Czelej 2024), Dozent beim internationalen LA&HA-Symposium.",
+            "ctaText": "Team kennenlernen"
+        },
+        "technology": {
+            "tagline": "Keine technologischen Kompromisse",
+            "title1": "ZEISS-Mikroskop",
+            "title2": "+ Fotona-LightWalker-Laser.",
+            "description": "Jede Wurzelkanalbehandlung und Mikrochirurgie unter 25-facher Vergrößerung mit ZEISS-Mikroskop. Fotona-Laserzahnmedizin — schmerzfreie Eingriffe ohne Bohrer. Digitale Implantologie mit 3D-Planung.",
+            "ctaText": "Leistungen ansehen"
+        },
+        "specialty": {
+            "tagline": "Mikroskopische Endodontie",
+            "title1": "Schwieriger Zahn?",
+            "title2": "Eine Herausforderung, kein Problem.",
+            "description": "Wir retten die am stärksten geschädigten Zähne — Wurzelkanalbehandlung unter ZEISS-Mikroskop, Re-Endo, endodontische Mikrochirurgie mit Er:YAG-Laser. Oft eine Alternative zu Extraktion und Implantat.",
+            "ctaText": "Schmerzkarte prüfen"
+        },
+        "international": {
+            "tagline": "Patienten aus 5 Ländern",
+            "title1": "Opole, Centralna 33a —",
+            "title2": "PL · DE · CZ · AT · UA.",
+            "description": "Seit 2016 betreuen wir polnische Patienten sowie Gäste aus Deutschland, Tschechien, Österreich und der Ukraine. Mehrsprachiger Service (PL/EN/DE), Parkplatz, Hotels in der Nähe, Rechnungen für deutsche Krankenkassen.",
+            "ctaText": "Für deutsche Patienten"
+        }
+    },
     "values": {
         "heading": "Was uns auszeichnet",
         "precision": "Präzision",

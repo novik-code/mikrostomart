@@ -3,6 +3,7 @@
 import YouTubeFeed from "@/components/YouTubeFeed";
 import GoogleReviews from "@/components/GoogleReviews";
 import InternationalPatientsTeaser from "@/components/InternationalPatientsTeaser";
+import HeroSlideshow from "@/components/HeroSlideshow";
 import { Link } from "@/i18n/navigation";
 import RevealOnScroll from "@/components/RevealOnScroll";
 import BeforeAfterSlider from "@/components/BeforeAfterSlider";
@@ -655,8 +656,17 @@ function GallerySection() {
 function renderSection(section: PageSection, onInteraction: () => void, features: any) {
     let content: React.ReactNode = null;
     switch (section.type) {
-        case 'hero':
-            content = <HeroSection layout={(section.config?.heroLayout as HeroLayout) || 'centered'} />; break;
+        case 'hero': {
+            // K-1b (2026-05-18): default mikrostomart layout 'centered' uses
+            // multi-slide HeroSlideshow with 5 SEO-targeted narratives.
+            // Other layouts (split-*, fullscreen-video) zachowują single-message
+            // HeroSection — używane przez theme presety przez VisualEditor config.
+            const heroLayout = (section.config?.heroLayout as HeroLayout) || 'centered';
+            content = heroLayout === 'centered'
+                ? <HeroSlideshow />
+                : <HeroSection layout={heroLayout} />;
+            break;
+        }
         case 'values':
             content = <ValuesSection />; break;
         case 'narrative':
