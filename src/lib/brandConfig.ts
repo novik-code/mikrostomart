@@ -136,7 +136,7 @@ const PROD_BRAND: BrandConfig = {
     // SEO
     titleDefault: 'Mikrostomart',
     titleTemplate: '%s | Mikrostomart - Dentysta Opole',
-    description: 'Mikrostomart — nowoczesny gabinet stomatologiczny w Opolu. Implanty, leczenie kanałowe pod mikroskopem, estetyka. Umów wizytę: 570 270 470.',
+    description: 'Mikrostomart — dr Marcin Nowosielski, M.Sc. RWTH Aachen. Implanty, leczenie kanałowe pod mikroskopem ZEISS, laser Fotona. Opole, od 2016.',
     keywords: 'dentysta opole, stomatolog opole, implanty opole, leczenie kanałowe opole, mikrostomart, stomatologia mikroskopowa',
     ogSiteName: 'Mikrostomart - Dentysta Opole',
     ogImageAlt: 'Mikrostomart - Mikroskopowa Stomatologia Artystyczna w Opolu',

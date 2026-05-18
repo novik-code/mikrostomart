@@ -17,28 +17,28 @@ import HomeClient from "./HomeClient";
 // Each locale below stays within ~155 chars while preserving primary keywords + CTA.
 const HOMEPAGE_SEO: Record<string, { title: string; description: string; ogTitle: string; ogDescription: string }> = {
     pl: {
-        title: 'Stomatolog, dentysta Opole | Gabinet stomatologiczny Mikrostomart',
-        description: 'Mikrostomart — gabinet stomatologiczny w Opolu. Implanty, leczenie kanałowe pod mikroskopem, estetyka, ortodoncja. Umów wizytę: 570 270 470.',
-        ogTitle: 'Stomatolog, dentysta Opole | Mikrostomart',
-        ogDescription: 'Nowoczesny gabinet stomatologiczny w Opolu. Implanty, mikroskopia, stomatologia estetyczna. Umów wizytę.',
+        title: 'Stomatolog Opole | Mikrostomart — M.Sc. RWTH Aachen, mikroskop ZEISS',
+        description: 'Mikrostomart — dr Marcin Nowosielski, M.Sc. RWTH Aachen. Implanty, leczenie kanałowe pod mikroskopem ZEISS, laser Fotona. Opole, od 2016.',
+        ogTitle: 'Mikrostomart Opole — Stomatologia premium | M.Sc. RWTH Aachen',
+        ogDescription: 'Dr Marcin Nowosielski, drugi w Polsce z Master of Science RWTH Aachen. Mikroskop ZEISS, laser Fotona, implantologia cyfrowa. Opole.',
     },
     en: {
-        title: 'Dentist in Opole, Poland | Mikrostomart Dental Clinic',
-        description: 'Mikrostomart — modern dental clinic in Opole, Poland. Dental implants, microscopic root canal, aesthetic dentistry, orthodontics. Book: +48 570 270 470.',
-        ogTitle: 'Dentist in Opole | Mikrostomart',
-        ogDescription: 'Modern dental clinic in Opole, Poland. Implants, microscopy, aesthetic dentistry. Book your appointment.',
+        title: 'Dentist in Opole, Poland | Mikrostomart — M.Sc. RWTH Aachen',
+        description: 'Mikrostomart — Dr Marcin Nowosielski, M.Sc. RWTH Aachen. Dental implants, microscopic root canal, Fotona laser. Opole, Poland — since 2016.',
+        ogTitle: 'Mikrostomart Opole — Premium Dental Clinic | M.Sc. RWTH Aachen',
+        ogDescription: 'Dr Marcin Nowosielski — second dentist in Poland with Master of Science from RWTH Aachen. ZEISS microscope, Fotona laser, digital implantology.',
     },
     de: {
-        title: 'Zahnarzt in Opole, Polen | Zahnklinik Mikrostomart',
-        description: 'Mikrostomart — moderne Zahnklinik in Opole, Polen. Implantate, mikroskopische Wurzelkanalbehandlung, ästhetische Zahnmedizin. Termin: +48 570 270 470.',
-        ogTitle: 'Zahnarzt in Opole | Mikrostomart',
-        ogDescription: 'Moderne Zahnklinik in Opole, Polen. Implantate, Mikroskopie, ästhetische Zahnmedizin. Termin online buchen.',
+        title: 'Zahnarzt in Opole, Polen | Mikrostomart — M.Sc. RWTH Aachen',
+        description: 'Mikrostomart — Dr. Marcin Nowosielski, M.Sc. RWTH Aachen. Zahnimplantate, mikroskopische Wurzelkanalbehandlung, Fotona-Laser. Opole — seit 2016.',
+        ogTitle: 'Mikrostomart Opole — Premium-Zahnarztpraxis | M.Sc. RWTH Aachen',
+        ogDescription: 'Dr. Marcin Nowosielski — zweiter Zahnarzt in Polen mit Master of Science der RWTH Aachen. ZEISS-Mikroskop, Fotona-Laser, digitale Implantologie.',
     },
     ua: {
-        title: 'Стоматолог в Ополе, Польща | Стоматологічна клініка Mikrostomart',
-        description: 'Mikrostomart — сучасна стоматологічна клініка в Ополе. Імпланти, мікроскопічне ендодонтичне лікування, естетика, ортодонтія. Запис: +48 570 270 470.',
-        ogTitle: 'Стоматолог в Ополе | Mikrostomart',
-        ogDescription: 'Сучасна стоматологічна клініка в Ополе. Імпланти, мікроскопія, естетична стоматологія. Запис на прийом.',
+        title: 'Стоматолог в Ополе, Польща | Mikrostomart — M.Sc. RWTH Aachen',
+        description: 'Mikrostomart — др. Марцін Новосельський, M.Sc. RWTH Aachen. Імпланти, ендодонтія під мікроскопом ZEISS, лазер Fotona. Ополе, з 2016.',
+        ogTitle: 'Mikrostomart Ополе — Преміум-стоматологія | M.Sc. RWTH Aachen',
+        ogDescription: 'Др. Марцін Новосельський — другий стоматолог у Польщі з Master of Science RWTH Aachen. Мікроскоп ZEISS, лазер Fotona, цифрова імплантологія.',
     },
 };
 
