@@ -1,6 +1,8 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-18 #2 (**🔐 BIG SECURITY DAY — 12 commitów: Android camera, multi-device 2FA, Passkeys/WebAuthn, retention crons, export ZIP, fix bugs**). Cumulative sesja: `c0fa000` Android camera (Permissions-Policy `camera=(self)`) + `059901d`+`1427672` multi-device 2FA (mig 128 + 3 endpointy CRUD + UI + admin SecurityTab kolumna) + `546826b` signout endpoint + sec link w pracownik + Samsung Authenticator UX + `7cb3550` pdfjs worker 4.10.38 fix (e-karta zgody) + middleware `.mjs` exclusion + `cc62a85` disabled device cleanup bez code + `aafad5f` HelpModal debiloodporny przewodnik 9 sekcji + `7f47f14` "Zaufaj urządzeniu 30 dni" (Opcja B mfaSession TTL) + `55282b9` **Passkeys/WebAuthn** (mig 129 + library @simplewebauthn v13.3 + 6 endpointów + UI w security + button "Zaloguj biometrią" w 2FA challenge + HelpModal Passkey section, FaceID/TouchID/Hello jako alternatywa dla TOTP, iOS Keychain syncs, phishing-resistant) + `199f410` backup_codes_not_generated deadlock fix + Wyloguj button na security + `29cee3c` **S8-5 retention cron** (12 tabel, dry-run default 2 tyg, daily 04:00 UTC) + `2a46ff8` **S8-6 export-data ZIP** (Art. 15 full export, JSZip 3.10.1, 13 sekcji JSON + PDFs z consent-pdfs + intake-pdfs buckets, README.txt z RODO articles). **Hotfix Sprint cumulative**: S1+S2+S3+S4+S5+S6+S7+S8-1+S8-2+S8-3+S8-4+S8-5+S8-6 done. Pozostałe S8-7 (pgcrypto, ~3-4h osobny sprint) + S9 (lint+CI, ~3-4h). **🚨 Manual Marcin krytyczne**: wgrać migrację **127** (ai_conversations, S8-4), **128** (employee_2fa_devices, multi-device), **129** (employee_passkeys, WebAuthn) na OBU Supabase. Test scenariusze w Recent Changes section. Po 2 tygodniach: zdjąć `?dry_run=true` z S8-5 cron path w `vercel.json`.
+> **Last Updated:** 2026-05-18 #3 (**🔐 S8-7 pgcrypto DONE — application-layer AES-256-GCM encryption dla Art. 9 PII**). Commit `ad7031c`. Migracja 130 (+5 kolumn na `patient_intake_submissions`: pesel_encrypted/pesel_hash/medical_survey_encrypted/medical_notes_encrypted/signature_data_encrypted; +2 kolumny na `patient_consents`: signature_data_encrypted/biometric_data_encrypted; +1 index na pesel_hash). Lib `src/lib/fieldEncryption.ts` (node:crypto AES-256-GCM, HMAC-SHA256, env-based keys, fail-soft) + `encryptedPiiFields.ts` (high-level prepare*Insert/read* helpers z dual-column transition pattern). 40/40 unit testów. 2 write paths wrapped (`/api/intake/submit`, `/api/consents/sign`), 6 read paths wrapped (employee/admin patient-intake + patient-consents + export-biometric + generate-pdf + export-data). Backfill script z keyset pagination batch 25. **LIVE backfill produkcja zakończony 2026-05-18 EOD**: 152 intake + 1226 consent rows (1378 total) encrypted, 0 errors, 141.9s. Round-trip verification: 3/3 ✅. Plaintext columns ZOSTAJĄ w bazie ~2 tyg jako rollback safety; drop w osobnej migracji 131. **🚨 Manual Marcin**: dodał już `ENCRYPTION_KEY` + `ENCRYPTION_HMAC_SALT` na obu Vercel projektach (32-byte hex each), wgrał migrację 130 na obu Supabase, Vercel redeploy zrobiony. Klucze zapisane w 1Password+paper sejf — utrata = nieodwracalna utrata wszystkich zaszyfrowanych PESEL/medical/signature/biometric. **Sprint 8 COMPLETE** (S8-1..S8-7). Pozostaje tylko S9 (lint baseline+CI gates) → wrót do Fazy K Premium SEO.
+
+<!-- Poprzednia: 2026-05-18 #2 (**🔐 BIG SECURITY DAY — 12 commitów: Android camera, multi-device 2FA, Passkeys/WebAuthn, retention crons, export ZIP, fix bugs**). Cumulative sesja: `c0fa000` Android camera (Permissions-Policy `camera=(self)`) + `059901d`+`1427672` multi-device 2FA (mig 128 + 3 endpointy CRUD + UI + admin SecurityTab kolumna) + `546826b` signout endpoint + sec link w pracownik + Samsung Authenticator UX + `7cb3550` pdfjs worker 4.10.38 fix (e-karta zgody) + middleware `.mjs` exclusion + `cc62a85` disabled device cleanup bez code + `aafad5f` HelpModal debiloodporny przewodnik 9 sekcji + `7f47f14` "Zaufaj urządzeniu 30 dni" (Opcja B mfaSession TTL) + `55282b9` **Passkeys/WebAuthn** (mig 129 + library @simplewebauthn v13.3 + 6 endpointów + UI w security + button "Zaloguj biometrią" w 2FA challenge + HelpModal Passkey section, FaceID/TouchID/Hello jako alternatywa dla TOTP, iOS Keychain syncs, phishing-resistant) + `199f410` backup_codes_not_generated deadlock fix + Wyloguj button na security + `29cee3c` **S8-5 retention cron** (12 tabel, dry-run default 2 tyg, daily 04:00 UTC) + `2a46ff8` **S8-6 export-data ZIP** (Art. 15 full export, JSZip 3.10.1, 13 sekcji JSON + PDFs z consent-pdfs + intake-pdfs buckets, README.txt z RODO articles). **Hotfix Sprint cumulative**: S1+S2+S3+S4+S5+S6+S7+S8-1+S8-2+S8-3+S8-4+S8-5+S8-6 done. Pozostałe S8-7 (pgcrypto, ~3-4h osobny sprint) + S9 (lint+CI, ~3-4h). **🚨 Manual Marcin krytyczne**: wgrać migrację **127** (ai_conversations, S8-4), **128** (employee_2fa_devices, multi-device), **129** (employee_passkeys, WebAuthn) na OBU Supabase. Test scenariusze w Recent Changes section. Po 2 tygodniach: zdjąć `?dry_run=true` z S8-5 cron path w `vercel.json`.
 
 <!-- Poprzednia: 2026-05-18 (**🔓 ANDROID CAMERA FIX + 🔐 2FA MULTI-DEVICE SUPPORT**. Dwa commity tej sesji: `c0fa000` (fix Permissions-Policy `camera=()` → `camera=(self)` — Android Chrome ściśle egzekwował pusty header i blokował getUserMedia, iOS Safari ignorował stąd różnica. Fix odblokuje KCP skaner QR + /selfie + /symulator + Voice Assistant na Androidzie. Verified preview header poprawny). `feat/2fa-multi-device` (Migracja 128 + nowa tabela `employee_2fa_devices` + 3 nowe endpointy `/api/auth/2fa/devices` CRUD + UI lista urządzeń w /pracownik/security z "Dodaj kolejne urządzenie" wizard + admin SecurityTab kolumna "Urządzenia" + backward compat dla istniejących setupów Marcin/gabinet/Justyna/Elżbieta przez backfill "Urządzenie 1"). Use case: konto `gabinet@mikrostomart.pl` (recepcja, wiele osób). Stary system (mig 126) miał 1 sekret per konto — teraz każda osoba może mieć własne urządzenie TOTP z per-device revoke i audit (last_used_at per device). Backup codes nadal shared (8 per konto). Max 10 urządzeń. **🚨 Manual Marcin**: (1) wgrać migrację 128 na OBU Supabase (~/Desktop/migracje_supabase/migracja_128_employee_2fa_devices.txt — idempotent). (2) Migracja 127 z poprzedniej sesji (ai_conversations) nadal wymagana. (3) Po deploy: przetestuj skaner QR na Androidzie, dodaj drugie urządzenie 2FA do gabinet@. **Status Hotfix Sprint**: 11/11 mandatory done. Pozostałe S8-7 (pgcrypto) + S9 (lint+CI). Multi-device 2FA pomimo że poza original plan S8-2 — zaspokaja realny use case shared accounts recepcji.
 
@@ -2493,6 +2495,116 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-18 #3 — S8-7 pgcrypto: application-layer AES-256-GCM encryption dla Art. 9 PII (Sprint 8 COMPLETE)
+
+#### Commit
+- `ad7031c` — feat(security): S8-7 application-layer encryption for Art. 9 PII (pgcrypto sprint)
+
+#### Co zrobione
+
+Wszystkie wrażliwe PII pola Art. 9 RODO (PESEL, medical_survey, medical_notes, signature_data, biometric_data) są teraz zaszyfrowane na poziomie aplikacji przed zapisem do Supabase. Dwuwarstwowa ochrona: Supabase szyfruje at-rest (AES-256), my dodajemy app-side AES-256-GCM z kluczem nigdy nie idącym do DB. Atakujący który zdobył dump Supabase (RLS bypass, SQL injection, leak credentials) widzi tylko ciphertext nieczytelny bez `ENCRYPTION_KEY` z Vercel env vars.
+
+**Architektura: dual-column transition**
+- Migracja 130 dodaje `*_encrypted TEXT` (base64 ciphertext) obok istniejących plaintext kolumn
+- Write paths populate **obie** kolumny (transition)
+- Read paths prefer encrypted, fallback do plaintext (zero downtime)
+- Plaintext zostaje **~2 tygodnie** jako rollback safety, drop w osobnej migracji 131
+
+**PESEL ma dodatkowy `pesel_hash` (HMAC-SHA256)** — future-proof dla potencjalnego search by PESEL (obecnie 0 callerów w naszej DB, wszystkie patient lookups idą do Prodentis API).
+
+**Algorytm**: AES-256-GCM (authenticated encryption + random IV per call → no nonce reuse). Format ciphertext: `base64([iv:12][tag:16][ciphertext:N])`. Storage: TEXT (nie BYTEA) — prościej z Supabase JS client, brak encoding ambiguity.
+
+**Library `src/lib/fieldEncryption.ts`** (node:crypto, server-only):
+- `encryptStringToBase64(plaintext)` + `decryptStringFromBase64(b64)`
+- `encryptJsonToBase64(obj)` + `decryptJsonFromBase64<T>(b64)`
+- `hashPesel(pesel)` — HMAC-SHA256 hex, normalizuje whitespace, deterministyczny
+- `tryDecryptString/Json(b64)` — null on error (dla read fallback)
+- `isEncryptionConfigured()` — bool check
+- Strict env var validation (32 byte hex required), cached keys
+
+**Library `src/lib/encryptedPiiFields.ts`** (high-level wrappers):
+- `prepareIntakeSubmissionInsert(input)` → payload z plaintext + encrypted columns (fail-soft: encryption fail → plaintext nadal zapisany, lepsze degraded security niż data loss)
+- `prepareConsentInsert(input)` → analogicznie
+- `readIntakeSubmissionPii(row)` → decrypted result z encrypted preference + plaintext fallback
+- `readPatientConsentPii(row)` → analogicznie
+
+**Tests**: 40/40 unit testów pass:
+- 32× `fieldEncryption.test.ts` — round-trip ASCII/Polish/PESEL/50KB images, random IV, tamper detection, wrong key rejection, env var validation, all edge cases
+- 8× `encryptedPiiFields.test.ts` — write/read round-trip, plaintext-only mode (env vars missing), null handling
+
+#### Pliki
+
+**Nowe**:
+- `src/lib/fieldEncryption.ts` (160 LOC)
+- `src/lib/encryptedPiiFields.ts` (173 LOC)
+- `src/lib/__tests__/fieldEncryption.test.ts` (266 LOC, 32 testów)
+- `src/lib/__tests__/encryptedPiiFields.test.ts` (188 LOC, 8 testów)
+- `supabase_migrations/130_pii_encryption_columns.sql` (63 LOC, idempotent)
+- `scripts/backfill-encryption.ts` (320 LOC, keyset pagination batch 25, DRY_RUN default)
+
+**Wrap write paths** (encrypt before INSERT):
+- `src/app/api/intake/submit/route.ts` — używa `prepareIntakeSubmissionInsert`
+- `src/app/api/consents/sign/route.ts` — używa `prepareConsentInsert`
+
+**Wrap read paths** (decrypt after SELECT, encrypted preferred + plaintext fallback):
+- `src/app/api/employee/patient-intake/route.ts`
+- `src/app/api/employee/patient-consents/route.ts`
+- `src/app/api/admin/patient-consents/route.ts`
+- `src/app/api/employee/export-biometric/route.ts`
+- `src/app/api/intake/generate-pdf/route.ts` (w `generateEKartaPdf` wrapper)
+- `src/app/api/patients/export-data/route.ts` (RODO Art. 15 export)
+
+#### Deploy + Backfill (2026-05-18 EOD)
+
+**Sekwencja zrealizowana**:
+1. ✅ Build clean + 109/109 testów pass + preview smoke (homepage 200, 4 protected endpoints 401 — brak runtime errors)
+2. ✅ Branch `sec/s8-7-pgcrypto-encryption` → merge ff-only → push origin/main → cleanup branch
+3. ✅ Marcin wgrał migrację 130 na OBU Supabase (produkcja `keucogopujdolzmfajjv` + demo `mhosfncgasjfruiohlfo`)
+4. ✅ Marcin dodał `ENCRYPTION_KEY` + `ENCRYPTION_HMAC_SALT` (32-byte hex each) na OBU Vercel projektach × Production + Preview
+5. ✅ Vercel redeploy na obu projektach (demo wymagał manual Redeploy click)
+6. ✅ **DRY_RUN backfill produkcja**: 152 intake + 1226 consent rows znalezione, 0 errors, keyset pagination batch 25 (pierwszy run bez batching padał na PostgreSQL `statement_timeout` przy SELECT * z dużymi `signature_data`/`biometric_data` JSONB)
+7. ✅ **LIVE backfill produkcja**: 1378 rows encrypted (152 + 1226), 0 errors, 141.9s
+8. ✅ **Round-trip verification**: 3/3 ✅ — pesel + medical_survey + signature samples decrypted correctly
+9. ✅ Production smoke (`curl /api/employee/patient-intake?prodentisId=test` → 401 unauth, brak 500 → env vars załadowane)
+
+**Klucze zapisane przez Marcina** w 1Password + paper sejf. **Utrata = nieodwracalna utrata wszystkich zaszyfrowanych PESEL/medical/signature/biometric** (Supabase nie ma backup tych kluczy).
+
+#### Decyzje architektoniczne
+
+- **node:crypto vs pgcrypto**: wybrane app-side `node:crypto` AES-256-GCM — pełna kontrola, klucz nigdy w DB, brak zależności od pgcrypto extension version. Storage: TEXT z base64 (nie BYTEA) dla uniknięcia Supabase JS encoding gotchy.
+- **PESEL hash future-proof**: 0 callerów obecnie w naszej DB (wszystkie patient verify idą do Prodentis API), ale dodajemy `pesel_hash` zero-cost na wypadek przyszłej deduplikacji intake submissions.
+- **Dual-column transition**: zamiast hard switch (replace columns) — keep both columns przez 2 tyg, read path z fallback. Worst case: re-run backfill (idempotent). Drop plain w osobnej migracji 131 po sanity check.
+- **Keyset pagination w backfill** (zamiast offset): SELECT po `WHERE id > $lastId ORDER BY id LIMIT 25` — stabilne przy concurrent writes + omija PostgreSQL statement_timeout dla dużych rows.
+- **Fail-soft helpers**: jeśli encrypt throws (np. corrupt env var) — plaintext nadal zapisany, lepsze degraded security niż dropped submission.
+
+#### Manual taski Marcin pozostałe
+
+1. **Test w UI produkcji** (kiedy okazja):
+   - Otwórz pacjenta w `/pracownik` → Pacjent → Konsenty → sprawdź czy signature wyświetla się + biometric badge działa (decrypt path)
+   - Wygeneruj e-karta PDF dla pacjenta → sprawdź czy PESEL, medical survey i signature widoczne (decrypt w `generateEKartaPdf`)
+   - Test patient export-data (`/strefa-pacjenta/profil` → "📁 Pobierz moje dane (ZIP)") — verify że `pesel` i `medical_notes` w `data.json` to plaintext (decrypted, nie ciphertext)
+
+2. **Po ~2 tygodniach** (sanity check że nic nie pada): osobny sprint **drop plaintext columns** (migracja 131) — kasuje `pesel`, `medical_survey`, `medical_notes`, `signature_data` z patient_intake_submissions + `signature_data`, `biometric_data` z patient_consents. Po tym Supabase dump nie zawiera już Art. 9 PII w plaintext.
+
+#### Status Sprint 8
+
+| # | Sprint | Status |
+|---|---|---|
+| S8-1 | PII audit + retention plan | ✅ 2026-05-17 #7 |
+| S8-2 | 2FA TOTP staff | ✅ 2026-05-17 #8 |
+| S8-3 | Audit log + retention cron 90d | ✅ 2026-05-17 #10 |
+| S8-4 | AI policy + cookie consent v2 + RODO update | ✅ 2026-05-17 #11 |
+| S8-5 | Consolidated retention cron (12 tabel) | ✅ 2026-05-18 #2 |
+| S8-6 | Export-data ZIP Art. 15 | ✅ 2026-05-18 #2 |
+| S8-7 | **pgcrypto encryption Art. 9 PII** | ✅ **2026-05-18 #3** |
+
+**Sprint 8 COMPLETE** (7/7 podsprintów). Pozostaje tylko S9 (lint baseline + CI gates, ~3-4h LOW risk) → po S9 wrót do **Fazy K Premium SEO**.
+
+#### Cumulative Hotfix Sprint
+S1 (auth) + S2 (payment) + S3 (reservation) + S4 (XSS+public) + S5 (SEO P2 cleanup) + S6 (deps) + S7 (UX) + S8 (RODO+2FA+encryption) ✅ **8/9 sprintów COMPLETE**. Tylko S9 zostaje przed wrótem do premium SEO.
+
+---
 
 ### 2026-05-18 #2 — Big security day: Passkeys + retention + export ZIP + bug fixes (12 commitów cumulative)
 

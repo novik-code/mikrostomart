@@ -53,6 +53,10 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 const log = (...args: unknown[]) => console.log(`[${DRY_RUN ? 'DRY' : 'LIVE'}]`, ...args);
 
+// Batch size for keyset pagination. Smaller = safer against statement_timeout
+// when rows contain large signature_data (~50KB base64) + biometric_data JSONB.
+const BATCH_SIZE = 25;
+
 interface BackfillStats {
     table: string;
     totalCandidates: number;
@@ -74,72 +78,87 @@ async function backfillIntakeSubmissions(): Promise<BackfillStats> {
 
     log('--- patient_intake_submissions ---');
 
-    const { data: rows, error } = await supabase
-        .from('patient_intake_submissions')
-        .select('id, pesel, pesel_encrypted, medical_survey, medical_survey_encrypted, medical_notes, medical_notes_encrypted, signature_data, signature_data_encrypted')
-        .order('submitted_at', { ascending: true });
+    // Keyset pagination by id (uuid string) to avoid statement_timeout on large rows.
+    let lastId: string | null = null;
+    let batchNum = 0;
 
-    if (error) {
-        console.error('Failed to query patient_intake_submissions:', error);
-        stats.errors++;
-        return stats;
-    }
+    while (true) {
+        let query = supabase
+            .from('patient_intake_submissions')
+            .select('id, pesel, pesel_encrypted, medical_survey, medical_survey_encrypted, medical_notes, medical_notes_encrypted, signature_data, signature_data_encrypted')
+            .order('id', { ascending: true })
+            .limit(BATCH_SIZE);
+        if (lastId) query = query.gt('id', lastId);
 
-    stats.totalCandidates = rows?.length || 0;
-    log(`Found ${stats.totalCandidates} rows total`);
+        const { data: rows, error } = await query;
 
-    for (const row of rows || []) {
-        const updates: Record<string, string | null> = {};
-        let needsUpdate = false;
-
-        try {
-            if (row.pesel && !row.pesel_encrypted) {
-                updates.pesel_encrypted = encryptStringToBase64(row.pesel);
-                updates.pesel_hash = hashPesel(row.pesel);
-                needsUpdate = true;
-            }
-            if (row.medical_survey != null && !row.medical_survey_encrypted) {
-                updates.medical_survey_encrypted = encryptJsonToBase64(row.medical_survey);
-                needsUpdate = true;
-            }
-            if (row.medical_notes && !row.medical_notes_encrypted) {
-                updates.medical_notes_encrypted = encryptStringToBase64(row.medical_notes);
-                needsUpdate = true;
-            }
-            if (row.signature_data && !row.signature_data_encrypted) {
-                updates.signature_data_encrypted = encryptStringToBase64(row.signature_data);
-                needsUpdate = true;
-            }
-
-            if (!needsUpdate) {
-                stats.skipped++;
-                continue;
-            }
-
-            if (stats.sampleIds.length < 5) stats.sampleIds.push(row.id);
-
-            if (DRY_RUN) {
-                log(`  Would UPDATE ${row.id}: ${Object.keys(updates).join(', ')}`);
-                stats.encrypted++;
-            } else {
-                const { error: updErr } = await supabase
-                    .from('patient_intake_submissions')
-                    .update(updates)
-                    .eq('id', row.id);
-                if (updErr) {
-                    console.error(`  ERR ${row.id}:`, updErr);
-                    stats.errors++;
-                } else {
-                    stats.encrypted++;
-                    if (stats.encrypted % 50 === 0) log(`  Progress: ${stats.encrypted} encrypted`);
-                }
-            }
-        } catch (e) {
-            console.error(`  EXCEPTION on row ${row.id}:`, (e as Error).message);
+        if (error) {
+            console.error(`Failed to fetch patient_intake_submissions batch ${batchNum}:`, error);
             stats.errors++;
+            return stats;
         }
+
+        if (!rows || rows.length === 0) break;
+        batchNum++;
+        stats.totalCandidates += rows.length;
+
+        for (const row of rows) {
+            const updates: Record<string, string | null> = {};
+            let needsUpdate = false;
+
+            try {
+                if (row.pesel && !row.pesel_encrypted) {
+                    updates.pesel_encrypted = encryptStringToBase64(row.pesel);
+                    updates.pesel_hash = hashPesel(row.pesel);
+                    needsUpdate = true;
+                }
+                if (row.medical_survey != null && !row.medical_survey_encrypted) {
+                    updates.medical_survey_encrypted = encryptJsonToBase64(row.medical_survey);
+                    needsUpdate = true;
+                }
+                if (row.medical_notes && !row.medical_notes_encrypted) {
+                    updates.medical_notes_encrypted = encryptStringToBase64(row.medical_notes);
+                    needsUpdate = true;
+                }
+                if (row.signature_data && !row.signature_data_encrypted) {
+                    updates.signature_data_encrypted = encryptStringToBase64(row.signature_data);
+                    needsUpdate = true;
+                }
+
+                if (!needsUpdate) {
+                    stats.skipped++;
+                    continue;
+                }
+
+                if (stats.sampleIds.length < 5) stats.sampleIds.push(row.id);
+
+                if (DRY_RUN) {
+                    log(`  Would UPDATE ${row.id}: ${Object.keys(updates).join(', ')}`);
+                    stats.encrypted++;
+                } else {
+                    const { error: updErr } = await supabase
+                        .from('patient_intake_submissions')
+                        .update(updates)
+                        .eq('id', row.id);
+                    if (updErr) {
+                        console.error(`  ERR ${row.id}:`, updErr);
+                        stats.errors++;
+                    } else {
+                        stats.encrypted++;
+                        if (stats.encrypted % 25 === 0) log(`  Progress: ${stats.encrypted} encrypted`);
+                    }
+                }
+            } catch (e) {
+                console.error(`  EXCEPTION on row ${row.id}:`, (e as Error).message);
+                stats.errors++;
+            }
+        }
+
+        lastId = rows[rows.length - 1].id;
+        if (rows.length < BATCH_SIZE) break; // last page
     }
 
+    log(`Done. Total scanned: ${stats.totalCandidates}, batches: ${batchNum}`);
     return stats;
 }
 
@@ -155,63 +174,78 @@ async function backfillPatientConsents(): Promise<BackfillStats> {
 
     log('--- patient_consents ---');
 
-    const { data: rows, error } = await supabase
-        .from('patient_consents')
-        .select('id, signature_data, signature_data_encrypted, biometric_data, biometric_data_encrypted')
-        .order('signed_at', { ascending: true });
+    // Keyset pagination — patient_consents rows are heavy (signature_data + biometric_data).
+    let lastId: string | null = null;
+    let batchNum = 0;
 
-    if (error) {
-        console.error('Failed to query patient_consents:', error);
-        stats.errors++;
-        return stats;
-    }
+    while (true) {
+        let query = supabase
+            .from('patient_consents')
+            .select('id, signature_data, signature_data_encrypted, biometric_data, biometric_data_encrypted')
+            .order('id', { ascending: true })
+            .limit(BATCH_SIZE);
+        if (lastId) query = query.gt('id', lastId);
 
-    stats.totalCandidates = rows?.length || 0;
-    log(`Found ${stats.totalCandidates} rows total`);
+        const { data: rows, error } = await query;
 
-    for (const row of rows || []) {
-        const updates: Record<string, string | null> = {};
-        let needsUpdate = false;
-
-        try {
-            if (row.signature_data && !row.signature_data_encrypted) {
-                updates.signature_data_encrypted = encryptStringToBase64(row.signature_data);
-                needsUpdate = true;
-            }
-            if (row.biometric_data != null && !row.biometric_data_encrypted) {
-                updates.biometric_data_encrypted = encryptJsonToBase64(row.biometric_data);
-                needsUpdate = true;
-            }
-
-            if (!needsUpdate) {
-                stats.skipped++;
-                continue;
-            }
-
-            if (stats.sampleIds.length < 5) stats.sampleIds.push(row.id);
-
-            if (DRY_RUN) {
-                log(`  Would UPDATE ${row.id}: ${Object.keys(updates).join(', ')}`);
-                stats.encrypted++;
-            } else {
-                const { error: updErr } = await supabase
-                    .from('patient_consents')
-                    .update(updates)
-                    .eq('id', row.id);
-                if (updErr) {
-                    console.error(`  ERR ${row.id}:`, updErr);
-                    stats.errors++;
-                } else {
-                    stats.encrypted++;
-                    if (stats.encrypted % 50 === 0) log(`  Progress: ${stats.encrypted} encrypted`);
-                }
-            }
-        } catch (e) {
-            console.error(`  EXCEPTION on row ${row.id}:`, (e as Error).message);
+        if (error) {
+            console.error(`Failed to fetch patient_consents batch ${batchNum}:`, error);
             stats.errors++;
+            return stats;
         }
+
+        if (!rows || rows.length === 0) break;
+        batchNum++;
+        stats.totalCandidates += rows.length;
+
+        for (const row of rows) {
+            const updates: Record<string, string | null> = {};
+            let needsUpdate = false;
+
+            try {
+                if (row.signature_data && !row.signature_data_encrypted) {
+                    updates.signature_data_encrypted = encryptStringToBase64(row.signature_data);
+                    needsUpdate = true;
+                }
+                if (row.biometric_data != null && !row.biometric_data_encrypted) {
+                    updates.biometric_data_encrypted = encryptJsonToBase64(row.biometric_data);
+                    needsUpdate = true;
+                }
+
+                if (!needsUpdate) {
+                    stats.skipped++;
+                    continue;
+                }
+
+                if (stats.sampleIds.length < 5) stats.sampleIds.push(row.id);
+
+                if (DRY_RUN) {
+                    log(`  Would UPDATE ${row.id}: ${Object.keys(updates).join(', ')}`);
+                    stats.encrypted++;
+                } else {
+                    const { error: updErr } = await supabase
+                        .from('patient_consents')
+                        .update(updates)
+                        .eq('id', row.id);
+                    if (updErr) {
+                        console.error(`  ERR ${row.id}:`, updErr);
+                        stats.errors++;
+                    } else {
+                        stats.encrypted++;
+                        if (stats.encrypted % 25 === 0) log(`  Progress: ${stats.encrypted} encrypted`);
+                    }
+                }
+            } catch (e) {
+                console.error(`  EXCEPTION on row ${row.id}:`, (e as Error).message);
+                stats.errors++;
+            }
+        }
+
+        lastId = rows[rows.length - 1].id;
+        if (rows.length < BATCH_SIZE) break;
     }
 
+    log(`Done. Total scanned: ${stats.totalCandidates}, batches: ${batchNum}`);
     return stats;
 }
 
