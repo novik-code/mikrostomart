@@ -13,167 +13,456 @@ const supabase = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────────────────────────────────────
+
 export type TwoFactorStatus = {
     enabled: boolean;
     setupAt: string | null;
     verifiedAt: string | null;
     lastUsedAt: string | null;
     backupCodesRemaining: number;
+    deviceCount: number;
+    enabledDeviceCount: number;
 };
 
-export type TwoFactorSetupResult = {
+export type TwoFactorDevice = {
+    id: string;
+    name: string;
+    enabled: boolean;
+    createdAt: string;
+    lastUsedAt: string | null;
+};
+
+export type AddDeviceResult = {
+    deviceId: string;
     secret: string;
     qrDataUrl: string;
-    backupCodes: string[];
+    /** Backup codes returned only at first-time setup. null on subsequent devices. */
+    backupCodes: string[] | null;
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Status & listing
+// ─────────────────────────────────────────────────────────────────────────────
+
 /**
- * Read 2FA status for a user.
+ * Read aggregate 2FA status for a user (any device enabled, total devices, etc).
  */
 export async function getTwoFactorStatus(userId: string): Promise<TwoFactorStatus | null> {
-    const { data, error } = await supabase
+    const { data: employee, error } = await supabase
         .from('employees')
-        .select('totp_enabled, totp_setup_at, totp_verified_at, totp_last_used_at, totp_backup_codes')
+        .select('id, totp_enabled, totp_setup_at, totp_verified_at, totp_last_used_at, totp_backup_codes')
         .eq('user_id', userId)
         .maybeSingle();
 
-    if (error || !data) return null;
+    if (error || !employee) return null;
 
+    const { data: devices } = await supabase
+        .from('employee_2fa_devices')
+        .select('enabled')
+        .eq('employee_id', employee.id);
+
+    const devList = devices || [];
     return {
-        enabled: Boolean(data.totp_enabled),
-        setupAt: data.totp_setup_at,
-        verifiedAt: data.totp_verified_at,
-        lastUsedAt: data.totp_last_used_at,
-        backupCodesRemaining: Array.isArray(data.totp_backup_codes) ? data.totp_backup_codes.length : 0,
+        enabled: Boolean(employee.totp_enabled),
+        setupAt: employee.totp_setup_at,
+        verifiedAt: employee.totp_verified_at,
+        lastUsedAt: employee.totp_last_used_at,
+        backupCodesRemaining: Array.isArray(employee.totp_backup_codes) ? employee.totp_backup_codes.length : 0,
+        deviceCount: devList.length,
+        enabledDeviceCount: devList.filter(d => d.enabled).length,
     };
 }
 
 /**
- * Generate a new TOTP secret + backup codes for a user.
- * Saves secret + hashed backup codes to DB but does NOT enable 2FA yet
- * — user must verify with a TOTP code first (calls verifyAndEnable).
- *
- * Returns secret + QR data URL + plain backup codes (show once to user).
- *
- * SAFETY: if user already has totp_enabled=true, this will reset their setup
- * (return error). To re-setup, must first disable.
+ * List all devices for a user (no secrets exposed).
  */
-export async function startSetup(userId: string, email: string): Promise<
-    { ok: true; data: TwoFactorSetupResult } | { ok: false; error: string }
-> {
-    // Look up employee
+export async function listDevices(userId: string): Promise<TwoFactorDevice[]> {
+    const { data: employee } = await supabase
+        .from('employees')
+        .select('id')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+    if (!employee) return [];
+
+    const { data: devices, error } = await supabase
+        .from('employee_2fa_devices')
+        .select('id, device_name, enabled, created_at, last_used_at')
+        .eq('employee_id', employee.id)
+        .order('created_at', { ascending: true });
+
+    if (error || !devices) return [];
+
+    return devices.map(d => ({
+        id: d.id,
+        name: d.device_name,
+        enabled: d.enabled,
+        createdAt: d.created_at,
+        lastUsedAt: d.last_used_at,
+    }));
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Add / verify / remove devices
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Add a new TOTP device for the user. Generates secret + QR. Device is NOT enabled
+ * yet — caller must verify with verifyAndEnableDevice first.
+ *
+ * Backup codes:
+ *   - First device for user (no enabled devices yet) → generate 8 backup codes
+ *   - Subsequent devices → returns null (backup codes already exist, don't regenerate)
+ *
+ * Device naming:
+ *   - If caller provides deviceName, use it (after collision check)
+ *   - If not, default to "Urządzenie N" where N = next available number
+ *
+ * Errors:
+ *   - employee_not_found
+ *   - device_name_taken (UNIQUE constraint on employee_id + device_name)
+ *   - max_devices_reached (hard limit 10 per account — anti-abuse)
+ */
+const MAX_DEVICES_PER_ACCOUNT = 10;
+
+export async function addDevice(
+    userId: string,
+    email: string,
+    deviceName?: string
+): Promise<{ ok: true; data: AddDeviceResult } | { ok: false; error: string }> {
     const { data: employee, error } = await supabase
         .from('employees')
-        .select('id, user_id, totp_enabled')
+        .select('id, totp_backup_codes')
         .eq('user_id', userId)
         .maybeSingle();
 
     if (error) return { ok: false, error: 'database_error' };
     if (!employee) return { ok: false, error: 'employee_not_found' };
-    if (employee.totp_enabled) {
-        return { ok: false, error: 'already_enabled' };
+
+    // Check current devices
+    const { data: existingDevices } = await supabase
+        .from('employee_2fa_devices')
+        .select('id, device_name, enabled')
+        .eq('employee_id', employee.id);
+
+    const devices = existingDevices || [];
+    if (devices.length >= MAX_DEVICES_PER_ACCOUNT) {
+        return { ok: false, error: 'max_devices_reached' };
     }
 
+    // Generate default name if not provided
+    let finalName: string;
+    if (deviceName && deviceName.trim().length > 0) {
+        const trimmed = deviceName.trim().slice(0, 60);
+        const taken = devices.some(d => d.device_name === trimmed);
+        if (taken) return { ok: false, error: 'device_name_taken' };
+        finalName = trimmed;
+    } else {
+        // Find next available "Urządzenie N"
+        let n = devices.length + 1;
+        // Avoid collision if user previously deleted middle devices
+        while (devices.some(d => d.device_name === `Urządzenie ${n}`)) {
+            n++;
+            if (n > 99) break; // safety
+        }
+        finalName = `Urządzenie ${n}`;
+    }
+
+    // Generate TOTP secret + QR
     const secret = generateSecret();
-    const qrDataUrl = await generateQrDataUrl(email, secret);
-    const { plain, hashed } = await generateBackupCodes();
+    // Include device name in OTPAUTH label so user can distinguish in their app:
+    // "Mikrostomart (Justyna iPhone)" → email:Mikrostomart-Justyna iPhone
+    const labelEmail = `${email} (${finalName})`;
+    const qrDataUrl = await generateQrDataUrl(labelEmail, secret);
 
-    const { error: updateError } = await supabase
-        .from('employees')
-        .update({
+    // Backup codes: only generate if this is the first device
+    const hasEnabledDevice = devices.some(d => d.enabled);
+    const hasBackupCodes = Array.isArray(employee.totp_backup_codes) && employee.totp_backup_codes.length > 0;
+
+    let backupCodesPlain: string[] | null = null;
+    let backupCodesHashed: string[] | null = null;
+
+    if (!hasEnabledDevice && !hasBackupCodes) {
+        const generated = await generateBackupCodes();
+        backupCodesPlain = generated.plain;
+        backupCodesHashed = generated.hashed;
+    }
+
+    // Insert device row
+    const { data: inserted, error: insertError } = await supabase
+        .from('employee_2fa_devices')
+        .insert({
+            employee_id: employee.id,
+            device_name: finalName,
             totp_secret: secret,
-            totp_backup_codes: hashed,
-            totp_setup_at: new Date().toISOString(),
-            totp_enabled: false, // still false — enabled only after verifyAndEnable
+            enabled: false,
         })
-        .eq('id', employee.id);
+        .select('id')
+        .single();
 
-    if (updateError) {
-        console.error('[2FA] startSetup update error:', updateError);
+    if (insertError || !inserted) {
+        console.error('[2FA] addDevice insert error:', insertError);
+        if (insertError?.code === '23505') {
+            return { ok: false, error: 'device_name_taken' };
+        }
         return { ok: false, error: 'database_error' };
+    }
+
+    // If first device, save backup codes + setup timestamp
+    if (backupCodesHashed) {
+        await supabase
+            .from('employees')
+            .update({
+                totp_backup_codes: backupCodesHashed,
+                totp_setup_at: new Date().toISOString(),
+            })
+            .eq('id', employee.id);
     }
 
     return {
         ok: true,
-        data: { secret, qrDataUrl, backupCodes: plain },
+        data: {
+            deviceId: inserted.id,
+            secret,
+            qrDataUrl,
+            backupCodes: backupCodesPlain,
+        },
     };
 }
 
 /**
- * Verify the TOTP code submitted at setup time and enable 2FA.
+ * Verify the TOTP code and enable a specific device.
+ * If this is the first enabled device on the account, also sets totp_verified_at.
  */
-export async function verifyAndEnable(userId: string, code: string): Promise<
-    { ok: true } | { ok: false; error: string }
-> {
+export async function verifyAndEnableDevice(
+    userId: string,
+    deviceId: string,
+    code: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
     const { data: employee, error } = await supabase
         .from('employees')
-        .select('id, totp_secret, totp_enabled')
+        .select('id, totp_verified_at')
         .eq('user_id', userId)
         .maybeSingle();
 
     if (error || !employee) return { ok: false, error: 'employee_not_found' };
-    if (employee.totp_enabled) return { ok: false, error: 'already_enabled' };
-    if (!employee.totp_secret) return { ok: false, error: 'no_secret_setup_first' };
 
-    if (!verifyCode(code, employee.totp_secret)) {
+    const { data: device, error: devErr } = await supabase
+        .from('employee_2fa_devices')
+        .select('id, totp_secret, enabled')
+        .eq('id', deviceId)
+        .eq('employee_id', employee.id)
+        .maybeSingle();
+
+    if (devErr || !device) return { ok: false, error: 'device_not_found' };
+    if (device.enabled) return { ok: false, error: 'already_enabled' };
+
+    if (!verifyCode(code, device.totp_secret)) {
         return { ok: false, error: 'invalid_code' };
     }
 
     const now = new Date().toISOString();
-    const { error: updateError } = await supabase
-        .from('employees')
-        .update({
-            totp_enabled: true,
-            totp_verified_at: now,
-            totp_last_used_at: now,
-        })
-        .eq('id', employee.id);
 
-    if (updateError) {
-        console.error('[2FA] verifyAndEnable update error:', updateError);
+    // Enable the device
+    const { error: devUpdateErr } = await supabase
+        .from('employee_2fa_devices')
+        .update({
+            enabled: true,
+            last_used_at: now,
+        })
+        .eq('id', device.id);
+
+    if (devUpdateErr) {
+        console.error('[2FA] verifyAndEnableDevice update error:', devUpdateErr);
+        return { ok: false, error: 'database_error' };
+    }
+
+    // Update employees aggregate fields (totp_enabled handled by trigger)
+    const empUpdate: Record<string, string | null> = {
+        totp_last_used_at: now,
+    };
+    // Set totp_verified_at only on FIRST enabled device (legacy "moment 2FA went live")
+    if (!employee.totp_verified_at) {
+        empUpdate.totp_verified_at = now;
+    }
+    await supabase.from('employees').update(empUpdate).eq('id', employee.id);
+
+    return { ok: true };
+}
+
+/**
+ * Remove a device. Requires current TOTP code (from any enabled device on the
+ * account) or a backup code as proof of possession.
+ *
+ * If removing the LAST enabled device, also clears backup codes (account reverts
+ * to no-2FA state — caller should treat this as full disable).
+ */
+export async function removeDevice(
+    userId: string,
+    deviceId: string,
+    proofCode: string
+): Promise<{ ok: true; allDisabled: boolean } | { ok: false; error: string }> {
+    const { data: employee, error } = await supabase
+        .from('employees')
+        .select('id, totp_backup_codes')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+    if (error || !employee) return { ok: false, error: 'employee_not_found' };
+
+    const { data: target, error: targetErr } = await supabase
+        .from('employee_2fa_devices')
+        .select('id')
+        .eq('id', deviceId)
+        .eq('employee_id', employee.id)
+        .maybeSingle();
+
+    if (targetErr || !target) return { ok: false, error: 'device_not_found' };
+
+    // Verify proof (TOTP from any enabled device OR backup code)
+    const verified = await verifyAnyCode(employee.id, proofCode, employee.totp_backup_codes || []);
+    if (!verified.ok) return { ok: false, error: 'invalid_code' };
+
+    // Delete device
+    const { error: delErr } = await supabase
+        .from('employee_2fa_devices')
+        .delete()
+        .eq('id', target.id);
+
+    if (delErr) {
+        console.error('[2FA] removeDevice delete error:', delErr);
+        return { ok: false, error: 'database_error' };
+    }
+
+    // Check if any enabled devices remain
+    const { data: remaining } = await supabase
+        .from('employee_2fa_devices')
+        .select('id')
+        .eq('employee_id', employee.id)
+        .eq('enabled', true);
+
+    const allDisabled = !remaining || remaining.length === 0;
+
+    // If no enabled devices left, clear backup codes too (account reverts to no-2FA)
+    if (allDisabled) {
+        await supabase
+            .from('employees')
+            .update({
+                totp_backup_codes: [],
+                totp_setup_at: null,
+                totp_verified_at: null,
+            })
+            .eq('id', employee.id);
+    }
+
+    // If backup code was consumed, persist the updated array
+    if (verified.consumedBackupCodes) {
+        await supabase
+            .from('employees')
+            .update({ totp_backup_codes: verified.consumedBackupCodes })
+            .eq('id', employee.id);
+    }
+
+    return { ok: true, allDisabled };
+}
+
+/**
+ * Rename a device. No code proof needed (already authenticated as user).
+ */
+export async function renameDevice(
+    userId: string,
+    deviceId: string,
+    newName: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+    const trimmed = newName.trim().slice(0, 60);
+    if (trimmed.length === 0) return { ok: false, error: 'name_required' };
+
+    const { data: employee, error } = await supabase
+        .from('employees')
+        .select('id')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+    if (error || !employee) return { ok: false, error: 'employee_not_found' };
+
+    const { error: updateErr } = await supabase
+        .from('employee_2fa_devices')
+        .update({ device_name: trimmed })
+        .eq('id', deviceId)
+        .eq('employee_id', employee.id);
+
+    if (updateErr) {
+        if (updateErr.code === '23505') return { ok: false, error: 'device_name_taken' };
+        console.error('[2FA] renameDevice update error:', updateErr);
         return { ok: false, error: 'database_error' };
     }
 
     return { ok: true };
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Login challenge (multi-device)
+// ─────────────────────────────────────────────────────────────────────────────
+
 /**
  * Verify a TOTP code during login challenge.
- * Updates last_used_at on success.
+ * Iterates over ALL enabled devices, matches the first one whose secret produces
+ * the given code. Updates last_used_at on the matched device + aggregate.
  */
-export async function verifyChallenge(userId: string, code: string): Promise<
-    { ok: true } | { ok: false; error: string }
-> {
+export async function verifyChallenge(
+    userId: string,
+    code: string
+): Promise<{ ok: true; deviceId: string } | { ok: false; error: string }> {
     const { data: employee, error } = await supabase
         .from('employees')
-        .select('id, totp_secret, totp_enabled')
+        .select('id, totp_enabled')
         .eq('user_id', userId)
         .maybeSingle();
 
     if (error || !employee) return { ok: false, error: 'employee_not_found' };
-    if (!employee.totp_enabled || !employee.totp_secret) {
+    if (!employee.totp_enabled) return { ok: false, error: 'not_enabled' };
+
+    const { data: devices } = await supabase
+        .from('employee_2fa_devices')
+        .select('id, totp_secret')
+        .eq('employee_id', employee.id)
+        .eq('enabled', true);
+
+    if (!devices || devices.length === 0) {
         return { ok: false, error: 'not_enabled' };
     }
 
-    if (!verifyCode(code, employee.totp_secret)) {
-        return { ok: false, error: 'invalid_code' };
-    }
+    // Find first device whose secret matches the code
+    const matched = devices.find(d => verifyCode(code, d.totp_secret));
+    if (!matched) return { ok: false, error: 'invalid_code' };
+
+    const now = new Date().toISOString();
+
+    // Update matched device + employee aggregate
+    await supabase
+        .from('employee_2fa_devices')
+        .update({ last_used_at: now })
+        .eq('id', matched.id);
 
     await supabase
         .from('employees')
-        .update({ totp_last_used_at: new Date().toISOString() })
+        .update({ totp_last_used_at: now })
         .eq('id', employee.id);
 
-    return { ok: true };
+    return { ok: true, deviceId: matched.id };
 }
 
 /**
- * Verify a backup code (single-use fallback when phone lost).
- * Consumes the code on success.
+ * Verify a backup code (single-use fallback when all devices lost).
+ * Consumes the matched code (removes from array).
  */
-export async function verifyBackupChallenge(userId: string, code: string): Promise<
-    { ok: true; remaining: number } | { ok: false; error: string }
-> {
+export async function verifyBackupChallenge(
+    userId: string,
+    code: string
+): Promise<{ ok: true; remaining: number } | { ok: false; error: string }> {
     const { data: employee, error } = await supabase
         .from('employees')
         .select('id, totp_backup_codes, totp_enabled')
@@ -213,60 +502,59 @@ export async function verifyBackupChallenge(userId: string, code: string): Promi
     return { ok: true, remaining: remaining.length };
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Disable / reset (whole account)
+// ─────────────────────────────────────────────────────────────────────────────
+
 /**
- * Disable 2FA for the calling user.
- * REQUIRES current TOTP code (zero-trust — even legitimate disable needs proof of possession).
+ * Disable ALL 2FA for the calling user. Removes all devices and clears backup
+ * codes. Requires current TOTP code (from any device) or backup code.
  */
-export async function disable(userId: string, currentCode: string): Promise<
-    { ok: true } | { ok: false; error: string }
-> {
+export async function disableAll(
+    userId: string,
+    proofCode: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
     const { data: employee, error } = await supabase
         .from('employees')
-        .select('id, totp_secret, totp_enabled, totp_backup_codes')
+        .select('id, totp_enabled, totp_backup_codes')
         .eq('user_id', userId)
         .maybeSingle();
 
     if (error || !employee) return { ok: false, error: 'employee_not_found' };
-    if (!employee.totp_enabled || !employee.totp_secret) {
-        return { ok: false, error: 'not_enabled' };
+    if (!employee.totp_enabled) return { ok: false, error: 'not_enabled' };
+
+    const verified = await verifyAnyCode(employee.id, proofCode, employee.totp_backup_codes || []);
+    if (!verified.ok) return { ok: false, error: 'invalid_code' };
+
+    // Delete all devices (trigger will set totp_enabled = false on employees)
+    const { error: delErr } = await supabase
+        .from('employee_2fa_devices')
+        .delete()
+        .eq('employee_id', employee.id);
+
+    if (delErr) {
+        console.error('[2FA] disableAll delete error:', delErr);
+        return { ok: false, error: 'database_error' };
     }
 
-    // Accept either current TOTP or backup code
-    let verified = verifyCode(currentCode, employee.totp_secret);
-    if (!verified && Array.isArray(employee.totp_backup_codes)) {
-        const matchIndex = await verifyBackupCode(currentCode, employee.totp_backup_codes);
-        verified = matchIndex >= 0;
-    }
-
-    if (!verified) {
-        return { ok: false, error: 'invalid_code' };
-    }
-
-    const { error: updateError } = await supabase
+    // Clear backup codes + reset timestamps
+    await supabase
         .from('employees')
         .update({
-            totp_secret: null,
-            totp_enabled: false,
             totp_backup_codes: [],
             totp_setup_at: null,
             totp_verified_at: null,
             totp_last_used_at: null,
+            totp_secret: null, // legacy column — clear too
         })
         .eq('id', employee.id);
-
-    if (updateError) {
-        console.error('[2FA] disable update error:', updateError);
-        return { ok: false, error: 'database_error' };
-    }
 
     return { ok: true };
 }
 
 /**
- * Admin-initiated reset of another user's 2FA (e.g. when they lost phone + backup codes).
- *
- * HYBRID RECOVERY (D3 = Wariant C): requires the calling admin to verify their own
- * TOTP code first (proof of possession) + reason (audit log).
+ * Admin-initiated reset of another user's 2FA. Removes all devices and clears
+ * backup codes. No proof code (caller is admin verified separately).
  *
  * Caller MUST log this action via auditLog.ts before/after calling this function.
  */
@@ -281,47 +569,58 @@ export async function adminReset(targetUserId: string): Promise<
 
     if (error || !target) return { ok: false, error: 'target_not_found' };
 
-    const { error: updateError } = await supabase
+    // Delete all devices (trigger sets totp_enabled = false on employees)
+    const { error: delErr } = await supabase
+        .from('employee_2fa_devices')
+        .delete()
+        .eq('employee_id', target.id);
+
+    if (delErr) {
+        console.error('[2FA] adminReset delete error:', delErr);
+        return { ok: false, error: 'database_error' };
+    }
+
+    // Clear backup codes + reset timestamps
+    await supabase
         .from('employees')
         .update({
-            totp_secret: null,
-            totp_enabled: false,
             totp_backup_codes: [],
             totp_setup_at: null,
             totp_verified_at: null,
             totp_last_used_at: null,
+            totp_secret: null,
         })
         .eq('id', target.id);
-
-    if (updateError) {
-        console.error('[2FA] adminReset update error:', updateError);
-        return { ok: false, error: 'database_error' };
-    }
 
     return { ok: true };
 }
 
 /**
- * Regenerate backup codes (e.g. after using several, user wants fresh set).
- * Requires current TOTP code.
+ * Regenerate backup codes. Old codes invalidated. Requires current TOTP from
+ * any enabled device.
  */
-export async function regenerateBackupCodes(userId: string, currentCode: string): Promise<
-    { ok: true; backupCodes: string[] } | { ok: false; error: string }
-> {
+export async function regenerateBackupCodes(
+    userId: string,
+    currentCode: string
+): Promise<{ ok: true; backupCodes: string[] } | { ok: false; error: string }> {
     const { data: employee, error } = await supabase
         .from('employees')
-        .select('id, totp_secret, totp_enabled')
+        .select('id, totp_enabled')
         .eq('user_id', userId)
         .maybeSingle();
 
     if (error || !employee) return { ok: false, error: 'employee_not_found' };
-    if (!employee.totp_enabled || !employee.totp_secret) {
-        return { ok: false, error: 'not_enabled' };
-    }
+    if (!employee.totp_enabled) return { ok: false, error: 'not_enabled' };
 
-    if (!verifyCode(currentCode, employee.totp_secret)) {
-        return { ok: false, error: 'invalid_code' };
-    }
+    // Verify TOTP from any enabled device (no backup code allowed here — would be circular)
+    const { data: devices } = await supabase
+        .from('employee_2fa_devices')
+        .select('totp_secret')
+        .eq('employee_id', employee.id)
+        .eq('enabled', true);
+
+    const matched = (devices || []).find(d => verifyCode(currentCode, d.totp_secret));
+    if (!matched) return { ok: false, error: 'invalid_code' };
 
     const { plain, hashed } = await generateBackupCodes();
     const { error: updateError } = await supabase
@@ -337,8 +636,12 @@ export async function regenerateBackupCodes(userId: string, currentCode: string)
     return { ok: true, backupCodes: plain };
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Admin listing
+// ─────────────────────────────────────────────────────────────────────────────
+
 /**
- * List all employees with their 2FA status (for admin SecurityTab).
+ * List all employees with their 2FA status + device count (for admin SecurityTab).
  */
 export async function listEmployees2FAStatus(): Promise<Array<{
     id: string;
@@ -351,9 +654,10 @@ export async function listEmployees2FAStatus(): Promise<Array<{
     totp_verified_at: string | null;
     totp_last_used_at: string | null;
     backup_codes_remaining: number;
+    device_count: number;
+    enabled_device_count: number;
     is_admin: boolean;
 }>> {
-    // Fetch employees
     const { data: employees, error } = await supabase
         .from('employees')
         .select('id, user_id, name, email, is_active, totp_enabled, totp_setup_at, totp_verified_at, totp_last_used_at, totp_backup_codes')
@@ -365,6 +669,21 @@ export async function listEmployees2FAStatus(): Promise<Array<{
         return [];
     }
 
+    const employeeIds = (employees || []).map(e => e.id);
+    const { data: allDevices } = await supabase
+        .from('employee_2fa_devices')
+        .select('employee_id, enabled')
+        .in('employee_id', employeeIds);
+
+    // Aggregate device counts per employee
+    const deviceCounts = new Map<string, { total: number; enabled: number }>();
+    (allDevices || []).forEach(d => {
+        const cur = deviceCounts.get(d.employee_id) || { total: 0, enabled: 0 };
+        cur.total++;
+        if (d.enabled) cur.enabled++;
+        deviceCounts.set(d.employee_id, cur);
+    });
+
     // Fetch admin role assignments
     const userIds = (employees || []).map(e => e.user_id).filter(Boolean);
     const { data: adminRoles } = await supabase
@@ -375,17 +694,155 @@ export async function listEmployees2FAStatus(): Promise<Array<{
 
     const adminSet = new Set((adminRoles || []).map(r => r.user_id));
 
-    return (employees || []).map(e => ({
-        id: e.id,
-        user_id: e.user_id,
-        name: e.name,
-        email: e.email || '',
-        is_active: e.is_active !== false,
-        totp_enabled: Boolean(e.totp_enabled),
-        totp_setup_at: e.totp_setup_at,
-        totp_verified_at: e.totp_verified_at,
-        totp_last_used_at: e.totp_last_used_at,
-        backup_codes_remaining: Array.isArray(e.totp_backup_codes) ? e.totp_backup_codes.length : 0,
-        is_admin: adminSet.has(e.user_id),
-    }));
+    return (employees || []).map(e => {
+        const counts = deviceCounts.get(e.id) || { total: 0, enabled: 0 };
+        return {
+            id: e.id,
+            user_id: e.user_id,
+            name: e.name,
+            email: e.email || '',
+            is_active: e.is_active !== false,
+            totp_enabled: Boolean(e.totp_enabled),
+            totp_setup_at: e.totp_setup_at,
+            totp_verified_at: e.totp_verified_at,
+            totp_last_used_at: e.totp_last_used_at,
+            backup_codes_remaining: Array.isArray(e.totp_backup_codes) ? e.totp_backup_codes.length : 0,
+            device_count: counts.total,
+            enabled_device_count: counts.enabled,
+            is_admin: adminSet.has(e.user_id),
+        };
+    });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Internal helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Verify a code against ALL enabled device secrets OR backup codes.
+ * Used for "any proof of possession" actions like removing a device or disabling 2FA.
+ */
+async function verifyAnyCode(
+    employeeId: string,
+    code: string,
+    backupHashedCodes: string[]
+): Promise<{ ok: true; consumedBackupCodes?: string[] } | { ok: false }> {
+    // Try TOTP first (any enabled device)
+    const { data: devices } = await supabase
+        .from('employee_2fa_devices')
+        .select('totp_secret')
+        .eq('employee_id', employeeId)
+        .eq('enabled', true);
+
+    const totpMatch = (devices || []).some(d => verifyCode(code, d.totp_secret));
+    if (totpMatch) return { ok: true };
+
+    // Fall back to backup code
+    if (backupHashedCodes.length > 0) {
+        const matchIndex = await verifyBackupCode(code, backupHashedCodes);
+        if (matchIndex >= 0) {
+            const remaining = consumeBackupCode(backupHashedCodes, matchIndex);
+            return { ok: true, consumedBackupCodes: remaining };
+        }
+    }
+
+    return { ok: false };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Legacy compat (called from existing endpoints — wraps new functions)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Legacy single-device setup. Creates first device "Urządzenie 1".
+ * Returns same shape as old startSetup for backward compat with /api/auth/2fa/setup.
+ */
+export async function startSetup(
+    userId: string,
+    email: string
+): Promise<
+    | { ok: true; data: { secret: string; qrDataUrl: string; backupCodes: string[]; deviceId: string } }
+    | { ok: false; error: string }
+> {
+    // Check if user already has any enabled device
+    const status = await getTwoFactorStatus(userId);
+    if (!status) return { ok: false, error: 'employee_not_found' };
+    if (status.enabled) return { ok: false, error: 'already_enabled' };
+
+    // Clean up any orphan disabled devices from a previous abandoned setup
+    const { data: employee } = await supabase
+        .from('employees')
+        .select('id')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+    if (employee) {
+        await supabase
+            .from('employee_2fa_devices')
+            .delete()
+            .eq('employee_id', employee.id)
+            .eq('enabled', false);
+    }
+
+    const result = await addDevice(userId, email);
+    if (!result.ok) return result;
+
+    // First device — backup codes guaranteed
+    if (!result.data.backupCodes) {
+        // Shouldn't happen — fail loud
+        return { ok: false, error: 'backup_codes_not_generated' };
+    }
+
+    return {
+        ok: true,
+        data: {
+            secret: result.data.secret,
+            qrDataUrl: result.data.qrDataUrl,
+            backupCodes: result.data.backupCodes,
+            deviceId: result.data.deviceId,
+        },
+    };
+}
+
+/**
+ * Legacy verifyAndEnable. Finds the first not-yet-enabled device for the user
+ * and enables it with the given code.
+ *
+ * Used by legacy /api/auth/2fa/verify endpoint (no deviceId in body).
+ */
+export async function verifyAndEnable(
+    userId: string,
+    code: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+    const { data: employee, error } = await supabase
+        .from('employees')
+        .select('id')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+    if (error || !employee) return { ok: false, error: 'employee_not_found' };
+
+    // Find first disabled device (the one user just set up)
+    const { data: pendingDevice } = await supabase
+        .from('employee_2fa_devices')
+        .select('id')
+        .eq('employee_id', employee.id)
+        .eq('enabled', false)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+    if (!pendingDevice) return { ok: false, error: 'no_secret_setup_first' };
+
+    return verifyAndEnableDevice(userId, pendingDevice.id, code);
+}
+
+/**
+ * Legacy disable. Wraps disableAll.
+ */
+export async function disable(
+    userId: string,
+    currentCode: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+    return disableAll(userId, currentCode);
 }

@@ -41,5 +41,6 @@ export async function POST() {
         qrDataUrl: result.data.qrDataUrl,
         secret: result.data.secret,
         backupCodes: result.data.backupCodes,
+        deviceId: result.data.deviceId,
     });
 }

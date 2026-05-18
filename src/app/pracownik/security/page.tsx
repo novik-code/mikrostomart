@@ -9,13 +9,24 @@ type Status = {
     verifiedAt: string | null;
     lastUsedAt: string | null;
     backupCodesRemaining: number;
+    deviceCount: number;
+    enabledDeviceCount: number;
     isAdmin: boolean;
 };
 
+type Device = {
+    id: string;
+    name: string;
+    enabled: boolean;
+    createdAt: string;
+    lastUsedAt: string | null;
+};
+
 type SetupData = {
+    deviceId: string;
     qrDataUrl: string;
     secret: string;
-    backupCodes: string[];
+    backupCodes: string[] | null;
 };
 
 export default function SecurityPageWrapper() {
@@ -33,8 +44,9 @@ function SecurityPage() {
 
     const [loading, setLoading] = useState(true);
     const [status, setStatus] = useState<Status | null>(null);
+    const [devices, setDevices] = useState<Device[]>([]);
 
-    // Setup flow state
+    // First-time setup wizard state
     const [setupStep, setSetupStep] = useState<"intro" | "qr" | "verify" | "backup" | "done" | null>(null);
     const [setupData, setSetupData] = useState<SetupData | null>(null);
     const [verifyCode, setVerifyCode] = useState("");
@@ -42,7 +54,26 @@ function SecurityPage() {
     const [verifySubmitting, setVerifySubmitting] = useState(false);
     const [acknowledgedBackup, setAcknowledgedBackup] = useState(false);
 
-    // Manage state (when already enabled)
+    // Add additional device state (when 2FA already enabled)
+    const [addDeviceStep, setAddDeviceStep] = useState<"name" | "qr" | "verify" | "done" | null>(null);
+    const [addDeviceName, setAddDeviceName] = useState("");
+    const [addDeviceData, setAddDeviceData] = useState<SetupData | null>(null);
+    const [addDeviceError, setAddDeviceError] = useState("");
+    const [addDeviceSubmitting, setAddDeviceSubmitting] = useState(false);
+
+    // Rename device state
+    const [renameTarget, setRenameTarget] = useState<Device | null>(null);
+    const [renameInput, setRenameInput] = useState("");
+    const [renameError, setRenameError] = useState("");
+    const [renameSubmitting, setRenameSubmitting] = useState(false);
+
+    // Remove device state
+    const [removeTarget, setRemoveTarget] = useState<Device | null>(null);
+    const [removeCode, setRemoveCode] = useState("");
+    const [removeError, setRemoveError] = useState("");
+    const [removeSubmitting, setRemoveSubmitting] = useState(false);
+
+    // Manage state (disable all + regenerate backup codes)
     const [showDisable, setShowDisable] = useState(false);
     const [disableCode, setDisableCode] = useState("");
     const [disableError, setDisableError] = useState("");
@@ -55,7 +86,6 @@ function SecurityPage() {
     const [newBackupCodes, setNewBackupCodes] = useState<string[] | null>(null);
 
     async function fetchStatus() {
-        setLoading(true);
         try {
             const res = await fetch("/api/auth/2fa/status");
             if (!res.ok) {
@@ -69,15 +99,31 @@ function SecurityPage() {
             setStatus(data);
         } catch (err) {
             console.error("[Security] fetch status:", err);
-        } finally {
-            setLoading(false);
         }
     }
 
+    async function fetchDevices() {
+        try {
+            const res = await fetch("/api/auth/2fa/devices");
+            if (!res.ok) return;
+            const data = await res.json();
+            setDevices(data.devices || []);
+        } catch (err) {
+            console.error("[Security] fetch devices:", err);
+        }
+    }
+
+    async function refreshAll() {
+        setLoading(true);
+        await Promise.all([fetchStatus(), fetchDevices()]);
+        setLoading(false);
+    }
+
     useEffect(() => {
-        fetchStatus();
+        refreshAll();
     }, []);
 
+    // ─── First-time setup wizard ─────────────────────────────────────────
     async function startSetup() {
         setSetupStep("qr");
         try {
@@ -90,6 +136,7 @@ function SecurityPage() {
             }
             const data = await res.json();
             setSetupData({
+                deviceId: data.deviceId,
                 qrDataUrl: data.qrDataUrl,
                 secret: data.secret,
                 backupCodes: data.backupCodes,
@@ -114,13 +161,12 @@ function SecurityPage() {
             if (!res.ok) {
                 const data = await res.json();
                 if (data.error === "invalid_code") {
-                    setVerifyError("Nieprawidłowy kod. Sprawdź czas na phone (musi być zsynchronizowany) i spróbuj ponownie.");
+                    setVerifyError("Nieprawidłowy kod. Sprawdź czas na telefonie (musi być zsynchronizowany) i spróbuj ponownie.");
                 } else {
                     setVerifyError(`Błąd: ${data.error}`);
                 }
                 return;
             }
-            // Move to backup codes display step
             setSetupStep("backup");
             setVerifyCode("");
         } catch (err) {
@@ -131,6 +177,150 @@ function SecurityPage() {
         }
     }
 
+    // ─── Add additional device flow ──────────────────────────────────────
+    async function startAddDevice() {
+        setAddDeviceStep("name");
+        setAddDeviceName("");
+        setAddDeviceError("");
+    }
+
+    async function submitAddDeviceName(e: React.FormEvent) {
+        e.preventDefault();
+        setAddDeviceError("");
+        setAddDeviceSubmitting(true);
+        try {
+            const res = await fetch("/api/auth/2fa/devices", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ deviceName: addDeviceName.trim() || undefined }),
+            });
+            if (!res.ok) {
+                const data = await res.json();
+                setAddDeviceError(
+                    data.error === "device_name_taken" ? "Urządzenie o tej nazwie już istnieje."
+                    : data.error === "max_devices_reached" ? "Osiągnąłeś limit 10 urządzeń na koncie."
+                    : `Błąd: ${data.error}`
+                );
+                return;
+            }
+            const data = await res.json();
+            setAddDeviceData({
+                deviceId: data.deviceId,
+                qrDataUrl: data.qrDataUrl,
+                secret: data.secret,
+                backupCodes: data.backupCodes,
+            });
+            setAddDeviceStep("qr");
+        } catch (err) {
+            console.error("[Security] add device:", err);
+            setAddDeviceError("Wystąpił błąd sieci.");
+        } finally {
+            setAddDeviceSubmitting(false);
+        }
+    }
+
+    async function submitAddDeviceVerify(e: React.FormEvent) {
+        e.preventDefault();
+        if (!addDeviceData) return;
+        setVerifyError("");
+        setVerifySubmitting(true);
+        try {
+            const res = await fetch(`/api/auth/2fa/devices/${addDeviceData.deviceId}/verify`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ code: verifyCode }),
+            });
+            if (!res.ok) {
+                const data = await res.json();
+                setVerifyError(
+                    data.error === "invalid_code" ? "Nieprawidłowy kod. Sprawdź czas na telefonie."
+                    : `Błąd: ${data.error}`
+                );
+                return;
+            }
+            setAddDeviceStep("done");
+            setVerifyCode("");
+            await refreshAll();
+        } catch (err) {
+            console.error("[Security] add device verify:", err);
+            setVerifyError("Wystąpił błąd sieci.");
+        } finally {
+            setVerifySubmitting(false);
+        }
+    }
+
+    function cancelAddDevice() {
+        setAddDeviceStep(null);
+        setAddDeviceData(null);
+        setAddDeviceName("");
+        setAddDeviceError("");
+        setVerifyCode("");
+        setVerifyError("");
+    }
+
+    // ─── Rename device ───────────────────────────────────────────────────
+    async function submitRename(e: React.FormEvent) {
+        e.preventDefault();
+        if (!renameTarget) return;
+        setRenameError("");
+        setRenameSubmitting(true);
+        try {
+            const res = await fetch(`/api/auth/2fa/devices/${renameTarget.id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ deviceName: renameInput }),
+            });
+            if (!res.ok) {
+                const data = await res.json();
+                setRenameError(
+                    data.error === "device_name_taken" ? "Urządzenie o tej nazwie już istnieje."
+                    : `Błąd: ${data.error}`
+                );
+                return;
+            }
+            setRenameTarget(null);
+            setRenameInput("");
+            await fetchDevices();
+        } catch (err) {
+            console.error("[Security] rename:", err);
+            setRenameError("Wystąpił błąd sieci.");
+        } finally {
+            setRenameSubmitting(false);
+        }
+    }
+
+    // ─── Remove device ───────────────────────────────────────────────────
+    async function submitRemove(e: React.FormEvent) {
+        e.preventDefault();
+        if (!removeTarget) return;
+        setRemoveError("");
+        setRemoveSubmitting(true);
+        try {
+            const res = await fetch(`/api/auth/2fa/devices/${removeTarget.id}`, {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ code: removeCode }),
+            });
+            if (!res.ok) {
+                const data = await res.json();
+                setRemoveError(
+                    data.error === "invalid_code" ? "Nieprawidłowy kod."
+                    : `Błąd: ${data.error}`
+                );
+                return;
+            }
+            setRemoveTarget(null);
+            setRemoveCode("");
+            await refreshAll();
+        } catch (err) {
+            console.error("[Security] remove:", err);
+            setRemoveError("Wystąpił błąd sieci.");
+        } finally {
+            setRemoveSubmitting(false);
+        }
+    }
+
+    // ─── Disable 2FA + regenerate backup codes ───────────────────────────
     async function submitDisable(e: React.FormEvent) {
         e.preventDefault();
         setDisableError("");
@@ -150,7 +340,7 @@ function SecurityPage() {
             }
             setDisableCode("");
             setShowDisable(false);
-            await fetchStatus();
+            await refreshAll();
         } catch (err) {
             console.error("[Security] disable:", err);
             setDisableError("Wystąpił błąd sieci.");
@@ -240,7 +430,7 @@ Po zużyciu wszystkich kodów wygeneruj nowe w panelu /pracownik/security.
                     </div>
                 )}
 
-                {/* ─── Setup wizard ─────────────────────────────────────── */}
+                {/* ─── First-time setup wizard ─────────────────────────────── */}
                 {!status?.enabled && !setupStep && (
                     <div>
                         <p style={{ color: "#cbd5e1", marginBottom: 16 }}>
@@ -310,23 +500,23 @@ Po zużyciu wszystkich kodów wygeneruj nowe w panelu /pracownik/security.
                     </form>
                 )}
 
-                {setupStep === "backup" && setupData && (
+                {setupStep === "backup" && setupData && setupData.backupCodes && (
                     <div>
                         <h2 style={h2Style}>Krok 3 z 3: Zapisz backup codes</h2>
                         <div style={warningBoxStyle}>
                             ⚠️ <strong>Te 8 kodów ratunkowych musisz ZAPISAĆ TERAZ.</strong> Każdy
                             może być użyty <strong>tylko raz</strong> jako alternatywa dla
-                            kodu z aplikacji (np. gdy zgubisz phone). Po opuszczeniu tej
+                            kodu z aplikacji (np. gdy zgubisz telefon). Po opuszczeniu tej
                             strony NIE BĘDĄ JUŻ POKAZANE.
                         </div>
-                        <div style={{ background: "#0f172a", padding: 16, borderRadius: 8, fontFamily: "monospace", fontSize: "1rem", marginBottom: 16 }}>
+                        <div style={codeBoxStyle}>
                             {setupData.backupCodes.map((code, i) => (
                                 <div key={i} style={{ marginBottom: 4 }}>
                                     {i + 1}. <strong>{code}</strong>
                                 </div>
                             ))}
                         </div>
-                        <button onClick={() => downloadBackupCodes(setupData.backupCodes)} style={secondaryBtnStyle}>
+                        <button onClick={() => downloadBackupCodes(setupData.backupCodes!)} style={secondaryBtnStyle}>
                             📥 Pobierz jako .txt
                         </button>
                         <div style={{ marginTop: 16 }}>
@@ -342,7 +532,7 @@ Po zużyciu wszystkich kodów wygeneruj nowe w panelu /pracownik/security.
                         <button
                             onClick={async () => {
                                 setSetupStep("done");
-                                await fetchStatus();
+                                await refreshAll();
                                 setSetupData(null);
                             }}
                             disabled={!acknowledgedBackup}
@@ -358,20 +548,22 @@ Po zużyciu wszystkich kodów wygeneruj nowe w panelu /pracownik/security.
                         <h2 style={{ ...h2Style, color: "#10b981" }}>✅ 2FA jest aktywne</h2>
                         <p style={{ color: "#cbd5e1", marginBottom: 16 }}>
                             Od teraz przy logowaniu będziesz proszony o 6-cyfrowy kod z
-                            aplikacji Authenticator.
+                            aplikacji Authenticator. Możesz dodać dodatkowe urządzenia
+                            (np. telefon współpracownika dla konta wspólnego) w sekcji
+                            poniżej.
                         </p>
-                        <button onClick={() => router.push("/pracownik")} style={primaryBtnStyle}>
-                            Wróć do panelu
+                        <button onClick={() => { setSetupStep(null); }} style={primaryBtnStyle}>
+                            Pokaż moje urządzenia
                         </button>
                     </div>
                 )}
 
                 {/* ─── Manage (already enabled) ─────────────────────────── */}
-                {status?.enabled && !setupStep && (
+                {status?.enabled && !setupStep && !addDeviceStep && (
                     <div>
                         <div style={statusBoxStyle}>
                             <p style={{ color: "#10b981", fontSize: "1.1rem", margin: 0 }}>
-                                ✅ <strong>2FA aktywne</strong>
+                                ✅ <strong>2FA aktywne</strong> ({status.enabledDeviceCount} {status.enabledDeviceCount === 1 ? "urządzenie" : "urządzeń"})
                             </p>
                             <p style={{ color: "#94a3b8", fontSize: "0.85rem", margin: "8px 0 0 0" }}>
                                 Włączone: {status.verifiedAt ? new Date(status.verifiedAt).toLocaleString("pl-PL") : "—"}
@@ -389,13 +581,66 @@ Po zużyciu wszystkich kodów wygeneruj nowe w panelu /pracownik/security.
                             </div>
                         )}
 
+                        {/* Device list */}
+                        <h2 style={h2Style}>📱 Twoje urządzenia</h2>
+                        <p style={{ color: "#94a3b8", fontSize: "0.85rem", marginBottom: 12 }}>
+                            Możesz dodać do 10 urządzeń. Każde generuje własny kod TOTP —
+                            wszystkie są równoważne podczas logowania. Idealne dla kont
+                            wspólnych (np. gabinet@) używanych przez wiele osób.
+                        </p>
+
+                        <div style={{ marginBottom: 16 }}>
+                            {devices.length === 0 && (
+                                <p style={{ color: "#94a3b8", fontStyle: "italic", padding: 12 }}>
+                                    Brak urządzeń.
+                                </p>
+                            )}
+                            {devices.map(d => (
+                                <div key={d.id} style={deviceRowStyle}>
+                                    <div style={{ flex: 1 }}>
+                                        <div style={{ color: "#fff", fontWeight: 500 }}>
+                                            {d.enabled ? "✅" : "⏳"} {d.name}
+                                            {!d.enabled && <span style={{ color: "#fbbf24", fontSize: "0.8rem", marginLeft: 8 }}>(setup w toku)</span>}
+                                        </div>
+                                        <div style={{ color: "#64748b", fontSize: "0.8rem", marginTop: 2 }}>
+                                            Dodano: {new Date(d.createdAt).toLocaleDateString("pl-PL")}
+                                            {d.lastUsedAt && (
+                                                <> · Ostatnio: {new Date(d.lastUsedAt).toLocaleString("pl-PL")}</>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div style={{ display: "flex", gap: 6 }}>
+                                        <button
+                                            onClick={() => { setRenameTarget(d); setRenameInput(d.name); setRenameError(""); }}
+                                            style={smallBtnStyle}
+                                            title="Zmień nazwę"
+                                        >
+                                            ✏️
+                                        </button>
+                                        <button
+                                            onClick={() => { setRemoveTarget(d); setRemoveCode(""); setRemoveError(""); }}
+                                            style={smallDangerBtnStyle}
+                                            title="Usuń"
+                                        >
+                                            🗑️
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        <button onClick={startAddDevice} style={primaryBtnStyle}>
+                            + Dodaj kolejne urządzenie
+                        </button>
+
+                        {/* Disable / regenerate sections */}
                         {!showRegen && !showDisable && (
-                            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                            <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 24 }}>
                                 <button onClick={() => setShowRegen(true)} style={secondaryBtnStyle}>
                                     🔄 Wygeneruj nowe backup codes
                                 </button>
                                 <button onClick={() => setShowDisable(true)} style={dangerBtnStyle}>
-                                    ❌ Wyłącz 2FA
+                                    ❌ Wyłącz 2FA (wszystkie urządzenia)
                                 </button>
                             </div>
                         )}
@@ -404,8 +649,8 @@ Po zużyciu wszystkich kodów wygeneruj nowe w panelu /pracownik/security.
                             <form onSubmit={submitRegen} style={{ marginTop: 16 }}>
                                 <h3 style={{ color: "#fff", marginBottom: 8 }}>Wygeneruj nowe backup codes</h3>
                                 <p style={{ color: "#cbd5e1", fontSize: "0.9rem", marginBottom: 12 }}>
-                                    Stare kody zostaną unieważnione. Wpisz aktualny kod z
-                                    Authenticator dla potwierdzenia:
+                                    Stare kody zostaną unieważnione. Wpisz aktualny kod TOTP z
+                                    dowolnego urządzenia dla potwierdzenia:
                                 </p>
                                 <input
                                     type="text"
@@ -436,7 +681,7 @@ Po zużyciu wszystkich kodów wygeneruj nowe w panelu /pracownik/security.
                                     ⚠️ Zapisz nowe kody — stare są nieaktywne. Te kody NIE BĘDĄ
                                     POKAZANE PONOWNIE.
                                 </div>
-                                <div style={{ background: "#0f172a", padding: 16, borderRadius: 8, fontFamily: "monospace", marginBottom: 12 }}>
+                                <div style={codeBoxStyle}>
                                     {newBackupCodes.map((code, i) => (
                                         <div key={i}>{i + 1}. <strong>{code}</strong></div>
                                     ))}
@@ -448,7 +693,7 @@ Po zużyciu wszystkich kodów wygeneruj nowe w panelu /pracownik/security.
                                     onClick={async () => {
                                         setNewBackupCodes(null);
                                         setShowRegen(false);
-                                        await fetchStatus();
+                                        await refreshAll();
                                     }}
                                     style={{ ...primaryBtnStyle, marginLeft: 8 }}
                                 >
@@ -461,9 +706,8 @@ Po zużyciu wszystkich kodów wygeneruj nowe w panelu /pracownik/security.
                             <form onSubmit={submitDisable} style={{ marginTop: 16 }}>
                                 <h3 style={{ color: "#fff", marginBottom: 8 }}>❌ Wyłącz 2FA</h3>
                                 <div style={warningBoxStyle}>
-                                    ⚠️ Wyłączenie 2FA znacznie obniża bezpieczeństwo Twojego
-                                    konta. Każdy kto pozna Twoje hasło będzie mógł się
-                                    zalogować.
+                                    ⚠️ Wszystkie {status.enabledDeviceCount} {status.enabledDeviceCount === 1 ? "urządzenie zostanie" : "urządzeń zostanie"} usunięte z konta.
+                                    Backup codes również zostaną unieważnione.
                                 </div>
                                 {status?.isAdmin && (
                                     <div style={warningBoxStyle}>
@@ -473,7 +717,7 @@ Po zużyciu wszystkich kodów wygeneruj nowe w panelu /pracownik/security.
                                     </div>
                                 )}
                                 <p style={{ color: "#cbd5e1", fontSize: "0.9rem", marginBottom: 12 }}>
-                                    Wpisz aktualny kod TOTP lub backup code dla potwierdzenia:
+                                    Wpisz aktualny kod TOTP (z dowolnego urządzenia) lub backup code dla potwierdzenia:
                                 </p>
                                 <input
                                     type="text"
@@ -494,6 +738,178 @@ Po zużyciu wszystkich kodów wygeneruj nowe w panelu /pracownik/security.
                                 </div>
                             </form>
                         )}
+                    </div>
+                )}
+
+                {/* ─── Add additional device wizard ─────────────────────────── */}
+                {addDeviceStep === "name" && (
+                    <form onSubmit={submitAddDeviceName}>
+                        <h2 style={h2Style}>Dodaj nowe urządzenie — krok 1 z 3</h2>
+                        <p style={{ color: "#cbd5e1", marginBottom: 12 }}>
+                            Wpisz nazwę urządzenia (np. <em>&quot;Justyna iPhone&quot;</em>,
+                            <em> &quot;Recepcja iPad&quot;</em>) lub zostaw puste, by użyć
+                            domyślnej.
+                        </p>
+                        <input
+                            type="text"
+                            maxLength={60}
+                            value={addDeviceName}
+                            onChange={(e) => setAddDeviceName(e.target.value)}
+                            placeholder={`Urządzenie ${(status?.deviceCount || 0) + 1}`}
+                            autoFocus
+                            style={{ ...codeInputStyle, fontFamily: "inherit", letterSpacing: "normal", textAlign: "left", fontSize: "1rem" }}
+                        />
+                        {addDeviceError && <p style={errorStyle}>{addDeviceError}</p>}
+                        <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                            <button type="submit" disabled={addDeviceSubmitting} style={primaryBtnStyle}>
+                                {addDeviceSubmitting ? "Tworzenie..." : "Dalej →"}
+                            </button>
+                            <button type="button" onClick={cancelAddDevice} style={secondaryBtnStyle}>
+                                Anuluj
+                            </button>
+                        </div>
+                    </form>
+                )}
+
+                {addDeviceStep === "qr" && addDeviceData && (
+                    <div>
+                        <h2 style={h2Style}>Dodaj nowe urządzenie — krok 2 z 3: Zeskanuj QR</h2>
+                        <p style={{ color: "#cbd5e1", marginBottom: 16 }}>
+                            Na nowym urządzeniu otwórz aplikację Authenticator i zeskanuj
+                            kod poniżej:
+                        </p>
+                        <div style={{ textAlign: "center", marginBottom: 16, padding: 16, background: "#fff", borderRadius: 8 }}>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={addDeviceData.qrDataUrl} alt="QR code" width={280} height={280} />
+                        </div>
+                        <details style={{ marginBottom: 16 }}>
+                            <summary style={{ color: "#94a3b8", cursor: "pointer", fontSize: "0.85rem" }}>
+                                ❓ QR nie działa? Wpisz secret ręcznie
+                            </summary>
+                            <div style={{ marginTop: 8, padding: 12, background: "#0f172a", borderRadius: 6, fontFamily: "monospace", fontSize: "0.9rem", wordBreak: "break-all" }}>
+                                {addDeviceData.secret}
+                            </div>
+                        </details>
+                        <div style={{ display: "flex", gap: 8 }}>
+                            <button onClick={() => setAddDeviceStep("verify")} style={primaryBtnStyle}>
+                                ✓ Zeskanowałem — dalej
+                            </button>
+                            <button onClick={cancelAddDevice} style={secondaryBtnStyle}>
+                                Anuluj
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {addDeviceStep === "verify" && (
+                    <form onSubmit={submitAddDeviceVerify}>
+                        <h2 style={h2Style}>Dodaj nowe urządzenie — krok 3 z 3: Potwierdź</h2>
+                        <p style={{ color: "#cbd5e1", marginBottom: 16 }}>
+                            Wpisz 6-cyfrowy kod, który pojawił się na nowym urządzeniu:
+                        </p>
+                        <input
+                            type="text"
+                            inputMode="numeric"
+                            pattern="\d{6}"
+                            maxLength={6}
+                            autoComplete="one-time-code"
+                            autoFocus
+                            value={verifyCode}
+                            onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, ""))}
+                            placeholder="123456"
+                            style={codeInputStyle}
+                        />
+                        {verifyError && <p style={errorStyle}>{verifyError}</p>}
+                        <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                            <button
+                                type="submit"
+                                disabled={verifySubmitting || verifyCode.length !== 6}
+                                style={{ ...primaryBtnStyle, opacity: verifyCode.length === 6 ? 1 : 0.5 }}
+                            >
+                                {verifySubmitting ? "Sprawdzanie..." : "Potwierdź kod"}
+                            </button>
+                            <button type="button" onClick={cancelAddDevice} style={secondaryBtnStyle}>
+                                Anuluj
+                            </button>
+                        </div>
+                    </form>
+                )}
+
+                {addDeviceStep === "done" && (
+                    <div>
+                        <h2 style={{ ...h2Style, color: "#10b981" }}>✅ Urządzenie dodane</h2>
+                        <p style={{ color: "#cbd5e1", marginBottom: 16 }}>
+                            Nowe urządzenie generuje teraz prawidłowe kody. Może być używane
+                            przy logowaniu razem z poprzednimi.
+                        </p>
+                        <button onClick={cancelAddDevice} style={primaryBtnStyle}>
+                            Wróć do listy urządzeń
+                        </button>
+                    </div>
+                )}
+
+                {/* ─── Rename modal ────────────────────────────────────────── */}
+                {renameTarget && (
+                    <div style={modalOverlayStyle} onClick={() => !renameSubmitting && setRenameTarget(null)}>
+                        <div style={modalStyle} onClick={e => e.stopPropagation()}>
+                            <h3 style={{ color: "#fff", marginBottom: 12 }}>Zmień nazwę urządzenia</h3>
+                            <form onSubmit={submitRename}>
+                                <input
+                                    type="text"
+                                    maxLength={60}
+                                    value={renameInput}
+                                    onChange={(e) => setRenameInput(e.target.value)}
+                                    autoFocus
+                                    style={{ ...codeInputStyle, fontFamily: "inherit", letterSpacing: "normal", textAlign: "left", fontSize: "1rem" }}
+                                />
+                                {renameError && <p style={errorStyle}>{renameError}</p>}
+                                <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                                    <button type="submit" disabled={renameSubmitting || renameInput.trim().length === 0 || renameInput === renameTarget.name} style={primaryBtnStyle}>
+                                        {renameSubmitting ? "Zapisywanie..." : "Zapisz"}
+                                    </button>
+                                    <button type="button" onClick={() => setRenameTarget(null)} style={secondaryBtnStyle}>
+                                        Anuluj
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                )}
+
+                {/* ─── Remove device modal ─────────────────────────────────── */}
+                {removeTarget && (
+                    <div style={modalOverlayStyle} onClick={() => !removeSubmitting && setRemoveTarget(null)}>
+                        <div style={modalStyle} onClick={e => e.stopPropagation()}>
+                            <h3 style={{ color: "#fff", marginBottom: 12 }}>🗑️ Usuń urządzenie: {removeTarget.name}</h3>
+                            <div style={warningBoxStyle}>
+                                ⚠️ Po usunięciu to urządzenie nie będzie mogło wygenerować
+                                kodu logowania. Jeśli to ostatnie urządzenie — 2FA zostanie
+                                wyłączone i backup codes unieważnione.
+                            </div>
+                            <form onSubmit={submitRemove}>
+                                <p style={{ color: "#cbd5e1", fontSize: "0.9rem", marginBottom: 12 }}>
+                                    Wpisz kod TOTP z dowolnego (innego) urządzenia lub backup code:
+                                </p>
+                                <input
+                                    type="text"
+                                    maxLength={11}
+                                    value={removeCode}
+                                    onChange={(e) => setRemoveCode(e.target.value)}
+                                    placeholder="123456 lub XXXXX-XXXXX"
+                                    autoFocus
+                                    style={codeInputStyle}
+                                />
+                                {removeError && <p style={errorStyle}>{removeError}</p>}
+                                <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                                    <button type="submit" disabled={removeSubmitting || !removeCode} style={dangerBtnStyle}>
+                                        {removeSubmitting ? "Usuwanie..." : "🗑️ Usuń urządzenie"}
+                                    </button>
+                                    <button type="button" onClick={() => setRemoveTarget(null)} style={secondaryBtnStyle}>
+                                        Anuluj
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
                 )}
             </div>
@@ -525,6 +941,7 @@ const h2Style: React.CSSProperties = {
     color: "#fff",
     fontSize: "1.3rem",
     marginBottom: 12,
+    marginTop: 24,
     fontWeight: 600,
 };
 const subtitleStyle: React.CSSProperties = {
@@ -555,6 +972,15 @@ const statusBoxStyle: React.CSSProperties = {
     borderRadius: 8,
     marginBottom: 16,
 };
+const codeBoxStyle: React.CSSProperties = {
+    background: "#0f172a",
+    padding: 16,
+    borderRadius: 8,
+    fontFamily: "monospace",
+    fontSize: "1rem",
+    marginBottom: 16,
+    color: "#fff",
+};
 const codeInputStyle: React.CSSProperties = {
     width: "100%",
     padding: "12px 16px",
@@ -567,6 +993,7 @@ const codeInputStyle: React.CSSProperties = {
     border: "1px solid #475569",
     borderRadius: 8,
     marginBottom: 8,
+    boxSizing: "border-box",
 };
 const primaryBtnStyle: React.CSSProperties = {
     padding: "12px 24px",
@@ -596,8 +1023,54 @@ const dangerBtnStyle: React.CSSProperties = {
     borderRadius: 8,
     cursor: "pointer",
 };
+const smallBtnStyle: React.CSSProperties = {
+    padding: "6px 10px",
+    fontSize: "0.95rem",
+    background: "transparent",
+    color: "#cbd5e1",
+    border: "1px solid #475569",
+    borderRadius: 6,
+    cursor: "pointer",
+};
+const smallDangerBtnStyle: React.CSSProperties = {
+    padding: "6px 10px",
+    fontSize: "0.95rem",
+    background: "transparent",
+    color: "#fca5a5",
+    border: "1px solid #7f1d1d",
+    borderRadius: 6,
+    cursor: "pointer",
+};
 const errorStyle: React.CSSProperties = {
     color: "#fca5a5",
     fontSize: "0.85rem",
     marginTop: 4,
+};
+const deviceRowStyle: React.CSSProperties = {
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+    padding: 12,
+    background: "#0f172a",
+    borderRadius: 8,
+    marginBottom: 8,
+    border: "1px solid #334155",
+};
+const modalOverlayStyle: React.CSSProperties = {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(0,0,0,0.7)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 1000,
+    padding: 16,
+};
+const modalStyle: React.CSSProperties = {
+    maxWidth: 480,
+    width: "100%",
+    background: "#1e293b",
+    borderRadius: 12,
+    padding: 24,
+    border: "1px solid #334155",
 };

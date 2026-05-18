@@ -13,6 +13,8 @@ type EmployeeStatus = {
     totp_verified_at: string | null;
     totp_last_used_at: string | null;
     backup_codes_remaining: number;
+    device_count: number;
+    enabled_device_count: number;
     is_admin: boolean;
 };
 
@@ -229,6 +231,7 @@ function EmployeeTable({ employees, onReset }: { employees: EmployeeStatus[]; on
                     <tr style={{ borderBottom: "1px solid #334155", color: "#94a3b8", textAlign: "left" }}>
                         <th style={thStyle}>Pracownik</th>
                         <th style={thStyle}>Status 2FA</th>
+                        <th style={thStyle}>Urządzenia</th>
                         <th style={thStyle}>Włączone</th>
                         <th style={thStyle}>Ostatnio użyte</th>
                         <th style={thStyle}>Backup codes</th>
@@ -249,6 +252,14 @@ function EmployeeTable({ employees, onReset }: { employees: EmployeeStatus[]; on
                                     : <span style={{ color: e.is_admin ? "#ef4444" : "#94a3b8" }}>
                                         {e.is_admin ? "🚨 Wyłączone (mandatory!)" : "❌ Wyłączone"}
                                     </span>
+                                }
+                            </td>
+                            <td style={tdStyle}>
+                                {e.totp_enabled
+                                    ? <span style={{ color: e.enabled_device_count > 1 ? "#10b981" : "#cbd5e1" }}>
+                                        📱 {e.enabled_device_count}
+                                    </span>
+                                    : "—"
                                 }
                             </td>
                             <td style={tdStyle}>
