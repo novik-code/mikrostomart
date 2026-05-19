@@ -77,6 +77,10 @@ async function getArticle(slug: string) {
 
 // Allow dynamic paths
 export const dynamicParams = true;
+// Revalidate co 60s — admin update treści przez UI lub script seedingu (2026-05-19)
+// odświeży się bez konieczności full rebuild. Listing /aktualnosci ma revalidate=600
+// (S5-2), tutaj krótszy bo content edits zdarzają się częściej niż listing changes.
+export const revalidate = 60;
 
 // Generate static params only for (locale, slug) pairs where a translation exists.
 // PL is always present; EN/DE/UA only when the corresponding title_{locale} is set.
