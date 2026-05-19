@@ -136,6 +136,14 @@ const METAMORPHOSES: MetamorphosisItem[] = [
         title: "Uśmiech Marzeń Pani Elżbiety",
         description: "Pełna rekonstrukcja łuku górnego na implantach (All-on-4).",
         motto: isDemoMode ? '"To inwestycja w jakość życia. Dziękuję całemu zespołowi."' : '"To inwestycja w jakość życia. Dziękuję zespołowi Mikrostomart."'
+    },
+    {
+        id: 16,
+        before: "/images/metamorphoses/meta_16_before.jpg",
+        after: "/images/metamorphoses/meta_16_after.jpg",
+        title: "Metamorfoza Pana Wojtka",
+        description: "Kompleksowa rehabilitacja po 2 latach leczenia: chirurgia, augmentacja kości, implantacja, leczenie zachowawcze i protetyka. Trafił do nas z polecenia brata Piotra (metamorfoza #2).",
+        motto: '"Brat pokazał mi, co możliwe. Dwa lata później sam mam ten uśmiech."'
     }
 ];
 
