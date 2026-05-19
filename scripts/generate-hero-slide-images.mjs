@@ -57,6 +57,11 @@ const SLIDES = [
 
 const MODEL = "black-forest-labs/flux-dev";
 const OUTPUT_DIR = "public/hero-slides";
+// VERSION suffix dla cache-bust (Vercel CDN cache "immutable, 1 year" dla
+// assets serwowanych spod /public/). Bumpuj przy każdej regeneracji + update
+// SLIDE_CONFIG paths w src/components/HeroSlideshow.tsx do `${id}-${VERSION}.webp`.
+// Override przez env: VERSION=v3 node scripts/generate-hero-slide-images.mjs
+const VERSION = process.env.VERSION || "v2";
 
 const baseInput = {
     aspect_ratio: "3:4",
@@ -100,7 +105,7 @@ async function generateOne(slide) {
             throw new Error(`Unexpected output type: ${typeof item} ${JSON.stringify(item)?.slice(0, 200)}`);
         }
 
-        const outPath = path.join(OUTPUT_DIR, `${slide.id}.webp`);
+        const outPath = path.join(OUTPUT_DIR, `${slide.id}-${VERSION}.webp`);
         fs.writeFileSync(outPath, buffer);
         const elapsedSec = Math.round((Date.now() - startedAt) / 1000);
         const sizeKb = Math.round(buffer.length / 1024);

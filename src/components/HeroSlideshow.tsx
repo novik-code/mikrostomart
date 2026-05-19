@@ -36,11 +36,14 @@ interface HeroSlide {
 // photorealistic, cinematic, shallow DoF, Canon R5 85mm f/1.4, 3:4 portrait.
 // Prompts: scripts/generate-hero-slide-images.mjs. Regenerate: `node scripts/...`.
 const SLIDE_CONFIG = [
-    { id: "emotional", ctaHref: "/rezerwacja", image: "/hero-slides/emotional.webp" },
-    { id: "authority", ctaHref: "/o-nas", image: "/hero-slides/authority.webp" },
-    { id: "technology", ctaHref: "/oferta", image: "/hero-slides/technology.webp" },
-    { id: "specialty", ctaHref: "/mapa-bolu", image: "/hero-slides/specialty.webp" },
-    { id: "international", ctaHref: "/dla-pacjentow-przyjezdnych", image: "/hero-slides/international.webp" },
+    // -v2 suffix dla cache-bust (K-1c, 2026-05-19): Vercel CDN serwował stare grafiki
+    // pomimo regeneracji (cache "immutable, max-age=31536000" = 1 rok). Bumpować -vN
+    // przy każdej regeneracji grafik żeby wymusić fresh CDN fetch.
+    { id: "emotional", ctaHref: "/rezerwacja", image: "/hero-slides/emotional-v2.webp" },
+    { id: "authority", ctaHref: "/o-nas", image: "/hero-slides/authority-v2.webp" },
+    { id: "technology", ctaHref: "/oferta", image: "/hero-slides/technology-v2.webp" },
+    { id: "specialty", ctaHref: "/mapa-bolu", image: "/hero-slides/specialty-v2.webp" },
+    { id: "international", ctaHref: "/dla-pacjentow-przyjezdnych", image: "/hero-slides/international-v2.webp" },
 ] as const;
 
 const variants = {
