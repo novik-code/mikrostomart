@@ -128,9 +128,19 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
         ? `/aktualnosci/${slug}`
         : `/${locale}/aktualnosci/${slug}`;
 
+    // Per-article keywords z DB `news.tags` (mig 131). Brak tags → undefined,
+    // wtedy meta name="keywords" dziedziczy z layout `/aktualnosci/layout.tsx`
+    // (generic "aktualności dentysta opole, mikrostomart blog..."). Per-article
+    // tags pozwalają targetować long-tail SEO (np. "metamorfoza implant
+    // augmentacja endodoncja mikroskop ZEISS").
+    const perArticleKeywords = Array.isArray(localized.tags) && localized.tags.length > 0
+        ? (localized.tags as string[])
+        : undefined;
+
     return {
         title: { absolute: `${localized.title} | ${brand.name}` },
         description: localized.excerpt,
+        ...(perArticleKeywords ? { keywords: perArticleKeywords } : {}),
         alternates: { canonical, languages },
         openGraph: {
             title: localized.title,
@@ -320,9 +330,17 @@ export default async function ArticlePage({ params }: { params: Promise<{ locale
                         lineHeight: "1.8",
                         fontSize: "1.05rem"
                     }}>
-                        {/* Improved manual markdown parser */}
+                        {/* Manual markdown parser — supports ##/### headers, * list,
+                            **bold**, [text](href) links, ![alt](src) images.
+                            Linki: internal (zaczynają od /) → next/link Link z manual
+                            locale prefix (slug page = server component, next-intl Link
+                            z useLocale hook = SSR crash per H3 lesson learned 2026-05-10).
+                            External (http) → <a> z target=_blank rel=noopener. */}
                         {(localizedArticle.content || '').split('\n').map((line: string, index: number) => {
-                            // Headers
+                            // Headers (## h2 dla głównych sekcji, ### h3 sub, #### h4 sub-sub)
+                            if (line.startsWith('## ') && !line.startsWith('### ')) {
+                                return <h2 key={index} style={{ color: "var(--color-text)", fontSize: "1.75rem", marginTop: "2.5rem", marginBottom: "1.25rem", lineHeight: 1.3 }}>{line.replace('## ', '')}</h2>;
+                            }
                             if (line.startsWith('### ')) {
                                 return <h3 key={index} style={{ color: "var(--color-text)", fontSize: "1.5rem", marginTop: "2rem", marginBottom: "1rem" }}>{line.replace('### ', '')}</h3>;
                             }
@@ -344,18 +362,34 @@ export default async function ArticlePage({ params }: { params: Promise<{ locale
                                 );
                             }
 
+                            // Inline parser — splits on **bold** OR [text](href) OR plain text
+                            const parseInline = (text: string, keyBase: string): React.ReactNode[] => {
+                                const pattern = /(\*\*[^*]+\*\*|\[[^\]]+\]\([^)]+\))/g;
+                                return text.split(pattern).filter(Boolean).map((part, i) => {
+                                    if (part.startsWith('**') && part.endsWith('**')) {
+                                        return <strong key={`${keyBase}-${i}`} style={{ color: "var(--color-primary)" }}>{part.slice(2, -2)}</strong>;
+                                    }
+                                    const linkMatch = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+                                    if (linkMatch) {
+                                        const [, linkText, linkHref] = linkMatch;
+                                        const isExternal = linkHref.startsWith('http');
+                                        if (isExternal) {
+                                            return <a key={`${keyBase}-${i}`} href={linkHref} target="_blank" rel="noopener noreferrer" style={{ color: "var(--color-primary)", textDecoration: "underline" }}>{linkText}</a>;
+                                        }
+                                        // Internal — manual locale prefix (server component, no next-intl Link)
+                                        const prefixedHref = (locale === 'pl' || linkHref.startsWith(`/${locale}/`)) ? linkHref : `/${locale}${linkHref}`;
+                                        return <Link key={`${keyBase}-${i}`} href={prefixedHref} style={{ color: "var(--color-primary)", textDecoration: "underline" }}>{linkText}</Link>;
+                                    }
+                                    return part;
+                                });
+                            };
+
                             // List items
                             if (line.startsWith('* ')) {
                                 const content = line.replace('* ', '');
-                                const parts = content.split(/(\*\*.*?\*\*)/g);
                                 return (
                                     <li key={index} style={{ marginLeft: "1.5rem", marginBottom: "0.5rem" }}>
-                                        {parts.map((part, i) => {
-                                            if (part.startsWith('**') && part.endsWith('**')) {
-                                                return <strong key={i} style={{ color: "var(--color-primary)" }}>{part.slice(2, -2)}</strong>;
-                                            }
-                                            return part;
-                                        })}
+                                        {parseInline(content, `li-${index}`)}
                                     </li>
                                 );
                             }
@@ -363,16 +397,10 @@ export default async function ArticlePage({ params }: { params: Promise<{ locale
                             // Empty lines
                             if (line.trim() === '') return <br key={index} />;
 
-                            // Paragraphs with inline bold support
-                            const parts = line.split(/(\*\*.*?\*\*)/g);
+                            // Paragraphs with inline bold + link support
                             return (
                                 <p key={index} style={{ marginBottom: "1rem" }}>
-                                    {parts.map((part, i) => {
-                                        if (part.startsWith('**') && part.endsWith('**')) {
-                                            return <strong key={i} style={{ color: "var(--color-primary)" }}>{part.slice(2, -2)}</strong>;
-                                        }
-                                        return part;
-                                    })}
+                                    {parseInline(line, `p-${index}`)}
                                 </p>
                             );
                         })}
