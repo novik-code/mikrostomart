@@ -1,6 +1,8 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-18 #4 (**🎉 SPRINT 9 DONE — HOTFIX SPRINT COMPLETE (S1-S9)**). Commit `b245a0b` (chore(ci): S9 — lint baseline + GitHub Actions gates + P1-06 cleanup). Trzy rzeczy: (1) ESLint baseline gate — `scripts/lint-baseline.mjs` zamraża 1525 errors / 322 files w `.eslint-baseline.json`, `npm run lint:ci` fail tylko na regression (file gaining errors lub new file with errors); (2) GitHub Actions workflows w `.github/workflows/`: `lint.yml` (lint:ci + tsc --noEmit) + `security.yml` (npm audit critical/high fail + gitleaks secret scanning + 2 grep tripwires — NEXT_PUBLIC_*SERVICE*ROLE* i leaked Prodentis key string); trigger pull_request + push main + weekly security re-audit; (3) P1-06 closeout (audyt 2026-05-12, memory błędnie raportowała done w S1) — 12 użyć `NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY` fallback w 10 plikach API usuniętych batch sed, non-null assertion zachowana. Lokalne smoke: tsc clean, lint:ci pass (1525=1525), 109/109 tests, build clean, negative smoke wykrył regression poprawnie. **Hotfix Sprint COMPLETE** (S1-S9 + S8-1..S8-7 wszystkie) → wrót do **Fazy K Premium SEO Positioning Reset**. Z opcjonalnych paused: S2-bis + S4-2b CSP enforce.
+> **Last Updated:** 2026-05-19 (**🎯 K-1 PREMIUM SEO PLAN — HeroSlideshow z 5 AI grafik Flux Dev w stylu OfferCarousel**). Commit `675165b` (K-1b) + `f9f6cd9` (K-1a) zmergowane na origin/main. Faza K — Premium Positioning Reset (Hotfix Sprint COMPLETE → Faza K UNPAUSED 2026-05-18). **K-0 Strategy Workshop** ✅ (2026-05-18) — Marcin zatwierdził 3 warianty Recommended: Hero Hybrid A+B / Cennik Wariant 1 REFRAME / TrustStats Wariant B Expertise. **K-1a** — meta description × 4 locale z M.Sc. RWTH Aachen (Google SERP + Facebook OG share). **K-1b** (3 iteracje) — HeroSlideshow multi-slide carousel 1:1 OfferCarousel style: 2-col grid LEFT photo 3/4 portrait framed / RIGHT text (tagline gold uppercase + h1/h2 serif white + description + CTA), Framer Motion AnimatePresence spring slide ±1000px + scale 0.8→1, drag swipe, gallery-nav-btn arrows (❮ ❯), pill dots bottom-center, autoplay 5s pause-on-hover. **5 slidów** (każdy targetuje inny SEO angle): emotional (smile) / authority (M.Sc. RWTH) / technology (ZEISS) / specialty (endo) / international (5 krajów). **5 AI-generated grafik Flux Dev** (Replicate ~$0.13 total, ~12s): macro smile / graduation cap + M.Sc. embossed / operating microscope brass / endodontic instruments + glass vial / vintage Central Europe map + brass compass. Wszystkie w spojnym premium luxury dental aesthetic (dark moody + warm gold accents). Script `scripts/generate-hero-slide-images.mjs` dla iteracyjnej regeneracji. SEO: SSR-only hidden block (clip-path inset 50%) renderuje pełny content wszystkich 5 slidów dla Googlebot (h1 + 4× h2 = 5 narracji = 5 keyword angles). **Następna sesja: K-2 TrustStats sekcja above-the-fold + script extract-clinic-stats.ts** (Prodentis API + Supabase aggregation).
+
+<!-- Poprzednia Last Updated 2026-05-18 #4: SPRINT 9 DONE — HOTFIX SPRINT COMPLETE (S1-S9). Commit `b245a0b` (chore(ci): S9 — lint baseline + GitHub Actions gates + P1-06 cleanup). Trzy rzeczy: (1) ESLint baseline gate — `scripts/lint-baseline.mjs` zamraża 1525 errors / 322 files w `.eslint-baseline.json`, `npm run lint:ci` fail tylko na regression (file gaining errors lub new file with errors); (2) GitHub Actions workflows w `.github/workflows/`: `lint.yml` (lint:ci + tsc --noEmit) + `security.yml` (npm audit critical/high fail + gitleaks secret scanning + 2 grep tripwires — NEXT_PUBLIC_*SERVICE*ROLE* i leaked Prodentis key string); trigger pull_request + push main + weekly security re-audit; (3) P1-06 closeout (audyt 2026-05-12, memory błędnie raportowała done w S1) — 12 użyć `NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY` fallback w 10 plikach API usuniętych batch sed, non-null assertion zachowana. Lokalne smoke: tsc clean, lint:ci pass (1525=1525), 109/109 tests, build clean, negative smoke wykrył regression poprawnie. **Hotfix Sprint COMPLETE** (S1-S9 + S8-1..S8-7 wszystkie) → wrót do **Fazy K Premium SEO Positioning Reset**. Z opcjonalnych paused: S2-bis + S4-2b CSP enforce.
 
 <!-- Poprzednia Last Updated 2026-05-18 #3: S8-7 pgcrypto DONE — application-layer AES-256-GCM encryption dla Art. 9 PII (commit ad7031c). Migracja 130, lib fieldEncryption.ts + encryptedPiiFields.ts, 40/40 tests, 1378 rows encrypted produkcja. -->
 
@@ -2498,6 +2500,125 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-19 — 🎯 K-1 PREMIUM SEO: HeroSlideshow z 5 AI grafik Flux Dev (OfferCarousel style)
+
+**Pierwsze realne wdrożenie Fazy K Premium Positioning Reset.** K-0 Strategy Workshop zatwierdził kierunek (Marcin 2026-05-18), K-1 implementacja w 3 iteracjach z dramatyczną poprawą jakości grafik (SVG → real photos → AI Flux Dev).
+
+#### Commits (merged na origin/main)
+- `f9f6cd9` feat(seo): K-1a — meta description × 4 locale premium positioning (hero copy unchanged)
+- `675165b` feat(seo): K-1b — HeroSlideshow w stylu OfferCarousel (5 AI-generated grafik Flux Dev)
+
+#### Co zrobione
+
+**K-1a — Meta description premium × 4 locale** (niewidoczne na UI, SEO benefit):
+- `src/app/[locale]/page.tsx` HOMEPAGE_SEO × 4 locale (title + description + ogTitle + ogDescription)
+- `src/lib/brandConfig.ts` brand.description premium fallback
+- Każdy locale zawiera "M.Sc. RWTH Aachen" + "ZEISS" + "Fotona" + "od 2016" w SERP/OG share
+- EN/DE/UA: explicit "(with distinction, 2021)" / "(mit Auszeichnung, 2021)" / "(з відзнакою, 2021)" — strong DE trust signal (niemiecka uczelnia)
+- Hero UI bez zmian — original "Tworzymy uśmiechy, które zmieniają życie" trafia do Slide 1 HeroSlideshow
+
+**K-1b — HeroSlideshow multi-slide carousel** (3 iteracje):
+
+*Iteracja 1*: Center-stacked layout z 5 inline SVG icons (smile arc, graduation cap, microscope, tooth, map) → Marcin: "5-latek ołówkiem namalował"
+
+*Iteracja 2*: OfferCarousel-style layout 2-col + real photos (Ela/Marcin/microscope.png/laser.png/interior) → Marcin: "zdjęcia zamiast wygenerować dedykowane grafiki AI w stylu OfferCarousel"
+
+*Iteracja 3 (final)*: OfferCarousel-style + 5 AI grafik Flux Dev w spojnym premium dental aesthetic
+
+**Architektura HeroSlideshow.tsx** (~320 LOC, 1:1 z OfferCarousel):
+- 2-col grid: LEFT photo 3/4 portrait framed (border 1px rgba white 0.1, padding 10px), RIGHT text (tagline gold uppercase + h1/h2 serif white italic accent + description justified + CTA)
+- Mobile: auto-stacks (auto-fit minmax 300px)
+- Framer Motion AnimatePresence: spring slide x: ±1000, scale 0.8→1, opacity 0→1 (stiffness 300, damping 30)
+- Drag swipe (dragElastic 1, swipeConfidence 2000)
+- Navigation arrows: ❮ ❯ Unicode + `gallery-nav-btn gallery-nav-btn-{prev,next}` CSS class (z globals.css linia 267)
+- Pill dots: bottom-center, active w-8 bg-primary, inactive w-1.5 bg-white/20
+- Autoplay 5s, pause-on-hover/focus, prefers-reduced-motion respect
+
+**5 slidów** (każdy targetuje inny SEO angle + CTA do unique landing page):
+1. **Emotional** → "Tworzymy uśmiechy, które zmieniają życie" → /rezerwacja
+2. **Authority** → "Master of Science — RWTH Aachen" → /o-nas
+3. **Technology** → "Mikroskop ZEISS + laser Fotona LightWalker" → /oferta
+4. **Specialty** → "Trudny ząb? Wyzwanie, nie problem" → /mapa-bolu
+5. **International** → "Opole — PL · DE · CZ · AT · UA" → /dla-pacjentow-przyjezdnych
+
+**5 dedykowanych AI grafik** (Replicate Flux Dev, 2026-05-19, ~$0.13 total, ~12s generation):
+- `public/hero-slides/emotional.webp` (39 KB) — macro smile, ultra-detailed enamel, dark moody + warm gold rim
+- `public/hero-slides/authority.webp` (62 KB) — graduation cap + gold tassel + "M.Sc." embossed on leather diploma + stethoscope
+- `public/hero-slides/technology.webp` (38 KB) — operating microscope eyepieces, brass + matte black, premium engineering
+- `public/hero-slides/specialty.webp` (59 KB) — premium endodontic instruments + glass vial z gold liquid + leather
+- `public/hero-slides/international.webp` (115 KB) — vintage Central Europe map + brass compass + leather passport, focus na Polskę
+
+Wszystkie w spojnym **premium dental aesthetic** (dark moody + warm gold/amber accents + photorealistic + cinematic shallow DoF + Canon R5 85mm f/1.4 + 3:4 portrait). Prompts inspired by `blog/generate` template ("premium blog header image. dark moody background with deep blacks and charcoal tones, subtle gold/amber accent lighting, modern luxury dental clinic aesthetic, photorealistic, cinematic composition").
+
+**Script regeneracji** (`scripts/generate-hero-slide-images.mjs`, 132 LOC):
+- Node ESM, Replicate SDK
+- Model: `black-forest-labs/flux-dev` (aspect_ratio 3:4, output webp quality 90, num_inference_steps 30)
+- SLIDES array z 5 prompts (EN, detailed, repeatable style modifiers)
+- Output: `public/hero-slides/{id}.webp`
+- Uruchomienie: `node scripts/generate-hero-slide-images.mjs`
+- Iteracja prompts: edytuj SLIDES.prompt, ponownie uruchom (~$0.025 per image, ~3s)
+
+**i18n** (100 nowych stringów, dwa namespaces):
+- `heroSlideshow.{regionLabel, prevLabel, nextLabel, goToSlide, slideOf}` × 4 locale (UI labels)
+- `heroSlides.{emotional, authority, technology, specialty, international}.{tagline, title1, title2, description, ctaText}` × 4 locale (slide content)
+- AI translate PL → EN/DE/UA (Faza M tryb A eksperyment, przed checkpoint M-5 quality review)
+
+**SEO impact**:
+- 1 h1 (slide 1 Emotional) + 4 h2 (slides 2-5) w SSR HTML — Googlebot widzi 5 narracji bez czekania na JS
+- SSR-only hidden block (`clip-path: inset(50%)`) dla zapasowego renderingu pełnego contentu (zabezpieczenie gdy hydration fail)
+- 5 unique CTA destinations (internal linking boost: /rezerwacja, /o-nas, /oferta, /mapa-bolu, /dla-pacjentow-przyjezdnych)
+- Meta description x 4 locale eksponuje credentials Marcina w Google SERP + Facebook share preview
+
+**Wire HomeClient.tsx**:
+- case 'hero' rozdzielony:
+  - `layout === 'centered'` (default mikrostomart) → `<HeroSlideshow />`
+  - inne layouty (split-*, fullscreen-video) → `<HeroSection layout={...} />` (zachowane dla theme presets via VisualEditor config)
+
+#### Verification
+- Build clean (zero TS errors)
+- Preview localhost:3001 mobile 362×853:
+  - 4 locale × HTTP 200 (PL/EN/DE/UA)
+  - 5 slidów × HTTP 200 dla każdej grafiki
+  - Slide 1 screenshot: macro smile + tagline + h1 + description
+  - Slide 2 screenshot: graduation cap + M.Sc. + h2 + description
+  - Autoplay 5s advance OK, dots navigation OK, arrows hover invert OK
+  - Zero console errors
+- Production smoke (po Vercel deploy, ~2-3 min od push)
+
+#### Pliki
+- `src/components/HeroSlideshow.tsx` [NEW] ~320 LOC
+- `scripts/generate-hero-slide-images.mjs` [NEW] 132 LOC regenerate script
+- `public/hero-slides/{emotional,authority,technology,specialty,international}.webp` [NEW] 5 AI grafik
+- `src/app/[locale]/HomeClient.tsx` [MOD] wire HeroSlideshow
+- `src/app/[locale]/page.tsx` [MOD] HOMEPAGE_SEO × 4 locale premium
+- `src/lib/brandConfig.ts` [MOD] brand.description premium fallback
+- `messages/{pl,en,de,ua}/common.json` [MOD] +heroSlideshow +heroSlides (100 stringów)
+- `public/sw.js` + `src/lib/generated-route-mtimes.ts`: auto-regenerated by prebuild
+
+#### Co Marcin musi zrobić
+- **Brak migracji DB** (Faza K = content/UX, nie DB)
+- **Brak nowych env var** (REPLICATE_API_TOKEN już istnieje)
+- **Po deploy Vercel**: visual check https://www.mikrostomart.pl/ — 5 slidów autoplay 5s × hover pauza × dots/arrows nav × swipe mobile
+
+#### Co dalej (K-2 NEXT)
+**TrustStats sekcja above-the-fold** (Wariant B Expertise z PLAN_K_DECISIONS):
+- Script `scripts/extract-clinic-stats.ts` — wyciąga z Prodentis API + Supabase: liczba pacjentów, implantacji, leczeń kanałowych, opinii Google
+- Komponent `<TrustStats>` — 4 karty z liczbami (10 lat | M.Sc. RWTH 2.w PL | PL DE CZ AT UA | ZEISS + Fotona) + animowane liczniki (Framer Motion stagger) + pasek logo akredytacji SVG (PTE/ESE/PTSL/RWTH/LA&HA)
+- Wire HomeClient: sekcja PO HeroSlideshow PRZED ValuesSection
+- Translations × 4 locale + mobile responsive
+- Effort: ~2.5h AI + 20 min Marcin
+
+#### Status Faza K po K-1
+- ✅ K-0 Strategy Workshop (2026-05-18)
+- ✅ K-1 Hero rewrite + meta + HeroSlideshow (2026-05-19, 3 iteracje)
+- ⏳ K-2 TrustStats + extract-clinic-stats.ts
+- ⏳ K-3 Akredytacje page + Person schema enrichment
+- ⏳ K-4/K-5 Service pages copy 1+2
+- ⏳ K-6 Cennik refactor (D1=B implementation)
+- ⏳ K-7/K-8 Case studies
+
+---
 
 ### 2026-05-18 #4 — 🎉 SPRINT 9: lint baseline + GitHub Actions CI + P1-06 cleanup — HOTFIX SPRINT COMPLETE
 
