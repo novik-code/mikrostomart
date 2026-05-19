@@ -72,6 +72,20 @@ export default function HeroSlideshow() {
     const tNav = useTranslations("heroSlideshow");
     const [[page, direction], setPage] = useState([0, 0]);
     const [isPaused, setIsPaused] = useState(false);
+    // matchMedia desktop detection — Tailwind `hidden md:flex` NIE działa w tym
+    // projekcie (brak @import "tailwindcss" w globals.css → Tailwind nie generuje
+    // utility classes). Używamy SSR-safe inline conditional rendering jak
+    // MobileBottomBar pattern. Default false = mobile-first SSR (no image),
+    // hydration aktualizuje do desktop view jeśli viewport >= 768.
+    const [isDesktop, setIsDesktop] = useState(false);
+    useEffect(() => {
+        if (typeof window === "undefined" || !window.matchMedia) return;
+        const mq = window.matchMedia("(min-width: 768px)");
+        setIsDesktop(mq.matches);
+        const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
+        mq.addEventListener?.("change", handler);
+        return () => mq.removeEventListener?.("change", handler);
+    }, []);
 
     // Build translated slides
     const SLIDES: HeroSlide[] = useMemo(() =>
@@ -188,36 +202,42 @@ export default function HeroSlideshow() {
                                 ❯
                             </button>
 
-                            {/* LEFT: Image (3/4 portrait, framed) — Team Member Style */}
-                            <div className="flex justify-center md:justify-end order-1">
-                                <div
-                                    style={{
-                                        width: "100%",
-                                        maxWidth: "400px",
-                                        aspectRatio: "3/4",
-                                        position: "relative",
-                                        borderRadius: "2px",
-                                        border: "1px solid rgba(255,255,255,0.1)",
-                                        padding: "10px",
-                                        background: "transparent",
-                                    }}
-                                >
-                                    <div style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden" }}>
-                                        <Image
-                                            src={slide.image}
-                                            alt={slide.imageAlt}
-                                            fill
-                                            sizes="(max-width: 768px) 100vw, 50vw"
-                                            style={{ objectFit: "cover" }}
-                                            priority={isPrimary}
-                                            draggable={false}
-                                        />
+                            {/* LEFT: Image (3/4 portrait, framed) — Team Member Style.
+                                K-1c (Marcin 2026-05-19): conditional render — image
+                                tylko na desktop ≥768px (matchMedia). Mobile = text-only
+                                hero (image dominowało jako główny content). */}
+                            {isDesktop && (
+                                <div style={{ display: "flex", justifyContent: "flex-end", order: 1 }}>
+                                    <div
+                                        style={{
+                                            width: "100%",
+                                            maxWidth: "400px",
+                                            aspectRatio: "3/4",
+                                            position: "relative",
+                                            borderRadius: "2px",
+                                            border: "1px solid rgba(255,255,255,0.1)",
+                                            padding: "10px",
+                                            background: "transparent",
+                                        }}
+                                    >
+                                        <div style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden" }}>
+                                            <Image
+                                                src={slide.image}
+                                                alt={slide.imageAlt}
+                                                fill
+                                                sizes="50vw"
+                                                style={{ objectFit: "cover" }}
+                                                priority={isPrimary}
+                                                draggable={false}
+                                            />
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
+                            )}
 
-                            {/* RIGHT: Text Content */}
-                            <div className="order-2 text-left" style={{ paddingLeft: "var(--spacing-md)" }}>
+                            {/* RIGHT: Text Content — centered na mobile (no image obok),
+                                left-aligned na desktop (obok 3/4 portrait photo). */}
+                            <div style={{ order: 2, textAlign: isDesktop ? "left" : "center", paddingLeft: isDesktop ? "var(--spacing-md)" : 0 }}>
                                 <p
                                     style={{
                                         color: "var(--color-primary)",
@@ -267,13 +287,15 @@ export default function HeroSlideshow() {
                                         fontSize: "1.05rem",
                                         lineHeight: 1.7,
                                         maxWidth: "560px",
-                                        textAlign: "justify",
+                                        textAlign: isDesktop ? "justify" : "center",
+                                        marginLeft: isDesktop ? 0 : "auto",
+                                        marginRight: isDesktop ? 0 : "auto",
                                     }}
                                 >
                                     {slide.description}
                                 </p>
 
-                                <div className="flex justify-start w-full mb-4">
+                                <div style={{ display: "flex", justifyContent: isDesktop ? "flex-start" : "center", width: "100%", marginBottom: "1rem" }}>
                                     <Link
                                         href={slide.ctaHref}
                                         className="

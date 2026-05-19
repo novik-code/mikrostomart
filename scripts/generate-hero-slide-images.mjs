@@ -28,26 +28,30 @@ if (!process.env.REPLICATE_API_TOKEN) {
 
 const replicate = new Replicate({ auth: process.env.REPLICATE_API_TOKEN });
 
+// 5 wariacji macro smile photos — różne osoby/wiek/płeć/expression, ten sam
+// premium dental aesthetic (dark moody + warm gold rim, Canon R5 macro).
+// Marcin K-1c feedback 2026-05-19: "wszystkie 5 mają być piękne uśmiechy
+// jak emotional który już był OK".
 const SLIDES = [
     {
         id: "emotional",
-        prompt: "Macro close-up photograph of a flawless natural white smile, ultra-detailed enamel showing perfect alignment and translucency, healthy pink gums, soft natural lips. Dark moody background with deep charcoal blacks, subtle warm gold rim lighting from the side. Modern luxury dental aesthetic, photorealistic, cinematic composition, shallow depth of field, dramatic studio lighting. Canon R5, 85mm f/1.4 macro lens. Vertical 3:4 portrait orientation. No text. No watermark.",
+        prompt: "Macro close-up of bright joyful natural smile of a young woman (around 30 years old), ultra-detailed white enamel showing perfect alignment, healthy pink gums, soft natural lips slightly parted, hints of laugh lines around the mouth, fresh energetic expression. Dark moody background with deep charcoal blacks, subtle warm gold rim lighting from the right side. Modern luxury dental aesthetic, photorealistic, cinematic composition, shallow depth of field, dramatic studio lighting. Canon R5, 85mm f/1.4 macro lens. Vertical 3:4 portrait orientation. No text. No watermark.",
     },
     {
         id: "authority",
-        prompt: "Elegant still life of a graduation cap with golden tassel resting on a leather-bound diploma case, embossed with subtle 'M.Sc.' lettering, alongside a vintage stethoscope and a black fountain pen. Dark moody background with deep blacks and warm amber accent lighting from upper left. Modern luxury academic aesthetic, photorealistic, cinematic composition, shallow depth of field, dramatic studio lighting. Canon R5, 85mm f/1.4 lens. Vertical 3:4 portrait orientation. No text. No watermark.",
+        prompt: "Macro close-up of confident composed smile of a mature professional man (around 45 years old), well-aligned strong white teeth, slight stubble visible, calm trustworthy expression, masculine jaw line, healthy gums. Dark moody background with deep blacks, subtle warm amber rim lighting from upper left. Modern luxury dental aesthetic, photorealistic, cinematic composition, shallow depth of field, dramatic studio lighting. Canon R5, 85mm f/1.4 macro lens. Vertical 3:4 portrait orientation. No text. No watermark.",
     },
     {
         id: "technology",
-        prompt: "Detail photograph of a high-end dental operating microscope eyepieces and lens assembly, brass and matte black components, precise mechanical engineering visible, fine machined details. Dark moody background with deep blacks and charcoal tones, subtle warm gold accent lighting catching the brass elements. Modern luxury dental clinic aesthetic, photorealistic, cinematic composition, shallow depth of field, dramatic studio lighting. Canon R5, 85mm f/1.4 lens. Vertical 3:4 portrait orientation. No text. No watermark.",
+        prompt: "Extreme macro close-up showing perfect details of upper central incisors and canines of a beautiful smile, glistening enamel with subtle natural variations, healthy pink gum line, micro-detail texture of tooth surface, lip outline visible. Dark moody background with deep charcoal blacks, warm gold accent lighting catching enamel highlights. Modern luxury dental aesthetic, photorealistic precision (ZEISS microscope-grade detail), cinematic composition, shallow depth of field. Canon R5, 100mm macro lens. Vertical 3:4 portrait orientation. No text. No watermark.",
     },
     {
         id: "specialty",
-        prompt: "Macro close-up of premium endodontic instruments - polished nickel-titanium rotary files arranged with surgical precision on a dark leather surface, alongside a glass vial with golden reflection. Dark moody background with deep charcoal blacks, subtle warm gold accent rim lighting. Modern luxury dental specialist aesthetic, photorealistic, cinematic composition, shallow depth of field, dramatic studio lighting. Canon R5, 85mm f/1.4 macro lens. Vertical 3:4 portrait orientation. No text. No watermark.",
+        prompt: "Macro warm genuine smile of a middle-aged person (around 50 years old) showing healthy beautifully restored teeth (front incisors plus visible premolars), natural alignment, slight character wrinkles around the mouth showing experience and authenticity, deeply satisfied expression. Dark moody background, subtle warm golden hour rim lighting from the side. Modern luxury dental aesthetic, photorealistic, cinematic composition, shallow depth of field, dramatic studio lighting. Canon R5, 85mm f/1.4 macro lens. Vertical 3:4 portrait orientation. No text. No watermark.",
     },
     {
         id: "international",
-        prompt: "Elegant overhead photograph of a vintage world map of Central Europe with brass compass and a leather-bound passport, focusing on Poland with small subtle markers. Dark moody background with deep blacks and warm amber lighting from the side. Modern luxury travel aesthetic, photorealistic, cinematic composition, shallow depth of field, dramatic studio lighting. Canon R5, 85mm f/1.4 lens. Vertical 3:4 portrait orientation. No text. No watermark.",
+        prompt: "Macro warm authentic smile of an elegantly aging woman (around 60 years old) with beautiful white teeth, subtle laugh lines around bright eyes (partially visible), gracefully mature skin texture, sophisticated expression conveying wisdom and joy. Dark moody background with deep blacks, warm gold rim lighting from the right. Modern luxury dental aesthetic, photorealistic, cinematic composition, shallow depth of field, dramatic studio lighting. Canon R5, 85mm f/1.4 macro lens. Vertical 3:4 portrait orientation. No text. No watermark.",
     },
 ];
 
