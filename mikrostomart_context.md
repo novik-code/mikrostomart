@@ -1,6 +1,8 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-20 NIGHT FINAL (**🎯 K-2c + follow-up fixes DONE — clinic-wide stats + Mikrostomart branding + tooltip**). Commit `06c7220` najnowszy. Po K-2c real-time API (`e62b783`) Marcin zgłosił 3 problemy: (1) statystyki z całej kliniki nie tylko Marcina ("większe wrażenie"), (2) "nie promujemy Prodentis" — brand wszędzie Mikrostomart, (3) tooltip cropped. Fix: karty 1277/2292/6213 (klinika), i18n × 4 locale "system kliniki / system kliniczny Mikrostomart" (Prodentis zostaje tylko w RODO Art. 28 sec9 disclosure processorów), tooltip maxWidth min(480px,92vw)+wordBreak+overflowWrap+zIndex 100. RODO/bezpieczeństwo: liczby agregowane only, rate limit 60/min/IP, cache 1h+SWR 24h, server-side fetch. **Następna sesja: K-3 Person schema enrichment + CV timeline na /o-nas** — najważniejsza sesja Fazy K.
+> **Last Updated:** 2026-05-20 NIGHT+1 (**🚨 S10-1 — P0 RLS lockdown — migracja 132**). Po niezależnym audycie bezpieczeństwa 2026-05-18 audytor potwierdził live data leak: anon REST zwracał rekordy z `care_enrollments`, `care_tasks`, `care_audit_log`, `fcm_tokens`, `ai_conversations` przez wadliwe RLS policies (`FOR ALL USING (true)` bez `TO service_role`) w mig 110+104+127. Marcin wybrał **Opcję A: S10 Security Hotfix przed K-3**. Sesja 1/4: migracja 132 drop wadliwe policies + odtwórz jako `TO service_role` + push_log_insert_service też naprawione. Wszyscy callerzy (12 careflow API/cron + 16 fcm_tokens + 6 ai_conversations) używają SUPABASE_SERVICE_ROLE_KEY (BYPASSRLS) → migracja non-breaking. Build clean. **🚨 Manual Marcin**: wgrać migrację 132 na OBU Supabase + live smoke z anon key (curl REST 5 tabel → expected 401/403/empty). **Następne sesje S10**: S10-2 patient login `account_status` check + register signed token, S10-3 push/subscribe + suggestions auth + staff-signatures lockdown + middleware bot bypass, S10-4 SEO-01 sitemap hygiene. Po S10 → K-3.
+
+<!-- Poprzednia: 2026-05-20 NIGHT FINAL (K-2c + follow-up fixes DONE — clinic-wide stats + Mikrostomart branding + tooltip). Commit `06c7220`. -->
 
 <!-- Poprzednia: 2026-05-20 NIGHT (K-2c DONE — real-time clinic stats z Prodentis API + LIVE indicator). -->
  Commit `e62b783` najnowszy. Marcin dostarczył nowe Prodentis API v10.2 endpointy publiczne (DLA_DEWELOPERA_STATYSTYKI_PROCEDUR.md). Real-time dane z bazy zabiegów (~140k rekordów) zastąpiły hardcoded src/data/clinic-stats.ts. Nowy `src/lib/clinicStatsApi.ts` (server-side fetch przez Cloudflare Tunnel + IP fallback) + `/api/clinic-stats` route (rate limit 60/min/IP, HTTP cache 1h + stale-while-revalidate 24h). TrustStats refactored: useState + useEffect fetch + AbortController + 10s timeout + LiveIndicator sub-component (zielona pulsująca kropka + "LIVE · dane z Prodentis · HH:MM" + tooltip wyjaśniający że tylko agregowane statistics bez patient data). Liczby aktualne: 1150 implantów (+65 vs hardcoded), 1861 leczeń kanałowych, 4305 pacjentów (+10), 56773 procedures (+117). RODO compliance: tylko counts agregowane, no PII. Plus poprzedni fix `7e34982` mobile horizontal overflow (body overflow-x:hidden + HeroSlideshow inline overflow). **Następna sesja: K-3 Person schema enrichment + CV timeline na /o-nas**.
@@ -2514,6 +2516,81 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-20 NIGHT+1 — 🚨 S10-1: P0 RLS lockdown — migracja 132 (security hotfix po niezależnym audycie)
+
+**Niezależny audyt bezpieczeństwa 2026-05-18 (`RAPORT_AUDYT_BEZPIECZENSTWA_MIKROSTOMART_2026-05-18.pdf` w `~/Desktop/bałagan/audyt seo i bezpieczenstwo/`) potwierdził live data leak przez wadliwe RLS w 3 migracjach. Marcin wybrał Opcję A (S10 Security Hotfix przed K-3, ~1 dzień). Sesja 1 zamyka oba zgłoszone P0 RLS findingi.**
+
+#### Commit
+- TBD — migracja 132 + KOMENDA section 0 update + Recent Changes entry
+
+#### Problem (z audytu)
+Audytor uruchomił `curl` na Supabase REST z anon key i otrzymał `rows=1` dla każdej z 5 tabel: `care_enrollments`, `care_tasks`, `care_audit_log`, `fcm_tokens`, `ai_conversations`. To realny wyciek (nie teoretyczne ryzyko):
+- Migracje 110 + 104 + 127 wszystkie używały policy `FOR ALL USING (true) WITH CHECK (true)` bez `TO service_role`
+- Bez `TO service_role` policy obowiązuje dla ról: `anon`, `authenticated`, `service_role` (default jest "applies to all")
+- Anon key (publiczny w client bundle) miał więc pełen READ + INSERT/UPDATE/DELETE na te tabele
+
+Tabele zawierały **realnie wrażliwe dane**: care_enrollments (enrollment data pacjentów + access_token), care_tasks (medication info), fcm_tokens (push subscriptions per user_id), ai_conversations (potencjalnie PESEL/medical jeśli pacjent wkleił do chatu).
+
+#### Migracja 132 (idempotentna)
+`supabase_migrations/132_rls_lockdown_anon_data_leak.sql` (95 LOC, BEGIN/COMMIT transaction):
+1. **5 care_\* policies**: DROP wadliwe + recreate jako `FOR ALL TO service_role USING (true) WITH CHECK (true)`
+2. **fcm_tokens_service_all**: DROP + recreate z `TO service_role`
+3. **push_notifications_log push_log_insert_service**: DROP + recreate z `FOR INSERT TO service_role` (też miał `WITH CHECK (true)` bez `TO service_role` — anon mógł zapisywać fałszywe logi)
+   - `push_log_select_own` (FOR SELECT USING `user_id = auth.uid()::text`) zostaje — poprawny pattern (filtering by auth.uid())
+4. **ai_conversations**: DROP "Service role full access on ai_conversations" + recreate jako `ai_conversations_service_only` z `TO service_role`
+5. **Verify ENABLE RLS** na 8 tabelach (idempotent safeguard)
+
+#### Bezpieczeństwo callsite'ów
+**Wszystkie 34+ callsite'y w app używają `SUPABASE_SERVICE_ROLE_KEY`** (zweryfikowane przez grep):
+- careflow API/cron: 13 plików (`/api/careflow/[token]/*`, `/api/admin/careflow/*`, `/api/employee/careflow/*`, `/api/cron/careflow-*`)
+- fcm_tokens: 16 wystąpień (pushService.ts, patientDelivery.ts, push/subscribe, admin/push, admin/push-send, patients/export-data, cron post-visit-sms, cron week-after-visit-sms)
+- ai_conversations: 6 wystąpień (aiConversationLog.ts, cron/audit-log-cleanup)
+
+Service role w Supabase ma atrybut `BYPASSRLS` z definicji — żadna policy nie blokuje. Migracja 132 jest **non-breaking** dla app.
+
+#### Pliki
+- `supabase_migrations/132_rls_lockdown_anon_data_leak.sql` [NEW] — 95 LOC
+- `~/Desktop/migracje_supabase/migracja_132_rls_lockdown_anon_data_leak.txt` [NEW] — kopia dla Marcina
+- `mikrostomart_context.md` [MOD] — Last Updated + Recent Changes
+- `KOMENDA_STARTOWA_MIKROSTOMART.md` [MOD] — sekcja 0 (najwyższa migracja, NEXT SESSION, AKTYWNY SPRINT = S10)
+
+#### Verification
+- `npm run build`: clean (zero new errors, brak nowych TS)
+- Live smoke test od Marcina po wgraniu migracji (manual taski poniżej)
+
+#### Manual taski Marcin (krytyczne)
+1. **Wgrać migrację 132** w Supabase SQL Editor na OBU Supabase:
+   - Produkcja `keucogopujdolzmfajjv`
+   - Demo `mhosfncgasjfruiohlfo`
+   - Plik: `~/Desktop/migracje_supabase/migracja_132_rls_lockdown_anon_data_leak.txt`
+   - Idempotentna (DROP IF EXISTS + CREATE), w BEGIN/COMMIT
+2. **Live smoke test** z anon key (z terminala lokalnego, NIE z service role):
+   ```bash
+   # Powinno zwrócić [] (pusta tablica) lub 401/403:
+   curl "https://keucogopujdolzmfajjv.supabase.co/rest/v1/care_enrollments?select=id&limit=1" \
+        -H "apikey: $NEXT_PUBLIC_SUPABASE_ANON_KEY" \
+        -H "Authorization: Bearer $NEXT_PUBLIC_SUPABASE_ANON_KEY"
+   # Powtórzyć dla: care_tasks, care_audit_log, fcm_tokens, ai_conversations
+   ```
+3. **Functional smoke**: spróbuj `/api/careflow/[token]` jako pacjent (z istniejącym access_token) — powinien zwrócić enrollment data normalnie (server używa service role).
+
+#### Status Sprint S10
+- **S10-1 ✅ DONE** (P0 RLS lockdown, migracja 132) — ten commit
+- **S10-2 ⏳ NEXT**: P0 patient login `account_status` check + register podpisany token verification (~1.5h MEDIUM risk)
+- **S10-3 ⏳**: P1 paczka — push/subscribe sesja-based + suggestions auth + staff-signatures lockdown + middleware bot bypass (~2-3h)
+- **S10-4 ⏳**: SEO-01 sitemap hygiene quick win (~30 min) — usunąć noindex/404 z sitemap, dodać CI test indeksowalności
+
+Po S10 → wrót do **K-3 Person schema enrichment + CV timeline na /o-nas** (audyt SEO SEO-07 mapuje 1:1 na K-3 zaplanowane).
+
+#### Świadomie pominięte z audytu w tej sesji (do kolejnych sesji S10)
+- P1 push/subscribe → S10-3
+- P1 employee/suggestions → S10-3
+- P1 staff-signatures → S10-3
+- P1 middleware bot bypass → S10-3
+- P2: tokeny w logach, CSP enforce, PII fail-closed, Prodentis HTTP fallback, Telegram HTML injection, /api/health → pozostają jako post-K Premium SEO follow-up
+
+---
 
 ### 2026-05-20 NIGHT FINAL — 🎯 K-2c follow-up fixes — wszystkie liczby clinic-wide + Mikrostomart branding + tooltip fix
 
