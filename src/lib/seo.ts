@@ -248,6 +248,7 @@ const BREADCRUMB_LABELS: Record<string, Record<string, string>> = {
         selfie: 'Selfie Booth',
         symulator: 'Symulator uśmiechu',
         przyjezdni: 'Dla pacjentów spoza Opola',
+        akredytacje: 'Akredytacje',
     },
     en: {
         home: 'Home',
@@ -275,6 +276,7 @@ const BREADCRUMB_LABELS: Record<string, Record<string, string>> = {
         selfie: 'Selfie Booth',
         symulator: 'Smile Simulator',
         przyjezdni: 'For International Patients',
+        akredytacje: 'Accreditations',
     },
     de: {
         home: 'Startseite',
@@ -302,6 +304,7 @@ const BREADCRUMB_LABELS: Record<string, Record<string, string>> = {
         selfie: 'Selfie Booth',
         symulator: 'Lächeln-Simulator',
         przyjezdni: 'Für deutsche Patienten',
+        akredytacje: 'Akkreditierungen',
     },
     ua: {
         home: 'Головна',
@@ -329,6 +332,7 @@ const BREADCRUMB_LABELS: Record<string, Record<string, string>> = {
         selfie: 'Selfie Booth',
         symulator: 'Симулятор посмішки',
         przyjezdni: 'Для українських пацієнтів',
+        akredytacje: 'Акредитації',
     },
 };
 

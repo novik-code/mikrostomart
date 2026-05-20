@@ -96,6 +96,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         '/kontakt',
         '/rezerwacja',
         '/dla-pacjentow-przyjezdnych', // H7 international landing
+        '/akredytacje', // K-2b index page
+        '/akredytacje/pte',
+        '/akredytacje/ese',
+        '/akredytacje/ptsl',
+        '/akredytacje/rwth-aachen',
+        '/akredytacje/la-ha',
     ];
     const mainRoutes = mainPaths.flatMap((path) =>
         multiLocaleEntries(path, {

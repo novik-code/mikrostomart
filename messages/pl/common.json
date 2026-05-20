@@ -88,23 +88,113 @@
     },
     "trustStats": {
         "heading": "10 lat doświadczenia w liczbach",
-        "subheading": "Mikrostomart Opole — gabinet prowadzony przez dr. Marcina Nowosielskiego od 2016 roku.",
+        "subheading": "Klinika Mikrostomart w Opolu — prowadzona od 2016 roku przez lek. dent. Marcina Nowosielskiego M.Sc. wraz z małżonką Elżbietą Nowosielską, hig. stom.",
         "card1Label": "implantów wszczepionych",
         "card1Subtitle": "Mikrostomart Opole, od 2016",
         "card2Label": "leczeń kanałowych",
         "card2Subtitle": "pod mikroskopem ZEISS",
         "card3Label": "pacjentów",
         "card3Subtitle": "w Mikrostomart od 2016",
-        "card4Main": "Master of Science",
+        "card4Main": "Master of Science (2021)",
         "card4Line2": "in Lasers in Dentistry",
         "card4Line3": "RWTH Aachen University",
-        "card4Footer": "2. w Polsce",
+        "card4Footer": "2. w Polsce, najmłodszy, z wyróżnieniem",
         "accreditationsHeading": "Akredytacje i działalność naukowa",
         "accPteTooltip": "Polskie Towarzystwo Endodontyczne — członek + wykładowca jubileuszu 20-lecia PTE",
         "accEseTooltip": "European Society of Endodontology — członek",
         "accPtslTooltip": "Polskie Towarzystwo Stomatologii Laserowej — członek",
         "accRwthTooltip": "RWTH Aachen University — Master of Science in Lasers in Dentistry (2021), drugi z wyróżnieniem w Polsce",
         "accLahaTooltip": "Laser and Health Academy — wykładowca: Symposium Słowenia 2019/2023, Polska 2022 keynote + warsztaty"
+    },
+    "akredytacje": {
+        "indexHeading": "Akredytacje i działalność naukowa",
+        "indexLead": "Mikrostomart łączy codzienną praktykę kliniczną z głębokim zaangażowaniem w działalność naukową, edukacyjną i branżową. Poniżej organizacje i instytucje, których członkiem, absolwentem lub wykładowcą jest dr Marcin Nowosielski.",
+        "indexCardCta": "Dowiedz się więcej",
+        "indexBackToHome": "Powrót do strony głównej",
+        "backToList": "← Wszystkie akredytacje",
+        "meaningHeading": "Co to znaczy dla pacjenta",
+        "marcinRoleHeading": "Rola dr. Nowosielskiego w organizacji",
+        "sourceHeading": "Źródło",
+        "sourceOriginalLink": "Oficjalna strona organizacji",
+        "sourceWebarchiveLink": "Archiwalna wersja (Wayback Machine)",
+        "sourceWebarchiveNote": "Linkujemy do snapshotów Wayback Machine, aby zachować odniesienie nawet po ewentualnej zmianie struktury oficjalnej strony.",
+        "foundedLabel": "Rok założenia",
+        "marcinSinceLabel": "Marcin w organizacji od",
+        "pte": {
+            "label": "PTE",
+            "fullName": "Polskie Towarzystwo Endodontyczne",
+            "metaTitle": "PTE — Polskie Towarzystwo Endodontyczne | Mikrostomart",
+            "metaDescription": "Dr Marcin Nowosielski jest członkiem Polskiego Towarzystwa Endodontycznego od 2015 r. i wykładowcą jubileuszu 20-lecia PTE.",
+            "hero": "Polskie Towarzystwo Endodontyczne (PTE) jest największą krajową organizacją skupiającą stomatologów specjalizujących się w endodoncji — leczeniu kanałowym pod mikroskopem.",
+            "meaning": "Członkostwo w PTE oznacza, że lekarz prowadzi leczenie kanałowe zgodnie z aktualnymi standardami europejskimi (ESE Quality Guidelines), korzysta z mikroskopu zabiegowego jako standardu praktyki oraz uczestniczy w cyklicznych szkoleniach branżowych. Dla pacjenta przekłada się to na wyższą skuteczność leczenia, mniejsze ryzyko powikłań i większą szansę na uratowanie zęba bez konieczności jego ekstrakcji.",
+            "marcinRole": "Dr Marcin Nowosielski jest członkiem PTE od 2015 roku oraz absolwentem Curriculum Endodontycznego PTE — wieloetapowego, intensywnego programu szkoleniowego z zakresu współczesnej endodoncji mikroskopowej. W 2024 roku był jednym z wykładowców jubileuszowego sympozjum 20-lecia Polskiego Towarzystwa Endodontycznego.",
+            "facts": [
+                "Polska organizacja branżowa",
+                "Ścisła współpraca z European Society of Endodontology (ESE)",
+                "Standardy oparte na ESE Quality Guidelines",
+                "Cykliczne szkolenia i jubileuszowe sympozja"
+            ]
+        },
+        "ese": {
+            "label": "ESE",
+            "fullName": "European Society of Endodontology",
+            "metaTitle": "ESE — European Society of Endodontology | Mikrostomart",
+            "metaDescription": "Dr Marcin Nowosielski jest członkiem European Society of Endodontology — najważniejszej europejskiej organizacji endodontycznej.",
+            "hero": "European Society of Endodontology (ESE) to najważniejsza europejska organizacja zrzeszająca specjalistów i naukowców z zakresu endodoncji. Ustala standardy jakości leczenia kanałowego dla całej Europy.",
+            "meaning": "Standardy ESE Quality Guidelines są referencją dla każdego nowoczesnego gabinetu prowadzącego leczenie kanałowe pod mikroskopem. Członkostwo w ESE oznacza dostęp do najnowszej wiedzy klinicznej, badań naukowych oraz wytycznych dotyczących sterylności, doboru materiałów i techniki opracowania kanałów. Dla pacjenta to gwarancja, że leczenie odbywa się zgodnie z najwyższym europejskim standardem.",
+            "marcinRole": "Dr Marcin Nowosielski jest członkiem European Society of Endodontology od 2015 roku. Standardy ESE Quality Guidelines stanowią podstawę protokołu leczenia kanałowego stosowanego w Mikrostomart — od izolacji koferdamem przez instrumentarium maszynowe i obrazowanie tomograficzne aż po obturację metodą ciepłej kondensacji pionowej.",
+            "facts": [
+                "Założona w 1983 r.",
+                "Ponad 30 narodowych towarzystw członkowskich",
+                "Publikuje ESE Quality Guidelines",
+                "Wydaje International Endodontic Journal"
+            ]
+        },
+        "ptsl": {
+            "label": "PTSL",
+            "fullName": "Polskie Towarzystwo Stomatologii Laserowej",
+            "metaTitle": "PTSL — Polskie Towarzystwo Stomatologii Laserowej | Mikrostomart",
+            "metaDescription": "Dr Marcin Nowosielski jest członkiem Polskiego Towarzystwa Stomatologii Laserowej od 2017 r.",
+            "hero": "Polskie Towarzystwo Stomatologii Laserowej (PTSL) zrzesza lekarzy dentystów stosujących lasery medyczne w codziennej praktyce klinicznej.",
+            "meaning": "Leczenie laserowe oznacza dla pacjenta wiele wymiernych korzyści: mniejszy ból zabiegowy, ograniczenie konieczności stosowania znieczulenia w wielu procedurach, szybsze gojenie tkanek, brak hałasu wiertła. W Mikrostomart laser Fotona LightWalker stosowany jest m.in. w endodoncji (dezynfekcja kanałów PIPS/SWEEPS), chirurgii tkanek miękkich, leczeniu nadwrażliwości i wybielaniu zębów.",
+            "marcinRole": "Dr Marcin Nowosielski jest członkiem PTSL od 2017 roku i aktywnym praktykiem stomatologii laserowej. Wiedza zdobyta w PTSL została następnie pogłębiona poprzez ukończenie studiów Master of Science in Lasers in Dentistry na RWTH Aachen University.",
+            "facts": [
+                "Polska organizacja branżowa",
+                "Tematyka: lasery medyczne w stomatologii",
+                "Wymiana wiedzy klinicznej",
+                "Powiązanie z LA&HA (Laser and Health Academy)"
+            ]
+        },
+        "rwth-aachen": {
+            "label": "RWTH Aachen",
+            "fullName": "RWTH Aachen University — AALZ (Aachen Dental Laser Center)",
+            "metaTitle": "RWTH Aachen University — Master of Science in Lasers in Dentistry | Mikrostomart",
+            "metaDescription": "Dr Marcin Nowosielski zdobył tytuł Master of Science in Lasers in Dentistry na RWTH Aachen University w 2021 r. — drugi w Polsce, najmłodszy, z wyróżnieniem.",
+            "hero": "RWTH Aachen University to jedna z czołowych europejskich uczelni technicznych. Centrum AALZ (Aachen Dental Laser Center) prowadzi pierwszy na świecie międzynarodowy program studiów Master of Science in Lasers in Dentistry.",
+            "meaning": "Tytuł Master of Science in Lasers in Dentistry to dwuletnie, intensywne studia podyplomowe obejmujące fizykę laserów medycznych, biofotonikę, protokoły kliniczne dla wszystkich rodzajów laserów dentystycznych (Er:YAG, Nd:YAG, diody, CO2) oraz pracę dyplomową w oparciu o własne badania kliniczne. Program prowadzony jest w języku angielskim przez kadrę z całego świata. Dla pacjenta oznacza to, że leczenie laserowe w Mikrostomart prowadzone jest na poziomie akademickim, w oparciu o pełne zrozumienie parametrów i mechanizmów biologicznych każdej procedury.",
+            "marcinRole": "Dr Marcin Nowosielski ukończył dwuletni program Master of Science in Lasers in Dentistry w 2021 roku — jako drugi lekarz dentysta w Polsce w historii programu, jednocześnie najmłodszy w roku promocji, oraz uzyskał wyróżnienie (with distinction) za pracę dyplomową. Wcześniejsze etapy szkolenia (Curriculum + Bachelor) ukończył w latach 2018-2020.",
+            "facts": [
+                "Założenie programu: 2004 r.",
+                "Studia w języku angielskim, kadra międzynarodowa",
+                "Pełne 2-letnie studia podyplomowe (120 ECTS)",
+                "Praca dyplomowa oparta o własne badania kliniczne"
+            ]
+        },
+        "la-ha": {
+            "label": "LA&HA",
+            "fullName": "Laser and Health Academy",
+            "metaTitle": "LA&HA — Laser and Health Academy | Wykładowca | Mikrostomart",
+            "metaDescription": "Dr Marcin Nowosielski jest wykładowcą Laser and Health Academy — wystąpienia na sympozjach w Słowenii (2019, 2023) i Polsce (2022, keynote + warsztaty).",
+            "hero": "Laser and Health Academy (LA&HA) to międzynarodowa platforma edukacyjna i naukowa zrzeszająca lekarzy i naukowców stosujących lasery Fotona w medycynie i stomatologii.",
+            "meaning": "LA&HA organizuje cykliczne sympozja naukowe, publikuje czasopismo Journal of the Laser and Health Academy oraz prowadzi programy szkoleniowe dla lekarzy z całego świata. Dla pacjenta klinika powiązana z LA&HA to gwarancja stosowania najnowszych protokołów klinicznych — często wcześniej niż pojawią się one w mainstreamie branżowym.",
+            "marcinRole": "Dr Marcin Nowosielski jest aktywnym wykładowcą LA&HA. Wystąpił z wykładami na sympozjach LA&HA Symposium w Słowenii w 2019 i 2023 roku oraz na LA&HA Poland w 2022 roku, gdzie był keynote speaker i prowadził dedykowane warsztaty praktyczne. Tematyka wystąpień obejmuje m.in. endodoncję laserową, protokoły PIPS/SWEEPS oraz integrację laserów z mikroskopem zabiegowym.",
+            "facts": [
+                "Międzynarodowa platforma edukacyjna",
+                "Wydaje Journal of the Laser and Health Academy",
+                "Cykliczne sympozja w Słowenii i krajach członkowskich",
+                "Marcin: wykładowca + keynote speaker + prowadzący warsztaty"
+            ]
+        }
     },
     "values": {
         "heading": "Co nas wyróżnia",
@@ -163,6 +253,7 @@
             "appLanding": "Aplikacja",
             "news": "Aktualności",
             "knowledge": "Baza wiedzy",
+            "akredytacje": "Akredytacje",
             "blog": "Blog",
             "shop": "Sklep",
             "faq": "FAQ",

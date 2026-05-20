@@ -88,23 +88,113 @@
     },
     "trustStats": {
         "heading": "10 Jahre Erfahrung in Zahlen",
-        "subheading": "Mikrostomart Opole — Praxis geleitet von Dr. Marcin Nowosielski seit 2016.",
+        "subheading": "Klinik Mikrostomart in Opole — geführt seit 2016 von Zahnarzt Marcin Nowosielski M.Sc. zusammen mit seiner Ehefrau Elżbieta Nowosielska, Dentalhygienikerin.",
         "card1Label": "gesetzte Implantate",
         "card1Subtitle": "Mikrostomart Opole, seit 2016",
         "card2Label": "Wurzelkanalbehandlungen",
         "card2Subtitle": "unter ZEISS-Mikroskop",
         "card3Label": "Patienten",
         "card3Subtitle": "bei Mikrostomart seit 2016",
-        "card4Main": "Master of Science",
+        "card4Main": "Master of Science (2021)",
         "card4Line2": "in Lasers in Dentistry",
         "card4Line3": "RWTH Aachen University",
-        "card4Footer": "2. in Polen",
+        "card4Footer": "2. in Polen, jüngster, mit Auszeichnung",
         "accreditationsHeading": "Akkreditierungen & wissenschaftliche Tätigkeit",
         "accPteTooltip": "Polnische Endodontische Gesellschaft — Mitglied + Referent am 20-jährigen Jubiläumssymposium PTE",
         "accEseTooltip": "European Society of Endodontology — Mitglied",
         "accPtslTooltip": "Polnische Gesellschaft für Laserzahnmedizin — Mitglied",
         "accRwthTooltip": "RWTH Aachen University — Master of Science in Lasers in Dentistry (2021), 2. in Polen mit Auszeichnung",
         "accLahaTooltip": "Laser and Health Academy — Referent: Symposium Slowenien 2019/2023, Polen 2022 Keynote + Workshops"
+    },
+    "akredytacje": {
+        "indexHeading": "Akkreditierungen & wissenschaftliche Tätigkeit",
+        "indexLead": "Mikrostomart verbindet tägliche klinische Praxis mit tiefem Engagement in wissenschaftlicher, pädagogischer und beruflicher Tätigkeit. Im Folgenden die Organisationen und Institutionen, deren Mitglied, Absolvent oder Dozent Dr. Marcin Nowosielski ist.",
+        "indexCardCta": "Mehr erfahren",
+        "indexBackToHome": "Zurück zur Startseite",
+        "backToList": "← Alle Akkreditierungen",
+        "meaningHeading": "Was es für den Patienten bedeutet",
+        "marcinRoleHeading": "Die Rolle von Dr. Nowosielski in der Organisation",
+        "sourceHeading": "Quelle",
+        "sourceOriginalLink": "Offizielle Organisationswebsite",
+        "sourceWebarchiveLink": "Archivierte Version (Wayback Machine)",
+        "sourceWebarchiveNote": "Wir verlinken auf Wayback Machine-Snapshots, um die Referenz auch nach möglichen Änderungen in der Struktur der offiziellen Website zu erhalten.",
+        "foundedLabel": "Gegründet",
+        "marcinSinceLabel": "Marcin in der Organisation seit",
+        "pte": {
+            "label": "PTE",
+            "fullName": "Polnische Endodontische Gesellschaft",
+            "metaTitle": "PTE — Polnische Endodontische Gesellschaft | Mikrostomart",
+            "metaDescription": "Dr. Marcin Nowosielski ist seit 2015 Mitglied der Polnischen Endodontischen Gesellschaft und Dozent beim PTE-Jubiläum zum 20-jährigen Bestehen.",
+            "hero": "Die Polnische Endodontische Gesellschaft (PTE) ist die größte nationale Organisation, die Zahnärzte vereint, die sich auf Endodontie spezialisiert haben — die Wurzelkanalbehandlung unter dem Mikroskop.",
+            "meaning": "Die PTE-Mitgliedschaft bedeutet, dass der Zahnarzt die Wurzelkanalbehandlung gemäß den aktuellen europäischen Standards (ESE Quality Guidelines) durchführt, das Operationsmikroskop als Praxisstandard verwendet und an zyklischen beruflichen Schulungen teilnimmt. Für den Patienten bedeutet dies eine höhere Behandlungseffektivität, ein geringeres Komplikationsrisiko und eine größere Chance, den Zahn ohne Extraktion zu erhalten.",
+            "marcinRole": "Dr. Marcin Nowosielski ist seit 2015 Mitglied der PTE und Absolvent des PTE-Endodontischen Curriculums — eines mehrstufigen, intensiven Schulungsprogramms in moderner mikroskopischer Endodontie. Im Jahr 2024 war er einer der Dozenten beim Jubiläumssymposium zum 20-jährigen Bestehen der Polnischen Endodontischen Gesellschaft.",
+            "facts": [
+                "Polnische Berufsorganisation",
+                "Enge Zusammenarbeit mit der European Society of Endodontology (ESE)",
+                "Standards basierend auf ESE Quality Guidelines",
+                "Zyklische Schulungen und Jubiläumssymposien"
+            ]
+        },
+        "ese": {
+            "label": "ESE",
+            "fullName": "European Society of Endodontology",
+            "metaTitle": "ESE — European Society of Endodontology | Mikrostomart",
+            "metaDescription": "Dr. Marcin Nowosielski ist Mitglied der European Society of Endodontology — der wichtigsten europäischen endodontischen Organisation.",
+            "hero": "Die European Society of Endodontology (ESE) ist die wichtigste europäische Organisation, die Spezialisten und Wissenschaftler aus dem Bereich der Endodontie vereint. Sie legt Qualitätsstandards für die Wurzelkanalbehandlung in ganz Europa fest.",
+            "meaning": "ESE Quality Guidelines sind die Referenz für jede moderne Klinik, die Wurzelkanalbehandlung unter dem Mikroskop durchführt. Die ESE-Mitgliedschaft bedeutet Zugang zum neuesten klinischen Wissen, zur wissenschaftlichen Forschung sowie zu Leitlinien zu Sterilität, Materialauswahl und Kanalpräparationstechnik. Für den Patienten ist dies eine Garantie, dass die Behandlung nach dem höchsten europäischen Standard durchgeführt wird.",
+            "marcinRole": "Dr. Marcin Nowosielski ist seit 2015 Mitglied der European Society of Endodontology. ESE Quality Guidelines bilden die Grundlage des bei Mikrostomart angewendeten Wurzelkanalbehandlungsprotokolls — von der Kofferdamisolierung über maschinelle Instrumentierung und DVT-Bildgebung bis zur Obturation mittels warmer vertikaler Kondensation.",
+            "facts": [
+                "Gegründet 1983",
+                "Über 30 nationale Mitgliedsgesellschaften",
+                "Veröffentlicht ESE Quality Guidelines",
+                "Veröffentlicht International Endodontic Journal"
+            ]
+        },
+        "ptsl": {
+            "label": "PTSL",
+            "fullName": "Polnische Gesellschaft für Laserzahnmedizin",
+            "metaTitle": "PTSL — Polnische Gesellschaft für Laserzahnmedizin | Mikrostomart",
+            "metaDescription": "Dr. Marcin Nowosielski ist seit 2017 Mitglied der Polnischen Gesellschaft für Laserzahnmedizin.",
+            "hero": "Die Polnische Gesellschaft für Laserzahnmedizin (PTSL) vereint Zahnärzte, die medizinische Laser in der täglichen klinischen Praxis einsetzen.",
+            "meaning": "Die Laserbehandlung bedeutet für den Patienten viele messbare Vorteile: weniger Schmerzen während des Eingriffs, reduzierte Notwendigkeit der Anwendung von Anästhesie bei vielen Verfahren, schnellere Heilung des Gewebes, kein Bohrergeräusch. Bei Mikrostomart wird der Fotona LightWalker Laser unter anderem in der Endodontie (PIPS/SWEEPS Kanaldesinfektion), Weichgewebechirurgie, Behandlung von Überempfindlichkeit und Zahnaufhellung eingesetzt.",
+            "marcinRole": "Dr. Marcin Nowosielski ist seit 2017 PTSL-Mitglied und aktiver Praktiker der Laserzahnmedizin. Das in der PTSL erworbene Wissen wurde anschließend durch Abschluss des Master of Science in Lasers in Dentistry-Studiums an der RWTH Aachen University vertieft.",
+            "facts": [
+                "Polnische Berufsorganisation",
+                "Thematik: medizinische Laser in der Zahnmedizin",
+                "Austausch von klinischem Wissen",
+                "Verbindung mit LA&HA (Laser and Health Academy)"
+            ]
+        },
+        "rwth-aachen": {
+            "label": "RWTH Aachen",
+            "fullName": "RWTH Aachen University — AALZ (Aachen Dental Laser Center)",
+            "metaTitle": "RWTH Aachen University — Master of Science in Lasers in Dentistry | Mikrostomart",
+            "metaDescription": "Dr. Marcin Nowosielski erwarb den Titel Master of Science in Lasers in Dentistry an der RWTH Aachen University im Jahr 2021 — 2. in Polen, jüngster, mit Auszeichnung.",
+            "hero": "Die RWTH Aachen University ist eine der führenden technischen Universitäten Europas. Das AALZ-Zentrum (Aachen Dental Laser Center) führt das weltweit erste internationale Studienprogramm Master of Science in Lasers in Dentistry durch.",
+            "meaning": "Der Titel Master of Science in Lasers in Dentistry ist ein zweijähriges intensives Postgraduiertenstudium, das die Physik medizinischer Laser, Biophotonik, klinische Protokolle für alle Arten von Dentallasern (Er:YAG, Nd:YAG, Dioden, CO2) und eine Abschlussarbeit auf der Grundlage eigener klinischer Forschung umfasst. Das Programm wird auf Englisch von Dozenten aus der ganzen Welt durchgeführt. Für den Patienten bedeutet dies, dass die Laserbehandlung bei Mikrostomart auf akademischem Niveau durchgeführt wird, basierend auf einem vollständigen Verständnis der Parameter und biologischen Mechanismen jedes Verfahrens.",
+            "marcinRole": "Dr. Marcin Nowosielski absolvierte das zweijährige Master of Science in Lasers in Dentistry Programm im Jahr 2021 — als zweiter Zahnarzt in Polen in der Geschichte des Programms, gleichzeitig der jüngste seines Promotionsjahrgangs, und erhielt eine Auszeichnung (with distinction) für seine Abschlussarbeit. Frühere Ausbildungsstufen (Curriculum + Bachelor) wurden in den Jahren 2018-2020 abgeschlossen.",
+            "facts": [
+                "Programm gegründet: 2004",
+                "Studium in Englisch, internationale Dozenten",
+                "Vollständiges 2-jähriges Postgraduiertenstudium (120 ECTS)",
+                "Abschlussarbeit basierend auf eigener klinischer Forschung"
+            ]
+        },
+        "la-ha": {
+            "label": "LA&HA",
+            "fullName": "Laser and Health Academy",
+            "metaTitle": "LA&HA — Laser and Health Academy | Dozent | Mikrostomart",
+            "metaDescription": "Dr. Marcin Nowosielski ist Dozent der Laser and Health Academy — Präsentationen auf Symposien in Slowenien (2019, 2023) und Polen (2022, Keynote + Workshops).",
+            "hero": "Die Laser and Health Academy (LA&HA) ist eine internationale Bildungs- und Wissenschaftsplattform, die Ärzte und Wissenschaftler zusammenbringt, die Fotona-Laser in der Medizin und Zahnmedizin einsetzen.",
+            "meaning": "Die LA&HA organisiert zyklische wissenschaftliche Symposien, veröffentlicht das Journal of the Laser and Health Academy und führt Schulungsprogramme für Ärzte aus der ganzen Welt durch. Für den Patienten ist eine mit LA&HA verbundene Klinik eine Garantie für die Anwendung der neuesten klinischen Protokolle — oft bevor sie im Branchenmainstream erscheinen.",
+            "marcinRole": "Dr. Marcin Nowosielski ist aktiver Dozent der LA&HA. Er hielt Vorträge auf dem LA&HA Symposium in Slowenien in den Jahren 2019 und 2023 und auf der LA&HA Poland im Jahr 2022, wo er Keynote Speaker war und spezielle praktische Workshops leitete. Die Themen der Vorträge umfassen u.a. Laserendodontie, PIPS/SWEEPS-Protokolle und Integration von Lasern mit dem Operationsmikroskop.",
+            "facts": [
+                "Internationale Bildungsplattform",
+                "Veröffentlicht Journal of the Laser and Health Academy",
+                "Zyklische Symposien in Slowenien und Mitgliedsländern",
+                "Marcin: Dozent + Keynote Speaker + Workshop-Leiter"
+            ]
+        }
     },
     "values": {
         "heading": "Was uns auszeichnet",
@@ -163,6 +253,7 @@
             "appLanding": "Mobile App",
             "news": "Aktuelles",
             "knowledge": "Wissensdatenbank",
+            "akredytacje": "Akkreditierungen",
             "blog": "Blog",
             "shop": "Shop",
             "faq": "FAQ",

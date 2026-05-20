@@ -8,12 +8,20 @@
 //   leczeń kanałowych / 4295 pacjentów / M.Sc. RWTH)
 // - Narracja "Marcin to element układanki" — subtitles odwołują się do Mikrostomart /
 //   mikroskopu / RWTH (nie eksplicit "osobiście Marcin")
-// - Akredytacje WIDOCZNE (nie marginalne) — 5 pill badges z hover tooltip + external links
+// - Akredytacje WIDOCZNE (nie marginalne) — 5 pill badges
 // - Mobile 2x2 grid
+//
+// K-2b decyzje Marcina (2026-05-20 EOD):
+// - Subheading dłuższy z lek. dent. + M.Sc. + małżonka Elżbieta
+// - Karta 4: "Master of Science (2021)" + "2. w Polsce, najmłodszy, z wyróżnieniem"
+// - Akredytacje pillsy linkują do wewnętrznych /akredytacje/[slug] landing pages
+//   (nie external) — landingi mogą dalej linkować do webarchive snapshots
+// - Animacja kart hover: gold shine sweep + lift + gold glow + counter pulse
 
 import { useState, useRef, useEffect } from "react";
 import { motion, useInView, animate } from "framer-motion";
 import { useTranslations } from "next-intl";
+import { Link } from "@/i18n/navigation";
 import RevealOnScroll from "@/components/RevealOnScroll";
 import { CLINIC_STATS } from "@/data/clinic-stats";
 
@@ -43,80 +51,216 @@ function AnimatedCounter({ value, suffix = "" }: { value: number; suffix?: strin
 }
 
 // ─────────────────────────────────────────────────────────────
-// Accreditation pill — text badge z hover tooltip + optional external link
+// TrustCard — pojedyncza karta z animowanym hover (shine + lift + glow + pulse)
 // ─────────────────────────────────────────────────────────────
-interface AccreditationProps {
-    label: string;
-    tooltip: string;
-    href?: string;
+interface CardProps {
+    icon: string;
+    isCredential?: boolean;
+    value?: number;
+    label?: string;
+    subtitle?: string;
+    credentialMain?: string;
+    credentialLine2?: string;
+    credentialLine3?: string;
+    credentialFooter?: string;
 }
 
-function AccreditationPill({ label, tooltip, href }: AccreditationProps) {
-    const [hover, setHover] = useState(false);
-    const content = (
-        <div
-            onMouseEnter={() => setHover(true)}
-            onMouseLeave={() => setHover(false)}
-            onClick={() => setHover((h) => !h)} // mobile toggle
+function TrustCard(props: CardProps) {
+    return (
+        <motion.div
+            className="trust-card"
+            whileHover={{
+                y: -8,
+                transition: { duration: 0.3, ease: "easeOut" },
+            }}
             style={{
                 position: "relative",
-                padding: "10px 18px",
-                border: "1px solid var(--color-primary)",
-                borderRadius: "999px",
-                color: hover ? "var(--color-bg-main, #0a0a0f)" : "var(--color-primary)",
-                background: hover ? "var(--color-primary)" : "transparent",
-                fontSize: "0.78rem",
-                fontWeight: 600,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-                cursor: href ? "pointer" : "default",
-                transition: "all 0.3s ease",
-                whiteSpace: "nowrap",
-                userSelect: "none",
+                padding: "var(--spacing-md)",
+                border: "1px solid var(--color-surface-hover)",
+                borderRadius: "var(--radius-md)",
+                background: "var(--color-surface, rgba(255,255,255,0.02))",
+                textAlign: "center",
+                height: "100%",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "center",
+                minHeight: "180px",
+                overflow: "hidden",
+                transition: "border-color 0.4s ease, box-shadow 0.4s ease",
             }}
         >
-            {label}
-            {hover && (
-                <motion.div
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    style={{
-                        position: "absolute",
-                        bottom: "calc(100% + 10px)",
-                        left: "50%",
-                        transform: "translateX(-50%)",
-                        padding: "10px 14px",
-                        background: "var(--color-surface, #1a1a22)",
-                        color: "var(--color-text-main, #e8e6e3)",
-                        border: "1px solid var(--color-primary)",
-                        borderRadius: "8px",
-                        fontSize: "0.78rem",
-                        fontWeight: 400,
-                        letterSpacing: "0",
-                        textTransform: "none",
-                        whiteSpace: "normal",
-                        minWidth: "240px",
-                        maxWidth: "320px",
-                        textAlign: "center",
-                        zIndex: 50,
-                        boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
-                        pointerEvents: "none",
-                    }}
-                >
-                    {tooltip}
-                </motion.div>
-            )}
-        </div>
-    );
+            <div
+                style={{
+                    fontSize: "1.5rem",
+                    marginBottom: "var(--spacing-xs)",
+                    opacity: 0.7,
+                    position: "relative",
+                    zIndex: 1,
+                }}
+            >
+                {props.icon}
+            </div>
 
-    if (href) {
-        return (
-            <a href={href} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none" }}>
-                {content}
-            </a>
-        );
-    }
-    return content;
+            {props.isCredential ? (
+                <div style={{ position: "relative", zIndex: 1 }}>
+                    <div
+                        style={{
+                            fontSize: "clamp(1.05rem, 1.9vw, 1.35rem)",
+                            fontWeight: 600,
+                            color: "var(--color-primary)",
+                            fontFamily: "var(--font-heading)",
+                            lineHeight: 1.2,
+                            marginBottom: "4px",
+                        }}
+                    >
+                        {props.credentialMain}
+                    </div>
+                    <div
+                        style={{
+                            fontSize: "0.85rem",
+                            color: "var(--color-text-main)",
+                            lineHeight: 1.4,
+                        }}
+                    >
+                        {props.credentialLine2}
+                    </div>
+                    <div
+                        style={{
+                            fontSize: "0.85rem",
+                            color: "var(--color-text-main)",
+                            lineHeight: 1.4,
+                            marginBottom: "var(--spacing-xs)",
+                        }}
+                    >
+                        {props.credentialLine3}
+                    </div>
+                    <div
+                        style={{
+                            fontSize: "0.72rem",
+                            color: "var(--color-text-muted)",
+                            letterSpacing: "0.04em",
+                            textTransform: "uppercase",
+                            lineHeight: 1.4,
+                        }}
+                    >
+                        {props.credentialFooter}
+                    </div>
+                </div>
+            ) : (
+                <div style={{ position: "relative", zIndex: 1 }}>
+                    <motion.div
+                        whileHover={{ scale: 1.08 }}
+                        transition={{ duration: 0.3, ease: "easeOut" }}
+                        style={{
+                            fontSize: "clamp(2rem, 5vw, 3rem)",
+                            fontWeight: 700,
+                            color: "var(--color-primary)",
+                            fontFamily: "var(--font-heading)",
+                            lineHeight: 1,
+                            marginBottom: "var(--spacing-xs)",
+                            fontVariantNumeric: "tabular-nums",
+                            display: "inline-block",
+                        }}
+                    >
+                        <AnimatedCounter value={props.value!} />
+                    </motion.div>
+                    <div
+                        style={{
+                            fontSize: "0.95rem",
+                            color: "var(--color-text-main)",
+                            fontWeight: 500,
+                            marginBottom: "4px",
+                        }}
+                    >
+                        {props.label}
+                    </div>
+                    <div
+                        style={{
+                            fontSize: "0.78rem",
+                            color: "var(--color-text-muted)",
+                            letterSpacing: "0.02em",
+                        }}
+                    >
+                        {props.subtitle}
+                    </div>
+                </div>
+            )}
+        </motion.div>
+    );
+}
+
+// ─────────────────────────────────────────────────────────────
+// AccreditationPill — text pill linkujący do internal /akredytacje/[slug]
+// K-2b: zmiana z external href + tooltip na internal Link + tooltip z fullName
+// ─────────────────────────────────────────────────────────────
+interface AccreditationProps {
+    slug: string;
+    label: string;
+    tooltip: string;
+}
+
+function AccreditationPill({ slug, label, tooltip }: AccreditationProps) {
+    const [hover, setHover] = useState(false);
+    return (
+        <Link
+            href={`/akredytacje/${slug}` as any}
+            onMouseEnter={() => setHover(true)}
+            onMouseLeave={() => setHover(false)}
+            onClick={() => setHover(false)}
+            style={{ textDecoration: "none" }}
+        >
+            <div
+                style={{
+                    position: "relative",
+                    padding: "10px 18px",
+                    border: "1px solid var(--color-primary)",
+                    borderRadius: "999px",
+                    color: hover ? "var(--color-bg-main, #0a0a0f)" : "var(--color-primary)",
+                    background: hover ? "var(--color-primary)" : "transparent",
+                    fontSize: "0.78rem",
+                    fontWeight: 600,
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                    cursor: "pointer",
+                    transition: "all 0.3s ease",
+                    whiteSpace: "nowrap",
+                    userSelect: "none",
+                }}
+            >
+                {label}
+                {hover && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        style={{
+                            position: "absolute",
+                            bottom: "calc(100% + 10px)",
+                            left: "50%",
+                            transform: "translateX(-50%)",
+                            padding: "10px 14px",
+                            background: "var(--color-surface, #1a1a22)",
+                            color: "var(--color-text-main, #e8e6e3)",
+                            border: "1px solid var(--color-primary)",
+                            borderRadius: "8px",
+                            fontSize: "0.78rem",
+                            fontWeight: 400,
+                            letterSpacing: "0",
+                            textTransform: "none",
+                            whiteSpace: "normal",
+                            minWidth: "240px",
+                            maxWidth: "320px",
+                            textAlign: "center",
+                            zIndex: 50,
+                            boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
+                            pointerEvents: "none",
+                        }}
+                    >
+                        {tooltip}
+                    </motion.div>
+                )}
+            </div>
+        </Link>
+    );
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -125,61 +269,41 @@ function AccreditationPill({ label, tooltip, href }: AccreditationProps) {
 export default function TrustStats() {
     const t = useTranslations("trustStats");
 
-    const cards = [
+    const cards: CardProps[] = [
         {
             value: CLINIC_STATS.marcin.implants,
-            label: t("card1Label"), // "implantów wszczepionych"
-            subtitle: t("card1Subtitle"), // "w Mikrostomart od 2016"
+            label: t("card1Label"),
+            subtitle: t("card1Subtitle"),
             icon: "🦷",
         },
         {
             value: CLINIC_STATS.marcin.rootCanals,
-            label: t("card2Label"), // "leczeń kanałowych"
-            subtitle: t("card2Subtitle"), // "pod mikroskopem ZEISS"
+            label: t("card2Label"),
+            subtitle: t("card2Subtitle"),
             icon: "🔬",
         },
         {
             value: CLINIC_STATS.marcin.patients,
-            label: t("card3Label"), // "pacjentów"
-            subtitle: t("card3Subtitle"), // "w Mikrostomart od 2016"
+            label: t("card3Label"),
+            subtitle: t("card3Subtitle"),
             icon: "👥",
         },
         {
-            // Karta 4 — credential zamiast liczby
             isCredential: true,
-            credentialMain: t("card4Main"), // "Master of Science"
-            credentialLine2: t("card4Line2"), // "in Lasers in Dentistry"
-            credentialLine3: t("card4Line3"), // "RWTH Aachen University"
-            credentialFooter: t("card4Footer"), // "2. w Polsce"
+            credentialMain: t("card4Main"),
+            credentialLine2: t("card4Line2"),
+            credentialLine3: t("card4Line3"),
+            credentialFooter: t("card4Footer"),
             icon: "🎓",
         },
     ];
 
     const accreditations = [
-        {
-            label: "PTE",
-            tooltip: t("accPteTooltip"),
-            href: "https://endodoncja.pl/20-lecie-pte/#tab-id-2",
-        },
-        {
-            label: "ESE",
-            tooltip: t("accEseTooltip"),
-            href: "https://www.e-s-e.eu/",
-        },
-        {
-            label: "PTSL",
-            tooltip: t("accPtslTooltip"),
-        },
-        {
-            label: "RWTH Aachen",
-            tooltip: t("accRwthTooltip"),
-            href: "https://www.aalz.de/en/",
-        },
-        {
-            label: "LA&HA",
-            tooltip: t("accLahaTooltip"),
-            href: "https://www.laserandhealthacademy.com/",
-        },
+        { slug: "pte", label: "PTE", tooltip: t("accPteTooltip") },
+        { slug: "ese", label: "ESE", tooltip: t("accEseTooltip") },
+        { slug: "ptsl", label: "PTSL", tooltip: t("accPtslTooltip") },
+        { slug: "rwth-aachen", label: "RWTH Aachen", tooltip: t("accRwthTooltip") },
+        { slug: "la-ha", label: "LA&HA", tooltip: t("accLahaTooltip") },
     ];
 
     return (
@@ -210,8 +334,9 @@ export default function TrustStats() {
                             textAlign: "center",
                             color: "var(--color-text-muted)",
                             fontSize: "0.95rem",
+                            lineHeight: 1.6,
                             marginBottom: "var(--spacing-lg)",
-                            maxWidth: "720px",
+                            maxWidth: "780px",
                             margin: "0 auto var(--spacing-lg)",
                         }}
                     >
@@ -231,125 +356,12 @@ export default function TrustStats() {
                 >
                     {cards.map((card, i) => (
                         <RevealOnScroll key={i} delay={i * 100}>
-                            <div
-                                style={{
-                                    padding: "var(--spacing-md)",
-                                    border: "1px solid var(--color-surface-hover)",
-                                    borderRadius: "var(--radius-md)",
-                                    background: "var(--color-surface, rgba(255,255,255,0.02))",
-                                    textAlign: "center",
-                                    height: "100%",
-                                    display: "flex",
-                                    flexDirection: "column",
-                                    justifyContent: "center",
-                                    minHeight: "180px",
-                                    transition: "transform 0.3s ease, border-color 0.3s ease",
-                                }}
-                                onMouseEnter={(e) => {
-                                    e.currentTarget.style.transform = "translateY(-4px)";
-                                    e.currentTarget.style.borderColor = "var(--color-primary)";
-                                }}
-                                onMouseLeave={(e) => {
-                                    e.currentTarget.style.transform = "translateY(0)";
-                                    e.currentTarget.style.borderColor = "var(--color-surface-hover)";
-                                }}
-                            >
-                                <div
-                                    style={{
-                                        fontSize: "1.5rem",
-                                        marginBottom: "var(--spacing-xs)",
-                                        opacity: 0.7,
-                                    }}
-                                >
-                                    {card.icon}
-                                </div>
-
-                                {card.isCredential ? (
-                                    <>
-                                        <div
-                                            style={{
-                                                fontSize: "clamp(1.1rem, 2vw, 1.4rem)",
-                                                fontWeight: 600,
-                                                color: "var(--color-primary)",
-                                                fontFamily: "var(--font-heading)",
-                                                lineHeight: 1.2,
-                                                marginBottom: "4px",
-                                            }}
-                                        >
-                                            {card.credentialMain}
-                                        </div>
-                                        <div
-                                            style={{
-                                                fontSize: "0.85rem",
-                                                color: "var(--color-text-main)",
-                                                lineHeight: 1.4,
-                                            }}
-                                        >
-                                            {card.credentialLine2}
-                                        </div>
-                                        <div
-                                            style={{
-                                                fontSize: "0.85rem",
-                                                color: "var(--color-text-main)",
-                                                lineHeight: 1.4,
-                                                marginBottom: "var(--spacing-xs)",
-                                            }}
-                                        >
-                                            {card.credentialLine3}
-                                        </div>
-                                        <div
-                                            style={{
-                                                fontSize: "0.75rem",
-                                                color: "var(--color-text-muted)",
-                                                letterSpacing: "0.05em",
-                                                textTransform: "uppercase",
-                                            }}
-                                        >
-                                            {card.credentialFooter}
-                                        </div>
-                                    </>
-                                ) : (
-                                    <>
-                                        <div
-                                            style={{
-                                                fontSize: "clamp(2rem, 5vw, 3rem)",
-                                                fontWeight: 700,
-                                                color: "var(--color-primary)",
-                                                fontFamily: "var(--font-heading)",
-                                                lineHeight: 1,
-                                                marginBottom: "var(--spacing-xs)",
-                                                fontVariantNumeric: "tabular-nums",
-                                            }}
-                                        >
-                                            <AnimatedCounter value={card.value!} />
-                                        </div>
-                                        <div
-                                            style={{
-                                                fontSize: "0.95rem",
-                                                color: "var(--color-text-main)",
-                                                fontWeight: 500,
-                                                marginBottom: "4px",
-                                            }}
-                                        >
-                                            {card.label}
-                                        </div>
-                                        <div
-                                            style={{
-                                                fontSize: "0.78rem",
-                                                color: "var(--color-text-muted)",
-                                                letterSpacing: "0.02em",
-                                            }}
-                                        >
-                                            {card.subtitle}
-                                        </div>
-                                    </>
-                                )}
-                            </div>
+                            <TrustCard {...card} />
                         </RevealOnScroll>
                     ))}
                 </div>
 
-                {/* Accreditation pills row */}
+                {/* Accreditation pills row — K-2b linkują do internal pages */}
                 <RevealOnScroll delay={400}>
                     <div
                         style={{
@@ -379,18 +391,49 @@ export default function TrustStats() {
                             }}
                         >
                             {accreditations.map((acc) => (
-                                <AccreditationPill key={acc.label} {...acc} />
+                                <AccreditationPill key={acc.slug} {...acc} />
                             ))}
                         </div>
                     </div>
                 </RevealOnScroll>
             </div>
 
-            <style jsx>{`
+            <style jsx global>{`
                 @media (min-width: 768px) {
                     .trust-stats-grid {
                         grid-template-columns: repeat(4, 1fr) !important;
                     }
+                }
+
+                /* K-2b hover animation: gold shine sweep diagonal + glow */
+                .trust-card::before {
+                    content: '';
+                    position: absolute;
+                    top: 0;
+                    left: -100%;
+                    width: 60%;
+                    height: 100%;
+                    background: linear-gradient(
+                        110deg,
+                        transparent 0%,
+                        rgba(220, 177, 74, 0) 30%,
+                        rgba(220, 177, 74, 0.18) 50%,
+                        rgba(220, 177, 74, 0) 70%,
+                        transparent 100%
+                    );
+                    transform: skewX(-15deg);
+                    transition: left 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+                    pointer-events: none;
+                    z-index: 0;
+                }
+                .trust-card:hover::before {
+                    left: 200%;
+                }
+                .trust-card:hover {
+                    border-color: var(--color-primary) !important;
+                    box-shadow:
+                        0 12px 32px rgba(220, 177, 74, 0.18),
+                        0 0 0 1px var(--color-primary);
                 }
             `}</style>
         </section>

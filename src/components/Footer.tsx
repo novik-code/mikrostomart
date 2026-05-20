@@ -161,6 +161,7 @@ export default function Footer() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                         <Link href="/aktualnosci" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">{tn('news')}</Link>
                         <Link href="/baza-wiedzy" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">{tn('knowledge')}</Link>
+                        <Link href="/akredytacje" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">{tn('akredytacje')}</Link>
                         <Link href="/nowosielski" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">{tn('blog')}</Link>
                         <Link href="/sklep" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">{tn('shop')}</Link>
                     </div>
