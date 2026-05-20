@@ -1,6 +1,9 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-20 (**🎯 K-1 PREMIUM SEO FINALIZED + Wojtek news + parser SEO upgrade + autoplay fix**). Commit `81cab4b` (grafiki v4 Caucasian) najnowszy. Kompleksowa iteracja po Marcin feedback × 5 (v1 SVG icons "5-latek" → v2 OfferCarousel real photos → v3 Flux Dev sztuczne → v3 Flux 1.1 Pro Ultra lepsze ale African American → v4 explicit Caucasian European Slavic features). Plus zewnątrz K-1: news article "Bracia po metamorfozie" (Wojtek/Piotr fikcyjna historia, 4 locale AI translate, markdown parser h2+linki, migracja 131 news.tags) + 2 social drafts (FB + IG) + mobile BackgroundVideo autoplay fix (poster + .play() force + remove pointerEvents:none). **Następna sesja: K-2 TrustStats sekcja** (Wariant B Expertise — 10 lat | M.Sc. RWTH 2.w PL | PL DE CZ AT UA | ZEISS + Fotona).
+> **Last Updated:** 2026-05-20 EOD (**🎯 K-2 PREMIUM SEO DONE — TrustStats sekcja above-the-fold + akredytacje (Opcja D)**). Commit `11c6824` najnowszy. Sekcja po HeroSlideshow przed Values: 4 karty z liczbami Marcina (1085 implantów / 1861 leczeń kanałowych / 4295 pacjentów / "Master of Science in Lasers in Dentistry, RWTH Aachen University, 2. w Polsce") + pasek 5 pill badges akredytacji z hover tooltips i external links (PTE → endodoncja.pl/20-lecie-pte Marcin wykładowca 20-lecia, ESE, PTSL, RWTH Aachen, LA&HA). Liczby ze STATYSTYKI_*.md od Marcina (eksport Prodentis500 2026-05-12) hardcoded w src/data/clinic-stats.ts. Wariant Opcja D (Marcin-personalized) zatwierdzony 2026-05-20 zamiast Wariant B Expertise z PLAN_K_DECISIONS. Narracja "Marcin = element układanki": subtitles odwołują się do Mikrostomart/mikroskopu/RWTH zamiast eksplicit "Marcin osobiście". Mobile 2×2 grid, desktop 4×1, animowane countery. API /api/sections rozszerzony o auto-merge brakujących template sections. i18n × 4 locale (~80 stringów). **Następna sesja: K-3 Akredytacje page + Person schema enrichment** (najważniejsza sesja Fazy K, eksponuje cały personal brand z BIO_INVENTORY + nowy fakt: PTE 20-lecie wykładowca).
+
+<!-- Poprzednia: 2026-05-20 (K-1 PREMIUM SEO FINALIZED + Wojtek news + parser SEO upgrade + autoplay fix). Commit `81cab4b` (grafiki v4 Caucasian) najnowszy. Kompleksowa iteracja po Marcin feedback × 5 (v1 SVG icons "5-latek" → v2 OfferCarousel real photos → v3 Flux Dev sztuczne → v3 Flux 1.1 Pro Ultra lepsze ale African American → v4 explicit Caucasian European Slavic features). Plus zewnątrz K-1: news article "Bracia po metamorfozie" (Wojtek/Piotr fikcyjna historia, 4 locale AI translate, markdown parser h2+linki, migracja 131 news.tags) + 2 social drafts (FB + IG) + mobile BackgroundVideo autoplay fix. -->
+
 
 <!-- Poprzednia: 2026-05-19 (K-1 PREMIUM SEO — HeroSlideshow z 5 AI grafik Flux Dev). Commit `675165b` (K-1b) + `f9f6cd9` (K-1a) zmergowane na origin/main. Faza K — Premium Positioning Reset (Hotfix Sprint COMPLETE → Faza K UNPAUSED 2026-05-18). **K-0 Strategy Workshop** ✅ (2026-05-18) — Marcin zatwierdził 3 warianty Recommended: Hero Hybrid A+B / Cennik Wariant 1 REFRAME / TrustStats Wariant B Expertise. **K-1a** — meta description × 4 locale z M.Sc. RWTH Aachen (Google SERP + Facebook OG share). **K-1b** (3 iteracje) — HeroSlideshow multi-slide carousel 1:1 OfferCarousel style: 2-col grid LEFT photo 3/4 portrait framed / RIGHT text (tagline gold uppercase + h1/h2 serif white + description + CTA), Framer Motion AnimatePresence spring slide ±1000px + scale 0.8→1, drag swipe, gallery-nav-btn arrows (❮ ❯), pill dots bottom-center, autoplay 5s pause-on-hover. **5 slidów** (każdy targetuje inny SEO angle): emotional (smile) / authority (M.Sc. RWTH) / technology (ZEISS) / specialty (endo) / international (5 krajów). **5 AI-generated grafik Flux Dev** (Replicate ~$0.13 total, ~12s): macro smile / graduation cap + M.Sc. embossed / operating microscope brass / endodontic instruments + glass vial / vintage Central Europe map + brass compass. Wszystkie w spojnym premium luxury dental aesthetic (dark moody + warm gold accents). Script `scripts/generate-hero-slide-images.mjs` dla iteracyjnej regeneracji. SEO: SSR-only hidden block (clip-path inset 50%) renderuje pełny content wszystkich 5 slidów dla Googlebot (h1 + 4× h2 = 5 narracji = 5 keyword angles). **Następna sesja: K-2 TrustStats sekcja above-the-fold + script extract-clinic-stats.ts** (Prodentis API + Supabase aggregation).
 
@@ -2502,6 +2505,65 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-20 EOD — 🎯 K-2 DONE — TrustStats sekcja above-the-fold + akredytacje (Opcja D)
+
+**Premium SEO Plan / Faza K / Sesja 2** — wdrożenie sekcji TrustStats po HeroSlideshow przed Values, zawierającej 4 karty z liczbami procedur Marcina Nowosielskiego (Opcja D zatwierdzona 2026-05-20 + dwa pliki STATYSTYKI_*.md od Marcina z eksportu Prodentis500 2026-05-12).
+
+#### Commit
+- `11c6824` — feat(seo): K-2 — TrustStats sekcja above-the-fold + akredytacje + Opcja D
+
+#### Decyzje Marcina (2026-05-20)
+1. **Opcja D** (Marcin-personalized) — liczby Marcina osobiście (1085 implantów / 1861 leczeń kanałowych / 4295 pacjentów / M.Sc. RWTH), zamiast pierwotnego Wariant B Expertise z PLAN_K_DECISIONS
+2. **Higienizacje pomijamy** (tylko istotne zabiegi: implant/endo/pacjenci/credential)
+3. **Akredytacje WIDOCZNE** (nie marginalne) — 5 pill badges z hover tooltips + external links (PTE z linkiem do `endodoncja.pl/20-lecie-pte` — Marcin wykładowca 20-lecia, ESE, PTSL, RWTH Aachen, LA&HA)
+4. **"Marcin = element układanki"**: subtitles odwołują się do Mikrostomart/mikroskopu/RWTH zamiast eksplicit "osobiście Marcin" (frontman + team narrative)
+5. **Wording academic**: "Master of Science in Lasers in Dentistry" pełna nazwa + "RWTH Aachen University" (Marcin zauważył brakujące "in")
+6. **Mobile 2×2 grid** (nie stack 1×4)
+7. **Storage**: hardcoded TS w `src/data/clinic-stats.ts` + komentarz "manual refresh, future API"
+
+#### Pliki nowe
+- **`src/data/clinic-stats.ts`** — typed stats (marcin: {} + clinic: {}) z polami implants/rootCanals/crowns/extractions/sinusLift/augmentations/etc. Komentarz z refresh procedure (manual Prodentis500 export → bump lastUpdated → commit). TODO realtime API endpoint `/api/clinic-stats`.
+- **`src/components/TrustStats.tsx`** (~280 LOC) — komponent z AnimatedCounter (Framer Motion useInView + animate easeOut 1.8s, IntersectionObserver trigger), AccreditationPill (text pill z hover tooltip + optional external href, mobile click toggle). 4 cards 2x2 mobile / 4x1 desktop (≥768px) + pasek akredytacji pod (5 pills + heading "Akredytacje i działalność naukowa").
+
+#### Pliki zmienione
+- **`src/lib/sections.ts`** — dodany `'trust-stats'` do SectionType enum + SECTION_CATALOG entry (label: 'Statystyki + akredytacje', icon: 📊) + DEFAULT_SECTIONS (order 1, między hero i values).
+- **`src/lib/templateSections.ts`** — dodany trust-stats do template 'default-gold' (mikrostomart) order 1, shifted values/narrative/youtube/reviews +1.
+- **`src/app/api/sections/route.ts`** — auto-merge logic: jeśli DB ma zapisane `site_settings.sections` (case Marcina, 5 sekcji bez trust-stats), API auto-dodaje brakujące default template sections używając template ordering jako master. Pozwala dodać nową sekcję do default template bez wymuszania manual resave przez admin panel. Extra DB sections (custom cta-banner-X) dopisywane na końcu.
+- **`src/app/[locale]/HomeClient.tsx`** — import TrustStats + case `'trust-stats'` w renderSection switch + sync DEFAULT_ORDER (trust-stats order 1, values/narrative/youtube/reviews shifted +1).
+- **`messages/{pl,en,de,ua}/common.json`** — namespace `trustStats` × 4 locale (~20 stringów each = 80 total). Heading, subheading, 4 card labels/subtitles, 4 credential lines + 5 accreditation tooltips. AI translate EN/DE/UA (tryb A Faza M eksperyment) + RWTH/M.Sc. zachowane unchanged across locales.
+
+#### NOWY FAKT odkryty w sesji
+- **Marcin wykładowca jubileuszu 20-lecia PTE** (endodoncja.pl/20-lecie-pte/#tab-id-2) — do dodania w K-3 do BIO_INVENTORY i Person schema `sameAs`
+
+#### Verification
+- `npm run build` clean (4× rebuild w sesji: po sections.ts/HomeClient, po templateSections.ts, po API merge logic, po order priority fix)
+- Claude_Preview headless smoke (port 3001):
+  - Desktop 1440×900: 4 karty rzędem + akredytacje pasek + heading "10 lat doświadczenia w liczbach" widoczne
+  - Mobile 375×812: 2×2 grid + heading + MobileBottomBar coexist correctly
+  - Counter animation (1085/1861/4295) odpaliło się po scroll do sekcji
+  - Zero console errors
+  - Wszystkie 4 locale (PL/EN/DE/UA) 200 OK + trustStats heading w SSR HTML
+  - Section order rendered: hero → trust-stats → values → narrative → youtube → reviews
+
+#### Lessons learned
+- API `/api/sections` nie zwracał trust-stats nawet po dodaniu do TEMPLATE_SECTIONS bo DB miała zapisane `site_settings.sections` (5 sekcji bez trust-stats) — auto-merge logic w API rozwiązuje bez wymuszania DB write przez admin panel.
+- Order conflict (oba `values` i `trust-stats` order=1 po naive merge) — fix: template ordering jako source of truth, dla każdej template section przypisz `index` jako order, DB sections zachowują config (visible) ale dostają template order.
+- Marcin podał liczby zamiast pisać AI extract script (`scripts/extract-clinic-stats.ts` z PLAN_PREMIUM_SEO) — uproszczenie K-2 o ~30-60 min.
+- Synthetic `dispatchEvent` w preview nie aktywuje Framer Motion AnimatePresence hover state — real user hover w prawdziwej przeglądarce zadziała, ale automated test ma limit.
+
+#### Świadomie odłożone do osobnego sprintu
+- Realtime `/api/clinic-stats` endpoint backed by Prodentis API — Marcin chciał docelowo realtime, ale 2026-05-12 export jest wystarczający na publiczną stronę
+- Logo akredytacji jako SVG badges (zamiast tekstowych pills) — Marcin może dostarczyć grafiki later, swap pills → SVG bez zmian struktury komponentu
+
+#### Co Marcin musi zrobić ręcznie po deploy
+- Brak migracji DB ani env var
+- Verbal OK po visualnym preview produkcji + verify real user hover na pillsach akredytacji
+
+#### Next session
+**K-3 Akredytacje page + Person schema enrichment** (najważniejsza sesja Fazy K, ~3h AI + 30 min Marcin) — wyciąga personal brand z BIO_INVENTORY (RWTH Aachen, LA&HA wykłady, książka Czelej, 4 publikacje Magazyn Stomatologiczny, **PTE 20-lecie wykładowca — NOWY FAKT z K-2**, sameAs URLs do Person schema).
+
+---
 
 ### 2026-05-20 — 🎯 K-1 FINALIZED + Wojtek news + parser SEO upgrade + autoplay fix
 
