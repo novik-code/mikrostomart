@@ -2524,7 +2524,7 @@ NODE_ENV=production
 **Drugi P0 z niezależnego audytu 2026-05-18 zamknięty. Sesja 2/4 Sprint S10 Security Hotfix.**
 
 #### Commit
-- TBD — registrationToken helper + 3 API routes + 3 frontend pages
+- `01e5927` — feat(security): S10-2 — patient login account_status + register signed token
 
 #### Problem (z audytu)
 - **P0 #2 audyt** `RAPORT_AUDYT_BEZPIECZENSTWA_MIKROSTOMART_2026-05-18.pdf`:
