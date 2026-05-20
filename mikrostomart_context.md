@@ -1,6 +1,9 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-20 EOD (**🎯 K-2 PREMIUM SEO DONE — TrustStats sekcja above-the-fold + akredytacje (Opcja D)**). Commit `11c6824` najnowszy. Sekcja po HeroSlideshow przed Values: 4 karty z liczbami Marcina (1085 implantów / 1861 leczeń kanałowych / 4295 pacjentów / "Master of Science in Lasers in Dentistry, RWTH Aachen University, 2. w Polsce") + pasek 5 pill badges akredytacji z hover tooltips i external links (PTE → endodoncja.pl/20-lecie-pte Marcin wykładowca 20-lecia, ESE, PTSL, RWTH Aachen, LA&HA). Liczby ze STATYSTYKI_*.md od Marcina (eksport Prodentis500 2026-05-12) hardcoded w src/data/clinic-stats.ts. Wariant Opcja D (Marcin-personalized) zatwierdzony 2026-05-20 zamiast Wariant B Expertise z PLAN_K_DECISIONS. Narracja "Marcin = element układanki": subtitles odwołują się do Mikrostomart/mikroskopu/RWTH zamiast eksplicit "Marcin osobiście". Mobile 2×2 grid, desktop 4×1, animowane countery. API /api/sections rozszerzony o auto-merge brakujących template sections. i18n × 4 locale (~80 stringów). **Następna sesja: K-3 Akredytacje page + Person schema enrichment** (najważniejsza sesja Fazy K, eksponuje cały personal brand z BIO_INVENTORY + nowy fakt: PTE 20-lecie wykładowca).
+> **Last Updated:** 2026-05-20 LATE EOD (**🎯 K-2b PREMIUM SEO DONE — TrustStats refinements + akredytacje landing pages (5 podstron)**). Commit `fe96722` najnowszy. Po Marcin feedback ze screenshota K-2: subheading dłuższy (klinika + lek. dent. M.Sc. + małżonka), karta 4 "Master of Science (2021) / 2. w Polsce, najmłodszy, z wyróżnieniem", pills akredytacji teraz linkują do wewnętrznych landing pages `/akredytacje/{pte,ese,ptsl,rwth-aachen,la-ha}` (24 prerendered routes × 4 locale), animacja kart hover = gold shine sweep + lift + glow + counter pulse. Każda landing page: H1 + lead + facts + foundedYear/marcinSince + "Co to znaczy dla pacjenta" + "Rola Marcina w organizacji" + Source links (external + webarchive snapshot). EducationalOrganization/MedicalOrganization schema. Footer dodaje "Akredytacje" w Knowledge section. **Real-time API z Prodentis odłożone do osobnej sesji**. **Następna sesja: K-3 Person schema enrichment + CV timeline na /o-nas** LUB **real-time /api/clinic-stats z Prodentis**.
+
+<!-- Poprzednia: 2026-05-20 EOD (K-2 DONE — TrustStats sekcja above-the-fold + akredytacje, Opcja D). Commit `11c6824` najnowszy. Sekcja po HeroSlideshow przed Values: 4 karty z liczbami Marcina (1085 implantów / 1861 leczeń kanałowych / 4295 pacjentów / Master of Science RWTH Aachen) + pasek 5 pill badges akredytacji z hover tooltips i external links (PTE → endodoncja.pl/20-lecie-pte Marcin wykładowca 20-lecia, ESE, PTSL, RWTH Aachen, LA&HA). Liczby ze STATYSTYKI_*.md od Marcina (eksport Prodentis500 2026-05-12) hardcoded w src/data/clinic-stats.ts. Wariant Opcja D (Marcin-personalized) zatwierdzony 2026-05-20 zamiast Wariant B Expertise z PLAN_K_DECISIONS. Narracja "Marcin = element układanki": subtitles odwołują się do Mikrostomart/mikroskopu/RWTH zamiast eksplicit "Marcin osobiście". Mobile 2×2 grid, desktop 4×1, animowane countery. API /api/sections rozszerzony o auto-merge brakujących template sections. i18n × 4 locale (~80 stringów). -->
+ Commit `11c6824` najnowszy. Sekcja po HeroSlideshow przed Values: 4 karty z liczbami Marcina (1085 implantów / 1861 leczeń kanałowych / 4295 pacjentów / "Master of Science in Lasers in Dentistry, RWTH Aachen University, 2. w Polsce") + pasek 5 pill badges akredytacji z hover tooltips i external links (PTE → endodoncja.pl/20-lecie-pte Marcin wykładowca 20-lecia, ESE, PTSL, RWTH Aachen, LA&HA). Liczby ze STATYSTYKI_*.md od Marcina (eksport Prodentis500 2026-05-12) hardcoded w src/data/clinic-stats.ts. Wariant Opcja D (Marcin-personalized) zatwierdzony 2026-05-20 zamiast Wariant B Expertise z PLAN_K_DECISIONS. Narracja "Marcin = element układanki": subtitles odwołują się do Mikrostomart/mikroskopu/RWTH zamiast eksplicit "Marcin osobiście". Mobile 2×2 grid, desktop 4×1, animowane countery. API /api/sections rozszerzony o auto-merge brakujących template sections. i18n × 4 locale (~80 stringów). **Następna sesja: K-3 Akredytacje page + Person schema enrichment** (najważniejsza sesja Fazy K, eksponuje cały personal brand z BIO_INVENTORY + nowy fakt: PTE 20-lecie wykładowca).
 
 <!-- Poprzednia: 2026-05-20 (K-1 PREMIUM SEO FINALIZED + Wojtek news + parser SEO upgrade + autoplay fix). Commit `81cab4b` (grafiki v4 Caucasian) najnowszy. Kompleksowa iteracja po Marcin feedback × 5 (v1 SVG icons "5-latek" → v2 OfferCarousel real photos → v3 Flux Dev sztuczne → v3 Flux 1.1 Pro Ultra lepsze ale African American → v4 explicit Caucasian European Slavic features). Plus zewnątrz K-1: news article "Bracia po metamorfozie" (Wojtek/Piotr fikcyjna historia, 4 locale AI translate, markdown parser h2+linki, migracja 131 news.tags) + 2 social drafts (FB + IG) + mobile BackgroundVideo autoplay fix. -->
 
@@ -2505,6 +2508,62 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-20 LATE EOD — 🎯 K-2b DONE — TrustStats refinements + akredytacje landing pages (5 podstron)
+
+**Premium SEO Plan / Faza K / Sesja 2b** — uzupełnienie K-2 po Marcin feedback ze screenshota wdrożenia. 5 zmian: subheading wording, karta 4 detail, animacja hover kart, akredytacje landing pages (5 podstron + index), pills internal links.
+
+#### Commit
+- `fe96722` — feat(seo): K-2b — TrustStats refinements + akredytacje landing pages (5 podstron)
+
+#### Decyzje Marcina (2026-05-20 LATE EOD)
+1. **Subheading dłuższy**: "Klinika Mikrostomart w Opolu — prowadzona od 2016 roku przez lek. dent. Marcina Nowosielskiego M.Sc. wraz z małżonką Elżbietą Nowosielską, hig. stom." (3 linie, klinika nie gabinet, lek. dent. + M.Sc., małżonka Elżbieta explicit)
+2. **Karta 4 detail**: "Master of Science (2021) / in Lasers in Dentistry / RWTH Aachen University / 2. w Polsce, najmłodszy, z wyróżnieniem" (Wariant C z PLAN_K_DECISIONS)
+3. **Pills akredytacji → wewnętrzne landing pages** `/akredytacje/[slug]` zamiast external. Landingi mogą dalej linkować do webarchive snapshots (zawsze aktualne).
+4. **Animacja kart hover** = kombinacja A+B+C (gold shine sweep + lift + glow + counter pulse)
+5. **Real-time API z Prodentis** = odłożone do osobnej sesji (Marcin: "narazie działaj z resztą")
+
+#### Pliki nowe
+- **`src/data/akredytacje.ts`** — typed entries 5 akredytacji (slug, label, externalUrl, webarchiveUrl, schemaType, foundedYear, marcinSince). PTE z URL do 20-lecia (endodoncja.pl/20-lecie-pte) gdzie Marcin jest wykładowcą.
+- **`src/app/[locale]/akredytacje/layout.tsx`** — index metadata (title.absolute żeby bypass root titleTemplate), hreflang × 4 locale. NIE renderuje BreadcrumbList (G6 pattern — parent layout dziedziczy do sub-pages → duplikat).
+- **`src/app/[locale]/akredytacje/page.tsx`** — index page z heading + lead + grid 5 cards (auto-fit minmax 280px) + back-to-home link. BreadcrumbList 2-level renderowany w page.tsx. Hover: lift + border-color primary + box-shadow gold spread.
+- **`src/app/[locale]/akredytacje/[slug]/layout.tsx`** — dynamic detail metadata (per-slug metaTitle/metaDescription z i18n), generateStaticParams dla 4 locale × 5 slugs = 20 prerendered routes. Renderuje BreadcrumbList 3-level + EducationalOrganization/MedicalOrganization schema (per data.schemaType).
+- **`src/app/[locale]/akredytacje/[slug]/page.tsx`** — dynamic detail z hero (label pill badge + H1 fullName + lead + facts list + foundedYear/marcinSince inline meta) + "Co to znaczy dla pacjenta" section + "Rola Marcina w organizacji" section + "Źródło" section (external link if any + webarchive link + note). notFound() jeśli slug nieznany.
+
+#### Pliki zmienione
+- **`src/components/TrustStats.tsx`** — refactor: TrustCard sub-component z whileHover lift + counter pulse, AccreditationPill linkuje internal `/akredytacje/[slug]` (zamiast external), CSS gold shine sweep (.trust-card::before linear-gradient diagonal, transition left -100% → 200%, 0.9s cubic-bezier).
+- **`src/components/Footer.tsx`** — dodany Link do `/akredytacje` w sekcji Knowledge (między baza-wiedzy i blog).
+- **`src/lib/seo.ts`** — BREADCRUMB_LABELS klucz 'akredytacje' × 4 locale.
+- **`src/app/sitemap.ts`** — +6 paths (index + 5 slugs), każdy × 4 locale = 24 nowych URL.
+- **`messages/{pl,en,de,ua}/common.json`** — trustStats refinement (subheading + card4Main + card4Footer) + nowy namespace `akredytacje` × 4 locale (~200 stringów each: indexHeading/Lead/CardCta/BackToHome/backToList/meaningHeading/marcinRoleHeading/sourceHeading/sourceOriginalLink/sourceWebarchiveLink/sourceWebarchiveNote/foundedLabel/marcinSinceLabel + 5 × per-akredytacja blok z label/fullName/metaTitle/metaDescription/hero/meaning/marcinRole/facts[]) + footer.seoNav.akredytacje.
+
+#### Verification
+- `npm run build` clean (2× rebuild w sesji: pierwsza próba + fix duplikat BreadcrumbList parent layout + fix title duplikat 'Mikrostomart')
+- Wszystkie 12 sample URLs 200 OK (`/akredytacje` index + 5 slugs × 4 locale: pl/en/de/ua)
+- Title bez duplikatu Mikrostomart (title.absolute działa)
+- Schemas per detail page: Dentist+MedicalBusiness (root) + WebSite + BreadcrumbList × 1 (po fix G6) + EducationalOrganization|MedicalOrganization
+- Homepage SSR HTML zawiera 5 pillsów linkujących do `/akredytacje/{slug}` (PTE/ESE/PTSL/RWTH/LA&HA)
+- Footer zawiera link do `/akredytacje`
+- Zero console errors
+- Subheading widoczny w 3 liniach mobile, 2 liniach desktop
+- Karta 4 wyświetla "Master of Science (2021)" + "2. W POLSCE, NAJMŁODSZY, Z WYRÓŻNIENIEM" footer
+
+#### Lessons learned
+- Parent layout BreadcrumbList rendered + child layout BreadcrumbList rendered = DWA schemas w slug-page DOM. Fix: parent layout NIE renderuje breadcrumb, index page renderuje 2-level w page.tsx, slug detail renderuje 3-level w child layout (G6 pattern z /oferta).
+- title bez `absolute` dodaje root titleTemplate '%s | Mikrostomart - Dentysta Opole' do końca → duplikat 'Mikrostomart'. Fix: title: { absolute: '...' } bypass titleTemplate.
+- Webarchive URLs format `web.archive.org/web/2026/{url}` daje najnowszy snapshot z bieżącej dekady (zawsze aktualne, immune to source URL changes).
+
+#### Co dla Marcina po deploy
+- Brak migracji DB ani env var. Vercel auto-deploy z pushem na main.
+- Verbal OK po visualnym preview produkcji + verify wszystkie 5 landing pages
+- (opcjonalnie) re-submit sitemap GSC (mainPaths +6 = nowa wersja sitemap.xml ~700+ URLi)
+- (opcjonalnie) Marcin może dostarczyć skany certyfikatów w przyszłości do embed w landing pages
+- Real-time API z Prodentis — odłożone do osobnej sesji
+
+#### Next session
+**K-3 Person schema enrichment + CV timeline na /o-nas** (akredytacje landing pages już rozwiązane częściowo K-2b — eksponują akredytacje, ale K-3 wciąż TODO dla Person schema `sameAs` enrichment + CV timeline + publikacje Magazyn Stomatologiczny + książka Czelej "Własny gabinet" na /o-nas) **LUB** real-time `/api/clinic-stats` z Prodentis API. Marcin decyduje kolejność.
+
+---
 
 ### 2026-05-20 EOD — 🎯 K-2 DONE — TrustStats sekcja above-the-fold + akredytacje (Opcja D)
 
