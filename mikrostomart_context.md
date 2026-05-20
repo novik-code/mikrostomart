@@ -1,6 +1,9 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-20 NIGHT (**🎯 K-2c PREMIUM SEO DONE — real-time clinic stats z Prodentis API + LIVE indicator**). Commit `e62b783` najnowszy. Marcin dostarczył nowe Prodentis API v10.2 endpointy publiczne (DLA_DEWELOPERA_STATYSTYKI_PROCEDUR.md). Real-time dane z bazy zabiegów (~140k rekordów) zastąpiły hardcoded src/data/clinic-stats.ts. Nowy `src/lib/clinicStatsApi.ts` (server-side fetch przez Cloudflare Tunnel + IP fallback) + `/api/clinic-stats` route (rate limit 60/min/IP, HTTP cache 1h + stale-while-revalidate 24h). TrustStats refactored: useState + useEffect fetch + AbortController + 10s timeout + LiveIndicator sub-component (zielona pulsująca kropka + "LIVE · dane z Prodentis · HH:MM" + tooltip wyjaśniający że tylko agregowane statistics bez patient data). Liczby aktualne: 1150 implantów (+65 vs hardcoded), 1861 leczeń kanałowych, 4305 pacjentów (+10), 56773 procedures (+117). RODO compliance: tylko counts agregowane, no PII. Plus poprzedni fix `7e34982` mobile horizontal overflow (body overflow-x:hidden + HeroSlideshow inline overflow). **Następna sesja: K-3 Person schema enrichment + CV timeline na /o-nas**.
+> **Last Updated:** 2026-05-20 NIGHT FINAL (**🎯 K-2c + follow-up fixes DONE — clinic-wide stats + Mikrostomart branding + tooltip**). Commit `06c7220` najnowszy. Po K-2c real-time API (`e62b783`) Marcin zgłosił 3 problemy: (1) statystyki z całej kliniki nie tylko Marcina ("większe wrażenie"), (2) "nie promujemy Prodentis" — brand wszędzie Mikrostomart, (3) tooltip cropped. Fix: karty 1277/2292/6213 (klinika), i18n × 4 locale "system kliniki / system kliniczny Mikrostomart" (Prodentis zostaje tylko w RODO Art. 28 sec9 disclosure processorów), tooltip maxWidth min(480px,92vw)+wordBreak+overflowWrap+zIndex 100. RODO/bezpieczeństwo: liczby agregowane only, rate limit 60/min/IP, cache 1h+SWR 24h, server-side fetch. **Następna sesja: K-3 Person schema enrichment + CV timeline na /o-nas** — najważniejsza sesja Fazy K.
+
+<!-- Poprzednia: 2026-05-20 NIGHT (K-2c DONE — real-time clinic stats z Prodentis API + LIVE indicator). -->
+ Commit `e62b783` najnowszy. Marcin dostarczył nowe Prodentis API v10.2 endpointy publiczne (DLA_DEWELOPERA_STATYSTYKI_PROCEDUR.md). Real-time dane z bazy zabiegów (~140k rekordów) zastąpiły hardcoded src/data/clinic-stats.ts. Nowy `src/lib/clinicStatsApi.ts` (server-side fetch przez Cloudflare Tunnel + IP fallback) + `/api/clinic-stats` route (rate limit 60/min/IP, HTTP cache 1h + stale-while-revalidate 24h). TrustStats refactored: useState + useEffect fetch + AbortController + 10s timeout + LiveIndicator sub-component (zielona pulsująca kropka + "LIVE · dane z Prodentis · HH:MM" + tooltip wyjaśniający że tylko agregowane statistics bez patient data). Liczby aktualne: 1150 implantów (+65 vs hardcoded), 1861 leczeń kanałowych, 4305 pacjentów (+10), 56773 procedures (+117). RODO compliance: tylko counts agregowane, no PII. Plus poprzedni fix `7e34982` mobile horizontal overflow (body overflow-x:hidden + HeroSlideshow inline overflow). **Następna sesja: K-3 Person schema enrichment + CV timeline na /o-nas**.
 
 <!-- Poprzednia: 2026-05-20 LATE EOD (K-2b DONE — TrustStats refinements + akredytacje landing pages (5 podstron)). Commit `fe96722`. -->
  Commit `fe96722` najnowszy. Po Marcin feedback ze screenshota K-2: subheading dłuższy (klinika + lek. dent. M.Sc. + małżonka), karta 4 "Master of Science (2021) / 2. w Polsce, najmłodszy, z wyróżnieniem", pills akredytacji teraz linkują do wewnętrznych landing pages `/akredytacje/{pte,ese,ptsl,rwth-aachen,la-ha}` (24 prerendered routes × 4 locale), animacja kart hover = gold shine sweep + lift + glow + counter pulse. Każda landing page: H1 + lead + facts + foundedYear/marcinSince + "Co to znaczy dla pacjenta" + "Rola Marcina w organizacji" + Source links (external + webarchive snapshot). EducationalOrganization/MedicalOrganization schema. Footer dodaje "Akredytacje" w Knowledge section. **Real-time API z Prodentis odłożone do osobnej sesji**. **Następna sesja: K-3 Person schema enrichment + CV timeline na /o-nas** LUB **real-time /api/clinic-stats z Prodentis**.
@@ -2511,6 +2514,62 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-20 NIGHT FINAL — 🎯 K-2c follow-up fixes — wszystkie liczby clinic-wide + Mikrostomart branding + tooltip fix
+
+**Po K-2c deploy Marcin zgłosił 3 problemy ze screenshota desktop**. Trzy fixy w jednej sesji.
+
+#### Commits
+- `c8d48cb` — fix(trust-stats): karta 2 = leczenia kanałowe całej kliniki (nie tylko Marcina)
+- `06c7220` — fix(trust-stats): wszystkie liczby z całej kliniki + brand Mikrostomart + tooltip width
+
+#### 1. Wszystkie 3 liczby z całej kliniki (Marcin: "to zrobi większe wrażenie")
+| Karta | Przed | Po | Δ |
+|---|---|---|---|
+| 1: implantów | 1150 (Marcin) | **1277** (klinika) | +127 |
+| 2: leczeń kanałowych | 1861 (Marcin) | **2292** (klinika) | +431 |
+| 3: pacjentów | 4305 (Marcin) | **6213** (klinika) | +1908 |
+
+Karty teraz pokazują pełen impact zespołu: 32 lekarzy łącznie, 6213 pacjentów przez 10 lat. Endo prowadzą: Marcin (1862) + Ilona Piechaczek (384) + Elżbieta (24) + inni (22). Implanty: 94% Marcin + 6% reszta. Pacjenci: 69% Marcin + 31% inni lekarze. Z Marcin-personalized (Opcja D) przechodzimy na clinic-wide z dominacją Marcina widoczną przez Person schema na /o-nas (K-3).
+
+#### 2. NIE promujemy systemu Prodentis (Marcin: "nie promujemy systemu prodentis")
+- i18n `trustStats.liveLabel` × 4 locale: "LIVE · dane z Prodentis" → **"LIVE · dane z systemu kliniki"** (PL) / "data from clinic system" (EN) / "Daten aus dem Kliniksystem" (DE) / "дані з системи клініки" (UA)
+- i18n `trustStats.liveTooltip` × 4 locale: "z systemu Prodentis" → "z systemu klinicznego Mikrostomart"
+- i18n `trustStats.liveTooltipOffline` × 4 locale: "Prodentis chwilowo nieosiągalny" → "system kliniki chwilowo nieosiągalny"
+- i18n `patientZone.syncHistory` × 4 locale: "Synchronizuj historię z Prodentis" → **"Synchronizuj historię wizyt"** (button w strefie pacjenta)
+
+**ZOSTAJE** w pages.json sec9Li9/sec9Li11 (polityka prywatności "Lista podwykonawców") — RODO Art. 28 **wymaga** wymienić wszystkich processorów (Cloudflare, Prodentis, Supabase etc.). To **legal disclosure**, NIE promocja.
+
+#### 3. Tooltip cropped — fix CSS
+Screenshot Marcina z 14:05 pokazał że tooltip LIVE indicator był obcięty (tekst "Liczby pobierane na żywo z systemu Prodentis (baza zabiegów kliniki), z c... za..."). Fix CSS:
+
+- `maxWidth: 360px` → `"min(480px, 92vw)"` (responsive: 480 desktop, 92% viewport mobile)
+- `wordBreak: "break-word"` + `overflowWrap: "anywhere"` — długie polskie wyrazy wrap'ują się zamiast obcinać
+- `width: "max-content"` — tooltip rozszerza się do natural content size
+- `fontSize: 0.78rem` → `0.82rem` (lepsza czytelność)
+- `lineHeight: 1.4` → `1.5`
+- `padding: 10px 14px` → `12px 16px`
+- `zIndex: 50` → `100` (chroni przed potential overlap z kartami)
+- `boxShadow: 0 12px 32px rgba(0,0,0,0.5)` (mocniejszy)
+- `minWidth: 260` → `280`
+
+#### Verification (Claude_Preview eval)
+- Card values: `["1277", "2292", "6213"]` (live data z Prodentis API)
+- LIVE text: `"LIVE · dane z systemu kliniki · 14:05"`
+- Visible body text: "Prodentis" tylko w next.js script bundle z RODO sec9 — niewidoczne na homepage UI
+
+#### RODO + bezpieczeństwo zachowane
+- Liczby AGREGOWANE only (counts) — brak PII
+- Prodentis API endpointy publiczne per docs ("dane marketingowe, bez kwot")
+- Rate limit 60/min/IP nadal aktywne (klucz `clinic-stats:IP`)
+- Cache 1h + stale-while-revalidate 24h
+- Server-side fetch (PRODENTIS_TUNNEL_URL nigdy w client bundle)
+- Demo mode skip → fallback do hardcoded
+
+#### Next session
+**K-3 Person schema enrichment + CV timeline na /o-nas** — najważniejsza sesja Fazy K. Eksponuje pełen personal brand z BIO_INVENTORY: publikacje (książka Czelej "Własny gabinet" 2024 + 4 publikacje Magazyn Stomatologiczny 2020-2021) + wykłady (LA&HA Symposium SLO 2019/2023 + LA&HA Poland 2022 keynote + PTE 20-lecie wykładowca) + CV timeline (2009 LO Opole → 2024) + Person schema sameAs (10+ URLs: facebook/instagram/youtube DentistMarcIn/GBP/RWTH AALZ/LA&HA/Czelej/PTE 20-lecie/Magazyn Stomatologiczny x4) + alumniOf (RWTH Aachen University + Uniwersytet Medyczny Wrocław) + award (M.Sc. with distinction 2021) + memberOf (PTE/ESE/PTSL/OIL) + hasCredential. ~3h AI + 30 min Marcin.
+
+---
 
 ### 2026-05-20 NIGHT — 🎯 K-2c DONE — real-time clinic stats z Prodentis API + LIVE indicator
 
