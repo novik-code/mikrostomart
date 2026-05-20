@@ -55,27 +55,32 @@ const SLIDES = [
     },
 ];
 
-const MODEL = "black-forest-labs/flux-dev";
+// K-1c #2 (Marcin 2026-05-19): Flux Dev dał "sztuczne" rezultaty (uncanny valley
+// w ustach/zębach). Upgrade na Flux 1.1 Pro Ultra — najwyższa jakość modelu BFL,
+// znacznie lepszy realism dla portretów. Koszt ~$0.06/img zamiast ~$0.025.
+const MODEL = "black-forest-labs/flux-1.1-pro-ultra";
 const OUTPUT_DIR = "public/hero-slides";
 // VERSION suffix dla cache-bust (Vercel CDN cache "immutable, 1 year" dla
 // assets serwowanych spod /public/). Bumpuj przy każdej regeneracji + update
 // SLIDE_CONFIG paths w src/components/HeroSlideshow.tsx do `${id}-${VERSION}.webp`.
 // Override przez env: VERSION=v3 node scripts/generate-hero-slide-images.mjs
-const VERSION = process.env.VERSION || "v2";
+const VERSION = process.env.VERSION || "v3";
 
+// Flux 1.1 Pro Ultra inputs — różne od Flux Dev:
+// - aspect_ratio, output_format (tylko jpg/png — webp UNSUPPORTED, convertujemy
+//   przez sharp po download)
+// - raw: true = bardziej natural/photographic (NIE polished AI look)
+// - safety_tolerance: 2 (1=strict, 6=most permissive)
+// - BRAK guidance/num_inference_steps/megapixels — model auto
 const baseInput = {
     aspect_ratio: "3:4",
-    output_format: "webp",
-    output_quality: 90,
-    num_inference_steps: 30,
-    guidance: 3.5,
-    num_outputs: 1,
-    disable_safety_checker: false,
-    megapixels: "1", // ~1024x1365 for 3:4
+    output_format: "jpg",
+    raw: true,
+    safety_tolerance: 2,
 };
 
 async function generateOne(slide) {
-    console.log(`\n🎨 [${slide.id}] Generating with Flux Dev...`);
+    console.log(`\n🎨 [${slide.id}] Generating with ${MODEL}...`);
     console.log(`   Prompt: ${slide.prompt.slice(0, 80)}...`);
 
     const startedAt = Date.now();
@@ -105,11 +110,16 @@ async function generateOne(slide) {
             throw new Error(`Unexpected output type: ${typeof item} ${JSON.stringify(item)?.slice(0, 200)}`);
         }
 
+        // Convert jpg → webp przez sharp (Flux 1.1 Pro Ultra zwraca tylko jpg/png)
+        const sharpMod = await import("sharp");
+        const sharp = sharpMod.default;
+        const webpBuffer = await sharp(buffer).webp({ quality: 88 }).toBuffer();
+
         const outPath = path.join(OUTPUT_DIR, `${slide.id}-${VERSION}.webp`);
-        fs.writeFileSync(outPath, buffer);
+        fs.writeFileSync(outPath, webpBuffer);
         const elapsedSec = Math.round((Date.now() - startedAt) / 1000);
-        const sizeKb = Math.round(buffer.length / 1024);
-        console.log(`   ✅ Saved ${outPath} (${sizeKb} KB, ${elapsedSec}s)`);
+        const sizeKb = Math.round(webpBuffer.length / 1024);
+        console.log(`   ✅ Saved ${outPath} (${sizeKb} KB, ${elapsedSec}s, jpg→webp)`);
 
         return { id: slide.id, path: outPath, sizeKb, elapsedSec };
     } catch (err) {

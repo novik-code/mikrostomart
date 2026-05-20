@@ -39,11 +39,11 @@ const SLIDE_CONFIG = [
     // -v2 suffix dla cache-bust (K-1c, 2026-05-19): Vercel CDN serwował stare grafiki
     // pomimo regeneracji (cache "immutable, max-age=31536000" = 1 rok). Bumpować -vN
     // przy każdej regeneracji grafik żeby wymusić fresh CDN fetch.
-    { id: "emotional", ctaHref: "/rezerwacja", image: "/hero-slides/emotional-v2.webp" },
-    { id: "authority", ctaHref: "/o-nas", image: "/hero-slides/authority-v2.webp" },
-    { id: "technology", ctaHref: "/oferta", image: "/hero-slides/technology-v2.webp" },
-    { id: "specialty", ctaHref: "/mapa-bolu", image: "/hero-slides/specialty-v2.webp" },
-    { id: "international", ctaHref: "/dla-pacjentow-przyjezdnych", image: "/hero-slides/international-v2.webp" },
+    { id: "emotional", ctaHref: "/rezerwacja", image: "/hero-slides/emotional-v3.webp" },
+    { id: "authority", ctaHref: "/o-nas", image: "/hero-slides/authority-v3.webp" },
+    { id: "technology", ctaHref: "/oferta", image: "/hero-slides/technology-v3.webp" },
+    { id: "specialty", ctaHref: "/mapa-bolu", image: "/hero-slides/specialty-v3.webp" },
+    { id: "international", ctaHref: "/dla-pacjentow-przyjezdnych", image: "/hero-slides/international-v3.webp" },
 ] as const;
 
 const variants = {
