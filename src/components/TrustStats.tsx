@@ -358,23 +358,30 @@ function LiveIndicator({ source, lastUpdated, label, tooltip }: {
                         top: "calc(100% + 8px)",
                         left: "50%",
                         transform: "translateX(-50%)",
-                        padding: "10px 14px",
+                        padding: "12px 16px",
                         background: "var(--color-surface, #1a1a22)",
                         color: "var(--color-text-main, #e8e6e3)",
                         border: "1px solid var(--color-surface-hover)",
                         borderRadius: 8,
-                        fontSize: "0.78rem",
+                        fontSize: "0.82rem",
                         fontWeight: 400,
                         letterSpacing: 0,
                         textTransform: "none",
+                        // K-2c fix (2026-05-20 NIGHT): tooltip cropped na Marcin screenshot
+                        // bo max-width 360 + brak wordBreak. Zwiększone do 92vw responsive
+                        // (mobile-safe) + wordBreak żeby długie słowa wrap'owały
+                        // poprawnie zamiast obcinać.
                         whiteSpace: "normal",
-                        minWidth: 260,
-                        maxWidth: 360,
+                        wordBreak: "break-word",
+                        overflowWrap: "anywhere",
+                        width: "max-content",
+                        minWidth: 280,
+                        maxWidth: "min(480px, 92vw)",
                         textAlign: "center",
-                        zIndex: 50,
-                        boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
+                        zIndex: 100,
+                        boxShadow: "0 12px 32px rgba(0,0,0,0.5)",
                         pointerEvents: "none",
-                        lineHeight: 1.4,
+                        lineHeight: 1.5,
                     }}
                 >
                     {tooltip}
@@ -426,24 +433,25 @@ export default function TrustStats() {
 
     const cards: CardProps[] = [
         {
-            value: stats.marcin.implants,
+            value: stats.clinic.implants,
             label: t("card1Label"),
             subtitle: t("card1Subtitle"),
             icon: "🦷",
         },
         {
-            // K-2c fix (2026-05-20): leczenia kanałowe = cała klinika (nie tylko
-            // Marcin), bo endodoncja prowadzona też przez Ilonę Piechaczek i in.
-            // Karty 1 (implanty) + 3 (pacjenci) zostają jako Marcin osobiście —
-            // tam jego udział jest dominujący (94% / 69%). W endo udział to
-            // 81% Marcin + 17% Ilona — sensowniej pokazać klinikę.
+            // K-2c follow-up (2026-05-20 NIGHT): WSZYSTKIE liczby = cała klinika
+            // (decyzja Marcina: "to zrobi wieksze wrazenie"). Wcześniej karty
+            // 1+3 były Marcin osobiście, teraz spójnie clinic-wide:
+            // - implanty: 1277 (klinika) vs 1150 (sam Marcin)
+            // - leczenia kanałowe: 2292 (klinika) vs 1861 (sam Marcin)
+            // - pacjenci: 6213 (klinika) vs 4305 (sam Marcin)
             value: stats.clinic.rootCanals,
             label: t("card2Label"),
             subtitle: t("card2Subtitle"),
             icon: "🔬",
         },
         {
-            value: stats.marcin.patients,
+            value: stats.clinic.patients,
             label: t("card3Label"),
             subtitle: t("card3Subtitle"),
             icon: "👥",
