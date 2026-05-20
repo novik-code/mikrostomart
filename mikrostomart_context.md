@@ -2526,7 +2526,7 @@ NODE_ENV=production
 **4 P1 findings z audytu 2026-05-18 zamknięte w jednej sesji. Sesja 3/4 Sprint S10.**
 
 #### Commit
-- TBD — 4 P1 fixy + frontend update zgody
+- `d00a86a` — feat(security): S10-3 — P1 paczka (push/subscribe + suggestions + bot bypass + staff-signatures)
 
 #### Problem (z audytu)
 - **P1 #1** `/api/push/subscribe`: przyjmuje `fcmToken/userType/userId` z body bez auth → atakujący rejestruje swój FCM token jako admin/employee dla dowolnego userId, odbiera powiadomienia administracyjne
