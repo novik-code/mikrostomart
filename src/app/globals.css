@@ -58,6 +58,12 @@ body {
   font-family: var(--font-sans);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+  /* Safety net przeciw horizontal scroll na mobile (2026-05-20: HeroSlideshow
+     Framer Motion AnimatePresence z `x: ±1000px` w trakcie slide transition
+     wyciekał poza viewport bo Tailwind `overflow-hidden` na section był
+     martwym kodem — Tailwind v4 nie aktywny w tym projekcie. Plus K-2b
+     style jsx global mógł uwypuklić problem). */
+  overflow-x: hidden;
 }
 
 h1,

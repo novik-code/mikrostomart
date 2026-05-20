@@ -125,7 +125,18 @@ export default function HeroSlideshow() {
     return (
         <section
             className="relative w-full flex items-center justify-center overflow-hidden py-12 md:py-24"
-            style={{ minHeight: "90vh" }}
+            style={{
+                minHeight: "90vh",
+                // Inline overflow:hidden bo Tailwind v4 nieaktywny w tym projekcie
+                // → className="overflow-hidden" jest martwym kodem. Framer Motion
+                // AnimatePresence z x:±1000px potrzebuje hard overflow guard żeby
+                // motion.div w trakcie slide transition nie wyciekał poza viewport
+                // (mobile horizontal scroll glitch, screeny Marcina 2026-05-20).
+                overflow: "hidden",
+                position: "relative",
+                width: "100%",
+                maxWidth: "100vw",
+            }}
             onMouseEnter={() => setIsPaused(true)}
             onMouseLeave={() => setIsPaused(false)}
             role="region"
