@@ -1,6 +1,9 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-20 LATE EOD (**🎯 K-2b PREMIUM SEO DONE — TrustStats refinements + akredytacje landing pages (5 podstron)**). Commit `fe96722` najnowszy. Po Marcin feedback ze screenshota K-2: subheading dłuższy (klinika + lek. dent. M.Sc. + małżonka), karta 4 "Master of Science (2021) / 2. w Polsce, najmłodszy, z wyróżnieniem", pills akredytacji teraz linkują do wewnętrznych landing pages `/akredytacje/{pte,ese,ptsl,rwth-aachen,la-ha}` (24 prerendered routes × 4 locale), animacja kart hover = gold shine sweep + lift + glow + counter pulse. Każda landing page: H1 + lead + facts + foundedYear/marcinSince + "Co to znaczy dla pacjenta" + "Rola Marcina w organizacji" + Source links (external + webarchive snapshot). EducationalOrganization/MedicalOrganization schema. Footer dodaje "Akredytacje" w Knowledge section. **Real-time API z Prodentis odłożone do osobnej sesji**. **Następna sesja: K-3 Person schema enrichment + CV timeline na /o-nas** LUB **real-time /api/clinic-stats z Prodentis**.
+> **Last Updated:** 2026-05-20 NIGHT (**🎯 K-2c PREMIUM SEO DONE — real-time clinic stats z Prodentis API + LIVE indicator**). Commit `e62b783` najnowszy. Marcin dostarczył nowe Prodentis API v10.2 endpointy publiczne (DLA_DEWELOPERA_STATYSTYKI_PROCEDUR.md). Real-time dane z bazy zabiegów (~140k rekordów) zastąpiły hardcoded src/data/clinic-stats.ts. Nowy `src/lib/clinicStatsApi.ts` (server-side fetch przez Cloudflare Tunnel + IP fallback) + `/api/clinic-stats` route (rate limit 60/min/IP, HTTP cache 1h + stale-while-revalidate 24h). TrustStats refactored: useState + useEffect fetch + AbortController + 10s timeout + LiveIndicator sub-component (zielona pulsująca kropka + "LIVE · dane z Prodentis · HH:MM" + tooltip wyjaśniający że tylko agregowane statistics bez patient data). Liczby aktualne: 1150 implantów (+65 vs hardcoded), 1861 leczeń kanałowych, 4305 pacjentów (+10), 56773 procedures (+117). RODO compliance: tylko counts agregowane, no PII. Plus poprzedni fix `7e34982` mobile horizontal overflow (body overflow-x:hidden + HeroSlideshow inline overflow). **Następna sesja: K-3 Person schema enrichment + CV timeline na /o-nas**.
+
+<!-- Poprzednia: 2026-05-20 LATE EOD (K-2b DONE — TrustStats refinements + akredytacje landing pages (5 podstron)). Commit `fe96722`. -->
+ Commit `fe96722` najnowszy. Po Marcin feedback ze screenshota K-2: subheading dłuższy (klinika + lek. dent. M.Sc. + małżonka), karta 4 "Master of Science (2021) / 2. w Polsce, najmłodszy, z wyróżnieniem", pills akredytacji teraz linkują do wewnętrznych landing pages `/akredytacje/{pte,ese,ptsl,rwth-aachen,la-ha}` (24 prerendered routes × 4 locale), animacja kart hover = gold shine sweep + lift + glow + counter pulse. Każda landing page: H1 + lead + facts + foundedYear/marcinSince + "Co to znaczy dla pacjenta" + "Rola Marcina w organizacji" + Source links (external + webarchive snapshot). EducationalOrganization/MedicalOrganization schema. Footer dodaje "Akredytacje" w Knowledge section. **Real-time API z Prodentis odłożone do osobnej sesji**. **Następna sesja: K-3 Person schema enrichment + CV timeline na /o-nas** LUB **real-time /api/clinic-stats z Prodentis**.
 
 <!-- Poprzednia: 2026-05-20 EOD (K-2 DONE — TrustStats sekcja above-the-fold + akredytacje, Opcja D). Commit `11c6824` najnowszy. Sekcja po HeroSlideshow przed Values: 4 karty z liczbami Marcina (1085 implantów / 1861 leczeń kanałowych / 4295 pacjentów / Master of Science RWTH Aachen) + pasek 5 pill badges akredytacji z hover tooltips i external links (PTE → endodoncja.pl/20-lecie-pte Marcin wykładowca 20-lecia, ESE, PTSL, RWTH Aachen, LA&HA). Liczby ze STATYSTYKI_*.md od Marcina (eksport Prodentis500 2026-05-12) hardcoded w src/data/clinic-stats.ts. Wariant Opcja D (Marcin-personalized) zatwierdzony 2026-05-20 zamiast Wariant B Expertise z PLAN_K_DECISIONS. Narracja "Marcin = element układanki": subtitles odwołują się do Mikrostomart/mikroskopu/RWTH zamiast eksplicit "Marcin osobiście". Mobile 2×2 grid, desktop 4×1, animowane countery. API /api/sections rozszerzony o auto-merge brakujących template sections. i18n × 4 locale (~80 stringów). -->
  Commit `11c6824` najnowszy. Sekcja po HeroSlideshow przed Values: 4 karty z liczbami Marcina (1085 implantów / 1861 leczeń kanałowych / 4295 pacjentów / "Master of Science in Lasers in Dentistry, RWTH Aachen University, 2. w Polsce") + pasek 5 pill badges akredytacji z hover tooltips i external links (PTE → endodoncja.pl/20-lecie-pte Marcin wykładowca 20-lecia, ESE, PTSL, RWTH Aachen, LA&HA). Liczby ze STATYSTYKI_*.md od Marcina (eksport Prodentis500 2026-05-12) hardcoded w src/data/clinic-stats.ts. Wariant Opcja D (Marcin-personalized) zatwierdzony 2026-05-20 zamiast Wariant B Expertise z PLAN_K_DECISIONS. Narracja "Marcin = element układanki": subtitles odwołują się do Mikrostomart/mikroskopu/RWTH zamiast eksplicit "Marcin osobiście". Mobile 2×2 grid, desktop 4×1, animowane countery. API /api/sections rozszerzony o auto-merge brakujących template sections. i18n × 4 locale (~80 stringów). **Następna sesja: K-3 Akredytacje page + Person schema enrichment** (najważniejsza sesja Fazy K, eksponuje cały personal brand z BIO_INVENTORY + nowy fakt: PTE 20-lecie wykładowca).
@@ -2508,6 +2511,84 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-20 NIGHT — 🎯 K-2c DONE — real-time clinic stats z Prodentis API + LIVE indicator
+
+**Premium SEO Plan / Faza K / Sesja 2c** — Marcin dostarczył nowe Prodentis API v10.2 endpointy (DLA_DEWELOPERA_STATYSTYKI_PROCEDUR.md, 2026-05-20). Real-time dane z bazy `zabiegi` (~140k rekordów) zastąpiły hardcoded src/data/clinic-stats.ts. RODO-compliant (tylko liczby agregowane, no PII).
+
+#### Commit
+- `e62b783` — feat(seo): K-2c — real-time clinic stats z Prodentis API + LIVE indicator
+
+Plus fix przed K-2c:
+- `7e34982` — fix(mobile): horizontal scroll glitch po HeroSlideshow slide transition
+
+#### Architektura security + RODO
+- **Server-side fetch only** przez `prodentisFetch` (Cloudflare Tunnel → IP fallback, 8s timeout). PRODENTIS_TUNNEL_URL nigdy nie w client bundle.
+- **Endpointy Prodentis** (per docs): `GET /api/doctors/0100000001/procedure-stats` + `GET /api/clinic/procedure-stats`. Bez API key, publiczne, agregowane dane marketingowe bez kwot.
+- **RODO**: zwraca TYLKO counts (no PII, no patient names, no PESEL). Doctor name "Marcin Nowosielski" — public info (na stronie wszędzie). activeSince 2016 — public info.
+- **Rate limit** 60 req/min per IP (`clinic-stats:IP` key, istniejąca rateLimit infra)
+- **HTTP cache**: `s-maxage=3600, stale-while-revalidate=86400` (Vercel edge cache 1h + stale 24h podczas refresh)
+- **Demo mode**: skip Prodentis call → zwraca hardcoded fallback (per existing patterns)
+- **Error handling**: try/catch w lib + route, fallback do hardcoded gdy Prodentis down
+
+#### Pliki nowe
+- **`src/lib/clinicStatsApi.ts`** (170 LOC) — server-side fetch helper:
+  * `fetchDoctorStats(doctorId)` / `fetchClinicStatsRaw()` — internal callers z timeout
+  * `getLiveClinicStats()` — high-level: parallel Promise.all obu endpointów, mapowanie response (categories.endodontics→rootCanals, categories.augmentation→augmentations etc.) na nasz `LiveClinicStats` shape, fallback do FALLBACK (clinic-stats.ts) gdy oba failed lub demo
+  * `source`: `'live'` (oba OK) / `'partial'` (jeden OK) / `'fallback'` (oba failed lub demo)
+- **`src/app/api/clinic-stats/route.ts`** (~60 LOC) — Next.js route handler:
+  * `dynamic = 'force-dynamic'`, `runtime = 'nodejs'`
+  * Rate limit 60/min/IP → 429 z `Retry-After: 60` gdy exceeded
+  * Cache-Control + X-Source header + X-RateLimit-Remaining
+
+#### Pliki zmienione
+- **`src/components/TrustStats.tsx`**: refactor z hardcoded na live fetch
+  * `useState<LiveStats>` z initial = hardcoded fallback (SSR działa natychmiast bez czekania 2-5s na Prodentis)
+  * `useEffect` z `fetch('/api/clinic-stats')` + AbortController + 10s timeout
+  * Cards values: `stats.marcin.implants` etc. (live data)
+  * Nowy `LiveIndicator` sub-component:
+    - Zielona pulsująca kropka (box-shadow glow + `@keyframes trustStatsLivePulse` 1.8s ease-in-out infinite) gdy source live/partial
+    - Szara kropka bez glow gdy fallback
+    - Label "LIVE · dane z Prodentis · HH:MM" (Warsaw time)
+    - Tooltip on hover 260-360px (mobile click toggle)
+- **`src/data/clinic-stats.ts`** — komentarz: "FALLBACK dla /api/clinic-stats" (Marcin może okresowo update'ować snapshot)
+- **`messages/{pl,en,de,ua}/common.json`** — 4 nowe stringi `trustStats`: liveLabel / liveLabelOffline / liveTooltip / liveTooltipOffline (~120 stringów total inkl. wszystkie locale)
+
+#### Verification (Claude_Preview headless)
+- `GET /api/clinic-stats`:
+  - Status 200, elapsed_ms 6176 (w spec 2-5s zakresie + tunnel hop)
+  - Source: "live" (oba Prodentis endpointy odpowiedziały)
+  - Cache headers: `public, s-maxage=3600, stale-while-revalidate=86400`
+  - Rate limit: 57 remaining z 60 (decrement po 3 testowych callach)
+- Homepage desktop 1440×900:
+  - Liczby Marcin: **1150 implantów** (live, +65 vs hardcoded 1085 z 2026-05-12), **1861 leczeń kanałowych**, **4305 pacjentów** (+10 vs 4295)
+  - Procedures: 56773 vs hardcoded 56656 (+117 nowych procedur w 8 dni)
+  - LIVE indicator widoczny: "LIVE · dane z Prodentis · 13:47"
+  - Zielona kropka z pulse animation
+
+#### Fix przed K-2c (commit `7e34982`)
+Marcin pokazał 4 screeny pre-K-2c z mobile glitch — strona migająca, content cropped do lewej/prawej połówki viewport w trakcie HeroSlideshow autoplay slide change. Root cause:
+- HeroSlideshow section używał `className="overflow-hidden"` ale **Tailwind v4 nieaktywny** w projekcie (per memory K-1) → utility classes martwy kod
+- Framer Motion AnimatePresence z `x: ±1000px` w trakcie slide transition wyciekał poza viewport
+- Mobile 375px + motion.div translated x:1000px → 1000px horizontal scroll
+
+Fix defense-in-depth:
+- HeroSlideshow.tsx section: inline `style={{ overflow: "hidden", width: "100%", maxWidth: "100vw" }}`
+- globals.css body: `overflow-x: hidden` jako safety net globalny
+
+Verified: 0 overflow moments w 6s slide cycle (30 measurements).
+
+#### Co dla Marcina po deploy
+- Brak migracji DB ani env var. Vercel auto-deploy z pushem na main.
+- Liczby na stronie zaczną się aktualizować automatycznie (cache 1h)
+- W razie awarii Prodentis: strona pokazuje "Snapshot 2026-05" badge + ostatnie hardcoded liczby (~5s po prób Tunnel + IP fallback)
+- src/data/clinic-stats.ts jest teraz emergency fallback — Marcin może okresowo update'ować snapshot wartości jeśli chce
+- Mobile glitch (Marcin screeny pre-K-2c) naprawiony — slide change powinien być smooth bez horizontal jitter
+
+#### Next session
+**K-3 Person schema enrichment + CV timeline na /o-nas** (najważniejsza sesja Fazy K — eksponuje pełen personal brand z BIO_INVENTORY: publikacje Czelej + 4 publikacje Magazyn Stomatologiczny + LA&HA wykłady + PTE 20-lecie wykładowca + sameAs URLs do social brand). ~3h AI + 30 min Marcin.
+
+---
 
 ### 2026-05-20 LATE EOD — 🎯 K-2b DONE — TrustStats refinements + akredytacje landing pages (5 podstron)
 
