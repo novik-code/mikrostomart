@@ -2522,7 +2522,7 @@ NODE_ENV=production
 **Niezależny audyt bezpieczeństwa 2026-05-18 (`RAPORT_AUDYT_BEZPIECZENSTWA_MIKROSTOMART_2026-05-18.pdf` w `~/Desktop/bałagan/audyt seo i bezpieczenstwo/`) potwierdził live data leak przez wadliwe RLS w 3 migracjach. Marcin wybrał Opcję A (S10 Security Hotfix przed K-3, ~1 dzień). Sesja 1 zamyka oba zgłoszone P0 RLS findingi.**
 
 #### Commit
-- TBD — migracja 132 + KOMENDA section 0 update + Recent Changes entry
+- `6aa923d` — feat(security): S10-1 — P0 RLS lockdown anon data leak (mig 132)
 
 #### Problem (z audytu)
 Audytor uruchomił `curl` na Supabase REST z anon key i otrzymał `rows=1` dla każdej z 5 tabel: `care_enrollments`, `care_tasks`, `care_audit_log`, `fcm_tokens`, `ai_conversations`. To realny wyciek (nie teoretyczne ryzyko):
