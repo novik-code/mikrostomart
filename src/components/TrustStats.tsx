@@ -432,7 +432,12 @@ export default function TrustStats() {
             icon: "🦷",
         },
         {
-            value: stats.marcin.rootCanals,
+            // K-2c fix (2026-05-20): leczenia kanałowe = cała klinika (nie tylko
+            // Marcin), bo endodoncja prowadzona też przez Ilonę Piechaczek i in.
+            // Karty 1 (implanty) + 3 (pacjenci) zostają jako Marcin osobiście —
+            // tam jego udział jest dominujący (94% / 69%). W endo udział to
+            // 81% Marcin + 17% Ilona — sensowniej pokazać klinikę.
+            value: stats.clinic.rootCanals,
             label: t("card2Label"),
             subtitle: t("card2Subtitle"),
             icon: "🔬",
