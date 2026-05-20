@@ -17,6 +17,12 @@
 // - Akredytacje pillsy linkują do wewnętrznych /akredytacje/[slug] landing pages
 //   (nie external) — landingi mogą dalej linkować do webarchive snapshots
 // - Animacja kart hover: gold shine sweep + lift + gold glow + counter pulse
+//
+// K-2c (2026-05-20 LATE):
+// - Real-time stats z Prodentis API (endpoint /api/clinic-stats, ISR cache 1h)
+// - Fallback do hardcoded src/data/clinic-stats.ts gdy Prodentis down
+// - LIVE indicator: pulsing green dot + tooltip pokazujący ostatni update + source
+// - RODO: dane TYLKO agregowane (counts), brak PII
 
 import { useState, useRef, useEffect } from "react";
 import { motion, useInView, animate } from "framer-motion";
@@ -24,6 +30,29 @@ import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import RevealOnScroll from "@/components/RevealOnScroll";
 import { CLINIC_STATS } from "@/data/clinic-stats";
+
+// ─────────────────────────────────────────────────────────────
+// LiveStats — kontrakt z /api/clinic-stats (matches LiveClinicStats z lib)
+// ─────────────────────────────────────────────────────────────
+interface LiveStats {
+    lastUpdated: string;
+    source: "live" | "partial" | "fallback";
+    foundedYear: number;
+    yearsActive: number;
+    marcin: typeof CLINIC_STATS.marcin;
+    clinic: typeof CLINIC_STATS.clinic;
+}
+
+function buildInitialLiveStats(): LiveStats {
+    return {
+        lastUpdated: new Date().toISOString(),
+        source: "fallback",
+        foundedYear: CLINIC_STATS.foundedYear,
+        yearsActive: CLINIC_STATS.yearsActive,
+        marcin: CLINIC_STATS.marcin,
+        clinic: CLINIC_STATS.clinic,
+    };
+}
 
 // ─────────────────────────────────────────────────────────────
 // AnimatedCounter — counts from 0 to target when scrolled into view
@@ -264,26 +293,152 @@ function AccreditationPill({ slug, label, tooltip }: AccreditationProps) {
 }
 
 // ─────────────────────────────────────────────────────────────
+// LiveIndicator — zielona pulsująca kropka + tooltip pokazujący source + timestamp
+// ─────────────────────────────────────────────────────────────
+function LiveIndicator({ source, lastUpdated, label, tooltip }: {
+    source: "live" | "partial" | "fallback";
+    lastUpdated: string;
+    label: string;
+    tooltip: string;
+}) {
+    const [hover, setHover] = useState(false);
+    const isLive = source === "live" || source === "partial";
+
+    // Format time HH:MM in Europe/Warsaw timezone
+    let timeStr = "";
+    try {
+        const d = new Date(lastUpdated);
+        timeStr = d.toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Warsaw" });
+    } catch {
+        timeStr = "";
+    }
+
+    return (
+        <div
+            onMouseEnter={() => setHover(true)}
+            onMouseLeave={() => setHover(false)}
+            onClick={() => setHover((h) => !h)}
+            style={{
+                position: "relative",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "4px 12px",
+                borderRadius: 999,
+                border: `1px solid ${isLive ? "var(--color-success, #10b981)" : "var(--color-text-muted)"}`,
+                background: "transparent",
+                fontSize: "0.72rem",
+                color: isLive ? "var(--color-success, #10b981)" : "var(--color-text-muted)",
+                letterSpacing: "0.05em",
+                textTransform: "uppercase",
+                cursor: "pointer",
+                userSelect: "none",
+                marginTop: "var(--spacing-xs)",
+            }}
+            aria-label={tooltip}
+        >
+            <span
+                style={{
+                    display: "inline-block",
+                    width: 8,
+                    height: 8,
+                    borderRadius: "50%",
+                    background: isLive ? "var(--color-success, #10b981)" : "var(--color-text-muted)",
+                    boxShadow: isLive ? "0 0 8px rgba(16, 185, 129, 0.6)" : "none",
+                    animation: isLive ? "trustStatsLivePulse 1.8s ease-in-out infinite" : "none",
+                }}
+            />
+            <span>{label}{timeStr && ` · ${timeStr}`}</span>
+            {hover && (
+                <motion.div
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    style={{
+                        position: "absolute",
+                        top: "calc(100% + 8px)",
+                        left: "50%",
+                        transform: "translateX(-50%)",
+                        padding: "10px 14px",
+                        background: "var(--color-surface, #1a1a22)",
+                        color: "var(--color-text-main, #e8e6e3)",
+                        border: "1px solid var(--color-surface-hover)",
+                        borderRadius: 8,
+                        fontSize: "0.78rem",
+                        fontWeight: 400,
+                        letterSpacing: 0,
+                        textTransform: "none",
+                        whiteSpace: "normal",
+                        minWidth: 260,
+                        maxWidth: 360,
+                        textAlign: "center",
+                        zIndex: 50,
+                        boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
+                        pointerEvents: "none",
+                        lineHeight: 1.4,
+                    }}
+                >
+                    {tooltip}
+                </motion.div>
+            )}
+            <style jsx>{`
+                @keyframes trustStatsLivePulse {
+                    0%, 100% { opacity: 1; transform: scale(1); }
+                    50% { opacity: 0.65; transform: scale(1.2); }
+                }
+            `}</style>
+        </div>
+    );
+}
+
+// ─────────────────────────────────────────────────────────────
 // TrustStats — main component
 // ─────────────────────────────────────────────────────────────
 export default function TrustStats() {
     const t = useTranslations("trustStats");
 
+    // K-2c: real-time fetch z /api/clinic-stats (Prodentis API z 1h ISR cache).
+    // Initial state = hardcoded fallback żeby SSR działało natychmiast bez czekania
+    // 2-5s na Prodentis query. Po hydration fetch updatuje values + LIVE indicator.
+    const [stats, setStats] = useState<LiveStats>(buildInitialLiveStats);
+
+    useEffect(() => {
+        let cancelled = false;
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 10_000); // 10s safety
+        (async () => {
+            try {
+                const res = await fetch("/api/clinic-stats", { signal: controller.signal });
+                if (!res.ok || cancelled) return;
+                const data = (await res.json()) as LiveStats;
+                if (!cancelled) setStats(data);
+            } catch {
+                // network / abort / parse error → zostaw initial fallback
+            } finally {
+                clearTimeout(timeout);
+            }
+        })();
+        return () => {
+            cancelled = true;
+            controller.abort();
+            clearTimeout(timeout);
+        };
+    }, []);
+
     const cards: CardProps[] = [
         {
-            value: CLINIC_STATS.marcin.implants,
+            value: stats.marcin.implants,
             label: t("card1Label"),
             subtitle: t("card1Subtitle"),
             icon: "🦷",
         },
         {
-            value: CLINIC_STATS.marcin.rootCanals,
+            value: stats.marcin.rootCanals,
             label: t("card2Label"),
             subtitle: t("card2Subtitle"),
             icon: "🔬",
         },
         {
-            value: CLINIC_STATS.marcin.patients,
+            value: stats.marcin.patients,
             label: t("card3Label"),
             subtitle: t("card3Subtitle"),
             icon: "👥",
@@ -342,6 +497,14 @@ export default function TrustStats() {
                     >
                         {t("subheading")}
                     </p>
+                    <div style={{ textAlign: "center", marginBottom: "var(--spacing-md)" }}>
+                        <LiveIndicator
+                            source={stats.source}
+                            lastUpdated={stats.lastUpdated}
+                            label={stats.source === "fallback" ? t("liveLabelOffline") : t("liveLabel")}
+                            tooltip={stats.source === "fallback" ? t("liveTooltipOffline") : t("liveTooltip")}
+                        />
+                    </div>
                 </RevealOnScroll>
 
                 {/* 4 cards: 2x2 mobile, 4x1 desktop */}

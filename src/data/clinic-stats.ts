@@ -1,15 +1,16 @@
-// Statystyki kliniki Mikrostomart — dane do <TrustStats /> i innych miejsc.
+// Statystyki kliniki Mikrostomart — FALLBACK dla /api/clinic-stats.
 //
-// Source of truth: ręczny eksport z Prodentis500 (`zabiegi` table) przez Marcina,
-// dostarczony jako STATYSTYKI_*.md 2026-05-12. Pliki źródłowe na pulpicie Marcina.
+// K-2c (2026-05-20): real-time data z Prodentis API obsługiwane przez
+// `/api/clinic-stats` route handler (Prodentis v10.2 endpointy publiczne,
+// no API key, dane marketingowe agregowane). Ten plik = fallback gdy
+// Prodentis chwilowo down lub w demo mode.
 //
-// Refresh procedure (manual, ~5 min):
+// Refresh procedure (manual snapshot, jeśli liczby się rozjeżdżają):
 //   1. Marcin generuje świeży eksport z Prodentis500
 //   2. Aktualizuje wartości poniżej + bumpuje `lastUpdated`
 //   3. Commit + push (Vercel auto-deploy)
 //
-// TODO: zastąpić realtime API endpoint `/api/clinic-stats` backed by Prodentis
-// (osobny sprint po K-2, gdy Marcin zatwierdzi że liczby są na publicznej stronie OK).
+// Source: STATYSTYKI_*.md z pulpitu Marcina (eksport Prodentis500 z dn. 2026-05-12).
 
 export const CLINIC_STATS = {
     lastUpdated: '2026-05-12',
