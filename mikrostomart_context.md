@@ -1,6 +1,8 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-19 (**🎯 K-1 PREMIUM SEO PLAN — HeroSlideshow z 5 AI grafik Flux Dev w stylu OfferCarousel**). Commit `675165b` (K-1b) + `f9f6cd9` (K-1a) zmergowane na origin/main. Faza K — Premium Positioning Reset (Hotfix Sprint COMPLETE → Faza K UNPAUSED 2026-05-18). **K-0 Strategy Workshop** ✅ (2026-05-18) — Marcin zatwierdził 3 warianty Recommended: Hero Hybrid A+B / Cennik Wariant 1 REFRAME / TrustStats Wariant B Expertise. **K-1a** — meta description × 4 locale z M.Sc. RWTH Aachen (Google SERP + Facebook OG share). **K-1b** (3 iteracje) — HeroSlideshow multi-slide carousel 1:1 OfferCarousel style: 2-col grid LEFT photo 3/4 portrait framed / RIGHT text (tagline gold uppercase + h1/h2 serif white + description + CTA), Framer Motion AnimatePresence spring slide ±1000px + scale 0.8→1, drag swipe, gallery-nav-btn arrows (❮ ❯), pill dots bottom-center, autoplay 5s pause-on-hover. **5 slidów** (każdy targetuje inny SEO angle): emotional (smile) / authority (M.Sc. RWTH) / technology (ZEISS) / specialty (endo) / international (5 krajów). **5 AI-generated grafik Flux Dev** (Replicate ~$0.13 total, ~12s): macro smile / graduation cap + M.Sc. embossed / operating microscope brass / endodontic instruments + glass vial / vintage Central Europe map + brass compass. Wszystkie w spojnym premium luxury dental aesthetic (dark moody + warm gold accents). Script `scripts/generate-hero-slide-images.mjs` dla iteracyjnej regeneracji. SEO: SSR-only hidden block (clip-path inset 50%) renderuje pełny content wszystkich 5 slidów dla Googlebot (h1 + 4× h2 = 5 narracji = 5 keyword angles). **Następna sesja: K-2 TrustStats sekcja above-the-fold + script extract-clinic-stats.ts** (Prodentis API + Supabase aggregation).
+> **Last Updated:** 2026-05-20 (**🎯 K-1 PREMIUM SEO FINALIZED + Wojtek news + parser SEO upgrade + autoplay fix**). Commit `81cab4b` (grafiki v4 Caucasian) najnowszy. Kompleksowa iteracja po Marcin feedback × 5 (v1 SVG icons "5-latek" → v2 OfferCarousel real photos → v3 Flux Dev sztuczne → v3 Flux 1.1 Pro Ultra lepsze ale African American → v4 explicit Caucasian European Slavic features). Plus zewnątrz K-1: news article "Bracia po metamorfozie" (Wojtek/Piotr fikcyjna historia, 4 locale AI translate, markdown parser h2+linki, migracja 131 news.tags) + 2 social drafts (FB + IG) + mobile BackgroundVideo autoplay fix (poster + .play() force + remove pointerEvents:none). **Następna sesja: K-2 TrustStats sekcja** (Wariant B Expertise — 10 lat | M.Sc. RWTH 2.w PL | PL DE CZ AT UA | ZEISS + Fotona).
+
+<!-- Poprzednia: 2026-05-19 (K-1 PREMIUM SEO — HeroSlideshow z 5 AI grafik Flux Dev). Commit `675165b` (K-1b) + `f9f6cd9` (K-1a) zmergowane na origin/main. Faza K — Premium Positioning Reset (Hotfix Sprint COMPLETE → Faza K UNPAUSED 2026-05-18). **K-0 Strategy Workshop** ✅ (2026-05-18) — Marcin zatwierdził 3 warianty Recommended: Hero Hybrid A+B / Cennik Wariant 1 REFRAME / TrustStats Wariant B Expertise. **K-1a** — meta description × 4 locale z M.Sc. RWTH Aachen (Google SERP + Facebook OG share). **K-1b** (3 iteracje) — HeroSlideshow multi-slide carousel 1:1 OfferCarousel style: 2-col grid LEFT photo 3/4 portrait framed / RIGHT text (tagline gold uppercase + h1/h2 serif white + description + CTA), Framer Motion AnimatePresence spring slide ±1000px + scale 0.8→1, drag swipe, gallery-nav-btn arrows (❮ ❯), pill dots bottom-center, autoplay 5s pause-on-hover. **5 slidów** (każdy targetuje inny SEO angle): emotional (smile) / authority (M.Sc. RWTH) / technology (ZEISS) / specialty (endo) / international (5 krajów). **5 AI-generated grafik Flux Dev** (Replicate ~$0.13 total, ~12s): macro smile / graduation cap + M.Sc. embossed / operating microscope brass / endodontic instruments + glass vial / vintage Central Europe map + brass compass. Wszystkie w spojnym premium luxury dental aesthetic (dark moody + warm gold accents). Script `scripts/generate-hero-slide-images.mjs` dla iteracyjnej regeneracji. SEO: SSR-only hidden block (clip-path inset 50%) renderuje pełny content wszystkich 5 slidów dla Googlebot (h1 + 4× h2 = 5 narracji = 5 keyword angles). **Następna sesja: K-2 TrustStats sekcja above-the-fold + script extract-clinic-stats.ts** (Prodentis API + Supabase aggregation).
 
 <!-- Poprzednia Last Updated 2026-05-18 #4: SPRINT 9 DONE — HOTFIX SPRINT COMPLETE (S1-S9). Commit `b245a0b` (chore(ci): S9 — lint baseline + GitHub Actions gates + P1-06 cleanup). Trzy rzeczy: (1) ESLint baseline gate — `scripts/lint-baseline.mjs` zamraża 1525 errors / 322 files w `.eslint-baseline.json`, `npm run lint:ci` fail tylko na regression (file gaining errors lub new file with errors); (2) GitHub Actions workflows w `.github/workflows/`: `lint.yml` (lint:ci + tsc --noEmit) + `security.yml` (npm audit critical/high fail + gitleaks secret scanning + 2 grep tripwires — NEXT_PUBLIC_*SERVICE*ROLE* i leaked Prodentis key string); trigger pull_request + push main + weekly security re-audit; (3) P1-06 closeout (audyt 2026-05-12, memory błędnie raportowała done w S1) — 12 użyć `NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY` fallback w 10 plikach API usuniętych batch sed, non-null assertion zachowana. Lokalne smoke: tsc clean, lint:ci pass (1525=1525), 109/109 tests, build clean, negative smoke wykrył regression poprawnie. **Hotfix Sprint COMPLETE** (S1-S9 + S8-1..S8-7 wszystkie) → wrót do **Fazy K Premium SEO Positioning Reset**. Z opcjonalnych paused: S2-bis + S4-2b CSP enforce.
 
@@ -2500,6 +2502,152 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-20 — 🎯 K-1 FINALIZED + Wojtek news + parser SEO upgrade + autoplay fix
+
+**Kompleksowa kontynuacja Fazy K (po K-1 początkowym 2026-05-19) + Wojtek pup-photos content side project + universal news parser upgrade.**
+
+#### Commits (chronologicznie, 8 push'ów)
+- `6f198d2` feat(content): Wojtek metamorfoza #16 + news article + 2 social drafts (FB + IG)
+- `7c93290` fix(news): Wojtek article — markdown content + revalidate=60s
+- `b1dcec4` feat(seo): markdown parser h2 + links + per-article keywords + AI translate Wojtek × 4 locale
+- `f66a9be` fix(hero): K-1c — mobile text-only hero + 5 nowych grafik smile macro (Flux Dev)
+- `da872f3` fix(hero): cache-bust grafik → -v2.webp suffix (Vercel CDN immutable cache)
+- `f18b9c1` fix(hero): mobile video autoplay + Flux 1.1 Pro Ultra grafiki (lepsza jakość)
+- `81cab4b` fix(hero): grafiki v4 — explicit Caucasian/European w prompts (Flux Pro Ultra)
+
+#### Co zrobione
+
+**1. WOJTEK CONTENT** (commits `6f198d2`, `7c93290`, `b1dcec4`):
+- Metamorfoza #16 w `MetamorphosisGallery.tsx` (Pan Wojtek, brat Pana Piotra z #2)
+  - `meta_16_before.jpg` (pup1.jpg, 1200×1200) + `meta_16_after.jpg` (pup2.jpg)
+  - Cross-link narratywny do metamorfozy #2 (Piotr)
+- News article "Bracia po metamorfozie — historia Pana Wojtka, który dał się przekonać"
+  - Slug: `bracia-po-metamorfozie-historia-pana-wojtka`
+  - Image hero: `/images/news/wojtek/main.webp` (pup.jpg close-up smile macro, 110 KB)
+  - 2 embedded zdjęcia w treści: `before.webp` + `after.webp`
+  - 6 klikalnych internal links (anchor-text keyword-rich): /metamorfozy ×2, /oferta/{leczenie-kanalowe,protetyka,implantologia}, /rezerwacja
+  - Content ~900 słów markdown z 3 h2 sekcjami ("Dwa lata...", "Trzy lekcje...", "Twoja historia...")
+  - AI translate × 3 locale (GPT-4o-mini, ~62s, EN/DE/UA): pełne title + excerpt + content z preserved markdown structure
+  - Tags 13 long-tail keywords (wymaga migracji 131)
+- 2 social drafts (insert do `social_posts` table, status='draft', oczekują akceptacji Marcina w admin UI):
+  - FB: pup.jpg + casual storytelling + 10 hashtags
+  - IG: pup2.jpg + emoji-heavy + 15 hashtags PL/DE/EN mix
+
+**2. MARKDOWN PARSER UPGRADE** (`b1dcec4`, universal benefit każdy news):
+- `src/app/[locale]/aktualnosci/[slug]/page.tsx` rozszerzony:
+  - Dodany `##` → `<h2>` handler (oprócz `###` → h3, `####` → h4)
+  - Dodany `parseInline()` helper — split na `**bold**` OR `[text](href)` OR plain text
+  - Linki internal (`/foo`) → `Link` z `next/link` + manual locale prefix (slug = server component, next-intl Link z useLocale hook = SSR crash per H3 lesson)
+  - Linki external (`http*`) → `<a target="_blank" rel="noopener noreferrer">`
+  - generateMetadata: dodany meta `keywords` z `localized.tags`
+  - `revalidate = 60s` — admin edits w UI odświeżą się bez Vercel rebuild
+- Migracja **131 `news_tags.sql`** — `ADD COLUMN tags TEXT[] DEFAULT NULL` + GIN index
+  - **Wymaga manual wgrywki Marcina** na OBU Supabase (kopia w `~/Desktop/migracje_supabase/migracja_131_news_tags.txt`)
+  - Po wgraniu: re-run `scripts/wojtek-seo-polish.mjs` → ustawi 13 tagów
+
+**3. K-1c HEROSLIDESHOW EWOLUCJA** (4 iteracje grafik v1→v4):
+Lessons learned z 5 wersji slideshow:
+- **v1 (K-1b initial)**: center-stacked + 5 inline SVG icons (smile arc, graduation cap, microscope, tooth, map) → Marcin: "5-latek ołówkiem namalował"
+- **v2 (K-1b refactor)**: OfferCarousel-style 2-col layout + real photos (Ela/Marcin/microscope.png/laser.png/interior) → Marcin: "wzoruj się stylem AI grafik z OfferCarousel, wygeneruj DEDYKOWANE"
+- **v3 initial (K-1b final)**: Flux Dev AI grafiki tematyczne (graduation cap z M.Sc., microscope, endodontic instruments, map) — accepted ale potem feedback "sztuczne"
+- **v3-bis (K-1c #2 mobile fix)**: mobile hide image (matchMedia 768px) + 5 nowe smile macros Flux Dev → Marcin: "wyglądają sztucznie" (uncanny valley)
+- **v4 (K-1c #3 Flux Ultra)**: regenerated z **Flux 1.1 Pro Ultra** (`raw: true`, ~$0.06/img) → dramatically lepsza jakość, ale Marcin: "African American — nie pasuje, polska klinika premium"
+- **v4-final (K-1c #4 Caucasian)**: dodano "Caucasian European, fair skin, Slavic features" explicit do każdego prompta → poprawne demografie ✅
+
+**Architektura final HeroSlideshow.tsx** (~340 LOC):
+- 1:1 OfferCarousel pattern: 2-col grid LEFT photo 3/4 portrait framed / RIGHT text
+- Framer Motion AnimatePresence spring slide ±1000 + scale 0.8→1, drag swipe
+- gallery-nav-btn arrows (❮ ❯), pill dots bottom-center, autoplay 5s pause-on-hover
+- **Mobile (<768px)**: image hidden via conditional render + matchMedia hook (`isDesktop` state)
+- **Mobile text**: centered (textAlign), description maxWidth + mx auto, CTA centered
+- **Desktop (≥768px)**: 2-col grid + smile photo + text-left + CTA-start
+- **CRITICAL LESSON**: Tailwind classes (`hidden md:flex`) NIE działają w tym projekcie (brak `@import "tailwindcss"` w globals.css). Używaj inline style + matchMedia (pattern jak MobileBottomBar).
+
+**5 final AI grafik Flux 1.1 Pro Ultra v4** (`public/hero-slides/{id}-v4.webp`, total ~1 MB, $0.30):
+- emotional-v4.webp (118 KB) — blonde Caucasian European woman ~30
+- authority-v4.webp (157 KB) — Caucasian European man ~45, slight stubble
+- technology-v4.webp (275 KB) — extreme macro upper incisors detail (Caucasian lip area)
+- specialty-v4.webp (188 KB) — Caucasian middle-aged ~50, restored teeth + character wrinkles
+- international-v4.webp (221 KB) — elegantly aging Caucasian woman ~60, laugh lines + wisdom
+
+**Script regeneracji** `scripts/generate-hero-slide-images.mjs`:
+- Replicate `black-forest-labs/flux-1.1-pro-ultra` (output jpg → sharp convert webp q88)
+- VERSION env var (default v4) dla cache-bust przy każdej regeneracji
+- 5 prompts EN z explicit Caucasian European + premium dental aesthetic
+- Future bumps: `VERSION=v5 node scripts/generate-hero-slide-images.mjs` + update SLIDE_CONFIG suffix
+
+**4. CACHE-BUST PATTERN** (`da872f3`, future-proof):
+- Vercel CDN serwuje assets z headerem `cache-control: public, max-age=31536000, immutable` (1 rok)
+- Regeneracja pliku z tym samym URL → cache HIT, stary plik nadal serwowany
+- Fix: rename z `-vN` suffix (np. `emotional.webp` → `emotional-v2.webp` → v3 → v4)
+- SLIDE_CONFIG paths bumped za każdym razem + stare pliki removed
+- Lesson zastosowany też dla pdf.worker.min.mjs `?v=4.10.38` po S6-6 npm update
+
+**5. MOBILE BACKGROUND VIDEO AUTOPLAY FIX** (`f18b9c1`):
+- Marcin: "ostatnio video nie autoplay'a na mobile, tylko ikona play (nie działa)"
+- 4 fixy w `src/components/BackgroundVideo.tsx`:
+  - ❌ Removed `pointerEvents: "none"` (blokowało user fallback gdy autoplay zablokowany)
+  - ✅ Dodany `videoRef` + force `videoRef.current.play()` w useEffect z catch(noop) — iOS 17+/Android wymagają explicit `.play()` call
+  - ✅ Dodany `poster="/hero-video-poster.webp"` (cinematic tooth+sparkles, 11 KB, extracted ffmpeg z hero-video.mp4)
+  - ✅ `preload="metadata"` zamiast `preload="auto"` — szybsze first paint, pełen 8 MB MP4 tylko gdy ready
+- Worst case: poster image jako fallback gdy iOS Safari Low Power Mode blokuje autoplay
+
+#### Verification (preview localhost lub produkcja po Vercel deploy)
+- News article: 4 locale × 200, hreflang × 5, 6 klikalnych internal links, h1+3×h2, NewsArticle schema z author/publisher/wordCount, AI translate quality OK
+- HeroSlideshow: mobile (text-only centered), desktop (2-col + smile photo z framed border)
+- Grafiki v4: Caucasian European demographics, naturalne (brak uncanny valley vs Flux Dev), screenshot emotional-v4.webp = blonde woman natural smile
+- BackgroundVideo: poster image cinematic tooth widoczny przed start autoplay
+
+#### Pliki dotknięte (zbiorczo 8 commit'ów)
+
+**Hero / Slideshow**:
+- `src/components/HeroSlideshow.tsx` [MOD ×4] — matchMedia conditional + v4 paths
+- `src/components/heroSlides/HeroSlideIcons.tsx` [NEW K-1b → usunięty w v2 refactor] — historyczny
+- `public/hero-slides/{emotional,authority,technology,specialty,international}-v4.webp` [NEW ×4 iteracje]
+- `scripts/generate-hero-slide-images.mjs` [NEW + MOD ×3] — Flux Pro Ultra + Caucasian prompts + VERSION
+- `src/components/BackgroundVideo.tsx` [MOD] — autoplay fix + poster + ref
+- `public/hero-video-poster.webp` [NEW] — 11 KB extracted frame
+
+**News / Content**:
+- `src/components/MetamorphosisGallery.tsx` [MOD] — id=16 Pan Wojtek
+- `public/images/metamorphoses/meta_16_{before,after}.jpg` [NEW]
+- `public/images/news/wojtek/{main,before,after}.webp` [NEW] — 3 zdjęcia
+- `scripts/seed-wojtek-news-and-social.mjs` [NEW] — INSERT news + 2 social drafts
+- `scripts/wojtek-seo-polish.mjs` [NEW] — AI translate × 3 locale + tags
+- `src/app/[locale]/aktualnosci/[slug]/page.tsx` [MOD] — parser h2 + linki + meta keywords + revalidate
+- `supabase_migrations/131_news_tags.sql` [NEW] — ADD COLUMN tags TEXT[]
+
+**i18n**:
+- `messages/{pl,en,de,ua}/common.json` [MOD] — heroSlideshow + heroSlides namespace (100 stringów)
+
+#### Co Marcin musi zrobić
+
+1. **Wgraj migrację 131** na OBU Supabase: `~/Desktop/migracje_supabase/migracja_131_news_tags.txt` (~30 sek)
+2. **Po migracji**: `node scripts/wojtek-seo-polish.mjs` → ustawi 13 tagów dla Wojtek news
+3. **Zaakceptuj social drafts** w `/admin → Social Media → Drafty` — 2 drafty (FB + IG) czekają. Klikać "Approve & Publish" po Vercel deploy gdy zdjęcia publicznie dostępne.
+4. **Po Vercel deploy** sprawdź:
+   - Mobile https://www.mikrostomart.pl/ — video autoplay (programowy .play() force) lub poster fallback
+   - Desktop slideshow — 5 grafik Caucasian European (5 demographics)
+   - News https://www.mikrostomart.pl/aktualnosci/bracia-po-metamorfozie-historia-pana-wojtka — 4 locale, h2 + klikalne linki
+
+#### Co dalej (K-2 NEXT)
+**TrustStats sekcja above-the-fold** (Wariant B Expertise z PLAN_K_DECISIONS):
+- Script `scripts/extract-clinic-stats.ts` (Prodentis API + Supabase aggregation)
+- Komponent `<TrustStats>` — 4 karty (10 lat | M.Sc. RWTH 2.w PL | PL DE CZ AT UA | ZEISS + Fotona) + pasek logo akredytacji SVG (PTE/ESE/PTSL/RWTH/LA&HA)
+- Wire HomeClient sekcja PO HeroSlideshow PRZED ValuesSection
+- Translations × 4 locale + mobile responsive
+- ~2.5h AI + 20 min Marcin
+
+#### Lesson learned (kluczowe dla przyszłych sesji)
+1. **Tailwind v4 nieaktywny** w tym projekcie (brak `@import "tailwindcss"`). Używaj inline style + matchMedia.
+2. **Vercel CDN cache `immutable, 1 year`** — bumpuj suffix `-vN` w nazwie pliku przy każdej regeneracji binary assets.
+3. **AI image gen wymaga explicit demographic prompts** — bez "Caucasian/European/Slavic" Flux losuje (często African/Asian). Polska klinika premium → trzeba explicitować.
+4. **News parser to custom markdown** (NIE HTML, NIE dangerouslySetInnerHTML). Format: `##`, `* `, `**bold**`, `![alt](src)`, `[text](href)`. Patrz uprate w `b1dcec4`.
+5. **News slug page = server component**, używaj `next/link` z manual locale prefix (NIE next-intl Link z useLocale).
+6. **Flux 1.1 Pro Ultra >> Flux Dev** dla portretów (znacznie lepszy realism, brak uncanny valley). Koszt ~$0.06 vs $0.025 per image.
+
+---
 
 ### 2026-05-19 — 🎯 K-1 PREMIUM SEO: HeroSlideshow z 5 AI grafik Flux Dev (OfferCarousel style)
 
