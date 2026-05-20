@@ -1,6 +1,8 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-20 NIGHT+3 (**🚨 S10-3 DONE — P1 paczka: push/subscribe sesja-based + suggestions auth + middleware bot bypass + staff-signatures token-scoped**). 4 P1 findings z audytu 2026-05-18 zamknięte w jednej sesji (3/4 S10). `/api/push/subscribe` rozpoznaje sesję (Supabase Auth dla admin/employee LUB patient JWT cookie) — body's userType/userId IGNOROWANE, używamy z auth (fix hijack). DELETE też wymaga ownership match (anti-griefing). `/api/employee/suggestions` GET/POST/PUT + `/[id]/comments` GET/POST wymagają `requireEmployeeOrAdmin` — status change tylko admin (employee może upvote'ować). Author email/name pochodzą z sesji, body fields ignored. `src/middleware.ts:131-142` — bot bypass tylko dla public locale paths. Dla `shouldBypassIntl(pathname)` (admin/pracownik/api/auth/ekarta/qr-display/zgody/opieka/s) bot przechodzi przez normalną auth → /admin z UA=Googlebot → 307 /admin/login. `/api/staff-signatures` token-scoped: akceptuje `?consentToken=xxx` (verify w `consent_tokens` table, expires_at check) LUB session employee/admin. Frontend `/zgody/[token]/page.tsx` przekazuje token w query. Smoke verified curl: 4 endpointy bez auth → 401, bot na /admin → 307, bot na /oferta → 200. Build clean. **Brak migracji DB ani env var**. **Następne**: S10-4 SEO-01 sitemap hygiene quick win (~30 min). Po S10 → K-3.
+> **Last Updated:** 2026-05-20 NIGHT+4 (**🎉 S10-4 DONE — sitemap hygiene + CI gate → SPRINT S10 COMPLETE 4/4**). `src/app/sitemap.ts`: `/sklep` → PL-only, `/privacy-policy` → EN-only, defensywny `SAFE_SLUG = /^[a-z0-9-]+$/` filter na KB+news slugi → 4 dead artykuły z polskimi/niemieckimi diacritics (`lęk`, `świeżości`, `błyszczacy`, `natürliches`) auto-skipowane. Nowy CI script `scripts/audit-sitemap-indexability.mjs` (HTTP 200 + no `<meta robots noindex>` + no `X-Robots-Tag: noindex`), npm script `audit:sitemap`. Wynik: sitemap **740 → 736 URLs, 0 failures** (vs audyt SEO `4 × 404 + 6 × noindex`). **🎉 SPRINT S10 SECURITY HOTFIX COMPLETE** (S10-1 RLS mig 132, S10-2 patient auth, S10-3 P1 paczka, S10-4 sitemap). Wszystkie 2 P0 + 4 P1 + 1 quick win SEO z audytu 2026-05-18 zamknięte. Z opcjonalnych P2/P3 pending (post-K follow-up): tokeny w logach, CSP enforce, PII fail-closed, Prodentis HTTP fallback, Telegram HTML escape, /api/health reconnaissance. **Następna sesja: 🎯 K-3 Person schema enrichment + CV timeline na /o-nas** — najważniejsza sesja Fazy K (~3h AI + 30 min Marcin). SEO-07 z audytu SEO mapuje 1:1.
+
+<!-- Poprzednia: 2026-05-20 NIGHT+3 (S10-3 P1 paczka: push/subscribe sesja-based + suggestions auth + middleware bot bypass + staff-signatures token-scoped, commit d00a86a). --> 4 P1 findings z audytu 2026-05-18 zamknięte w jednej sesji (3/4 S10). `/api/push/subscribe` rozpoznaje sesję (Supabase Auth dla admin/employee LUB patient JWT cookie) — body's userType/userId IGNOROWANE, używamy z auth (fix hijack). DELETE też wymaga ownership match (anti-griefing). `/api/employee/suggestions` GET/POST/PUT + `/[id]/comments` GET/POST wymagają `requireEmployeeOrAdmin` — status change tylko admin (employee może upvote'ować). Author email/name pochodzą z sesji, body fields ignored. `src/middleware.ts:131-142` — bot bypass tylko dla public locale paths. Dla `shouldBypassIntl(pathname)` (admin/pracownik/api/auth/ekarta/qr-display/zgody/opieka/s) bot przechodzi przez normalną auth → /admin z UA=Googlebot → 307 /admin/login. `/api/staff-signatures` token-scoped: akceptuje `?consentToken=xxx` (verify w `consent_tokens` table, expires_at check) LUB session employee/admin. Frontend `/zgody/[token]/page.tsx` przekazuje token w query. Smoke verified curl: 4 endpointy bez auth → 401, bot na /admin → 307, bot na /oferta → 200. Build clean. **Brak migracji DB ani env var**. **Następne**: S10-4 SEO-01 sitemap hygiene quick win (~30 min). Po S10 → K-3.
 
 <!-- Poprzednia: 2026-05-20 NIGHT+2 (S10-2 P0 patient login account_status + register signed token, commit 01e5927). --> Drugi P0 z audytu 2026-05-18 zamknięty. Nowy helper `src/lib/registrationToken.ts` (HMAC-podpisany token 10min TTL, na wzór `mfaSession.ts`). `/api/patients/verify` po Prodentis match dorzuca `verificationToken` do response. `/api/patients/register` wymaga `verificationToken` zamiast gołego `prodentisId` — bound do `prodentisId+phone` (anti-substitution check). `/api/patients/login` blokuje 4 statusy: `pending_email_verification` / `pending_admin_approval` / `rejected` / inne-niż-`active` (deleted etc.) z locale-aware komunikatami × 4 locale. Frontend rejestracji (verify→confirm→password) propaguje verificationToken przez sessionStorage. Login page wysyła `locale` w body żeby backend zwrócił error w preferowanym języku. Smoke test verified: legacy exploit (register z gołym prodentisId) → 400, forged token → 403 (nie 500), bad creds × 4 locale → poprawne komunikaty PL/EN/DE/UA. Build clean. **Następne**: S10-3 P1 paczka (push/subscribe sesja-based + suggestions auth + staff-signatures lockdown + middleware bot bypass), S10-4 SEO-01 sitemap hygiene. Po S10 → K-3.
 
@@ -2520,6 +2522,84 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-20 NIGHT+4 — 🎉 S10-4: sitemap hygiene + CI gate → SPRINT S10 COMPLETE 4/4
+
+**Ostatnia sesja S10 Security Hotfix. Wszystkie 2 P0 + 4 P1 + 1 quick win SEO z niezależnego audytu 2026-05-18 zamknięte.**
+
+#### Commit
+- TBD — sitemap.ts fix + audit script + npm script
+
+#### Problem (audyt SEO SEO-01)
+- Sitemap.xml zwracał 710 URLs, w tym **6 z `<meta robots noindex>`** i **4 z 404**:
+  - `/en/sklep`, `/de/sklep`, `/ua/sklep` (S5-2 ustawił sklep PL-only ale sitemap nadal multi-locale)
+  - `/privacy-policy`, `/de/privacy-policy`, `/ua/privacy-policy` (layout.tsx → noindex dla PL/DE/UA, EN-only indexable)
+  - 4 KB slugi z polskimi/niemieckimi diacritics (`lęk`, `świeżości`, `błyszczacy`, `natürliches`) zwracające 404
+- GSC raportuje "Submitted URL marked noindex" + "Submitted URL not found" → obniża jakość sitemap jako sygnału discovery + marnuje crawl budget
+
+#### Fix #1: `/sklep` PL-only
+- Przeniesiony z `contentPaths` multi-locale do osobnego `shopRoute` block — emit tylko `https://www.mikrostomart.pl/sklep`
+- Foreign locales (`/en/sklep` etc.) zachowują noindex via layout.tsx (S5-2)
+
+#### Fix #2: `/privacy-policy` EN-only
+- `internationalLegalRoutes` zmienione z `multiLocaleEntries(...)` (4 locale) na single hardcoded entry `/en/privacy-policy`
+- PL/DE/UA wersje zachowują noindex via layout.tsx + canonical → /polityka-prywatnosci
+
+#### Fix #3: defensywny filter dead KB slugs
+- Nowa stała `SAFE_SLUG = /^[a-z0-9-]+$/` + helper `isSafeSlug(slug)`
+- Filter zastosowany do `kbArticles` i `newsRows` w sitemap fetch
+- Każdy slug z diacritics / unicode / whitespace → skip + `console.warn` (widoczne w build log dla diagnozy)
+- Przyszłościowe: jeśli ktoś manually doda artykuł z `świeży-uśmiech` slug → auto-skip zamiast 404 w sitemap
+
+#### Fix #4: CI script `scripts/audit-sitemap-indexability.mjs` [NEW]
+- Fetch `BASE_URL/sitemap.xml` + parse `<loc>` entries
+- Parallel check 8 workers, 10s timeout per URL
+- Każdy URL: HTTP 200 + no `<meta robots noindex>` + no `X-Robots-Tag: noindex`
+- Exit 0 OK / exit 1 z listą failures z reason
+- npm script: `npm run audit:sitemap` (default `BASE_URL=http://localhost:3789`, override przez `AUDIT_BASE_URL`)
+- Future: dodać do GitHub Actions workflow (post-build job) jako regression gate
+
+#### Verification (Claude_Preview + audit script)
+- Sitemap przed fix: 740 URLs, 4 failures (4 dead KB slugi)
+- Sitemap po fix: **736 URLs, 0 failures** ✅
+- Wykryte i fixed:
+  - `/baza-wiedzy/usmiech-bez-bolu-lęk-przed-dentysta` (slug z `ę`)
+  - `/baza-wiedzy/zapach-swiezości-jak-skutecznie-przeciwdzialac-nieprzyjemnemu-zapachowi-z-ust` (slug z `ś`, `ż`, `ć`)
+  - `/baza-wiedzy/błyszczacy-usmiech-bez-wizyty-u-dentysty-naturalne-rozjasnianie-zebow` (slug z `ł`)
+  - `/de/baza-wiedzy/strahlendes-lacheln-ohne-zahnarztbesuch-natürliches-aufhellen-der-zähne` (slug z `ü`, `ä`)
+- Sklep w sitemap: tylko `/sklep` (zamiast 4 locale)
+- Privacy-policy w sitemap: tylko `/en/privacy-policy` (zamiast 4 locale)
+- Build clean
+
+#### Co Marcin musi zrobić ręcznie po deploy
+- **Brak migracji DB ani env var**
+- **Po Vercel deploy** uruchom audyt na produkcji:
+  ```bash
+  AUDIT_BASE_URL=https://www.mikrostomart.pl npm run audit:sitemap
+  ```
+  Expected: **740 → 736 URLs, 0 failures**
+- **GSC re-submit sitemap** (`https://www.mikrostomart.pl/sitemap.xml`) — Google ~1-2 tyg żeby przepisać dane indeksowania, znikną "Submitted URL marked noindex" + "Submitted URL not found"
+- **(Opcjonalne) DB cleanup**: 4 KB artykuły z diacritic slugami pozostają w DB ale są ukryte w sitemap. Można:
+  1. Manualnie zmienić slugi w DB na URL-safe (`uśmiech-bez-bolu-lek-przed-dentysta`) — wtedy artykuły wrócą do sitemap
+  2. Albo usunąć stare slugi z `articles` table (jeśli zawartość nigdzie nie linkuje)
+
+#### Status Sprint S10 — 🎉 COMPLETE 4/4
+- **S10-1 ✅** (P0 RLS lockdown, mig 132, commit `6aa923d`)
+- **S10-2 ✅** (P0 patient login + register signed token, commit `01e5927`)
+- **S10-3 ✅** (P1 paczka — 4 fixy, commit `d00a86a`)
+- **S10-4 ✅** (SEO-01 sitemap hygiene + CI gate, TEN commit)
+
+**Audyt 2026-05-18 zamknięty w 4 sesjach (1 dzień AI)** — 2 P0 + 4 P1 + 1 P1/P2 + 1 quick win SEO. Z opcjonalnych P2/P3 nadal pending (post-K Premium SEO follow-up):
+- P2 tokeny w logach (reset/verification URLs)
+- P2 CSP enforce (Report-Only → CSP, Marcin chose pauza w S4-2b)
+- P2 PII fail-closed (fieldEncryption errors zwracają plaintext zamiast fail)
+- P2 Prodentis HTTP fallback (TLS-only lub VPN)
+- P2 Telegram parse_mode=HTML escape user input
+- P3 `/api/health` reconnaissance (status DB/Prodentis/Node/region disclosure)
+
+**Następna sesja: 🎯 K-3 Person schema enrichment + CV timeline na /o-nas** — najważniejsza sesja Fazy K Premium SEO (~3h AI + 30 min Marcin). Eksponuje cały istniejący personal brand Marcina (RWTH Aachen M.Sc. 2021, LA&HA wykłady, książka Czelej "Własny gabinet" 2024, 4 publikacje Magazyn Stomatologiczny, PTE 20-lecie wykładowca, YouTube DentistMarcIn, Instagram, ResearchGate). SEO-07 z audytu SEO mapuje 1:1 na K-3.
+
+---
 
 ### 2026-05-20 NIGHT+3 — 🚨 S10-3: P1 paczka security (push/subscribe + suggestions + middleware bot bypass + staff-signatures)
 

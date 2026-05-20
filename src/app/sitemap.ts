@@ -79,7 +79,24 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const { data: kbArticlesRaw } = await supabase
         .from('articles')
         .select('slug, published_date, locale, group_id');
-    const kbArticles = kbArticlesRaw || [];
+
+    // S10-4 (audyt SEO SEO-01): defensywny filter slug pattern. 4 KB articles w DB
+    // miały slugi z polskimi/niemieckimi diacritics (`lęk`, `świeżości`, `błyszczacy`,
+    // `natürliches`) które routing'iem Next.js zwracał 404 — sitemap zgłaszał ich
+    // URLs jako indexable ale strona nie istnieje. GSC: "Submitted URL not found".
+    // Filter accepts tylko URL-safe slugi (a-z, 0-9, dash). Jeśli przyjdzie kolejny
+    // artykuł z diacritics — auto-skip + warning w build log zamiast 404 w sitemap.
+    const SAFE_SLUG = /^[a-z0-9-]+$/;
+    const isSafeSlug = (slug: string | null | undefined): boolean =>
+        typeof slug === 'string' && SAFE_SLUG.test(slug);
+
+    const kbArticles = (kbArticlesRaw || []).filter((a) => {
+        if (!isSafeSlug(a.slug)) {
+            console.warn(`[sitemap] Skipping KB article with unsafe slug: "${a.slug}" (locale=${a.locale}) — rename slug in DB to URL-safe pattern.`);
+            return false;
+        }
+        return true;
+    });
 
     // ── Main pages (high priority) — multi-locale ──
     const mainPaths = [
@@ -111,17 +128,28 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     );
 
     // ── Content & features (medium priority) — multi-locale ──
+    // S10-4 (audyt SEO SEO-01): `/sklep` wykluczone z multi-locale emit.
+    // S5-2 ustawił /en/sklep, /de/sklep, /ua/sklep jako noindex (content PL-only),
+    // ale sitemap nadal emituje je multi-locale → GSC raportuje "Submitted URL
+    // marked noindex". Fix: tylko PL emit poniżej w osobnym bloku.
     const contentPaths = [
         '/aktualnosci',
         '/baza-wiedzy',
         '/metamorfozy',
-        '/sklep',
         '/faq',
         '/nowosielski',
     ];
     const contentRoutes = contentPaths.flatMap((path) =>
         multiLocaleEntries(path, { changeFrequency: 'weekly', priority: 0.8 })
     );
+
+    // /sklep — PL only (foreign locales są noindex via layout.tsx)
+    const shopRoute: MetadataRoute.Sitemap = [{
+        url: `${BASE_URL}/sklep`,
+        lastModified: lastModForPath('/sklep'),
+        changeFrequency: 'weekly' as const,
+        priority: 0.8,
+    }];
 
     // ── Interactive tools (medium priority) — multi-locale ──
     // S5-1 (2026-05-15): /zadatek removed — page is noindex globally (Faza J-2)
@@ -156,10 +184,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         changeFrequency: 'yearly' as const,
         priority: 0.3,
     }));
-    const internationalLegalRoutes = multiLocaleEntries('/privacy-policy', {
-        changeFrequency: 'yearly',
+    // S10-4 (audyt SEO SEO-01): `/privacy-policy` EN-only (PL/DE/UA wersje
+    // są noindex via layout.tsx canonical → /polityka-prywatnosci). Wcześniej
+    // sitemap emitował wszystkie 4 locale → GSC "Submitted URL marked noindex"
+    // dla /privacy-policy + /de/privacy-policy + /ua/privacy-policy.
+    const internationalLegalRoutes: MetadataRoute.Sitemap = [{
+        url: `${BASE_URL}/en/privacy-policy`,
+        lastModified: lastModForPath('/privacy-policy'),
+        changeFrequency: 'yearly' as const,
         priority: 0.3,
-    });
+    }];
     const legalRoutes = [...plOnlyLegalRoutes, ...internationalLegalRoutes];
 
     // ── Dynamic: news articles from DB (multi-locale via title_en/de/ua, content_en/de/ua) ──
@@ -169,7 +203,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const { data: newsRowsRaw } = await supabase
         .from('news')
         .select('slug, date, title_en, title_de, title_ua');
-    const newsRows = newsRowsRaw || [];
+
+    // S10-4: same defensywny filter dla news slugs (na wszelki wypadek — news
+    // slug pattern jest historycznie URL-safe ale prewencja regresji).
+    const newsRows = (newsRowsRaw || []).filter((n: any) => {
+        if (!isSafeSlug(n.slug)) {
+            console.warn(`[sitemap] Skipping news article with unsafe slug: "${n.slug}"`);
+            return false;
+        }
+        return true;
+    });
 
     const newsRoutes: MetadataRoute.Sitemap = newsRows.flatMap((post: any) => {
         if (!post.slug) return [];
@@ -235,5 +278,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             };
         });
 
-    return [...mainRoutes, ...contentRoutes, ...toolRoutes, ...legalRoutes, ...newsRoutes, ...kbRoutes];
+    return [...mainRoutes, ...contentRoutes, ...shopRoute, ...toolRoutes, ...legalRoutes, ...newsRoutes, ...kbRoutes];
 }
