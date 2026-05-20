@@ -1,6 +1,8 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-20 NIGHT+1 (**🚨 S10-1 — P0 RLS lockdown — migracja 132**). Po niezależnym audycie bezpieczeństwa 2026-05-18 audytor potwierdził live data leak: anon REST zwracał rekordy z `care_enrollments`, `care_tasks`, `care_audit_log`, `fcm_tokens`, `ai_conversations` przez wadliwe RLS policies (`FOR ALL USING (true)` bez `TO service_role`) w mig 110+104+127. Marcin wybrał **Opcję A: S10 Security Hotfix przed K-3**. Sesja 1/4: migracja 132 drop wadliwe policies + odtwórz jako `TO service_role` + push_log_insert_service też naprawione. Wszyscy callerzy (12 careflow API/cron + 16 fcm_tokens + 6 ai_conversations) używają SUPABASE_SERVICE_ROLE_KEY (BYPASSRLS) → migracja non-breaking. Build clean. **🚨 Manual Marcin**: wgrać migrację 132 na OBU Supabase + live smoke z anon key (curl REST 5 tabel → expected 401/403/empty). **Następne sesje S10**: S10-2 patient login `account_status` check + register signed token, S10-3 push/subscribe + suggestions auth + staff-signatures lockdown + middleware bot bypass, S10-4 SEO-01 sitemap hygiene. Po S10 → K-3.
+> **Last Updated:** 2026-05-20 NIGHT+2 (**🚨 S10-2 DONE — P0 patient login `account_status` + register signed verification token**). Drugi P0 z audytu 2026-05-18 zamknięty. Nowy helper `src/lib/registrationToken.ts` (HMAC-podpisany token 10min TTL, na wzór `mfaSession.ts`). `/api/patients/verify` po Prodentis match dorzuca `verificationToken` do response. `/api/patients/register` wymaga `verificationToken` zamiast gołego `prodentisId` — bound do `prodentisId+phone` (anti-substitution check). `/api/patients/login` blokuje 4 statusy: `pending_email_verification` / `pending_admin_approval` / `rejected` / inne-niż-`active` (deleted etc.) z locale-aware komunikatami × 4 locale. Frontend rejestracji (verify→confirm→password) propaguje verificationToken przez sessionStorage. Login page wysyła `locale` w body żeby backend zwrócił error w preferowanym języku. Smoke test verified: legacy exploit (register z gołym prodentisId) → 400, forged token → 403 (nie 500), bad creds × 4 locale → poprawne komunikaty PL/EN/DE/UA. Build clean. **Następne**: S10-3 P1 paczka (push/subscribe sesja-based + suggestions auth + staff-signatures lockdown + middleware bot bypass), S10-4 SEO-01 sitemap hygiene. Po S10 → K-3.
+
+<!-- Poprzednia: 2026-05-20 NIGHT+1 (S10-1 P0 RLS lockdown — migracja 132, commit 6aa923d). --> Po niezależnym audycie bezpieczeństwa 2026-05-18 audytor potwierdził live data leak: anon REST zwracał rekordy z `care_enrollments`, `care_tasks`, `care_audit_log`, `fcm_tokens`, `ai_conversations` przez wadliwe RLS policies (`FOR ALL USING (true)` bez `TO service_role`) w mig 110+104+127. Marcin wybrał **Opcję A: S10 Security Hotfix przed K-3**. Sesja 1/4: migracja 132 drop wadliwe policies + odtwórz jako `TO service_role` + push_log_insert_service też naprawione. Wszyscy callerzy (12 careflow API/cron + 16 fcm_tokens + 6 ai_conversations) używają SUPABASE_SERVICE_ROLE_KEY (BYPASSRLS) → migracja non-breaking. Build clean. **🚨 Manual Marcin**: wgrać migrację 132 na OBU Supabase + live smoke z anon key (curl REST 5 tabel → expected 401/403/empty). **Następne sesje S10**: S10-2 patient login `account_status` check + register signed token, S10-3 push/subscribe + suggestions auth + staff-signatures lockdown + middleware bot bypass, S10-4 SEO-01 sitemap hygiene. Po S10 → K-3.
 
 <!-- Poprzednia: 2026-05-20 NIGHT FINAL (K-2c + follow-up fixes DONE — clinic-wide stats + Mikrostomart branding + tooltip). Commit `06c7220`. -->
 
@@ -2516,6 +2518,83 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-20 NIGHT+2 — 🚨 S10-2: P0 patient login `account_status` + register signed verification token
+
+**Drugi P0 z niezależnego audytu 2026-05-18 zamknięty. Sesja 2/4 Sprint S10 Security Hotfix.**
+
+#### Commit
+- TBD — registrationToken helper + 3 API routes + 3 frontend pages
+
+#### Problem (z audytu)
+- **P0 #2 audyt** `RAPORT_AUDYT_BEZPIECZENSTWA_MIKROSTOMART_2026-05-18.pdf`:
+  - `/api/patients/login:100-175` weryfikował hasło ale **NIGDY** nie sprawdzał `account_status` — pacjent ze statusem `pending_admin_approval` / `rejected` / `deleted` dostawał JWT
+  - `/api/patients/register:20-94` przyjmował **gołe** `prodentisId, phone, email, password` z body — atakujący znający czyjś Prodentis ID + telefon mógł utworzyć konto na własny email/hasło, czekać na admin approval (admin nie wiedział że to phishing) → dostęp do appointments cudzego pacjenta
+
+#### Helper `src/lib/registrationToken.ts` [NEW] — HMAC-podpisany token 10min TTL
+Wzorowany na `mfaSession.ts` z S8-2. Format: `<base64url(payload)>.<base64url(hmac)>`.
+Payload: `{prodentisId, phone, firstName, lastName, expiresAt}`. Klucz: `MFA_SESSION_SECRET` (już w env Vercel od S8-2). Outer try/catch w `verifyRegistrationToken` — żaden parsing/crypto error nie propaguje do route (403 zamiast 500).
+
+#### Zmiany w API
+**`/api/patients/verify/route.ts`** (+27/-4):
+- Helper `withVerificationToken(prodentisData, phone)` — po Prodentis match wystawia signed token bound do prodentisId+phone
+- Token dodawany w response w 3 ścieżkach: attempt 1 direct verify, attempt 2 phone variants, attempt 3 search fallback
+
+**`/api/patients/register/route.ts`** (+32/-21):
+- Body: `prodentisId` (goły) → `verificationToken` (HMAC-signed)
+- `verifyRegistrationToken()` → null = invalid/expired → 403 "Sesja weryfikacji wygasła"
+- Anti-substitution check: `body.phone` musi pasować do `tokenPayload.phone` po normalizacji — atakujący nie może wystawić tokenu na swój telefon i zmienić phone w body do innego pacjenta po /verify
+
+**`/api/patients/login/route.ts`** (+101/-3):
+- `STATUS_ERRORS` map: 4 codes × 4 locale = 16 lokalizowanych komunikatów (pl/en/de/ua)
+- Pomocnik `statusError(code, locale)` zwraca przetłumaczony tekst
+- Po `bcrypt.compare` OK, sekwencja `account_status` guards:
+  - `!email_verified` lub `account_status === 'pending_email_verification'` → 403
+  - `account_status === 'pending_admin_approval'` → 403 (komunikat "Konto oczekuje na zatwierdzenie ~48h")
+  - `account_status === 'rejected'` → 403
+  - `account_status !== 'active'` (catch-all, w tym `deleted`) → 403 (no info leak, generic "Konto nie jest aktywne")
+- `recordLoginAttempt(..., false)` przed każdym 403 (dla rate limit + audit)
+- Patient locale ma pierwszeństwo nad request locale (komunikat w jego preferowanym języku, zapisany w `patients.locale` przy registracji)
+
+#### Zmiany frontend
+**`/strefa-pacjenta/register/verify/page.tsx`** — zapisuje `data.verificationToken` w sessionStorage razem z patient data
+**`/strefa-pacjenta/register/password/page.tsx`** — POST do `/api/patients/register` z `verificationToken` zamiast `prodentisId`. Defensive guard: jeśli brak tokenu w session → redirect z powrotem do `/register/verify`
+**`/strefa-pacjenta/login/page.tsx`** — POST z `locale` z URL params → backend zwraca lokalizowany komunikat błędu
+
+#### Verification (Claude_Preview headless)
+- Legacy exploit (register z gołym prodentisId, bez verificationToken) → 400 "Brak wymaganych danych"
+- Forged token → 403 "Sesja weryfikacji wygasła" (nie 500 — outer try/catch)
+- Bad credentials × 4 locale → poprawne tłumaczenia:
+  - PL: "Nieprawidłowy numer telefonu lub hasło"
+  - EN: "Invalid phone number or password"
+  - DE: "Ungültige Telefonnummer oder Passwort"
+  - UA: "Невірний номер телефону або пароль"
+- 3 frontend pages (login/verify/password) renderują 200 OK
+- Build clean
+
+#### Manual taski Marcin po deploy
+1. **Brak migracji DB ani env var** — wszystkie zmiany kodu, helper używa istniejącego `MFA_SESSION_SECRET` (od S8-2)
+2. **Test flow registracji**:
+   - Otwórz `/strefa-pacjenta/register/verify` (lub jak nowy pacjent) → podaj phone+firstName+PESEL → Prodentis match
+   - Confirm screen → password screen → submit
+   - **Verify w DB**: nowy rekord w `patients` ma `account_status='pending_admin_approval'`, `email_verified=false` (po kliknięciu link weryfikacyjny → true)
+3. **Test login blocking** (potrzebny pacjent ze status `pending_admin_approval`):
+   - Próba login → expected 403 "Konto oczekuje na zatwierdzenie administratora"
+   - Po admin approve (account_status → 'active') → login powinien przejść normalnie
+4. **Test locale-aware** (opcjonalne):
+   - `/en/strefa-pacjenta/login` → bad creds → "Invalid phone number or password" (EN)
+   - `/de/strefa-pacjenta/login` → bad creds → "Ungültige Telefonnummer oder Passwort" (DE)
+5. **Audit log scan** (~tydzień po deploy): sprawdź `login_attempts` table — czy są wpisy z `success=false` (rate limit dla blocked accounts)
+
+#### Status Sprint S10
+- **S10-1 ✅ DONE** (P0 RLS lockdown, mig 132, commit `6aa923d`)
+- **S10-2 ✅ DONE** (P0 patient login + register signed token — TEN commit)
+- **S10-3 ⏳ NEXT**: P1 paczka — push/subscribe sesja-based + suggestions auth + staff-signatures lockdown + middleware bot bypass tylko dla public SEO (~2-3h)
+- **S10-4 ⏳**: SEO-01 sitemap hygiene quick win (~30 min)
+
+Po S10 → wrót do **K-3 Person schema enrichment + CV timeline na /o-nas**.
+
+---
 
 ### 2026-05-20 NIGHT+1 — 🚨 S10-1: P0 RLS lockdown — migracja 132 (security hotfix po niezależnym audycie)
 

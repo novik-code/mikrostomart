@@ -10,6 +10,7 @@ interface PatientData {
     phone: string;
     email: string | null;
     address?: any;
+    verificationToken?: string; // S10-2: signed token z /api/patients/verify
 }
 
 export default function SetPassword() {
@@ -57,13 +58,21 @@ export default function SetPassword() {
         setIsLoading(true);
 
         try {
+            // S10-2: wysyłamy signed verificationToken zamiast gołego prodentisId.
+            // Token został wygenerowany przez /api/patients/verify po Prodentis match.
+            if (!patientData!.verificationToken) {
+                setError('Sesja rejestracji wygasła. Rozpocznij od kroku 1.');
+                router.push('/strefa-pacjenta/register/verify');
+                return;
+            }
+
             const response = await fetch('/api/patients/register', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    prodentisId: patientData!.id,
+                    verificationToken: patientData!.verificationToken,
                     phone: patientData!.phone,
                     password,
                     email: patientData!.email,

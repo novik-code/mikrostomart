@@ -30,8 +30,13 @@ export default function VerifyPatient() {
             const data = await response.json();
 
             if (data.success && data.patient) {
-                // Store patient data for next steps
-                sessionStorage.setItem('registration_data', JSON.stringify(data.patient));
+                // S10-2: store also signed verificationToken — backend register
+                // wymaga go zamiast gołego prodentisId.
+                const patientWithToken = {
+                    ...data.patient,
+                    verificationToken: data.verificationToken,
+                };
+                sessionStorage.setItem('registration_data', JSON.stringify(patientWithToken));
                 router.push('/strefa-pacjenta/register/confirm');
             } else {
                 setError(data.message || 'Nie znaleziono pacjenta w systemie. Upewnij się, że dane są poprawne lub skontaktuj się z rejestracją.');

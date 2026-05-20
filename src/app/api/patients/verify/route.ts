@@ -1,6 +1,25 @@
 import { NextResponse } from 'next/server';
+import { signRegistrationToken } from '@/lib/registrationToken';
 
 export const dynamic = 'force-dynamic';
+
+/**
+ * Attach a signed verification token to a successful match response.
+ * S10-2: register endpoint requires this token (bound to prodentisId+phone)
+ * — atakujący nie może POST'ować dowolnego prodentisId do /register bez
+ * uprzedniego Prodentis match przez /verify.
+ */
+function withVerificationToken(prodentisData: any, phone: string): any {
+    if (!prodentisData?.success || !prodentisData?.patient?.id) return prodentisData;
+    const p = prodentisData.patient;
+    const verificationToken = signRegistrationToken({
+        prodentisId: String(p.id),
+        phone,
+        firstName: String(p.firstName || ''),
+        lastName: String(p.lastName || ''),
+    });
+    return { ...prodentisData, verificationToken };
+}
 
 /**
  * Generate common Polish phone format variants for Prodentis matching.
@@ -60,7 +79,7 @@ export async function POST(request: Request) {
             const data = await response.json();
             if (data.success) {
                 console.log('[Verify] Attempt 1 success:', data.patient?.id);
-                return NextResponse.json(data);
+                return NextResponse.json(withVerificationToken(data, normalizedPhone));
             }
         }
 
@@ -81,7 +100,7 @@ export async function POST(request: Request) {
                     const variantData = await variantRes.json();
                     if (variantData.success) {
                         console.log('[Verify] Variant match:', variant, '→', variantData.patient?.id);
-                        return NextResponse.json(variantData);
+                        return NextResponse.json(withVerificationToken(variantData, normalizedPhone));
                     }
                 }
             } catch (e) {
@@ -116,7 +135,7 @@ export async function POST(request: Request) {
 
                     if (match) {
                         console.log('[Verify] Search fallback match:', match.id);
-                        return NextResponse.json({
+                        return NextResponse.json(withVerificationToken({
                             success: true,
                             patient: {
                                 id: match.id,
@@ -124,7 +143,7 @@ export async function POST(request: Request) {
                                 lastName: match.lastName,
                                 phone: match.phone,
                             }
-                        });
+                        }, normalizedPhone));
                     }
                 }
             }

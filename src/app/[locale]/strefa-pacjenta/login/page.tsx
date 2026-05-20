@@ -1,11 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { demoSanitize } from '@/lib/brandConfig';
 
 export default function PatientLogin() {
+    const params = useParams();
+    const locale = (typeof params?.locale === 'string' ? params.locale : 'pl');
     const [phone, setPhone] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
@@ -34,7 +36,8 @@ export default function PatientLogin() {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ phone, password }),
+                // S10-2: locale → backend zwraca account_status error w preferred lang
+                body: JSON.stringify({ phone, password, locale }),
             });
 
             const data = await response.json();

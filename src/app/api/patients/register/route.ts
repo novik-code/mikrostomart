@@ -6,6 +6,7 @@ import { sendTelegramNotification } from '@/lib/telegram';
 import { getEmailTemplate } from '@/lib/emailTemplates';
 import { demoSanitize } from '@/lib/brandConfig';
 import { sendEmail } from '@/lib/emailSender';
+import { verifyRegistrationToken } from '@/lib/registrationToken';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,7 +19,7 @@ const supabase = createClient(
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { prodentisId, phone, password, email, locale: requestLocale } = body;
+        const { verificationToken, phone, password, email, locale: requestLocale } = body;
         const locale = ['pl', 'en', 'de', 'ua'].includes(requestLocale) ? requestLocale : 'pl';
 
         // Validation - specific error messages
@@ -29,10 +30,37 @@ export async function POST(request: Request) {
             );
         }
 
-        if (!prodentisId || !phone || !password) {
+        // S10-2: wymagamy podpisanego tokenu z /api/patients/verify.
+        // Atakujący bez prior Prodentis match nie ma jak go wygenerować.
+        if (!verificationToken || !phone || !password) {
             return NextResponse.json(
                 { error: 'Brak wymaganych danych rejestracyjnych' },
                 { status: 400 }
+            );
+        }
+
+        // Verify signed token. Bound do prodentisId+phone — zwraca payload albo null.
+        const tokenPayload = verifyRegistrationToken(verificationToken);
+        if (!tokenPayload) {
+            console.warn('[Register] Invalid or expired verification token');
+            return NextResponse.json(
+                { error: 'Sesja weryfikacji wygasła lub jest nieprawidłowa. Rozpocznij rejestrację od nowa.' },
+                { status: 403 }
+            );
+        }
+
+        const prodentisId = tokenPayload.prodentisId;
+
+        // Anti-substitution: phone w body musi pasować do phone w tokenie.
+        // (Token wystawiony jest na konkretny numer; zmiana phone w body
+        // bez nowego /verify call to próba podstawienia czyjegoś prodentisId.)
+        const normalizedBodyPhone = String(phone).replace(/[\s-]/g, '');
+        const normalizedTokenPhone = String(tokenPayload.phone).replace(/[\s-]/g, '');
+        if (normalizedBodyPhone !== normalizedTokenPhone) {
+            console.warn('[Register] Phone mismatch between body and token');
+            return NextResponse.json(
+                { error: 'Niezgodność danych. Rozpocznij rejestrację od nowa.' },
+                { status: 403 }
             );
         }
 

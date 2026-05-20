@@ -66,10 +66,58 @@ async function recordLoginAttempt(identifier: string, ip: string | null, success
     })();
 }
 
+// S10-2: locale-aware error messages dla nowych account_status guards.
+// Locale przekazywany z body (frontend i tak ma locale w URL), fallback PL.
+type StatusErrorCode =
+    | 'pending_email_verification'
+    | 'pending_admin_approval'
+    | 'rejected'
+    | 'inactive'
+    | 'invalid_credentials';
+
+const STATUS_ERRORS: Record<StatusErrorCode, Record<'pl' | 'en' | 'de' | 'ua', string>> = {
+    pending_email_verification: {
+        pl: 'Konto nie zostało jeszcze potwierdzone. Sprawdź swój email i kliknij link weryfikacyjny.',
+        en: 'Account not yet confirmed. Please check your email and click the verification link.',
+        de: 'Konto noch nicht bestätigt. Bitte prüfen Sie Ihre E-Mail und klicken Sie auf den Bestätigungslink.',
+        ua: 'Обліковий запис ще не підтверджено. Перевірте електронну пошту та натисніть посилання для підтвердження.',
+    },
+    pending_admin_approval: {
+        pl: 'Konto oczekuje na zatwierdzenie przez administratora. Otrzymasz email po zatwierdzeniu (zwykle do 48h).',
+        en: 'Account awaiting administrator approval. You will receive an email once approved (usually within 48h).',
+        de: 'Konto wartet auf Genehmigung durch den Administrator. Sie erhalten eine E-Mail nach Genehmigung (in der Regel innerhalb von 48 Stunden).',
+        ua: 'Обліковий запис очікує на затвердження адміністратором. Ви отримаєте електронний лист після затвердження (зазвичай протягом 48 годин).',
+    },
+    rejected: {
+        pl: 'Konto zostało odrzucone. Skontaktuj się z kliniką, aby uzyskać więcej informacji.',
+        en: 'Account has been rejected. Please contact the clinic for more information.',
+        de: 'Konto wurde abgelehnt. Bitte kontaktieren Sie die Klinik für weitere Informationen.',
+        ua: 'Обліковий запис відхилено. Зверніться до клініки для отримання додаткової інформації.',
+    },
+    inactive: {
+        pl: 'Konto nie jest aktywne. Skontaktuj się z kliniką.',
+        en: 'Account is not active. Please contact the clinic.',
+        de: 'Konto ist nicht aktiv. Bitte kontaktieren Sie die Klinik.',
+        ua: 'Обліковий запис неактивний. Зверніться до клініки.',
+    },
+    invalid_credentials: {
+        pl: 'Nieprawidłowy numer telefonu lub hasło',
+        en: 'Invalid phone number or password',
+        de: 'Ungültige Telefonnummer oder Passwort',
+        ua: 'Невірний номер телефону або пароль',
+    },
+};
+
+function statusError(code: StatusErrorCode, locale: string): string {
+    const loc = (['pl', 'en', 'de', 'ua'].includes(locale) ? locale : 'pl') as 'pl' | 'en' | 'de' | 'ua';
+    return STATUS_ERRORS[code][loc];
+}
+
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { phone, password } = body;
+        const { phone, password, locale: requestLocale } = body;
+        const locale = ['pl', 'en', 'de', 'ua'].includes(requestLocale) ? requestLocale : 'pl';
 
         // Validation
         if (!phone || !password) {
@@ -110,7 +158,7 @@ export async function POST(request: Request) {
             console.log('[Login] Patient not found:', loginIdentifier);
             await recordLoginAttempt(loginIdentifier, ip, false);
             return NextResponse.json(
-                { error: 'Nieprawidłowy numer telefonu lub hasło' },
+                { error: statusError('invalid_credentials', locale) },
                 { status: 401 }
             );
         }
@@ -122,8 +170,55 @@ export async function POST(request: Request) {
             console.log('[Login] Invalid password for:', loginIdentifier);
             await recordLoginAttempt(loginIdentifier, ip, false);
             return NextResponse.json(
-                { error: 'Nieprawidłowy numer telefonu lub hasło' },
+                { error: statusError('invalid_credentials', locale) },
                 { status: 401 }
+            );
+        }
+
+        // S10-2: account_status enforcement (audyt P0 #2).
+        // Login musi blokować pending/rejected/deleted PRZED wydaniem JWT.
+        // Patient's saved locale ma pierwszeństwo nad request locale (komunikat
+        // w jego preferowanym języku), fallback do request locale.
+        const patientLocale = patient.locale && ['pl', 'en', 'de', 'ua'].includes(patient.locale)
+            ? patient.locale
+            : locale;
+
+        if (!patient.email_verified || patient.account_status === 'pending_email_verification') {
+            console.log('[Login] Email not verified:', loginIdentifier);
+            await recordLoginAttempt(loginIdentifier, ip, false);
+            return NextResponse.json(
+                { error: statusError('pending_email_verification', patientLocale) },
+                { status: 403 }
+            );
+        }
+
+        if (patient.account_status === 'pending_admin_approval') {
+            console.log('[Login] Pending admin approval:', loginIdentifier);
+            await recordLoginAttempt(loginIdentifier, ip, false);
+            return NextResponse.json(
+                { error: statusError('pending_admin_approval', patientLocale) },
+                { status: 403 }
+            );
+        }
+
+        if (patient.account_status === 'rejected') {
+            console.log('[Login] Rejected account:', loginIdentifier);
+            await recordLoginAttempt(loginIdentifier, ip, false);
+            return NextResponse.json(
+                { error: statusError('rejected', patientLocale) },
+                { status: 403 }
+            );
+        }
+
+        // Catch-all dla deleted (z /api/patients/delete-account) lub innych
+        // niestandardowych statusów. Status 'deleted' → bez info leaku, ten
+        // sam generic message co dla każdego niestandardowego stanu.
+        if (patient.account_status !== 'active') {
+            console.log('[Login] Inactive account, status =', patient.account_status, 'for:', loginIdentifier);
+            await recordLoginAttempt(loginIdentifier, ip, false);
+            return NextResponse.json(
+                { error: statusError('inactive', patientLocale) },
+                { status: 403 }
             );
         }
 
