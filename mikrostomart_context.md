@@ -1,6 +1,8 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-20 NIGHT+2 (**🚨 S10-2 DONE — P0 patient login `account_status` + register signed verification token**). Drugi P0 z audytu 2026-05-18 zamknięty. Nowy helper `src/lib/registrationToken.ts` (HMAC-podpisany token 10min TTL, na wzór `mfaSession.ts`). `/api/patients/verify` po Prodentis match dorzuca `verificationToken` do response. `/api/patients/register` wymaga `verificationToken` zamiast gołego `prodentisId` — bound do `prodentisId+phone` (anti-substitution check). `/api/patients/login` blokuje 4 statusy: `pending_email_verification` / `pending_admin_approval` / `rejected` / inne-niż-`active` (deleted etc.) z locale-aware komunikatami × 4 locale. Frontend rejestracji (verify→confirm→password) propaguje verificationToken przez sessionStorage. Login page wysyła `locale` w body żeby backend zwrócił error w preferowanym języku. Smoke test verified: legacy exploit (register z gołym prodentisId) → 400, forged token → 403 (nie 500), bad creds × 4 locale → poprawne komunikaty PL/EN/DE/UA. Build clean. **Następne**: S10-3 P1 paczka (push/subscribe sesja-based + suggestions auth + staff-signatures lockdown + middleware bot bypass), S10-4 SEO-01 sitemap hygiene. Po S10 → K-3.
+> **Last Updated:** 2026-05-20 NIGHT+3 (**🚨 S10-3 DONE — P1 paczka: push/subscribe sesja-based + suggestions auth + middleware bot bypass + staff-signatures token-scoped**). 4 P1 findings z audytu 2026-05-18 zamknięte w jednej sesji (3/4 S10). `/api/push/subscribe` rozpoznaje sesję (Supabase Auth dla admin/employee LUB patient JWT cookie) — body's userType/userId IGNOROWANE, używamy z auth (fix hijack). DELETE też wymaga ownership match (anti-griefing). `/api/employee/suggestions` GET/POST/PUT + `/[id]/comments` GET/POST wymagają `requireEmployeeOrAdmin` — status change tylko admin (employee może upvote'ować). Author email/name pochodzą z sesji, body fields ignored. `src/middleware.ts:131-142` — bot bypass tylko dla public locale paths. Dla `shouldBypassIntl(pathname)` (admin/pracownik/api/auth/ekarta/qr-display/zgody/opieka/s) bot przechodzi przez normalną auth → /admin z UA=Googlebot → 307 /admin/login. `/api/staff-signatures` token-scoped: akceptuje `?consentToken=xxx` (verify w `consent_tokens` table, expires_at check) LUB session employee/admin. Frontend `/zgody/[token]/page.tsx` przekazuje token w query. Smoke verified curl: 4 endpointy bez auth → 401, bot na /admin → 307, bot na /oferta → 200. Build clean. **Brak migracji DB ani env var**. **Następne**: S10-4 SEO-01 sitemap hygiene quick win (~30 min). Po S10 → K-3.
+
+<!-- Poprzednia: 2026-05-20 NIGHT+2 (S10-2 P0 patient login account_status + register signed token, commit 01e5927). --> Drugi P0 z audytu 2026-05-18 zamknięty. Nowy helper `src/lib/registrationToken.ts` (HMAC-podpisany token 10min TTL, na wzór `mfaSession.ts`). `/api/patients/verify` po Prodentis match dorzuca `verificationToken` do response. `/api/patients/register` wymaga `verificationToken` zamiast gołego `prodentisId` — bound do `prodentisId+phone` (anti-substitution check). `/api/patients/login` blokuje 4 statusy: `pending_email_verification` / `pending_admin_approval` / `rejected` / inne-niż-`active` (deleted etc.) z locale-aware komunikatami × 4 locale. Frontend rejestracji (verify→confirm→password) propaguje verificationToken przez sessionStorage. Login page wysyła `locale` w body żeby backend zwrócił error w preferowanym języku. Smoke test verified: legacy exploit (register z gołym prodentisId) → 400, forged token → 403 (nie 500), bad creds × 4 locale → poprawne komunikaty PL/EN/DE/UA. Build clean. **Następne**: S10-3 P1 paczka (push/subscribe sesja-based + suggestions auth + staff-signatures lockdown + middleware bot bypass), S10-4 SEO-01 sitemap hygiene. Po S10 → K-3.
 
 <!-- Poprzednia: 2026-05-20 NIGHT+1 (S10-1 P0 RLS lockdown — migracja 132, commit 6aa923d). --> Po niezależnym audycie bezpieczeństwa 2026-05-18 audytor potwierdził live data leak: anon REST zwracał rekordy z `care_enrollments`, `care_tasks`, `care_audit_log`, `fcm_tokens`, `ai_conversations` przez wadliwe RLS policies (`FOR ALL USING (true)` bez `TO service_role`) w mig 110+104+127. Marcin wybrał **Opcję A: S10 Security Hotfix przed K-3**. Sesja 1/4: migracja 132 drop wadliwe policies + odtwórz jako `TO service_role` + push_log_insert_service też naprawione. Wszyscy callerzy (12 careflow API/cron + 16 fcm_tokens + 6 ai_conversations) używają SUPABASE_SERVICE_ROLE_KEY (BYPASSRLS) → migracja non-breaking. Build clean. **🚨 Manual Marcin**: wgrać migrację 132 na OBU Supabase + live smoke z anon key (curl REST 5 tabel → expected 401/403/empty). **Następne sesje S10**: S10-2 patient login `account_status` check + register signed token, S10-3 push/subscribe + suggestions auth + staff-signatures lockdown + middleware bot bypass, S10-4 SEO-01 sitemap hygiene. Po S10 → K-3.
 
@@ -2518,6 +2520,73 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-20 NIGHT+3 — 🚨 S10-3: P1 paczka security (push/subscribe + suggestions + middleware bot bypass + staff-signatures)
+
+**4 P1 findings z audytu 2026-05-18 zamknięte w jednej sesji. Sesja 3/4 Sprint S10.**
+
+#### Commit
+- TBD — 4 P1 fixy + frontend update zgody
+
+#### Problem (z audytu)
+- **P1 #1** `/api/push/subscribe`: przyjmuje `fcmToken/userType/userId` z body bez auth → atakujący rejestruje swój FCM token jako admin/employee dla dowolnego userId, odbiera powiadomienia administracyjne
+- **P1 #2** `/api/employee/suggestions`: GET/POST/PUT + `[id]/comments` bez auth, używają service-role clienta → spam + manipulacja backlogu wewnętrznego
+- **P1 #3** middleware bot bypass: `curl -A Googlebot /admin` → 200 zamiast 307 (UA fast path omija handleSupabaseAuth + 2FA enforcement)
+- **P1/P2 #4** `/api/staff-signatures`: live 200 bez auth, zwraca `signature_data` (base64 PNG) wszystkich lekarzy → atakujący może użyć podpisów do podrobienia dokumentów
+
+#### Fix #1: `/api/push/subscribe` sesja-based
+- Nowy helper `getAuthenticatedUser(request)` próbuje: (1) Supabase Auth (admin/employee), (2) patient JWT cookie. Brak żadnej sesji → null → 401
+- Body's `userType/userId` IGNOROWANE — backend używa wartości z auth (defense-in-depth)
+- DELETE też wymaga ownership match: `.eq('fcm_token', token).eq('user_id', auth.userId)` z `count` — atakujący nie może skasować czyjegoś tokenu nawet jeśli zna jego wartość
+- Frontend `PushNotificationPrompt.tsx` bez zmian — i tak wysyła cookies (httpOnly patient_token + Supabase session); body fields są ignorowane
+
+#### Fix #2: `/api/employee/suggestions` requireEmployeeOrAdmin
+- GET/POST/PUT + `/[id]/comments` GET/POST wszystkie wymagają `requireEmployeeOrAdmin()` z `@/lib/authGuards`
+- Status change (PUT z `action: 'status'`) → tylko admin (zwykli employees mogą upvote'ować)
+- Author email/name w INSERT z `auth.user.email` + `user_metadata.name`, body fields ignored — atakujący nie może spoofować autora
+- Content trimmed + slice(0, 5000) chars limit (spam mitigation)
+
+#### Fix #3: middleware bot bypass tylko public paths
+- `src/middleware.ts:131-142`: stary kod `if (isBot) → bypass auth completely`
+- Nowy: `if (isBot && !shouldBypassIntl(pathname)) → bypass auth (public path OK)`. Dla `shouldBypassIntl(pathname)` (admin/pracownik/api/auth/ekarta/qr-display/zgody/opieka/s) bot **przechodzi przez normalny flow** → handleSupabaseAuth → 307 redirect do login dla unauth
+- Verified curl: `-A Googlebot /admin` → 307 /admin/login, `-A Googlebot /pracownik` → 307 /pracownik/login, `-A Googlebot /` → 200 (public OK), `-A Googlebot /oferta` → 200
+
+#### Fix #4: `/api/staff-signatures` token-scoped access
+- Dwie ścieżki: (1) `?consentToken=xxx` z `consent_tokens` table verify + expires_at check, (2) `requireEmployeeOrAdmin()` session
+- Bez tokenu i bez sesji → 401
+- Frontend `/zgody/[token]/page.tsx`: `fetch('/api/staff-signatures')` → `fetch('/api/staff-signatures?consentToken=${token}')` + useEffect deps `[token]`
+
+#### Verification (Claude_Preview + curl)
+- `POST /api/push/subscribe` bez auth → 401
+- `GET /api/employee/suggestions` bez sesji → 401
+- `POST /api/employee/suggestions` bez sesji → 401
+- `GET /api/employee/suggestions/[id]/comments` bez sesji → 401
+- `GET /api/staff-signatures` bez auth bez tokenu → 401
+- `GET /api/staff-signatures?consentToken=fake_xxx` → 401 "Invalid consent token"
+- `curl -A Googlebot /admin` → 307 /admin/login
+- `curl -A Googlebot /pracownik` → 307 /pracownik/login
+- `curl -A Googlebot /` → 200 (public)
+- `curl -A Googlebot /oferta` → 200 (public)
+- Build clean (no TS errors, tylko pre-existing Sentry warning)
+- No new console errors
+
+#### Co Marcin musi zrobić ręcznie po deploy
+- **Brak migracji DB ani env var**
+- **Test funkcjonalny push subscribe** (po Vercel deploy):
+  1. Zaloguj jako pacjent (`/strefa-pacjenta`) → włącz push notifications (bell button) → expected: token zapisany w fcm_tokens z `user_type=patient`
+  2. Zaloguj jako pracownik (`/pracownik`) → włącz push → expected: token zapisany z `user_type=employee` (lub `admin` jeśli ma rolę admin)
+- **Test funkcjonalny /zgody flow**: pacjent na tablecie skanuje QR → `/zgody/[token]` → wybór lekarza z dropdown (lista podpisów ładuje się) → podpisanie zgody → PDF generated z embedded signaturą. Jeśli lista podpisów pusta → consent_token niepoprawny lub expired.
+- **Test funkcjonalny Sugestie**: pracownik w `/pracownik` zakładka Sugestie → dodaj sugestię → upvote → komentarz → status change (jeśli admin)
+
+#### Status Sprint S10
+- **S10-1 ✅** (P0 RLS lockdown, mig 132, commit `6aa923d`)
+- **S10-2 ✅** (P0 patient login + register signed token, commit `01e5927`)
+- **S10-3 ✅** (P1 paczka — 4 fixy w 1 commicie, TEN commit)
+- **S10-4 ⏳ NEXT**: SEO-01 sitemap hygiene quick win (~30 min) — usunąć /en/sklep+/de/sklep+/ua/sklep+/privacy-policy×3+4 martwe KB slugi z sitemap.ts + CI test indeksowalności
+
+Po S10-4 → wrót do **K-3 Person schema enrichment + CV timeline na /o-nas**.
+
+---
 
 ### 2026-05-20 NIGHT+2 — 🚨 S10-2: P0 patient login `account_status` + register signed verification token
 

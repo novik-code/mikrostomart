@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { requireEmployeeOrAdmin } from '@/lib/authGuards';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,9 +10,18 @@ const supabase = () => createClient(
 );
 
 /**
+ * S10-3 (audyt P1 #2): wszystkie handlery wymagają employee/admin sesji.
+ * Wcześniej GET/POST/PUT były otwarte z service-role clientem → spam +
+ * manipulacja backlogu wewnętrznego przez nieautoryzowanych userów.
+ */
+
+/**
  * GET /api/employee/suggestions — list all suggestions (newest first)
  */
 export async function GET() {
+    const auth = await requireEmployeeOrAdmin();
+    if (!auth.ok) return auth.response;
+
     const { data, error } = await supabase()
         .from('feature_suggestions')
         .select('*, feature_suggestion_comments(count)')
@@ -23,22 +33,29 @@ export async function GET() {
 
 /**
  * POST /api/employee/suggestions — create a new suggestion
- * Body: { author_email, author_name, content, category? }
+ * Body: { content, category? }
+ * Author email/name pochodzą z sesji (auth.user.email) — body's author fields ignorowane.
  */
 export async function POST(req: Request) {
-    const body = await req.json();
-    const { author_email, author_name, content, category } = body;
+    const auth = await requireEmployeeOrAdmin();
+    if (!auth.ok) return auth.response;
 
-    if (!author_email || !content) {
-        return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
+    const body = await req.json();
+    const { content, category } = body;
+
+    if (!content || typeof content !== 'string' || content.trim().length === 0) {
+        return NextResponse.json({ error: 'Missing content' }, { status: 400 });
     }
+
+    const authorEmail = auth.user.email || 'unknown';
+    const authorName = (auth.user.user_metadata?.name as string | undefined) || authorEmail;
 
     const { data, error } = await supabase()
         .from('feature_suggestions')
         .insert({
-            author_email,
-            author_name: author_name || author_email,
-            content,
+            author_email: authorEmail,
+            author_name: authorName,
+            content: content.trim().slice(0, 5000),
             category: category || 'funkcja',
         })
         .select()
@@ -50,16 +67,26 @@ export async function POST(req: Request) {
 
 /**
  * PUT /api/employee/suggestions — upvote or update status
- * Body: { id, action: 'upvote' | 'status', email?, status? }
+ * Body: { id, action: 'upvote' | 'status', status? }
+ *
+ * - 'upvote': toggle dla aktualnie zalogowanego (email pochodzi z sesji)
+ * - 'status': tylko admin może zmieniać status
  */
 export async function PUT(req: Request) {
+    const auth = await requireEmployeeOrAdmin();
+    if (!auth.ok) return auth.response;
+
     const body = await req.json();
-    const { id, action, email, status } = body;
+    const { id, action, status } = body;
 
     if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
 
-    if (action === 'upvote' && email) {
-        // Toggle upvote
+    if (action === 'upvote') {
+        const email = auth.user.email;
+        if (!email) {
+            return NextResponse.json({ error: 'Email required on user' }, { status: 400 });
+        }
+
         const { data: existing } = await supabase()
             .from('feature_suggestions')
             .select('upvotes')
@@ -81,6 +108,12 @@ export async function PUT(req: Request) {
     }
 
     if (action === 'status' && status) {
+        // Status change is admin-only — zwykli employees mogą upvote'ować ale nie
+        // zmieniać status (np. "wdrożona", "odrzucona") — to admin/PM decyzja.
+        if (!auth.roles.includes('admin')) {
+            return NextResponse.json({ error: 'Forbidden: status change is admin-only' }, { status: 403 });
+        }
+
         const { error } = await supabase()
             .from('feature_suggestions')
             .update({ status, updated_at: new Date().toISOString() })

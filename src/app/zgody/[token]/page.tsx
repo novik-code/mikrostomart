@@ -168,16 +168,19 @@ export default function ConsentSigningPage() {
         verify();
     }, [token]);
 
-    // Fetch staff signatures for doctor selection
+    // Fetch staff signatures for doctor selection.
+    // S10-3: endpoint wymaga consentToken w query — pacjent na tablecie wchodzi
+    // przez `/zgody/[token]` z valid tokenem, więc go używamy do auth.
     useEffect(() => {
-        fetch('/api/staff-signatures')
+        if (!token) return;
+        fetch(`/api/staff-signatures?consentToken=${encodeURIComponent(token)}`)
             .then(r => r.ok ? r.json() : [])
             .then(data => {
                 const sigs = Array.isArray(data) ? data : (data?.signatures || []);
                 setStaffSignatures(sigs);
             })
             .catch(() => { });
-    }, []);
+    }, [token]);
 
     // Canvas resize
     const resizeCanvas = useCallback(() => {

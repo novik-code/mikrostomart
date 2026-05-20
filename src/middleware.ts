@@ -131,14 +131,21 @@ function addSecurityHeaders(response: NextResponse): NextResponse {
 export async function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl;
 
-    // ─── Fast path for bots: skip auth + apply intl + security headers ─────
+    // ─── Fast path for bots: skip auth ONLY for public SEO paths ────────────
+    // S10-3 (audyt P1 #3): bot bypass dla /admin, /pracownik, /api, /auth itd.
+    // omijał handleSupabaseAuth + 2FA enforcement → `curl -A Googlebot /admin`
+    // zwracał 200 zamiast 307. Fix: bypass auth tylko dla public locale paths.
+    // Dla NON_LOCALE_PATHS (admin/pracownik/api/...) bot przechodzi przez
+    // normalną auth — i tak nie powinien tam wchodzić, a jeśli wchodzi, to
+    // dostaje redirect do login.
     if (isBot(request)) {
-        // Bots still need intl middleware for locale-prefixed URLs
+        // Bots na public locale paths — skip Supabase auth dla speed, apply intl
         if (!shouldBypassIntl(pathname)) {
             const intlResponse = intlMiddleware(request);
             return addSecurityHeaders(intlResponse);
         }
-        return addSecurityHeaders(NextResponse.next());
+        // Bots na NON_LOCALE_PATHS (admin/pracownik/api/...) — full auth flow
+        // continues below jak dla każdego innego usera.
     }
 
     // ─── Block /mapa-bolu/editor in production (debug tool) ───────────────

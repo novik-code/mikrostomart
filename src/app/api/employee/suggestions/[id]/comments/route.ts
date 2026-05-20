@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { requireEmployeeOrAdmin } from '@/lib/authGuards';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,9 +10,16 @@ const supabase = () => createClient(
 );
 
 /**
+ * S10-3 (audyt P1 #2): comments też wymagają employee/admin auth.
+ */
+
+/**
  * GET /api/employee/suggestions/[id]/comments — list comments for a suggestion
  */
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+    const auth = await requireEmployeeOrAdmin();
+    if (!auth.ok) return auth.response;
+
     const { id } = await params;
 
     const { data, error } = await supabase()
@@ -26,19 +34,30 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
 /**
  * POST /api/employee/suggestions/[id]/comments — add a comment
- * Body: { author_email, author_name, content }
+ * Body: { content }
+ * Author email/name pochodzą z sesji (auth.user.email).
  */
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+    const auth = await requireEmployeeOrAdmin();
+    if (!auth.ok) return auth.response;
+
     const { id } = await params;
     const body = await req.json();
+
+    if (!body.content || typeof body.content !== 'string' || body.content.trim().length === 0) {
+        return NextResponse.json({ error: 'Missing content' }, { status: 400 });
+    }
+
+    const authorEmail = auth.user.email || 'unknown';
+    const authorName = (auth.user.user_metadata?.name as string | undefined) || authorEmail;
 
     const { data, error } = await supabase()
         .from('feature_suggestion_comments')
         .insert({
             suggestion_id: id,
-            author_email: body.author_email,
-            author_name: body.author_name || body.author_email,
-            content: body.content,
+            author_email: authorEmail,
+            author_name: authorName,
+            content: body.content.trim().slice(0, 5000),
         })
         .select()
         .single();
