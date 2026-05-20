@@ -3,6 +3,7 @@
 
 export type SectionType =
     | 'hero'
+    | 'trust-stats'
     | 'values'
     | 'narrative'
     | 'youtube'
@@ -40,6 +41,14 @@ export const SECTION_CATALOG: SectionMeta[] = [
         label: 'Sekcja Hero',
         icon: '🏠',
         description: 'Główny banner z tytułem, opisem i przyciskiem CTA',
+        maxInstances: 1,
+        defaultConfig: {},
+    },
+    {
+        type: 'trust-stats',
+        label: 'Statystyki + akredytacje',
+        icon: '📊',
+        description: 'Liczby gabinetu (implanty, leczenia kanałowe, pacjenci) + credential Marcina + pasek akredytacji (PTE, ESE, PTSL, RWTH, LA&HA)',
         maxInstances: 1,
         defaultConfig: {},
     },
@@ -144,10 +153,11 @@ export const SECTION_CATALOG: SectionMeta[] = [
 
 export const DEFAULT_SECTIONS: PageSection[] = [
     { id: 'hero', type: 'hero', visible: true, order: 0, config: {} },
-    { id: 'values', type: 'values', visible: true, order: 1, config: {} },
-    { id: 'narrative', type: 'narrative', visible: true, order: 2, config: {} },
-    { id: 'youtube', type: 'youtube', visible: true, order: 3, config: {} },
-    { id: 'reviews', type: 'reviews', visible: true, order: 4, config: {} },
+    { id: 'trust-stats', type: 'trust-stats', visible: true, order: 1, config: {} },
+    { id: 'values', type: 'values', visible: true, order: 2, config: {} },
+    { id: 'narrative', type: 'narrative', visible: true, order: 3, config: {} },
+    { id: 'youtube', type: 'youtube', visible: true, order: 4, config: {} },
+    { id: 'reviews', type: 'reviews', visible: true, order: 5, config: {} },
 ];
 
 export function getSectionMeta(type: SectionType): SectionMeta | undefined {

@@ -86,6 +86,26 @@
             "ctaText": "For international patients"
         }
     },
+    "trustStats": {
+        "heading": "10 years of experience in numbers",
+        "subheading": "Mikrostomart Opole — clinic led by Dr. Marcin Nowosielski since 2016.",
+        "card1Label": "implants placed",
+        "card1Subtitle": "Mikrostomart Opole, since 2016",
+        "card2Label": "root canal treatments",
+        "card2Subtitle": "under ZEISS microscope",
+        "card3Label": "patients",
+        "card3Subtitle": "at Mikrostomart since 2016",
+        "card4Main": "Master of Science",
+        "card4Line2": "in Lasers in Dentistry",
+        "card4Line3": "RWTH Aachen University",
+        "card4Footer": "2nd in Poland",
+        "accreditationsHeading": "Accreditations & scientific activity",
+        "accPteTooltip": "Polish Endodontic Society — member + lecturer at the 20th Anniversary PTE Symposium",
+        "accEseTooltip": "European Society of Endodontology — member",
+        "accPtslTooltip": "Polish Society of Laser Dentistry — member",
+        "accRwthTooltip": "RWTH Aachen University — Master of Science in Lasers in Dentistry (2021), 2nd in Poland with distinction",
+        "accLahaTooltip": "Laser and Health Academy — lecturer: Symposium Slovenia 2019/2023, Poland 2022 keynote + workshops"
+    },
     "values": {
         "heading": "What Sets Us Apart",
         "precision": "Precision",

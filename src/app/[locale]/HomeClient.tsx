@@ -4,6 +4,7 @@ import YouTubeFeed from "@/components/YouTubeFeed";
 import GoogleReviews from "@/components/GoogleReviews";
 import InternationalPatientsTeaser from "@/components/InternationalPatientsTeaser";
 import HeroSlideshow from "@/components/HeroSlideshow";
+import TrustStats from "@/components/TrustStats";
 import { Link } from "@/i18n/navigation";
 import RevealOnScroll from "@/components/RevealOnScroll";
 import BeforeAfterSlider from "@/components/BeforeAfterSlider";
@@ -667,6 +668,8 @@ function renderSection(section: PageSection, onInteraction: () => void, features
                 : <HeroSection layout={heroLayout} />;
             break;
         }
+        case 'trust-stats':
+            content = <TrustStats />; break;
         case 'values':
             content = <ValuesSection />; break;
         case 'narrative':
@@ -704,10 +707,11 @@ function renderSection(section: PageSection, onInteraction: () => void, features
 
 const DEFAULT_ORDER: PageSection[] = [
     { id: 'hero', type: 'hero', visible: true, order: 0, config: {} },
-    { id: 'values', type: 'values', visible: true, order: 1, config: {} },
-    { id: 'narrative', type: 'narrative', visible: true, order: 2, config: {} },
-    { id: 'youtube', type: 'youtube', visible: true, order: 3, config: {} },
-    { id: 'reviews', type: 'reviews', visible: true, order: 4, config: {} },
+    { id: 'trust-stats', type: 'trust-stats', visible: true, order: 1, config: {} },
+    { id: 'values', type: 'values', visible: true, order: 2, config: {} },
+    { id: 'narrative', type: 'narrative', visible: true, order: 3, config: {} },
+    { id: 'youtube', type: 'youtube', visible: true, order: 4, config: {} },
+    { id: 'reviews', type: 'reviews', visible: true, order: 5, config: {} },
 ];
 
 // ===================== MAIN PAGE =====================

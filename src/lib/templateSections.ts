@@ -8,10 +8,11 @@ export const TEMPLATE_SECTIONS: Record<string, PageSection[]> = {
     // Default (mikrostomart/gold) — original layout
     'default-gold': [
         { id: 'hero', type: 'hero', visible: true, order: 0, config: {} },
-        { id: 'values', type: 'values', visible: true, order: 1, config: {} },
-        { id: 'narrative', type: 'narrative', visible: true, order: 2, config: {} },
-        { id: 'youtube', type: 'youtube', visible: true, order: 3, config: {} },
-        { id: 'reviews', type: 'reviews', visible: true, order: 4, config: {} },
+        { id: 'trust-stats', type: 'trust-stats', visible: true, order: 1, config: {} },
+        { id: 'values', type: 'values', visible: true, order: 2, config: {} },
+        { id: 'narrative', type: 'narrative', visible: true, order: 3, config: {} },
+        { id: 'youtube', type: 'youtube', visible: true, order: 4, config: {} },
+        { id: 'reviews', type: 'reviews', visible: true, order: 5, config: {} },
     ],
 
     // DensFlow Light (LePerle-inspired) — boutique minimal

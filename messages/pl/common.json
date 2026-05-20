@@ -86,6 +86,26 @@
             "ctaText": "Dla pacjentów spoza Opola"
         }
     },
+    "trustStats": {
+        "heading": "10 lat doświadczenia w liczbach",
+        "subheading": "Mikrostomart Opole — gabinet prowadzony przez dr. Marcina Nowosielskiego od 2016 roku.",
+        "card1Label": "implantów wszczepionych",
+        "card1Subtitle": "Mikrostomart Opole, od 2016",
+        "card2Label": "leczeń kanałowych",
+        "card2Subtitle": "pod mikroskopem ZEISS",
+        "card3Label": "pacjentów",
+        "card3Subtitle": "w Mikrostomart od 2016",
+        "card4Main": "Master of Science",
+        "card4Line2": "in Lasers in Dentistry",
+        "card4Line3": "RWTH Aachen University",
+        "card4Footer": "2. w Polsce",
+        "accreditationsHeading": "Akredytacje i działalność naukowa",
+        "accPteTooltip": "Polskie Towarzystwo Endodontyczne — członek + wykładowca jubileuszu 20-lecia PTE",
+        "accEseTooltip": "European Society of Endodontology — członek",
+        "accPtslTooltip": "Polskie Towarzystwo Stomatologii Laserowej — członek",
+        "accRwthTooltip": "RWTH Aachen University — Master of Science in Lasers in Dentistry (2021), drugi z wyróżnieniem w Polsce",
+        "accLahaTooltip": "Laser and Health Academy — wykładowca: Symposium Słowenia 2019/2023, Polska 2022 keynote + warsztaty"
+    },
     "values": {
         "heading": "Co nas wyróżnia",
         "precision": "Precyzja",

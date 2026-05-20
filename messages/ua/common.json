@@ -86,6 +86,26 @@
             "ctaText": "Для пацієнтів з-за кордону"
         }
     },
+    "trustStats": {
+        "heading": "10 років досвіду в цифрах",
+        "subheading": "Mikrostomart Ополе — клініка під керівництвом д-ра Марціна Новосельського з 2016 року.",
+        "card1Label": "встановлених імплантів",
+        "card1Subtitle": "Mikrostomart Ополе, з 2016",
+        "card2Label": "ендодонтичних лікувань",
+        "card2Subtitle": "під мікроскопом ZEISS",
+        "card3Label": "пацієнтів",
+        "card3Subtitle": "у Mikrostomart з 2016",
+        "card4Main": "Master of Science",
+        "card4Line2": "in Lasers in Dentistry",
+        "card4Line3": "RWTH Aachen University",
+        "card4Footer": "2-й у Польщі",
+        "accreditationsHeading": "Акредитації та наукова діяльність",
+        "accPteTooltip": "Польське Ендодонтичне Товариство — член + лектор на симпозіумі 20-річчя PTE",
+        "accEseTooltip": "European Society of Endodontology — член",
+        "accPtslTooltip": "Польське Товариство Стоматології Лазерної — член",
+        "accRwthTooltip": "RWTH Aachen University — Master of Science in Lasers in Dentistry (2021), 2-й у Польщі з відзнакою",
+        "accLahaTooltip": "Laser and Health Academy — лектор: Симпозіум Словенія 2019/2023, Польща 2022 keynote + воркшопи"
+    },
     "values": {
         "heading": "Що нас вирізняє",
         "precision": "Точність",
