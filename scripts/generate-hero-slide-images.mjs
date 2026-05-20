@@ -45,7 +45,7 @@ const SLIDES = [
     },
     {
         id: "technology",
-        prompt: "Extreme macro close-up showing perfect details of upper central incisors and canines of a beautiful smile of a Caucasian European person (fair skin tone visible at lip outline), glistening enamel with subtle natural variations, healthy pink gum line, micro-detail texture of tooth surface, lip outline visible. Dark moody background with deep charcoal blacks, warm gold accent lighting catching enamel highlights. Modern luxury dental aesthetic, photorealistic precision (ZEISS microscope-grade detail), cinematic composition, shallow depth of field. Canon R5, 100mm macro lens. Vertical 3:4 portrait orientation. No text. No watermark.",
+        prompt: "Macro close-up of a beautiful gentle smile of a young Caucasian European woman (around 35 years old, fair skin, Slavic features, brunette hair partially visible), showing front upper teeth with natural enamel (not glossy, not glistening), healthy pink gums, soft natural matte lips (no shimmer, no glitter, no lip gloss highlights), candid relaxed expression. Dark moody background with deep charcoal blacks, soft warm rim lighting from the side (subtle, not catching specular highlights). Modern luxury dental aesthetic, natural editorial portrait style (not over-polished, not artificial), photorealistic, cinematic composition, shallow depth of field, soft natural skin texture. Canon R5, 85mm f/1.4 lens. Vertical 3:4 portrait orientation. No text. No watermark.",
     },
     {
         id: "specialty",
@@ -131,13 +131,20 @@ async function generateOne(slide) {
 }
 
 async function main() {
-    console.log(`🚀 Generating ${SLIDES.length} hero slide images via ${MODEL}`);
+    // ONLY env var = comma-separated list slide IDs do regeneracji (oszczędność $$)
+    // Przykład: ONLY=technology node scripts/generate-hero-slide-images.mjs
+    // Default: wszystkie 5 slidów
+    const onlyIds = process.env.ONLY?.split(",").map(s => s.trim()).filter(Boolean);
+    const targetSlides = onlyIds?.length ? SLIDES.filter(s => onlyIds.includes(s.id)) : SLIDES;
+
+    console.log(`🚀 Generating ${targetSlides.length}/${SLIDES.length} hero slide images via ${MODEL}`);
     console.log(`📁 Output directory: ${OUTPUT_DIR}`);
+    if (onlyIds) console.log(`🎯 Filter ONLY=${onlyIds.join(",")}`);
 
     fs.mkdirSync(OUTPUT_DIR, { recursive: true });
 
     const results = [];
-    for (const slide of SLIDES) {
+    for (const slide of targetSlides) {
         const result = await generateOne(slide);
         results.push(result);
     }

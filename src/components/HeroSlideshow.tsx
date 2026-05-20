@@ -41,7 +41,7 @@ const SLIDE_CONFIG = [
     // przy każdej regeneracji grafik żeby wymusić fresh CDN fetch.
     { id: "emotional", ctaHref: "/rezerwacja", image: "/hero-slides/emotional-v4.webp" },
     { id: "authority", ctaHref: "/o-nas", image: "/hero-slides/authority-v4.webp" },
-    { id: "technology", ctaHref: "/oferta", image: "/hero-slides/technology-v4.webp" },
+    { id: "technology", ctaHref: "/oferta", image: "/hero-slides/technology-v5.webp" },
     { id: "specialty", ctaHref: "/mapa-bolu", image: "/hero-slides/specialty-v4.webp" },
     { id: "international", ctaHref: "/dla-pacjentow-przyjezdnych", image: "/hero-slides/international-v4.webp" },
 ] as const;
