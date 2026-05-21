@@ -322,6 +322,7 @@ export default function Navbar() {
                     Hamburger (poniżej) zostaje jako uzupełnienie pełnej mapy strony.
                     ═══════════════════════════════════════════════════ */}
                 <div className={styles.desktopTopNav}>
+                    <Link href="/o-nas" className={styles.topNavLink}>{t('about')}</Link>
                     <Link href="/oferta" className={styles.topNavLink}>{t('services')}</Link>
                     <Link href="/cennik" className={styles.topNavLink}>{t('pricing')}</Link>
                     {f.metamorphoses && (
@@ -413,9 +414,7 @@ export default function Navbar() {
                                     transition={{ duration: 0.18, ease: 'easeOut' }}
                                     className={styles.topNavDropdown}
                                 >
-                                    <Link href="/o-nas" className={styles.topNavDropdownLink} onClick={() => setTopNavMoreOpen(false)}>
-                                        ℹ️ {t('about')}
-                                    </Link>
+                                    {/* O nas przeniesione do desktop top nav (top-level visible) — usunięte z Dodatki żeby uniknąć duplikatu. K-3 follow-up 2026-05-21. */}
                                     <Link href="/aktualnosci" className={styles.topNavDropdownLink} onClick={() => setTopNavMoreOpen(false)}>
                                         📰 {t('news')}
                                     </Link>
@@ -707,6 +706,10 @@ export default function Navbar() {
                             // S7-3: build full link list — used for search filtering + section render
                             type LinkItem = { href?: string; label: string; icon?: string; section: string; onClick?: () => void };
                             const allLinks: LinkItem[] = [
+                                // K-3 follow-up 2026-05-21: O nas jako pierwsza pozycja w sekcji main
+                                // (przeniesione z sekcji 'other'). Po K-3 personal brand exposure ważne
+                                // żeby /o-nas było widoczne z 1 klika z menu.
+                                { href: '/o-nas', label: t('about'), icon: 'ℹ️', section: 'main' },
                                 // MAIN — najważniejsze CTAs zawsze widoczne
                                 { href: '/rezerwacja', label: t('booking'), icon: '📅', section: 'main' },
                                 { href: '/oferta', label: t('services'), icon: '🦷', section: 'main' },
@@ -724,7 +727,7 @@ export default function Navbar() {
                                 { href: '/aplikacja', label: t('app'), icon: '📱', section: 'account' },
                                 { href: '/zadatek', label: t('deposit'), icon: '💳', section: 'account' },
                                 // OTHER
-                                { href: '/o-nas', label: t('about'), icon: 'ℹ️', section: 'other' },
+                                // O nas przeniesione do section 'main' (pierwsza pozycja) — usunięte z 'other' żeby uniknąć duplikatu. K-3 follow-up.
                                 { href: '/aktualnosci', label: t('news'), icon: '📰', section: 'other' },
                                 ...(f.knowledgeBase ? [{ href: '/baza-wiedzy', label: t('knowledgeBase'), icon: '📚', section: 'other' }] : []),
                                 ...(f.blog ? [{ href: '/nowosielski', label: t('blog'), icon: '👨‍⚕️', section: 'other' }] : []),
