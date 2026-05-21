@@ -264,7 +264,8 @@
             "termsLink": "Terms & Conditions",
             "privacyLink": "Privacy Policy",
             "rodoLink": "GDPR",
-            "cookiesLink": "Cookie Policy"
+            "cookiesLink": "Cookie Policy",
+            "externalBlog": "Expert Blog ↗"
         }
     },
     "cookies": {

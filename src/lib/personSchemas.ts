@@ -157,6 +157,7 @@ export function getMarcinSchema(locale: string, urlPath = '/zespol/marcin-nowosi
             "https://endodoncja.pl/20-lecie-pte/",
             "https://www.laserandhealthacademy.com/media/uploads/laha/docs/2019/summaries/s31_marques_nowosielski.pdf",
             "https://www.magazyn-stomatologiczny.pl/a5646/Lek--dent--Marcin-Nowosielski-.html",
+            "https://nowosielski.pl",
         ],
     };
 }

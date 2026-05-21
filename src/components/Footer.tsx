@@ -163,6 +163,7 @@ export default function Footer() {
                         <Link href="/baza-wiedzy" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">{tn('knowledge')}</Link>
                         <Link href="/akredytacje" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">{tn('akredytacje')}</Link>
                         <Link href="/nowosielski" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">{tn('blog')}</Link>
+                        <a href="https://nowosielski.pl" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">{tn('externalBlog')}</a>
                         <Link href="/sklep" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">{tn('shop')}</Link>
                     </div>
                 </div>

@@ -1141,7 +1141,10 @@
         "mediaIntro": "Dental education — case studies, patient advice, behind the scenes of the clinic. Marcin runs the YouTube channel DentistMarcIn and profiles on social media.",
         "ctaTitle": "Schedule an appointment with Marcin",
         "ctaLead": "Implant consultation, root canal treatment under a microscope, Clear Correct orthodontics, aesthetic and laser dentistry.",
-        "ctaButton": "Book an appointment"
+        "ctaButton": "Book an appointment",
+        "mediaFeaturedTag": "Expert Blog",
+        "mediaFeaturedTitle": "nowosielski.pl — Marcin's Author Page",
+        "mediaFeaturedDesc": "Longer articles on microscopic endodontics, laser dentistry, implantology, and clinical protocols. Marcin's personal brand maintained on a separate domain."
     },
     "zespolEla": {
         "heroTagline": "Hygienization · Prevention · Education",

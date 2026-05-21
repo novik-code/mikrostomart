@@ -191,6 +191,56 @@ export default function MarcinPage() {
                         }}>
                             {t('mediaIntro')}
                         </p>
+
+                        {/* Featured: Blog ekspercki na nowosielski.pl (Cross-Link Sprint, 2026-05-21) */}
+                        <a
+                            href="https://nowosielski.pl"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                                display: "block",
+                                background: "linear-gradient(135deg, var(--color-surface) 0%, var(--color-background) 100%)",
+                                border: "1px solid var(--color-primary)",
+                                borderRadius: "4px",
+                                padding: "var(--spacing-md) var(--spacing-lg)",
+                                marginBottom: "var(--spacing-md)",
+                                textDecoration: "none",
+                                color: "var(--color-text-main)",
+                                boxShadow: "0 0 0 0 transparent",
+                                transition: "all 0.25s ease",
+                            }}
+                            className="cross-link-card"
+                        >
+                            <div style={{ display: "flex", alignItems: "center", gap: "var(--spacing-md)", flexWrap: "wrap" }}>
+                                <div style={{ fontSize: "2rem", lineHeight: 1 }}>✍️</div>
+                                <div style={{ flex: 1, minWidth: "240px" }}>
+                                    <div style={{
+                                        color: "var(--color-primary)",
+                                        textTransform: "uppercase",
+                                        letterSpacing: "0.12em",
+                                        fontSize: "0.75rem",
+                                        marginBottom: "0.25rem",
+                                    }}>
+                                        {t('mediaFeaturedTag')}
+                                    </div>
+                                    <div style={{
+                                        fontSize: "1.15rem",
+                                        fontWeight: 600,
+                                        marginBottom: "0.25rem",
+                                    }}>
+                                        {t('mediaFeaturedTitle')} <span style={{ color: "var(--color-primary)" }}>↗</span>
+                                    </div>
+                                    <div style={{
+                                        color: "var(--color-text-muted)",
+                                        fontSize: "0.95rem",
+                                        lineHeight: 1.5,
+                                    }}>
+                                        {t('mediaFeaturedDesc')}
+                                    </div>
+                                </div>
+                            </div>
+                        </a>
+
                         <div style={{
                             display: "flex",
                             flexWrap: "wrap",

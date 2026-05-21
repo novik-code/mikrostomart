@@ -264,7 +264,8 @@
             "termsLink": "AGB",
             "privacyLink": "Datenschutzerklärung",
             "rodoLink": "DSGVO",
-            "cookiesLink": "Cookie-Richtlinie"
+            "cookiesLink": "Cookie-Richtlinie",
+            "externalBlog": "Expertenblog ↗"
         }
     },
     "cookies": {
