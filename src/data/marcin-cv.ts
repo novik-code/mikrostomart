@@ -58,12 +58,17 @@ export const MARCIN_PUBLICATIONS: Publication[] = [
         issueKey: 'pubs.czelej.issue',
         url: 'https://czelej.com.pl/sklep/wlasny-gabinet-poradnik/',
     },
+    // 4 publikacje Magazyn Stomatologiczny — wszystkie linkują do profilu autora
+    // (https://www.magazyn-stomatologiczny.pl/a5646/Lek--dent--Marcin-Nowosielski-.html),
+    // który agreguje wszystkie artykuły Marcina. Indywidualne URLs per artykuł
+    // niedostępne publicznie — author profile jest najlepszą destynacją.
     {
         type: 'magazine',
         year: '2021',
         titleKey: 'pubs.magStomat2021nr5.title',
         venueKey: 'pubs.magStomat.venue',
         issueKey: 'pubs.magStomat2021nr5.issue',
+        url: 'https://www.magazyn-stomatologiczny.pl/a5646/Lek--dent--Marcin-Nowosielski-.html',
     },
     {
         type: 'magazine',
@@ -71,6 +76,7 @@ export const MARCIN_PUBLICATIONS: Publication[] = [
         titleKey: 'pubs.magStomat2021nr3.title',
         venueKey: 'pubs.magStomat.venue',
         issueKey: 'pubs.magStomat2021nr3.issue',
+        url: 'https://www.magazyn-stomatologiczny.pl/a5646/Lek--dent--Marcin-Nowosielski-.html',
     },
     {
         type: 'magazine',
@@ -78,6 +84,7 @@ export const MARCIN_PUBLICATIONS: Publication[] = [
         titleKey: 'pubs.magStomat2020nr10.title',
         venueKey: 'pubs.magStomat.venue',
         issueKey: 'pubs.magStomat2020nr10.issue',
+        url: 'https://www.magazyn-stomatologiczny.pl/a5646/Lek--dent--Marcin-Nowosielski-.html',
     },
     {
         type: 'magazine',
@@ -85,6 +92,7 @@ export const MARCIN_PUBLICATIONS: Publication[] = [
         titleKey: 'pubs.magStomat2020nr3.title',
         venueKey: 'pubs.magStomat.venue',
         issueKey: 'pubs.magStomat2020nr3.issue',
+        url: 'https://www.magazyn-stomatologiczny.pl/a5646/Lek--dent--Marcin-Nowosielski-.html',
     },
     {
         type: 'conference',
