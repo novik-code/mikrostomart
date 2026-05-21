@@ -155,6 +155,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         priority: 0.8,
     }];
 
+    // L-1 (2026-05-21 NIGHT+1): /implanty-opole — PL-only local geo page
+    // (foreign locales są noindex via layout.tsx — PL slug bez intencji organicznej w EN/DE/UA).
+    const implantyOpoleRoute: MetadataRoute.Sitemap = [{
+        url: `${BASE_URL}/implanty-opole`,
+        lastModified: lastModForPath('/implanty-opole'),
+        changeFrequency: 'monthly' as const,
+        priority: 0.9, // local geo + high commercial intent
+    }];
+
     // ── Interactive tools (medium priority) — multi-locale ──
     // S5-1 (2026-05-15): /zadatek removed — page is noindex globally (Faza J-2)
     // because it has no organic search intent (one-purpose payment landing).
@@ -282,5 +291,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             };
         });
 
-    return [...mainRoutes, ...contentRoutes, ...shopRoute, ...toolRoutes, ...legalRoutes, ...newsRoutes, ...kbRoutes];
+    return [...mainRoutes, ...contentRoutes, ...shopRoute, ...implantyOpoleRoute, ...toolRoutes, ...legalRoutes, ...newsRoutes, ...kbRoutes];
 }

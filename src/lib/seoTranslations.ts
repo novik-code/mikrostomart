@@ -636,4 +636,33 @@ export const PAGE_SEO: Record<string, LocaleSeoMap> = {
             keywords: 'запис стоматолог Ополе, онлайн запис, запис до стоматолога Польща, mikrostomart запис',
         },
     },
+
+    // ───────── /implanty-opole — L-1 local geo page (PL-only, foreign noindex) ─────────
+    // Faza L-1 (2026-05-21 NIGHT+1): dedykowany landing dla zapytań geo-targeted
+    // ("implant Opole", "implanty zębów Opole cena", "implantolog Opole").
+    // Foreign locale URL (/en/implanty-opole etc.) dostają noindex w layout.tsx
+    // bo polski slug nie ma intencji organicznej w EN/DE/UA — alternative geo
+    // pages dla foreign markets pojawią się w L-2/L-3 (np. /zahnarzt-opole).
+    '/implanty-opole': {
+        pl: {
+            title: 'Implanty zębów Opole — implantolog M.Sc. RWTH Aachen | Mikrostomart',
+            description: 'Implanty zębów w Opolu od 4800 zł. Implantologia cyfrowa pod kontrolą szablonu chirurgicznego, M.Sc. RWTH Aachen, PRF, All-on-4. Mikrostomart — gabinet w centrum Opola od 2016.',
+            keywords: 'implanty opole, implanty zębów opole, implantolog opole, implant zębowy opole cena, implantologia opole, all-on-4 opole, mikrostomart implanty',
+        },
+        en: {
+            title: 'Dental Implants Opole, Poland | Mikrostomart',
+            description: 'Dental implants in Opole, Poland from 4800 PLN. Digital implantology with surgical guides, M.Sc. RWTH Aachen specialist.',
+            keywords: 'dental implants Opole, implantologist Opole Poland, all-on-4 Opole, Mikrostomart implants',
+        },
+        de: {
+            title: 'Zahnimplantate Opole, Polen | Mikrostomart',
+            description: 'Zahnimplantate in Opole, Polen ab 4800 zł. Digitale Implantologie mit Schablonen, M.Sc. RWTH Aachen Spezialist.',
+            keywords: 'Zahnimplantate Opole, Implantologe Opole Polen, All-on-4 Opole, Mikrostomart Implantate',
+        },
+        ua: {
+            title: 'Імпланти зубів Ополе, Польща | Mikrostomart',
+            description: 'Імпланти зубів в Ополе, Польща від 4800 зл. Цифрова імплантологія з хірургічними шаблонами, M.Sc. RWTH Aachen.',
+            keywords: 'імпланти Ополе, імплантолог Ополе Польща, All-on-4 Ополе, Mikrostomart імпланти',
+        },
+    },
 };

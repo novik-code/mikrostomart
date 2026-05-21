@@ -138,6 +138,7 @@ export default function Footer() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                         <Link href="/oferta" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">{tn('services')}</Link>
                         <Link href="/oferta/implantologia" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">{tn('implants')}</Link>
+                        <Link href="/implanty-opole" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">{tn('implantyOpole')}</Link>
                         <Link href="/oferta/leczenie-kanalowe" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">{tn('rootCanal')}</Link>
                         <Link href="/oferta/stomatologia-estetyczna" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">{tn('aesthetic')}</Link>
                         <Link href="/oferta/ortodoncja" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">{tn('orthodontics')}</Link>

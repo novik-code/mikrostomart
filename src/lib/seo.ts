@@ -252,6 +252,7 @@ const BREADCRUMB_LABELS: Record<string, Record<string, string>> = {
         zespol: 'Zespół',
         'marcin-nowosielski': 'lek. dent. Marcin Nowosielski',
         'elzbieta-nowosielska': 'hig. stom. Elżbieta Nowosielska',
+        'implanty-opole': 'Implanty zębów w Opolu',
     },
     en: {
         home: 'Home',
@@ -283,6 +284,7 @@ const BREADCRUMB_LABELS: Record<string, Record<string, string>> = {
         zespol: 'Team',
         'marcin-nowosielski': 'Dr Marcin Nowosielski DDS',
         'elzbieta-nowosielska': 'Elżbieta Nowosielska, Dental Hygienist',
+        'implanty-opole': 'Dental Implants in Opole',
     },
     de: {
         home: 'Startseite',
@@ -314,6 +316,7 @@ const BREADCRUMB_LABELS: Record<string, Record<string, string>> = {
         zespol: 'Team',
         'marcin-nowosielski': 'Marcin Nowosielski M.Sc.',
         'elzbieta-nowosielska': 'Elżbieta Nowosielska, Dentalhygienikerin',
+        'implanty-opole': 'Zahnimplantate in Opole',
     },
     ua: {
         home: 'Головна',
@@ -345,6 +348,7 @@ const BREADCRUMB_LABELS: Record<string, Record<string, string>> = {
         zespol: 'Команда',
         'marcin-nowosielski': 'Марцін Новосельський M.Sc.',
         'elzbieta-nowosielska': 'Ельжбета Новосельська, гігієніст',
+        'implanty-opole': 'Імпланти зубів в Ополе',
     },
 };
 
