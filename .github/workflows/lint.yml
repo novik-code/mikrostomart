@@ -40,7 +40,11 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          # Node 24 (2026-05-21): lock file generated lokalnie na Node 24 (sharp +
+          # @napi-rs/wasm-runtime nie potrzebują @emnapi/runtime na Node 24+
+          # bo natywne N-API). Node 20 w CI wymagał ich i fail'ował `npm ci`
+          # z "Missing: @emnapi/runtime from lock file". Bump do 24 = sync.
+          node-version: '24'
           cache: 'npm'
 
       - name: Install dependencies

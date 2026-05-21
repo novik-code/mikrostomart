@@ -42,7 +42,8 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          # Node 24 (2026-05-21) — patrz komentarz w lint.yml.
+          node-version: '24'
           cache: 'npm'
 
       - name: Install
