@@ -18,9 +18,14 @@ on:
     branches: [main]
 
 # Cancel in-flight runs when a new commit lands on the same ref.
+# cancel-in-progress: false (2026-05-21) — `true` powodowało że szybkie sekwencje
+# push'ów (np. perf optimization sprints A→B→C) cancelowały pośrednie runs,
+# które pojawiały się jako "Failed" w GitHub UI z exit code 128 (git checkout
+# cancelled) + npm error (no files). Mylące. False = każdy push dostaje pełen
+# run, ostatni dla danego ref jest źródłem prawdy o stanie main.
 concurrency:
   group: lint-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   lint:

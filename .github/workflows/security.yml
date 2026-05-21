@@ -26,9 +26,11 @@ on:
     # deps surface even without code changes.
     - cron: '0 6 * * 1'
 
+# cancel-in-progress: false (2026-05-21) — patrz komentarz w lint.yml.
+# Cancelled runs (exit code 128 git checkout + npm error) były mylące w UI.
 concurrency:
   group: security-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   npm-audit:
