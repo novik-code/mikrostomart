@@ -9,7 +9,13 @@ export default function ImplantologiaPage() {
 
     return (
         <main className="section container">
-            <RevealOnScroll>
+            {/* K-4 fix 2026-05-21: priority={true} bo content rozbudowany do 1800 słów
+                ma >15000px wysokości. IntersectionObserver z threshold:0.15 wymaga
+                aby 15% elementu było widoczne (2250px) w viewport (~800px) — co
+                NIGDY się nie dzieje dla tak długiej strony. Bez priority strona
+                pozostaje invisible (opacity:0) bo .active class nigdy nie dodawana.
+                Pattern z Fazy G4 dla above-the-fold elementów. */}
+            <RevealOnScroll priority>
                 {/* Header Section */}
                 <div style={{ textAlign: "center", marginBottom: "3rem" }}>
                     <p style={{ textTransform: "uppercase", letterSpacing: "0.2em", color: "var(--color-primary)", fontSize: "0.9rem", marginBottom: "0.5rem" }}>
