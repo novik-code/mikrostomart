@@ -1,6 +1,6 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-21 EARLY (**🎉 SPRINT S10 COMPLETE 4/4 + ✅ K-3 PRE-IMPLEMENTATION BRIEF GOTOWY**). Po S10 zakończonym 2026-05-20 NIGHT+4 (`54e6c04`): wstęp K-3 — research bazy (BIO_INVENTORY + PLAN_K_DECISIONS + obecny stan `/o-nas` + `/akredytacje` z K-2b) + ankieta decyzji Marcina pre-K-3. Wszystkie 3 Recommended zatwierdzone (Akredytacje grid 5 kart linkujących, Książka Czelej card + CTA, CV static vertical timeline) + brak nowych materiałów ("pracujemy z tym co mamy"). **Output**: `~/Desktop/bałagan/PLAN_K3_BRIEF.md` (380 LOC, self-contained brief implementacji). **K-3 może lecieć w 100% z AI side w następnej sesji — zero pre-work Marcina**. Plan: Person schema enrichment (alumniOf/award/memberOf/hasCredential/sameAs 8+ URLs) + `src/data/marcin-cv.ts` typed data + 4 nowe komponenty (AkredytacjeSection/CvTimeline/PublicationsList/CzelejBook) + 4 nowe sekcje na `/o-nas/page.tsx` + i18n × 4 locale (80 PL + AI translate EN/DE/UA). **🚨 Plus: KOMENDA section 3.4 wzmocniona** explicit warning o czytaniu kontekstu w 100% — Marcin zauważył tendencję AI do skracania (anti-pattern udokumentowany).
+> **Last Updated:** 2026-05-21 (**🎯 K-3 IMPLEMENTATION DONE — Person schema enrichment + 4 nowe sekcje na /o-nas**). Commit `2ca5a2f` zmergowany na origin/main. Najważniejsza sesja Fazy K Premium SEO zakończona — istniejący personal brand Marcina (RWTH M.Sc., LA&HA wykłady, książka Czelej, 4 publikacje Magazyn Stomat, PTE 20-lecie wykładowca) teraz eksponowany na mikrostomart.pl. **Person schema Marcina**: 10 → **15 pól** (alumniOf RWTH+UMW, award M.Sc. + drugi w PL + najmłodszy w PL, memberOf PTE/ESE/PTSL/OIL, hasCredential M.Sc.+Curriculum Endo+Oral Surgery, sameAs 8 URLs: FB/IG×2/YT/TikTok/Czelej/PTE-20/LA&HA-proceedings). **4 nowe sekcje na /o-nas** (po Marcin bio): AkredytacjeSection (grid 5 kart, link do `/akredytacje/[slug]` K-2b detail pages) + CvTimeline (vertical timeline 12 milestones 2007–2024+, static SSR, alternating left/right desktop / single-col mobile, gold dots + central line) + PublicationsList (2-col grid: 6 publikacji [Czelej + 4× Magazyn Stomat + LA&HA proceedings] + 5 wystąpień [LA&HA Słowenia 2019/2023 + Poland 2022 keynote + workshop + PTE 20-lecie]) + CzelejBook (full-width card z okładką książki, 37 KB WebP z czelej.com.pl sharp resize 491×700 q82, meta + CTA do Wydawnictwa Czelej). **i18n × 4 locale**: nowy namespace `oNasBrand` w common.json — 76 PL keys × 4 locale = 304 strings (PL native + GPT-4o-mini translate EN/DE/UA). **Bonus**: minor modyfikacja `scripts/translate-missing-i18n.ts` — `MESSAGES_FILE` env var override (default `pages.json`, K-3 użył `common.json`). Verification Claude_Preview: 4 locale × /o-nas → 200, Marcin Person schema 8 sameAs URLs w HTML, 6 sekcji w correct order (Ela → Marcin → Akredytacje → CV → Publikacje → Książka), zero console errors. Build clean. **Następna sesja**: K-4 + K-5 service pages copy expansion (~3h+3h, 6 stron oferta × 280→800-1200 słów × 4 locale = 24 expansions PL+EN/DE/UA AI translate).
 
 <!-- Poprzednia: 2026-05-20 NIGHT+4 (S10-4 sitemap hygiene + CI gate → Sprint S10 COMPLETE, commit bb8adb3). --> `src/app/sitemap.ts`: `/sklep` → PL-only, `/privacy-policy` → EN-only, defensywny `SAFE_SLUG = /^[a-z0-9-]+$/` filter na KB+news slugi → 4 dead artykuły z polskimi/niemieckimi diacritics (`lęk`, `świeżości`, `błyszczacy`, `natürliches`) auto-skipowane. Nowy CI script `scripts/audit-sitemap-indexability.mjs` (HTTP 200 + no `<meta robots noindex>` + no `X-Robots-Tag: noindex`), npm script `audit:sitemap`. Wynik: sitemap **740 → 736 URLs, 0 failures** (vs audyt SEO `4 × 404 + 6 × noindex`). **🎉 SPRINT S10 SECURITY HOTFIX COMPLETE** (S10-1 RLS mig 132, S10-2 patient auth, S10-3 P1 paczka, S10-4 sitemap). Wszystkie 2 P0 + 4 P1 + 1 quick win SEO z audytu 2026-05-18 zamknięte. Z opcjonalnych P2/P3 pending (post-K follow-up): tokeny w logach, CSP enforce, PII fail-closed, Prodentis HTTP fallback, Telegram HTML escape, /api/health reconnaissance. **Następna sesja: 🎯 K-3 Person schema enrichment + CV timeline na /o-nas** — najważniejsza sesja Fazy K (~3h AI + 30 min Marcin). SEO-07 z audytu SEO mapuje 1:1.
 
@@ -2524,6 +2524,128 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-21 — 🎯 K-3 IMPLEMENTATION — Person schema enrichment + 4 nowe sekcje na /o-nas
+
+**Najważniejsza sesja Fazy K Premium SEO. Istniejący personal brand Marcina (gotowy od lat, ale niewyeksponowany na mikrostomart.pl) został teraz wystawiony Googlowi i pacjentom.**
+
+#### Commit
+- `2ca5a2f` — feat(seo,brand): K-3 — Person schema enrichment + 4 nowe sekcje na /o-nas
+
+#### Co zrobione
+
+**1. Person schema enrichment** (`src/app/[locale]/o-nas/layout.tsx` +74 LOC):
+
+Marcin Person schema rozszerzony z 10 → 15 pól:
+- `alumniOf`: Uniwersytet Medyczny we Wrocławiu + RWTH Aachen University (AALZ Aachen Dental Laser Center)
+- `award`: ["M.Sc. with distinction (RWTH 2021)", "Drugi w Polsce", "Najmłodszy w Polsce"]
+- `memberOf`: PTE, ESE, PTSL, Opolska Izba Lekarska
+- `hasCredential`: 3 credentials (M.Sc. RWTH 2021 + Curriculum Endodontyczne PTE + Oral Surgery Academy)
+- `sameAs`: 8 URLs (Facebook, Instagram ×2, YouTube, TikTok, Czelej book, PTE 20-lecie page, LA&HA 2019 proceedings PDF)
+
+Ela Person schema bez zmian (worksFor + knowsAbout wystarczają).
+
+**2. `src/data/marcin-cv.ts`** [NEW, 136 LOC] — typed data layer:
+- `MARCIN_CV`: 12 milestones 2007–2024+ (UMW studia → OIL → PTE+ESE → Mikrostomart 2016 → PTSL+OralSurgery → RWTH M.Sc. → LA&HA Słowenia 2019 → Magazyn Stomat 4× → LA&HA Poland 2022 keynote → LA&HA Słowenia 2023 → książka Czelej → PTE 20-lecie wykładowca)
+- `MARCIN_PUBLICATIONS`: 6 publikacji (1 książka + 4 Magazyn Stomatologiczny + 1 LA&HA 2019 proceedings z URL)
+- `MARCIN_LECTURES`: 5 wystąpień (3 LA&HA + Poland 2022 workshop + PTE 20-lecie keynote)
+- Interfaces: `CvMilestone`, `Publication`, `Lecture` — wszystkie `titleKey`/`venueKey`/`issueKey` wskazują na klucze `oNasBrand.*` w common.json
+
+**3. 4 nowe komponenty** w `src/components/about/` [NEW directory]:
+
+- `AkredytacjeSection.tsx` (177 LOC) — grid 5 kart akredytacji na /o-nas, linkujących do `/akredytacje/[slug]` (reuse K-2b detail pages). Każda karta: label pill + fullName + hero (1-2 zdania) + marcinSince + "Szczegóły →". Hover: lift + border-color primary + gold shadow.
+- `CvTimeline.tsx` (228 LOC) — vertical timeline 12 milestones. Desktop: central gold line + alternating left/right cards. Mobile: linia po lewej + single-col stack. Każdy milestone: rok + ikona emoji + title + desc. SSR-friendly (static HTML, zero JS state).
+- `PublicationsList.tsx` (282 LOC) — 2-col grid (auto-fit minmax 320px): lewa "📚 Publikacje" (6 entries) + prawa "🎤 Wystąpienia" (5 entries). Każdy entry: type badge + year + location (opcjonalne) + title + venue + issue + link (jeśli url). Sort by year DESC.
+- `CzelejBook.tsx` (179 LOC) — full-width card (max 1000px) z okładką książki LEWA (491×700 WebP 37 KB) + content PRAWA: badge "Książka — Wydawnictwo Czelej" + tytuł + autor + meta (276 str, ISBN, format) + opis + gold CTA "Kup w Wydawnictwie Czelej" (target=_blank rel=noopener).
+
+**4. Asset**: `public/czelej-wlasny-gabinet.webp` [NEW] — okładka pobrana z `https://czelej.com.pl/wp-content/uploads/2022/10/ok_adka_2d.jpg` (1123×1600 935 KB JPG), zoptymalizowana przez sharp do 491×700 WebP q82 = **37 KB**.
+
+**5. Update `/o-nas/page.tsx`** (+10 LOC):
+- Imports 4 nowych komponentów
+- Render 4 sekcji po Marcin bio section (przed `</main>`)
+- Alternate background (Akredytacje default → CV surface → Pubs default → Czelej surface) dla visual rytmu
+
+**6. i18n × 4 locale** — `messages/{pl,en,de,ua}/common.json` +132 LOC × 4 = 528 LOC total:
+- Nowy namespace `oNasBrand` (76 keys × 4 = 304 strings)
+- PL native (Marcin native speaker)
+- EN/DE/UA przez GPT-4o-mini AI translate (zachowane placeholders {brandName}, technical terms "M.Sc.", "DDS"/"Zahnarzt"/"стоматолог")
+- Sample: `czelejCta` PL "Kup w Wydawnictwie Czelej" → EN "Buy at Czelej Publishing" / DE "Kaufen im Verlag Czelej" / UA "Купити у Видавництві Челєй"
+
+**7. `scripts/translate-missing-i18n.ts`** (+4/-1) — bonus modyfikacja:
+- Dodany `MESSAGES_FILE` env var override (default `pages.json` zachowany backwards-compat)
+- Usage: `MESSAGES_FILE=common.json npx tsx scripts/translate-missing-i18n.ts`
+- Idempotent — re-run tłumaczy tylko brakujące
+
+#### Verification (Claude_Preview headless smoke)
+
+- 4 locale × `/o-nas` → 200 OK
+- Marcin Person schema w HTML zawiera **8 sameAs URLs** (+ alumniOf, award, memberOf, hasCredential)
+- Globalny Dentist schema nadal ma 5 URLs (klinika), Marcin ma 8 (osobiste) — dwie różne entity
+- 6 sekcji w correct order (verified przez `document.querySelectorAll('section') h2`): Ela → Marcin → Tytuły... → Od matury w Opolu... → Nie tylko leczę... → Własny gabinet...
+- Mobile screenshot (375px): CV timeline z gold dotsami + flagą 🇵🇱 + Keynote LA&HA Poland card ✅
+- Czelej Book card: autor + ISBN meta + opis + gold CTA ✅
+- Zero console errors
+- Build clean (tylko pre-existing Sentry warnings: missing instrumentation file, deprecation `sentry.client.config.ts`)
+
+#### Acceptance K-3 ✅ COMPLETE
+
+- ✅ Min 5 elementów credibility na /o-nas: **5 akredytacji + książka Czelej + 6 publikacji + 5 wystąpień + 12 CV milestones**
+- ✅ Person schema Marcina 13+ pól (faktyczne: 15)
+- ✅ sameAs 8+ URLs (faktyczne: 8)
+- ✅ 4 locale × 200 OK
+- ✅ AkredytacjeSection linkuje do K-2b detail pages
+- ✅ Build clean, zero new console errors
+
+#### Pliki dotknięte
+
+**Nowe (5)**:
+- `src/data/marcin-cv.ts` (136 LOC)
+- `src/components/about/AkredytacjeSection.tsx` (177 LOC)
+- `src/components/about/CvTimeline.tsx` (228 LOC)
+- `src/components/about/PublicationsList.tsx` (282 LOC)
+- `src/components/about/CzelejBook.tsx` (179 LOC)
+- `public/czelej-wlasny-gabinet.webp` (37 KB asset)
+
+**Modyfikowane (8)**:
+- `src/app/[locale]/o-nas/layout.tsx` (+74 LOC Person schema enrichment)
+- `src/app/[locale]/o-nas/page.tsx` (+10 LOC imports + 4 sekcje)
+- `messages/{pl,en,de,ua}/common.json` (+132 LOC each = +528 LOC total)
+- `scripts/translate-missing-i18n.ts` (+4/-1 MESSAGES_FILE env override)
+- `public/sw.js` (auto-regenerated by prebuild)
+- `src/lib/generated-route-mtimes.ts` (auto-regenerated by prebuild)
+
+Total: **1619 insertions, 3 deletions, 15 files changed**.
+
+#### Co Marcin musi zrobić ręcznie po deploy
+
+- **Brak migracji DB ani env var**
+- **(Opcjonalne) Rich Results Test** dla `/o-nas` × 4 locale w https://search.google.com/test/rich-results — sprawdzić czy Person schema parsuje 15 pól (alumniOf, award, memberOf, hasCredential, sameAs widoczne)
+- (Opcjonalne) Facebook Sharing Debugger dla `/o-nas` — refresh social cache żeby pokazał nowy OG content jeśli K-3 wpłynął na metadata
+- **Z S10 nadal pending (krytyczne!)**:
+  1. Wgrać migrację 132 (RLS lockdown) na OBU Supabase
+  2. Smoke anon REST × 5 tabel (care_enrollments, care_tasks, care_audit_log, fcm_tokens, ai_conversations) — expected [] lub 401/403
+  3. Smoke functional: rejestracja, login pending, push toggle, zgody, sugestie, Googlebot bot bypass
+  4. `AUDIT_BASE_URL=https://www.mikrostomart.pl npm run audit:sitemap` — expected 0 failures po Vercel cache refresh
+
+#### Następna sesja: K-4 + K-5 service pages copy expansion
+
+6 stron oferta × 280→800-1200 słów × 4 locale = 24 expansions (PL native + AI translate EN/DE/UA).
+
+Strony do rozbudowy:
+- `/oferta/implantologia`
+- `/oferta/leczenie-kanalowe`
+- `/oferta/stomatologia-estetyczna`
+- `/oferta/ortodoncja`
+- `/oferta/chirurgia`
+- `/oferta/protetyka`
+
+Każda strona: rozbudowa contentu (clinical detail + Marcin's expertise references + protokoły LA&HA/RWTH + cross-links do innych usług + FAQ expansion). Effort estimate: K-4 = 3 strony (~3h), K-5 = 3 strony (~3h).
+
+#### Po K-4/K-5
+
+K-6 Cennik refactor (Wariant 1 REFRAME) → K-7/K-8 Case studies (wymaga decyzji D4 RODO consent pacjentów przed K-7) → K-MEASURE po 6 tygodniach (PSI delta + GSC ranking dla "dentysta opole" + Rich Results Test + foreign markets impressions).
+
+---
 
 ### 2026-05-21 EARLY — ✅ K-3 pre-implementation brief gotowy (wstęp + research + ankieta decyzji)
 
