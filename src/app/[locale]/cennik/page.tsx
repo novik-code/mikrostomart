@@ -1,371 +1,297 @@
-"use client";
+import { getTranslations } from 'next-intl/server';
+import { setRequestLocale } from 'next-intl/server';
+import { Link } from '@/i18n/navigation';
+import RevealOnScroll from '@/components/RevealOnScroll';
+import CennikChat from './CennikChat';
+import { CENNIK_CATEGORIES, CENNIK_FAQ_COUNT } from '@/data/cennik-categories';
+import styles from './cennik.module.css';
 
-import { useState, useRef, useEffect, useCallback } from "react";
-import { brandI18nParams } from '@/lib/brandConfig';
-import { Send, Mic, MicOff, Volume2, VolumeX } from "lucide-react";
-import { useTranslations } from "next-intl";
-import styles from "./cennik.module.css";
-
-interface Message {
-    role: "user" | "assistant";
-    content: string;
-}
-
-export default function CennikPage() {
-    const t = useTranslations('cennik');
-
-    const QUICK_QUESTIONS = [
-        t('quickQ1'), t('quickQ2'), t('quickQ3'),
-        t('quickQ4'), t('quickQ5'), t('quickQ6'),
-    ];
-
-    const CATEGORIES = [
-        { label: t('cat1'), query: t('cat1q') },
-        { label: t('cat2'), query: t('cat2q') },
-        { label: t('cat3'), query: t('cat3q') },
-        { label: t('cat4'), query: t('cat4q') },
-        { label: t('cat5'), query: t('cat5q') },
-    ];
-
-    const [messages, setMessages] = useState<Message[]>([
-        {
-            role: "assistant",
-            content: t('welcomeMessage', brandI18nParams()),
-        },
-    ]);
-    const [input, setInput] = useState("");
-    const [isLoading, setIsLoading] = useState(false);
-    const [isListening, setIsListening] = useState(false);
-    const [isSpeaking, setIsSpeaking] = useState(false);
-    const [speakingMsgIdx, setSpeakingMsgIdx] = useState<number | null>(null);
-
-    const messagesEndRef = useRef<HTMLDivElement>(null);
-    const inputRef = useRef<HTMLInputElement>(null);
-    const recognitionRef = useRef<SpeechRecognition | null>(null);
-
-    // Auto-scroll to bottom
-    useEffect(() => {
-        setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
-    }, [messages, isLoading]);
-
-    // === SPEECH-TO-TEXT ===
-    const startListening = useCallback(() => {
-        const SpeechRecognitionAPI =
-            typeof window !== "undefined"
-                ? (window as unknown as { SpeechRecognition?: typeof SpeechRecognition; webkitSpeechRecognition?: typeof SpeechRecognition }).SpeechRecognition ||
-                (window as unknown as { webkitSpeechRecognition?: typeof SpeechRecognition }).webkitSpeechRecognition
-                : null;
-
-        if (!SpeechRecognitionAPI) {
-            alert(t('speechNotSupported'));
-            return;
-        }
-
-        const recognition = new SpeechRecognitionAPI();
-        recognition.lang = "pl-PL";
-        recognition.continuous = false;
-        recognition.interimResults = true;
-
-        recognition.onresult = (event: SpeechRecognitionEvent) => {
-            let transcript = "";
-            for (let i = 0; i < event.results.length; i++) {
-                transcript += event.results[i][0].transcript;
-            }
-            setInput(transcript);
-        };
-
-        recognition.onend = () => {
-            setIsListening(false);
-        };
-
-        recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-            console.error("Speech recognition error:", event.error);
-            setIsListening(false);
-        };
-
-        recognitionRef.current = recognition;
-        recognition.start();
-        setIsListening(true);
-    }, [t]);
-
-    const stopListening = useCallback(() => {
-        if (recognitionRef.current) {
-            recognitionRef.current.stop();
-        }
-        setIsListening(false);
-    }, []);
-
-    const toggleListening = () => {
-        if (isListening) {
-            stopListening();
-        } else {
-            startListening();
-        }
-    };
-
-    // === TEXT-TO-SPEECH ===
-    const speak = (text: string, msgIndex: number) => {
-        if (typeof window === "undefined" || !window.speechSynthesis) return;
-
-        if (isSpeaking && speakingMsgIdx === msgIndex) {
-            window.speechSynthesis.cancel();
-            setIsSpeaking(false);
-            setSpeakingMsgIdx(null);
-            return;
-        }
-
-        window.speechSynthesis.cancel();
-
-        const cleanText = text
-            .replace(/[*_~`#]/g, "")
-            .replace(/\[.*?\]/g, "")
-            .replace(/💰|🦷|👋|🎤|📞|📅|✅|❗|⚠️|😊|👑|🧹|👶|✨/g, "")
-            .trim();
-
-        const utterance = new SpeechSynthesisUtterance(cleanText);
-        utterance.lang = "pl-PL";
-        utterance.rate = 0.95;
-        utterance.pitch = 1;
-
-        const voices = window.speechSynthesis.getVoices();
-        const polishVoice = voices.find((v) => v.lang.startsWith("pl"));
-        if (polishVoice) {
-            utterance.voice = polishVoice;
-        }
-
-        utterance.onstart = () => {
-            setIsSpeaking(true);
-            setSpeakingMsgIdx(msgIndex);
-        };
-        utterance.onend = () => {
-            setIsSpeaking(false);
-            setSpeakingMsgIdx(null);
-        };
-        utterance.onerror = () => {
-            setIsSpeaking(false);
-            setSpeakingMsgIdx(null);
-        };
-
-        window.speechSynthesis.speak(utterance);
-    };
-
-    useEffect(() => {
-        if (typeof window !== "undefined" && window.speechSynthesis) {
-            window.speechSynthesis.getVoices();
-            window.speechSynthesis.onvoiceschanged = () => {
-                window.speechSynthesis.getVoices();
-            };
-        }
-    }, []);
-
-    // === SEND MESSAGE ===
-    const sendMessage = async (text?: string) => {
-        const contentToSend = text || input;
-        if (!contentToSend.trim()) return;
-
-        const userMessage: Message = { role: "user", content: contentToSend };
-        setMessages((prev) => [...prev, userMessage]);
-        setInput("");
-        setIsLoading(true);
-
-        setTimeout(() => inputRef.current?.focus(), 50);
-
-        try {
-            const historyForApi = messages
-                .slice(-8)
-                .map((m) => ({ role: m.role, content: m.content }));
-
-            const { getAIChatExtras } = await import("@/lib/aiConsentClient");
-            const extras = getAIChatExtras();
-            const response = await fetch("/api/cennik-chat", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    messages: [...historyForApi, { role: "user", content: contentToSend }],
-                    ...extras,
-                }),
-            });
-
-            const data = await response.json();
-
-            if (response.ok) {
-                setMessages((prev) => [...prev, { role: "assistant", content: data.reply }]);
-            } else {
-                setMessages((prev) => [
-                    ...prev,
-                    { role: "assistant", content: t('errorTechnical') },
-                ]);
-            }
-        } catch {
-            setMessages((prev) => [
-                ...prev,
-                { role: "assistant", content: t('errorConnection') },
-            ]);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === "Enter" && !e.shiftKey) {
-            e.preventDefault();
-            sendMessage();
-        }
-    };
+/**
+ * /cennik — SEO-friendly hybrid (K-6, 2026-05-21 NIGHT+1).
+ *
+ * Architektura:
+ * - Server Component (SSR — Googlebot widzi wszystko):
+ *   • Hero (premium positioning, scroll-to-chat CTA)
+ *   • Kategorie grid 8 cards z widełkami "od X zł" + link do /oferta/[slug]
+ *   • FAQ cenowe accordion (8 Q&A, native <details>)
+ *   • Scroll anchor #asystent-ai dla CennikChat
+ * - Client Island <CennikChat /> — istniejący AI chat (bez zmian funkcjonalnych)
+ *
+ * Schema.org (w layout.tsx): Service entities (per kategoria) + OfferCatalog wrapper + FAQPage
+ *
+ * Filozofia D1=B (premium-only, zatwierdzone w K-0):
+ * - Bez konkretnych cen per zabieg
+ * - Widełki "od X zł" jako premium signal
+ * - User chcący konkretnej wyceny → CennikChat (5-10% deep-dive)
+ */
+export default async function CennikPage({ params }: { params: Promise<{ locale: string }> }) {
+    const { locale } = await params;
+    setRequestLocale(locale);
+    const t = await getTranslations({ locale, namespace: 'cennik' });
 
     return (
         <main className={styles.cennikPage}>
             <div className="container">
                 {/* Hero */}
-                <div className={styles.hero}>
-                    <h1 className={styles.heroTitle}>
-                        {t('heroTitle')} <span className={styles.heroAccent}>{t('heroAccent')}</span>
-                    </h1>
-                    <p className={styles.heroSubtitle}>
-                        {t('heroSubtitle')}
-                    </p>
-                </div>
-
-                {/* Category Pills */}
-                <div className={styles.categoriesRow}>
-                    {CATEGORIES.map((cat, i) => (
-                        <button
-                            key={i}
-                            className={styles.categoryPill}
-                            onClick={() => sendMessage(cat.query)}
-                        >
-                            {cat.label}
-                        </button>
-                    ))}
-                </div>
-
-                {/* Chat Container */}
-                <div className={styles.chatContainer}>
-                    {/* Header */}
-                    <div className={styles.chatHeader}>
-                        <span className={styles.chatHeaderIcon}>💰</span>
-                        <div>
-                            <h2 className={styles.chatHeaderTitle}>{t('chatTitle')}</h2>
-                            <p className={styles.chatHeaderSubtitle}>{t('chatSubtitle', brandI18nParams())}</p>
-                        </div>
-                        <div className={styles.onlineBadge} />
-                    </div>
-
-                    {/* Messages */}
-                    <div className={styles.messagesArea}>
-                        {messages.map((msg, index) => (
-                            <div
-                                key={index}
-                                className={`${styles.messageRow} ${msg.role === "user" ? styles.messageRowUser : styles.messageRowAssistant
-                                    }`}
+                <RevealOnScroll priority>
+                    <div className={styles.hero}>
+                        <h1 className={styles.heroTitle}>
+                            {t('heroTitle')} <span className={styles.heroAccent}>{t('heroAccent')}</span>
+                        </h1>
+                        <p className={styles.heroSubtitle}>
+                            {t('heroSubtitle')}
+                        </p>
+                        <p style={{
+                            color: 'var(--color-text-muted)',
+                            fontSize: '1rem',
+                            marginTop: 'var(--spacing-md)',
+                            maxWidth: '640px',
+                            marginLeft: 'auto',
+                            marginRight: 'auto',
+                            lineHeight: 1.6,
+                        }}>
+                            {t('heroDescription')}
+                        </p>
+                        <div style={{ marginTop: 'var(--spacing-md)' }}>
+                            <a
+                                href="#asystent-ai"
+                                style={{
+                                    display: 'inline-block',
+                                    background: 'var(--color-primary)',
+                                    color: 'var(--color-background)',
+                                    padding: '0.85rem 2rem',
+                                    fontSize: '1rem',
+                                    fontWeight: 600,
+                                    textDecoration: 'none',
+                                    borderRadius: '2px',
+                                    letterSpacing: '0.05em',
+                                    textTransform: 'uppercase',
+                                }}
                             >
-                                {msg.role === "assistant" && (
-                                    <span className={styles.avatarIcon}>🦷</span>
-                                )}
-                                <div>
-                                    <div
-                                        className={`${styles.messageBubble} ${msg.role === "user"
-                                            ? styles.messageBubbleUser
-                                            : styles.messageBubbleAssistant
-                                            }`}
-                                    >
-                                        {msg.content}
-                                    </div>
-                                    {/* TTS Button for assistant messages */}
-                                    {msg.role === "assistant" && index > 0 && (
-                                        <button
-                                            className={`${styles.ttsButton} ${isSpeaking && speakingMsgIdx === index
-                                                ? styles.ttsButtonActive
-                                                : ""
-                                                }`}
-                                            onClick={() => speak(msg.content, index)}
-                                            title={
-                                                isSpeaking && speakingMsgIdx === index
-                                                    ? t('stopSpeech')
-                                                    : t('readAloud')
-                                            }
-                                        >
-                                            {isSpeaking && speakingMsgIdx === index ? (
-                                                <>
-                                                    <VolumeX size={12} /> {t('stopLabel')}
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <Volume2 size={12} /> {t('readLabel')}
-                                                </>
-                                            )}
-                                        </button>
-                                    )}
-                                </div>
-                                {msg.role === "user" && (
-                                    <span className={styles.avatarIcon}>👤</span>
-                                )}
-                            </div>
-                        ))}
-
-                        {/* Typing indicator */}
-                        {isLoading && (
-                            <div className={styles.typingIndicator}>
-                                <span className={styles.avatarIcon}>🦷</span>
-                                <div className={styles.typingDots}>
-                                    <div className={styles.typingDot} />
-                                    <div className={styles.typingDot} />
-                                    <div className={styles.typingDot} />
-                                </div>
-                            </div>
-                        )}
-                        <div ref={messagesEndRef} />
-                    </div>
-
-                    {/* Suggestions (show only at start) */}
-                    {messages.length < 3 && (
-                        <div className={styles.suggestionsRow}>
-                            {QUICK_QUESTIONS.map((q, i) => (
-                                <button
-                                    key={i}
-                                    className={styles.suggestionChip}
-                                    onClick={() => sendMessage(q)}
-                                >
-                                    {q}
-                                </button>
-                            ))}
+                                {t('heroCta')}
+                            </a>
                         </div>
-                    )}
-
-                    {/* Input */}
-                    <div className={styles.inputArea}>
-                        <button
-                            className={`${styles.iconButton} ${styles.micButton} ${isListening ? styles.micButtonActive : ""
-                                }`}
-                            onClick={toggleListening}
-                            title={isListening ? t('stopRecording') : t('dictateQuestion')}
-                        >
-                            {isListening ? <MicOff size={20} /> : <Mic size={20} />}
-                        </button>
-                        <input
-                            ref={inputRef}
-                            className={styles.textInput}
-                            value={input}
-                            onChange={(e) => setInput(e.target.value)}
-                            onKeyDown={handleKeyDown}
-                            placeholder={isListening ? t('placeholderListening') : t('placeholderDefault')}
-                        />
-                        <button
-                            className={`${styles.iconButton} ${styles.sendButton}`}
-                            onClick={() => sendMessage()}
-                            disabled={isLoading || !input.trim()}
-                        >
-                            <Send size={20} />
-                        </button>
                     </div>
-                </div>
+                </RevealOnScroll>
 
-                {/* Disclaimer */}
-                <div className={styles.disclaimer}>
-                    <p className={styles.disclaimerText}>
-                        {t('disclaimer')}
+                {/* Kategorie usług grid */}
+                <section style={{ padding: 'var(--spacing-xl) 0' }}>
+                    <RevealOnScroll>
+                        <h2 style={{
+                            fontSize: 'clamp(1.6rem, 3.5vw, 2.2rem)',
+                            textAlign: 'center',
+                            color: 'var(--color-primary)',
+                            marginBottom: 'var(--spacing-sm)',
+                        }}>
+                            {t('categoriesHeading')}
+                        </h2>
+                        <p style={{
+                            color: 'var(--color-text-muted)',
+                            textAlign: 'center',
+                            fontSize: '1rem',
+                            marginBottom: 'var(--spacing-lg)',
+                            maxWidth: '720px',
+                            marginLeft: 'auto',
+                            marginRight: 'auto',
+                        }}>
+                            {t('categoriesIntro')}
+                        </p>
+                    </RevealOnScroll>
+
+                    <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                        gap: 'var(--spacing-md)',
+                    }}>
+                        {CENNIK_CATEGORIES.map((cat) => {
+                            const title = t(`${cat.i18nKey}.title`);
+                            const desc = t(`${cat.i18nKey}.desc`);
+                            const priceLabel = t(`${cat.i18nKey}.priceLabel`);
+                            const ctaLabel = cat.href ? t('categoryCtaDetails') : t('categoryCtaAsk');
+                            const badgeLabel = cat.badge ? t(`badge_${cat.badge}`) : null;
+
+                            const CardInner = (
+                                <article style={{
+                                    background: 'var(--color-surface)',
+                                    border: '1px solid var(--color-surface-hover)',
+                                    borderRadius: '4px',
+                                    padding: 'var(--spacing-md) var(--spacing-md) var(--spacing-md)',
+                                    height: '100%',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    transition: 'all 0.2s ease',
+                                    position: 'relative',
+                                }} className="cennik-category-card">
+                                    {badgeLabel && (
+                                        <div style={{
+                                            position: 'absolute',
+                                            top: '-10px',
+                                            right: 'var(--spacing-md)',
+                                            background: 'var(--color-primary)',
+                                            color: 'var(--color-background)',
+                                            padding: '0.2rem 0.6rem',
+                                            fontSize: '0.7rem',
+                                            fontWeight: 600,
+                                            letterSpacing: '0.08em',
+                                            textTransform: 'uppercase',
+                                            borderRadius: '2px',
+                                        }}>
+                                            {badgeLabel}
+                                        </div>
+                                    )}
+                                    <div style={{ fontSize: '2rem', marginBottom: 'var(--spacing-sm)', lineHeight: 1 }}>{cat.icon}</div>
+                                    <h3 style={{
+                                        fontSize: '1.2rem',
+                                        color: 'var(--color-text-main)',
+                                        marginBottom: 'var(--spacing-xs)',
+                                        fontWeight: 600,
+                                    }}>
+                                        {title}
+                                    </h3>
+                                    <p style={{
+                                        color: 'var(--color-text-muted)',
+                                        fontSize: '0.95rem',
+                                        lineHeight: 1.5,
+                                        marginBottom: 'var(--spacing-md)',
+                                        flex: 1,
+                                    }}>
+                                        {desc}
+                                    </p>
+                                    <div style={{
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center',
+                                        flexWrap: 'wrap',
+                                        gap: '0.5rem',
+                                        paddingTop: 'var(--spacing-sm)',
+                                        borderTop: '1px solid var(--color-surface-hover)',
+                                    }}>
+                                        <span style={{
+                                            color: 'var(--color-primary)',
+                                            fontWeight: 600,
+                                            fontSize: '1rem',
+                                        }}>
+                                            {priceLabel}
+                                        </span>
+                                        <span style={{
+                                            color: 'var(--color-text-muted)',
+                                            fontSize: '0.85rem',
+                                        }}>
+                                            {ctaLabel} →
+                                        </span>
+                                    </div>
+                                </article>
+                            );
+
+                            return cat.href ? (
+                                <Link key={cat.slug} href={cat.href} style={{ textDecoration: 'none', color: 'inherit' }}>
+                                    {CardInner}
+                                </Link>
+                            ) : (
+                                <a key={cat.slug} href="#asystent-ai" style={{ textDecoration: 'none', color: 'inherit' }}>
+                                    {CardInner}
+                                </a>
+                            );
+                        })}
+                    </div>
+
+                    <p style={{
+                        textAlign: 'center',
+                        color: 'var(--color-text-muted)',
+                        fontSize: '0.9rem',
+                        marginTop: 'var(--spacing-md)',
+                        fontStyle: 'italic',
+                    }}>
+                        {t('categoriesFootnote')}
                     </p>
-                </div>
+                </section>
+
+                {/* CennikChat (client island, anchor #asystent-ai wewnątrz komponentu) */}
+                <section style={{ padding: 'var(--spacing-lg) 0' }}>
+                    <RevealOnScroll>
+                        <h2 style={{
+                            fontSize: 'clamp(1.6rem, 3.5vw, 2.2rem)',
+                            textAlign: 'center',
+                            color: 'var(--color-primary)',
+                            marginBottom: 'var(--spacing-sm)',
+                        }}>
+                            {t('chatHeading')}
+                        </h2>
+                        <p style={{
+                            color: 'var(--color-text-muted)',
+                            textAlign: 'center',
+                            fontSize: '1rem',
+                            marginBottom: 'var(--spacing-lg)',
+                            maxWidth: '720px',
+                            marginLeft: 'auto',
+                            marginRight: 'auto',
+                        }}>
+                            {t('chatIntro')}
+                        </p>
+                    </RevealOnScroll>
+                    <CennikChat />
+                </section>
+
+                {/* FAQ cenowe (FAQPage schema w layout.tsx) */}
+                <section style={{ padding: 'var(--spacing-xl) 0' }}>
+                    <RevealOnScroll>
+                        <h2 style={{
+                            fontSize: 'clamp(1.6rem, 3.5vw, 2.2rem)',
+                            textAlign: 'center',
+                            color: 'var(--color-primary)',
+                            marginBottom: 'var(--spacing-sm)',
+                        }}>
+                            {t('faqHeading')}
+                        </h2>
+                        <p style={{
+                            color: 'var(--color-text-muted)',
+                            textAlign: 'center',
+                            fontSize: '1rem',
+                            marginBottom: 'var(--spacing-lg)',
+                            maxWidth: '640px',
+                            marginLeft: 'auto',
+                            marginRight: 'auto',
+                        }}>
+                            {t('faqIntro')}
+                        </p>
+                    </RevealOnScroll>
+
+                    <div style={{ maxWidth: '820px', margin: '0 auto' }}>
+                        {Array.from({ length: CENNIK_FAQ_COUNT }, (_, i) => i + 1).map((n) => (
+                            <details
+                                key={n}
+                                style={{
+                                    background: 'var(--color-surface)',
+                                    border: '1px solid var(--color-surface-hover)',
+                                    borderRadius: '4px',
+                                    marginBottom: 'var(--spacing-sm)',
+                                    padding: 'var(--spacing-sm) var(--spacing-md)',
+                                }}
+                            >
+                                <summary style={{
+                                    fontWeight: 600,
+                                    color: 'var(--color-text-main)',
+                                    cursor: 'pointer',
+                                    listStyle: 'none',
+                                    fontSize: '1rem',
+                                    paddingRight: 'var(--spacing-sm)',
+                                }}>
+                                    {t(`faqQ${n}`)}
+                                </summary>
+                                <p style={{
+                                    color: 'var(--color-text-muted)',
+                                    fontSize: '0.95rem',
+                                    lineHeight: 1.6,
+                                    marginTop: 'var(--spacing-sm)',
+                                    paddingTop: 'var(--spacing-sm)',
+                                    borderTop: '1px solid var(--color-surface-hover)',
+                                }}>
+                                    {t(`faqA${n}`)}
+                                </p>
+                            </details>
+                        ))}
+                    </div>
+                </section>
             </div>
         </main>
     );

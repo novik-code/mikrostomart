@@ -240,7 +240,77 @@
         "cat4": "👶 Kinder",
         "cat4q": "Kinderzahnheilkunde Preisliste",
         "cat5": "✨ Kieferorthopädie",
-        "cat5q": "Was kostet eine Aligner-Behandlung?"
+        "cat5q": "Was kostet eine Aligner-Behandlung?",
+        "heroDescription": "Die Kosten jeder Behandlung hängen von der individuellen klinischen Situation, den Materialien und dem Protokoll ab. Unten finden Sie die Preisspannen für die Hauptkategorien der Dienstleistungen. Für eine konkrete Kostenschätzung laden wir Sie ein, unseren AI-Assistenten zu kontaktieren oder eine Beratung zu vereinbaren.",
+        "heroCta": "Fragen Sie nach einem Kostenvoranschlag",
+        "categoriesHeading": "Dienstleistungskategorien",
+        "categoriesIntro": "Die Preisspannen „ab X PLN\" zeigen den Einstiegspreis in der jeweiligen Kategorie. Der konkrete Preis hängt vom Umfang der Arbeit, den Materialien (z. B. Keramik vs. Zirkon) und dem klinischen Protokoll ab. Klicken Sie auf die Karte für Details oder fragen Sie den Assistenten.",
+        "categoriesFootnote": "Die Preise gelten ab 2026. Preisanpassungen werden 30 Tage im Voraus bekannt gegeben.",
+        "categoryCtaDetails": "Details ansehen",
+        "categoryCtaAsk": "Fragen Sie nach einem Kostenvoranschlag",
+        "badge_popular": "Beliebteste",
+        "badge_new": "Neuheit",
+        "catKonsultacja": {
+            "title": "Beratung und Diagnostik",
+            "desc": "Erster Besuch, Behandlungsplan, Röntgendiagnostik/CBCT, Zweitmeinung. Ausgangspunkt jeder Therapie — wir sammeln die Anamnese, machen Fotos und präsentieren Behandlungsoptionen.",
+            "priceLabel": "ab 250 PLN"
+        },
+        "catZachowawcza": {
+            "title": "Erhaltungszahnmedizin",
+            "desc": "Komposite Füllungen, ästhetisches Bonding, Kariesbehandlung unter dem Mikroskop. Premium-Materialien (3M Filtek, GC G-aenial) und moderne Adhäsionsprotokolle.",
+            "priceLabel": "ab 400 PLN"
+        },
+        "catEndodoncja": {
+            "title": "Mikroskopische Endodontie",
+            "desc": "Wurzelkanalbehandlung unter dem ZEISS Extaro Mikroskop, PIPS/SWEEPS Laser, Re-Endodontie schwieriger Fälle. Spezialität von Dr. Nowosielski — Curriculum PTE + ESE.",
+            "priceLabel": "ab 800 PLN"
+        },
+        "catImplantologia": {
+            "title": "Digitale Implantologie",
+            "desc": "Implantat + keramische Krone unter Kontrolle einer chirurgischen Schablone (guided surgery). All-on-4, Knochenregeneration, PRF. RWTH Aachen + Oral Surgery Academy.",
+            "priceLabel": "ab 4800 PLN"
+        },
+        "catEstetyczna": {
+            "title": "Ästhetische Zahnmedizin",
+            "desc": "Porzellanveneers (E.max), In-Office und Home-Bleaching, Komposit-Bonding, Digital Smile Design. Natürlicher Effekt — kein „Hollywood Smile auf Zwang\".",
+            "priceLabel": "ab 500 PLN"
+        },
+        "catOrtodoncja": {
+            "title": "Clear Correct Kieferorthopädie",
+            "desc": "Unsichtbare transparente Schienen (Clear Correct), Korrektur von Zahnfehlstellungen von leicht bis mittel, 3D-Simulation des Endergebnisses vor Beginn.",
+            "priceLabel": "ab 8000 PLN"
+        },
+        "catHigienizacja": {
+            "title": "Hygiene und Prävention",
+            "desc": "Professionelle Hygiene (Scaling + EMS Airflow Sandstrahlen + Polieren), Fluoridierung, Versiegelung, Schulung zur häuslichen Hygiene. Durchgeführt von der zahnärztlichen Hygienikerin Elżbieta Nowosielska.",
+            "priceLabel": "ab 380 PLN"
+        },
+        "catChirurgia": {
+            "title": "Zahnchirurgie",
+            "desc": "Extraktionen (einschließlich Weisheitszähne unter CBCT), mikrochirurgische Apikoektomien, Frenektomien mit Er:YAG-Laser, PRF, Ozontherapie. Sedierung mit Lachgas verfügbar.",
+            "priceLabel": "ab 400 PLN"
+        },
+        "chatHeading": "Fragen Sie nach Ihrem Kostenvoranschlag",
+        "chatIntro": "Der AI-Assistent kennt unsere Preisliste 2026 und die klinischen Protokolle. Beschreiben Sie Ihre Situation, und Sie erhalten einen individuellen Kostenvoranschlag mit Materialoptionen. Dies ersetzt keine Beratung, hilft aber, das Budget zu planen.",
+        "faqHeading": "Häufig gestellte Fragen",
+        "faqIntro": "Antworten auf Fragen zu Zahlungen, Raten, Anzahlungen und was den Endpreis der Behandlung beeinflusst.",
+        "faqQ1": "Wie viel kostet der erste Besuch und was kann ich erwarten?",
+        "faqA1": "Der erste Besuch ist eine diagnostische Beratung ab 250 PLN — umfasst die medizinische Anamnese, klinische Untersuchung, Röntgen (panoramisches oder punktuelles Bild) sowie die Präsentation eines Behandlungsplans mit Preisspannen. Wenn ein CBCT erforderlich ist (z. B. vor einem Implantat), fallen zusätzlich 400-500 PLN an. Nach dem ersten Besuch erhalten Sie einen schriftlichen Plan mit konkreten Positionen und Terminen.",
+        "faqQ2": "Bieten Sie Raten oder aufgeschobene Zahlungen an?",
+        "faqA2": "Ja — größere Behandlungen (Implantat, Kieferorthopädie, Vollmouth-Rehabilitation) können in 0%-Raten über Mediraty (bis zu 12 Monate) oder individuell vereinbarte interne Raten bei uns (bis zu 6 Monate ohne zusätzliche Kosten für Stammkunden) aufgeteilt werden. Details besprechen wir nach dem ersten Besuch zusammen mit dem Behandlungsplan.",
+        "faqQ3": "Wann ist eine Anzahlung erforderlich und wie hoch ist sie?",
+        "faqA3": "Eine Anzahlung von 200 PLN wird bei der Buchung eines Termins, der länger als 60 Minuten dauert (lange Wurzelkanalbehandlung, Implantat, Chirurgie), erhoben — wir sichern die reservierte Zeit des Arztes. Die Anzahlung wird vollständig auf die Behandlung angerechnet oder bei Stornierung des Termins mit 48 Stunden Vorlauf zurückerstattet.",
+        "faqQ4": "Was beeinflusst den Endpreis der Behandlung?",
+        "faqA4": "Drei Hauptfaktoren: (1) Umfang der Arbeit — z. B. eine einflächige Füllung vs. eine composite Teilrekonstruktion, (2) Material — z. B. metallkeramische Krone vs. E.max vs. transluzenter Zirkon, (3) klinische Schwierigkeit — z. B. Re-Endodontie eines Zahns 7 mit 4 Kanälen ist zeitaufwendiger als die Endo eines Zahns 11. Daher geben wir anstelle eines starren Preises Spannen an, und den genauen Preis nach der Untersuchung.",
+        "faqQ5": "Ist der Online-Kostenvoranschlag (durch den AI-Assistenten) verbindlich?",
+        "faqA5": "Nein — es handelt sich um einen orientierenden Kostenvoranschlag basierend auf typischen Fällen. Ein verbindlicher Kostenvoranschlag entsteht nach der klinischen Untersuchung und Röntgen, da wir oft Dinge sehen, die für den Patienten unsichtbar sind (z. B. versteckte Karies, Mikrorisse, apikale Veränderungen). Der AI-Assistent hilft, das Budget zu planen und sich auf die Beratung vorzubereiten.",
+        "faqQ6": "Sind die Preise inklusive Anästhesie?",
+        "faqA6": "Ja — alle Behandlungen umfassen eine lokale Anästhesie (meistens das The Wand-System — computergestützt dosiert, nahezu unspürbar). Zusätzliche Sedierungsoptionen (Lachgas „Wohlfühlgas\" 150 PLN, pharmakologische Premedikation 80 PLN) werden separat berechnet, falls der Patient diese benötigt oder wünscht.",
+        "faqQ7": "Stellen Sie Rechnungen auf den Namen für die Erstattung durch die Versicherung aus?",
+        "faqA7": "Ja — wir stellen Rechnungen auf den Namen mit der PWZ-Nummer des Arztes, ICD-10-Code und einer Beschreibung der Behandlung gemäß den Anforderungen der Versicherer aus (Allianz Care, Medicover, LUX MED, private ausländische Policen). Für Patienten aus Deutschland — Rechnungen gemäß BEMA/GOZ (zur Erstattung durch die Krankenkasse bis zur Höhe der polnischen Sätze).",
+        "faqQ8": "Kann ich vor dem ersten Besuch einen Kostenvoranschlag erhalten?",
+        "faqA8": "Ja — über den AI-Assistenten unten (24/7 verfügbar) oder telefonisch während der Öffnungszeiten der Rezeption. Für Kostenvoranschläge, die eine Analyse von Bildern erfordern (Röntgenbilder vom vorherigen Zahnarzt, intraorale Bilder), kontaktieren Sie uns bitte über das Formular auf /kontakt — wir antworten innerhalb von 24 Arbeitsstunden.",
+        "schemaOfferCatalogName": "Preisliste für zahnärztliche Dienstleistungen Mikrostomart Opole"
     },
     "faq": {
         "tagline": "Wissensdatenbank",

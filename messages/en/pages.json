@@ -240,7 +240,77 @@
         "cat4": "👶 Children",
         "cat4q": "Paediatric dentistry pricing",
         "cat5": "✨ Orthodontics",
-        "cat5q": "How much does clear aligner orthodontics cost?"
+        "cat5q": "How much does clear aligner orthodontics cost?",
+        "heroDescription": "The price of each treatment depends on the individual clinical situation, materials, and protocol. Below you will find price ranges for the main categories of services. For a specific quote, please consult our AI assistant or schedule a consultation.",
+        "heroCta": "Request a quote",
+        "categoriesHeading": "Service Categories",
+        "categoriesIntro": "The price ranges 'from X PLN' indicate the entry point for a given category. The specific price depends on the scope of work, materials (e.g., ceramic vs zirconia), and clinical protocol. For details, click on the tab or ask the assistant.",
+        "categoriesFootnote": "Prices are valid from 2026. Price list updates are announced 30 days in advance.",
+        "categoryCtaDetails": "See details",
+        "categoryCtaAsk": "Request a quote",
+        "badge_popular": "Most Popular",
+        "badge_new": "New",
+        "catKonsultacja": {
+            "title": "Consultation and Diagnosis",
+            "desc": "First visit, treatment plan, X-ray/CBCT diagnostics, second opinion. The starting point for any therapy — we collect history, take photos, and present treatment options.",
+            "priceLabel": "from 250 PLN"
+        },
+        "catZachowawcza": {
+            "title": "Conservative Dentistry",
+            "desc": "Composite fillings, aesthetic bonding, treatment of caries under a microscope. Premium materials (3M Filtek, GC G-aenial) and next-generation adhesive protocols.",
+            "priceLabel": "from 400 PLN"
+        },
+        "catEndodoncja": {
+            "title": "Microscopic Endodontics",
+            "desc": "Root canal treatment under ZEISS Extaro microscope, PIPS/SWEEPS lasers, re-endodontics for difficult cases. Specialty of Dr. Nowosielski — PTE + ESE Curriculum.",
+            "priceLabel": "from 800 PLN"
+        },
+        "catImplantologia": {
+            "title": "Digital Implantology",
+            "desc": "Implant + ceramic crown under the guidance of a surgical template (guided surgery). All-on-4, bone regeneration, PRF. RWTH Aachen + Oral Surgery Academy.",
+            "priceLabel": "from 4800 PLN"
+        },
+        "catEstetyczna": {
+            "title": "Aesthetic Dentistry",
+            "desc": "Porcelain veneers (E.max), in-office and at-home whitening, composite bonding, Digital Smile Design. Natural effect — not a forced 'Hollywood Smile'.",
+            "priceLabel": "from 500 PLN"
+        },
+        "catOrtodoncja": {
+            "title": "Clear Correct Orthodontics",
+            "desc": "Invisible clear aligners (Clear Correct), correction of malocclusions from mild to moderately advanced, 3D simulation of the final effect before starting.",
+            "priceLabel": "from 8000 PLN"
+        },
+        "catHigienizacja": {
+            "title": "Hygiene and Prevention",
+            "desc": "Professional hygiene (scaling + EMS Airflow sandblasting + polishing), fluoridation, sealing, home hygiene education. Conducted by dental hygienist Elżbieta Nowosielska.",
+            "priceLabel": "from 380 PLN"
+        },
+        "catChirurgia": {
+            "title": "Dental Surgery",
+            "desc": "Extractions (including wisdom teeth under CBCT), microsurgical apicoectomies, laser frenectomies with Er:YAG, PRF, ozone therapy. Nitrous oxide sedation available.",
+            "priceLabel": "from 400 PLN"
+        },
+        "chatHeading": "Ask for your quote",
+        "chatIntro": "The AI assistant knows our 2026 price list and clinical protocols. Describe your situation, and you will receive a personalized quote with material options. This does not replace a consultation but helps plan your budget.",
+        "faqHeading": "Frequently Asked Questions",
+        "faqIntro": "Answers to questions about payments, installments, deposits, and what affects the final price of the treatment.",
+        "faqQ1": "How much does the first visit cost and what can I expect?",
+        "faqA1": "The first visit is a diagnostic consultation starting from 250 PLN — it includes a medical history interview, clinical examination, X-ray (panoramic or point), and presentation of a treatment plan with price ranges. If CBCT is required (e.g., before an implant), it costs an additional 400-500 PLN. After the first visit, you will receive a written plan with specific items and dates.",
+        "faqQ2": "Do you offer installments or deferred payments?",
+        "faqA2": "Yes — larger treatments (implant, orthodontics, full mouth rehabilitation) can be spread over 0% installments through Mediraty (up to 12 months) or individually arranged internal installments with us (up to 6 months without additional costs for regular patients). Details are discussed after the first visit along with the treatment plan.",
+        "faqQ3": "When is a deposit required and how much is it?",
+        "faqA3": "A deposit of 200 PLN is collected when booking an appointment lasting over 60 minutes (long root canal treatment, implant, surgery) — we secure the reserved time of the doctor. The deposit is fully credited towards the treatment or refunded in case of cancellation with 48 hours' notice.",
+        "faqQ4": "What affects the final price of the treatment?",
+        "faqA4": "Three main factors: (1) scope of work — e.g., single-surface filling vs composite reconstruction of half a tooth, (2) material — e.g., metal-ceramic crown vs E.max vs translucent zirconia, (3) clinical difficulty — e.g., re-endodontics of tooth 7 with 4 canals is more time-consuming than endo of tooth 11. Therefore, instead of a rigid price list, we provide ranges, and the exact price after examination.",
+        "faqQ5": "Is the online quote (via AI assistant) binding?",
+        "faqA5": "No — it is an approximate quote based on typical cases. A binding quote is created after a clinical examination and X-ray, as we often see things not visible to the patient (e.g., hidden caries, microfractures, periapical changes). The AI assistant helps plan the budget and prepare for the consultation.",
+        "faqQ6": "Do the prices include anesthesia?",
+        "faqA6": "Yes — all treatments include local anesthesia (most often the The Wand system — computer-dosed, almost imperceptible). Additional sedation options (nitrous oxide 'laughing gas' 150 PLN, pharmacological premedication 80 PLN) are priced separately if the patient needs or requests them.",
+        "faqQ7": "Do you issue invoices for insurance reimbursement?",
+        "faqA7": "Yes — we issue named invoices with the doctor's PWZ number, ICD-10 code, and procedure description in accordance with insurer requirements (Allianz Care, Medicover, LUX MED, private foreign policies). For patients from Germany — invoices compliant with BEMA/GOZ (for reimbursement from health insurance up to Polish rates).",
+        "faqQ8": "Can I get an estimated quote before the first visit?",
+        "faqA8": "Yes — through the AI assistant below (available 24/7) or by phone during reception hours. For quotes requiring analysis of images (X-rays from the previous dentist, intraoral images), please contact us via the form at /contact — we respond within 24 working hours.",
+        "schemaOfferCatalogName": "Mikrostomart Dental Services Price List Opole"
     },
     "faq": {
         "tagline": "Knowledge Base",

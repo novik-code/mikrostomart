@@ -279,7 +279,83 @@
         "cat4": "👶 Dzieci",
         "cat4q": "Cennik stomatologii dziecięcej",
         "cat5": "✨ Ortodoncja",
-        "cat5q": "Ile kosztuje ortodoncja nakładkowa?"
+        "cat5q": "Ile kosztuje ortodoncja nakładkowa?",
+
+        "heroDescription": "Cena każdego zabiegu zależy od indywidualnej sytuacji klinicznej, materiałów i protokołu. Poniżej znajdziesz widełki cenowe dla głównych kategorii usług. Po konkretną wycenę zapraszamy do asystenta AI lub na konsultację.",
+        "heroCta": "Zapytaj o wycenę",
+        "categoriesHeading": "Kategorie usług",
+        "categoriesIntro": "Widełki „od X zł\" pokazują punkt wejścia w danej kategorii. Konkretna cena zależy od zakresu pracy, materiałów (np. ceramika vs cyrkon) i protokołu klinicznego. Po szczegóły kliknij kartę lub zapytaj asystenta.",
+        "categoriesFootnote": "Ceny obowiązują od 2026 roku. Aktualizacje cennika ogłaszamy z 30-dniowym wyprzedzeniem.",
+        "categoryCtaDetails": "Zobacz szczegóły",
+        "categoryCtaAsk": "Zapytaj o wycenę",
+        "badge_popular": "Najpopularniejsze",
+        "badge_new": "Nowość",
+
+        "catKonsultacja": {
+            "title": "Konsultacja i diagnostyka",
+            "desc": "Pierwsza wizyta, plan leczenia, diagnostyka RTG/CBCT, druga opinia. Punkt startu każdej terapii — zbieramy historię, robimy zdjęcia i przedstawiamy opcje leczenia.",
+            "priceLabel": "od 250 zł"
+        },
+        "catZachowawcza": {
+            "title": "Stomatologia zachowawcza",
+            "desc": "Plomby kompozytowe, bonding estetyczny, leczenie próchnicy pod mikroskopem. Materiały premium (3M Filtek, GC G-aenial) i protokoły adhezyjne nowej generacji.",
+            "priceLabel": "od 400 zł"
+        },
+        "catEndodoncja": {
+            "title": "Endodoncja mikroskopowa",
+            "desc": "Leczenie kanałowe pod mikroskopem ZEISS Extaro, lasery PIPS/SWEEPS, re-endodoncja trudnych przypadków. Specjalność dr Nowosielskiego — Curriculum PTE + ESE.",
+            "priceLabel": "od 800 zł"
+        },
+        "catImplantologia": {
+            "title": "Implantologia cyfrowa",
+            "desc": "Implant + korona ceramiczna pod kontrolą szablonu chirurgicznego (guided surgery). All-on-4, regeneracja kości, PRF. RWTH Aachen + Oral Surgery Academy.",
+            "priceLabel": "od 4800 zł"
+        },
+        "catEstetyczna": {
+            "title": "Stomatologia estetyczna",
+            "desc": "Licówki porcelanowe (E.max), wybielanie in-office i nakładkowe, bonding kompozytowy, Digital Smile Design. Naturalny efekt — nie „Hollywood Smile na siłę\".",
+            "priceLabel": "od 500 zł"
+        },
+        "catOrtodoncja": {
+            "title": "Ortodoncja Clear Correct",
+            "desc": "Niewidoczne nakładki przezroczyste (Clear Correct), korekta wad zgryzu od lekkich do średnio-zaawansowanych, simulacja 3D efektu końcowego przed startem.",
+            "priceLabel": "od 8000 zł"
+        },
+        "catHigienizacja": {
+            "title": "Higienizacja i profilaktyka",
+            "desc": "Profesjonalna higienizacja (skaling + piaskowanie EMS Airflow + polerowanie), fluoryzacja, lakowanie, edukacja domowej higieny. Prowadzona przez hig. stom. Elżbietę Nowosielską.",
+            "priceLabel": "od 380 zł"
+        },
+        "catChirurgia": {
+            "title": "Chirurgia stomatologiczna",
+            "desc": "Ekstrakcje (w tym ósemki pod CBCT), apicoektomie mikrochirurgiczne, frenektomie laserem Er:YAG, PRF, ozonoterapia. Sedacja podtlenkiem azotu dostępna.",
+            "priceLabel": "od 400 zł"
+        },
+
+        "chatHeading": "Zapytaj o swoją wycenę",
+        "chatIntro": "Asystent AI zna nasz cennik 2026 i protokoły kliniczne. Opisz sytuację, a otrzymasz indywidualną wycenę z opcjami materiałowymi. To nie zastępuje konsultacji, ale pomaga zaplanować budżet.",
+
+        "faqHeading": "Najczęściej zadawane pytania",
+        "faqIntro": "Odpowiedzi na pytania o płatności, raty, zaliczki i to, co wpływa na końcową cenę zabiegu.",
+
+        "faqQ1": "Ile kosztuje pierwsza wizyta i czego się spodziewać?",
+        "faqA1": "Pierwsza wizyta to konsultacja diagnostyczna od 250 zł — obejmuje wywiad medyczny, badanie kliniczne, RTG (zdjęcie panoramiczne lub punktowe) oraz przedstawienie planu leczenia z widełkami cenowymi. Jeśli wymagana jest CBCT (np. przed implantem), to dodatkowo 400-500 zł. Po pierwszej wizycie dostajesz pisemny plan z konkretnymi pozycjami i terminami.",
+        "faqQ2": "Czy oferujecie raty lub odroczone płatności?",
+        "faqA2": "Tak — większe zabiegi (implant, ortodoncja, full mouth rehabilitation) można rozłożyć na raty 0% przez Mediraty (do 12 miesięcy) lub indywidualnie ustaloną raty wewnętrzną u nas (do 6 miesięcy bez dodatkowych kosztów dla stałych pacjentów). Szczegóły omawiamy po pierwszej wizycie wraz z planem leczenia.",
+        "faqQ3": "Kiedy wymagany jest zadatek i ile wynosi?",
+        "faqA3": "Zadatek 200 zł pobieramy przy rezerwacji wizyty trwającej powyżej 60 minut (długie leczenie kanałowe, implant, chirurgia) — zabezpieczamy zarezerwowany czas lekarza. Zadatek jest w pełni zaliczany na poczet zabiegu lub zwracany w przypadku odwołania wizyty z 48-godzinnym wyprzedzeniem.",
+        "faqQ4": "Co wpływa na końcową cenę zabiegu?",
+        "faqA4": "Trzy główne czynniki: (1) zakres pracy — np. plomba jednopowierzchniowa vs odbudowa kompozytowa pół zęba, (2) materiał — np. korona metaloceramiczna vs E.max vs cyrkon translucentny, (3) trudność kliniczna — np. re-endodoncja zęba 7 z 4 kanałami jest bardziej czasochłonna niż endo zęba 11. Dlatego zamiast sztywnego cennika podajemy widełki, a dokładną cenę po badaniu.",
+        "faqQ5": "Czy wycena online (przez asystenta AI) jest wiążąca?",
+        "faqA5": "Nie — to orientacyjna wycena na podstawie typowych przypadków. Wiążąca wycena powstaje po badaniu klinicznym i RTG, ponieważ często widzimy rzeczy niewidoczne dla pacjenta (np. ukryta próchnica, mikropęknięcie, zmiana przyszczytowa). Asystent AI pomaga zaplanować budżet i przygotować się do konsultacji.",
+        "faqQ6": "Czy ceny zawierają znieczulenie?",
+        "faqA6": "Tak — wszystkie zabiegi obejmują znieczulenie miejscowe (najczęściej system The Wand — komputerowo dawkowane, niemal niewyczuwalne). Dodatkowe opcje sedacji (podtlenek azotu „gaz rozweselający\" 150 zł, premedykacja farmakologiczna 80 zł) wyceniane osobno, jeśli pacjent ich potrzebuje lub życzy.",
+        "faqQ7": "Czy wystawiacie rachunki imienne na zwrot z ubezpieczenia?",
+        "faqA7": "Tak — wystawiamy rachunki imienne z numerem PWZ lekarza, kodem ICD-10 i opisem zabiegu zgodnym z wymogami ubezpieczycieli (Allianz Care, Medicover, LUX MED, prywatne polisy zagraniczne). Dla pacjentów z Niemiec — rachunki zgodne z BEMA/GOZ (do refundacji z kasy chorych do wysokości polskich stawek).",
+        "faqQ8": "Czy mogę dostać szacunkową wycenę przed pierwszą wizytą?",
+        "faqA8": "Tak — przez asystenta AI poniżej (dostępny 24/7) lub telefonicznie w godzinach pracy recepcji. Dla wycen wymagających analizy zdjęć (RTG od poprzedniego dentysty, intra-oralne zdjęcia) skontaktuj się przez formularz na /kontakt — odpowiadamy w ciągu 24 godzin roboczych.",
+
+        "schemaOfferCatalogName": "Cennik usług stomatologicznych Mikrostomart Opole"
     },
     "faq": {
         "tagline": "Baza Wiedzy",
